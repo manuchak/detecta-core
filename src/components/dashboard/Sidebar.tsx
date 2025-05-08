@@ -1,6 +1,6 @@
 
 import { cn } from "@/lib/utils";
-import { useMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -28,7 +28,7 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const { pathname } = useLocation();
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();  // Fixed from useMobile to useIsMobile
   const { userRole } = useAuth();
   
   const isAdmin = userRole === 'admin' || userRole === 'owner';

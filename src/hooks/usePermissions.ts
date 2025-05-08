@@ -1,4 +1,3 @@
-
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,17 +13,19 @@ export const usePermissions = () => {
     queryFn: async () => {
       if (!user) return null;
       
-      // Try to get role from RPC function
-      const { data, error } = await supabase.rpc('get_user_role', {
-        user_uid: user.id
-      });
+      // Get user role from user_roles table
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
       
       if (error) {
         console.error('Error getting user role:', error);
         return null;
       }
       
-      return data;
+      return data?.role || null;
     },
     enabled: !!user,
   });
@@ -40,35 +41,52 @@ export const usePermissions = () => {
   const hasRole = async (requiredRole: string): Promise<boolean> => {
     if (!user) return false;
     
-    const { data, error } = await supabase.rpc('has_role', {
-      user_uid: user.id,
-      required_role: requiredRole
-    });
+    // Use direct query instead of RPC
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single();
     
     if (error) {
       console.error('Error checking role:', error);
       return false;
     }
     
-    return data;
+    if (!data?.role) return false;
+    
+    // Owner can do anything
+    if (data.role === 'owner') return true;
+    
+    // Admin can do anything except owner-specific tasks
+    if (data.role === 'admin' && requiredRole !== 'owner') return true;
+    
+    // Otherwise, check exact match
+    return data.role === requiredRole;
   };
 
   // Check if user has a specific permission
   const hasPermission = async (permissionType: string, permissionId: string): Promise<boolean> => {
-    if (!user) return false;
+    if (!user || !userRole) return false;
     
-    const { data, error } = await supabase.rpc('user_has_permission', {
-      user_uid: user.id,
-      permission_type: permissionType,
-      permission_id: permissionId
-    });
+    // Owner always has all permissions
+    if (userRole === 'owner') return true;
+    
+    // Check if the role has the specific permission
+    const { data, error } = await supabase
+      .from('role_permissions')
+      .select('allowed')
+      .eq('role', userRole)
+      .eq('permission_type', permissionType)
+      .eq('permission_id', permissionId)
+      .single();
     
     if (error) {
       console.error('Error checking permission:', error);
       return false;
     }
     
-    return data;
+    return data?.allowed || false;
   };
 
   return {

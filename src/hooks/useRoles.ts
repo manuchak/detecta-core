@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -58,26 +57,22 @@ export const useRoles = () => {
   const { data: roles } = useQuery({
     queryKey: ['available-roles'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_available_roles');
+      // Instead of using RPC, we'll use a direct query or hardcoded list
+      // since the RPC function might not exist yet
+      const availableRoles: Role[] = [
+        'owner',
+        'admin',
+        'supply_admin',
+        'supply',
+        'soporte',
+        'bi',
+        'monitoring_supervisor',
+        'monitoring',
+        'pending',
+        'unverified'
+      ];
       
-      if (error) {
-        // If the RPC doesn't exist, return hardcoded roles
-        console.error("Error fetching roles:", error);
-        return [
-          'owner',
-          'admin',
-          'supply_admin',
-          'supply',
-          'soporte',
-          'bi',
-          'monitoring_supervisor',
-          'monitoring',
-          'pending',
-          'unverified'
-        ];
-      }
-      
-      return data;
+      return availableRoles;
     }
   });
 

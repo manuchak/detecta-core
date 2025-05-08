@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useRoles, UserWithRole, Role } from '@/hooks/useRoles';
 import { 
@@ -135,7 +134,7 @@ export const UserRoleManager = () => {
                             <SelectValue placeholder="Seleccionar rol" />
                           </SelectTrigger>
                           <SelectContent>
-                            {roles?.map((role) => (
+                            {Array.isArray(roles) && roles.map((role) => (
                               <SelectItem key={role} value={role}>{role}</SelectItem>
                             ))}
                           </SelectContent>

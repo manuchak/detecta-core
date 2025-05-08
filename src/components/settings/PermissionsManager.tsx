@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useRoles, Role } from '@/hooks/useRoles';
 import { 
@@ -194,11 +193,11 @@ export const PermissionsManager = () => {
       <CardContent>
         <Tabs defaultValue="admin" value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid grid-cols-5 mb-4">
-            {roles?.slice(0, 5).map((role) => (
+            {Array.isArray(roles) && roles.slice(0, 5).map((role) => (
               <TabsTrigger key={role} value={role}>{role}</TabsTrigger>
             ))}
           </TabsList>
-          {roles?.map((role) => (
+          {Array.isArray(roles) && roles.map((role) => (
             <TabsContent key={role} value={role}>
               {permissions && permissions[role] ? (
                 Object.entries(groupPermissionsByType(permissions[role])).map(([type, typePermissions]) => (
