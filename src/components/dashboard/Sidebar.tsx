@@ -6,10 +6,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Link, useLocation } from "react-router-dom";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   BarChartBig,
   ChevronLeft,
   ChevronRight,
-  ClipboardListIcon,
   FileBarChart2,
   HelpCircle,
   HomeIcon,
@@ -133,62 +138,6 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     ] : []),
   ];
 
-  const renderLinks = (links: typeof sidebarLinks) => {
-    return links.map((link) => {
-      // Regular link if no submenu
-      if (!link.submenu) {
-        return (
-          <Link
-            key={link.href}
-            to={link.href}
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground",
-              link.isActive && "bg-accent text-accent-foreground"
-            )}
-          >
-            <link.icon className="h-4 w-4" />
-            {isOpen && <span>{link.title}</span>}
-          </Link>
-        );
-      }
-      
-      // Main link with submenu
-      return (
-        <div key={link.href} className="space-y-1">
-          <Link
-            to={link.href}
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground",
-              (link.isActive || (link.submenu && link.submenu.some((item) => item.isActive))) && 
-                "bg-accent text-accent-foreground"
-            )}
-          >
-            <link.icon className="h-4 w-4" />
-            {isOpen && <span>{link.title}</span>}
-          </Link>
-          
-          {/* Submenu items - only show if sidebar is open */}
-          {isOpen && link.submenu && (
-            <div className="pl-6 space-y-1">
-              {link.submenu.map((sublink) => (
-                <Link
-                  key={sublink.href}
-                  to={sublink.href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-all hover:text-foreground",
-                    sublink.isActive && "bg-muted text-foreground"
-                  )}
-                >
-                  <span>{sublink.title}</span>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      );
-    });
-  };
-
   // Mobile sidebar with sheet
   if (isMobile) {
     return (
@@ -203,7 +152,59 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             </div>
             <ScrollArea className="flex-1 px-2 py-4">
               <div className="flex flex-col gap-1">
-                {renderLinks(sidebarLinks)}
+                {sidebarLinks.map((link) => {
+                  // No submenu case
+                  if (!link.submenu) {
+                    return (
+                      <Link
+                        key={link.href}
+                        to={link.href}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground",
+                          link.isActive && "bg-accent text-accent-foreground"
+                        )}
+                      >
+                        <link.icon className="h-4 w-4" />
+                        <span>{link.title}</span>
+                      </Link>
+                    );
+                  }
+                  
+                  // With submenu case - using Accordion for mobile
+                  return (
+                    <Accordion type="single" collapsible key={link.href}>
+                      <AccordionItem value={link.title} className="border-none">
+                        <AccordionTrigger 
+                          className={cn(
+                            "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground",
+                            (link.submenu.some(item => item.isActive)) && "text-accent-foreground"
+                          )}
+                        >
+                          <div className="flex items-center gap-3">
+                            <link.icon className="h-4 w-4" />
+                            <span>{link.title}</span>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="pt-1 pb-0">
+                          <div className="pl-6 space-y-1">
+                            {link.submenu.map((sublink) => (
+                              <Link
+                                key={sublink.href}
+                                to={sublink.href}
+                                className={cn(
+                                  "flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-all hover:text-foreground",
+                                  sublink.isActive && "bg-muted text-foreground"
+                                )}
+                              >
+                                <span>{sublink.title}</span>
+                              </Link>
+                            ))}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                  );
+                })}
               </div>
             </ScrollArea>
           </div>
@@ -232,7 +233,75 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       </div>
       <ScrollArea className="flex-1">
         <div className="flex flex-col gap-1 p-2">
-          {renderLinks(sidebarLinks)}
+          {sidebarLinks.map((link) => {
+            // No submenu case
+            if (!link.submenu) {
+              return (
+                <Link
+                  key={link.href}
+                  to={link.href}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground",
+                    link.isActive && "bg-accent text-accent-foreground"
+                  )}
+                >
+                  <link.icon className="h-4 w-4" />
+                  {isOpen && <span>{link.title}</span>}
+                </Link>
+              );
+            }
+            
+            // With submenu case - only show accordion when sidebar is open
+            if (isOpen) {
+              return (
+                <Accordion type="single" collapsible key={link.href}>
+                  <AccordionItem value={link.title} className="border-none">
+                    <AccordionTrigger 
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground",
+                        (link.submenu.some(item => item.isActive)) && "text-accent-foreground"
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <link.icon className="h-4 w-4" />
+                        <span>{link.title}</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-1 pb-0">
+                      <div className="pl-6 space-y-1">
+                        {link.submenu.map((sublink) => (
+                          <Link
+                            key={sublink.href}
+                            to={sublink.href}
+                            className={cn(
+                              "flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-all hover:text-foreground",
+                              sublink.isActive && "bg-muted text-foreground"
+                            )}
+                          >
+                            <span>{sublink.title}</span>
+                          </Link>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              );
+            }
+            
+            // When sidebar is collapsed, just show the main link with icon
+            return (
+              <Link
+                key={link.href}
+                to={link.href}
+                className={cn(
+                  "flex items-center justify-center rounded-lg p-2 text-muted-foreground transition-all hover:text-foreground",
+                  (link.isActive || link.submenu.some(item => item.isActive)) && "bg-accent text-accent-foreground"
+                )}
+              >
+                <link.icon className="h-4 w-4" />
+              </Link>
+            );
+          })}
         </div>
       </ScrollArea>
       <div className="p-2 border-t">
