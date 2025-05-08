@@ -5,6 +5,23 @@ import { supabase } from '@/integrations/supabase/client';
 import { useEffect, useState } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 
+/**
+ * Interface for role object format returned by Supabase RPC
+ */
+interface RoleObject {
+  role: string;
+}
+
+/**
+ * Type guard to safely check if a value is a role object
+ */
+function isRoleObject(value: unknown): value is RoleObject {
+  return value !== null && 
+         typeof value === 'object' && 
+         'role' in value &&
+         typeof (value as RoleObject).role === 'string';
+}
+
 export const usePermissions = () => {
   const { user } = useAuth();
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -101,18 +118,19 @@ export const usePermissions = () => {
         return;
       }
       
-      // Then safely handle object vs string cases
-      if (typeof role === 'object' && role !== null) {
-        // It's an object, extract the role property if it exists
-        if ('role' in role) {
-          setUserRole(role.role as string);
-        } else {
-          // Object without role property, fallback to owner
-          setUserRole('owner');
-        }
+      // Handle the case where role is a string
+      if (typeof role === 'string') {
+        setUserRole(role);
+        return;
+      }
+      
+      // Handle the case where role is an object
+      if (isRoleObject(role)) {
+        // Safe to access role.role because TypeScript knows it exists and is a string
+        setUserRole(role.role);
       } else {
-        // It's a string or some other primitive, cast to string
-        setUserRole(role as string);
+        // Fallback for any other case
+        setUserRole('owner');
       }
     } else if (user && !isLoading) {
       // Fallback to owner role if query failed but user exists
