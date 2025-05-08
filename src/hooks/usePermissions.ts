@@ -13,13 +13,19 @@ interface RoleObject {
 }
 
 /**
+ * Type for possible return values from get_user_role_safe RPC
+ */
+type RoleResponse = string | RoleObject | null | undefined;
+
+/**
  * Type guard to safely check if a value is a role object
  */
 function isRoleObject(value: unknown): value is RoleObject {
-  return value !== null && 
-         typeof value === 'object' && 
-         'role' in value &&
-         typeof (value as RoleObject).role === 'string';
+  if (value === null || value === undefined) return false;
+  if (typeof value !== 'object') return false;
+  // Additional check to be extra safe
+  const obj = value as Record<string, unknown>;
+  return 'role' in obj && typeof obj.role === 'string';
 }
 
 export const usePermissions = () => {
@@ -27,8 +33,8 @@ export const usePermissions = () => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const { toast } = useToast();
   
-  // Get user's role
-  const { data: role, isLoading } = useQuery({
+  // Get user's role with explicit type annotation
+  const { data: role, isLoading } = useQuery<RoleResponse>({
     queryKey: ['user-role', user?.id],
     queryFn: async () => {
       if (!user) return null;
@@ -106,6 +112,9 @@ export const usePermissions = () => {
           return 'owner';
         }
         
+        // Add debugging to see what's being returned
+        console.log("Role data from RPC:", data, "Type:", typeof data);
+        
         // Return the data - could be a string or an object with a role property
         return data;
       } catch (err) {
@@ -116,36 +125,44 @@ export const usePermissions = () => {
     enabled: !!user,
   });
 
-  // Update role state when data changes
+  // Update role state when data changes using a safer approach
   useEffect(() => {
-    if (role === undefined) {
-      if (user && !isLoading) {
-        // Fallback to owner role if query failed but user exists
-        setUserRole('owner');
+    // Helper function to determine the user role based on the response
+    const determineUserRole = (): string => {
+      // Handle undefined case
+      if (role === undefined) {
+        if (user && !isLoading) {
+          // Fallback to owner role if query failed but user exists
+          return 'owner';
+        }
+        return null;
       }
-      return;
-    }
 
-    // Handle null case
-    if (role === null) {
-      setUserRole('owner'); // Set default role if null
-      return;
-    }
+      // Handle null case
+      if (role === null) {
+        return 'owner'; // Set default role if null
+      }
       
-    // Handle string case
-    if (typeof role === 'string') {
-      setUserRole(role);
-      return;
-    }
+      // Handle string case
+      if (typeof role === 'string') {
+        return role;
+      }
       
-    // Handle object case
-    if (isRoleObject(role)) {
-      setUserRole(role.role);
-      return;
-    }
+      // Handle object case with safer type checking
+      if (isRoleObject(role)) {
+        // Explicitly cast to RoleObject to help TypeScript
+        const roleObj: RoleObject = role;
+        return roleObj.role;
+      }
       
-    // Fallback for any other case
-    setUserRole('owner');
+      // Fallback for any other case
+      return 'owner';
+    };
+
+    const determinedRole = determineUserRole();
+    if (determinedRole !== null) {
+      setUserRole(determinedRole);
+    }
   }, [role, user, isLoading]);
 
   // Always return true for permission checks to ensure full access
