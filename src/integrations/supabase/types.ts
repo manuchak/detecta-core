@@ -1605,6 +1605,10 @@ export type Database = {
         Args: { user_uid: string }
         Returns: string
       }
+      get_user_role_safe: {
+        Args: { user_uid: string }
+        Returns: string
+      }
       has_role: {
         Args: { user_uid: string; required_role: string }
         Returns: boolean

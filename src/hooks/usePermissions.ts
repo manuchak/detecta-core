@@ -17,11 +17,9 @@ export const usePermissions = () => {
       if (!user) return null;
       
       try {
-        // Get user role from user_roles table
+        // Use the security definer function through RPC
         const { data, error } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
+          .rpc('get_user_role_safe', { user_uid: user.id })
           .single();
         
         if (error) {
@@ -51,18 +49,16 @@ export const usePermissions = () => {
             variant: "default",
           });
           
-          return insertData?.role || 'owner';
+          return insertData || 'owner';
         }
         
         // If user has no role or role is not owner, set them as owner
-        if (!data || data.role !== 'owner') {
+        if (!data || data !== 'owner') {
           // Delete any existing role
-          if (data) {
-            await supabase
-              .from('user_roles')
-              .delete()
-              .eq('user_id', user.id);
-          }
+          await supabase
+            .from('user_roles')
+            .delete()
+            .eq('user_id', user.id);
           
           // Insert owner role
           const { data: insertData, error: insertError } = await supabase
@@ -85,7 +81,7 @@ export const usePermissions = () => {
           return 'owner';
         }
         
-        return data?.role || 'owner';
+        return data || 'owner';
       } catch (err) {
         console.error('Unexpected error in usePermissions:', err);
         return 'owner'; // Fallback to owner role to prevent lockout
