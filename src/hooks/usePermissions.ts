@@ -1,3 +1,4 @@
+
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -41,7 +42,8 @@ export const usePermissions = () => {
           toast({
             title: "Acceso concedido",
             description: "Se ha configurado el rol de propietario para su usuario",
-            variant: "success",
+            // Change from "success" to "default"
+            variant: "default",
           });
           
           return insertData?.role || 'owner';
@@ -63,7 +65,8 @@ export const usePermissions = () => {
           toast({
             title: "Acceso concedido",
             description: "Se ha configurado el rol de propietario para su usuario",
-            variant: "success",
+            // Change from "success" to "default"
+            variant: "default",
           });
           
           return insertData?.role || 'owner';
