@@ -43,8 +43,7 @@ export const usePermissions = () => {
         console.log("Fetching role for user:", user.id);
         // Use the security definer function through RPC
         const { data, error } = await supabase
-          .rpc('get_user_role_safe', { user_uid: user.id })
-          .single();
+          .rpc('get_user_role_safe', { user_uid: user.id });
         
         if (error) {
           console.error('Error getting user role:', error);
@@ -80,14 +79,11 @@ export const usePermissions = () => {
           return 'owner';
         }
         
-        // If user has no role or role is not owner, set them as owner
-        if (!data || data !== 'owner') {
-          // Delete any existing role
-          await supabase
-            .from('user_roles')
-            .delete()
-            .eq('user_id', user.id);
-          
+        // Add debugging to see what's being returned
+        console.log("Role data from RPC:", data, "Type:", typeof data);
+        
+        // If no role found or not owner, set as owner (simplified approach)
+        if (!data) {
           // Insert owner role
           const { data: insertData, error: insertError } = await supabase
             .from('user_roles')
@@ -95,26 +91,20 @@ export const usePermissions = () => {
             .select('role')
             .single();
             
-          if (insertError) {
-            console.error('Error creating owner role:', insertError);
-            return 'owner'; // Fallback to owner role to prevent lockout
-          }
-          
           toast({
             title: "Acceso concedido",
             description: "Se ha configurado el rol de propietario para su usuario",
             variant: "default",
           });
           
-          // Make sure we return a string, not an object
-          if (insertData && typeof insertData === 'object' && 'role' in insertData) {
-            return insertData.role;
+          if (insertError) {
+            console.error('Error creating owner role:', insertError);
+            return 'owner';
           }
-          return 'owner';
+          
+          // Return the inserted role or fallback to owner
+          return insertData?.role || 'owner';
         }
-        
-        // Add debugging to see what's being returned
-        console.log("Role data from RPC:", data, "Type:", typeof data);
         
         // Return the data - could be a string or an object with a role property
         return data;
@@ -124,46 +114,42 @@ export const usePermissions = () => {
       }
     },
     enabled: !!user,
+    retry: 1, // Limit retries to prevent excessive calls on error
+    staleTime: 60000, // Cache the result for 1 minute
   });
 
   // Update role state when data changes using a safer approach
   useEffect(() => {
-    // Helper function to determine the user role based on the response
-    const determineUserRole = (): string => {
-      // Handle undefined case
-      if (role === undefined) {
-        if (user && !isLoading) {
-          // Fallback to owner role if query failed but user exists
-          return 'owner';
-        }
-        return null;
+    if (role === undefined) {
+      if (user && !isLoading) {
+        // Fallback to owner role if query failed but user exists
+        setUserRole('owner');
       }
-
-      // Handle null case
-      if (role === null) {
-        return 'owner'; // Set default role if null
-      }
-      
-      // Handle string case
-      if (typeof role === 'string') {
-        return role;
-      }
-      
-      // Handle object case with safer type checking
-      if (isRoleObject(role)) {
-        // Explicitly cast to RoleObject to help TypeScript
-        const roleObj: RoleObject = role;
-        return roleObj.role;
-      }
-      
-      // Fallback for any other case
-      return 'owner';
-    };
-
-    const determinedRole = determineUserRole();
-    if (determinedRole !== null) {
-      setUserRole(determinedRole);
+      return;
     }
+
+    // Handle null case
+    if (role === null) {
+      setUserRole('owner'); // Set default role if null
+      return;
+    }
+    
+    // Handle string case
+    if (typeof role === 'string') {
+      setUserRole(role);
+      return;
+    }
+    
+    // Handle object case with safer type checking
+    if (isRoleObject(role)) {
+      // Explicitly cast to RoleObject to help TypeScript
+      const roleObj: RoleObject = role;
+      setUserRole(roleObj.role);
+      return;
+    }
+    
+    // Fallback for any other case
+    setUserRole('owner');
   }, [role, user, isLoading]);
 
   // Always return true for permission checks to ensure full access
