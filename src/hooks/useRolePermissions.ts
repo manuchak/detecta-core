@@ -2,7 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
-import { Permission, PermissionsByRole, RolePermissionInput } from '@/types/roleTypes';
+import { Permission, PermissionsByRole, RolePermissionInput, Role } from '@/types/roleTypes';
 
 export const useRolePermissions = () => {
   const { toast } = useToast();
@@ -23,10 +23,21 @@ export const useRolePermissions = () => {
       const permissionsByRole: PermissionsByRole = {};
       
       data.forEach(permission => {
-        if (!permissionsByRole[permission.role]) {
-          permissionsByRole[permission.role] = [];
+        // Cast the string role from the database to our Role type
+        const typedRole = permission.role as Role;
+        
+        if (!permissionsByRole[typedRole]) {
+          permissionsByRole[typedRole] = [];
         }
-        permissionsByRole[permission.role].push(permission);
+        
+        // Cast the permission to our Permission type
+        permissionsByRole[typedRole].push({
+          id: permission.id,
+          role: typedRole,
+          permission_type: permission.permission_type,
+          permission_id: permission.permission_id,
+          allowed: permission.allowed
+        });
       });
       
       return permissionsByRole;
@@ -66,7 +77,12 @@ export const useRolePermissions = () => {
     mutationFn: async ({ role, permissionType, permissionId, allowed }: RolePermissionInput) => {
       const { error } = await supabase
         .from('role_permissions')
-        .insert({ role, permission_type: permissionType, permission_id: permissionId, allowed });
+        .insert({ 
+          role, 
+          permission_type: permissionType, 
+          permission_id: permissionId, 
+          allowed 
+        });
       
       if (error) {
         throw new Error(`Error adding permission: ${error.message}`);

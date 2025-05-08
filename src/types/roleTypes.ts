@@ -18,7 +18,7 @@ export type Permission = {
   allowed: boolean;
 };
 
-export type PermissionsByRole = Record<string, Permission[]>;
+export type PermissionsByRole = Record<Role, Permission[]>;
 
 export type RolePermissionInput = {
   role: Role;
