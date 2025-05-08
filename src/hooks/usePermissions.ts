@@ -49,7 +49,8 @@ export const usePermissions = () => {
             variant: "default",
           });
           
-          return insertData || 'owner';
+          // Make sure we return a string, not an object
+          return insertData?.role || 'owner';
         }
         
         // If user has no role or role is not owner, set them as owner
@@ -78,10 +79,11 @@ export const usePermissions = () => {
             variant: "default",
           });
           
-          return 'owner';
+          // Make sure we return a string, not an object
+          return insertData?.role || 'owner';
         }
         
-        return data || 'owner';
+        return data;
       } catch (err) {
         console.error('Unexpected error in usePermissions:', err);
         return 'owner'; // Fallback to owner role to prevent lockout
@@ -93,7 +95,13 @@ export const usePermissions = () => {
   // Update role state when data changes
   useEffect(() => {
     if (role !== undefined) {
-      setUserRole(role || 'owner');
+      // Fix: Check if role is an object and extract the role property if needed
+      const roleValue = typeof role === 'object' && role !== null && 'role' in role 
+        ? role.role 
+        : role;
+      
+      // Now set the string value
+      setUserRole(roleValue || 'owner');
     } else if (user && !isLoading) {
       // Fallback to owner role if query failed but user exists
       setUserRole('owner');
