@@ -95,13 +95,25 @@ export const usePermissions = () => {
   // Update role state when data changes
   useEffect(() => {
     if (role !== undefined) {
-      // Fix: Added proper null check and non-null assertion for TypeScript
-      const roleValue = typeof role === 'object' && role !== null && 'role' in role 
-        ? (role.role as string)  // Add non-null assertion to ensure string type
-        : (role as string | null); // Handle null case properly
+      // First, handle the case where role is null
+      if (role === null) {
+        setUserRole('owner'); // Set default role if null
+        return;
+      }
       
-      // Now set the string value with null fallback
-      setUserRole(roleValue !== null ? roleValue : 'owner');
+      // Then safely handle object vs string cases
+      if (typeof role === 'object' && role !== null) {
+        // It's an object, extract the role property if it exists
+        if ('role' in role) {
+          setUserRole(role.role as string);
+        } else {
+          // Object without role property, fallback to owner
+          setUserRole('owner');
+        }
+      } else {
+        // It's a string or some other primitive, cast to string
+        setUserRole(role as string);
+      }
     } else if (user && !isLoading) {
       // Fallback to owner role if query failed but user exists
       setUserRole('owner');
