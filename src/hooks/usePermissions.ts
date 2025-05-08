@@ -67,7 +67,10 @@ export const usePermissions = () => {
           });
           
           // Make sure we return a string, not an object
-          return insertData?.role || 'owner';
+          if (insertData && typeof insertData === 'object' && 'role' in insertData) {
+            return insertData.role;
+          }
+          return 'owner';
         }
         
         // If user has no role or role is not owner, set them as owner
@@ -97,9 +100,13 @@ export const usePermissions = () => {
           });
           
           // Make sure we return a string, not an object
-          return insertData?.role || 'owner';
+          if (insertData && typeof insertData === 'object' && 'role' in insertData) {
+            return insertData.role;
+          }
+          return 'owner';
         }
         
+        // Return the data - could be a string or an object with a role property
         return data;
       } catch (err) {
         console.error('Unexpected error in usePermissions:', err);
@@ -111,31 +118,34 @@ export const usePermissions = () => {
 
   // Update role state when data changes
   useEffect(() => {
-    if (role !== undefined) {
-      // First, handle the case where role is null
-      if (role === null) {
-        setUserRole('owner'); // Set default role if null
-        return;
-      }
-      
-      // Handle the case where role is a string
-      if (typeof role === 'string') {
-        setUserRole(role);
-        return;
-      }
-      
-      // Handle the case where role might be an object
-      if (isRoleObject(role)) {
-        // Now TypeScript knows that role has a 'role' property that is a string
-        setUserRole(role.role);
-      } else {
-        // Fallback for any other case
+    if (role === undefined) {
+      if (user && !isLoading) {
+        // Fallback to owner role if query failed but user exists
         setUserRole('owner');
       }
-    } else if (user && !isLoading) {
-      // Fallback to owner role if query failed but user exists
-      setUserRole('owner');
+      return;
     }
+
+    // Handle null case
+    if (role === null) {
+      setUserRole('owner'); // Set default role if null
+      return;
+    }
+      
+    // Handle string case
+    if (typeof role === 'string') {
+      setUserRole(role);
+      return;
+    }
+      
+    // Handle object case
+    if (isRoleObject(role)) {
+      setUserRole(role.role);
+      return;
+    }
+      
+    // Fallback for any other case
+    setUserRole('owner');
   }, [role, user, isLoading]);
 
   // Always return true for permission checks to ensure full access
