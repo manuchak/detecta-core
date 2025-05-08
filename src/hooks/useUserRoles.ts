@@ -11,36 +11,40 @@ export const useUserRoles = () => {
   const { data: users, isLoading, error } = useQuery({
     queryKey: ['users-with-roles'],
     queryFn: async () => {
-      // Get all users from profiles table
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*');
+      try {
+        // Get all users from profiles table
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('*');
 
-      if (profilesError) {
-        throw new Error(`Error fetching profiles: ${profilesError.message}`);
+        if (profilesError) {
+          throw new Error(`Error fetching profiles: ${profilesError.message}`);
+        }
+
+        // Get all user roles using our safe function
+        const { data: userRoles, error: rolesError } = await supabase
+          .rpc('get_user_roles_safe');
+
+        if (rolesError) {
+          throw new Error(`Error fetching roles: ${rolesError.message}`);
+        }
+
+        // Combine data
+        return profiles.map((profile) => {
+          const userRole = userRoles.find((ur) => ur.user_id === profile.id);
+          return {
+            id: profile.id,
+            email: profile.email,
+            display_name: profile.display_name,
+            role: userRole ? userRole.role : 'unverified',
+            created_at: profile.created_at,
+            last_login: profile.last_login,
+          } as UserWithRole;
+        });
+      } catch (error) {
+        console.error("Error in useUserRoles:", error);
+        throw error;
       }
-
-      // Get all user roles
-      const { data: userRoles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('*');
-
-      if (rolesError) {
-        throw new Error(`Error fetching roles: ${rolesError.message}`);
-      }
-
-      // Combine data
-      return profiles.map((profile) => {
-        const userRole = userRoles.find((ur) => ur.user_id === profile.id);
-        return {
-          id: profile.id,
-          email: profile.email,
-          display_name: profile.display_name,
-          role: userRole ? userRole.role : 'unverified',
-          created_at: profile.created_at,
-          last_login: profile.last_login,
-        } as UserWithRole;
-      });
     },
   });
 

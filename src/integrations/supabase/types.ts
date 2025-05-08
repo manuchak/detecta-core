@@ -1609,6 +1609,16 @@ export type Database = {
         Args: { user_uid: string }
         Returns: string
       }
+      get_user_roles_safe: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          user_id: string
+          role: string
+          assigned_at: string
+          assigned_by: string
+        }[]
+      }
       has_role: {
         Args: { user_uid: string; required_role: string }
         Returns: boolean
