@@ -3,15 +3,22 @@ import { Navigate, Outlet } from "react-router-dom";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { useState } from "react";
 import { Header } from "@/components/dashboard/Header";
+import { useAuth } from "@/contexts/AuthContext";
+import { Loader2 } from "lucide-react";
 
-interface DashboardLayoutProps {
-  isAuthenticated: boolean;
-}
-
-export const DashboardLayout = ({ isAuthenticated }: DashboardLayoutProps) => {
+export const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { user, loading } = useAuth();
 
-  if (!isAuthenticated) {
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 

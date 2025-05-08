@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Search, Menu, Bell, Settings, User } from "lucide-react";
+import { Search, Menu, Bell, Settings, User, LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface HeaderProps {
   sidebarOpen: boolean;
@@ -18,6 +19,12 @@ interface HeaderProps {
 }
 
 export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
+
   return (
     <header className="sticky top-0 z-10 flex h-16 flex-shrink-0 bg-card shadow-sm">
       <div className="flex flex-1 justify-between px-4 md:px-6">
@@ -59,7 +66,7 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
                 <Avatar className="h-8 w-8">
                   <AvatarImage src="" alt="Profile" />
                   <AvatarFallback className="bg-primary text-primary-foreground">
-                    <User className="h-4 w-4" />
+                    {user?.email ? user.email.charAt(0).toUpperCase() : <User className="h-4 w-4" />}
                   </AvatarFallback>
                 </Avatar>
               </Button>
@@ -68,9 +75,11 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">Usuario</p>
+                  <p className="text-sm font-medium leading-none">
+                    {user?.user_metadata?.display_name || "Usuario"}
+                  </p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    usuario@ejemplo.com
+                    {user?.email || "usuario@ejemplo.com"}
                   </p>
                 </div>
               </DropdownMenuLabel>
@@ -78,7 +87,10 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
               <DropdownMenuItem>Perfil</DropdownMenuItem>
               <DropdownMenuItem>Ajustes</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Cerrar sesión</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleSignOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Cerrar sesión
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

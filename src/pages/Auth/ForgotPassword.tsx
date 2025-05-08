@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export const ForgotPassword = () => {
   const [email, setEmail] = useState("");
@@ -16,15 +17,33 @@ export const ForgotPassword = () => {
     e.preventDefault();
     setLoading(true);
     
-    // Here we'll add password reset functionality with Supabase later
-    
-    toast({
-      title: "Functionality not implemented yet",
-      description: "You need to connect Supabase to implement password reset",
-    });
-    
-    setSubmitted(true);
-    setLoading(false);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + "/reset-password",
+      });
+      
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        setSubmitted(true);
+        toast({
+          title: "Correo enviado",
+          description: "Revisa tu bandeja de entrada para instrucciones de restablecimiento",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Ocurrió un error al enviar el correo de restablecimiento",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (submitted) {

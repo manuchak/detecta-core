@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const Register = () => {
   const [name, setName] = useState("");
@@ -12,19 +13,24 @@ export const Register = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { signUp } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     
-    // Here we'll add registration with Supabase later
-    
-    toast({
-      title: "Functionality not implemented yet",
-      description: "You need to connect Supabase to implement authentication",
-    });
-    
-    setLoading(false);
+    try {
+      await signUp(email, password, name);
+      // After successful registration, navigate to login
+      toast({
+        title: "Registro exitoso",
+        description: "Por favor inicie sesión con sus nuevas credenciales",
+      });
+    } catch (error) {
+      console.error("Registration error:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

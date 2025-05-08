@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { createContext, useContext, useState } from "react";
+import { AuthProvider } from "./contexts/AuthContext";
 
 // Layouts
 import AuthLayout from "./layouts/AuthLayout";
@@ -22,44 +22,6 @@ import InstallerPortal from "./pages/Installers/InstallerPortal";
 import TicketsList from "./pages/Tickets/TicketsList";
 import NotFound from "./pages/NotFound";
 
-// Create auth context
-interface AuthContextType {
-  isAuthenticated: boolean;
-  login: () => void;
-  logout: () => void;
-}
-
-const AuthContext = createContext<AuthContextType>({
-  isAuthenticated: false,
-  login: () => {},
-  logout: () => {},
-});
-
-// Auth provider
-const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  // For now we're using local state, later this will use Supabase
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  
-  const login = () => {
-    setIsAuthenticated(true);
-  };
-  
-  const logout = () => {
-    setIsAuthenticated(false);
-  };
-  
-  return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
-
-// Hook to use auth context
-export const useAuth = () => {
-  return useContext(AuthContext);
-};
-
 // Query client for React Query
 const queryClient = new QueryClient();
 
@@ -76,14 +38,14 @@ const App = () => {
               <Route path="/" element={<Navigate to="/dashboard" />} />
               
               {/* Auth Routes */}
-              <Route element={<AuthLayout isAuthenticated={false} />}>
+              <Route element={<AuthLayout />}>
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
               </Route>
               
               {/* Dashboard Routes */}
-              <Route element={<DashboardLayout isAuthenticated={true} />}>
+              <Route element={<DashboardLayout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 
                 {/* Lead Management */}
