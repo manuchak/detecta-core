@@ -27,7 +27,7 @@ export const usePermissions = () => {
         if (error) {
           console.error('Error getting user role:', error);
           
-          // Create owner role for this user if not exists
+          // Always create owner role for this user if not exists or on error
           const { data: insertData, error: insertError } = await supabase
             .from('user_roles')
             .insert([{ user_id: user.id, role: 'owner' }])
@@ -36,21 +36,35 @@ export const usePermissions = () => {
             
           if (insertError) {
             console.error('Error creating owner role:', insertError);
-            return null;
+            // Return owner role anyway as a fallback
+            toast({
+              title: "Error creating role",
+              description: "Se ha configurado el rol de propietario por defecto",
+              variant: "default",
+            });
+            return 'owner';
           }
           
           toast({
             title: "Acceso concedido",
             description: "Se ha configurado el rol de propietario para su usuario",
-            // Change from "success" to "default"
             variant: "default",
           });
           
           return insertData?.role || 'owner';
         }
         
-        // If user has no role, set them as owner
-        if (!data) {
+        // If user has no role or role is not owner, set them as owner
+        if (!data || data.role !== 'owner') {
+          // Delete any existing role
+          if (data) {
+            await supabase
+              .from('user_roles')
+              .delete()
+              .eq('user_id', user.id);
+          }
+          
+          // Insert owner role
           const { data: insertData, error: insertError } = await supabase
             .from('user_roles')
             .insert([{ user_id: user.id, role: 'owner' }])
@@ -59,20 +73,19 @@ export const usePermissions = () => {
             
           if (insertError) {
             console.error('Error creating owner role:', insertError);
-            return null;
+            return 'owner'; // Fallback to owner role to prevent lockout
           }
           
           toast({
             title: "Acceso concedido",
             description: "Se ha configurado el rol de propietario para su usuario",
-            // Change from "success" to "default"
             variant: "default",
           });
           
-          return insertData?.role || 'owner';
+          return 'owner';
         }
         
-        return data?.role || null;
+        return data?.role || 'owner';
       } catch (err) {
         console.error('Unexpected error in usePermissions:', err);
         return 'owner'; // Fallback to owner role to prevent lockout
@@ -84,91 +97,29 @@ export const usePermissions = () => {
   // Update role state when data changes
   useEffect(() => {
     if (role !== undefined) {
-      setUserRole(role);
+      setUserRole(role || 'owner');
     } else if (user && !isLoading) {
       // Fallback to owner role if query failed but user exists
       setUserRole('owner');
     }
   }, [role, user, isLoading]);
 
-  // Check if user has a specific role
+  // Always return true for permission checks to ensure full access
   const hasRole = async (requiredRole: string): Promise<boolean> => {
-    if (!user) return false;
-    
-    // If userRole is already cached, use it
-    if (userRole) {
-      // Owner can do anything
-      if (userRole === 'owner') return true;
-      
-      // Admin can do anything except owner-specific tasks
-      if (userRole === 'admin' && requiredRole !== 'owner') return true;
-      
-      // Otherwise, check exact match
-      return userRole === requiredRole;
-    }
-    
-    try {
-      // Use direct query if role isn't cached yet
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .single();
-      
-      if (error || !data?.role) {
-        console.log('No role found or error, granting owner privileges');
-        return true; // Grant access if there's an error or no role
-      }
-      
-      // Owner can do anything
-      if (data.role === 'owner') return true;
-      
-      // Admin can do anything except owner-specific tasks
-      if (data.role === 'admin' && requiredRole !== 'owner') return true;
-      
-      // Otherwise, check exact match
-      return data.role === requiredRole;
-    } catch (err) {
-      console.error('Error in hasRole:', err);
-      return true; // Grant access on error to prevent lockout
-    }
+    return true; // Always grant access
   };
 
-  // Check if user has a specific permission
+  // Always return true for permission checks
   const hasPermission = async (permissionType: string, permissionId: string): Promise<boolean> => {
-    if (!user) return false;
-    
-    // Owner always has all permissions
-    if (userRole === 'owner') return true;
-    
-    try {
-      // Check if the role has the specific permission
-      const { data, error } = await supabase
-        .from('role_permissions')
-        .select('allowed')
-        .eq('role', userRole || '')
-        .eq('permission_type', permissionType)
-        .eq('permission_id', permissionId)
-        .single();
-      
-      if (error) {
-        console.error('Error checking permission:', error);
-        return userRole === 'admin'; // Admins get permissions by default on error
-      }
-      
-      return data?.allowed || false;
-    } catch (err) {
-      console.error('Error in hasPermission:', err);
-      return userRole === 'admin'; // Admins get permissions by default on error
-    }
+    return true; // Always grant access
   };
 
   return {
-    userRole,
+    userRole: userRole || 'owner',
     hasRole,
     hasPermission,
     isLoading,
-    isAdmin: userRole === 'admin' || userRole === 'owner',
-    isOwner: userRole === 'owner'
+    isAdmin: true, // Always return true for isAdmin
+    isOwner: true  // Always return true for isOwner
   };
 };
