@@ -8,10 +8,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { PlusCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -47,12 +45,6 @@ export const AddPermissionDialog = ({
 }: AddPermissionDialogProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>
-        <Button size="sm" className="flex items-center gap-1">
-          <PlusCircle className="h-4 w-4" />
-          Agregar Permiso
-        </Button>
-      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Agregar Nuevo Permiso</DialogTitle>

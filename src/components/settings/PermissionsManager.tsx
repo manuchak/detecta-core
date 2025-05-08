@@ -12,6 +12,17 @@ export const PermissionsManager = () => {
   const { roles, permissions, isLoading, updatePermission, addPermission } = useRoles();
   const [activeTab, setActiveTab] = useState<string>('admin');
   const [isAddPermissionOpen, setIsAddPermissionOpen] = useState(false);
+  const [newPermission, setNewPermission] = useState<{
+    role: Role;
+    permissionType: string;
+    permissionId: string;
+    allowed: boolean;
+  }>({
+    role: 'admin',
+    permissionType: '',
+    permissionId: '',
+    allowed: true,
+  });
 
   // Safely handle permission changes
   const handlePermissionChange = (id: number, allowed: boolean) => {
@@ -20,15 +31,23 @@ export const PermissionsManager = () => {
     }
   };
 
+  // Handle changes to the new permission form
+  const handleNewPermissionChange = (field: string, value: string | boolean | Role) => {
+    setNewPermission(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   // Safely handle new permission addition
-  const handleAddPermission = (
-    role: Role,
-    permissionType: string,
-    permissionId: string,
-    allowed: boolean
-  ) => {
+  const handleAddPermission = () => {
     if (addPermission) {
-      addPermission.mutate({ role, permissionType, permissionId, allowed });
+      addPermission.mutate({
+        role: newPermission.role,
+        permissionType: newPermission.permissionType,
+        permissionId: newPermission.permissionId,
+        allowed: newPermission.allowed
+      });
     }
     setIsAddPermissionOpen(false);
   };
@@ -70,10 +89,12 @@ export const PermissionsManager = () => {
       </Card>
       
       <AddPermissionDialog
-        open={isAddPermissionOpen}
-        onClose={() => setIsAddPermissionOpen(false)}
+        isOpen={isAddPermissionOpen}
+        onOpenChange={setIsAddPermissionOpen}
+        newPermission={newPermission}
+        onNewPermissionChange={handleNewPermissionChange}
         onAddPermission={handleAddPermission}
-        roles={roles || []}
+        availableRoles={roles}
       />
     </div>
   );
