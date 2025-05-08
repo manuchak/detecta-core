@@ -126,7 +126,6 @@ export const usePermissions = () => {
       
       // Handle the case where role is an object
       if (isRoleObject(role)) {
-        // Safe to access role.role because TypeScript knows it exists and is a string
         setUserRole(role.role);
       } else {
         // Fallback for any other case
