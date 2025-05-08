@@ -20,6 +20,7 @@ import Dashboard from "./pages/Dashboard/Dashboard";
 import LeadsList from "./pages/Leads/LeadsList";
 import InstallerPortal from "./pages/Installers/InstallerPortal";
 import TicketsList from "./pages/Tickets/TicketsList";
+import Settings from "./pages/Settings/Settings";
 import NotFound from "./pages/NotFound";
 
 // Query client for React Query
@@ -69,7 +70,7 @@ const App = () => {
                 <Route path="/tickets/new" element={<div>Crear Ticket Form</div>} />
                 
                 {/* Settings */}
-                <Route path="/settings" element={<div>Configuración</div>} />
+                <Route path="/settings" element={<Settings />} />
               </Route>
               
               {/* Catch-all route */}
