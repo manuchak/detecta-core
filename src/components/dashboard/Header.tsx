@@ -26,7 +26,7 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
   };
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 flex-shrink-0 bg-card shadow-sm">
+    <header className="sticky top-0 z-10 flex h-16 flex-shrink-0 bg-background border-b border-border/40">
       <div className="flex flex-1 justify-between px-4 md:px-6">
         <div className="flex flex-1 items-center">
           <Button
@@ -45,27 +45,27 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
               <Input
                 type="search"
                 placeholder="Buscar..."
-                className="w-full bg-background pl-8 md:max-w-xs"
+                className="w-full bg-secondary/50 border-none pl-8 md:max-w-xs rounded-lg"
               />
             </div>
           </div>
         </div>
         
-        <div className="ml-4 flex items-center md:ml-6 space-x-3">
-          <Button variant="ghost" size="icon" className="text-muted-foreground">
-            <Bell className="h-5 w-5" />
+        <div className="ml-4 flex items-center md:ml-6 space-x-1">
+          <Button variant="ghost" size="icon" className="text-muted-foreground rounded-full">
+            <Bell className="h-4.5 w-4.5" />
           </Button>
           
-          <Button variant="ghost" size="icon" className="text-muted-foreground">
-            <Settings className="h-5 w-5" />
+          <Button variant="ghost" size="icon" className="text-muted-foreground rounded-full">
+            <Settings className="h-4.5 w-4.5" />
           </Button>
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                <Avatar className="h-8 w-8">
+              <Button variant="ghost" className="relative h-8 w-8 rounded-full ml-2">
+                <Avatar className="h-8 w-8 border border-border">
                   <AvatarImage src="" alt="Profile" />
-                  <AvatarFallback className="bg-primary text-primary-foreground">
+                  <AvatarFallback className="bg-primary/10 text-primary">
                     {user?.email ? user.email.charAt(0).toUpperCase() : <User className="h-4 w-4" />}
                   </AvatarFallback>
                 </Avatar>
@@ -84,8 +84,14 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Perfil</DropdownMenuItem>
-              <DropdownMenuItem>Ajustes</DropdownMenuItem>
+              <DropdownMenuItem>
+                <User className="mr-2 h-4 w-4" />
+                Perfil
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Settings className="mr-2 h-4 w-4" />
+                Ajustes
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut}>
                 <LogOut className="mr-2 h-4 w-4" />

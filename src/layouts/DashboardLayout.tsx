@@ -29,7 +29,7 @@ export const DashboardLayout = () => {
       <div className="flex flex-col flex-1 w-0 overflow-hidden">
         <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
         
-        <main className="flex-1 relative overflow-y-auto focus:outline-none p-4 md:p-6">
+        <main className="flex-1 relative overflow-y-auto focus:outline-none px-0 py-4">
           <div className="mx-auto">
             <Outlet />
           </div>
