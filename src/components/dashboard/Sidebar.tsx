@@ -28,8 +28,8 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const { pathname } = useLocation();
-  const isMobile = useIsMobile();  // Fixed from useMobile to useIsMobile
-  const { userRole } = useAuth();
+  const isMobile = useIsMobile();
+  const { user, userRole } = useAuth();
   
   const isAdmin = userRole === 'admin' || userRole === 'owner';
 
