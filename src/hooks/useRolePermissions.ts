@@ -20,15 +20,21 @@ export const useRolePermissions = () => {
       }
 
       // Group permissions by role
-      const permissionsByRole: PermissionsByRole = {};
+      const permissionsByRole = {} as PermissionsByRole;
+      
+      // Initialize the permissionsByRole object with empty arrays for all roles
+      const allRoles: Role[] = [
+        'admin', 'supply', 'supply_admin', 'soporte', 'bi', 
+        'monitoring', 'monitoring_supervisor', 'owner', 'pending', 'unverified'
+      ];
+      
+      allRoles.forEach(role => {
+        permissionsByRole[role] = [];
+      });
       
       data.forEach(permission => {
         // Cast the string role from the database to our Role type
         const typedRole = permission.role as Role;
-        
-        if (!permissionsByRole[typedRole]) {
-          permissionsByRole[typedRole] = [];
-        }
         
         // Cast the permission to our Permission type
         permissionsByRole[typedRole].push({
