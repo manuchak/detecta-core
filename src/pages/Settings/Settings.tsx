@@ -5,20 +5,31 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UserRoleManager } from '@/components/settings/UserRoleManager';
 import { PermissionsManager } from '@/components/settings/PermissionsManager';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/components/ui/use-toast';
 
 const Settings = () => {
-  const { isAdmin, userRole } = usePermissions();
+  const { isAdmin, userRole, isLoading } = usePermissions();
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     // Check if user has admin access
     const checkAccess = async () => {
-      if (userRole !== null) {
-        setHasAccess(isAdmin);
-        if (!isAdmin && userRole !== null) {
+      if (!isLoading) {
+        // Grant access by default if userRole is owner or admin
+        const hasAdminAccess = isAdmin || userRole === 'owner';
+        setHasAccess(hasAdminAccess);
+        
+        if (!hasAdminAccess && userRole !== null) {
+          toast({
+            title: "Acceso denegado",
+            description: "No tiene permisos suficientes para acceder a esta página.",
+            variant: "destructive",
+          });
+          
           // Redirect non-admin users after a short delay
           const timer = setTimeout(() => {
             navigate('/dashboard');
@@ -29,13 +40,16 @@ const Settings = () => {
     };
 
     checkAccess();
-  }, [userRole, isAdmin, navigate]);
+  }, [userRole, isAdmin, navigate, isLoading, toast]);
 
-  if (hasAccess === null) {
+  if (isLoading || hasAccess === null) {
     return (
       <div className="flex justify-center items-center min-h-[70vh]">
-        <div className="animate-pulse text-muted-foreground">
-          Comprobando permisos...
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="text-muted-foreground">
+            Comprobando permisos...
+          </div>
         </div>
       </div>
     );
