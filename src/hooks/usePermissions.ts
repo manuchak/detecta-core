@@ -40,6 +40,7 @@ export const usePermissions = () => {
       if (!user) return null;
       
       try {
+        console.log("Fetching role for user:", user.id);
         // Use the security definer function through RPC
         const { data, error } = await supabase
           .rpc('get_user_role_safe', { user_uid: user.id })
