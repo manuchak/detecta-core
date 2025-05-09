@@ -111,40 +111,32 @@ export const useRolePermissions = () => {
     }
   });
 
-  // Mutación para añadir un nuevo permiso
+  // Mutación para añadir un nuevo permiso usando la función de seguridad definida en lugar del edge function
   const addPermission = useMutation({
     mutationFn: async ({ role, permissionType, permissionId, allowed }: RolePermissionInput) => {
       try {
-        // Formatear el cuerpo de la solicitud
-        const requestBody = { 
-          role, 
-          permissionType, 
-          permissionId, 
-          allowed 
-        };
+        // Usar la nueva función de seguridad definida en SQL para evitar la recursión RLS
+        console.log(`Añadiendo permiso: ${role}.${permissionType}.${permissionId}=${allowed}`);
         
-        // Registro detallado para depuración
-        console.log('Enviando solicitud de permiso:', requestBody);
-        
-        // Invocar la función edge con manejo de errores
-        const { data, error } = await supabase.functions.invoke('add-permission', {
-          body: requestBody
+        const { data, error } = await supabase.rpc('add_permission_safe', {
+          p_role: role,
+          p_permission_type: permissionType,
+          p_permission_id: permissionId,
+          p_allowed: allowed
         });
         
-        // Manejar errores de la función edge
         if (error) {
-          console.error('Error en la función edge:', error);
-          throw new Error(`Error añadiendo permiso: ${error.message || String(error)}`);
+          console.error('Error en add_permission_safe:', error);
+          throw new Error(`Error al añadir el permiso: ${error.message}`);
         }
         
         // Verificar errores de aplicación en la respuesta
         if (data && data.error) {
-          console.error('Error de aplicación desde la función edge:', data.error);
-          throw new Error(`Error añadiendo permiso: ${data.error}`);
+          console.error('Error retornado por add_permission_safe:', data.error);
+          throw new Error(`Error al añadir el permiso: ${data.error}`);
         }
         
-        // Registro de éxito
-        console.log('Permiso añadido exitosamente:', data);
+        console.log('Respuesta de add_permission_safe:', data);
         return data;
       } catch (err) {
         console.error('Excepción en mutación addPermission:', err);

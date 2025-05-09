@@ -1443,6 +1443,15 @@ export type Database = {
       }
     }
     Functions: {
+      add_permission_safe: {
+        Args: {
+          p_role: string
+          p_permission_type: string
+          p_permission_id: string
+          p_allowed: boolean
+        }
+        Returns: Json
+      }
       calcular_kpi_cliente: {
         Args: { p_cliente: string; fecha_inicio: string; fecha_fin: string }
         Returns: {
