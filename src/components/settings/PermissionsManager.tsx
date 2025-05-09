@@ -2,11 +2,12 @@
 import React, { useState } from 'react';
 import { useRoles } from '@/hooks/useRoles';
 import { Role, Permission } from '@/types/roleTypes';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PermissionsContainer } from './permissions/PermissionsContainer';
 import { RoleTabsList } from './permissions/RoleTabsList';
 import { AddPermissionDialog } from './permissions/AddPermissionDialog';
+import { PlusCircle, Loader2 } from 'lucide-react';
 
 export const PermissionsManager = () => {
   const { roles, permissions, isLoading, updatePermission, addPermission } = useRoles();
@@ -54,36 +55,67 @@ export const PermissionsManager = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold">Permisos del Sistema</h2>
-        <Button onClick={() => setIsAddPermissionOpen(true)}>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-foreground">Permisos del Sistema</h2>
+          <p className="text-muted-foreground mt-1">Administre los permisos para cada rol en el sistema</p>
+        </div>
+        <Button 
+          onClick={() => setIsAddPermissionOpen(true)} 
+          className="flex items-center gap-2 shadow-sm"
+        >
+          <PlusCircle className="h-4 w-4" />
           Añadir Permiso
         </Button>
       </div>
       
-      <Card>
-        <CardContent className="pt-6">
+      <Card className="border-border/40 shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-xl">Matriz de Permisos</CardTitle>
+          <CardDescription>Configure los permisos para cada rol definido en el sistema</CardDescription>
+        </CardHeader>
+        <CardContent>
           {isLoading ? (
-            <div className="text-center py-8">Cargando permisos...</div>
+            <div className="flex justify-center items-center py-16">
+              <div className="flex flex-col items-center gap-4">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <div className="text-sm text-muted-foreground">
+                  Cargando permisos...
+                </div>
+              </div>
+            </div>
           ) : !permissions || Object.keys(permissions).length === 0 ? (
-            <div className="text-center py-8">
-              No hay permisos configurados. Añada un nuevo permiso para comenzar.
+            <div className="bg-muted/50 rounded-lg py-12 px-6 text-center">
+              <h3 className="text-lg font-medium mb-2">No hay permisos configurados</h3>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                Añada un nuevo permiso para comenzar a configurar el acceso para los usuarios del sistema.
+              </p>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsAddPermissionOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <PlusCircle className="h-4 w-4" />
+                Añadir Primer Permiso
+              </Button>
             </div>
           ) : (
-            <RoleTabsList
-              roles={roles}
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-            >
-              {roles?.map((role) => (
-                <PermissionsContainer
-                  key={role}
-                  role={role}
-                  permissions={permissions?.[role] as Permission[]}
-                  onPermissionChange={handlePermissionChange}
-                />
-              ))}
-            </RoleTabsList>
+            <div className="bg-white rounded-lg p-4">
+              <RoleTabsList
+                roles={roles}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+              >
+                {roles?.map((role) => (
+                  <PermissionsContainer
+                    key={role}
+                    role={role}
+                    permissions={permissions?.[role] as Permission[]}
+                    onPermissionChange={handlePermissionChange}
+                  />
+                ))}
+              </RoleTabsList>
+            </div>
           )}
         </CardContent>
       </Card>

@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 
 interface AddPermissionDialogProps {
   isOpen: boolean;
@@ -43,81 +44,130 @@ export const AddPermissionDialog = ({
   onAddPermission,
   availableRoles = [],
 }: AddPermissionDialogProps) => {
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case 'owner':
+        return 'bg-purple-100 text-purple-800';
+      case 'admin':
+        return 'bg-red-100 text-red-800';
+      case 'supply_admin':
+      case 'monitoring_supervisor':
+        return 'bg-amber-100 text-amber-800';
+      case 'supply':
+      case 'soporte':
+      case 'bi':
+      case 'monitoring':
+        return 'bg-blue-100 text-blue-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'unverified':
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Agregar Nuevo Permiso</DialogTitle>
+          <DialogTitle className="text-xl">Agregar Nuevo Permiso</DialogTitle>
           <DialogDescription>
-            Complete la información para crear un nuevo permiso
+            Complete la información para crear un nuevo permiso en el sistema
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
+        <div className="grid gap-6 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="role" className="text-right">
+            <Label htmlFor="role" className="text-right font-medium">
               Rol
             </Label>
-            <Select
-              value={newPermission.role}
-              onValueChange={(value) => 
-                onNewPermissionChange('role', value as Role)
-              }
-            >
-              <SelectTrigger className="col-span-3">
-                <SelectValue placeholder="Seleccionar rol" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableRoles.map((role) => (
-                  <SelectItem key={role} value={role}>{role}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="col-span-3">
+              <Select
+                value={newPermission.role}
+                onValueChange={(value) => 
+                  onNewPermissionChange('role', value as Role)
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Seleccionar rol" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableRoles.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className={`${getRoleBadgeColor(role)} px-2 py-0.5`}>
+                          {role}
+                        </Badge>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="permissionType" className="text-right">
+            <Label htmlFor="permissionType" className="text-right font-medium">
               Tipo
             </Label>
-            <Input
-              id="permissionType"
-              placeholder="page, action, feature"
-              className="col-span-3"
-              value={newPermission.permissionType}
-              onChange={(e) => 
-                onNewPermissionChange('permissionType', e.target.value)
-              }
-            />
+            <div className="col-span-3">
+              <Input
+                id="permissionType"
+                placeholder="page, action, feature, etc."
+                className="w-full"
+                value={newPermission.permissionType}
+                onChange={(e) => 
+                  onNewPermissionChange('permissionType', e.target.value)
+                }
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Categoría del permiso (ej: page, action, feature)
+              </p>
+            </div>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="permissionId" className="text-right">
+            <Label htmlFor="permissionId" className="text-right font-medium">
               Identificador
             </Label>
-            <Input
-              id="permissionId"
-              placeholder="settings, create_user"
-              className="col-span-3"
-              value={newPermission.permissionId}
-              onChange={(e) => 
-                onNewPermissionChange('permissionId', e.target.value)
-              }
-            />
+            <div className="col-span-3">
+              <Input
+                id="permissionId"
+                placeholder="settings, create_user, etc."
+                className="w-full"
+                value={newPermission.permissionId}
+                onChange={(e) => 
+                  onNewPermissionChange('permissionId', e.target.value)
+                }
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Nombre único del permiso (ej: settings, create_user)
+              </p>
+            </div>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="allowed" className="text-right">
-              Permitido
+            <Label htmlFor="allowed" className="text-right font-medium">
+              Estado
             </Label>
-            <div className="col-span-3">
+            <div className="col-span-3 flex items-center gap-4">
               <Switch
                 id="allowed"
                 checked={newPermission.allowed}
                 onCheckedChange={(checked) => 
                   onNewPermissionChange('allowed', checked)
                 }
+                className="data-[state=checked]:bg-green-600"
               />
+              <span className={newPermission.allowed ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                {newPermission.allowed ? "Permitido" : "Denegado"}
+              </span>
             </div>
           </div>
         </div>
-        <DialogFooter>
-          <Button onClick={onAddPermission}>Guardar Permiso</Button>
+        <DialogFooter className="sm:justify-between">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button onClick={onAddPermission} className="px-6">
+            Guardar Permiso
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
