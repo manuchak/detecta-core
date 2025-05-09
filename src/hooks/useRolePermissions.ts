@@ -32,13 +32,12 @@ export const useRolePermissions = () => {
           // Direct query for roles that avoids RLS recursion
           const { data: roleData } = await supabase
             .from('user_roles')
-            .select('role')
-            .distinctOn('role');
+            .select('role');
           
           if (roleData && roleData.length > 0) {
-            // Extract role names
-            const fetchedRoles = roleData.map((r) => r.role as Role);
-            allRoles = [...new Set([...defaultRoles, ...fetchedRoles])];
+            // Extract unique role names
+            const uniqueRoles = Array.from(new Set(roleData.map(r => r.role as Role)));
+            allRoles = [...new Set([...defaultRoles, ...uniqueRoles])];
           }
         } catch (err) {
           console.error('Error fetching roles, using defaults:', err);

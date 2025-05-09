@@ -14,8 +14,7 @@ export const useAvailableRoles = () => {
       // Direct query instead of RPC to avoid recursion issues
       const { data, error } = await supabase
         .from('user_roles')
-        .select('role')
-        .distinctOn('role');
+        .select('role');
       
       if (error) {
         console.error('Error fetching roles:', error);
@@ -38,7 +37,8 @@ export const useAvailableRoles = () => {
 
       // Map to just role names and sort them by importance
       if (Array.isArray(data)) {
-        const roleNames = data.map(item => item.role as Role);
+        // Get unique roles
+        const uniqueRoles = Array.from(new Set(data.map(item => item.role as Role)));
         
         // Sort roles by importance
         const sortOrder = {
@@ -54,7 +54,7 @@ export const useAvailableRoles = () => {
           'unverified': 10
         };
         
-        return roleNames.sort((a, b) => {
+        return uniqueRoles.sort((a, b) => {
           const orderA = sortOrder[a as keyof typeof sortOrder] || 100;
           const orderB = sortOrder[b as keyof typeof sortOrder] || 100;
           return orderA - orderB;

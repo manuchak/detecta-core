@@ -8,18 +8,19 @@ import { Role, Permission, UserWithRole } from '@/types/roleTypes';
 
 export const fetchUserRoles = async (): Promise<Role[]> => {
   try {
-    // Direct query to get distinct roles
+    // Direct query to get distinct roles without using distinctOn
     const { data, error } = await supabase
       .from('user_roles')
-      .select('role')
-      .distinctOn('role');
+      .select('role');
     
     if (error) {
       console.error('Error fetching roles:', error);
       throw error;
     }
     
-    return data.map(item => item.role as Role);
+    // Process the results to get unique roles
+    const uniqueRoles = Array.from(new Set(data.map(item => item.role as Role)));
+    return uniqueRoles;
   } catch (err) {
     console.error('Error in fetchUserRoles:', err);
     // Return default roles as fallback
