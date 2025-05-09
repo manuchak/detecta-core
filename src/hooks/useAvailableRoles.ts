@@ -63,10 +63,9 @@ export const useAvailableRoles = () => {
   // Create a new role
   const createRole = useMutation({
     mutationFn: async ({ role }: CreateRoleInput) => {
-      const { data, error } = await supabase
-        .rpc('create_new_role', { 
-          new_role: role 
-        });
+      const { data, error } = await supabase.functions.invoke('create-role', {
+        body: { new_role: role }
+      });
 
       if (error) {
         throw new Error(`Error creating role: ${error.message}`);
@@ -93,11 +92,12 @@ export const useAvailableRoles = () => {
   // Update an existing role
   const updateRole = useMutation({
     mutationFn: async ({ oldRole, newRole }: UpdateRoleInput) => {
-      const { data, error } = await supabase
-        .rpc('update_role_name', { 
+      const { data, error } = await supabase.functions.invoke('update-role', {
+        body: { 
           old_role: oldRole,
           new_role: newRole 
-        });
+        }
+      });
 
       if (error) {
         throw new Error(`Error updating role: ${error.message}`);
@@ -126,10 +126,9 @@ export const useAvailableRoles = () => {
   // Delete a role
   const deleteRole = useMutation({
     mutationFn: async ({ role }: DeleteRoleInput) => {
-      const { data, error } = await supabase
-        .rpc('delete_role', { 
-          target_role: role 
-        });
+      const { data, error } = await supabase.functions.invoke('delete-role', {
+        body: { target_role: role }
+      });
 
       if (error) {
         throw new Error(`Error deleting role: ${error.message}`);
