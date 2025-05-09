@@ -14,8 +14,10 @@ export const useRolePermissions = () => {
     queryFn: async () => {
       try {
         // Utilizamos la función segura para evitar problemas de recursión RLS
+        // Cambiamos de rpc a from('role_permissions') y select()
         const { data, error } = await supabase
-          .rpc('get_role_permissions_safe');
+          .from('role_permissions')
+          .select('id, role, permission_type, permission_id, allowed');
 
         if (error) {
           console.error('Error al obtener permisos:', error);
@@ -26,7 +28,13 @@ export const useRolePermissions = () => {
         const permissionsByRole = {} as PermissionsByRole;
         
         // Inicializar el objeto permissionsByRole con arrays vacíos para todos los roles
-        const { data: roles } = await supabase.rpc('get_user_roles_safe');
+        // Usar from('user_roles') en lugar de rpc
+        const { data: roles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', '00000000-0000-0000-0000-000000000000')
+          .is('user_id', null, { negate: true })
+          .or('user_id.eq.00000000-0000-0000-0000-000000000000,user_id.neq.00000000-0000-0000-0000-000000000000');
         
         const allRoles: Role[] = roles ? 
           roles.map((r: any) => r.role as Role) : 
@@ -70,12 +78,13 @@ export const useRolePermissions = () => {
   const updatePermission = useMutation({
     mutationFn: async ({ id, allowed }: { id: number, allowed: boolean }) => {
       try {
-        // Usar RPC en lugar de acceso directo a la tabla
+        // En lugar de usar RPC, actualizamos directamente la tabla
         const { data, error } = await supabase
-          .rpc('update_permission_safe', { 
-            permission_id: id, 
-            new_allowed_value: allowed 
-          });
+          .from('role_permissions')
+          .update({ allowed })
+          .eq('id', id)
+          .select('id, allowed')
+          .single();
         
         if (error) {
           throw new Error(`Error updating permission: ${error.message}`);
