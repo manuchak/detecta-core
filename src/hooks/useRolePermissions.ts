@@ -37,6 +37,7 @@ export const useRolePermissions = () => {
         const typedRole = permission.role as Role;
         
         // Cast the permission to our Permission type
+        permissionsByRole[typedRole] = permissionsByRole[typedRole] || [];
         permissionsByRole[typedRole].push({
           id: permission.id,
           role: typedRole,
@@ -83,30 +84,35 @@ export const useRolePermissions = () => {
   const addPermission = useMutation({
     mutationFn: async ({ role, permissionType, permissionId, allowed }: RolePermissionInput) => {
       try {
-        // Log the request for debugging
-        console.log('Sending permission request:', { role, permissionType, permissionId, allowed });
+        // Normalizar el formato de los datos
+        const requestBody = { 
+          role, 
+          permissionType, 
+          permissionId, 
+          allowed 
+        };
         
-        // Use the edge function to add the permission
+        // Log detallado para depuración
+        console.log('Sending permission request:', requestBody);
+        
+        // Invocar la edge function
         const { data, error } = await supabase.functions.invoke('add-permission', {
-          body: { 
-            role, 
-            permissionType, 
-            permissionId, 
-            allowed 
-          }
+          body: requestBody
         });
         
+        // Manejo de errores de la función
         if (error) {
           console.error('Edge function error:', error);
           throw new Error(`Error adding permission: ${error.message || String(error)}`);
         }
         
-        // Check for application-level errors in the data
+        // Verificar errores en la respuesta
         if (data && data.error) {
-          console.error('Application error from add-permission function:', data.error);
+          console.error('Application error from edge function:', data.error);
           throw new Error(`Error adding permission: ${data.error}`);
         }
         
+        // Log de éxito para depuración
         console.log('Permission added successfully:', data);
         return data;
       } catch (err) {

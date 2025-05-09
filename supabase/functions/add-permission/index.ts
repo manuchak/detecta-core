@@ -122,12 +122,15 @@ serve(async (req) => {
         RETURNING id
       `;
       
+      // Convert BigInt to a string to avoid serialization issues
+      const responseData = {
+        success: true,
+        id: String(insertResult.rows[0].id),
+        message: `Permission added successfully: ${role}.${permissionType}.${permissionId}=${allowed}`
+      };
+      
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          id: insertResult.rows[0].id,
-          message: `Permission added successfully: ${role}.${permissionType}.${permissionId}=${allowed}`  
-        }),
+        JSON.stringify(responseData),
         {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
