@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Users, Calendar, Map, MessageSquare, ArrowUp, ArrowDown, ChartBar, CircleDollarSign, TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 
 export const Dashboard = () => {
@@ -28,11 +27,11 @@ export const Dashboard = () => {
     yearlyGrowth: 0
   });
   
-  const [monthlyGmvData, setMonthlyGmvData] = useState([]);
-  const [serviceStatusData, setServiceStatusData] = useState([]);
-  const [serviceTypesData, setServiceTypesData] = useState([]);
-  const [dailyServiceData, setDailyServiceData] = useState([]);
-  const [topClientsData, setTopClientsData] = useState([]);
+  const [monthlyGmvData, setMonthlyGmvData] = useState<any[]>([]);
+  const [serviceStatusData, setServiceStatusData] = useState<any[]>([]);
+  const [serviceTypesData, setServiceTypesData] = useState<any[]>([]);
+  const [dailyServiceData, setDailyServiceData] = useState<any[]>([]);
+  const [topClientsData, setTopClientsData] = useState<any[]>([]);
 
   // Function to calculate date ranges based on selected timeframe
   const getDateRanges = () => {
@@ -269,46 +268,44 @@ export const Dashboard = () => {
     try {
       const { startDate, endDate } = getDateRanges();
       
-      // Fetch status counts directly
+      // Instead of using groupBy, we'll fetch all records and aggregate them manually
       const { data, error } = await supabase
         .from('servicios_custodia')
-        .select('estado, count(*)')
+        .select('estado')
         .gte('fecha_hora_cita', startDate.toISOString())
         .lte('fecha_hora_cita', endDate.toISOString())
-        .not('estado', 'is', null)
-        .groupBy('estado');
+        .not('estado', 'is', null);
         
       if (error) throw error;
       
-      // Calculate total for percentage
-      let total = 0;
-      data.forEach(item => {
-        total += parseInt(item.count);
-      });
-      
-      // Map to chart data structure with percentages
-      const statusCounts = {
+      // Calculate counts manually
+      const statusCounts: Record<string, number> = {
         'En Proceso': 0,
         'Completados': 0,
         'Cancelados': 0,
         'Retrasados': 0
       };
       
+      // Count records by status
       data.forEach(item => {
         if (item.estado === 'En Proceso') {
-          statusCounts['En Proceso'] = Math.round((parseInt(item.count) / total) * 100);
+          statusCounts['En Proceso']++;
         } else if (item.estado === 'Completado') {
-          statusCounts['Completados'] = Math.round((parseInt(item.count) / total) * 100);
+          statusCounts['Completados']++;
         } else if (item.estado === 'Cancelado') {
-          statusCounts['Cancelados'] = Math.round((parseInt(item.count) / total) * 100);
+          statusCounts['Cancelados']++;
         } else if (item.estado === 'Retrasado') {
-          statusCounts['Retrasados'] = Math.round((parseInt(item.count) / total) * 100);
+          statusCounts['Retrasados']++;
         }
       });
       
-      const chartData = Object.keys(statusCounts).map(name => ({
+      // Calculate total for percentage
+      let total = Object.values(statusCounts).reduce((sum, count) => sum + count, 0);
+      
+      // Convert to percentage
+      const chartData = Object.entries(statusCounts).map(([name, count]) => ({
         name,
-        value: statusCounts[name]
+        value: total > 0 ? Math.round((count / total) * 100) : 0
       }));
       
       setServiceStatusData(chartData);
@@ -323,27 +320,31 @@ export const Dashboard = () => {
     try {
       const { startDate, endDate } = getDateRanges();
       
-      // Fetch service types with counts
+      // Instead of using groupBy, we'll fetch all records and aggregate them manually
       const { data, error } = await supabase
         .from('servicios_custodia')
-        .select('local_foraneo, count(*)')
+        .select('local_foraneo')
         .gte('fecha_hora_cita', startDate.toISOString())
         .lte('fecha_hora_cita', endDate.toISOString())
-        .not('local_foraneo', 'is', null)
-        .groupBy('local_foraneo');
+        .not('local_foraneo', 'is', null);
         
       if (error) throw error;
       
-      // Calculate total for percentage
-      let total = 0;
+      // Count by local_foraneo
+      const typeCounts: Record<string, number> = {};
+      
       data.forEach(item => {
-        total += parseInt(item.count);
+        const type = item.local_foraneo || 'No Especificado';
+        typeCounts[type] = (typeCounts[type] || 0) + 1;
       });
       
-      // Map to chart data structure with percentages
-      const chartData = data.map(item => ({
-        name: item.local_foraneo || 'No Especificado',
-        value: Math.round((parseInt(item.count) / total) * 100)
+      // Calculate total for percentage
+      const total = Object.values(typeCounts).reduce((sum, count) => sum + count, 0);
+      
+      // Convert to chart data with percentages
+      const chartData = Object.entries(typeCounts).map(([name, count]) => ({
+        name,
+        value: total > 0 ? Math.round((count / total) * 100) : 0
       }));
       
       setServiceTypesData(chartData);
@@ -410,7 +411,7 @@ export const Dashboard = () => {
       if (clientsError) throw clientsError;
 
       // Count clients manually
-      const clientCounts = {};
+      const clientCounts: Record<string, number> = {};
       clientsData.forEach(item => {
         if (!clientCounts[item.nombre_cliente]) {
           clientCounts[item.nombre_cliente] = 0;
@@ -430,7 +431,7 @@ export const Dashboard = () => {
       // Map to chart data structure with percentages
       const topClients = sortedClients.map(client => ({
         name: client.name,
-        value: Math.round((client.count / totalServices) * 100)
+        value: totalServices > 0 ? Math.round((client.count / totalServices) * 100) : 0
       }));
       
       // Add "Otros" category if needed
@@ -460,7 +461,7 @@ export const Dashboard = () => {
   }, [timeframe, serviceTypeFilter]);
 
   // Format currency for display
-  const formatCurrency = (value) => {
+  const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
       currency: 'MXN',
