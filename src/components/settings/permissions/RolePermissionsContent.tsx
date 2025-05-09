@@ -2,10 +2,11 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Role, Permission } from '@/types/roleTypes';
-import { PlusCircle, AlertTriangle } from 'lucide-react';
+import { PlusCircle, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { PermissionTypeGroup } from './PermissionTypeGroup';
 import { groupPermissionsByType } from '@/utils/permissionUtils';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface RolePermissionsContentProps {
   role: Role;
@@ -94,26 +95,42 @@ export const RolePermissionsContent = ({
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end mb-4">
-        <Button 
-          variant="default"
-          size="sm"
-          onClick={() => onAddPermission(role)}
-          className="flex items-center gap-2 shadow-sm"
-        >
-          <PlusCircle className="h-4 w-4" />
-          Añadir Permiso
-        </Button>
-      </div>
-      
-      {permissionGroups.map(group => (
-        <PermissionTypeGroup
-          key={group.type}
-          type={group.type}
-          permissions={group.permissions}
-          onPermissionChange={onPermissionChange}
-        />
-      ))}
+      <Card className="border-border/40 shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              <h3 className="font-medium">Permisos del rol: <span className="font-bold text-primary">{role}</span></h3>
+            </div>
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={() => onAddPermission(role)}
+              className="flex items-center gap-2 shadow-sm"
+            >
+              <PlusCircle className="h-4 w-4" />
+              Añadir Permiso
+            </Button>
+          </div>
+          
+          <div className="space-y-6">
+            {permissionGroups.length > 0 ? (
+              permissionGroups.map(group => (
+                <PermissionTypeGroup
+                  key={group.type}
+                  type={group.type}
+                  permissions={group.permissions}
+                  onPermissionChange={onPermissionChange}
+                />
+              ))
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No se encontraron permisos para los filtros seleccionados
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

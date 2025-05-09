@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useRoles } from '@/hooks/useRoles';
 import { Role, Permission } from '@/types/roleTypes';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -15,6 +15,7 @@ import {
   Lock
 } from 'lucide-react';
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 export const PermissionsManager = () => {
   // Get roles, permissions and related functions
@@ -39,7 +40,7 @@ export const PermissionsManager = () => {
   });
   
   // All permissions for validation
-  const allPermissions = React.useMemo(() => {
+  const allPermissions = useMemo(() => {
     const result: Permission[] = [];
     if (permissions) {
       Object.values(permissions).forEach(rolePermissions => {
@@ -91,7 +92,7 @@ export const PermissionsManager = () => {
   };
 
   // Get all unique permission types
-  const allPermissionTypes = React.useMemo(() => {
+  const allPermissionTypes = useMemo(() => {
     const types = new Set<string>();
     
     if (permissions) {
@@ -121,6 +122,21 @@ export const PermissionsManager = () => {
     return permissions?.[role]?.length || 0;
   };
 
+  // Estados para mostrar información sobre duplicados
+  const [duplicateAlert, setDuplicateAlert] = useState<string | null>(null);
+
+  // Si los roles o permisos no están cargados correctamente, mostrar mensaje
+  if (!roles || roles.length === 0 || !permissions) {
+    return (
+      <Alert variant="destructive" className="mt-4">
+        <AlertTitle>Error al cargar el panel de permisos</AlertTitle>
+        <AlertDescription>
+          No se pudieron cargar correctamente los roles o permisos. Por favor, recargue la página o contacte al soporte.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   return (
     <TooltipProvider>
       <div className="space-y-6">
@@ -144,6 +160,20 @@ export const PermissionsManager = () => {
             Añadir Permiso
           </Button>
         </div>
+        
+        {duplicateAlert && (
+          <Alert variant="default" className="bg-yellow-50 border-yellow-200 mb-4">
+            <AlertTitle className="text-yellow-800">Información</AlertTitle>
+            <AlertDescription className="text-yellow-700">{duplicateAlert}</AlertDescription>
+            <Button 
+              variant="link" 
+              className="text-yellow-800 p-0 h-auto absolute top-3 right-3"
+              onClick={() => setDuplicateAlert(null)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </Alert>
+        )}
         
         <Card className="border-border/40 shadow-sm overflow-hidden">
           <CardHeader className="pb-3 border-b border-border/30 bg-muted/10">
