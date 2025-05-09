@@ -52,29 +52,30 @@ export const RoleManager = () => {
     setIsDeleteDialogOpen(true);
   };
 
-  const handleSaveRole = () => {
+  const handleSaveRole = async () => {
     try {
       // Format the role name: lowercase and replace spaces with underscores
       const formattedRoleName = currentRole.name.toLowerCase().replace(/\s+/g, '_') as Role;
       
       if (currentRole.id) {
         // Update existing role
-        updateRole.mutate({
+        await updateRole.mutateAsync({
           oldRole: currentRole.id as Role,
           newRole: formattedRoleName
         });
       } else {
         // Create new role
-        createRole.mutate({
+        await createRole.mutateAsync({
           role: formattedRoleName
         });
       }
       setIsDialogOpen(false);
       
     } catch (error) {
+      console.error('Error saving role:', error);
       toast({
         title: "Error",
-        description: "No se pudo guardar el rol",
+        description: error instanceof Error ? error.message : "No se pudo guardar el rol",
         variant: "destructive",
       });
     }

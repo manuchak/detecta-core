@@ -73,7 +73,13 @@ export const useAvailableRoles = () => {
       });
 
       if (error) {
+        console.error('Error from edge function:', error);
         throw new Error(`Error creating role: ${error.message}`);
+      }
+      
+      if (data && data.error) {
+        console.error('Error from create-role function:', data.error);
+        throw new Error(`Error creating role: ${data.error}`);
       }
 
       return data;
@@ -88,7 +94,7 @@ export const useAvailableRoles = () => {
     onError: (error) => {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Error al crear el rol",
         variant: "destructive",
       });
     }
@@ -107,6 +113,10 @@ export const useAvailableRoles = () => {
       if (error) {
         throw new Error(`Error updating role: ${error.message}`);
       }
+      
+      if (data && data.error) {
+        throw new Error(`Error updating role: ${data.error}`);
+      }
 
       return data;
     },
@@ -122,7 +132,7 @@ export const useAvailableRoles = () => {
     onError: (error) => {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Error al actualizar el rol",
         variant: "destructive",
       });
     }
@@ -138,6 +148,10 @@ export const useAvailableRoles = () => {
       if (error) {
         throw new Error(`Error deleting role: ${error.message}`);
       }
+      
+      if (data && data.error) {
+        throw new Error(`Error deleting role: ${data.error}`);
+      }
 
       return data;
     },
@@ -152,7 +166,7 @@ export const useAvailableRoles = () => {
     onError: (error) => {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Error al eliminar el rol",
         variant: "destructive",
       });
     }

@@ -46,19 +46,45 @@ serve(async (req) => {
     
     console.log(`Attempting to create role: ${validRoleName}`);
     
-    // Call the RPC function to create a new role with the validated name
-    const { data, error } = await supabase
-      .rpc('create_new_role', { new_role: validRoleName });
-
-    if (error) {
-      console.error('Error creating role:', error);
-      return new Response(JSON.stringify({ error: error.message }), {
+    // First check if the role already exists
+    const { data: existingRoles, error: fetchError } = await supabase
+      .from('role_permissions')
+      .select('role')
+      .eq('role', validRoleName)
+      .limit(1);
+      
+    if (fetchError) {
+      console.error('Error checking if role exists:', fetchError);
+      return new Response(JSON.stringify({ error: fetchError.message }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
-    return new Response(JSON.stringify({ success: true, data }), {
+    
+    if (existingRoles && existingRoles.length > 0) {
+      return new Response(JSON.stringify({ error: 'Role already exists' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    // Insert directly into role_permissions table with default permissions
+    const { error: insertError } = await supabase
+      .from('role_permissions')
+      .insert([
+        { role: validRoleName, permission_type: 'page', permission_id: 'dashboard', allowed: true },
+        { role: validRoleName, permission_type: 'page', permission_id: 'profile', allowed: true }
+      ]);
+    
+    if (insertError) {
+      console.error('Error inserting role permissions:', insertError);
+      return new Response(JSON.stringify({ error: insertError.message }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    return new Response(JSON.stringify({ success: true, role: validRoleName }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
