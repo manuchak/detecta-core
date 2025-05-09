@@ -22,6 +22,7 @@ import InstallerPortal from "./pages/Installers/InstallerPortal";
 import TicketsList from "./pages/Tickets/TicketsList";
 import Settings from "./pages/Settings/Settings";
 import NotFound from "./pages/NotFound";
+import MonitoringPage from "./pages/Monitoring/MonitoringPage";
 
 // Query client for React Query
 const queryClient = new QueryClient();
@@ -63,7 +64,7 @@ const App = () => {
                 <Route path="/installations/installers" element={<InstallerPortal />} />
                 
                 {/* Monitoring */}
-                <Route path="/monitoring" element={<div>Monitoreo en vivo</div>} />
+                <Route path="/monitoring" element={<MonitoringPage />} />
                 
                 {/* Tickets */}
                 <Route path="/tickets" element={<TicketsList />} />
