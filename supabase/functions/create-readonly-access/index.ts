@@ -79,10 +79,11 @@ serve(async (req) => {
       }
 
       // Check if the user has owner role
-      const userRoleResult = await connection.queryObject`
+      // Fix: Use text parameters with proper placeholders
+      const userRoleResult = await connection.queryObject(`
         SELECT role 
         FROM user_roles 
-        WHERE user_id = ${userId}
+        WHERE user_id = $1
         ORDER BY 
           CASE role
             WHEN 'owner' THEN 1
@@ -90,7 +91,7 @@ serve(async (req) => {
             ELSE 3
           END
         LIMIT 1
-      `;
+      `, [userId]);
       
       if (userRoleResult.rows.length === 0 || 
           (userRoleResult.rows[0].role !== 'owner' && userRoleResult.rows[0].role !== 'admin')) {
@@ -121,39 +122,41 @@ serve(async (req) => {
       const userName = `api_${sanitizedServiceName}`;
       
       // Create role if not exists
-      await connection.queryArray`
+      // Fix: Use SQL string literals rather than template literals for SQL
+      await connection.queryArray(`
         DO $$
         BEGIN
-          IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = ${roleName}) THEN
-            EXECUTE 'CREATE ROLE ' || quote_ident(${roleName}) || ' NOLOGIN';
+          IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = $1) THEN
+            EXECUTE 'CREATE ROLE ' || quote_ident($1) || ' NOLOGIN';
           END IF;
         END
         $$;
-      `;
+      `, [roleName]);
       
       // Grant permissions to the role
-      await connection.queryArray`
+      await connection.queryArray(`
         GRANT USAGE ON SCHEMA public TO ${roleName};
         GRANT SELECT ON public.servicios_custodia TO ${roleName};
-      `;
+      `);
       
       // Create user if not exists, otherwise reset password
-      await connection.queryArray`
+      // Fix: Use parameterized queries appropriately
+      await connection.queryArray(`
         DO $$
         BEGIN
-          IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = ${userName}) THEN
-            EXECUTE 'ALTER ROLE ' || quote_ident(${userName}) || ' WITH PASSWORD ' || quote_literal(${password});
+          IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = $1) THEN
+            EXECUTE 'ALTER ROLE ' || quote_ident($1) || ' WITH PASSWORD ' || quote_literal($2);
           ELSE
-            EXECUTE 'CREATE ROLE ' || quote_ident(${userName}) || ' LOGIN PASSWORD ' || quote_literal(${password});
+            EXECUTE 'CREATE ROLE ' || quote_ident($1) || ' LOGIN PASSWORD ' || quote_literal($2);
           END IF;
         END
         $$;
-      `;
+      `, [userName, password]);
       
       // Grant role to user
-      await connection.queryArray`
+      await connection.queryArray(`
         GRANT ${roleName} TO ${userName};
-      `;
+      `);
       
       // Generate connection string
       const dbHost = new URL(databaseUrl).hostname;
@@ -164,14 +167,14 @@ serve(async (req) => {
       
       // Create API key record in secrets table if it exists
       try {
-        await connection.queryArray`
+        await connection.queryArray(`
           INSERT INTO public.secrets (name, value)
-          VALUES (${`api_key_${sanitizedServiceName}`}, ${connectionString})
+          VALUES ($1, $2)
           ON CONFLICT (name) 
-          DO UPDATE SET value = ${connectionString}, updated_at = now();
-        `;
+          DO UPDATE SET value = $2, updated_at = now();
+        `, [`api_key_${sanitizedServiceName}`, connectionString]);
       } catch (e) {
-        console.log('Secrets table may not exist, skipping record creation');
+        console.log('Secrets table may not exist, skipping record creation:', e);
       }
       
       return new Response(JSON.stringify({
