@@ -1531,6 +1531,13 @@ export type Database = {
           transcript: Json
         }[]
       }
+      get_all_user_roles_safe: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          user_id: string
+          role: string
+        }[]
+      }
       get_new_custodios_by_month: {
         Args: Record<PropertyKey, never>
         Returns: {

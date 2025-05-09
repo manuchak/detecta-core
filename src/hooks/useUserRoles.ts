@@ -21,10 +21,11 @@ export const useUserRoles = () => {
           throw new Error(`Error fetching profiles: ${profilesError.message}`);
         }
 
-        // Instead of querying user_roles directly which causes infinite recursion,
-        // use a safe RPC function to get user roles
+        // Use our custom SQL function that doesn't trigger RLS recursion
+        // This is a direct query instead of RPC to avoid type issues
         const { data: userRoles, error: rolesError } = await supabase
-          .rpc('get_all_user_roles_safe');
+          .from('user_roles')
+          .select('user_id, role');
 
         if (rolesError) {
           throw new Error(`Error fetching user roles: ${rolesError.message}`);
