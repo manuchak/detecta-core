@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useRoles } from '@/hooks/useRoles';
 import { Role, Permission } from '@/types/roleTypes';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -13,19 +13,22 @@ import {
   Loader2, 
   ShieldCheck, 
   Lock,
-  X
+  X,
+  AlertTriangle,
+  RefreshCcw
 } from 'lucide-react';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 export const PermissionsManager = () => {
   // Get roles, permissions and related functions
-  const { roles, permissions, isLoading, updatePermission, addPermission } = useRoles();
+  const { roles, permissions, isLoading, error, updatePermission, addPermission } = useRoles();
   
   // State for active tab and permissions filter
   const [activeTab, setActiveTab] = useState<string>('admin');
   const [isAddPermissionOpen, setIsAddPermissionOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [retryCount, setRetryCount] = useState(0);
   
   // State for the new permission being added
   const [newPermission, setNewPermission] = useState<{
@@ -40,14 +43,44 @@ export const PermissionsManager = () => {
     allowed: true,
   });
   
+  // Estados para mostrar información sobre duplicados
+  const [duplicateAlert, setDuplicateAlert] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Detect permission loading errors and set error message
+  useEffect(() => {
+    if (error) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Error desconocido al cargar permisos';
+      
+      if (errorMessage.includes('infinite recursion')) {
+        setLoadError('Se detectó un error de recursión infinita en las políticas de seguridad. Esto puede deberse a políticas RLS mal configuradas.');
+      } else {
+        setLoadError(errorMessage);
+      }
+    } else {
+      setLoadError(null);
+    }
+  }, [error]);
+
+  // Set active tab to first available role when roles are loaded
+  useEffect(() => {
+    if (roles && roles.length > 0 && !activeTab) {
+      setActiveTab(roles[0]);
+    }
+  }, [roles, activeTab]);
+
   // All permissions for validation
   const allPermissions = useMemo(() => {
     const result: Permission[] = [];
     if (permissions) {
       Object.values(permissions).forEach(rolePermissions => {
-        rolePermissions.forEach(permission => {
-          result.push(permission);
-        });
+        if (rolePermissions) {
+          rolePermissions.forEach(permission => {
+            result.push(permission);
+          });
+        }
       });
     }
     return result;
@@ -68,8 +101,20 @@ export const PermissionsManager = () => {
     }));
   };
 
-  // Safely handle new permission addition
+  // Safely handle new permission addition with duplicate check
   const handleAddPermission = () => {
+    // Check for duplicates
+    const existingPermission = allPermissions.find(
+      p => p.role === newPermission.role && 
+           p.permission_type === newPermission.permissionType && 
+           p.permission_id === newPermission.permissionId
+    );
+
+    if (existingPermission) {
+      setDuplicateAlert(`Este permiso ya existe para el rol ${newPermission.role}. No es necesario añadirlo de nuevo.`);
+      return;
+    }
+
     if (addPermission) {
       addPermission.mutate({
         role: newPermission.role,
@@ -98,9 +143,11 @@ export const PermissionsManager = () => {
     
     if (permissions) {
       Object.values(permissions).forEach(rolePermissions => {
-        rolePermissions.forEach(permission => {
-          types.add(permission.permission_type);
-        });
+        if (rolePermissions) {
+          rolePermissions.forEach(permission => {
+            types.add(permission.permission_type);
+          });
+        }
       });
     }
     
@@ -123,11 +170,136 @@ export const PermissionsManager = () => {
     return permissions?.[role]?.length || 0;
   };
 
-  // Estados para mostrar información sobre duplicados
-  const [duplicateAlert, setDuplicateAlert] = useState<string | null>(null);
+  // Handle retry when there's an error loading
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1);
+  };
+
+  // Create a fallback permissions structure when there's an error
+  const fallbackPermissions = useMemo(() => {
+    if (!error || !roles || roles.length === 0) return null;
+    
+    // Create empty structure with default roles
+    const fallback: Record<Role, Permission[]> = {};
+    
+    // Add each role with an empty array
+    (roles as Role[]).forEach(role => {
+      fallback[role] = [];
+    });
+    
+    return fallback;
+  }, [error, roles]);
+
+  // Use real or fallback permissions
+  const displayPermissions = useMemo(() => {
+    return permissions || fallbackPermissions;
+  }, [permissions, fallbackPermissions]);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center py-16">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="text-sm text-muted-foreground">
+            Cargando permisos...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center">
+                <ShieldCheck className="h-4.5 w-4.5 text-primary" />
+              </div>
+              <h2 className="text-2xl font-bold text-foreground">Permisos del Sistema</h2>
+            </div>
+            <p className="text-muted-foreground">
+              Configure los permisos y accesos para cada rol del sistema
+            </p>
+          </div>
+          <Button 
+            onClick={() => handleOpenAddPermission()}
+            className="flex items-center gap-2 shadow-sm"
+          >
+            <PlusCircle className="h-4 w-4" />
+            Añadir Permiso
+          </Button>
+        </div>
+
+        <Alert variant="destructive" className="mb-6">
+          <AlertTriangle className="h-5 w-5" />
+          <AlertTitle>Error al cargar los permisos</AlertTitle>
+          <AlertDescription className="space-y-2">
+            <p>{loadError}</p>
+            <div className="pt-2">
+              <Button 
+                variant="outline" 
+                onClick={handleRetry}
+                className="flex items-center gap-2"
+              >
+                <RefreshCcw className="h-4 w-4" />
+                Reintentar
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+
+        {/* Display alternative content using fallback permissions */}
+        {roles && roles.length > 0 && fallbackPermissions && (
+          <Card className="border-border/40 shadow-sm overflow-hidden">
+            <CardHeader className="pb-3 border-b border-border/30 bg-muted/10">
+              <div className="flex items-center gap-2">
+                <Lock className="h-4 w-4 text-primary" />
+                <CardTitle className="text-lg">Gestión de Permisos (Modo Limitado)</CardTitle>
+              </div>
+              <CardDescription>
+                Algunas funcionalidades están limitadas mientras se resuelve el error
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div>
+                <RoleTabsList
+                  roles={roles}
+                  activeTab={activeTab}
+                  onTabChange={setActiveTab}
+                  getPermissionCount={getPermissionCount}
+                >
+                  {roles?.map((role) => (
+                    <div key={role} className="space-y-6">
+                      <div className="bg-muted/20 rounded-lg py-12 px-6 text-center">
+                        <h3 className="text-md font-medium mb-2">Modo de visualización limitado para el rol: {role}</h3>
+                        <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                          Los permisos no pueden mostrarse completamente debido a un error de acceso. 
+                          Añada permisos para definir lo que los usuarios con este rol pueden hacer.
+                        </p>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => handleOpenAddPermission(role as Role)}
+                          className="flex items-center gap-2"
+                        >
+                          <PlusCircle className="h-4 w-4" />
+                          Añadir Permiso para {role}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </RoleTabsList>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  }
 
   // Si los roles o permisos no están cargados correctamente, mostrar mensaje
-  if (!roles || roles.length === 0 || !permissions) {
+  if (!roles || roles.length === 0 || !displayPermissions) {
     return (
       <Alert variant="destructive" className="mt-4">
         <AlertTitle>Error al cargar el panel de permisos</AlertTitle>
@@ -197,16 +369,7 @@ export const PermissionsManager = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="p-6">
-            {isLoading ? (
-              <div className="flex justify-center items-center py-16">
-                <div className="flex flex-col items-center gap-4">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <div className="text-sm text-muted-foreground">
-                    Cargando permisos...
-                  </div>
-                </div>
-              </div>
-            ) : !permissions || Object.keys(permissions).length === 0 ? (
+            {!displayPermissions || Object.keys(displayPermissions).length === 0 ? (
               <div className="bg-muted/20 rounded-lg py-16 px-6 text-center">
                 <div className="mx-auto h-12 w-12 rounded-full bg-muted/50 flex items-center justify-center mb-4">
                   <ShieldCheck className="h-6 w-6 text-muted-foreground" />
@@ -233,7 +396,7 @@ export const PermissionsManager = () => {
                   getPermissionCount={getPermissionCount}
                 >
                   {roles?.map((role) => {
-                    const rolePermissions = permissions?.[role] as Permission[];
+                    const rolePermissions = displayPermissions?.[role] || [];
                     const filteredPermissions = getFilteredPermissions(rolePermissions);
                     
                     return (

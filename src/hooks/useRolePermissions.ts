@@ -9,12 +9,11 @@ export const useRolePermissions = () => {
   const queryClient = useQueryClient();
 
   // Consulta para obtener todos los permisos por rol
-  const { data: permissions, isLoading, error } = useQuery({
+  const { data: permissions, isLoading, error, refetch } = useQuery({
     queryKey: ['role-permissions'],
     queryFn: async () => {
       try {
-        // Utilizamos la función segura para evitar problemas de recursión RLS
-        // Cambiamos de rpc a from('role_permissions') y select()
+        // Direct query to avoid RLS recursion issues
         const { data, error } = await supabase
           .from('role_permissions')
           .select('id, role, permission_type, permission_id, allowed');
@@ -24,33 +23,42 @@ export const useRolePermissions = () => {
           throw new Error(`Error fetching permissions: ${error.message}`);
         }
 
+        // Initialize roles that we know should exist
+        const defaultRoles: Role[] = ['admin', 'owner', 'pending', 'unverified'];
+        
+        // Attempt to get all roles if available
+        let allRoles: Role[] = defaultRoles;
+        try {
+          const { data: userRoles, error: rolesError } = await supabase
+            .rpc('get_user_roles_safe');
+          
+          if (!rolesError && userRoles) {
+            // Extract just the role names and combine with defaultRoles to ensure we have them all
+            const fetchedRoles = userRoles.map((r: any) => r.role as Role);
+            allRoles = [...new Set([...defaultRoles, ...fetchedRoles])];
+          }
+        } catch (err) {
+          console.error('Error fetching roles, using defaults:', err);
+        }
+        
         // Agrupar permisos por rol
         const permissionsByRole = {} as PermissionsByRole;
         
-        // Inicializar el objeto permissionsByRole con arrays vacíos para todos los roles
-        // Usar from('user_roles') en lugar de rpc
-        const { data: roles } = await supabase
-          .from('user_roles')
-          .select('role')
-          .is('user_id', null);
-        
-        const allRoles: Role[] = roles ? 
-          roles.map((r: any) => r.role as Role) : 
-          ['admin', 'supply', 'supply_admin', 'soporte', 'bi', 
-           'monitoring', 'monitoring_supervisor', 'owner', 'pending', 'unverified'];
-        
+        // Initialize with empty arrays for all roles
         allRoles.forEach(role => {
           permissionsByRole[role] = [];
         });
         
-        // Poblar con los permisos recibidos
+        // Populate with fetched permissions
         if (data && Array.isArray(data)) {
           data.forEach(permission => {
-            // Convertir el rol de la base de datos a nuestro tipo Role
+            // Add the role to our list if it doesn't exist yet
             const typedRole = permission.role as Role;
             
-            // Convertir el permiso a nuestro tipo Permission
-            permissionsByRole[typedRole] = permissionsByRole[typedRole] || [];
+            if (!permissionsByRole[typedRole]) {
+              permissionsByRole[typedRole] = [];
+            }
+            
             permissionsByRole[typedRole].push({
               id: permission.id,
               role: typedRole,
@@ -64,19 +72,17 @@ export const useRolePermissions = () => {
         return permissionsByRole;
       } catch (err) {
         console.error('Error inesperado en useRolePermissions:', err);
-        // Devolvemos un objeto vacío en caso de error para evitar bloqueos en la UI
-        return {} as PermissionsByRole;
+        throw err;
       }
     },
     staleTime: 60000, // Caché por 1 minuto para mejorar rendimiento
-    retry: 2 // Intentos limitados para evitar ciclos infinitos
+    retry: 1, // Solo un reintento para evitar problemas de recursión
   });
 
   // Mutación para actualizar un permiso existente
   const updatePermission = useMutation({
     mutationFn: async ({ id, allowed }: { id: number, allowed: boolean }) => {
       try {
-        // En lugar de usar RPC, actualizamos directamente la tabla
         const { data, error } = await supabase
           .from('role_permissions')
           .update({ allowed })
@@ -110,11 +116,10 @@ export const useRolePermissions = () => {
     }
   });
 
-  // Mutación para añadir un nuevo permiso usando la función de seguridad definida en lugar del edge function
+  // Mutación para añadir un nuevo permiso usando la función de seguridad
   const addPermission = useMutation({
     mutationFn: async ({ role, permissionType, permissionId, allowed }: RolePermissionInput) => {
       try {
-        // Usar la nueva función de seguridad definida en SQL para evitar la recursión RLS
         console.log(`Añadiendo permiso: ${role}.${permissionType}.${permissionId}=${allowed}`);
         
         const { data, error } = await supabase.rpc('add_permission_safe', {
@@ -164,6 +169,7 @@ export const useRolePermissions = () => {
     permissions,
     isLoading,
     error,
+    refetch,
     updatePermission,
     addPermission
   };

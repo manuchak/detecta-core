@@ -14,7 +14,7 @@ interface RolePermissionsContentProps {
   filteredPermissions: Permission[] | undefined;
   typeFilter: string;
   onPermissionChange: (id: number, allowed: boolean) => void;
-  onAddPermission: (role: Role) => void;
+  onAddPermission: (role: Role) => void; 
 }
 
 export const RolePermissionsContent = ({ 
@@ -26,7 +26,7 @@ export const RolePermissionsContent = ({
   onAddPermission 
 }: RolePermissionsContentProps) => {
   // Group permissions by type for easier understanding
-  const groupedPermissions = groupPermissionsByType(filteredPermissions);
+  const groupedPermissions = groupPermissionsByType(filteredPermissions || []);
   
   const permissionGroups = Object.entries(groupedPermissions).map(([type, perms]) => ({
     type,
