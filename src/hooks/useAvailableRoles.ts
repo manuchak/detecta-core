@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
@@ -68,21 +67,23 @@ export const useAvailableRoles = () => {
   // Create a new role
   const createRole = useMutation({
     mutationFn: async ({ role }: CreateRoleInput) => {
-      const { data, error } = await supabase.functions.invoke('create-role', {
+      // Use the updated edge function
+      const response = await supabase.functions.invoke('create-role', {
         body: { new_role: role }
       });
 
-      if (error) {
-        console.error('Error from edge function:', error);
-        throw new Error(`Error creating role: ${error.message}`);
+      if (response.error) {
+        console.error('Error from edge function:', response.error);
+        throw new Error(`Error creating role: ${response.error.message || response.error}`);
       }
       
-      if (data && data.error) {
-        console.error('Error from create-role function:', data.error);
-        throw new Error(`Error creating role: ${data.error}`);
+      // Check for application-level errors in the data
+      if (response.data && response.data.error) {
+        console.error('Error from create-role function:', response.data.error);
+        throw new Error(`Error creating role: ${response.data.error}`);
       }
 
-      return data;
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['available-roles'] });

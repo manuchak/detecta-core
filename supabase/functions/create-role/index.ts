@@ -1,6 +1,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.1';
+import { Pool } from 'https://deno.land/x/postgres@v0.17.0/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -46,48 +47,44 @@ serve(async (req) => {
     
     console.log(`Attempting to create role: ${validRoleName}`);
     
-    // First check if the role already exists
-    const { data: existingRoles, error: fetchError } = await supabase
-      .from('role_permissions')
-      .select('role')
-      .eq('role', validRoleName)
-      .limit(1);
+    // Direct database connection to avoid RLS recursion issues
+    const databaseUrl = Deno.env.get('SUPABASE_DB_URL') ?? '';
+    if (!databaseUrl) {
+      throw new Error('Database URL not found in environment');
+    }
+    
+    const pool = new Pool(databaseUrl, 1);
+    const connection = await pool.connect();
+    
+    try {
+      // Check if the role already exists
+      const checkResult = await connection.queryObject`
+        SELECT role FROM role_permissions WHERE role = ${validRoleName} LIMIT 1
+      `;
       
-    if (fetchError) {
-      console.error('Error checking if role exists:', fetchError);
-      return new Response(JSON.stringify({ error: fetchError.message }), {
-        status: 400,
+      if (checkResult.rows.length > 0) {
+        return new Response(JSON.stringify({ error: 'Role already exists' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      // Insert directly into role_permissions table with default permissions
+      await connection.queryArray`
+        INSERT INTO role_permissions (role, permission_type, permission_id, allowed)
+        VALUES 
+          (${validRoleName}, 'page', 'dashboard', true),
+          (${validRoleName}, 'page', 'profile', true)
+      `;
+      
+      return new Response(JSON.stringify({ success: true, role: validRoleName }), {
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    } finally {
+      connection.release();
+      await pool.end();
     }
-    
-    if (existingRoles && existingRoles.length > 0) {
-      return new Response(JSON.stringify({ error: 'Role already exists' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    
-    // Insert directly into role_permissions table with default permissions
-    const { error: insertError } = await supabase
-      .from('role_permissions')
-      .insert([
-        { role: validRoleName, permission_type: 'page', permission_id: 'dashboard', allowed: true },
-        { role: validRoleName, permission_type: 'page', permission_id: 'profile', allowed: true }
-      ]);
-    
-    if (insertError) {
-      console.error('Error inserting role permissions:', insertError);
-      return new Response(JSON.stringify({ error: insertError.message }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    
-    return new Response(JSON.stringify({ success: true, role: validRoleName }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
   } catch (error) {
     console.error('Error processing request:', error);
     return new Response(JSON.stringify({ error: String(error) }), {
