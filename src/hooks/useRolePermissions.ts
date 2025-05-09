@@ -32,8 +32,7 @@ export const useRolePermissions = () => {
         const { data: roles } = await supabase
           .from('user_roles')
           .select('role')
-          .is('user_id', null)
-          .or('user_id.eq.00000000-0000-0000-0000-000000000000');
+          .is('user_id', null);
         
         const allRoles: Role[] = roles ? 
           roles.map((r: any) => r.role as Role) : 
@@ -131,9 +130,9 @@ export const useRolePermissions = () => {
         }
         
         // Verificar errores de aplicación en la respuesta
-        if (data && data.error) {
+        if (typeof data === 'object' && data !== null && 'error' in data) {
           console.error('Error retornado por add_permission_safe:', data.error);
-          throw new Error(`Error al añadir el permiso: ${data.error}`);
+          throw new Error(`Error al añadir el permiso: ${String(data.error)}`);
         }
         
         console.log('Respuesta de add_permission_safe:', data);
