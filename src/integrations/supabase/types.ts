@@ -1485,12 +1485,20 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      create_new_role: {
+        Args: { new_role: string }
+        Returns: undefined
+      }
       deduplicate_leads: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
       deduplicate_servicios_custodia: {
         Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      delete_role: {
+        Args: { target_role: string }
         Returns: undefined
       }
       get_all_prospects: {
@@ -1612,11 +1620,7 @@ export type Database = {
       get_user_roles_safe: {
         Args: Record<PropertyKey, never>
         Returns: {
-          id: string
-          user_id: string
           role: string
-          assigned_at: string
-          assigned_by: string
         }[]
       }
       has_role: {
@@ -1708,6 +1712,10 @@ export type Database = {
         Returns: {
           id: number
         }[]
+      }
+      update_role_name: {
+        Args: { old_role: string; new_role: string }
+        Returns: undefined
       }
       update_user_role: {
         Args: { target_user_id: string; new_role: string }
