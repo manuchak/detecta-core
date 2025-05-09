@@ -209,7 +209,7 @@ export const ApiCredentialsManager: React.FC = () => {
                 </div>
               </div>
               
-              <Alert variant="warning">
+              <Alert variant="destructive" className="bg-destructive/10">
                 <AlertTitle>¡Importante!</AlertTitle>
                 <AlertDescription className="text-sm">
                   Esta será la única vez que podrás ver la contraseña. Asegúrate de guardarla en un lugar seguro. Si la pierdes, 
