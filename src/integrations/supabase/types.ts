@@ -1621,6 +1621,7 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: {
           role: string
+          sort_order: number
         }[]
       }
       has_role: {

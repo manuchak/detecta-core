@@ -34,29 +34,34 @@ export const useAvailableRoles = () => {
         return availableRoles;
       }
 
-      // Extract unique roles from the result
-      const uniqueRoles = new Set<Role>();
-      data?.forEach(roleData => {
-        uniqueRoles.add(roleData.role as Role);
-      });
-
-      // If no roles found, return default roles
-      if (uniqueRoles.size === 0) {
-        return [
-          'owner',
-          'admin',
-          'supply_admin',
-          'supply',
-          'soporte',
-          'bi',
-          'monitoring_supervisor',
-          'monitoring',
-          'pending',
-          'unverified'
-        ] as Role[];
+      // Extract roles from the result and sort them by the sort_order
+      if (Array.isArray(data)) {
+        // Sort the roles based on the sort_order field if it exists
+        const sortedData = [...data].sort((a, b) => {
+          // If we're receiving the new structure with sort_order
+          if ('sort_order' in a && 'sort_order' in b) {
+            return (a.sort_order as number) - (b.sort_order as number);
+          }
+          return 0;
+        });
+        
+        // Map to just the role names
+        return sortedData.map(item => item.role as Role);
       }
 
-      return Array.from(uniqueRoles);
+      // If no roles found, return default roles
+      return [
+        'owner',
+        'admin',
+        'supply_admin',
+        'supply',
+        'soporte',
+        'bi',
+        'monitoring_supervisor',
+        'monitoring',
+        'pending',
+        'unverified'
+      ] as Role[];
     }
   });
 
