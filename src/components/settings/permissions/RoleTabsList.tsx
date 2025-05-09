@@ -15,13 +15,15 @@ interface RoleTabsListProps {
   activeTab: string;
   onTabChange: (value: string) => void;
   children: React.ReactNode;
+  getPermissionCount?: (role: Role) => number;
 }
 
 export const RoleTabsList = ({ 
   roles, 
   activeTab, 
   onTabChange,
-  children 
+  children,
+  getPermissionCount
 }: RoleTabsListProps) => {
   
   const getRoleBadgeColor = (role: string) => {
@@ -95,6 +97,11 @@ export const RoleTabsList = ({
               <Badge variant="outline" className={`${getRoleBadgeColor(role)} font-medium px-2.5 py-0.5 truncate`}>
                 {getRoleLabel(role)}
               </Badge>
+              {getPermissionCount && (
+                <span className="ml-1 text-xs bg-muted/80 rounded-full px-1.5 py-0.5">
+                  {getPermissionCount(role)}
+                </span>
+              )}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -103,3 +110,4 @@ export const RoleTabsList = ({
     </Tabs>
   );
 };
+

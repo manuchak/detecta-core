@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useRoles } from '@/hooks/useRoles';
 import { Role, Permission } from '@/types/roleTypes';
@@ -7,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { PermissionsContainer } from './permissions/PermissionsContainer';
 import { RoleTabsList } from './permissions/RoleTabsList';
 import { AddPermissionDialog } from './permissions/AddPermissionDialog';
+import { Switch } from '@/components/ui/switch';
 import { 
   PlusCircle, 
   Loader2, 
