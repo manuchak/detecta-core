@@ -81,20 +81,28 @@ export const useRolePermissions = () => {
 
   const addPermission = useMutation({
     mutationFn: async ({ role, permissionType, permissionId, allowed }: RolePermissionInput) => {
-      const { error } = await supabase
-        .from('role_permissions')
-        .insert({ 
+      // Use the edge function instead of direct Supabase query
+      const response = await supabase.functions.invoke('add-permission', {
+        body: { 
           role, 
-          permission_type: permissionType, 
-          permission_id: permissionId, 
+          permissionType, 
+          permissionId, 
           allowed 
-        });
+        }
+      });
       
-      if (error) {
-        throw new Error(`Error adding permission: ${error.message}`);
+      if (response.error) {
+        console.error('Error from edge function:', response.error);
+        throw new Error(`Error adding permission: ${response.error.message || response.error}`);
       }
       
-      return { role, permissionType, permissionId, allowed };
+      // Check for application-level errors in the data
+      if (response.data && response.data.error) {
+        console.error('Error from add-permission function:', response.data.error);
+        throw new Error(`Error adding permission: ${response.data.error}`);
+      }
+      
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['role-permissions'] });
@@ -106,7 +114,7 @@ export const useRolePermissions = () => {
     onError: (error) => {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Error al añadir el permiso",
         variant: "destructive",
       });
     }
