@@ -1,4 +1,5 @@
 
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -29,8 +30,23 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Search, Plus, MoreHorizontal, ChevronRight } from "lucide-react";
+import { Search, Plus, MoreHorizontal, ChevronRight, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
+
+// Interface for the Lead data from Supabase
+interface Lead {
+  id: number;
+  nombre: string | null;
+  email: string | null;
+  telefono: string | null;
+  estado: string | null;
+  empresa: string | null;
+  fecha_creacion: string | null;
+  created_at: string;
+  fuente: string | null;
+}
 
 const statusBadgeStyles = {
   nuevo: "bg-blue-100 text-blue-800 hover:bg-blue-100",
@@ -40,16 +56,93 @@ const statusBadgeStyles = {
   rechazado: "bg-red-100 text-red-800 hover:bg-red-100",
 };
 
-// Mock data
-const mockLeads = [
-  { id: 1, nombre: "Transportes MX", contacto: "Jorge Pérez", email: "jorge@transportesmx.com", telefono: "+52 123 456 7890", estado: "nuevo", fecha: "2023-05-01" },
-  { id: 2, nombre: "Logística Internacional", contacto: "Ana Gómez", email: "ana@logisticaint.com", telefono: "+52 234 567 8901", estado: "proceso", fecha: "2023-04-28" },
-  { id: 3, nombre: "Cargas Expresas", contacto: "Miguel Rodríguez", email: "miguel@cargasexp.com", telefono: "+52 345 678 9012", estado: "aprobacion", fecha: "2023-04-25" },
-  { id: 4, nombre: "Fletes Rápidos", contacto: "Laura Torres", email: "laura@fletesrap.com", telefono: "+52 456 789 0123", estado: "aprobado", fecha: "2023-04-20" },
-  { id: 5, nombre: "Transportadora Nacional", contacto: "Roberto Díaz", email: "roberto@transnac.com", telefono: "+52 567 890 1234", estado: "rechazado", fecha: "2023-04-15" },
-];
-
 export const LeadsList = () => {
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [filteredLeads, setFilteredLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("todos");
+  const { toast } = useToast();
+
+  // Fetch leads from Supabase
+  useEffect(() => {
+    const fetchLeads = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('leads')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          throw error;
+        }
+        
+        setLeads(data || []);
+        setFilteredLeads(data || []);
+      } catch (error) {
+        console.error('Error fetching leads:', error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los leads. Por favor, intenta de nuevo.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLeads();
+  }, [toast]);
+
+  // Handle search and filter
+  useEffect(() => {
+    let result = leads;
+    
+    // Apply search filter
+    if (searchTerm) {
+      const lowerSearchTerm = searchTerm.toLowerCase();
+      result = result.filter((lead) => 
+        (lead.nombre?.toLowerCase().includes(lowerSearchTerm) || false) ||
+        (lead.email?.toLowerCase().includes(lowerSearchTerm) || false) ||
+        (lead.telefono?.toLowerCase().includes(lowerSearchTerm) || false) ||
+        (lead.empresa?.toLowerCase().includes(lowerSearchTerm) || false)
+      );
+    }
+    
+    // Apply status filter
+    if (statusFilter !== "todos") {
+      result = result.filter((lead) => {
+        const leadStatus = lead.estado?.toLowerCase() || '';
+        return leadStatus === statusFilter;
+      });
+    }
+    
+    setFilteredLeads(result);
+  }, [searchTerm, statusFilter, leads]);
+
+  // Get the status badge style based on lead status
+  const getStatusBadgeStyle = (status: string | null) => {
+    if (!status) return "bg-gray-100 text-gray-800 hover:bg-gray-100";
+    
+    const normalizedStatus = status.toLowerCase();
+    const matchedStyle = Object.entries(statusBadgeStyles).find(([key]) => 
+      normalizedStatus.includes(key)
+    );
+    
+    return matchedStyle ? matchedStyle[1] : "bg-gray-100 text-gray-800 hover:bg-gray-100";
+  };
+
+  // Format date for display
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "-";
+    return new Date(dateString).toLocaleDateString('es-MX', {
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric'
+    });
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -68,17 +161,26 @@ export const LeadsList = () => {
         <CardHeader>
           <CardTitle>Listado de Leads</CardTitle>
           <CardDescription>
-            Total de leads: {mockLeads.length}
+            Total de leads: {filteredLeads.length}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="mb-4 flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Buscar por nombre, contacto o email..." className="pl-8" />
+              <Input 
+                placeholder="Buscar por nombre, contacto o email..." 
+                className="pl-8" 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
             <div className="flex gap-3">
-              <Select defaultValue="todos">
+              <Select 
+                defaultValue="todos"
+                value={statusFilter}
+                onValueChange={setStatusFilter}
+              >
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Estado" />
                 </SelectTrigger>
@@ -109,37 +211,61 @@ export const LeadsList = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {mockLeads.map((lead) => (
-                  <TableRow key={lead.id}>
-                    <TableCell className="font-medium">{lead.nombre}</TableCell>
-                    <TableCell>{lead.contacto}</TableCell>
-                    <TableCell className="hidden md:table-cell">{lead.email}</TableCell>
-                    <TableCell className="hidden lg:table-cell">{lead.telefono}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={statusBadgeStyles[lead.estado as keyof typeof statusBadgeStyles]}>
-                        {lead.estado.charAt(0).toUpperCase() + lead.estado.slice(1)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">{lead.fecha}</TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Acciones</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>Ver detalles</DropdownMenuItem>
-                          <DropdownMenuItem>Editar</DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">
-                            Eliminar
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-10">
+                      <div className="flex justify-center items-center">
+                        <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                        <span>Cargando leads...</span>
+                      </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : filteredLeads.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-10">
+                      <p>No se encontraron leads</p>
+                      <p className="text-muted-foreground text-sm mt-1">
+                        {searchTerm || statusFilter !== "todos" 
+                          ? "Intenta con otros filtros de búsqueda" 
+                          : "Agrega nuevos leads para empezar a visualizarlos aquí"}
+                      </p>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredLeads.map((lead) => (
+                    <TableRow key={lead.id}>
+                      <TableCell className="font-medium">{lead.nombre || "Sin nombre"}</TableCell>
+                      <TableCell>{lead.empresa || "Sin empresa"}</TableCell>
+                      <TableCell className="hidden md:table-cell">{lead.email || "Sin email"}</TableCell>
+                      <TableCell className="hidden lg:table-cell">{lead.telefono || "Sin teléfono"}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={getStatusBadgeStyle(lead.estado)}>
+                          {lead.estado ? (lead.estado.charAt(0).toUpperCase() + lead.estado.slice(1)) : "Nuevo"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {formatDate(lead.fecha_creacion || lead.created_at)}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Acciones</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem>Ver detalles</DropdownMenuItem>
+                            <DropdownMenuItem>Editar</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive">
+                              Eliminar
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
