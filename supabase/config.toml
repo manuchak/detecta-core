@@ -38,3 +38,7 @@ verify_jwt = true
 
 [edge-functions.delete-role]
 verify_jwt = true
+
+[edge-functions.create-readonly-access]
+verify_jwt = true
+

@@ -5,7 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UserRoleManager } from '@/components/settings/UserRoleManager';
 import { PermissionsManager } from '@/components/settings/PermissionsManager';
 import { RoleManager } from '@/components/settings/roles/RoleManager';
-import { Loader2, Settings2, Users2, ShieldCheck, Sliders, UserCircle } from 'lucide-react';
+import { ApiCredentialsManager } from '@/components/settings/ApiCredentials';
+import { Loader2, Settings2, Users2, ShieldCheck, Sliders, UserCircle, Key } from 'lucide-react';
 
 const Settings = () => {
   const { isLoading } = usePermissions();
@@ -48,6 +49,10 @@ const Settings = () => {
               <ShieldCheck className="h-4 w-4" />
               <span>Permisos</span>
             </TabsTrigger>
+            <TabsTrigger value="api" className="flex gap-2 data-[state=active]:shadow-sm">
+              <Key className="h-4 w-4" />
+              <span>API</span>
+            </TabsTrigger>
             <TabsTrigger value="general" className="flex gap-2 data-[state=active]:shadow-sm">
               <Settings2 className="h-4 w-4" />
               <span>General</span>
@@ -64,6 +69,10 @@ const Settings = () => {
           
           <TabsContent value="permissions" className="mt-0 focus-visible:outline-none focus-visible:ring-0">
             <PermissionsManager />
+          </TabsContent>
+          
+          <TabsContent value="api" className="mt-0 focus-visible:outline-none focus-visible:ring-0">
+            <ApiCredentialsManager />
           </TabsContent>
           
           <TabsContent value="general" className="mt-0 focus-visible:outline-none focus-visible:ring-0">
