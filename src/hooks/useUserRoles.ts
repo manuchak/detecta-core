@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
@@ -21,11 +20,10 @@ export const useUserRoles = () => {
           throw new Error(`Error fetching profiles: ${profilesError.message}`);
         }
 
-        // Use our custom SQL function that doesn't trigger RLS recursion
-        // This is a direct query instead of RPC to avoid type issues
+        // Use our security definer function to safely get user roles
+        // This avoids the infinite recursion issue
         const { data: userRoles, error: rolesError } = await supabase
-          .from('user_roles')
-          .select('user_id, role');
+          .rpc('get_all_user_roles_safe');
 
         if (rolesError) {
           throw new Error(`Error fetching user roles: ${rolesError.message}`);
