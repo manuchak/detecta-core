@@ -145,7 +145,7 @@ export const Dashboard = () => {
         
       if (gmvError) throw gmvError;
         
-      const totalGMV = gmvData.reduce((sum, service) => sum + (parseFloat(service.cobro_cliente) || 0), 0);
+      const totalGMV = gmvData.reduce((sum, service) => sum + (parseFloat(service.cobro_cliente.toString()) || 0), 0);
       const averageServiceValue = gmvData.length > 0 ? totalGMV / gmvData.length : 0;
       
       // Fetch unique active clients
@@ -233,7 +233,7 @@ export const Dashboard = () => {
         if (service.fecha_hora_cita && service.cobro_cliente) {
           const serviceDate = new Date(service.fecha_hora_cita);
           const month = serviceDate.getMonth();
-          monthlySummary[month].value += parseFloat(service.cobro_cliente) || 0;
+          monthlySummary[month].value += parseFloat(service.cobro_cliente.toString()) || 0;
         }
       });
       
@@ -252,7 +252,7 @@ export const Dashboard = () => {
         if (service.fecha_hora_cita && service.cobro_cliente) {
           const serviceDate = new Date(service.fecha_hora_cita);
           const month = serviceDate.getMonth();
-          monthlySummary[month].previousYear += parseFloat(service.cobro_cliente) || 0;
+          monthlySummary[month].previousYear += parseFloat(service.cobro_cliente.toString()) || 0;
         }
       });
       
