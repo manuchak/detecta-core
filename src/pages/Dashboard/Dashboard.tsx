@@ -11,10 +11,13 @@ import { GmvChart } from "@/components/dashboard/GmvChart";
 import { ServiceStatusChart } from "@/components/dashboard/ServiceStatusChart";
 import { SecondaryCharts } from "@/components/dashboard/SecondaryCharts";
 import { GmvProgress } from "@/components/dashboard/GmvProgress";
+import { ServicesCalendar } from "@/components/dashboard/ServicesCalendar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Dashboard = () => {
   const [timeframe, setTimeframe] = useState<TimeframeOption>("month");
   const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceTypeOption>("all");
+  const [activeTab, setActiveTab] = useState<"overview" | "calendar">("overview");
   
   const {
     isLoading,
@@ -27,6 +30,10 @@ export const Dashboard = () => {
     refreshAllData
   } = useDashboardData(timeframe, serviceTypeFilter);
 
+  const handleTabChange = (value: string) => {
+    setActiveTab(value as "overview" | "calendar");
+  };
+
   return (
     <div className="space-y-8 max-w-5xl mx-auto px-4 md:px-0 animate-fade-in">
       <div className="py-6">
@@ -36,33 +43,47 @@ export const Dashboard = () => {
         </p>
       </div>
       
-      {/* Timeframe and service type filters */}
-      <DashboardFilters
-        timeframe={timeframe}
-        serviceTypeFilter={serviceTypeFilter}
-        onTimeframeChange={setTimeframe}
-        onServiceTypeChange={setServiceTypeFilter}
-        onRefresh={refreshAllData}
-      />
-      
-      {/* Key metrics cards */}
-      <MetricsCards metrics={dashboardData} isLoading={isLoading} />
-      
-      {/* Main charts */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-7">
-        <GmvChart data={monthlyGmvData} />
-        <ServiceStatusChart data={serviceStatusData} metrics={dashboardData} />
-      </div>
-      
-      {/* Secondary charts */}
-      <SecondaryCharts
-        dailyServiceData={dailyServiceData}
-        serviceTypesData={serviceTypesData}
-        topClientsData={topClientsData}
-      />
-      
-      {/* GMV Progress */}
-      <GmvProgress totalGMV={dashboardData.totalGMV} />
+      <Tabs defaultValue="overview" onValueChange={handleTabChange}>
+        <TabsList>
+          <TabsTrigger value="overview">Vista General</TabsTrigger>
+          <TabsTrigger value="calendar">Calendario</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="overview" className="space-y-8">
+          {/* Timeframe and service type filters */}
+          <DashboardFilters
+            timeframe={timeframe}
+            serviceTypeFilter={serviceTypeFilter}
+            onTimeframeChange={setTimeframe}
+            onServiceTypeChange={setServiceTypeFilter}
+            onRefresh={refreshAllData}
+          />
+          
+          {/* Key metrics cards */}
+          <MetricsCards metrics={dashboardData} isLoading={isLoading} />
+          
+          {/* Main charts */}
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-7">
+            <GmvChart data={monthlyGmvData} />
+            <ServiceStatusChart data={serviceStatusData} metrics={dashboardData} />
+          </div>
+          
+          {/* Secondary charts */}
+          <SecondaryCharts
+            dailyServiceData={dailyServiceData}
+            serviceTypesData={serviceTypesData}
+            topClientsData={topClientsData}
+          />
+          
+          {/* GMV Progress */}
+          <GmvProgress totalGMV={dashboardData.totalGMV} />
+        </TabsContent>
+        
+        <TabsContent value="calendar" className="space-y-8">
+          {/* Calendar view */}
+          <ServicesCalendar />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

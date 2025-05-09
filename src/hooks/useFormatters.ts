@@ -11,7 +11,29 @@ export const useFormatters = () => {
     }).format(value);
   };
 
+  // Format date in Spanish
+  const formatDate = (date: Date | string) => {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return new Intl.DateTimeFormat('es-MX', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }).format(dateObj);
+  };
+
+  // Format time (HH:MM)
+  const formatTime = (date: Date | string) => {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return new Intl.DateTimeFormat('es-MX', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).format(dateObj);
+  };
+
   return {
-    formatCurrency
+    formatCurrency,
+    formatDate,
+    formatTime
   };
 };
