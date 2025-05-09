@@ -29,14 +29,32 @@ export const useUserRoles = () => {
           throw new Error(`Error fetching roles: ${rolesError.message}`);
         }
 
+        // Create a map of user_id to role for faster lookup
+        // Since the return type has changed, we need to adapt our logic
+        const userRoleMap = new Map();
+        
+        // Create a map of user IDs to assigned roles from the user_roles table
+        // This requires a separate query since get_user_roles_safe now returns just role names
+        const { data: userRoleAssignments, error: assignmentError } = await supabase
+          .from('user_roles')
+          .select('user_id, role');
+          
+        if (assignmentError) {
+          throw new Error(`Error fetching role assignments: ${assignmentError.message}`);
+        }
+        
+        // Create a map of user_id to role
+        for (const assignment of userRoleAssignments) {
+          userRoleMap.set(assignment.user_id, assignment.role);
+        }
+
         // Combine data
         return profiles.map((profile) => {
-          const userRole = userRoles.find((ur) => ur.user_id === profile.id);
           return {
             id: profile.id,
             email: profile.email,
             display_name: profile.display_name,
-            role: userRole ? userRole.role : 'unverified',
+            role: userRoleMap.get(profile.id) || 'unverified',
             created_at: profile.created_at,
             last_login: profile.last_login,
           } as UserWithRole;
