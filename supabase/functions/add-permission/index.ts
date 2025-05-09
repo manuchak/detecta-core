@@ -57,8 +57,10 @@ serve(async (req) => {
         SELECT ur.role 
         FROM user_roles ur 
         WHERE ur.user_id = (
-          SELECT sub FROM auth.jwt_claims 
-          WHERE token = ${token} 
+          SELECT sub FROM auth.users 
+          WHERE id = (
+            SELECT auth.uid()
+          )
           LIMIT 1
         )
         ORDER BY 
