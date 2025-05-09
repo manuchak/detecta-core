@@ -17,9 +17,15 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 export const PermissionsManager = () => {
+  // Get roles, permissions and related functions
   const { roles, permissions, isLoading, updatePermission, addPermission } = useRoles();
+  
+  // State for active tab and permissions filter
   const [activeTab, setActiveTab] = useState<string>('admin');
   const [isAddPermissionOpen, setIsAddPermissionOpen] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  
+  // State for the new permission being added
   const [newPermission, setNewPermission] = useState<{
     role: Role;
     permissionType: string;
@@ -32,8 +38,18 @@ export const PermissionsManager = () => {
     allowed: true,
   });
   
-  // Filter for permission types
-  const [typeFilter, setTypeFilter] = useState<string>('all');
+  // All permissions for validation
+  const allPermissions = React.useMemo(() => {
+    const result: Permission[] = [];
+    if (permissions) {
+      Object.values(permissions).forEach(rolePermissions => {
+        rolePermissions.forEach(permission => {
+          result.push(permission);
+        });
+      });
+    }
+    return result;
+  }, [permissions]);
 
   // Safely handle permission changes
   const handlePermissionChange = (id: number, allowed: boolean) => {
@@ -215,6 +231,7 @@ export const PermissionsManager = () => {
           onNewPermissionChange={handleNewPermissionChange}
           onAddPermission={handleAddPermission}
           availableRoles={roles}
+          existingPermissions={allPermissions}
         />
       </div>
     </TooltipProvider>

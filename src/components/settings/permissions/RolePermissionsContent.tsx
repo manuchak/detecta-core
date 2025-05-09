@@ -2,9 +2,10 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Role, Permission } from '@/types/roleTypes';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, AlertTriangle } from 'lucide-react';
 import { PermissionTypeGroup } from './PermissionTypeGroup';
 import { groupPermissionsByType } from '@/utils/permissionUtils';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 interface RolePermissionsContentProps {
   role: Role;
@@ -31,18 +32,48 @@ export const RolePermissionsContent = ({
     permissions: perms
   }));
 
-  if (filteredPermissions && filteredPermissions.length === 0 && typeFilter !== 'all') {
+  // Check if there are permissions but none match the filter
+  const hasPermissionsButNoneMatch = 
+    permissions && permissions.length > 0 && 
+    filteredPermissions && filteredPermissions.length === 0 && 
+    typeFilter !== 'all';
+
+  // Show message when filter returns no results but there are permissions
+  if (hasPermissionsButNoneMatch) {
     return (
-      <div className="bg-muted/20 rounded-lg py-8 px-6 text-center">
-        <div className="text-muted-foreground">
-          No hay permisos de tipo "{typeFilter}" para este rol.
+      <div className="space-y-4">
+        <Alert variant="default" className="bg-muted/40">
+          <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+          <AlertTitle className="ml-2">No se encontraron permisos</AlertTitle>
+          <AlertDescription className="text-sm text-muted-foreground">
+            No hay permisos de tipo "{typeFilter}" para este rol. 
+            <Button 
+              variant="link" 
+              className="px-1 h-auto font-medium text-primary"
+              onClick={() => onAddPermission(role)}
+            >
+              Añadir permiso
+            </Button>
+          </AlertDescription>
+        </Alert>
+        
+        <div className="flex justify-end">
+          <Button 
+            variant="outline" 
+            size="sm"
+            className="text-xs"
+            onClick={() => onAddPermission(role)}
+          >
+            <PlusCircle className="h-3.5 w-3.5 mr-1" />
+            Añadir Permiso
+          </Button>
         </div>
       </div>
     );
   }
 
   // Show empty state if no permissions for this role
-  if (permissions?.length === 0) {
+  if (!permissions || permissions.length === 0) {
     return (
       <div className="bg-muted/20 rounded-lg py-12 px-6 text-center">
         <h3 className="text-md font-medium mb-2">No hay permisos para este rol</h3>
@@ -63,6 +94,18 @@ export const RolePermissionsContent = ({
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end mb-4">
+        <Button 
+          variant="default"
+          size="sm"
+          onClick={() => onAddPermission(role)}
+          className="flex items-center gap-2 shadow-sm"
+        >
+          <PlusCircle className="h-4 w-4" />
+          Añadir Permiso
+        </Button>
+      </div>
+      
       {permissionGroups.map(group => (
         <PermissionTypeGroup
           key={group.type}
