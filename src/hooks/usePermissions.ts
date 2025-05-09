@@ -6,24 +6,24 @@ import { useEffect, useState } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 
 /**
- * Interface for role object format returned by Supabase RPC
+ * Interface para el objeto de rol devuelto por Supabase RPC
  */
 interface RoleObject {
   role: string;
 }
 
 /**
- * Type for possible return values from get_user_role_safe RPC
+ * Tipo para posibles valores de retorno de get_user_role_safe RPC
  */
 type RoleResponse = string | RoleObject | null | undefined;
 
 /**
- * Type guard to safely check if a value is a role object
+ * Comprueba si un valor es un objeto de rol
  */
 function isRoleObject(value: unknown): value is RoleObject {
   if (value === null || value === undefined) return false;
   if (typeof value !== 'object') return false;
-  // Additional check to be extra safe
+  // Comprobación adicional para mayor seguridad
   const obj = value as Record<string, unknown>;
   return 'role' in obj && typeof obj.role === 'string';
 }
@@ -33,63 +33,73 @@ export const usePermissions = () => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const { toast } = useToast();
   
-  // Get user's role with explicit type annotation
+  // Obtener el rol del usuario
   const { data: role, isLoading } = useQuery<RoleResponse>({
     queryKey: ['user-role', user?.id],
     queryFn: async () => {
       if (!user) return null;
       
       try {
-        console.log("Fetching role for user:", user.id);
-        // Use the security definer function through RPC
+        console.log("Obteniendo rol para el usuario:", user.id);
+        // Usar la función RPC segura que evita recursión RLS
         const { data, error } = await supabase
           .rpc('get_user_role_safe', { user_uid: user.id });
         
         if (error) {
-          console.error('Error getting user role:', error);
+          console.error('Error al obtener rol de usuario:', error);
           
-          // Always create owner role for this user if not exists or on error
-          const { data: insertData, error: insertError } = await supabase
-            .from('user_roles')
-            .insert([{ user_id: user.id, role: 'owner' }])
-            .select('role')
-            .single();
+          // Verificar si es un error de permisos o de función no existente
+          if (error.message.includes('permission denied') || 
+              error.message.includes('function') && error.message.includes('does not exist')) {
             
-          if (insertError) {
-            console.error('Error creating owner role:', insertError);
-            // Return owner role anyway as a fallback
+            // Intentar insertar directamente con SECURITY DEFINER
+            console.log('Intentando crear rol de propietario...');
+            const { data: insertResult, error: insertError } = await supabase
+              .rpc('ensure_user_has_role', { 
+                target_user_id: user.id, 
+                role_to_assign: 'owner' 
+              });
+              
+            if (insertError) {
+              console.error('Error al crear rol de propietario:', insertError);
+              
+              // Último intento: inserción directa si falla todo lo demás
+              const { error: directError } = await supabase
+                .from('user_roles')
+                .insert([{ user_id: user.id, role: 'owner' }])
+                .select('role')
+                .single();
+                
+              if (directError) {
+                console.error('Error en inserción directa de rol:', directError);
+                throw new Error('No se pudo asignar un rol al usuario');
+              }
+            }
+            
             toast({
-              title: "Error creating role",
-              description: "Se ha configurado el rol de propietario por defecto",
+              title: "Acceso concedido",
+              description: "Se ha configurado el rol de propietario para su usuario",
               variant: "default",
             });
+            
             return 'owner';
           }
           
-          toast({
-            title: "Acceso concedido",
-            description: "Se ha configurado el rol de propietario para su usuario",
-            variant: "default",
-          });
-          
-          // Make sure we return a string, not an object
-          if (insertData && typeof insertData === 'object' && 'role' in insertData) {
-            return insertData.role;
-          }
+          // Si es otro tipo de error, devolvemos owner como fallback
           return 'owner';
         }
         
-        // Add debugging to see what's being returned
-        console.log("Role data from RPC:", data, "Type:", typeof data);
+        // Depuración para ver qué está devolviendo la RPC
+        console.log("Datos de rol recibidos:", data, "Tipo:", typeof data);
         
-        // If no role found or not owner, set as owner (simplified approach)
+        // Si no se encontró rol o no es owner, configurar como owner (enfoque simplificado)
         if (!data) {
-          // Insert owner role
+          // Insertar rol de propietario
           const { data: insertData, error: insertError } = await supabase
-            .from('user_roles')
-            .insert([{ user_id: user.id, role: 'owner' }])
-            .select('role')
-            .single();
+            .rpc('ensure_user_has_role', {
+              target_user_id: user.id,
+              role_to_assign: 'owner'
+            });
             
           toast({
             title: "Acceso concedido",
@@ -98,68 +108,104 @@ export const usePermissions = () => {
           });
           
           if (insertError) {
-            console.error('Error creating owner role:', insertError);
+            console.error('Error al crear rol de propietario:', insertError);
             return 'owner';
           }
           
-          // Return the inserted role or fallback to owner
-          return insertData?.role || 'owner';
+          return 'owner';
         }
         
-        // Return the data - could be a string or an object with a role property
+        // Devolver los datos - podría ser una cadena o un objeto con la propiedad role
         return data;
       } catch (err) {
-        console.error('Unexpected error in usePermissions:', err);
-        return 'owner'; // Fallback to owner role to prevent lockout
+        console.error('Error inesperado en usePermissions:', err);
+        return 'owner'; // Fallback a owner para evitar bloqueos
       }
     },
     enabled: !!user,
-    retry: 1, // Limit retries to prevent excessive calls on error
-    staleTime: 60000, // Cache the result for 1 minute
+    retry: 1, // Limitar reintentos para evitar llamadas excesivas en error
+    staleTime: 60000, // Caché del resultado por 1 minuto
   });
 
-  // Update role state when data changes using a safer approach
+  // Actualizar el estado del rol cuando cambian los datos usando un enfoque más seguro
   useEffect(() => {
     if (role === undefined) {
       if (user && !isLoading) {
-        // Fallback to owner role if query failed but user exists
+        // Fallback a owner si la consulta falló pero el usuario existe
         setUserRole('owner');
       }
       return;
     }
 
-    // Handle null case
+    // Manejar caso nulo
     if (role === null) {
-      setUserRole('owner'); // Set default role if null
+      setUserRole('owner'); // Establecer rol por defecto si es nulo
       return;
     }
     
-    // Handle string case
+    // Manejar caso de cadena
     if (typeof role === 'string') {
       setUserRole(role);
       return;
     }
     
-    // Handle object case with safer type checking
+    // Manejar caso de objeto con verificación de tipo más segura
     if (isRoleObject(role)) {
-      // Explicitly cast to RoleObject to help TypeScript
+      // Convertir explícitamente a RoleObject para ayudar a TypeScript
       const roleObj: RoleObject = role;
       setUserRole(roleObj.role);
       return;
     }
     
-    // Fallback for any other case
+    // Fallback para cualquier otro caso
     setUserRole('owner');
   }, [role, user, isLoading]);
 
-  // Always return true for permission checks to ensure full access
+  // Comprobar si el usuario tiene un rol específico
   const hasRole = async (requiredRole: string): Promise<boolean> => {
-    return true; // Always grant access
+    try {
+      // Usar RPC en lugar de lógica local para mayor seguridad
+      const { data, error } = await supabase
+        .rpc('has_role', { 
+          user_uid: user?.id || '', 
+          required_role: requiredRole 
+        });
+        
+      if (error) {
+        console.error('Error en verificación de rol:', error);
+        // Fallar con seguridad: solo permitir si es owner
+        return userRole === 'owner';
+      }
+      
+      return !!data;
+    } catch (err) {
+      console.error('Error en hasRole:', err);
+      return false;
+    }
   };
 
-  // Always return true for permission checks
+  // Comprobar si el usuario tiene un permiso específico
   const hasPermission = async (permissionType: string, permissionId: string): Promise<boolean> => {
-    return true; // Always grant access
+    try {
+      // Usar RPC en lugar de lógica local para mayor seguridad
+      const { data, error } = await supabase
+        .rpc('user_has_permission', { 
+          user_uid: user?.id || '', 
+          permission_type: permissionType,
+          permission_id: permissionId 
+        });
+        
+      if (error) {
+        console.error('Error en verificación de permiso:', error);
+        // Fallar con seguridad: solo permitir si es owner
+        return userRole === 'owner';
+      }
+      
+      return !!data;
+    } catch (err) {
+      console.error('Error en hasPermission:', err);
+      return false;
+    }
   };
 
   return {
@@ -167,7 +213,7 @@ export const usePermissions = () => {
     hasRole,
     hasPermission,
     isLoading,
-    isAdmin: true, // Always return true for isAdmin
-    isOwner: true  // Always return true for isOwner
+    isAdmin: userRole === 'admin' || userRole === 'owner',
+    isOwner: userRole === 'owner'
   };
 };

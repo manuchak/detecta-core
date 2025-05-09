@@ -26,10 +26,12 @@ interface ServiceNameRequest {
 }
 
 /**
- * Verifica que el usuario tiene los permisos necesarios
+ * Verifica que el usuario tiene los permisos necesarios mediante una función segura
+ * que evita problemas de recursión con RLS
  */
 async function verifyUserPermissions(connection: PoolClient, userId: string): Promise<boolean> {
   try {
+    // Usamos una consulta directa para evitar problemas de recursión RLS
     const userRoleResult = await connection.queryObject(`
       SELECT role 
       FROM user_roles 
@@ -44,10 +46,12 @@ async function verifyUserPermissions(connection: PoolClient, userId: string): Pr
     `, [userId]);
     
     if (userRoleResult.rows.length === 0) {
+      console.log('No se encontró rol para el usuario:', userId);
       return false;
     }
     
     const userRole = userRoleResult.rows[0].role as string;
+    console.log('Rol del usuario:', userRole);
     return userRole === 'owner' || userRole === 'admin';
   } catch (error) {
     console.error('Error verificando permisos:', error);
@@ -76,10 +80,14 @@ function generateSecurePassword(length: number = 24): string {
  * Sanitiza el nombre del servicio para evitar inyección SQL
  */
 function sanitizeServiceName(serviceName: string): string {
+  if (!serviceName || typeof serviceName !== 'string') {
+    return 'default_service';
+  }
+  
   return serviceName
     .toLowerCase()
     .replace(/[^a-z0-9_]/g, '_')
-    .substring(0, 30);
+    .substring(0, 30) || 'default_service';
 }
 
 /**
@@ -91,14 +99,30 @@ async function saveCredentialsToSecrets(
   connectionString: string
 ): Promise<void> {
   try {
+    // Comprobamos primero si la tabla existe
+    const tableExists = await connection.queryArray(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'secrets'
+      );
+    `);
+    
+    if (!tableExists.rows[0][0]) {
+      console.log('La tabla secrets no existe, omitiendo guardado de credenciales');
+      return;
+    }
+
     await connection.queryArray(`
       INSERT INTO public.secrets (name, value)
       VALUES ($1, $2)
       ON CONFLICT (name) 
       DO UPDATE SET value = $2, updated_at = now();
     `, [`api_key_${serviceName}`, connectionString]);
+    
+    console.log('Credenciales guardadas exitosamente en tabla secrets');
   } catch (error) {
-    console.log('Error guardando credenciales en secrets:', error);
+    console.error('Error guardando credenciales en secrets:', error);
     // No lanzamos el error porque esta operación no es crítica
   }
 }
@@ -127,7 +151,19 @@ serve(async (req) => {
   
   try {
     // Obtener parámetros de la solicitud
-    const { serviceName }: ServiceNameRequest = await req.json();
+    let serviceName: string;
+    try {
+      const requestData = await req.json() as ServiceNameRequest;
+      serviceName = requestData.serviceName;
+    } catch (error) {
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: 'Error al procesar la solicitud: ' + error.message 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     
     // Validar el nombre del servicio
     if (!serviceName || typeof serviceName !== 'string' || serviceName.length < 3) {
@@ -191,6 +227,8 @@ serve(async (req) => {
       });
     }
 
+    console.log('Verificando permisos para el usuario:', userId);
+
     // Verificar que el usuario tenga permisos
     const hasPermission = await verifyUserPermissions(connection, userId);
     if (!hasPermission) {
@@ -202,6 +240,8 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    
+    console.log('Permiso verificado, creando credenciales para:', sanitizedServiceName);
     
     // Generar contraseña segura
     const password = generateSecurePassword();
@@ -219,29 +259,55 @@ serve(async (req) => {
       $$;
     `, [roleName]);
     
-    // Otorgar permisos al rol
-    await connection.queryArray(`
-      GRANT USAGE ON SCHEMA public TO ${roleName};
-      GRANT SELECT ON public.servicios_custodia TO ${roleName};
-    `);
+    console.log('Rol creado o verificado:', roleName);
     
-    // Crear usuario o actualizar contraseña
-    await connection.queryArray(`
-      DO $$
-      BEGIN
-        IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = $1) THEN
-          EXECUTE 'ALTER ROLE ' || quote_ident($1) || ' WITH PASSWORD ' || quote_literal($2);
-        ELSE
-          EXECUTE 'CREATE ROLE ' || quote_ident($1) || ' LOGIN PASSWORD ' || quote_literal($2);
-        END IF;
-      END
-      $$;
-    `, [userName, password]);
+    try {
+      // Otorgar permisos al rol de forma segura
+      await connection.queryArray(`
+        GRANT USAGE ON SCHEMA public TO ${roleName};
+      `);
+      
+      await connection.queryArray(`
+        GRANT SELECT ON public.servicios_custodia TO ${roleName};
+      `);
+      
+      console.log('Permisos otorgados al rol');
+    } catch (error) {
+      console.error('Error al otorgar permisos al rol:', error);
+      throw new Error(`Error al otorgar permisos: ${error.message}`);
+    }
     
-    // Otorgar rol al usuario
-    await connection.queryArray(`
-      GRANT ${roleName} TO ${userName};
-    `);
+    try {
+      // Crear usuario o actualizar contraseña
+      await connection.queryArray(`
+        DO $$
+        BEGIN
+          IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = $1) THEN
+            EXECUTE 'ALTER ROLE ' || quote_ident($1) || ' WITH PASSWORD ' || quote_literal($2) || ' LOGIN';
+          ELSE
+            EXECUTE 'CREATE ROLE ' || quote_ident($1) || ' LOGIN PASSWORD ' || quote_literal($2);
+          END IF;
+        END
+        $$;
+      `, [userName, password]);
+      
+      console.log('Usuario creado o actualizado:', userName);
+    } catch (error) {
+      console.error('Error al crear/actualizar usuario:', error);
+      throw new Error(`Error al crear o actualizar usuario: ${error.message}`);
+    }
+    
+    try {
+      // Otorgar rol al usuario
+      await connection.queryArray(`
+        GRANT ${roleName} TO ${userName};
+      `);
+      
+      console.log('Rol otorgado al usuario');
+    } catch (error) {
+      console.error('Error al otorgar rol al usuario:', error);
+      throw new Error(`Error al otorgar rol al usuario: ${error.message}`);
+    }
     
     // Generar cadena de conexión
     const dbHost = new URL(databaseUrl).hostname;
