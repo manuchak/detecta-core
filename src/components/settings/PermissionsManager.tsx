@@ -12,7 +12,8 @@ import {
   PlusCircle, 
   Loader2, 
   ShieldCheck, 
-  Lock
+  Lock,
+  X
 } from 'lucide-react';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
