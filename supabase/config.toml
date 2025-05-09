@@ -27,6 +27,9 @@ site_url = "http://localhost:3000"
 enabled = true
 
 [edge-functions]
+[edge-functions.add-permission]
+verify_jwt = true
+
 [edge-functions.create-role]
 verify_jwt = true
 

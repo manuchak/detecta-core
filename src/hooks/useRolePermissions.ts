@@ -8,7 +8,7 @@ export const useRolePermissions = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: permissions, isLoading } = useQuery({
+  const { data: permissions, isLoading, error } = useQuery({
     queryKey: ['role-permissions'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -47,7 +47,8 @@ export const useRolePermissions = () => {
       });
       
       return permissionsByRole;
-    }
+    },
+    staleTime: 60000 // Cache for 1 minute to improve performance
   });
 
   const updatePermission = useMutation({
@@ -73,7 +74,7 @@ export const useRolePermissions = () => {
     onError: (error) => {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Error al actualizar el permiso",
         variant: "destructive",
       });
     }
@@ -82,6 +83,9 @@ export const useRolePermissions = () => {
   const addPermission = useMutation({
     mutationFn: async ({ role, permissionType, permissionId, allowed }: RolePermissionInput) => {
       try {
+        // Log the request for debugging
+        console.log('Sending permission request:', { role, permissionType, permissionId, allowed });
+        
         // Use the edge function to add the permission
         const { data, error } = await supabase.functions.invoke('add-permission', {
           body: { 
@@ -93,23 +97,25 @@ export const useRolePermissions = () => {
         });
         
         if (error) {
-          console.error('Error from edge function:', error);
-          throw new Error(`Error adding permission: ${error.message || error}`);
+          console.error('Edge function error:', error);
+          throw new Error(`Error adding permission: ${error.message || String(error)}`);
         }
         
         // Check for application-level errors in the data
         if (data && data.error) {
-          console.error('Error from add-permission function:', data.error);
+          console.error('Application error from add-permission function:', data.error);
           throw new Error(`Error adding permission: ${data.error}`);
         }
         
+        console.log('Permission added successfully:', data);
         return data;
       } catch (err) {
-        console.error('Error in addPermission mutation:', err);
+        console.error('Exception in addPermission mutation:', err);
         throw err;
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Permission added mutation success:', data);
       queryClient.invalidateQueries({ queryKey: ['role-permissions'] });
       toast({
         title: "Permiso añadido",
@@ -117,6 +123,7 @@ export const useRolePermissions = () => {
       });
     },
     onError: (error) => {
+      console.error('Permission added mutation error:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Error al añadir el permiso",
@@ -128,6 +135,7 @@ export const useRolePermissions = () => {
   return {
     permissions,
     isLoading,
+    error,
     updatePermission,
     addPermission
   };

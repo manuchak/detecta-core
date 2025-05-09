@@ -49,15 +49,42 @@ serve(async (req) => {
     const connection = await pool.connect();
     
     try {
-      // First, verify if the user has owner or admin role directly with SQL
-      // This fixes the issue with the previous query that was looking for 'sub' column
+      // Extract JWT claims from the authorization header
+      const token = authHeader.replace('Bearer ', '');
+      const tokenParts = token.split('.');
+      if (tokenParts.length !== 3) {
+        return new Response(JSON.stringify({ error: 'Invalid JWT token format' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Extract user ID directly from JWT payload
+      let payload;
+      try {
+        payload = JSON.parse(atob(tokenParts[1]));
+      } catch (e) {
+        return new Response(JSON.stringify({ error: 'Could not decode JWT payload' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const userId = payload.sub;
+      if (!userId) {
+        return new Response(JSON.stringify({ error: 'User ID not found in JWT' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Check if the user has admin or owner role by querying directly
       const userRoleResult = await connection.queryObject`
-        SELECT ur.role 
-        FROM user_roles ur 
-        JOIN auth.users au ON ur.user_id = au.id
-        WHERE au.id = auth.uid()
+        SELECT role 
+        FROM user_roles 
+        WHERE user_id = ${userId}
         ORDER BY 
-          CASE ur.role
+          CASE role
             WHEN 'owner' THEN 1
             WHEN 'admin' THEN 2
             ELSE 3
@@ -88,7 +115,7 @@ serve(async (req) => {
         });
       }
       
-      // Insert the new permission directly
+      // Insert the new permission
       const insertResult = await connection.queryObject`
         INSERT INTO role_permissions (role, permission_type, permission_id, allowed)
         VALUES (${role}, ${permissionType}, ${permissionId}, ${allowed})
