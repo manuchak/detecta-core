@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { PlusCircle, ShieldCheck } from 'lucide-react';
 
 interface AddPermissionDialogProps {
   isOpen: boolean;
@@ -69,18 +70,21 @@ export const AddPermissionDialog = ({
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-xl">Agregar Nuevo Permiso</DialogTitle>
+        <DialogHeader className="space-y-3 pb-2">
+          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+            <ShieldCheck className="h-5 w-5 text-primary" />
+          </div>
+          <DialogTitle className="text-xl">Nuevo Permiso</DialogTitle>
           <DialogDescription>
             Complete la información para crear un nuevo permiso en el sistema
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-6 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="role" className="text-right font-medium">
-              Rol
-            </Label>
-            <div className="col-span-3">
+        <div className="grid gap-6 py-6">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="role" className="font-medium">
+                Rol
+              </Label>
               <Select
                 value={newPermission.role}
                 onValueChange={(value) => 
@@ -103,12 +107,11 @@ export const AddPermissionDialog = ({
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="permissionType" className="text-right font-medium">
-              Tipo
-            </Label>
-            <div className="col-span-3">
+            
+            <div className="space-y-2">
+              <Label htmlFor="permissionType" className="font-medium">
+                Tipo de Permiso
+              </Label>
               <Input
                 id="permissionType"
                 placeholder="page, action, feature, etc."
@@ -122,12 +125,11 @@ export const AddPermissionDialog = ({
                 Categoría del permiso (ej: page, action, feature)
               </p>
             </div>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="permissionId" className="text-right font-medium">
-              Identificador
-            </Label>
-            <div className="col-span-3">
+            
+            <div className="space-y-2">
+              <Label htmlFor="permissionId" className="font-medium">
+                Identificador
+              </Label>
               <Input
                 id="permissionId"
                 placeholder="settings, create_user, etc."
@@ -141,31 +143,40 @@ export const AddPermissionDialog = ({
                 Nombre único del permiso (ej: settings, create_user)
               </p>
             </div>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="allowed" className="text-right font-medium">
-              Estado
-            </Label>
-            <div className="col-span-3 flex items-center gap-4">
-              <Switch
-                id="allowed"
-                checked={newPermission.allowed}
-                onCheckedChange={(checked) => 
-                  onNewPermissionChange('allowed', checked)
-                }
-                className="data-[state=checked]:bg-green-600"
-              />
-              <span className={newPermission.allowed ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
-                {newPermission.allowed ? "Permitido" : "Denegado"}
-              </span>
+            
+            <div className="pt-2">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="allowed" className="font-medium">
+                    Estado del Permiso
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Determina si el permiso está activo o inactivo
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={newPermission.allowed ? "text-green-600 font-medium text-sm" : "text-red-600 font-medium text-sm"}>
+                    {newPermission.allowed ? "Permitido" : "Denegado"}
+                  </span>
+                  <Switch
+                    id="allowed"
+                    checked={newPermission.allowed}
+                    onCheckedChange={(checked) => 
+                      onNewPermissionChange('allowed', checked)
+                    }
+                    className="data-[state=checked]:bg-green-600"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        <DialogFooter className="sm:justify-between">
+        <DialogFooter className="sm:justify-between border-t border-border/50 pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button onClick={onAddPermission} className="px-6">
+          <Button onClick={onAddPermission} className="px-6 gap-2">
+            <PlusCircle className="h-4 w-4" />
             Guardar Permiso
           </Button>
         </DialogFooter>

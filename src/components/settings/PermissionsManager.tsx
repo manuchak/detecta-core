@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { PermissionsContainer } from './permissions/PermissionsContainer';
 import { RoleTabsList } from './permissions/RoleTabsList';
 import { AddPermissionDialog } from './permissions/AddPermissionDialog';
-import { PlusCircle, Loader2 } from 'lucide-react';
+import { PlusCircle, Loader2, ShieldCheck, Lock } from 'lucide-react';
 
 export const PermissionsManager = () => {
   const { roles, permissions, isLoading, updatePermission, addPermission } = useRoles();
@@ -55,10 +55,17 @@ export const PermissionsManager = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-foreground">Permisos del Sistema</h2>
-          <p className="text-muted-foreground mt-1">Administre los permisos para cada rol en el sistema</p>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center">
+              <ShieldCheck className="h-4.5 w-4.5 text-primary" />
+            </div>
+            <h2 className="text-2xl font-bold text-foreground">Matriz de Permisos</h2>
+          </div>
+          <p className="text-muted-foreground">
+            Administre y configure permisos para cada rol del sistema
+          </p>
         </div>
         <Button 
           onClick={() => setIsAddPermissionOpen(true)} 
@@ -69,12 +76,15 @@ export const PermissionsManager = () => {
         </Button>
       </div>
       
-      <Card className="border-border/40 shadow-sm">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-xl">Matriz de Permisos</CardTitle>
-          <CardDescription>Configure los permisos para cada rol definido en el sistema</CardDescription>
+      <Card className="border-border/40 shadow-sm overflow-hidden">
+        <CardHeader className="pb-3 border-b border-border/30 bg-muted/10">
+          <div className="flex items-center gap-2">
+            <Lock className="h-4 w-4 text-primary" />
+            <CardTitle className="text-lg">Configuración de Permisos</CardTitle>
+          </div>
+          <CardDescription>Defina los permisos específicos para cada rol en el sistema</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           {isLoading ? (
             <div className="flex justify-center items-center py-16">
               <div className="flex flex-col items-center gap-4">
@@ -85,7 +95,10 @@ export const PermissionsManager = () => {
               </div>
             </div>
           ) : !permissions || Object.keys(permissions).length === 0 ? (
-            <div className="bg-muted/50 rounded-lg py-12 px-6 text-center">
+            <div className="bg-muted/20 rounded-lg py-16 px-6 text-center">
+              <div className="mx-auto h-12 w-12 rounded-full bg-muted/50 flex items-center justify-center mb-4">
+                <ShieldCheck className="h-6 w-6 text-muted-foreground" />
+              </div>
               <h3 className="text-lg font-medium mb-2">No hay permisos configurados</h3>
               <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                 Añada un nuevo permiso para comenzar a configurar el acceso para los usuarios del sistema.
@@ -100,7 +113,7 @@ export const PermissionsManager = () => {
               </Button>
             </div>
           ) : (
-            <div className="bg-white rounded-lg p-4">
+            <div>
               <RoleTabsList
                 roles={roles}
                 activeTab={activeTab}
