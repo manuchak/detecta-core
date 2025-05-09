@@ -23,6 +23,7 @@ import TicketsList from "./pages/Tickets/TicketsList";
 import Settings from "./pages/Settings/Settings";
 import NotFound from "./pages/NotFound";
 import MonitoringPage from "./pages/Monitoring/MonitoringPage";
+import SupplyChainMonitoring from "./pages/Monitoring/SupplyChainMonitoring";
 
 // Query client for React Query
 const queryClient = new QueryClient();
@@ -65,6 +66,7 @@ const App = () => {
                 
                 {/* Monitoring */}
                 <Route path="/monitoring" element={<MonitoringPage />} />
+                <Route path="/supply-chain" element={<SupplyChainMonitoring />} />
                 
                 {/* Tickets */}
                 <Route path="/tickets" element={<TicketsList />} />

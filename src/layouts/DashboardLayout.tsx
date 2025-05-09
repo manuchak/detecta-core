@@ -5,10 +5,12 @@ import { useState } from "react";
 import { Header } from "@/components/dashboard/Header";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
+import { useLocation } from "react-router-dom";
 
 export const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -22,6 +24,9 @@ export const DashboardLayout = () => {
     return <Navigate to="/login" replace />;
   }
 
+  // Additional padding for the monitoring page to give more space
+  const isMonitoringPage = location.pathname === "/monitoring" || location.pathname === "/supply-chain";
+
   return (
     <div className="h-screen flex overflow-hidden bg-background">
       <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
@@ -30,7 +35,7 @@ export const DashboardLayout = () => {
         <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
         
         <main className="flex-1 relative overflow-y-auto focus:outline-none">
-          <div className="mx-auto w-full">
+          <div className={`mx-auto w-full ${isMonitoringPage ? 'px-0' : ''}`}>
             <Outlet />
           </div>
         </main>
