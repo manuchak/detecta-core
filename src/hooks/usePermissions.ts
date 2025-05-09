@@ -5,60 +5,33 @@ import { supabase } from '@/integrations/supabase/client';
 import { useEffect, useState } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 
-/**
- * Interface para el objeto de rol devuelto por Supabase RPC
- */
-interface RoleObject {
-  role: string;
-}
-
-/**
- * Tipo para posibles valores de retorno de get_user_role_safe RPC
- */
-type RoleResponse = string | RoleObject | null | undefined;
-
-/**
- * Comprueba si un valor es un objeto de rol
- */
-function isRoleObject(value: unknown): value is RoleObject {
-  if (value === null || value === undefined) return false;
-  if (typeof value !== 'object') return false;
-  // Comprobación adicional para mayor seguridad
-  const obj = value as Record<string, unknown>;
-  return 'role' in obj && typeof obj.role === 'string';
-}
-
 export const usePermissions = () => {
   const { user } = useAuth();
   const [userRole, setUserRole] = useState<string | null>(null);
   const { toast } = useToast();
   
-  // Obtener el rol del usuario
-  const { data: role, isLoading } = useQuery<RoleResponse>({
+  // Get user's role
+  const { data: role, isLoading } = useQuery({
     queryKey: ['user-role', user?.id],
     queryFn: async () => {
       if (!user) return null;
       
       try {
-        console.log("Obteniendo rol para el usuario:", user.id);
-        // En lugar de usar RPC, consultamos directamente la tabla de user_roles
+        console.log("Getting role for user:", user.id);
+        // Direct query to avoid RLS recursion
         const { data, error } = await supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id)
-          .order('role', { ascending: true })
-          .limit(1)
-          .single();
+          .maybeSingle();
         
         if (error) {
-          console.error('Error al obtener rol de usuario:', error);
+          console.error('Error getting user role:', error);
           
-          // Verificar si es un error de permisos o de función no existente
-          if (error.message.includes('permission denied') || 
-              error.message.includes('function') && error.message.includes('does not exist')) {
-            
-            // Intentar insertar directamente el rol de propietario
-            console.log('Intentando crear rol de propietario...');
+          // Verify if user is missing a role
+          if (error.code === 'PGRST116') { // No rows returned
+            // Try to insert owner role for first user
+            console.log('Trying to create owner role...');
             const { error: insertError } = await supabase
               .from('user_roles')
               .insert([{ 
@@ -69,113 +42,83 @@ export const usePermissions = () => {
               .single();
               
             if (insertError) {
-              console.error('Error al crear rol de propietario:', insertError);
-              
-              // Último intento: inserción directa si falla todo lo demás
-              const { error: directError } = await supabase
-                .from('user_roles')
-                .insert([{ user_id: user.id, role: 'owner' }])
-                .select('role')
-                .single();
-                
-              if (directError) {
-                console.error('Error en inserción directa de rol:', directError);
-                throw new Error('No se pudo asignar un rol al usuario');
-              }
+              console.error('Error creating owner role:', insertError);
+            } else {
+              toast({
+                title: "Access granted",
+                description: "Owner role has been configured for your user",
+                variant: "default",
+              });
+              return 'owner';
             }
-            
-            toast({
-              title: "Acceso concedido",
-              description: "Se ha configurado el rol de propietario para su usuario",
-              variant: "default",
-            });
-            
-            return 'owner';
           }
           
-          // Si es otro tipo de error, devolvemos owner como fallback
+          // Fallback to owner role for safety
           return 'owner';
         }
         
-        // Depuración para ver qué está devolviendo la RPC
-        console.log("Datos de rol recibidos:", data, "Tipo:", typeof data);
+        // Debug received role data
+        console.log("Role data received:", data);
         
-        // Si no se encontró rol o no es owner, configurar como owner (enfoque simplificado)
-        if (!data) {
-          // Insertar rol de propietario
+        // If no role found, set as owner (simplified approach)
+        if (!data || !data.role) {
+          // Insert owner role
           const { error: insertError } = await supabase
             .from('user_roles')
             .insert([{
               user_id: user.id,
               role: 'owner'
-            }])
-            .select('role')
-            .single();
+            }]);
             
           toast({
-            title: "Acceso concedido",
-            description: "Se ha configurado el rol de propietario para su usuario",
+            title: "Access granted",
+            description: "Owner role has been configured for your user",
             variant: "default",
           });
           
           if (insertError) {
-            console.error('Error al crear rol de propietario:', insertError);
-            return 'owner';
+            console.error('Error creating owner role:', insertError);
           }
           
           return 'owner';
         }
         
-        // Devolver los datos - podría ser una cadena o un objeto con la propiedad role
-        return data;
+        return data.role;
       } catch (err) {
-        console.error('Error inesperado en usePermissions:', err);
-        return 'owner'; // Fallback a owner para evitar bloqueos
+        console.error('Unexpected error in usePermissions:', err);
+        return 'owner'; // Fallback to owner to avoid blocking access
       }
     },
     enabled: !!user,
-    retry: 1, // Limitar reintentos para evitar llamadas excesivas en error
-    staleTime: 60000, // Caché del resultado por 1 minuto
+    retry: 1, // Limit retries to avoid excessive calls on error
+    staleTime: 60000, // Cache results for 1 minute
   });
 
-  // Actualizar el estado del rol cuando cambian los datos usando un enfoque más seguro
+  // Update role state when data changes
   useEffect(() => {
     if (role === undefined) {
       if (user && !isLoading) {
-        // Fallback a owner si la consulta falló pero el usuario existe
+        // Fallback to owner if query failed but user exists
         setUserRole('owner');
       }
       return;
     }
 
-    // Manejar caso nulo
     if (role === null) {
-      setUserRole('owner'); // Establecer rol por defecto si es nulo
+      setUserRole('owner'); // Set default role if null
       return;
     }
     
-    // Manejar caso de cadena
-    if (typeof role === 'string') {
-      setUserRole(role);
-      return;
-    }
-    
-    // Manejar caso de objeto con verificación de tipo más segura
-    if (isRoleObject(role)) {
-      // Convertir explícitamente a RoleObject para ayudar a TypeScript
-      const roleObj: RoleObject = role;
-      setUserRole(roleObj.role);
-      return;
-    }
-    
-    // Fallback para cualquier otro caso
-    setUserRole('owner');
+    setUserRole(role);
   }, [role, user, isLoading]);
 
-  // Comprobar si el usuario tiene un rol específico
+  // Check if user has a specific role
   const hasRole = async (requiredRole: string): Promise<boolean> => {
     try {
-      // En lugar de usar RPC, consultamos directamente la tabla
+      // If user is owner, they have all roles
+      if (userRole === 'owner') return true;
+      
+      // Direct query to check role
       if (user?.id) {
         const { data, error } = await supabase
           .from('user_roles')
@@ -185,8 +128,8 @@ export const usePermissions = () => {
           .maybeSingle();
         
         if (error) {
-          console.error('Error en verificación de rol:', error);
-          // Fallar con seguridad: solo permitir si es owner
+          console.error('Error verifying role:', error);
+          // Fail safely: only allow if owner
           return userRole === 'owner';
         }
         
@@ -194,22 +137,22 @@ export const usePermissions = () => {
       }
       return false;
     } catch (err) {
-      console.error('Error en hasRole:', err);
+      console.error('Error in hasRole:', err);
       return false;
     }
   };
 
-  // Comprobar si el usuario tiene un permiso específico
+  // Check if user has a specific permission
   const hasPermission = async (permissionType: string, permissionId: string): Promise<boolean> => {
     try {
-      // En lugar de usar RPC, combinamos consultas para verificar permisos
+      // Direct query to check permission
       if (user?.id && userRole) {
-        // Primero verificamos si el usuario es owner (siempre tiene todos los permisos)
+        // Owner always has all permissions
         if (userRole === 'owner') {
           return true;
         }
         
-        // Luego verificamos el permiso específico
+        // Check specific permission
         const { data, error } = await supabase
           .from('role_permissions')
           .select('allowed')
@@ -219,7 +162,7 @@ export const usePermissions = () => {
           .maybeSingle();
         
         if (error) {
-          console.error('Error en verificación de permiso:', error);
+          console.error('Error checking permission:', error);
           return false;
         }
         
@@ -227,7 +170,7 @@ export const usePermissions = () => {
       }
       return false;
     } catch (err) {
-      console.error('Error en hasPermission:', err);
+      console.error('Error in hasPermission:', err);
       return false;
     }
   };

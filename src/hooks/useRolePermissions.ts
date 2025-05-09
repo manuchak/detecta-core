@@ -8,40 +8,43 @@ export const useRolePermissions = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Query para obtener todos los permisos por rol
+  // Query to get all permissions by role
   const { data: permissions, isLoading, error, refetch } = useQuery({
     queryKey: ['role-permissions'],
     queryFn: async () => {
       try {
-        // Direct query to avoid RLS recursion issues
+        // Use a direct SQL query instead of the RPC call that's causing recursion
         const { data, error } = await supabase
           .from('role_permissions')
           .select('id, role, permission_type, permission_id, allowed');
 
         if (error) {
-          console.error('Error al obtener permisos:', error);
+          console.error('Error fetching permissions:', error);
           throw new Error(`Error fetching permissions: ${error.message}`);
         }
 
-        // Initialize roles that we know should exist
+        // Initialize roles we know should exist
         const defaultRoles: Role[] = ['admin', 'owner', 'pending', 'unverified'];
         
-        // Attempt to get all roles if available
+        // Get all available roles
         let allRoles: Role[] = defaultRoles;
         try {
-          const { data: userRoles, error: rolesError } = await supabase
-            .rpc('get_user_roles_safe');
+          // Direct query for roles that avoids RLS recursion
+          const { data: roleData } = await supabase
+            .from('user_roles')
+            .select('role')
+            .distinctOn('role');
           
-          if (!rolesError && userRoles) {
-            // Extract just the role names and combine with defaultRoles to ensure we have them all
-            const fetchedRoles = userRoles.map((r: any) => r.role as Role);
+          if (roleData && roleData.length > 0) {
+            // Extract role names
+            const fetchedRoles = roleData.map((r) => r.role as Role);
             allRoles = [...new Set([...defaultRoles, ...fetchedRoles])];
           }
         } catch (err) {
           console.error('Error fetching roles, using defaults:', err);
         }
         
-        // Agrupar permisos por rol
+        // Group permissions by role
         const permissionsByRole = {} as PermissionsByRole;
         
         // Initialize with empty arrays for all roles
@@ -71,15 +74,15 @@ export const useRolePermissions = () => {
         
         return permissionsByRole;
       } catch (err) {
-        console.error('Error inesperado en useRolePermissions:', err);
+        console.error('Error in useRolePermissions:', err);
         throw err;
       }
     },
-    staleTime: 60000, // Caché por 1 minuto para mejorar rendimiento
-    retry: 1, // Solo un reintento para evitar problemas de recursión
+    staleTime: 60000, // Cache for 1 minute
+    retry: 1, // Only one retry to avoid excessive requests
   });
 
-  // Mutación para actualizar un permiso existente
+  // Mutation to update an existing permission
   const updatePermission = useMutation({
     mutationFn: async ({ id, allowed }: { id: number, allowed: boolean }) => {
       try {
@@ -96,7 +99,7 @@ export const useRolePermissions = () => {
         
         return { id, allowed };
       } catch (error) {
-        console.error('Error en updatePermission:', error);
+        console.error('Error in updatePermission:', error);
         throw error;
       }
     },
@@ -116,39 +119,38 @@ export const useRolePermissions = () => {
     }
   });
 
-  // Mutación para añadir un nuevo permiso usando la función de seguridad
+  // Mutation to add a new permission
   const addPermission = useMutation({
     mutationFn: async ({ role, permissionType, permissionId, allowed }: RolePermissionInput) => {
       try {
-        console.log(`Añadiendo permiso: ${role}.${permissionType}.${permissionId}=${allowed}`);
+        console.log(`Adding permission: ${role}.${permissionType}.${permissionId}=${allowed}`);
         
-        const { data, error } = await supabase.rpc('add_permission_safe', {
-          p_role: role,
-          p_permission_type: permissionType,
-          p_permission_id: permissionId,
-          p_allowed: allowed
-        });
+        // Use direct insert instead of RPC to avoid recursion issues
+        const { data, error } = await supabase
+          .from('role_permissions')
+          .insert([{
+            role: role,
+            permission_type: permissionType,
+            permission_id: permissionId,
+            allowed: allowed
+          }])
+          .select('*')
+          .single();
         
         if (error) {
-          console.error('Error en add_permission_safe:', error);
-          throw new Error(`Error al añadir el permiso: ${error.message}`);
+          console.error('Error adding permission:', error);
+          throw new Error(`Error adding permission: ${error.message}`);
         }
         
-        // Verificar errores de aplicación en la respuesta
-        if (typeof data === 'object' && data !== null && 'error' in data) {
-          console.error('Error retornado por add_permission_safe:', data.error);
-          throw new Error(`Error al añadir el permiso: ${String(data.error)}`);
-        }
-        
-        console.log('Respuesta de add_permission_safe:', data);
+        console.log('Permission added successfully:', data);
         return data;
       } catch (err) {
-        console.error('Excepción en mutación addPermission:', err);
+        console.error('Exception in addPermission mutation:', err);
         throw err;
       }
     },
     onSuccess: (data) => {
-      console.log('Éxito en mutación de permiso añadido:', data);
+      console.log('Permission added successfully:', data);
       queryClient.invalidateQueries({ queryKey: ['role-permissions'] });
       toast({
         title: "Permiso añadido",
@@ -156,7 +158,7 @@ export const useRolePermissions = () => {
       });
     },
     onError: (error) => {
-      console.error('Error en mutación de permiso añadido:', error);
+      console.error('Error in permission addition mutation:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Error al añadir el permiso",

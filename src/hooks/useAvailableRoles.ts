@@ -11,13 +11,15 @@ export const useAvailableRoles = () => {
   const { data: roles, isLoading, error } = useQuery({
     queryKey: ['available-roles'],
     queryFn: async () => {
-      // Use our safe RPC function that doesn't cause recursion
+      // Direct query instead of RPC to avoid recursion issues
       const { data, error } = await supabase
-        .rpc('get_user_roles_safe');
+        .from('user_roles')
+        .select('role')
+        .distinctOn('role');
       
       if (error) {
         console.error('Error fetching roles:', error);
-        // Fallback to hardcoded roles if the RPC fails
+        // Fallback to hardcoded roles if the query fails
         const availableRoles: Role[] = [
           'owner',
           'admin',
@@ -34,19 +36,29 @@ export const useAvailableRoles = () => {
         return availableRoles;
       }
 
-      // Extract roles from the result and sort them by the sort_order
+      // Map to just role names and sort them by importance
       if (Array.isArray(data)) {
-        // Sort the roles based on the sort_order field if it exists
-        const sortedData = [...data].sort((a, b) => {
-          // If we're receiving the new structure with sort_order
-          if ('sort_order' in a && 'sort_order' in b) {
-            return (a.sort_order as number) - (b.sort_order as number);
-          }
-          return 0;
-        });
+        const roleNames = data.map(item => item.role as Role);
         
-        // Map to just the role names
-        return sortedData.map(item => item.role as Role);
+        // Sort roles by importance
+        const sortOrder = {
+          'owner': 1,
+          'admin': 2,
+          'supply_admin': 3,
+          'bi': 4,
+          'monitoring_supervisor': 5,
+          'monitoring': 6,
+          'supply': 7,
+          'soporte': 8,
+          'pending': 9,
+          'unverified': 10
+        };
+        
+        return roleNames.sort((a, b) => {
+          const orderA = sortOrder[a as keyof typeof sortOrder] || 100;
+          const orderB = sortOrder[b as keyof typeof sortOrder] || 100;
+          return orderA - orderB;
+        });
       }
 
       // If no roles found, return default roles
@@ -68,7 +80,7 @@ export const useAvailableRoles = () => {
   // Create a new role
   const createRole = useMutation({
     mutationFn: async ({ role }: CreateRoleInput) => {
-      // Use the updated edge function with direct database access
+      // Use the edge function for role creation
       const response = await supabase.functions.invoke('create-role', {
         body: { new_role: role }
       });
@@ -78,7 +90,6 @@ export const useAvailableRoles = () => {
         throw new Error(`Error creating role: ${response.error.message || response.error}`);
       }
       
-      // Check for application-level errors in the data
       if (response.data && response.data.error) {
         console.error('Error from create-role function:', response.data.error);
         throw new Error(`Error creating role: ${response.data.error}`);

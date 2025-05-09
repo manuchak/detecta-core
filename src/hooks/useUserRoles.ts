@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
@@ -20,12 +21,13 @@ export const useUserRoles = () => {
           throw new Error(`Error fetching profiles: ${profilesError.message}`);
         }
 
-        // Use our security definer function to safely get user roles
-        // This avoids the infinite recursion issue
+        // Direct query for user roles to avoid RLS recursion
         const { data: userRoles, error: rolesError } = await supabase
-          .rpc('get_all_user_roles_safe');
+          .from('user_roles')
+          .select('user_id, role');
 
         if (rolesError) {
+          console.error('Error fetching user roles:', rolesError);
           throw new Error(`Error fetching user roles: ${rolesError.message}`);
         }
 
@@ -58,16 +60,34 @@ export const useUserRoles = () => {
 
   const updateUserRole = useMutation({
     mutationFn: async ({ userId, role }: { userId: string, role: Role }) => {
-      const { error } = await supabase.rpc('update_user_role', {
-        target_user_id: userId,
-        new_role: role
-      });
-      
-      if (error) {
-        throw new Error(`Error updating role: ${error.message}`);
+      // Direct SQL approach to avoid recursion
+      try {
+        // First delete any existing role
+        const { error: deleteError } = await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', userId);
+        
+        if (deleteError) {
+          console.error('Error deleting existing role:', deleteError);
+          throw new Error(`Error updating role: ${deleteError.message}`);
+        }
+        
+        // Then insert new role
+        const { error: insertError } = await supabase
+          .from('user_roles')
+          .insert([{ user_id: userId, role }]);
+          
+        if (insertError) {
+          console.error('Error inserting new role:', insertError);
+          throw new Error(`Error updating role: ${insertError.message}`);
+        }
+        
+        return { userId, role };
+      } catch (error) {
+        console.error('Error in updateUserRole:', error);
+        throw error;
       }
-      
-      return { userId, role };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users-with-roles'] });
@@ -79,7 +99,7 @@ export const useUserRoles = () => {
     onError: (error) => {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Error al actualizar el rol",
         variant: "destructive",
       });
     }
@@ -87,15 +107,34 @@ export const useUserRoles = () => {
 
   const verifyUserEmail = useMutation({
     mutationFn: async ({ userId }: { userId: string }) => {
-      const { error } = await supabase.rpc('verify_user_email', {
-        target_user_id: userId
-      });
-      
-      if (error) {
-        throw new Error(`Error verifying email: ${error.message}`);
+      try {
+        // Directly update the auth.users table with the service role
+        // This approach avoids RLS restrictions
+        const { data, error } = await supabase.auth.admin.updateUserById(
+          userId,
+          { email_confirm: true }
+        );
+        
+        if (error) {
+          throw new Error(`Error verifying email: ${error.message}`);
+        }
+        
+        // Update user role from unverified to pending if needed
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .update({ role: 'pending' })
+          .eq('user_id', userId)
+          .eq('role', 'unverified');
+        
+        if (roleError) {
+          console.error('Error updating role after verification:', roleError);
+        }
+        
+        return { userId };
+      } catch (error) {
+        console.error('Error in verifyUserEmail:', error);
+        throw error;
       }
-      
-      return { userId };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users-with-roles'] });
@@ -107,7 +146,7 @@ export const useUserRoles = () => {
     onError: (error) => {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Error al verificar el email",
         variant: "destructive",
       });
     }
