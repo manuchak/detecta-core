@@ -49,20 +49,13 @@ serve(async (req) => {
     const connection = await pool.connect();
     
     try {
-      // Extract JWT token and get user_id
-      const token = authHeader.replace('Bearer ', '');
-      
-      // First, verify if the user has owner role
+      // First, verify if the user has owner or admin role directly with SQL
+      // This fixes the issue with the previous query that was looking for 'sub' column
       const userRoleResult = await connection.queryObject`
         SELECT ur.role 
         FROM user_roles ur 
-        WHERE ur.user_id = (
-          SELECT sub FROM auth.users 
-          WHERE id = (
-            SELECT auth.uid()
-          )
-          LIMIT 1
-        )
+        JOIN auth.users au ON ur.user_id = au.id
+        WHERE au.id = auth.uid()
         ORDER BY 
           CASE ur.role
             WHEN 'owner' THEN 1

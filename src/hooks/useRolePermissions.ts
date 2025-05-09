@@ -81,28 +81,33 @@ export const useRolePermissions = () => {
 
   const addPermission = useMutation({
     mutationFn: async ({ role, permissionType, permissionId, allowed }: RolePermissionInput) => {
-      // Use the edge function instead of direct Supabase query
-      const response = await supabase.functions.invoke('add-permission', {
-        body: { 
-          role, 
-          permissionType, 
-          permissionId, 
-          allowed 
+      try {
+        // Use the edge function to add the permission
+        const { data, error } = await supabase.functions.invoke('add-permission', {
+          body: { 
+            role, 
+            permissionType, 
+            permissionId, 
+            allowed 
+          }
+        });
+        
+        if (error) {
+          console.error('Error from edge function:', error);
+          throw new Error(`Error adding permission: ${error.message || error}`);
         }
-      });
-      
-      if (response.error) {
-        console.error('Error from edge function:', response.error);
-        throw new Error(`Error adding permission: ${response.error.message || response.error}`);
+        
+        // Check for application-level errors in the data
+        if (data && data.error) {
+          console.error('Error from add-permission function:', data.error);
+          throw new Error(`Error adding permission: ${data.error}`);
+        }
+        
+        return data;
+      } catch (err) {
+        console.error('Error in addPermission mutation:', err);
+        throw err;
       }
-      
-      // Check for application-level errors in the data
-      if (response.data && response.data.error) {
-        console.error('Error from add-permission function:', response.data.error);
-        throw new Error(`Error adding permission: ${response.data.error}`);
-      }
-      
-      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['role-permissions'] });
