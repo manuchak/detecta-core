@@ -10,6 +10,22 @@ import MapDisplay from "@/components/monitoring/MapDisplay";
 const SupplyChainMonitoring = () => {
   const [refreshing, setRefreshing] = useState(false);
 
+  // Mock metrics data
+  const metricsData = {
+    onTimeCount: 42,
+    onTimePercent: 84,
+    delayedCount: 8,
+    delayedPercent: 16,
+    riskZones: 3,
+    riskZonePercent: 12,
+    activeIncidents: {
+      critical: 2,
+      major: 3,
+      minor: 5
+    },
+    totalServices: 50
+  };
+
   const handleRefresh = () => {
     setRefreshing(true);
     setTimeout(() => {
@@ -49,7 +65,16 @@ const SupplyChainMonitoring = () => {
             </TabsContent>
             
             <TabsContent value="metrics" className="mt-0">
-              <SupplyChainMetrics />
+              <SupplyChainMetrics 
+                onTimeCount={metricsData.onTimeCount}
+                onTimePercent={metricsData.onTimePercent}
+                delayedCount={metricsData.delayedCount}
+                delayedPercent={metricsData.delayedPercent}
+                riskZones={metricsData.riskZones}
+                riskZonePercent={metricsData.riskZonePercent}
+                activeIncidents={metricsData.activeIncidents}
+                totalServices={metricsData.totalServices}
+              />
             </TabsContent>
           </Tabs>
         </div>

@@ -9,8 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 
-interface ServiceDetailsProps {
-  service?: {
+export interface ServiceDetailsProps {
+  service: {
     id: string;
     serviceId: string;
     driver: string;

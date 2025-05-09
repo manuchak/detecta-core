@@ -13,6 +13,7 @@ export interface ServiceProps {
   progress: number;
   status: string;
   delayMinutes?: number;
+  isSelected?: boolean;
   onClick: (id: string) => void;
 }
 
@@ -26,6 +27,7 @@ export const ActiveServiceCard = ({
   progress,
   status,
   delayMinutes,
+  isSelected,
   onClick
 }: ServiceProps) => {
   return (
@@ -33,7 +35,7 @@ export const ActiveServiceCard = ({
       className={`cursor-pointer hover:border-primary/50 transition-all ${
         status === "delayed" ? "border-red-300 bg-red-50" : 
         status === "on-time" ? "border-green-300 bg-green-50" : "border-gray-200"
-      }`}
+      } ${isSelected ? 'ring-2 ring-primary' : ''}`}
       onClick={() => onClick(id)}
     >
       <CardContent className="p-4">

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Refresh } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import ActiveServiceCard from "@/components/monitoring/ActiveServiceCard";
 import ServiceDetailsPanel from "@/components/monitoring/ServiceDetailsPanel";
 import WeatherWidget from "@/components/monitoring/WeatherWidget";
@@ -35,6 +35,9 @@ const MonitoringPage = () => {
     setTimeout(() => setRefreshing(false), 1000);
   };
 
+  // Find service by ID for ServiceDetailsPanel
+  const selectedServiceData = activeServices.find(service => service.id === selectedService);
+
   return (
     <div className="p-0 lg:p-6">
       <div className="flex justify-between items-center mb-6 px-4 lg:px-0">
@@ -43,7 +46,7 @@ const MonitoringPage = () => {
           <p className="text-muted-foreground">Visualiza y gestiona servicios en tiempo real</p>
         </div>
         <Button onClick={handleRefresh} variant="outline" className="gap-2" disabled={refreshing}>
-          <Refresh className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
           Actualizar
         </Button>
       </div>
@@ -68,9 +71,16 @@ const MonitoringPage = () => {
                     {activeServices.map((service) => (
                       <ActiveServiceCard
                         key={service.id}
-                        service={service}
+                        id={service.id}
+                        serviceId={service.id}
+                        driver={service.client}
+                        vehicleType={service.vehicle}
+                        destination={service.destination}
+                        eta={service.eta}
+                        progress={service.progress}
+                        status={service.status === "En ruta" ? "on-time" : "delayed"}
                         isSelected={service.id === selectedService}
-                        onSelect={() => setSelectedService(service.id)}
+                        onClick={() => setSelectedService(service.id)}
                       />
                     ))}
                   </div>
@@ -79,9 +89,21 @@ const MonitoringPage = () => {
             </TabsContent>
           </Tabs>
 
-          {selectedService && (
+          {selectedService && selectedServiceData && (
             <ServiceDetailsPanel 
-              serviceId={selectedService}
+              service={{
+                id: selectedServiceData.id,
+                serviceId: selectedServiceData.id,
+                driver: selectedServiceData.client,
+                vehicleType: selectedServiceData.vehicle,
+                origin: "Ciudad de origen",
+                destination: selectedServiceData.destination,
+                eta: selectedServiceData.eta,
+                progress: selectedServiceData.progress,
+                status: selectedServiceData.status === "En ruta" ? "on-time" : "delayed",
+                custodian: "Custodio asignado",
+                trackingId: `TRK-${selectedServiceData.id}`,
+              }}
               onClose={() => setSelectedService(null)} 
             />
           )}
