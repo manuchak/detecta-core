@@ -21,31 +21,22 @@ export const useUserRoles = () => {
           throw new Error(`Error fetching profiles: ${profilesError.message}`);
         }
 
-        // Get all user roles using our safe function
+        // Instead of querying user_roles directly which causes infinite recursion,
+        // use a safe RPC function to get user roles
         const { data: userRoles, error: rolesError } = await supabase
-          .rpc('get_user_roles_safe');
+          .rpc('get_all_user_roles_safe');
 
         if (rolesError) {
-          throw new Error(`Error fetching roles: ${rolesError.message}`);
+          throw new Error(`Error fetching user roles: ${rolesError.message}`);
         }
 
         // Create a map of user_id to role for faster lookup
-        // Since the return type has changed, we need to adapt our logic
         const userRoleMap = new Map();
         
-        // Create a map of user IDs to assigned roles from the user_roles table
-        // This requires a separate query since get_user_roles_safe now returns just role names
-        const { data: userRoleAssignments, error: assignmentError } = await supabase
-          .from('user_roles')
-          .select('user_id, role');
-          
-        if (assignmentError) {
-          throw new Error(`Error fetching role assignments: ${assignmentError.message}`);
-        }
-        
-        // Create a map of user_id to role
-        for (const assignment of userRoleAssignments) {
-          userRoleMap.set(assignment.user_id, assignment.role);
+        if (Array.isArray(userRoles)) {
+          userRoles.forEach(ur => {
+            userRoleMap.set(ur.user_id, ur.role);
+          });
         }
 
         // Combine data
