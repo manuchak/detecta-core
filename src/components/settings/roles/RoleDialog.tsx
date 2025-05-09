@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Save } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 
 interface RoleDialogProps {
   isOpen: boolean;
@@ -37,6 +38,11 @@ export const RoleDialog: React.FC<RoleDialogProps> = ({
 }) => {
   const isSystemRole = currentRole.id && ['admin', 'owner', 'unverified', 'pending'].includes(currentRole.id);
 
+  // Format role as lowercase and replace spaces with underscores
+  const getFormattedRole = (roleName: string) => {
+    return roleName.toLowerCase().replace(/\s+/g, '_');
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -47,15 +53,15 @@ export const RoleDialog: React.FC<RoleDialogProps> = ({
           <DialogDescription>
             {currentRole.id 
               ? 'Modifique el nombre del rol existente.'
-              : 'Ingrese un nombre único para el nuevo rol.'
+              : 'Ingrese un nombre único para el nuevo rol. Se convertirá automáticamente a minúsculas y los espacios se reemplazarán con guiones bajos.'
             }
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <label htmlFor="role-name" className="text-sm font-medium">
+            <Label htmlFor="role-name" className="text-sm font-medium">
               Nombre del Rol
-            </label>
+            </Label>
             <Input
               id="role-name"
               value={currentRole.name}
@@ -63,6 +69,11 @@ export const RoleDialog: React.FC<RoleDialogProps> = ({
               placeholder="Ingrese nombre del rol"
               disabled={isSystemRole}
             />
+            {currentRole.name && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Se guardará como: <span className="font-mono text-foreground">{getFormattedRole(currentRole.name)}</span>
+              </p>
+            )}
           </div>
         </div>
         <DialogFooter>

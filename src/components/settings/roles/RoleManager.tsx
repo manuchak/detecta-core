@@ -54,16 +54,19 @@ export const RoleManager = () => {
 
   const handleSaveRole = () => {
     try {
+      // Format the role name: lowercase and replace spaces with underscores
+      const formattedRoleName = currentRole.name.toLowerCase().replace(/\s+/g, '_') as Role;
+      
       if (currentRole.id) {
         // Update existing role
         updateRole.mutate({
           oldRole: currentRole.id as Role,
-          newRole: currentRole.name as Role
+          newRole: formattedRoleName
         });
       } else {
         // Create new role
         createRole.mutate({
-          role: currentRole.name as Role
+          role: formattedRoleName
         });
       }
       setIsDialogOpen(false);

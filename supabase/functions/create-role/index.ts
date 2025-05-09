@@ -41,9 +41,14 @@ serve(async (req) => {
     // Parse the request body
     const { new_role } = await req.json();
 
-    // Call the RPC function to create a new role
+    // Validate the role name (ensure it's lowercase with no spaces)
+    const validRoleName = new_role.toLowerCase().replace(/\s+/g, '_');
+    
+    console.log(`Attempting to create role: ${validRoleName}`);
+    
+    // Call the RPC function to create a new role with the validated name
     const { data, error } = await supabase
-      .rpc('create_new_role', { new_role });
+      .rpc('create_new_role', { new_role: validRoleName });
 
     if (error) {
       console.error('Error creating role:', error);
