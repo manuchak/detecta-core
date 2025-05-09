@@ -8,7 +8,7 @@ export const useAvailableRoles = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: roles } = useQuery({
+  const { data: roles, isLoading, error } = useQuery({
     queryKey: ['available-roles'],
     queryFn: async () => {
       // Use our safe RPC function that doesn't cause recursion
@@ -175,7 +175,9 @@ export const useAvailableRoles = () => {
   });
 
   return { 
-    roles, 
+    roles,
+    isLoading,
+    error,
     createRole,
     updateRole,
     deleteRole
