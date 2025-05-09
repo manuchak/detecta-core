@@ -1,5 +1,5 @@
 
-export type Role = 'admin' | 'supply' | 'supply_admin' | 'soporte' | 'bi' | 'monitoring' | 'monitoring_supervisor' | 'owner' | 'pending' | 'unverified';
+export type Role = 'admin' | 'supply' | 'supply_admin' | 'soporte' | 'bi' | 'monitoring' | 'monitoring_supervisor' | 'owner' | 'pending' | 'unverified' | string;
 
 export type UserWithRole = {
   id: string;
@@ -32,4 +32,17 @@ export type NewPermission = {
   permissionType: string;
   permissionId: string;
   allowed: boolean;
+};
+
+export type CreateRoleInput = {
+  role: Role;
+};
+
+export type UpdateRoleInput = {
+  oldRole: Role;
+  newRole: Role;
+};
+
+export type DeleteRoleInput = {
+  role: Role;
 };

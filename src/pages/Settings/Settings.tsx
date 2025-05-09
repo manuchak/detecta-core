@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UserRoleManager } from '@/components/settings/UserRoleManager';
 import { PermissionsManager } from '@/components/settings/PermissionsManager';
-import { Loader2, Settings2, Users2, ShieldCheck, Sliders } from 'lucide-react';
+import { RoleManager } from '@/components/settings/roles/RoleManager';
+import { Loader2, Settings2, Users2, ShieldCheck, Sliders, UserCircle } from 'lucide-react';
 
 const Settings = () => {
   const { isLoading } = usePermissions();
@@ -39,6 +40,10 @@ const Settings = () => {
               <Users2 className="h-4 w-4" />
               <span>Usuarios</span>
             </TabsTrigger>
+            <TabsTrigger value="roles" className="flex gap-2 data-[state=active]:shadow-sm">
+              <UserCircle className="h-4 w-4" />
+              <span>Roles</span>
+            </TabsTrigger>
             <TabsTrigger value="permissions" className="flex gap-2 data-[state=active]:shadow-sm">
               <ShieldCheck className="h-4 w-4" />
               <span>Permisos</span>
@@ -51,6 +56,10 @@ const Settings = () => {
           
           <TabsContent value="users" className="mt-0 focus-visible:outline-none focus-visible:ring-0">
             <UserRoleManager />
+          </TabsContent>
+          
+          <TabsContent value="roles" className="mt-0 focus-visible:outline-none focus-visible:ring-0">
+            <RoleManager />
           </TabsContent>
           
           <TabsContent value="permissions" className="mt-0 focus-visible:outline-none focus-visible:ring-0">

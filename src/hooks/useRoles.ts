@@ -3,13 +3,13 @@ import { useState } from 'react';
 import { useUserRoles } from './useUserRoles';
 import { useAvailableRoles } from './useAvailableRoles';
 import { useRolePermissions } from './useRolePermissions';
-import { Role, UserWithRole } from '@/types/roleTypes';
+import { Role, UserWithRole, CreateRoleInput, UpdateRoleInput, DeleteRoleInput } from '@/types/roleTypes';
 
 export type { Role, UserWithRole } from '@/types/roleTypes';
 
 export const useRoles = () => {
   const { users, isLoading: usersLoading, error, updateUserRole, verifyUserEmail } = useUserRoles();
-  const { roles } = useAvailableRoles();
+  const { roles, createRole, updateRole, deleteRole } = useAvailableRoles();
   const { permissions, isLoading: permissionsLoading, updatePermission, addPermission } = useRolePermissions();
 
   // Combine loading states
@@ -24,6 +24,9 @@ export const useRoles = () => {
     updateUserRole,
     updatePermission,
     addPermission,
-    verifyUserEmail
+    verifyUserEmail,
+    createRole,
+    updateRole,
+    deleteRole
   };
 };
