@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Users, Calendar, Map, MessageSquare, ArrowUp, ArrowDown, ChartBar, CircleDollarSign, TrendingUp, TrendingDown } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
@@ -11,92 +11,449 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 
-// Sample data for the charts (to be replaced with Supabase data)
-const monthlyGmvData = [
-  { name: "Ene", value: 245000, previousYear: 220000 },
-  { name: "Feb", value: 312000, previousYear: 280000 },
-  { name: "Mar", value: 298000, previousYear: 310000 },
-  { name: "Abr", value: 340000, previousYear: 290000 },
-  { name: "May", value: 290000, previousYear: 260000 },
-  { name: "Jun", value: 380000, previousYear: 310000 },
-  { name: "Jul", value: 430000, previousYear: 340000 },
-  { name: "Ago", value: 390000, previousYear: 370000 },
-  { name: "Sep", value: 480000, previousYear: 380000 },
-  { name: "Oct", value: 520000, previousYear: 410000 },
-  { name: "Nov", value: 470000, previousYear: 430000 },
-  { name: "Dic", value: 510000, previousYear: 460000 }
-];
-
-const serviceStatusData = [
-  { name: "En Proceso", value: 35 },
-  { name: "Completados", value: 45 },
-  { name: "Cancelados", value: 10 },
-  { name: "Retrasados", value: 10 }
-];
-
-const serviceTypesData = [
-  { name: "Local", value: 65 },
-  { name: "Foráneo", value: 35 }
-];
-
-const dailyServiceData = [
-  { day: "Lun", count: 35 },
-  { day: "Mar", count: 28 },
-  { day: "Mié", count: 42 },
-  { day: "Jue", count: 38 },
-  { day: "Vie", count: 45 },
-  { day: "Sáb", count: 24 },
-  { day: "Dom", count: 18 }
-];
-
-const topClientsData = [
-  { name: "Astra Zeneca", value: 28 },
-  { name: "Puma", value: 22 },
-  { name: "Siegfried Rhein", value: 18 },
-  { name: "Bimbo", value: 12 },
-  { name: "Otros", value: 20 }
-];
-
 export const Dashboard = () => {
-  const [servicesData, setServicesData] = useState({
-    totalServices: 142,
-    completedServices: 89,
-    ongoingServices: 38,
-    cancelledServices: 15,
-    totalGMV: 876183,
-    averageServiceValue: 6170,
-    activeClients: 62,
-    yearlyGrowth: 12.5
-  });
-  
   const [timeframe, setTimeframe] = useState("month");
   const [serviceTypeFilter, setServiceTypeFilter] = useState("all");
   const { toast } = useToast();
+  
+  const [isLoading, setIsLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState({
+    totalServices: 0,
+    completedServices: 0,
+    ongoingServices: 0,
+    cancelledServices: 0,
+    totalGMV: 0,
+    averageServiceValue: 0,
+    activeClients: 0,
+    yearlyGrowth: 0
+  });
+  
+  const [monthlyGmvData, setMonthlyGmvData] = useState([]);
+  const [serviceStatusData, setServiceStatusData] = useState([]);
+  const [serviceTypesData, setServiceTypesData] = useState([]);
+  const [dailyServiceData, setDailyServiceData] = useState([]);
+  const [topClientsData, setTopClientsData] = useState([]);
 
-  // Fetch data from Supabase (placeholder for now)
-  useEffect(() => {
-    const fetchServicesData = async () => {
-      try {
-        // This would be replaced with actual Supabase queries
-        // const { data, error } = await supabase
-        //   .from('servicios_custodia')
-        //   .select('*')
+  // Function to calculate date ranges based on selected timeframe
+  const getDateRanges = () => {
+    const now = new Date();
+    const startOfCurrentYear = new Date(now.getFullYear(), 0, 1);
+    
+    let startDate, endDate;
+    
+    switch(timeframe) {
+      case 'day':
+        startDate = new Date(now);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(now);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case 'week':
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - now.getDay());
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(now);
+        endDate.setDate(startDate.getDate() + 6);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case 'month':
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+        break;
+      case 'quarter':
+        const currentQuarter = Math.floor(now.getMonth() / 3);
+        startDate = new Date(now.getFullYear(), currentQuarter * 3, 1);
+        endDate = new Date(now.getFullYear(), (currentQuarter + 1) * 3, 0, 23, 59, 59, 999);
+        break;
+      case 'year':
+        startDate = startOfCurrentYear;
+        endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+        break;
+      default:
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    }
+    
+    return { startDate, endDate, startOfCurrentYear };
+  };
+
+  // Fetch main dashboard metrics from Supabase
+  const fetchDashboardData = async () => {
+    setIsLoading(true);
+    
+    try {
+      const { startDate, endDate, startOfCurrentYear } = getDateRanges();
+
+      // Apply service type filter condition
+      let serviceTypeCondition = {};
+      if (serviceTypeFilter !== 'all') {
+        serviceTypeCondition = {
+          [serviceTypeFilter === 'local' ? 'local_foraneo' : 'tipo_servicio']: serviceTypeFilter
+        };
+      }
+
+      // Fetch total services count
+      const { count: totalCount, error: countError } = await supabase
+        .from('servicios_custodia')
+        .select('*', { count: 'exact', head: true })
+        .gte('fecha_hora_cita', startDate.toISOString())
+        .lte('fecha_hora_cita', endDate.toISOString())
+        .match(serviceTypeCondition);
+
+      if (countError) throw countError;
+
+      // Fetch services with completed status
+      const { count: completedCount, error: completedError } = await supabase
+        .from('servicios_custodia')
+        .select('*', { count: 'exact', head: true })
+        .eq('estado', 'Completado')
+        .gte('fecha_hora_cita', startDate.toISOString())
+        .lte('fecha_hora_cita', endDate.toISOString())
+        .match(serviceTypeCondition);
+
+      if (completedError) throw completedError;
+
+      // Fetch services with ongoing status
+      const { count: ongoingCount, error: ongoingError } = await supabase
+        .from('servicios_custodia')
+        .select('*', { count: 'exact', head: true })
+        .eq('estado', 'En Proceso')
+        .gte('fecha_hora_cita', startDate.toISOString())
+        .lte('fecha_hora_cita', endDate.toISOString())
+        .match(serviceTypeCondition);
+
+      if (ongoingError) throw ongoingError;
+
+      // Fetch services with cancelled status
+      const { count: cancelledCount, error: cancelledError } = await supabase
+        .from('servicios_custodia')
+        .select('*', { count: 'exact', head: true })
+        .eq('estado', 'Cancelado')
+        .gte('fecha_hora_cita', startDate.toISOString())
+        .lte('fecha_hora_cita', endDate.toISOString())
+        .match(serviceTypeCondition);
+
+      if (cancelledError) throw cancelledError;
+      
+      // Calculate GMV and average service value
+      const { data: gmvData, error: gmvError } = await supabase
+        .from('servicios_custodia')
+        .select('cobro_cliente')
+        .gte('fecha_hora_cita', startDate.toISOString())
+        .lte('fecha_hora_cita', endDate.toISOString())
+        .not('cobro_cliente', 'is', null)
+        .match(serviceTypeCondition);
         
-        // if (error) throw error;
-        // Process data and update state...
+      if (gmvError) throw gmvError;
         
-      } catch (error) {
-        console.error('Error fetching service data:', error);
-        toast({
-          title: "Error",
-          description: "No se pudieron cargar los datos de servicios",
-          variant: "destructive"
+      const totalGMV = gmvData.reduce((sum, service) => sum + (parseFloat(service.cobro_cliente) || 0), 0);
+      const averageServiceValue = gmvData.length > 0 ? totalGMV / gmvData.length : 0;
+      
+      // Fetch unique active clients
+      const { data: clientsData, error: clientsError } = await supabase
+        .from('servicios_custodia')
+        .select('nombre_cliente')
+        .gte('fecha_hora_cita', startDate.toISOString())
+        .lte('fecha_hora_cita', endDate.toISOString())
+        .not('nombre_cliente', 'is', null)
+        .match(serviceTypeCondition);
+        
+      if (clientsError) throw clientsError;
+      
+      const uniqueClients = new Set(clientsData.map(client => client.nombre_cliente));
+      
+      // Calculate year-over-year growth
+      const previousYearStart = new Date(startDate);
+      previousYearStart.setFullYear(previousYearStart.getFullYear() - 1);
+      const previousYearEnd = new Date(endDate);
+      previousYearEnd.setFullYear(previousYearEnd.getFullYear() - 1);
+      
+      const { count: previousYearCount, error: prevYearError } = await supabase
+        .from('servicios_custodia')
+        .select('*', { count: 'exact', head: true })
+        .gte('fecha_hora_cita', previousYearStart.toISOString())
+        .lte('fecha_hora_cita', previousYearEnd.toISOString())
+        .match(serviceTypeCondition);
+        
+      if (prevYearError) throw prevYearError;
+      
+      const yearlyGrowth = previousYearCount > 0 ? ((totalCount - previousYearCount) / previousYearCount) * 100 : 0;
+      
+      setDashboardData({
+        totalServices: totalCount || 0,
+        completedServices: completedCount || 0,
+        ongoingServices: ongoingCount || 0,
+        cancelledServices: cancelledCount || 0,
+        totalGMV,
+        averageServiceValue,
+        activeClients: uniqueClients.size,
+        yearlyGrowth: parseFloat(yearlyGrowth.toFixed(1))
+      });
+
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los datos del dashboard",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch monthly GMV data for chart
+  const fetchMonthlyGmvData = async () => {
+    try {
+      const currentYear = new Date().getFullYear();
+      const previousYear = currentYear - 1;
+      
+      // Get months in Spanish
+      const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+      
+      // Prepare data structure
+      let monthlySummary = monthNames.map((name, index) => ({
+        name,
+        value: 0,
+        previousYear: 0,
+        month: index
+      }));
+      
+      // Fetch current year data
+      const { data: currentYearData, error: currentYearError } = await supabase
+        .from('servicios_custodia')
+        .select('fecha_hora_cita, cobro_cliente')
+        .gte('fecha_hora_cita', `${currentYear}-01-01`)
+        .lte('fecha_hora_cita', `${currentYear}-12-31`)
+        .not('cobro_cliente', 'is', null);
+        
+      if (currentYearError) throw currentYearError;
+      
+      // Aggregate current year data
+      currentYearData.forEach(service => {
+        if (service.fecha_hora_cita && service.cobro_cliente) {
+          const serviceDate = new Date(service.fecha_hora_cita);
+          const month = serviceDate.getMonth();
+          monthlySummary[month].value += parseFloat(service.cobro_cliente) || 0;
+        }
+      });
+      
+      // Fetch previous year data
+      const { data: previousYearData, error: previousYearError } = await supabase
+        .from('servicios_custodia')
+        .select('fecha_hora_cita, cobro_cliente')
+        .gte('fecha_hora_cita', `${previousYear}-01-01`)
+        .lte('fecha_hora_cita', `${previousYear}-12-31`)
+        .not('cobro_cliente', 'is', null);
+        
+      if (previousYearError) throw previousYearError;
+      
+      // Aggregate previous year data
+      previousYearData.forEach(service => {
+        if (service.fecha_hora_cita && service.cobro_cliente) {
+          const serviceDate = new Date(service.fecha_hora_cita);
+          const month = serviceDate.getMonth();
+          monthlySummary[month].previousYear += parseFloat(service.cobro_cliente) || 0;
+        }
+      });
+      
+      setMonthlyGmvData(monthlySummary);
+      
+    } catch (error) {
+      console.error('Error fetching monthly GMV data:', error);
+    }
+  };
+
+  // Fetch service status data for chart
+  const fetchServiceStatusData = async () => {
+    try {
+      const { startDate, endDate } = getDateRanges();
+      
+      // Prepare service status counts
+      let statusCounts = {
+        'En Proceso': 0,
+        'Completados': 0,
+        'Cancelados': 0,
+        'Retrasados': 0
+      };
+      
+      // Fetch services with status breakdown
+      const { data: statusData, error: statusError } = await supabase
+        .from('servicios_custodia')
+        .select('estado, count')
+        .gte('fecha_hora_cita', startDate.toISOString())
+        .lte('fecha_hora_cita', endDate.toISOString())
+        .not('estado', 'is', null)
+        .group('estado');
+        
+      if (statusError) throw statusError;
+      
+      // Calculate total for percentage
+      let total = 0;
+      statusData.forEach(item => {
+        total += parseInt(item.count);
+      });
+      
+      // Map to chart data structure
+      statusData.forEach(item => {
+        if (item.estado === 'En Proceso') {
+          statusCounts['En Proceso'] = Math.round((parseInt(item.count) / total) * 100);
+        } else if (item.estado === 'Completado') {
+          statusCounts['Completados'] = Math.round((parseInt(item.count) / total) * 100);
+        } else if (item.estado === 'Cancelado') {
+          statusCounts['Cancelados'] = Math.round((parseInt(item.count) / total) * 100);
+        } else if (item.estado === 'Retrasado') {
+          statusCounts['Retrasados'] = Math.round((parseInt(item.count) / total) * 100);
+        }
+      });
+      
+      const chartData = Object.keys(statusCounts).map(name => ({
+        name,
+        value: statusCounts[name]
+      }));
+      
+      setServiceStatusData(chartData);
+      
+    } catch (error) {
+      console.error('Error fetching service status data:', error);
+    }
+  };
+
+  // Fetch service types data for chart
+  const fetchServiceTypesData = async () => {
+    try {
+      const { startDate, endDate } = getDateRanges();
+      
+      // Fetch service types
+      const { data: typesData, error: typesError } = await supabase
+        .from('servicios_custodia')
+        .select('local_foraneo, count')
+        .gte('fecha_hora_cita', startDate.toISOString())
+        .lte('fecha_hora_cita', endDate.toISOString())
+        .not('local_foraneo', 'is', null)
+        .group('local_foraneo');
+        
+      if (typesError) throw typesError;
+      
+      // Calculate total for percentage
+      let total = 0;
+      typesData.forEach(item => {
+        total += parseInt(item.count);
+      });
+      
+      // Map to chart data structure with percentages
+      const chartData = typesData.map(item => ({
+        name: item.local_foraneo || 'No Especificado',
+        value: Math.round((parseInt(item.count) / total) * 100)
+      }));
+      
+      setServiceTypesData(chartData);
+      
+    } catch (error) {
+      console.error('Error fetching service types data:', error);
+    }
+  };
+
+  // Fetch daily service data for chart
+  const fetchDailyServiceData = async () => {
+    try {
+      const now = new Date();
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+      
+      const endOfWeek = new Date(now);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999);
+      
+      // Prepare days data structure
+      const days = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+      const dailyCounts = days.map(day => ({ day, count: 0 }));
+      
+      // Fetch services within current week
+      const { data: weekData, error: weekError } = await supabase
+        .from('servicios_custodia')
+        .select('fecha_hora_cita')
+        .gte('fecha_hora_cita', startOfWeek.toISOString())
+        .lte('fecha_hora_cita', endOfWeek.toISOString());
+        
+      if (weekError) throw weekError;
+      
+      // Aggregate by day of week
+      weekData.forEach(service => {
+        if (service.fecha_hora_cita) {
+          const serviceDate = new Date(service.fecha_hora_cita);
+          const dayIndex = (serviceDate.getDay() + 6) % 7; // Adjust for Monday-based week (0 = Monday)
+          dailyCounts[dayIndex].count += 1;
+        }
+      });
+      
+      setDailyServiceData(dailyCounts);
+      
+    } catch (error) {
+      console.error('Error fetching daily service data:', error);
+    }
+  };
+
+  // Fetch top clients data for chart
+  const fetchTopClientsData = async () => {
+    try {
+      const { startDate, endDate } = getDateRanges();
+      
+      // Fetch services grouped by client
+      const { data: clientsData, error: clientsError } = await supabase
+        .from('servicios_custodia')
+        .select('nombre_cliente, count')
+        .gte('fecha_hora_cita', startDate.toISOString())
+        .lte('fecha_hora_cita', endDate.toISOString())
+        .not('nombre_cliente', 'is', null)
+        .group('nombre_cliente')
+        .order('count', { ascending: false })
+        .limit(5);
+        
+      if (clientsError) throw clientsError;
+      
+      // Calculate total for percentage
+      const { count: totalServices, error: countError } = await supabase
+        .from('servicios_custodia')
+        .select('*', { count: 'exact', head: true })
+        .gte('fecha_hora_cita', startDate.toISOString())
+        .lte('fecha_hora_cita', endDate.toISOString())
+        .not('nombre_cliente', 'is', null);
+        
+      if (countError) throw countError;
+      
+      // Map to chart data structure with percentages
+      const topClients = clientsData.map(client => ({
+        name: client.nombre_cliente,
+        value: Math.round((parseInt(client.count) / totalServices) * 100)
+      }));
+      
+      // Add "Otros" category if needed
+      const topClientsSum = topClients.reduce((sum, client) => sum + client.value, 0);
+      if (topClientsSum < 100) {
+        topClients.push({
+          name: "Otros",
+          value: 100 - topClientsSum
         });
       }
-    };
-    
-    fetchServicesData();
-  }, [toast, timeframe, serviceTypeFilter]);
+      
+      setTopClientsData(topClients);
+      
+    } catch (error) {
+      console.error('Error fetching top clients data:', error);
+    }
+  };
+
+  // Load all data when component mounts or filters change
+  useEffect(() => {
+    fetchDashboardData();
+    fetchMonthlyGmvData();
+    fetchServiceStatusData();
+    fetchServiceTypesData();
+    fetchDailyServiceData();
+    fetchTopClientsData();
+  }, [timeframe, serviceTypeFilter]);
 
   // Format currency for display
   const formatCurrency = (value) => {
@@ -144,8 +501,15 @@ export const Dashboard = () => {
               <SelectItem value="foraneo">Foráneo</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="icon">
-            <ArrowDown className="h-4 w-4" />
+          <Button variant="outline" size="icon" onClick={() => {
+            fetchDashboardData();
+            fetchMonthlyGmvData();
+            fetchServiceStatusData();
+            fetchServiceTypesData();
+            fetchDailyServiceData();
+            fetchTopClientsData();
+          }}>
+            <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
       </div>
@@ -158,10 +522,20 @@ export const Dashboard = () => {
             <Calendar className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-semibold">{servicesData.totalServices}</div>
+            <div className="text-2xl font-semibold">{isLoading ? '...' : dashboardData.totalServices}</div>
             <p className="text-xs text-muted-foreground flex items-center mt-1">
-              <ArrowUp className="mr-1 h-3 w-3 text-green-500" />
-              <span className="text-green-500">{servicesData.yearlyGrowth}%</span> desde el mes anterior
+              {dashboardData.yearlyGrowth >= 0 ? (
+                <>
+                  <ArrowUp className="mr-1 h-3 w-3 text-green-500" />
+                  <span className="text-green-500">{dashboardData.yearlyGrowth}%</span>
+                </>
+              ) : (
+                <>
+                  <ArrowDown className="mr-1 h-3 w-3 text-red-500" />
+                  <span className="text-red-500">{Math.abs(dashboardData.yearlyGrowth)}%</span>
+                </>
+              )}
+              {' desde el mes anterior'}
             </p>
           </CardContent>
         </Card>
@@ -172,7 +546,7 @@ export const Dashboard = () => {
             <CircleDollarSign className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-semibold">{formatCurrency(servicesData.totalGMV)}</div>
+            <div className="text-2xl font-semibold">{isLoading ? '...' : formatCurrency(dashboardData.totalGMV)}</div>
             <p className="text-xs text-muted-foreground flex items-center mt-1">
               <ArrowUp className="mr-1 h-3 w-3 text-green-500" />
               <span className="text-green-500">21%</span> desde el mes anterior
@@ -186,7 +560,7 @@ export const Dashboard = () => {
             <Users className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-semibold">{servicesData.activeClients}</div>
+            <div className="text-2xl font-semibold">{isLoading ? '...' : dashboardData.activeClients}</div>
             <p className="text-xs text-muted-foreground flex items-center mt-1">
               <ArrowUp className="mr-1 h-3 w-3 text-green-500" />
               <span className="text-green-500">3.3%</span> desde el mes anterior
@@ -200,7 +574,7 @@ export const Dashboard = () => {
             <TrendingUp className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-semibold">{formatCurrency(servicesData.averageServiceValue)}</div>
+            <div className="text-2xl font-semibold">{isLoading ? '...' : formatCurrency(dashboardData.averageServiceValue)}</div>
             <p className="text-xs text-muted-foreground flex items-center mt-1">
               <ArrowUp className="mr-1 h-3 w-3 text-green-500" />
               <span className="text-green-500">5%</span> desde el mes anterior
@@ -287,16 +661,16 @@ export const Dashboard = () => {
                         <p className="text-sm">Completados</p>
                       </div>
                       <div className="flex items-center">
-                        <p className="text-sm font-medium">{servicesData.completedServices}</p>
+                        <p className="text-sm font-medium">{dashboardData.completedServices}</p>
                         <span className="text-xs text-muted-foreground ml-2">
-                          {Math.round((servicesData.completedServices / servicesData.totalServices) * 100)}%
+                          {dashboardData.totalServices > 0 ? Math.round((dashboardData.completedServices / dashboardData.totalServices) * 100) : 0}%
                         </span>
                       </div>
                     </div>
                     <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
                       <div 
                         className="h-full bg-primary" 
-                        style={{width: `${(servicesData.completedServices / servicesData.totalServices) * 100}%`}}
+                        style={{width: `${dashboardData.totalServices > 0 ? (dashboardData.completedServices / dashboardData.totalServices) * 100 : 0}%`}}
                       />
                     </div>
                   </div>
@@ -308,16 +682,16 @@ export const Dashboard = () => {
                         <p className="text-sm">En proceso</p>
                       </div>
                       <div className="flex items-center">
-                        <p className="text-sm font-medium">{servicesData.ongoingServices}</p>
+                        <p className="text-sm font-medium">{dashboardData.ongoingServices}</p>
                         <span className="text-xs text-muted-foreground ml-2">
-                          {Math.round((servicesData.ongoingServices / servicesData.totalServices) * 100)}%
+                          {dashboardData.totalServices > 0 ? Math.round((dashboardData.ongoingServices / dashboardData.totalServices) * 100) : 0}%
                         </span>
                       </div>
                     </div>
                     <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
                       <div 
                         className="h-full bg-blue-500" 
-                        style={{width: `${(servicesData.ongoingServices / servicesData.totalServices) * 100}%`}}
+                        style={{width: `${dashboardData.totalServices > 0 ? (dashboardData.ongoingServices / dashboardData.totalServices) * 100 : 0}%`}}
                       />
                     </div>
                   </div>
@@ -331,14 +705,14 @@ export const Dashboard = () => {
                       <div className="flex items-center">
                         <p className="text-sm font-medium">12</p>
                         <span className="text-xs text-muted-foreground ml-2">
-                          {Math.round((12 / servicesData.totalServices) * 100)}%
+                          {dashboardData.totalServices > 0 ? Math.round((12 / dashboardData.totalServices) * 100) : 0}%
                         </span>
                       </div>
                     </div>
                     <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
                       <div 
                         className="h-full bg-amber-500" 
-                        style={{width: `${(12 / servicesData.totalServices) * 100}%`}}
+                        style={{width: `${dashboardData.totalServices > 0 ? (12 / dashboardData.totalServices) * 100 : 0}%`}}
                       />
                     </div>
                   </div>
@@ -350,16 +724,16 @@ export const Dashboard = () => {
                         <p className="text-sm">Cancelados</p>
                       </div>
                       <div className="flex items-center">
-                        <p className="text-sm font-medium">{servicesData.cancelledServices}</p>
+                        <p className="text-sm font-medium">{dashboardData.cancelledServices}</p>
                         <span className="text-xs text-muted-foreground ml-2">
-                          {Math.round((servicesData.cancelledServices / servicesData.totalServices) * 100)}%
+                          {dashboardData.totalServices > 0 ? Math.round((dashboardData.cancelledServices / dashboardData.totalServices) * 100) : 0}%
                         </span>
                       </div>
                     </div>
                     <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
                       <div 
                         className="h-full bg-destructive" 
-                        style={{width: `${(servicesData.cancelledServices / servicesData.totalServices) * 100}%`}}
+                        style={{width: `${dashboardData.totalServices > 0 ? (dashboardData.cancelledServices / dashboardData.totalServices) * 100 : 0}%`}}
                       />
                     </div>
                   </div>
@@ -442,19 +816,19 @@ export const Dashboard = () => {
         <CardHeader>
           <CardTitle className="text-lg font-medium">Meta de GMV Anual</CardTitle>
           <CardDescription>
-            Progreso actual: {formatCurrency(servicesData.totalGMV)} / {formatCurrency(1200000)}
+            Progreso actual: {formatCurrency(dashboardData.totalGMV)} / {formatCurrency(1200000)}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Progreso</span>
-              <span className="text-sm font-medium">{Math.round((servicesData.totalGMV / 1200000) * 100)}%</span>
+              <span className="text-sm font-medium">{Math.round((dashboardData.totalGMV / 1200000) * 100)}%</span>
             </div>
             <div className="h-2 rounded-full bg-secondary overflow-hidden">
               <div 
                 className="h-full bg-gradient-to-r from-indigo-500 to-purple-500" 
-                style={{width: `${(servicesData.totalGMV / 1200000) * 100}%`}}
+                style={{width: `${(dashboardData.totalGMV / 1200000) * 100}%`}}
               />
             </div>
           </div>
