@@ -32,9 +32,8 @@ export const useRolePermissions = () => {
         const { data: roles } = await supabase
           .from('user_roles')
           .select('role')
-          .eq('user_id', '00000000-0000-0000-0000-000000000000')
-          .is('user_id', null, { negate: true })
-          .or('user_id.eq.00000000-0000-0000-0000-000000000000,user_id.neq.00000000-0000-0000-0000-000000000000');
+          .is('user_id', null)
+          .or('user_id.eq.00000000-0000-0000-0000-000000000000');
         
         const allRoles: Role[] = roles ? 
           roles.map((r: any) => r.role as Role) : 
