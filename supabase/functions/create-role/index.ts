@@ -49,6 +49,34 @@ serve(async (req) => {
     const connection = await pool.connect();
     
     try {
+      // Extract JWT token and get user_id
+      const token = authHeader.replace('Bearer ', '');
+      
+      // First, verify if the user has owner role
+      const userRoleResult = await connection.queryObject`
+        SELECT ur.role 
+        FROM user_roles ur 
+        WHERE ur.user_id = (
+          SELECT sub FROM auth.jwt_claims 
+          WHERE token = ${token} 
+          LIMIT 1
+        )
+        ORDER BY 
+          CASE ur.role
+            WHEN 'owner' THEN 1
+            WHEN 'admin' THEN 2
+            ELSE 3
+          END
+        LIMIT 1
+      `;
+      
+      if (userRoleResult.rows.length === 0 || userRoleResult.rows[0].role !== 'owner') {
+        return new Response(JSON.stringify({ error: 'Only owner can create roles' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
       // Check if the role already exists
       const checkResult = await connection.queryObject`
         SELECT role FROM role_permissions WHERE role = ${validRoleName} LIMIT 1
