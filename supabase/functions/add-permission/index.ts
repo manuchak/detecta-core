@@ -109,7 +109,12 @@ serve(async (req) => {
       `;
       
       if (checkResult.rows.length > 0) {
-        return new Response(JSON.stringify({ error: 'Permission already exists', id: checkResult.rows[0].id }), {
+        const existingId = checkResult.rows[0].id;
+        // Convert BigInt to string to avoid serialization issues
+        return new Response(JSON.stringify({ 
+          error: 'Permission already exists', 
+          id: typeof existingId === 'bigint' ? existingId.toString() : existingId 
+        }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -122,10 +127,13 @@ serve(async (req) => {
         RETURNING id
       `;
       
-      // Convert BigInt to a string to avoid serialization issues
+      // Make sure we safely convert BigInt values to strings to avoid serialization issues
+      const insertedId = insertResult.rows[0]?.id;
+      const stringifiedId = typeof insertedId === 'bigint' ? insertedId.toString() : String(insertedId);
+      
       const responseData = {
         success: true,
-        id: String(insertResult.rows[0].id),
+        id: stringifiedId,
         message: `Permission added successfully: ${role}.${permissionType}.${permissionId}=${allowed}`
       };
       

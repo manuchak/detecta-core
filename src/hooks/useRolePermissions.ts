@@ -84,7 +84,7 @@ export const useRolePermissions = () => {
   const addPermission = useMutation({
     mutationFn: async ({ role, permissionType, permissionId, allowed }: RolePermissionInput) => {
       try {
-        // Normalizar el formato de los datos
+        // Format the request body
         const requestBody = { 
           role, 
           permissionType, 
@@ -92,27 +92,27 @@ export const useRolePermissions = () => {
           allowed 
         };
         
-        // Log detallado para depuración
+        // Detailed logging for debugging
         console.log('Sending permission request:', requestBody);
         
-        // Invocar la edge function
+        // Invoke the edge function with proper error handling
         const { data, error } = await supabase.functions.invoke('add-permission', {
           body: requestBody
         });
         
-        // Manejo de errores de la función
+        // Handle edge function errors
         if (error) {
           console.error('Edge function error:', error);
           throw new Error(`Error adding permission: ${error.message || String(error)}`);
         }
         
-        // Verificar errores en la respuesta
+        // Check for application errors in the response
         if (data && data.error) {
           console.error('Application error from edge function:', data.error);
           throw new Error(`Error adding permission: ${data.error}`);
         }
         
-        // Log de éxito para depuración
+        // Success logging
         console.log('Permission added successfully:', data);
         return data;
       } catch (err) {
