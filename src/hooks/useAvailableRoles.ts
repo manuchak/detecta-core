@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
@@ -67,7 +68,7 @@ export const useAvailableRoles = () => {
   // Create a new role
   const createRole = useMutation({
     mutationFn: async ({ role }: CreateRoleInput) => {
-      // Use the updated edge function
+      // Use the updated edge function with direct database access
       const response = await supabase.functions.invoke('create-role', {
         body: { new_role: role }
       });

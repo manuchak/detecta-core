@@ -1,6 +1,5 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.1';
 import { Pool } from 'https://deno.land/x/postgres@v0.17.0/mod.ts';
 
 const corsHeaders = {
@@ -46,7 +45,7 @@ serve(async (req) => {
       throw new Error('Database URL not found in environment');
     }
     
-    const pool = new Pool(databaseUrl, 1);
+    const pool = new Pool(databaseUrl, 3); // Limit to 3 connections
     const connection = await pool.connect();
     
     try {
@@ -70,11 +69,19 @@ serve(async (req) => {
           (${validRoleName}, 'page', 'profile', true)
       `;
       
+      // Insert a placeholder entry in user_roles to register the role
+      // Using a special UUID that won't match any real user
+      await connection.queryArray`
+        INSERT INTO user_roles (user_id, role)
+        VALUES ('00000000-0000-0000-0000-000000000000', ${validRoleName})
+      `;
+      
       return new Response(JSON.stringify({ success: true, role: validRoleName }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } finally {
+      // Clean up resources
       connection.release();
       await pool.end();
     }
