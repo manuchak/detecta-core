@@ -8,19 +8,48 @@ import { Role, Permission, UserWithRole } from '@/types/roleTypes';
 
 export const fetchUserRoles = async (): Promise<Role[]> => {
   try {
-    // Direct query to get distinct roles without using distinctOn
+    // Using a direct function call instead of querying the table
+    // This avoids the RLS policies that cause recursion
     const { data, error } = await supabase
-      .from('user_roles')
-      .select('role');
+      .rpc('get_user_roles_safe');
     
     if (error) {
       console.error('Error fetching roles:', error);
       throw error;
     }
     
-    // Process the results to get unique roles
-    const uniqueRoles = Array.from(new Set(data.map(item => item.role as Role)));
-    return uniqueRoles;
+    // Process the results to get the roles in proper order
+    return Array.isArray(data) ? 
+      data.map(item => item.role as Role)
+        .sort((a, b) => {
+          const sortOrder = {
+            'owner': 1,
+            'admin': 2,
+            'supply_admin': 3,
+            'bi': 4,
+            'monitoring_supervisor': 5,
+            'monitoring': 6,
+            'supply': 7,
+            'soporte': 8,
+            'pending': 9,
+            'unverified': 10
+          };
+          const orderA = sortOrder[a as keyof typeof sortOrder] || 100;
+          const orderB = sortOrder[b as keyof typeof sortOrder] || 100;
+          return orderA - orderB;
+        }) : 
+      [
+        'owner',
+        'admin',
+        'supply_admin',
+        'supply',
+        'soporte',
+        'bi',
+        'monitoring_supervisor',
+        'monitoring',
+        'pending',
+        'unverified'
+      ] as Role[];
   } catch (err) {
     console.error('Error in fetchUserRoles:', err);
     // Return default roles as fallback
@@ -65,6 +94,15 @@ export const fetchRolePermissions = async (): Promise<Permission[]> => {
 
 export const fetchUsersWithRoles = async (): Promise<UserWithRole[]> => {
   try {
+    // Get all user roles through the safe function
+    const { data: allUserRoles, error: rolesError } = await supabase
+      .rpc('get_all_user_roles_safe');
+      
+    if (rolesError) {
+      console.error('Error fetching all user roles:', rolesError);
+      throw rolesError;
+    }
+    
     // Get profiles
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
@@ -75,21 +113,13 @@ export const fetchUsersWithRoles = async (): Promise<UserWithRole[]> => {
       throw profilesError;
     }
     
-    // Get user roles
-    const { data: userRoles, error: rolesError } = await supabase
-      .from('user_roles')
-      .select('user_id, role');
-      
-    if (rolesError) {
-      console.error('Error fetching user roles:', rolesError);
-      throw rolesError;
-    }
-    
     // Map roles to users
     const roleMap = new Map();
-    userRoles.forEach(ur => {
-      roleMap.set(ur.user_id, ur.role);
-    });
+    if (Array.isArray(allUserRoles)) {
+      allUserRoles.forEach(ur => {
+        roleMap.set(ur.user_id, ur.role);
+      });
+    }
     
     // Combine data
     return profiles.map(profile => ({

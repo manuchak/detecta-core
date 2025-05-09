@@ -1,8 +1,8 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { Role, UserWithRole } from '@/types/roleTypes';
+import { fetchUsersWithRoles } from '@/utils/dbHelpers';
 
 export const useUserRoles = () => {
   const { toast } = useToast();
@@ -12,45 +12,8 @@ export const useUserRoles = () => {
     queryKey: ['users-with-roles'],
     queryFn: async () => {
       try {
-        // Get all users from profiles table
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('*');
-
-        if (profilesError) {
-          throw new Error(`Error fetching profiles: ${profilesError.message}`);
-        }
-
-        // Direct query for user roles to avoid RLS recursion
-        const { data: userRoles, error: rolesError } = await supabase
-          .from('user_roles')
-          .select('user_id, role');
-
-        if (rolesError) {
-          console.error('Error fetching user roles:', rolesError);
-          throw new Error(`Error fetching user roles: ${rolesError.message}`);
-        }
-
-        // Create a map of user_id to role for faster lookup
-        const userRoleMap = new Map();
-        
-        if (Array.isArray(userRoles)) {
-          userRoles.forEach(ur => {
-            userRoleMap.set(ur.user_id, ur.role);
-          });
-        }
-
-        // Combine data
-        return profiles.map((profile) => {
-          return {
-            id: profile.id,
-            email: profile.email,
-            display_name: profile.display_name,
-            role: userRoleMap.get(profile.id) || 'unverified',
-            created_at: profile.created_at,
-            last_login: profile.last_login,
-          } as UserWithRole;
-        });
+        // Use the helper function that avoids RLS recursion
+        return await fetchUsersWithRoles();
       } catch (error) {
         console.error("Error in useUserRoles:", error);
         throw error;

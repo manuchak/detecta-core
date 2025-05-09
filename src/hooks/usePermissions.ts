@@ -10,7 +10,7 @@ export const usePermissions = () => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const { toast } = useToast();
   
-  // Get user's role
+  // Get user's role using a safe function
   const { data: role, isLoading } = useQuery({
     queryKey: ['user-role', user?.id],
     queryFn: async () => {
@@ -18,19 +18,15 @@ export const usePermissions = () => {
       
       try {
         console.log("Getting role for user:", user.id);
-        // Direct query to avoid RLS recursion
+        // Use RPC function to safely get the user's role without recursion
         const { data, error } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .maybeSingle();
+          .rpc('get_user_role_safe', { user_uid: user.id });
         
         if (error) {
           console.error('Error getting user role:', error);
           
-          // Verify if user is missing a role
-          if (error.code === 'PGRST116') { // No rows returned
-            // Try to insert owner role for first user
+          // If no role found, try to create owner role for first user
+          if (error.message.includes('not found')) {
             console.log('Trying to create owner role...');
             const { error: insertError } = await supabase
               .from('user_roles')
@@ -58,10 +54,10 @@ export const usePermissions = () => {
         }
         
         // Debug received role data
-        console.log("Role data received:", data);
+        console.log("Role received:", data);
         
         // If no role found, set as owner (simplified approach)
-        if (!data || !data.role) {
+        if (!data) {
           // Insert owner role
           const { error: insertError } = await supabase
             .from('user_roles')
@@ -83,7 +79,7 @@ export const usePermissions = () => {
           return 'owner';
         }
         
-        return data.role;
+        return data;
       } catch (err) {
         console.error('Unexpected error in usePermissions:', err);
         return 'owner'; // Fallback to owner to avoid blocking access
@@ -120,18 +116,11 @@ export const usePermissions = () => {
       
       // Direct query to check role
       if (user?.id) {
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .eq('role', requiredRole)
-          .maybeSingle();
-        
-        if (error) {
-          console.error('Error verifying role:', error);
-          // Fail safely: only allow if owner
-          return userRole === 'owner';
-        }
+        const { data } = await supabase
+          .rpc('has_role', { 
+            user_uid: user.id, 
+            required_role: requiredRole 
+          });
         
         return !!data;
       }
@@ -153,20 +142,14 @@ export const usePermissions = () => {
         }
         
         // Check specific permission
-        const { data, error } = await supabase
-          .from('role_permissions')
-          .select('allowed')
-          .eq('role', userRole)
-          .eq('permission_type', permissionType)
-          .eq('permission_id', permissionId)
-          .maybeSingle();
+        const { data } = await supabase
+          .rpc('user_has_permission', { 
+            user_uid: user.id, 
+            permission_type: permissionType, 
+            permission_id: permissionId 
+          });
         
-        if (error) {
-          console.error('Error checking permission:', error);
-          return false;
-        }
-        
-        return data?.allowed || false;
+        return !!data;
       }
       return false;
     } catch (err) {

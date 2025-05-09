@@ -1,8 +1,8 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { Role, CreateRoleInput, UpdateRoleInput, DeleteRoleInput } from '@/types/roleTypes';
+import { fetchUserRoles } from '@/utils/dbHelpers';
 
 export const useAvailableRoles = () => {
   const { toast } = useToast();
@@ -11,13 +11,12 @@ export const useAvailableRoles = () => {
   const { data: roles, isLoading, error } = useQuery({
     queryKey: ['available-roles'],
     queryFn: async () => {
-      // Direct query instead of RPC to avoid recursion issues
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role');
-      
-      if (error) {
-        console.error('Error fetching roles:', error);
+      try {
+        // Use the helper function that avoids RLS recursion
+        return await fetchUserRoles();
+      } catch (error) {
+        console.error('Error in useAvailableRoles:', error);
+        
         // Fallback to hardcoded roles if the query fails
         const availableRoles: Role[] = [
           'owner',
@@ -34,46 +33,6 @@ export const useAvailableRoles = () => {
         
         return availableRoles;
       }
-
-      // Map to just role names and sort them by importance
-      if (Array.isArray(data)) {
-        // Get unique roles
-        const uniqueRoles = Array.from(new Set(data.map(item => item.role as Role)));
-        
-        // Sort roles by importance
-        const sortOrder = {
-          'owner': 1,
-          'admin': 2,
-          'supply_admin': 3,
-          'bi': 4,
-          'monitoring_supervisor': 5,
-          'monitoring': 6,
-          'supply': 7,
-          'soporte': 8,
-          'pending': 9,
-          'unverified': 10
-        };
-        
-        return uniqueRoles.sort((a, b) => {
-          const orderA = sortOrder[a as keyof typeof sortOrder] || 100;
-          const orderB = sortOrder[b as keyof typeof sortOrder] || 100;
-          return orderA - orderB;
-        });
-      }
-
-      // If no roles found, return default roles
-      return [
-        'owner',
-        'admin',
-        'supply_admin',
-        'supply',
-        'soporte',
-        'bi',
-        'monitoring_supervisor',
-        'monitoring',
-        'pending',
-        'unverified'
-      ] as Role[];
     }
   });
 

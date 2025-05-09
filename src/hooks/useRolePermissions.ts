@@ -1,8 +1,8 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { Permission, PermissionsByRole, RolePermissionInput, Role } from '@/types/roleTypes';
+import { fetchUserRoles, fetchRolePermissions } from '@/utils/dbHelpers';
 
 export const useRolePermissions = () => {
   const { toast } = useToast();
@@ -13,35 +13,11 @@ export const useRolePermissions = () => {
     queryKey: ['role-permissions'],
     queryFn: async () => {
       try {
-        // Use a direct SQL query instead of the RPC call that's causing recursion
-        const { data, error } = await supabase
-          .from('role_permissions')
-          .select('id, role, permission_type, permission_id, allowed');
-
-        if (error) {
-          console.error('Error fetching permissions:', error);
-          throw new Error(`Error fetching permissions: ${error.message}`);
-        }
-
-        // Initialize roles we know should exist
-        const defaultRoles: Role[] = ['admin', 'owner', 'pending', 'unverified'];
+        // Get all permissions
+        const rolePermissions = await fetchRolePermissions();
         
         // Get all available roles
-        let allRoles: Role[] = defaultRoles;
-        try {
-          // Direct query for roles that avoids RLS recursion
-          const { data: roleData } = await supabase
-            .from('user_roles')
-            .select('role');
-          
-          if (roleData && roleData.length > 0) {
-            // Extract unique role names
-            const uniqueRoles = Array.from(new Set(roleData.map(r => r.role as Role)));
-            allRoles = [...new Set([...defaultRoles, ...uniqueRoles])];
-          }
-        } catch (err) {
-          console.error('Error fetching roles, using defaults:', err);
-        }
+        const allRoles = await fetchUserRoles();
         
         // Group permissions by role
         const permissionsByRole = {} as PermissionsByRole;
@@ -52,8 +28,8 @@ export const useRolePermissions = () => {
         });
         
         // Populate with fetched permissions
-        if (data && Array.isArray(data)) {
-          data.forEach(permission => {
+        if (rolePermissions && Array.isArray(rolePermissions)) {
+          rolePermissions.forEach(permission => {
             // Add the role to our list if it doesn't exist yet
             const typedRole = permission.role as Role;
             
