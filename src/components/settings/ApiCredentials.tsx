@@ -4,7 +4,6 @@ import {
   Card, 
   CardContent, 
   CardDescription, 
-  CardFooter, 
   CardHeader, 
   CardTitle 
 } from '@/components/ui/card';
@@ -12,17 +11,31 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, Copy, CheckCircle, Shield } from 'lucide-react';
+import { Loader2, Copy, CheckCircle, Shield, Info } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
+// Definición de interfaces
 interface ApiCredential {
   service_name: string;
   user: string;
   password: string;
   connection_string: string;
+  instructions?: string;
+  important_note?: string;
+}
+
+interface ApiResponse {
+  success: boolean;
+  service_name?: string;
+  user?: string;
+  password?: string;
+  connection_string?: string;
+  instructions?: string;
+  important_note?: string;
+  error?: string;
 }
 
 export const ApiCredentialsManager: React.FC = () => {
@@ -32,40 +45,63 @@ export const ApiCredentialsManager: React.FC = () => {
   const [credentials, setCredentials] = useState<ApiCredential | null>(null);
   const [showCredentials, setShowCredentials] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [serviceNameError, setServiceNameError] = useState<string | null>(null);
+  
+  // Validar nombre de servicio
+  const validateServiceName = (name: string): boolean => {
+    if (!name.trim()) {
+      setServiceNameError("El nombre del servicio no puede estar vacío");
+      return false;
+    }
+    
+    if (name.trim().length < 3) {
+      setServiceNameError("El nombre del servicio debe tener al menos 3 caracteres");
+      return false;
+    }
+    
+    setServiceNameError(null);
+    return true;
+  };
 
   const handleCreateApiAccess = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!serviceName.trim()) {
-      toast({
-        title: "Error",
-        description: "Por favor proporciona un nombre para el servicio",
-        variant: "destructive",
-      });
+    // Validar entrada
+    if (!validateServiceName(serviceName)) {
       return;
     }
 
     setIsLoading(true);
     
     try {
-      const { data, error } = await supabase.functions.invoke('create-readonly-access', {
+      // Llamar a la función edge para crear credenciales
+      const { data, error } = await supabase.functions.invoke<ApiResponse>('create-readonly-access', {
         body: { serviceName: serviceName.trim() }
       });
       
       if (error) {
-        throw new Error(error.message);
+        throw new Error(`Error en la función edge: ${error.message}`);
       }
       
-      if (data.error) {
-        throw new Error(data.error);
+      if (!data || !data.success) {
+        throw new Error(data?.error || 'Respuesta no válida del servidor');
       }
       
-      setCredentials(data);
+      // Guardar credenciales y mostrar diálogo
+      setCredentials({
+        service_name: data.service_name!,
+        user: data.user!,
+        password: data.password!,
+        connection_string: data.connection_string!,
+        instructions: data.instructions,
+        important_note: data.important_note
+      });
+      
       setShowCredentials(true);
       setServiceName('');
       
     } catch (error) {
-      console.error('Error creating API access:', error);
+      console.error('Error al crear acceso API:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "No se pudieron crear las credenciales",
@@ -76,20 +112,24 @@ export const ApiCredentialsManager: React.FC = () => {
     }
   };
   
-  const copyToClipboard = (text: string, field: string) => {
-    navigator.clipboard.writeText(text)
-      .then(() => {
-        setCopiedField(field);
-        setTimeout(() => setCopiedField(null), 2000);
-      })
-      .catch(err => {
-        console.error('Failed to copy: ', err);
-        toast({
-          title: "Error",
-          description: "No se pudo copiar al portapapeles",
-          variant: "destructive",
-        });
+  // Función para copiar al portapapeles con manejo de errores
+  const copyToClipboard = async (text: string, field: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      toast({
+        title: "Copiado",
+        description: `${field === 'user' ? 'Usuario' : field === 'password' ? 'Contraseña' : 'Cadena de conexión'} copiado al portapapeles`,
       });
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (err) {
+      console.error('Error al copiar:', err);
+      toast({
+        title: "Error",
+        description: "No se pudo copiar al portapapeles. Intente copiar manualmente.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -105,24 +145,32 @@ export const ApiCredentialsManager: React.FC = () => {
       </CardHeader>
       
       <CardContent>
-        <form onSubmit={handleCreateApiAccess}>
+        <form onSubmit={handleCreateApiAccess} className="space-y-4">
           <div className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="service-name">Nombre del Servicio</Label>
               <Input
                 id="service-name"
-                placeholder="Nombre del servicio o integración"
+                placeholder="Nombre del servicio o integración (mín. 3 caracteres)"
                 value={serviceName}
-                onChange={(e) => setServiceName(e.target.value)}
+                onChange={(e) => {
+                  setServiceName(e.target.value);
+                  if (serviceNameError) validateServiceName(e.target.value);
+                }}
                 disabled={isLoading}
+                className={serviceNameError ? "border-red-500" : ""}
               />
+              {serviceNameError && (
+                <p className="text-sm text-red-500">{serviceNameError}</p>
+              )}
             </div>
             
             <Alert variant="default" className="bg-muted/50 border-muted">
+              <Info className="h-4 w-4" />
               <AlertTitle>Información de Acceso</AlertTitle>
               <AlertDescription>
                 Las credenciales generadas tendrán acceso de solo lectura a la tabla de servicios de custodia.
-                Estas credenciales son sensibles y deben compartirse de manera segura.
+                Estas credenciales son sensibles y deben compartirse de manera segura con el equipo técnico correspondiente.
               </AlertDescription>
             </Alert>
           </div>
@@ -130,7 +178,7 @@ export const ApiCredentialsManager: React.FC = () => {
           <Button 
             type="submit" 
             className="mt-4 w-full" 
-            disabled={isLoading || !serviceName.trim()}
+            disabled={isLoading || !serviceName.trim() || serviceName.trim().length < 3}
           >
             {isLoading ? (
               <>
@@ -163,6 +211,7 @@ export const ApiCredentialsManager: React.FC = () => {
                     variant="outline" 
                     size="icon" 
                     onClick={() => copyToClipboard(credentials.user, 'user')}
+                    title="Copiar usuario"
                   >
                     {copiedField === 'user' ? (
                       <CheckCircle className="h-4 w-4 text-green-500" />
@@ -176,11 +225,17 @@ export const ApiCredentialsManager: React.FC = () => {
               <div className="grid gap-2">
                 <Label>Contraseña</Label>
                 <div className="flex items-center gap-2">
-                  <Input value={credentials.password} readOnly type="password" />
+                  <Input 
+                    value={credentials.password} 
+                    readOnly 
+                    type="password" 
+                    className="font-mono"
+                  />
                   <Button 
                     variant="outline" 
                     size="icon" 
                     onClick={() => copyToClipboard(credentials.password, 'password')}
+                    title="Copiar contraseña"
                   >
                     {copiedField === 'password' ? (
                       <CheckCircle className="h-4 w-4 text-green-500" />
@@ -194,11 +249,16 @@ export const ApiCredentialsManager: React.FC = () => {
               <div className="grid gap-2">
                 <Label>Cadena de Conexión</Label>
                 <div className="flex items-center gap-2">
-                  <Input value={credentials.connection_string} readOnly />
+                  <Input 
+                    value={credentials.connection_string} 
+                    readOnly 
+                    className="font-mono text-xs"
+                  />
                   <Button 
                     variant="outline" 
                     size="icon" 
                     onClick={() => copyToClipboard(credentials.connection_string, 'connection_string')}
+                    title="Copiar cadena de conexión"
                   >
                     {copiedField === 'connection_string' ? (
                       <CheckCircle className="h-4 w-4 text-green-500" />
@@ -209,11 +269,20 @@ export const ApiCredentialsManager: React.FC = () => {
                 </div>
               </div>
               
+              {credentials.instructions && (
+                <Alert variant="default" className="bg-blue-50 border-blue-200">
+                  <Info className="h-4 w-4" />
+                  <AlertDescription className="text-sm">
+                    {credentials.instructions}
+                  </AlertDescription>
+                </Alert>
+              )}
+              
               <Alert variant="destructive" className="bg-destructive/10">
                 <AlertTitle>¡Importante!</AlertTitle>
                 <AlertDescription className="text-sm">
-                  Esta será la única vez que podrás ver la contraseña. Asegúrate de guardarla en un lugar seguro. Si la pierdes, 
-                  tendrás que generar nuevas credenciales.
+                  {credentials.important_note || 
+                   "Esta será la única vez que podrás ver la contraseña. Asegúrate de guardarla en un lugar seguro. Si la pierdes, tendrás que generar nuevas credenciales."}
                 </AlertDescription>
               </Alert>
             </div>
