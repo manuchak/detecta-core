@@ -23,24 +23,17 @@ serve(async (req) => {
     });
   }
 
-  // Create a Supabase client with the authorization header
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-  const supabase = createClient(supabaseUrl, supabaseKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-    global: {
-      headers: {
-        Authorization: authHeader,
-      },
-    },
-  });
-
   try {
     // Parse the request body
     const { new_role } = await req.json();
+    
+    // Input validation
+    if (!new_role || typeof new_role !== 'string') {
+      return new Response(JSON.stringify({ error: 'Invalid role name provided' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Validate the role name (ensure it's lowercase with no spaces)
     const validRoleName = new_role.toLowerCase().replace(/\s+/g, '_');
