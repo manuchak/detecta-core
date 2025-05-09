@@ -8,7 +8,7 @@ export const useRolePermissions = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Consulta para obtener todos los permisos por rol
+  // Query para obtener todos los permisos por rol
   const { data: permissions, isLoading, error, refetch } = useQuery({
     queryKey: ['role-permissions'],
     queryFn: async () => {
