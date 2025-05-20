@@ -472,7 +472,7 @@ const LandingManager = () => {
 
                     <div className="relative mt-6 border border-border/60 rounded-lg overflow-hidden">
                       <div className="aspect-video w-full bg-muted flex items-center justify-center">
-                        {field.value ? (
+                        {heroForm.getValues().imageUrl ? (
                           <img 
                             src={heroForm.getValues().imageUrl} 
                             alt="Vista previa" 
