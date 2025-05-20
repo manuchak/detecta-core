@@ -14,45 +14,55 @@ interface FaqSectionProps {
 export const FaqSection: React.FC<FaqSectionProps> = ({ id }) => {
   const faqs = [
     {
-      question: '¿Cómo puedo comenzar con Lead Flow Navigator?',
-      answer: 'Es fácil comenzar. Simplemente regístrate para una cuenta gratuita, verifica tu email, y podrás acceder a todas las funcionalidades básicas. Ofrecemos una guía de inicio rápido para ayudarte a configurar tu cuenta.'
+      question: "¿Qué requisitos necesito para ser custodio?",
+      answer: "Necesitas ser mayor de edad, tener antecedentes limpios, completar nuestra capacitación y contar con un smartphone compatible con nuestra aplicación."
     },
     {
-      question: '¿Puedo cambiar de plan en cualquier momento?',
-      answer: 'Sí, puedes actualizar o degradar tu plan en cualquier momento. Los cambios en la facturación se aplicarán en tu próximo ciclo de facturación.'
+      question: "¿Cómo se asignan los servicios de custodia?",
+      answer: "Los servicios se asignan según tu ubicación, disponibilidad y nivel de experiencia a través de nuestra plataforma. Puedes aceptar o rechazar según tu conveniencia."
     },
     {
-      question: '¿Ofrecen capacitación para nuevos usuarios?',
-      answer: 'Sí, ofrecemos sesiones de capacitación gratuitas para todos los nuevos usuarios en planes profesionales. También tenemos una extensa biblioteca de tutoriales y documentación.'
+      question: "¿Qué tipo de capacitación proporcionan?",
+      answer: "Ofrecemos una capacitación completa que incluye protocolos de seguridad, manejo de situaciones de riesgo, primeros auxilios básicos y uso de nuestras herramientas tecnológicas."
     },
     {
-      question: '¿Cómo funciona el soporte técnico?',
-      answer: 'Ofrecemos soporte por email para todos los usuarios y soporte prioritario por chat en vivo para clientes en planes profesionales. Nuestro horario de atención es de lunes a viernes de 9am a 6pm.'
+      question: "¿Cuándo recibo mis pagos por los servicios?",
+      answer: "Los pagos se realizan semanalmente, cada viernes, directamente a tu cuenta bancaria registrada en el sistema."
     },
     {
-      question: '¿La plataforma es compatible con dispositivos móviles?',
-      answer: 'Sí, nuestra plataforma es completamente responsive y funciona en cualquier dispositivo, incluyendo teléfonos móviles y tablets.'
+      question: "¿Tengo que pagar algo para registrarme como custodio?",
+      answer: "No, el registro es completamente gratuito. No cobramos cuotas de inscripción ni por el equipamiento básico que proporcionamos."
+    },
+    {
+      question: "¿Puedo trabajar como custodio a tiempo parcial?",
+      answer: "¡Absolutamente! Nuestro sistema está diseñado para adaptarse a tu disponibilidad, ya sea tiempo completo o parcial. Tú decides cuándo y cuántos servicios tomar."
     }
   ];
 
   return (
-    <section id={id} className="py-16 bg-muted/50">
-      <div className="container px-4 md:px-6 max-w-3xl">
-        <div className="flex flex-col items-center space-y-4 text-center mb-10">
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">Preguntas Frecuentes</h2>
-          <p className="mx-auto max-w-[700px] text-muted-foreground md:text-lg">
-            Respuestas a las consultas más comunes sobre nuestra plataforma
+    <section id={id} className="py-20 bg-background">
+      <div className="container px-4 md:px-6">
+        <div className="flex flex-col items-center space-y-4 text-center mb-12">
+          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">Preguntas Frecuentes</h2>
+          <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
+            Respuestas a las dudas más comunes sobre nuestro programa de custodios
           </p>
         </div>
         
-        <Accordion type="single" collapsible className="w-full">
-          {faqs.map((faq, index) => (
-            <AccordionItem key={index} value={`item-${index}`}>
-              <AccordionTrigger className="text-left">{faq.question}</AccordionTrigger>
-              <AccordionContent>{faq.answer}</AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
+        <div className="max-w-3xl mx-auto">
+          <Accordion type="single" collapsible className="w-full">
+            {faqs.map((faq, index) => (
+              <AccordionItem key={index} value={`item-${index}`}>
+                <AccordionTrigger className="text-lg font-medium text-left">
+                  {faq.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground text-base">
+                  {faq.answer}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </div>
       </div>
     </section>
   );

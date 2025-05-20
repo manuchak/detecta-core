@@ -1,103 +1,61 @@
 
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Card, CardContent } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
-
-interface Testimonial {
-  id: number;
-  name: string;
-  role: string;
-  company: string;
-  text: string;
-  avatar_url?: string;
-}
+import { Card } from '@/components/ui/card';
 
 interface TestimonialsSectionProps {
   id?: string;
 }
 
 export const TestimonialsSection: React.FC<TestimonialsSectionProps> = ({ id }) => {
-  const { data: testimonials, isLoading } = useQuery({
-    queryKey: ['testimonials'],
-    queryFn: async () => {
-      try {
-        // Simulamos datos para la landing page
-        // En una implementación real, esto vendría de la base de datos
-        return [
-          {
-            id: 1,
-            name: 'María Rodríguez',
-            role: 'Directora de Operaciones',
-            company: 'Logística Express',
-            text: 'Lead Flow Navigator ha transformado la manera en que gestionamos nuestros leads. La eficiencia ha aumentado un 40% desde que empezamos a utilizarlo.',
-            avatar_url: '',
-          },
-          {
-            id: 2,
-            name: 'Carlos Hernández',
-            role: 'Gerente de Ventas',
-            company: 'TransporTech',
-            text: 'La capacidad de monitorear nuestros vehículos en tiempo real nos ha permitido mejorar significativamente nuestro servicio al cliente.',
-            avatar_url: '',
-          },
-          {
-            id: 3,
-            name: 'Laura Méndez',
-            role: 'CEO',
-            company: 'Seguridad Integral',
-            text: 'El sistema de asignación de custodios ha simplificado enormemente nuestra operación diaria. Un producto excelente con un soporte aún mejor.',
-            avatar_url: '',
-          }
-        ] as Testimonial[];
-      } catch (error) {
-        console.error('Error fetching testimonials:', error);
-        return [];
-      }
+  const testimonials = [
+    {
+      name: 'Carlos Mendoza',
+      role: 'Custodio desde 2022',
+      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80',
+      quote: 'Ser custodio me ha permitido generar ingresos extras mientras mantengo mi trabajo principal. La flexibilidad de horarios es inmejorable y el pago es muy competitivo.'
     },
-  });
+    {
+      name: 'Alejandra Torres',
+      role: 'Custodia desde 2023',
+      image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80',
+      quote: 'La capacitación que recibí fue excelente y me siento segura en cada servicio. La aplicación hace que coordinar mis horarios sea muy sencillo.'
+    },
+    {
+      name: 'Martín Gutiérrez',
+      role: 'Custodio desde 2021',
+      image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80',
+      quote: 'Lo que más valoro es la comunidad que se ha formado entre custodios. Nos apoyamos mutuamente y la empresa siempre está atenta a nuestras necesidades.'
+    }
+  ];
 
   return (
-    <section id={id} className="py-16 bg-background">
+    <section id={id} className="py-20 bg-muted/30">
       <div className="container px-4 md:px-6">
-        <div className="flex flex-col items-center space-y-4 text-center mb-10">
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">Testimonios</h2>
-          <p className="mx-auto max-w-[700px] text-muted-foreground md:text-lg">
-            Lo que nuestros clientes dicen sobre nosotros
+        <div className="flex flex-col items-center space-y-4 text-center mb-12">
+          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">Lo que dicen nuestros custodios</h2>
+          <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
+            Conoce las experiencias de personas como tú que ya forman parte de nuestro equipo
           </p>
         </div>
         
-        {isLoading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-            {testimonials?.map((testimonial) => (
-              <Card key={testimonial.id} className="bg-card border-border/40">
-                <CardContent className="p-6">
-                  <p className="text-muted-foreground mb-6 italic">
-                    "{testimonial.text}"
-                  </p>
-                  <div className="flex items-center">
-                    <Avatar className="h-12 w-12 mr-4">
-                      <AvatarImage src={testimonial.avatar_url} />
-                      <AvatarFallback>{testimonial.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <h4 className="font-medium">{testimonial.name}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {testimonial.role}, {testimonial.company}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {testimonials.map((testimonial, index) => (
+            <Card key={index} className="bg-card border-border/40 p-8 flex flex-col items-center text-center hover:shadow-lg transition-shadow">
+              <Avatar className="w-20 h-20 border-4 border-background mb-6">
+                <AvatarImage src={testimonial.image} alt={testimonial.name} />
+                <AvatarFallback>{testimonial.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <blockquote className="text-lg italic text-muted-foreground mb-6">
+                "{testimonial.quote}"
+              </blockquote>
+              <div>
+                <h3 className="font-bold text-lg">{testimonial.name}</h3>
+                <p className="text-muted-foreground">{testimonial.role}</p>
+              </div>
+            </Card>
+          ))}
+        </div>
       </div>
     </section>
   );

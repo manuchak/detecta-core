@@ -9,71 +9,73 @@ interface PricingSectionProps {
 }
 
 export const PricingSection: React.FC<PricingSectionProps> = ({ id }) => {
-  const plans = [
+  const earningPlans = [
     {
-      name: 'Básico',
-      price: '$0',
-      description: 'Para pequeños equipos que están comenzando',
+      name: 'Custodio Inicial',
+      earnings: '$5,000 - $10,000',
+      period: 'mensuales',
+      description: 'Para custodios que están comenzando',
       features: [
-        'Hasta 100 leads por mes',
-        'Dashboard básico',
-        'Acceso a 1 usuario',
-        'Soporte por email'
+        'Hasta 15 servicios mensuales',
+        'Capacitación básica',
+        'Equipo estándar',
+        'Soporte por app'
       ],
-      cta: 'Comenzar Gratis',
+      cta: 'Comenzar Ahora',
       popular: false
     },
     {
-      name: 'Profesional',
-      price: '$30',
-      description: 'Para empresas en crecimiento',
+      name: 'Custodio Profesional',
+      earnings: '$12,000 - $20,000',
+      period: 'mensuales',
+      description: 'Para custodios con experiencia',
       features: [
-        'Leads ilimitados',
-        'Dashboard avanzado',
-        'Hasta 5 usuarios',
-        'Monitoreo en tiempo real',
-        'Soporte prioritario',
-        'Integraciones personalizadas'
+        'Hasta 30 servicios mensuales',
+        'Capacitación avanzada',
+        'Equipo premium',
+        'Servicios de mayor valor',
+        'Prioridad en asignaciones',
+        'Bonificaciones por excelencia'
       ],
-      cta: 'Suscribirse Ahora',
+      cta: 'Únete como Profesional',
       popular: true
     }
   ];
 
   return (
-    <section id={id} className="py-16 bg-background">
+    <section id={id} className="py-20 bg-muted/30">
       <div className="container px-4 md:px-6">
-        <div className="flex flex-col items-center space-y-4 text-center mb-10">
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">Precios</h2>
-          <p className="mx-auto max-w-[700px] text-muted-foreground md:text-lg">
-            Planes flexibles que crecen con tu negocio
+        <div className="flex flex-col items-center space-y-4 text-center mb-12">
+          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">Potencial de Ingresos</h2>
+          <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
+            Estos son los ingresos promedio que puedes generar como parte de nuestro equipo de custodios
           </p>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-          {plans.map((plan, index) => (
-            <div key={index} className={`flex flex-col p-6 bg-card rounded-lg border ${plan.popular ? 'border-primary shadow-lg' : 'border-border/40 shadow-sm'}`}>
+          {earningPlans.map((plan, index) => (
+            <div key={index} className={`flex flex-col p-8 rounded-xl ${plan.popular ? 'bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200' : 'bg-card border-border/40'} border shadow-lg`}>
               {plan.popular && (
-                <div className="py-1 px-3 text-xs bg-primary text-primary-foreground rounded-full self-start mb-4">
-                  Más Popular
+                <div className="py-1 px-3 text-xs bg-orange-500 text-white rounded-full self-start mb-4 font-medium">
+                  Más Demandado
                 </div>
               )}
-              <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
+              <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
               <div className="flex items-baseline mb-4">
-                <span className="text-3xl font-bold">{plan.price}</span>
-                <span className="text-muted-foreground ml-2">/mes por usuario</span>
+                <span className="text-3xl font-bold">{plan.earnings}</span>
+                <span className="text-muted-foreground ml-2">{plan.period}</span>
               </div>
               <p className="text-muted-foreground mb-6">{plan.description}</p>
               <ul className="space-y-3 mb-8 flex-grow">
                 {plan.features.map((feature, i) => (
                   <li key={i} className="flex items-center">
-                    <Check className="h-4 w-4 text-primary mr-3" />
+                    <Check className="h-5 w-5 text-orange-500 mr-3" />
                     <span>{feature}</span>
                   </li>
                 ))}
               </ul>
               <Link to="/register">
-                <Button className={`w-full ${plan.popular ? 'bg-primary' : 'bg-muted'}`}>
+                <Button className={`w-full ${plan.popular ? 'bg-orange-500 hover:bg-orange-600' : 'bg-muted hover:bg-muted/80'}`}>
                   {plan.cta}
                 </Button>
               </Link>

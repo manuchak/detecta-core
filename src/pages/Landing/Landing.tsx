@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from "@/contexts/AuthContext";
 import { HeroSection } from '@/components/landing/HeroSection';
 import { BenefitsSection } from '@/components/landing/BenefitsSection';
@@ -11,8 +12,8 @@ import { IntegrationsSection } from '@/components/landing/IntegrationsSection';
 import { PricingSection } from '@/components/landing/PricingSection';
 import { FaqSection } from '@/components/landing/FaqSection';
 import { Footer } from '@/components/landing/Footer';
-import { Logo } from '@/components/landing/Logo';
 import { Button } from '@/components/ui/button';
+import { Logo } from '@/components/landing/Logo';
 
 const Landing = () => {
   const { user, loading } = useAuth();
@@ -29,17 +30,18 @@ const Landing = () => {
         <div className="container flex h-16 items-center justify-between">
           <Logo />
           <nav className="hidden md:flex gap-6 items-center">
+            <a href="#benefits" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Beneficios</a>
+            <a href="#for-who" className="text-sm text-muted-foreground hover:text-foreground transition-colors">¿Para quién?</a>
             <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Características</a>
-            <a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Precios</a>
             <a href="#testimonials" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Testimonios</a>
-            <a href="#faq" className="text-sm text-muted-foreground hover:text-foreground transition-colors">FAQ</a>
+            <a href="#faq" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Preguntas frecuentes</a>
           </nav>
           <div className="flex items-center gap-4">
             <Link to="/login">
               <Button variant="outline">Iniciar Sesión</Button>
             </Link>
             <Link to="/register">
-              <Button>Registrarse</Button>
+              <Button className="bg-orange-500 hover:bg-orange-600">Únete como Custodio</Button>
             </Link>
           </div>
         </div>
@@ -50,10 +52,10 @@ const Landing = () => {
         <HeroSection />
 
         {/* Benefits Section */}
-        <BenefitsSection />
+        <BenefitsSection id="benefits" />
         
         {/* For Who Section */}
-        <ForWhoSection />
+        <ForWhoSection id="for-who" />
         
         {/* Features Section */}
         <FeaturesSection id="features" />
@@ -64,8 +66,8 @@ const Landing = () => {
         {/* Integrations Section */}
         <IntegrationsSection />
         
-        {/* Pricing Section */}
-        <PricingSection id="pricing" />
+        {/* Earnings Section (Replaces Pricing) */}
+        <PricingSection id="earnings" />
         
         {/* FAQ Section */}
         <FaqSection id="faq" />

@@ -1,32 +1,33 @@
 
 import React from 'react';
+import { Card } from '@/components/ui/card';
 
 export const IntegrationsSection = () => {
-  const integrations = [
-    { name: 'Mapbox', icon: '🗺️' },
-    { name: 'Supabase', icon: '⚡' },
-    { name: 'API Comunicaciones', icon: '📞' },
-    { name: 'Sistema de Pagos', icon: '💳' },
-    { name: 'Análisis de Datos', icon: '📊' },
-    { name: 'Notificaciones', icon: '🔔' }
+  const tools = [
+    { name: 'Aplicación Móvil', icon: '📱' },
+    { name: 'GPS en Tiempo Real', icon: '🗺️' },
+    { name: 'Chat Seguro', icon: '💬' },
+    { name: 'Sistema de Alertas', icon: '🔔' },
+    { name: 'Pagos Automáticos', icon: '💳' },
+    { name: 'Planificador de Rutas', icon: '🧭' }
   ];
 
   return (
-    <section className="py-16 bg-muted/50">
+    <section className="py-20 bg-background">
       <div className="container px-4 md:px-6">
-        <div className="flex flex-col items-center space-y-4 text-center mb-10">
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl">Herramientas e Integraciones</h2>
-          <p className="mx-auto max-w-[700px] text-muted-foreground md:text-lg">
-            Conectamos con las plataformas que necesitas para un flujo de trabajo sin interrupciones
+        <div className="flex flex-col items-center space-y-4 text-center mb-12">
+          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">Herramientas que facilitarán tu trabajo</h2>
+          <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
+            Contamos con tecnología de punta para que puedas desempeñar tu labor de forma eficiente y segura
           </p>
         </div>
         
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 mt-10">
-          {integrations.map((integration, index) => (
-            <div key={index} className="flex flex-col items-center justify-center p-6 bg-card rounded-lg border border-border/40 shadow-sm aspect-square">
-              <div className="text-4xl mb-3">{integration.icon}</div>
-              <h3 className="font-medium text-center">{integration.name}</h3>
-            </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
+          {tools.map((tool, index) => (
+            <Card key={index} className="flex flex-col items-center justify-center p-6 text-center hover:bg-muted/30 transition-colors cursor-pointer">
+              <div className="text-4xl mb-4">{tool.icon}</div>
+              <h3 className="font-medium">{tool.name}</h3>
+            </Card>
           ))}
         </div>
       </div>
