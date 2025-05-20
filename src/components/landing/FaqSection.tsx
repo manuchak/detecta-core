@@ -6,7 +6,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { supabase } from '@/integrations/supabase/client';
 import { Faq } from '@/hooks/useFaqs';
 
 interface FaqSectionProps {
@@ -40,6 +39,24 @@ export const FaqSection: React.FC<FaqSectionProps> = ({ id }) => {
             question: "¿Qué tipo de capacitación proporcionan?",
             answer: "Ofrecemos una capacitación completa que incluye protocolos de seguridad, manejo de situaciones de riesgo, primeros auxilios básicos y uso de nuestras herramientas tecnológicas.",
             order: 3
+          },
+          {
+            id: '4',
+            question: "¿Cuál es el horario de trabajo?",
+            answer: "Como custodio, tienes flexibilidad para elegir tus horarios. Puedes configurar tu disponibilidad en la aplicación y aceptar servicios que se ajusten a tu agenda.",
+            order: 4
+          },
+          {
+            id: '5',
+            question: "¿Qué documentos necesito para registrarme?",
+            answer: "Necesitarás una identificación oficial vigente, comprobante de domicilio, antecedentes no penales, licencia de conducir vigente y documentos de tu vehículo si planeas utilizarlo.",
+            order: 5
+          },
+          {
+            id: '6',
+            question: "¿Cómo funciona el sistema de pagos?",
+            answer: "Los pagos se realizan semanalmente mediante transferencia bancaria. El monto depende de los servicios completados, la distancia recorrida y otros factores variables.",
+            order: 6
           }
         ]);
       } catch (error) {

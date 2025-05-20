@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -338,3 +337,5 @@ export const FaqManager = () => {
     </div>
   );
 };
+
+export { FaqManager };
