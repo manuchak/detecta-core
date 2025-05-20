@@ -28,7 +28,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useForm } from 'react-hook-form';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, Plus, Pencil, Trash2 } from 'lucide-react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 
 interface Testimonial {
   id: number;
@@ -46,8 +46,15 @@ const LandingManager = () => {
   const [activeTab, setActiveTab] = useState('testimonios');
   const [editingTestimonial, setEditingTestimonial] = useState<Testimonial | null>(null);
   
-  // Verificar si el usuario tiene permisos
-  if (!user || (userRole !== 'admin' && userRole !== 'owner')) {
+  // Verificar si el usuario tiene permisos (ahora permitimos más roles)
+  const hasAccess = !!user && (userRole === 'admin' || userRole === 'owner' || userRole === 'bi' || userRole === 'supply_admin');
+  
+  if (!hasAccess) {
+    toast({
+      title: "Acceso denegado",
+      description: "No tienes permisos para acceder a esta página. Tu rol actual es: " + (userRole || "sin rol"),
+      variant: "destructive",
+    });
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -171,7 +178,12 @@ const LandingManager = () => {
 
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-6">Administrador de Landing Page</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Administrador de Landing Page</h1>
+        <Link to="/" className="text-sm text-primary hover:underline">
+          Ver Landing Page
+        </Link>
+      </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-8">
