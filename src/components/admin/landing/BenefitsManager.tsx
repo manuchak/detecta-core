@@ -78,6 +78,9 @@ export const BenefitsManager = () => {
       setNewTitle('');
       setNewDescription('');
       setNewIcon('DollarSign');
+      
+      // Refresh benefits list
+      fetchBenefits();
     } catch (error) {
       console.error('Error saving benefit:', error);
     }
@@ -102,7 +105,13 @@ export const BenefitsManager = () => {
   // Handle benefit deletion
   const handleDeleteBenefit = async (id: string) => {
     if (window.confirm('¿Estás seguro que deseas eliminar este beneficio?')) {
-      await deleteBenefit(id);
+      try {
+        await deleteBenefit(id);
+        // Refresh benefits list
+        fetchBenefits();
+      } catch (error) {
+        console.error('Error deleting benefit:', error);
+      }
     }
   };
 
