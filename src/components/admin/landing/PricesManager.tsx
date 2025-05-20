@@ -46,7 +46,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 const priceSchema = z.object({
@@ -200,9 +199,6 @@ export const PricesManager = () => {
       if (selectedPrice && selectedPrice.id === priceToDelete) {
         cancelEdit();
       }
-      
-      // Refresh the price list
-      fetchPrices();
       
       // Reset state
       setPriceToDelete(null);
@@ -459,7 +455,7 @@ export const PricesManager = () => {
         </Form>
       </Card>
 
-      {/* AlertDialog para confirmación de eliminación */}
+      {/* AlertDialog for confirmation modal */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

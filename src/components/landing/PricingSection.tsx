@@ -4,7 +4,7 @@ import { Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Price } from '@/hooks/usePrices';
+import { Price, usePrices } from '@/hooks/usePrices';
 
 interface PricingSectionProps {
   id?: string;
@@ -14,62 +14,15 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ id }) => {
   const [earningPlans, setEarningPlans] = useState<Price[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Datos de ejemplo para features
-  const defaultFeatures = {
-    basic: [
-      'Hasta 15 servicios mensuales',
-      'Capacitación básica',
-      'Equipo estándar',
-      'Soporte por app'
-    ],
-    pro: [
-      'Hasta 30 servicios mensuales',
-      'Capacitación avanzada',
-      'Equipo premium',
-      'Servicios de mayor valor',
-      'Prioridad en asignaciones',
-      'Bonificaciones por excelencia'
-    ]
-  };
+  // Use the same hook as the admin panel for consistency
+  const { prices, loading: pricesLoading } = usePrices();
 
   useEffect(() => {
-    const fetchPrices = async () => {
-      try {
-        setLoading(true);
-        // Use fallback data since the table doesn't exist yet
-        setEarningPlans([
-          {
-            id: '1',
-            name: 'Custodio Inicial',
-            earnings: '$5,000 - $10,000',
-            period: 'mensuales',
-            description: 'Para custodios que están comenzando',
-            features: defaultFeatures.basic,
-            cta: 'Comenzar Ahora',
-            popular: false,
-            order: 1
-          },
-          {
-            id: '2',
-            name: 'Custodio Profesional',
-            earnings: '$12,000 - $20,000',
-            period: 'mensuales',
-            description: 'Para custodios con experiencia',
-            features: defaultFeatures.pro,
-            cta: 'Únete como Profesional',
-            popular: true,
-            order: 2
-          }
-        ]);
-      } catch (error) {
-        console.error('Error fetching prices:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPrices();
-  }, []);
+    if (!pricesLoading) {
+      setEarningPlans(prices);
+      setLoading(false);
+    }
+  }, [prices, pricesLoading]);
 
   return (
     <section id={id} className="py-20 bg-muted/30">

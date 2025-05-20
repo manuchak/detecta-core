@@ -140,10 +140,10 @@ export const usePrices = () => {
 
   const deletePrice = async (id: string) => {
     try {
-      // Importante: Asegurarse de actualizar el estado local correctamente
+      // Update local state immediately to remove the deleted price
       setPrices((prev) => prev.filter((price) => price.id !== id));
       
-      // Mostrar toast de confirmación
+      // Show toast of confirmation
       toast({
         title: "Plan eliminado",
         description: "El plan ha sido eliminado correctamente.",
