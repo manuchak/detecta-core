@@ -155,6 +155,48 @@ export type Database = {
         }
         Relationships: []
       }
+      custodio_points: {
+        Row: {
+          created_at: string
+          id: string
+          last_points_calculation_date: string | null
+          level: number
+          points: number
+          total_services_counted: number | null
+          total_trips: number
+          tyasa_trips: number
+          updated_at: string
+          user_id: string
+          weekly_points: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_points_calculation_date?: string | null
+          level?: number
+          points?: number
+          total_services_counted?: number | null
+          total_trips?: number
+          tyasa_trips?: number
+          updated_at?: string
+          user_id: string
+          weekly_points?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_points_calculation_date?: string | null
+          level?: number
+          points?: number
+          total_services_counted?: number | null
+          total_trips?: number
+          tyasa_trips?: number
+          updated_at?: string
+          user_id?: string
+          weekly_points?: number
+        }
+        Relationships: []
+      }
       custodio_validations: {
         Row: {
           additional_notes: string | null
@@ -742,6 +784,99 @@ export type Database = {
         }
         Relationships: []
       }
+      points_configuration: {
+        Row: {
+          created_at: string
+          high_margin_threshold: number
+          id: string
+          level_threshold: number | null
+          low_margin_threshold: number
+          margin_multiplier_high: number
+          margin_multiplier_low: number
+          margin_multiplier_medium: number
+          margin_multiplier_minimal: number
+          max_points_per_trip: number
+          medium_margin_threshold: number
+          min_points_per_trip: number
+          points_per_100km: number
+          priority_client_multiplier: number
+          tyasa_multiplier: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          high_margin_threshold?: number
+          id?: string
+          level_threshold?: number | null
+          low_margin_threshold?: number
+          margin_multiplier_high?: number
+          margin_multiplier_low?: number
+          margin_multiplier_medium?: number
+          margin_multiplier_minimal?: number
+          max_points_per_trip?: number
+          medium_margin_threshold?: number
+          min_points_per_trip?: number
+          points_per_100km?: number
+          priority_client_multiplier?: number
+          tyasa_multiplier?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          high_margin_threshold?: number
+          id?: string
+          level_threshold?: number | null
+          low_margin_threshold?: number
+          margin_multiplier_high?: number
+          margin_multiplier_low?: number
+          margin_multiplier_medium?: number
+          margin_multiplier_minimal?: number
+          max_points_per_trip?: number
+          medium_margin_threshold?: number
+          min_points_per_trip?: number
+          points_per_100km?: number
+          priority_client_multiplier?: number
+          tyasa_multiplier?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      prizes: {
+        Row: {
+          available: boolean
+          category: string
+          created_at: string
+          description: string
+          id: string
+          image: string | null
+          points: number
+          title: string
+        }
+        Insert: {
+          available?: boolean
+          category: string
+          created_at?: string
+          description: string
+          id?: string
+          image?: string | null
+          points: number
+          title: string
+        }
+        Update: {
+          available?: boolean
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          image?: string | null
+          points?: number
+          title?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -749,6 +884,7 @@ export type Database = {
           email: string
           id: string
           last_login: string
+          phone: string | null
           photo_url: string | null
         }
         Insert: {
@@ -757,6 +893,7 @@ export type Database = {
           email: string
           id: string
           last_login?: string
+          phone?: string | null
           photo_url?: string | null
         }
         Update: {
@@ -765,7 +902,44 @@ export type Database = {
           email?: string
           id?: string
           last_login?: string
+          phone?: string | null
           photo_url?: string | null
+        }
+        Relationships: []
+      }
+      redeemed_prizes: {
+        Row: {
+          id: string
+          notes: string | null
+          prize_id: string
+          prize_points: number
+          prize_title: string
+          redeemed_at: string
+          shipping_address: Json | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          notes?: string | null
+          prize_id: string
+          prize_points: number
+          prize_title: string
+          redeemed_at?: string
+          shipping_address?: Json | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          notes?: string | null
+          prize_id?: string
+          prize_points?: number
+          prize_title?: string
+          redeemed_at?: string
+          shipping_address?: Json | null
+          status?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1443,6 +1617,10 @@ export type Database = {
       }
     }
     Functions: {
+      add_admin_role: {
+        Args: { user_id: string }
+        Returns: undefined
+      }
       add_permission_safe: {
         Args: {
           p_role: string
@@ -1485,6 +1663,10 @@ export type Database = {
           lost_custodios: number
           growth_rate: number
         }[]
+      }
+      calculate_points_for_service: {
+        Args: { servicio_id: number; config_id?: string }
+        Returns: number
       }
       clean_cobro_cliente_values: {
         Args: Record<PropertyKey, never>
@@ -1547,11 +1729,44 @@ export type Database = {
           role: string
         }[]
       }
+      get_custodios_with_services: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          nombre_custodio: string
+          servicio_count: number
+          puntos_totales: number
+          ultimo_servicio: string
+          procesados: number
+        }[]
+      }
       get_new_custodios_by_month: {
         Args: Record<PropertyKey, never>
         Returns: {
           month_year: string
           new_custodios: number
+        }[]
+      }
+      get_points_configuration_safe: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string
+          high_margin_threshold: number
+          id: string
+          level_threshold: number | null
+          low_margin_threshold: number
+          margin_multiplier_high: number
+          margin_multiplier_low: number
+          margin_multiplier_medium: number
+          margin_multiplier_minimal: number
+          max_points_per_trip: number
+          medium_margin_threshold: number
+          min_points_per_trip: number
+          points_per_100km: number
+          priority_client_multiplier: number
+          tyasa_multiplier: number
+          updated_at: string
+          updated_by: string | null
         }[]
       }
       get_prospect_by_id: {
@@ -1652,6 +1867,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      is_registration_or_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       normalize_currency_value: {
         Args: { value_to_clean: string }
         Returns: number
@@ -1714,6 +1933,31 @@ export type Database = {
           tipo: string
           count: number
         }[]
+      }
+      save_points_configuration_safe: {
+        Args:
+          | { p_level_threshold: number; p_user_id: string }
+          | {
+              p_points_per_100km: number
+              p_min_points_per_trip: number
+              p_max_points_per_trip: number
+              p_margin_multiplier_high: number
+              p_margin_multiplier_medium: number
+              p_margin_multiplier_low: number
+              p_margin_multiplier_minimal: number
+              p_tyasa_multiplier: number
+              p_priority_client_multiplier: number
+              p_high_margin_threshold: number
+              p_medium_margin_threshold: number
+              p_low_margin_threshold: number
+              p_level_threshold: number
+              p_user_id: string
+            }
+        Returns: Json
+      }
+      update_custodio_points: {
+        Args: { p_custodio_name: string }
+        Returns: undefined
       }
       update_productivity_parameters: {
         Args: {

@@ -15,6 +15,9 @@ import Login from "./pages/Auth/Login";
 import Register from "./pages/Auth/Register";
 import ForgotPassword from "./pages/Auth/ForgotPassword";
 
+// Landing Page
+import Landing from "./pages/Landing/Landing";
+
 // Dashboard Pages
 import Dashboard from "./pages/Dashboard/Dashboard";
 import LeadsList from "./pages/Leads/LeadsList";
@@ -24,6 +27,9 @@ import Settings from "./pages/Settings/Settings";
 import NotFound from "./pages/NotFound";
 import MonitoringPage from "./pages/Monitoring/MonitoringPage";
 import SupplyChainMonitoring from "./pages/Monitoring/SupplyChainMonitoring";
+
+// Admin Pages
+import LandingManager from "./pages/Admin/LandingManager";
 
 // Query client for React Query
 const queryClient = new QueryClient();
@@ -37,8 +43,8 @@ const App = () => {
           <Sonner />
           <BrowserRouter>
             <Routes>
-              {/* Redirect root to dashboard or login */}
-              <Route path="/" element={<Navigate to="/dashboard" />} />
+              {/* Landing page para usuarios no autenticados */}
+              <Route path="/" element={<Landing />} />
               
               {/* Auth Routes */}
               <Route element={<AuthLayout />}>
@@ -74,6 +80,9 @@ const App = () => {
                 
                 {/* Settings */}
                 <Route path="/settings" element={<Settings />} />
+                
+                {/* Admin Routes */}
+                <Route path="/admin/landing" element={<LandingManager />} />
               </Route>
               
               {/* Catch-all route */}
