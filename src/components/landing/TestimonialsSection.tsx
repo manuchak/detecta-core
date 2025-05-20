@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import { useTestimonials } from '@/hooks';
@@ -11,9 +11,22 @@ interface TestimonialsSectionProps {
 }
 
 export const TestimonialsSection: React.FC<TestimonialsSectionProps> = ({ id }) => {
-  const { testimonials, isLoading } = useTestimonials();
+  const { testimonials, isLoading, refetch } = useTestimonials();
 
-  // Map the testimonials to handle both new and old data format
+  // Actualizar los testimonios cada 30 segundos para asegurar sincronización
+  useEffect(() => {
+    // Refetch inicial
+    refetch();
+    
+    // Configurar intervalo de actualización
+    const refreshInterval = setInterval(() => {
+      refetch();
+    }, 30000); // 30 segundos
+    
+    return () => clearInterval(refreshInterval);
+  }, [refetch]);
+
+  // Mapear los testimonios para manejar tanto el formato nuevo como antiguo
   const displayTestimonials = testimonials.map(testimonial => ({
     id: testimonial.id,
     name: testimonial.name,

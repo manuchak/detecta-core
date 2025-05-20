@@ -9,30 +9,59 @@ export interface Testimonial {
   company?: string;
   text: string;
   avatar_url?: string;
-  image?: string; // For backward compatibility
-  quote?: string; // For backward compatibility
-  rating?: number; // 1-5 star rating
+  image?: string; // Para compatibilidad con versiones anteriores
+  quote?: string; // Para compatibilidad con versiones anteriores
+  rating?: number; // Valoración de 1-5 estrellas
 }
 
-// For now we'll use local storage, in a real app this would be Supabase or an API
+// Por ahora usaremos localStorage, en una aplicación real esto sería Supabase o una API
 const LOCAL_STORAGE_KEY = 'landing_testimonials';
+
+// Creamos un evento personalizado para sincronización entre pestañas/componentes
+const TESTIMONIAL_UPDATE_EVENT = 'testimonial_update';
 
 export const useTestimonials = () => {
   const queryClient = useQueryClient();
 
-  // Fetch testimonials
+  // Escuchar los cambios de otras instancias o componentes
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === LOCAL_STORAGE_KEY) {
+        // Invalidar la caché cuando cambie localStorage desde otra pestaña
+        queryClient.invalidateQueries({ queryKey: ['testimonials'] });
+      }
+    };
+
+    const handleCustomEvent = () => {
+      // Invalidar la caché cuando se dispare el evento personalizado
+      queryClient.invalidateQueries({ queryKey: ['testimonials'] });
+    };
+
+    // Escuchar cambios en localStorage (para cambios entre pestañas)
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Escuchar el evento personalizado (para cambios dentro de la misma pestaña)
+    window.addEventListener(TESTIMONIAL_UPDATE_EVENT, handleCustomEvent);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener(TESTIMONIAL_UPDATE_EVENT, handleCustomEvent);
+    };
+  }, [queryClient]);
+
+  // Consulta para obtener los testimonios
   const { data: testimonials, isLoading, error, refetch } = useQuery({
     queryKey: ['testimonials'],
     queryFn: async () => {
       try {
-        // Try to get from localStorage first
+        // Intentar obtener de localStorage primero
         const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
         
         if (storedData) {
           return JSON.parse(storedData) as Testimonial[];
         }
         
-        // If no data in localStorage, return default testimonials
+        // Si no hay datos en localStorage, devolver testimonios predeterminados
         const defaultTestimonials = [
           {
             id: 1,
@@ -60,7 +89,7 @@ export const useTestimonials = () => {
           }
         ];
         
-        // Store default testimonials in localStorage
+        // Guardar los testimonios predeterminados en localStorage
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(defaultTestimonials));
         
         return defaultTestimonials;
@@ -69,29 +98,29 @@ export const useTestimonials = () => {
         return [];
       }
     },
-    // Disable automatic refetching to prevent potential render loops
-    refetchOnWindowFocus: false,
+    // Configuración de refresco
+    refetchOnWindowFocus: true,
     refetchOnMount: true,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 30, // 30 segundos (reducido para mayor sincronización)
   });
 
-  // Save testimonial mutation
+  // Mutación para guardar testimonio
   const saveTestimonial = useMutation({
     mutationFn: async (testimonial: Partial<Testimonial>) => {
       try {
-        // Get existing testimonials
+        // Obtener los testimonios existentes
         const existingData = localStorage.getItem(LOCAL_STORAGE_KEY);
         const existingTestimonials: Testimonial[] = existingData ? JSON.parse(existingData) : [];
         
         let updatedTestimonials: Testimonial[];
         
         if (testimonial.id) {
-          // Update existing testimonial
+          // Actualizar testimonio existente
           updatedTestimonials = existingTestimonials.map(item => 
             item.id === testimonial.id ? { ...item, ...testimonial } : item
           );
         } else {
-          // Add new testimonial with generated ID
+          // Añadir nuevo testimonio con ID generado
           const newId = Math.max(0, ...existingTestimonials.map(t => t.id || 0)) + 1;
           const newTestimonial = {
             ...testimonial,
@@ -101,8 +130,11 @@ export const useTestimonials = () => {
           updatedTestimonials = [...existingTestimonials, newTestimonial];
         }
         
-        // Save to localStorage
+        // Guardar en localStorage
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedTestimonials));
+        
+        // Disparar evento personalizado para notificar a otros componentes
+        window.dispatchEvent(new CustomEvent(TESTIMONIAL_UPDATE_EVENT));
         
         return testimonial.id ? testimonial : { ...testimonial, id: updatedTestimonials[updatedTestimonials.length - 1].id };
       } catch (error) {
@@ -111,26 +143,29 @@ export const useTestimonials = () => {
       }
     },
     onSuccess: () => {
-      // Invalidate and refetch
+      // Invalidar y volver a solicitar
       queryClient.invalidateQueries({ queryKey: ['testimonials'] });
     },
   });
 
-  // Delete testimonial mutation
+  // Mutación para eliminar testimonio
   const deleteTestimonial = useMutation({
     mutationFn: async (id: number) => {
       try {
-        // Get existing testimonials
+        // Obtener los testimonios existentes
         const existingData = localStorage.getItem(LOCAL_STORAGE_KEY);
         if (!existingData) return id;
         
         const existingTestimonials: Testimonial[] = JSON.parse(existingData);
         
-        // Filter out deleted testimonial
+        // Filtrar el testimonio eliminado
         const updatedTestimonials = existingTestimonials.filter(item => item.id !== id);
         
-        // Save to localStorage
+        // Guardar en localStorage
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedTestimonials));
+        
+        // Disparar evento personalizado para notificar a otros componentes
+        window.dispatchEvent(new CustomEvent(TESTIMONIAL_UPDATE_EVENT));
         
         return id;
       } catch (error) {
@@ -139,7 +174,7 @@ export const useTestimonials = () => {
       }
     },
     onSuccess: () => {
-      // Invalidate and refetch
+      // Invalidar y volver a solicitar
       queryClient.invalidateQueries({ queryKey: ['testimonials'] });
     },
   });
