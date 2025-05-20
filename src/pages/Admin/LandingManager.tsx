@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth, useToast, useTestimonials } from '@/hooks';
 import { 
@@ -29,13 +28,15 @@ import { Navigate, Link } from 'react-router-dom';
 import { Testimonial } from '@/hooks/useTestimonials';
 
 const LandingManager = () => {
+  // Always call all hooks at the top level
   const { user, userRole } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('testimonios');
   const [editingTestimonial, setEditingTestimonial] = useState<Testimonial | null>(null);
   const [hasAccess, setHasAccess] = useState(true); // Default to true to prevent immediate redirect
+  const [shouldRedirect, setShouldRedirect] = useState(false);
   
-  // Use the testimonials hook
+  // Use the testimonials hook - always call this regardless of access
   const { 
     testimonials, 
     isLoading: isLoadingTestimonials, 
@@ -43,31 +44,7 @@ const LandingManager = () => {
     deleteTestimonial: deleteTestimonialMutation
   } = useTestimonials();
   
-  // Check access permissions in useEffect instead of during render
-  useEffect(() => {
-    const checkAccess = () => {
-      const hasPermission = !!user && (userRole === 'admin' || userRole === 'owner' || userRole === 'bi' || userRole === 'supply_admin');
-      
-      if (!hasPermission) {
-        toast({
-          title: "Acceso denegado",
-          description: "No tienes permisos para acceder a esta página. Tu rol actual es: " + (userRole || "sin rol"),
-          variant: "destructive",
-        });
-      }
-      
-      setHasAccess(hasPermission);
-    };
-    
-    // Check access when user or userRole changes
-    checkAccess();
-  }, [user, userRole, toast]);
-  
-  // If no access, redirect to dashboard
-  if (!hasAccess) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
+  // Initialize the form regardless of access
   const form = useForm<Partial<Testimonial>>({
     defaultValues: {
       name: '',
@@ -77,6 +54,32 @@ const LandingManager = () => {
       avatar_url: '',
     }
   });
+  
+  // Check access permissions in useEffect
+  useEffect(() => {
+    const checkAccess = () => {
+      const hasPermission = !!user && (userRole === 'admin' || userRole === 'owner' || userRole === 'bi' || userRole === 'supply_admin');
+      
+      setHasAccess(hasPermission);
+      
+      if (!hasPermission) {
+        toast({
+          title: "Acceso denegado",
+          description: "No tienes permisos para acceder a esta página. Tu rol actual es: " + (userRole || "sin rol"),
+          variant: "destructive",
+        });
+        setShouldRedirect(true);
+      }
+    };
+    
+    // Check access when user or userRole changes
+    checkAccess();
+  }, [user, userRole, toast]);
+
+  // Move redirect logic here to ensure all hooks are always called
+  if (shouldRedirect) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const onSubmit = (data: Partial<Testimonial>) => {
     if (editingTestimonial) {
