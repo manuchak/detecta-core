@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { 
   useDashboardData, 
   TimeframeOption, 
@@ -13,29 +14,16 @@ import { GmvProgress } from "@/components/dashboard/GmvProgress";
 import { ServicesCalendar } from "@/components/dashboard/ServicesCalendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth, useToast } from "@/hooks";
-import { useEffect } from "react";
+import { useRoleValidation } from "@/hooks/useRoleValidation";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Shield, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export const Dashboard = () => {
   const { userRole } = useAuth();
   const { toast } = useToast();
-
-  useEffect(() => {
-    // Display a toast with user role information to help debug
-    if (userRole) {
-      toast({
-        title: "Información de Sesión",
-        description: `Rol actual: ${userRole}`,
-        duration: 5000,
-      });
-    } else {
-      toast({
-        title: "Advertencia",
-        description: "No se detectó un rol de usuario. Es posible que necesite cerrar sesión y volver a iniciar sesión, o asignar un rol desde el panel de administración.",
-        variant: "destructive",
-        duration: 10000,
-      });
-    }
-  }, [userRole, toast]);
+  const { validateUserRole, ensureOwnerRole, isOwner, currentRole } = useRoleValidation();
+  const [isValidating, setIsValidating] = useState(false);
 
   const [timeframe, setTimeframe] = useState<TimeframeOption>("month");
   const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceTypeOption>("all");
@@ -52,8 +40,28 @@ export const Dashboard = () => {
     refreshAllData
   } = useDashboardData(timeframe, serviceTypeFilter);
 
+  useEffect(() => {
+    // Display a toast with user role information to help debug
+    if (userRole) {
+      toast({
+        title: "Información de Sesión",
+        description: `Rol actual: ${userRole}`,
+        duration: 5000,
+      });
+    }
+  }, [userRole, toast]);
+
   const handleTabChange = (value: string) => {
     setActiveTab(value as "overview" | "calendar");
+  };
+
+  const handleEnsureOwnerRole = async () => {
+    setIsValidating(true);
+    try {
+      await ensureOwnerRole();
+    } finally {
+      setIsValidating(false);
+    }
   };
 
   return (
@@ -64,6 +72,38 @@ export const Dashboard = () => {
           Rendimiento de Servicios
         </p>
       </div>
+      
+      {!isOwner && (
+        <Alert className="bg-yellow-50 border-yellow-200">
+          <AlertCircle className="h-4 w-4 text-yellow-600" />
+          <AlertTitle className="text-yellow-800">Validación de rol requerida</AlertTitle>
+          <AlertDescription className="text-yellow-700">
+            No tienes el rol de 'owner' asignado. Este rol es necesario para acceder a todas las funcionalidades del sistema.
+            <Button 
+              variant="outline" 
+              className="ml-4 border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+              onClick={handleEnsureOwnerRole}
+              disabled={isValidating}
+            >
+              {isValidating ? (
+                <>Asignando rol...</>
+              ) : (
+                <>Asignar rol de Owner</>
+              )}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isOwner && (
+        <Alert className="bg-green-50 border-green-200">
+          <Shield className="h-4 w-4 text-green-600" />
+          <AlertTitle className="text-green-800">Rol de Owner verificado</AlertTitle>
+          <AlertDescription className="text-green-700">
+            Tienes acceso completo al sistema con el rol de 'owner'.
+          </AlertDescription>
+        </Alert>
+      )}
       
       <Tabs defaultValue="overview" onValueChange={handleTabChange}>
         <TabsList>
