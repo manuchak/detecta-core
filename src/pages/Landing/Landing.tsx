@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from "@/contexts/AuthContext";
 import { HeroSection } from '@/components/landing/HeroSection';
 import { BenefitsSection } from '@/components/landing/BenefitsSection';
@@ -16,9 +16,8 @@ import { Button } from '@/components/ui/button';
 
 const Landing = () => {
   const { user, loading } = useAuth();
-  const navigate = useNavigate();
   
-  // Redirigir solo si el usuario está autenticado y no estamos cargando
+  // Solo redirigir si el usuario está autenticado y no estamos cargando
   if (user && !loading) {
     return <Navigate to="/dashboard" replace />;
   }
