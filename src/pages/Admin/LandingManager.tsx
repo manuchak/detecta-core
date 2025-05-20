@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth, useToast, useTestimonials } from '@/hooks';
 import { 
@@ -26,6 +27,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, Plus, Pencil, Trash2 } from 'lucide-react';
 import { Navigate, Link } from 'react-router-dom';
 import { Testimonial } from '@/hooks/useTestimonials';
+import { StarRating } from '@/components/ui/star-rating';
 
 const LandingManager = () => {
   // Always call all hooks at the top level
@@ -52,6 +54,7 @@ const LandingManager = () => {
       company: '',
       text: '',
       avatar_url: '',
+      rating: 0,
     }
   });
   
@@ -98,6 +101,7 @@ const LandingManager = () => {
       company: testimonial.company || '',
       text: testimonial.text || testimonial.quote,
       avatar_url: testimonial.avatar_url || testimonial.image,
+      rating: testimonial.rating || 0,
     });
   };
 
@@ -204,6 +208,29 @@ const LandingManager = () => {
                   
                   <FormField
                     control={form.control}
+                    name="rating"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Valoración</FormLabel>
+                        <FormControl>
+                          <div className="py-2">
+                            <StarRating 
+                              rating={field.value || 0} 
+                              onChange={field.onChange} 
+                              size={24} 
+                            />
+                          </div>
+                        </FormControl>
+                        <FormDescription>
+                          Selecciona de 1 a 5 estrellas según la experiencia
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
                     name="avatar_url"
                     render={({ field }) => (
                       <FormItem>
@@ -255,6 +282,9 @@ const LandingManager = () => {
                     <p className="italic text-muted-foreground mb-4">
                       "{testimonial.text || testimonial.quote}"
                     </p>
+                    <div className="mb-4">
+                      <StarRating rating={testimonial.rating || 0} size={16} />
+                    </div>
                     <div className="flex items-center">
                       <Avatar className="h-10 w-10 mr-3">
                         <AvatarImage src={testimonial.avatar_url || testimonial.image} />

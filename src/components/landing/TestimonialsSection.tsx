@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import { useTestimonials } from '@/hooks';
 import { Skeleton } from '@/components/ui/skeleton';
+import { StarRating } from '@/components/ui/star-rating';
 
 interface TestimonialsSectionProps {
   id?: string;
@@ -19,6 +20,7 @@ export const TestimonialsSection: React.FC<TestimonialsSectionProps> = ({ id }) 
     role: testimonial.role,
     image: testimonial.image || testimonial.avatar_url,
     quote: testimonial.quote || testimonial.text,
+    rating: testimonial.rating || 0
   }));
 
   return (
@@ -51,9 +53,12 @@ export const TestimonialsSection: React.FC<TestimonialsSectionProps> = ({ id }) 
                   <AvatarImage src={testimonial.image} alt={testimonial.name} />
                   <AvatarFallback>{testimonial.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                 </Avatar>
-                <blockquote className="text-lg italic text-muted-foreground mb-6">
+                <blockquote className="text-lg italic text-muted-foreground mb-4">
                   "{testimonial.quote}"
                 </blockquote>
+                <div className="mb-6">
+                  <StarRating rating={testimonial.rating} size={18} />
+                </div>
                 <div>
                   <h3 className="font-bold text-lg">{testimonial.name}</h3>
                   <p className="text-muted-foreground">{testimonial.role}</p>

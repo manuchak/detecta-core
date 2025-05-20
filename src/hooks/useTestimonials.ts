@@ -11,6 +11,7 @@ export interface Testimonial {
   avatar_url?: string;
   image?: string; // For backward compatibility
   quote?: string; // For backward compatibility
+  rating?: number; // 1-5 star rating
 }
 
 // For now we'll use local storage, in a real app this would be Supabase or an API
@@ -38,21 +39,24 @@ export const useTestimonials = () => {
             name: 'Carlos Mendoza',
             role: 'Custodio desde 2022',
             image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80',
-            quote: 'Ser custodio me ha permitido generar ingresos extras mientras mantengo mi trabajo principal. La flexibilidad de horarios es inmejorable y el pago es muy competitivo.'
+            quote: 'Ser custodio me ha permitido generar ingresos extras mientras mantengo mi trabajo principal. La flexibilidad de horarios es inmejorable y el pago es muy competitivo.',
+            rating: 5
           },
           {
             id: 2,
             name: 'Alejandra Torres',
             role: 'Custodia desde 2023',
             image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80',
-            quote: 'La capacitación que recibí fue excelente y me siento segura en cada servicio. La aplicación hace que coordinar mis horarios sea muy sencillo.'
+            quote: 'La capacitación que recibí fue excelente y me siento segura en cada servicio. La aplicación hace que coordinar mis horarios sea muy sencillo.',
+            rating: 4
           },
           {
             id: 3,
             name: 'Martín Gutiérrez',
             role: 'Custodio desde 2021',
             image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80',
-            quote: 'Lo que más valoro es la comunidad que se ha formado entre custodios. Nos apoyamos mutuamente y la empresa siempre está atenta a nuestras necesidades.'
+            quote: 'Lo que más valoro es la comunidad que se ha formado entre custodios. Nos apoyamos mutuamente y la empresa siempre está atenta a nuestras necesidades.',
+            rating: 5
           }
         ];
         
