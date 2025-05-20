@@ -7,6 +7,7 @@ import { TestimonialsManager } from '@/components/admin/landing/TestimonialsMana
 import { HeroManager } from '@/components/admin/landing/HeroManager';
 import { BenefitsManager } from '@/components/admin/landing/BenefitsManager';
 import { PricesManager } from '@/components/admin/landing/PricesManager';
+import { FaqManager } from '@/components/admin/landing/FaqManager';
 
 const LandingManager = () => {
   // Always call all hooks at the top level
@@ -57,6 +58,7 @@ const LandingManager = () => {
           <TabsTrigger value="hero">Sección Hero</TabsTrigger>
           <TabsTrigger value="beneficios">Beneficios</TabsTrigger>
           <TabsTrigger value="precios">Precios</TabsTrigger>
+          <TabsTrigger value="faq">Preguntas Frecuentes</TabsTrigger>
         </TabsList>
         
         <TabsContent value="testimonios" className="space-y-6">
@@ -73,6 +75,10 @@ const LandingManager = () => {
         
         <TabsContent value="precios">
           <PricesManager />
+        </TabsContent>
+        
+        <TabsContent value="faq">
+          <FaqManager />
         </TabsContent>
       </Tabs>
     </div>
