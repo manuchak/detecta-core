@@ -5,3 +5,4 @@ export { useAuth } from '@/contexts/AuthContext';
 export { useIsMobile } from './use-mobile';
 export { useRoleValidation } from './useRoleValidation';
 export { useTestimonials } from './useTestimonials';
+export { useHeroSettings } from './useHeroSettings';
