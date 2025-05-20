@@ -140,9 +140,23 @@ export const usePrices = () => {
 
   const deletePrice = async (id: string) => {
     try {
+      // Importante: Asegurarse de actualizar el estado local correctamente
       setPrices((prev) => prev.filter((price) => price.id !== id));
+      
+      // Mostrar toast de confirmación
+      toast({
+        title: "Plan eliminado",
+        description: "El plan ha sido eliminado correctamente.",
+      });
+      
+      return true;
     } catch (error) {
       console.error('Error deleting price:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el plan. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
       throw error;
     }
   };

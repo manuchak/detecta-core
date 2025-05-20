@@ -19,8 +19,7 @@ import {
   Plus,
   X,
   Save,
-  BadgeCheck,
-  Star
+  AlertCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +37,17 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const priceSchema = z.object({
   name: z.string().min(2, { message: "El nombre es requerido" }),
@@ -53,6 +63,8 @@ type PriceFormValues = z.infer<typeof priceSchema>;
 
 export const PricesManager = () => {
   const [selectedPrice, setSelectedPrice] = useState<Price | null>(null);
+  const [priceToDelete, setPriceToDelete] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
   const { prices, loading, createPrice, updatePrice, deletePrice, fetchPrices } = usePrices();
 
@@ -171,31 +183,32 @@ export const PricesManager = () => {
     });
   };
 
-  // Handle price deletion
-  const handleDeletePrice = async (id: string) => {
-    if (window.confirm('¿Estás seguro que deseas eliminar este plan?')) {
-      try {
-        await deletePrice(id);
-        // Refresh prices list
-        fetchPrices();
-        
-        // If we're editing the price that was just deleted, reset the form
-        if (selectedPrice && selectedPrice.id === id) {
-          cancelEdit();
-        }
-        
-        toast({
-          title: "Plan eliminado",
-          description: "El plan ha sido eliminado correctamente.",
-        });
-      } catch (error) {
-        console.error('Error deleting price:', error);
-        toast({
-          title: "Error",
-          description: "No se pudo eliminar el plan. Inténtalo de nuevo.",
-          variant: "destructive",
-        });
+  // Handle open delete confirmation dialog
+  const handleOpenDeleteDialog = (id: string) => {
+    setPriceToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  // Handle price deletion with confirmation
+  const handleDeletePrice = async () => {
+    if (!priceToDelete) return;
+    
+    try {
+      await deletePrice(priceToDelete);
+      
+      // If we're editing the price that was just deleted, reset the form
+      if (selectedPrice && selectedPrice.id === priceToDelete) {
+        cancelEdit();
       }
+      
+      // Refresh the price list
+      fetchPrices();
+      
+      // Reset state
+      setPriceToDelete(null);
+      setDeleteDialogOpen(false);
+    } catch (error) {
+      console.error('Error deleting price:', error);
     }
   };
 
@@ -288,7 +301,7 @@ export const PricesManager = () => {
                               variant="destructive" 
                               size="sm"
                               className="gap-1"
-                              onClick={() => handleDeletePrice(price.id)}
+                              onClick={() => handleOpenDeleteDialog(price.id)}
                             >
                               <Trash className="h-3.5 w-3.5" />
                             </Button>
@@ -445,6 +458,27 @@ export const PricesManager = () => {
           </form>
         </Form>
       </Card>
+
+      {/* AlertDialog para confirmación de eliminación */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará permanentemente este plan de precios. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPriceToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeletePrice}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
