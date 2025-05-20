@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { ApiCredentials } from "@/components/settings/ApiCredentials";
+import ApiCredentials from "@/components/settings/ApiCredentials";
 import { UserRoleManager } from "@/components/settings/UserRoleManager";
 import { PermissionsManager } from "@/components/settings/PermissionsManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
