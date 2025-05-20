@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -18,23 +18,13 @@ import {
   Shield, 
   Briefcase,
   Trash,
-  Plus,
   Award,
   Trophy,
   Star,
   BadgeCheck
 } from 'lucide-react';
 import { useToast } from '@/hooks';
-import { supabase } from '@/integrations/supabase/client';
-
-// Type for the benefit item
-interface Benefit {
-  id: string;
-  title: string;
-  description: string;
-  icon: string;
-  order: number;
-}
+import { useBenefits, Benefit } from '@/hooks/useBenefits';
 
 // Available icons for benefits
 const availableIcons = [
@@ -49,106 +39,12 @@ const availableIcons = [
 ];
 
 export const BenefitsManager = () => {
-  const [benefits, setBenefits] = useState<Benefit[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedBenefit, setSelectedBenefit] = useState<Benefit | null>(null);
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newIcon, setNewIcon] = useState('DollarSign');
   const { toast } = useToast();
-
-  // Initial benefits if none are found in the database
-  const defaultBenefits = [
-    {
-      id: '1',
-      title: 'Ingresos Competitivos',
-      description: 'Gana dinero extra con pagos atractivos por cada servicio de custodia completado.',
-      icon: 'DollarSign',
-      order: 1
-    },
-    {
-      id: '2',
-      title: 'Horarios Flexibles',
-      description: 'Trabaja cuando puedas. Tú decides cuándo y cuántos servicios tomar.',
-      icon: 'Clock',
-      order: 2
-    },
-    {
-      id: '3',
-      title: 'Equipo y Capacitación',
-      description: 'Recibe todo el equipo necesario y capacitación profesional para realizar tu trabajo.',
-      icon: 'Shield',
-      order: 3
-    },
-    {
-      id: '4',
-      title: 'Crecimiento Profesional',
-      description: 'Desarrolla habilidades valoradas en el mercado y construye una carrera en seguridad.',
-      icon: 'Briefcase',
-      order: 4
-    }
-  ];
-
-  // Fetch benefits from database
-  useEffect(() => {
-    const fetchBenefits = async () => {
-      try {
-        let { data: benefitsData, error } = await supabase
-          .from('benefits')
-          .select('*')
-          .order('order');
-
-        if (error) {
-          throw error;
-        }
-
-        if (benefitsData && benefitsData.length > 0) {
-          setBenefits(benefitsData);
-        } else {
-          // If no benefits exist in the database, use the default ones
-          // and insert them into the database
-          await insertDefaultBenefits();
-          setBenefits(defaultBenefits);
-        }
-      } catch (error) {
-        console.error('Error fetching benefits:', error);
-        toast({
-          title: 'Error',
-          description: 'No se pudieron cargar los beneficios.',
-          variant: 'destructive',
-        });
-        // Use default benefits on error
-        setBenefits(defaultBenefits);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBenefits();
-  }, [toast]);
-
-  // Insert default benefits into the database if none exist
-  const insertDefaultBenefits = async () => {
-    try {
-      const { error } = await supabase
-        .from('benefits')
-        .insert(defaultBenefits);
-        
-      if (error) throw error;
-      
-      toast({
-        title: 'Beneficios inicializados',
-        description: 'Se han creado beneficios predeterminados.',
-      });
-    } catch (error) {
-      console.error('Error inserting default benefits:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudieron crear los beneficios predeterminados.',
-        variant: 'destructive',
-      });
-    }
-  };
+  const { benefits, loading, createBenefit, updateBenefit, deleteBenefit, fetchBenefits } = useBenefits();
 
   // Save a new benefit or update an existing one
   const saveBenefit = async () => {
@@ -162,7 +58,7 @@ export const BenefitsManager = () => {
     }
 
     try {
-      let benefitToSave = {
+      const benefitToSave = {
         title: newTitle,
         description: newDescription,
         icon: newIcon,
@@ -171,37 +67,10 @@ export const BenefitsManager = () => {
 
       if (selectedBenefit) {
         // Updating existing benefit
-        const { error } = await supabase
-          .from('benefits')
-          .update(benefitToSave)
-          .eq('id', selectedBenefit.id);
-
-        if (error) throw error;
-
-        setBenefits(benefits.map(b => 
-          b.id === selectedBenefit.id ? { ...b, ...benefitToSave } : b
-        ));
-
-        toast({
-          title: 'Beneficio actualizado',
-          description: 'El beneficio ha sido actualizado exitosamente.',
-        });
+        await updateBenefit(selectedBenefit.id, benefitToSave);
       } else {
         // Adding new benefit
-        const { data, error } = await supabase
-          .from('benefits')
-          .insert([benefitToSave])
-          .select();
-
-        if (error) throw error;
-
-        if (data) {
-          setBenefits([...benefits, data[0]]);
-          toast({
-            title: 'Beneficio agregado',
-            description: 'El nuevo beneficio ha sido agregado exitosamente.',
-          });
-        }
+        await createBenefit(benefitToSave);
       }
 
       // Reset form
@@ -211,37 +80,6 @@ export const BenefitsManager = () => {
       setNewIcon('DollarSign');
     } catch (error) {
       console.error('Error saving benefit:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudo guardar el beneficio.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  // Delete a benefit
-  const deleteBenefit = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('benefits')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      setBenefits(benefits.filter(b => b.id !== id));
-      
-      toast({
-        title: 'Beneficio eliminado',
-        description: 'El beneficio ha sido eliminado exitosamente.',
-      });
-    } catch (error) {
-      console.error('Error deleting benefit:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudo eliminar el beneficio.',
-        variant: 'destructive',
-      });
     }
   };
 
@@ -259,6 +97,13 @@ export const BenefitsManager = () => {
     setNewTitle('');
     setNewDescription('');
     setNewIcon('DollarSign');
+  };
+
+  // Handle benefit deletion
+  const handleDeleteBenefit = async (id: string) => {
+    if (window.confirm('¿Estás seguro que deseas eliminar este beneficio?')) {
+      await deleteBenefit(id);
+    }
   };
 
   // Render icon based on icon name
@@ -312,7 +157,7 @@ export const BenefitsManager = () => {
                       <Button 
                         variant="destructive" 
                         size="sm"
-                        onClick={() => deleteBenefit(benefit.id)}
+                        onClick={() => handleDeleteBenefit(benefit.id)}
                       >
                         <Trash className="h-4 w-4" />
                       </Button>

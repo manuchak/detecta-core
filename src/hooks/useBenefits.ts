@@ -3,12 +3,14 @@ import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks';
 import { supabase } from '@/integrations/supabase/client';
 
-interface Benefit {
+export interface Benefit {
   id: string;
   title: string;
   description: string;
   icon: string;
   order: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export function useBenefits() {
@@ -20,28 +22,24 @@ export function useBenefits() {
   // Default benefits for initialization
   const defaultBenefits = [
     {
-      id: '1',
       title: 'Ingresos Competitivos',
       description: 'Gana dinero extra con pagos atractivos por cada servicio de custodia completado.',
       icon: 'DollarSign',
       order: 1
     },
     {
-      id: '2',
       title: 'Horarios Flexibles',
       description: 'Trabaja cuando puedas. Tú decides cuándo y cuántos servicios tomar.',
       icon: 'Clock',
       order: 2
     },
     {
-      id: '3',
       title: 'Equipo y Capacitación',
       description: 'Recibe todo el equipo necesario y capacitación profesional para realizar tu trabajo.',
       icon: 'Shield',
       order: 3
     },
     {
-      id: '4',
       title: 'Crecimiento Profesional',
       description: 'Desarrolla habilidades valoradas en el mercado y construye una carrera en seguridad.',
       icon: 'Briefcase',
@@ -63,11 +61,10 @@ export function useBenefits() {
       if (error) throw new Error(error.message);
       
       if (data && data.length > 0) {
-        setBenefits(data);
+        setBenefits(data as Benefit[]);
       } else {
         // If no benefits exist, initialize with defaults
         await initializeBenefits();
-        setBenefits(defaultBenefits);
       }
     } catch (err) {
       console.error("Error fetching benefits:", err);
@@ -77,7 +74,8 @@ export function useBenefits() {
         description: 'No se pudieron cargar los beneficios.',
         variant: 'destructive',
       });
-      setBenefits(defaultBenefits);
+      // Use default benefits in case of error
+      setBenefits(defaultBenefits as Benefit[]);
     } finally {
       setLoading(false);
     }
@@ -86,11 +84,16 @@ export function useBenefits() {
   // Initialize benefits with default values
   const initializeBenefits = async () => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('benefits')
-        .insert(defaultBenefits);
+        .insert(defaultBenefits)
+        .select();
 
       if (error) throw new Error(error.message);
+      
+      if (data) {
+        setBenefits(data as Benefit[]);
+      }
       
       toast({
         title: 'Beneficios inicializados',
@@ -103,11 +106,13 @@ export function useBenefits() {
         description: 'No se pudieron inicializar los beneficios.',
         variant: 'destructive',
       });
+      // Use default benefits in case of error
+      setBenefits(defaultBenefits as Benefit[]);
     }
   };
 
   // Create a new benefit
-  const createBenefit = async (benefit: Omit<Benefit, 'id'>) => {
+  const createBenefit = async (benefit: Omit<Benefit, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       const { data, error } = await supabase
         .from('benefits')
@@ -117,12 +122,12 @@ export function useBenefits() {
       if (error) throw new Error(error.message);
       
       if (data) {
-        setBenefits([...benefits, data[0]]);
+        setBenefits([...benefits, data[0] as Benefit]);
         toast({
           title: 'Beneficio creado',
           description: 'El beneficio ha sido creado exitosamente.',
         });
-        return data[0];
+        return data[0] as Benefit;
       }
     } catch (err) {
       console.error("Error creating benefit:", err);
@@ -136,7 +141,7 @@ export function useBenefits() {
   };
 
   // Update an existing benefit
-  const updateBenefit = async (id: string, updates: Partial<Benefit>) => {
+  const updateBenefit = async (id: string, updates: Partial<Omit<Benefit, 'id' | 'created_at' | 'updated_at'>>) => {
     try {
       const { error } = await supabase
         .from('benefits')
