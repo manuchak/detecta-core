@@ -23,7 +23,7 @@ import { Loader2 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 
 const AssignRole = () => {
-  const { user } = useAuth();
+  const { user, refreshUserRole } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState('');
@@ -81,6 +81,11 @@ const AssignRole = () => {
         title: "Éxito",
         description: `Rol '${selectedRole}' asignado correctamente. Por favor cierra sesión y vuelve a iniciar para ver los cambios.`,
       });
+      
+      // Refresh the user role immediately
+      if (userId === user?.id) {
+        await refreshUserRole();
+      }
       
     } catch (error) {
       toast({

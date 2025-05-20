@@ -3,7 +3,6 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
-import { usePermissions } from "@/hooks/usePermissions";
 
 interface AuthContextType {
   user: User | null;

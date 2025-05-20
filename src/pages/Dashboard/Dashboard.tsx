@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { 
   useDashboardData, 
@@ -13,8 +12,31 @@ import { SecondaryCharts } from "@/components/dashboard/SecondaryCharts";
 import { GmvProgress } from "@/components/dashboard/GmvProgress";
 import { ServicesCalendar } from "@/components/dashboard/ServicesCalendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth, useToast } from "@/hooks";
+import { useEffect } from "react";
 
 export const Dashboard = () => {
+  const { userRole } = useAuth();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    // Display a toast with user role information to help debug
+    if (userRole) {
+      toast({
+        title: "Información de Sesión",
+        description: `Rol actual: ${userRole}`,
+        duration: 5000,
+      });
+    } else {
+      toast({
+        title: "Advertencia",
+        description: "No se detectó un rol de usuario. Es posible que necesite cerrar sesión y volver a iniciar sesión, o asignar un rol desde el panel de administración.",
+        variant: "destructive",
+        duration: 10000,
+      });
+    }
+  }, [userRole, toast]);
+
   const [timeframe, setTimeframe] = useState<TimeframeOption>("month");
   const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceTypeOption>("all");
   const [activeTab, setActiveTab] = useState<"overview" | "calendar">("overview");
