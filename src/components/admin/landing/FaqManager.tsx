@@ -43,7 +43,8 @@ const faqSchema = z.object({
 
 type FaqFormValues = z.infer<typeof faqSchema>;
 
-export const FaqManager = () => {
+// Export the component only once at the end of the file
+const FaqManager = () => {
   const [selectedFaq, setSelectedFaq] = useState<Faq | null>(null);
   const { toast } = useToast();
   const { faqs, loading, createFaq, updateFaq, deleteFaq, fetchFaqs } = useFaqs();
