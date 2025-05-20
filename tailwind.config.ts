@@ -20,6 +20,12 @@ export default {
 		},
 		extend: {
 			colors: {
+				// Colores corporativos
+				corporate: {
+					black: '#191919',
+					gray: '#999999',
+					red: '#EB0000',
+				},
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
