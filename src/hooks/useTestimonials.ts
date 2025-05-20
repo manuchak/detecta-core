@@ -65,6 +65,10 @@ export const useTestimonials = () => {
         return [];
       }
     },
+    // Disable automatic refetching to prevent potential render loops
+    refetchOnWindowFocus: false,
+    refetchOnMount: true,
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
   // Save testimonial mutation
