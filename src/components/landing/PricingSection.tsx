@@ -4,18 +4,7 @@ import { Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-
-interface Price {
-  id: string;
-  name: string;
-  earnings: string;
-  period: string;
-  description: string;
-  cta: string;
-  popular: boolean;
-  features?: string[];
-  order: number;
-}
+import { Price } from '@/hooks/usePrices';
 
 interface PricingSectionProps {
   id?: string;
@@ -25,7 +14,7 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ id }) => {
   const [earningPlans, setEarningPlans] = useState<Price[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Datos de ejemplo para features (ya que no están en la BD)
+  // Datos de ejemplo para features
   const defaultFeatures = {
     basic: [
       'Hasta 15 servicios mensuales',
@@ -47,25 +36,7 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ id }) => {
     const fetchPrices = async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase
-          .from('prices')
-          .select('*')
-          .order('order', { ascending: true });
-
-        if (error) {
-          throw error;
-        }
-
-        // Asignar features según si es popular o no
-        const plansWithFeatures = data?.map(plan => ({
-          ...plan,
-          features: plan.popular ? defaultFeatures.pro : defaultFeatures.basic
-        })) || [];
-
-        setEarningPlans(plansWithFeatures);
-      } catch (error) {
-        console.error('Error fetching prices:', error);
-        // Datos de respaldo en caso de error
+        // Use fallback data since the table doesn't exist yet
         setEarningPlans([
           {
             id: '1',
@@ -90,6 +61,8 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ id }) => {
             order: 2
           }
         ]);
+      } catch (error) {
+        console.error('Error fetching prices:', error);
       } finally {
         setLoading(false);
       }

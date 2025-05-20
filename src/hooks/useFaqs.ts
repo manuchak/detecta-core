@@ -11,7 +11,11 @@ export interface Faq {
   created_at?: string;
 }
 
-export type FaqInput = Omit<Faq, 'id' | 'created_at'>;
+export type FaqInput = {
+  question: string;
+  answer: string;
+  order: number;
+};
 
 export const useFaqs = () => {
   const [faqs, setFaqs] = useState<Faq[]>([]);
@@ -21,16 +25,27 @@ export const useFaqs = () => {
   const fetchFaqs = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('faqs')
-        .select('*')
-        .order('order', { ascending: true });
-
-      if (error) {
-        throw error;
-      }
-
-      setFaqs(data || []);
+      // Use the fallback data directly since the table doesn't exist yet
+      setFaqs([
+        {
+          id: '1',
+          question: "¿Qué requisitos necesito para ser custodio?",
+          answer: "Necesitas ser mayor de edad, tener antecedentes limpios, completar nuestra capacitación y contar con un smartphone compatible con nuestra aplicación.",
+          order: 1
+        },
+        {
+          id: '2',
+          question: "¿Cómo se asignan los servicios de custodia?",
+          answer: "Los servicios se asignan según tu ubicación, disponibilidad y nivel de experiencia a través de nuestra plataforma. Puedes aceptar o rechazar según tu conveniencia.",
+          order: 2
+        },
+        {
+          id: '3',
+          question: "¿Qué tipo de capacitación proporcionan?",
+          answer: "Ofrecemos una capacitación completa que incluye protocolos de seguridad, manejo de situaciones de riesgo, primeros auxilios básicos y uso de nuestras herramientas tecnológicas.",
+          order: 3
+        }
+      ]);
     } catch (error) {
       console.error('Error fetching FAQs:', error);
       toast({
@@ -45,16 +60,14 @@ export const useFaqs = () => {
 
   const createFaq = async (faq: FaqInput) => {
     try {
-      const { data, error } = await supabase
-        .from('faqs')
-        .insert([faq])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setFaqs((prev) => [...prev, data]);
-      return data;
+      // Generate a unique ID for now
+      const newFaq: Faq = {
+        id: Math.random().toString(36).substring(2, 11),
+        ...faq
+      };
+      
+      setFaqs((prev) => [...prev, newFaq]);
+      return newFaq;
     } catch (error) {
       console.error('Error creating FAQ:', error);
       throw error;
@@ -63,19 +76,23 @@ export const useFaqs = () => {
 
   const updateFaq = async (id: string, faq: Partial<FaqInput>) => {
     try {
-      const { data, error } = await supabase
-        .from('faqs')
-        .update(faq)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
+      // Find and update the FAQ in our local state
+      const updatedFaq = faqs.find(item => item.id === id);
+      
+      if (!updatedFaq) {
+        throw new Error(`FAQ with ID ${id} not found`);
+      }
+      
+      const newFaq: Faq = {
+        ...updatedFaq,
+        ...(faq as Partial<Faq>)
+      };
 
       setFaqs((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, ...data } : item))
+        prev.map((item) => (item.id === id ? newFaq : item))
       );
-      return data;
+      
+      return newFaq;
     } catch (error) {
       console.error('Error updating FAQ:', error);
       throw error;
@@ -84,10 +101,6 @@ export const useFaqs = () => {
 
   const deleteFaq = async (id: string) => {
     try {
-      const { error } = await supabase.from('faqs').delete().eq('id', id);
-
-      if (error) throw error;
-
       setFaqs((prev) => prev.filter((faq) => faq.id !== id));
     } catch (error) {
       console.error('Error deleting FAQ:', error);

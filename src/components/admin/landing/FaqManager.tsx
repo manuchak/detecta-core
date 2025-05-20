@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks';
 import { Badge } from '@/components/ui/badge';
-import { useFaqs, Faq } from '@/hooks/useFaqs';
+import { useFaqs, Faq, FaqInput } from '@/hooks/useFaqs';
 import {
   Form,
   FormControl,
@@ -77,16 +77,23 @@ export const FaqManager = () => {
 
   const onSubmit = async (data: FaqFormValues) => {
     try {
+      // Ensure all required fields are present
+      const faqInput: FaqInput = {
+        question: data.question,
+        answer: data.answer,
+        order: data.order
+      };
+      
       if (selectedFaq) {
         // Updating existing FAQ
-        await updateFaq(selectedFaq.id, data);
+        await updateFaq(selectedFaq.id, faqInput);
         toast({
           title: "Pregunta actualizada",
           description: "La pregunta ha sido actualizada correctamente.",
         });
       } else {
         // Adding new FAQ
-        await createFaq(data);
+        await createFaq(faqInput);
         toast({
           title: "Pregunta creada",
           description: "La pregunta ha sido creada correctamente.",
@@ -95,7 +102,11 @@ export const FaqManager = () => {
 
       // Reset form and selection
       setSelectedFaq(null);
-      form.reset();
+      form.reset({
+        question: "",
+        answer: "",
+        order: faqs.length + 1
+      });
       
       // Refresh faqs list
       fetchFaqs();
@@ -122,7 +133,11 @@ export const FaqManager = () => {
   // Cancel editing
   const cancelEdit = () => {
     setSelectedFaq(null);
-    form.reset();
+    form.reset({
+      question: "",
+      answer: "",
+      order: faqs.length
+    });
   };
 
   // Handle FAQ deletion

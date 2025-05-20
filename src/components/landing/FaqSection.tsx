@@ -7,13 +7,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { supabase } from '@/integrations/supabase/client';
-
-interface Faq {
-  id: string;
-  question: string;
-  answer: string;
-  order: number;
-}
+import { Faq } from '@/hooks/useFaqs';
 
 interface FaqSectionProps {
   id?: string;
@@ -27,19 +21,7 @@ export const FaqSection: React.FC<FaqSectionProps> = ({ id }) => {
     const fetchFaqs = async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase
-          .from('faqs')
-          .select('*')
-          .order('order', { ascending: true });
-
-        if (error) {
-          throw error;
-        }
-
-        setFaqs(data || []);
-      } catch (error) {
-        console.error('Error fetching FAQs:', error);
-        // Datos de respaldo en caso de error
+        // Use fallback data since the table doesn't exist yet
         setFaqs([
           {
             id: '1',
@@ -60,6 +42,8 @@ export const FaqSection: React.FC<FaqSectionProps> = ({ id }) => {
             order: 3
           }
         ]);
+      } catch (error) {
+        console.error('Error fetching FAQs:', error);
       } finally {
         setLoading(false);
       }

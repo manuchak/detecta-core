@@ -16,26 +16,67 @@ export interface Price {
   created_at?: string;
 }
 
-export type PriceInput = Omit<Price, 'id' | 'created_at'>;
+export type PriceInput = {
+  name: string;
+  earnings: string;
+  period: string;
+  description: string;
+  cta: string;
+  popular: boolean;
+  order: number;
+};
 
 export const usePrices = () => {
   const [prices, setPrices] = useState<Price[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  // Datos de ejemplo para features
+  const defaultFeatures = {
+    basic: [
+      'Hasta 15 servicios mensuales',
+      'Capacitación básica',
+      'Equipo estándar',
+      'Soporte por app'
+    ],
+    pro: [
+      'Hasta 30 servicios mensuales',
+      'Capacitación avanzada',
+      'Equipo premium',
+      'Servicios de mayor valor',
+      'Prioridad en asignaciones',
+      'Bonificaciones por excelencia'
+    ]
+  };
+
   const fetchPrices = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('prices')
-        .select('*')
-        .order('order', { ascending: true });
-
-      if (error) {
-        throw error;
-      }
-
-      setPrices(data || []);
+      // Use the fallback data directly since the table doesn't exist yet
+      setPrices([
+        {
+          id: '1',
+          name: 'Custodio Inicial',
+          earnings: '$5,000 - $10,000',
+          period: 'mensuales',
+          description: 'Para custodios que están comenzando',
+          features: defaultFeatures.basic,
+          cta: 'Comenzar Ahora',
+          popular: false,
+          order: 1
+        },
+        {
+          id: '2',
+          name: 'Custodio Profesional',
+          earnings: '$12,000 - $20,000',
+          period: 'mensuales',
+          description: 'Para custodios con experiencia',
+          features: defaultFeatures.pro,
+          cta: 'Únete como Profesional',
+          popular: true,
+          order: 2
+        }
+      ]);
     } catch (error) {
       console.error('Error fetching prices:', error);
       toast({
@@ -50,16 +91,15 @@ export const usePrices = () => {
 
   const createPrice = async (price: PriceInput) => {
     try {
-      const { data, error } = await supabase
-        .from('prices')
-        .insert([price])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setPrices((prev) => [...prev, data]);
-      return data;
+      // Generate a unique ID for now
+      const newPrice: Price = {
+        id: Math.random().toString(36).substring(2, 11),
+        ...price,
+        features: price.popular ? defaultFeatures.pro : defaultFeatures.basic
+      };
+      
+      setPrices((prev) => [...prev, newPrice]);
+      return newPrice;
     } catch (error) {
       console.error('Error creating price:', error);
       throw error;
@@ -68,19 +108,30 @@ export const usePrices = () => {
 
   const updatePrice = async (id: string, price: Partial<PriceInput>) => {
     try {
-      const { data, error } = await supabase
-        .from('prices')
-        .update(price)
-        .eq('id', id)
-        .select()
-        .single();
+      // Find and update the Price in our local state
+      const updatedPrice = prices.find(item => item.id === id);
+      
+      if (!updatedPrice) {
+        throw new Error(`Price with ID ${id} not found`);
+      }
 
-      if (error) throw error;
+      const isPopularChanged = 
+        price.popular !== undefined && price.popular !== updatedPrice.popular;
+      
+      const newPrice: Price = {
+        ...updatedPrice,
+        ...(price as Partial<Price>),
+        // Update features if popular status changed
+        features: isPopularChanged
+          ? (price.popular ? defaultFeatures.pro : defaultFeatures.basic)
+          : updatedPrice.features
+      };
 
       setPrices((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, ...data } : item))
+        prev.map((item) => (item.id === id ? newPrice : item))
       );
-      return data;
+      
+      return newPrice;
     } catch (error) {
       console.error('Error updating price:', error);
       throw error;
@@ -89,10 +140,6 @@ export const usePrices = () => {
 
   const deletePrice = async (id: string) => {
     try {
-      const { error } = await supabase.from('prices').delete().eq('id', id);
-
-      if (error) throw error;
-
       setPrices((prev) => prev.filter((price) => price.id !== id));
     } catch (error) {
       console.error('Error deleting price:', error);

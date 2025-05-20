@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks';
 import { Badge } from '@/components/ui/badge';
-import { usePrices, Price } from '@/hooks/usePrices';
+import { usePrices, Price, PriceInput } from '@/hooks/usePrices';
 import {
   Form,
   FormControl,
@@ -96,16 +96,27 @@ export const PricesManager = () => {
 
   const onSubmit = async (data: PriceFormValues) => {
     try {
+      // Ensure all required fields are present
+      const priceInput: PriceInput = {
+        name: data.name,
+        earnings: data.earnings,
+        period: data.period,
+        description: data.description,
+        cta: data.cta,
+        popular: data.popular,
+        order: data.order
+      };
+      
       if (selectedPrice) {
         // Updating existing price
-        await updatePrice(selectedPrice.id, data);
+        await updatePrice(selectedPrice.id, priceInput);
         toast({
           title: "Plan actualizado",
           description: "El plan ha sido actualizado correctamente.",
         });
       } else {
         // Adding new price
-        await createPrice(data);
+        await createPrice(priceInput);
         toast({
           title: "Plan creado",
           description: "El plan ha sido creado correctamente.",
@@ -114,7 +125,15 @@ export const PricesManager = () => {
 
       // Reset form and selection
       setSelectedPrice(null);
-      form.reset();
+      form.reset({
+        name: "",
+        earnings: "",
+        period: "mensuales",
+        description: "",
+        cta: "Comenzar Ahora",
+        popular: false,
+        order: prices.length + 1
+      });
       
       // Refresh prices list
       fetchPrices();
@@ -141,7 +160,15 @@ export const PricesManager = () => {
   // Cancel editing
   const cancelEdit = () => {
     setSelectedPrice(null);
-    form.reset();
+    form.reset({
+      name: "",
+      earnings: "",
+      period: "mensuales", 
+      description: "",
+      cta: "Comenzar Ahora",
+      popular: false,
+      order: prices.length
+    });
   };
 
   // Handle price deletion
