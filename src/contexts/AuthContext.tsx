@@ -12,7 +12,8 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signOut: () => Promise<void>;
-  userRole?: string | null;
+  userRole: string | null;
+  refreshUserRole: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,12 +25,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
   const [userRole, setUserRole] = useState<string | null>(null);
 
+  // Función para actualizar el rol del usuario
+  const refreshUserRole = async () => {
+    if (!user) {
+      setUserRole(null);
+      return;
+    }
+
+    try {
+      console.log("Getting role for user:", user.id);
+      const { data, error } = await supabase
+        .rpc('get_user_role_safe', { user_uid: user.id });
+      
+      if (error) {
+        console.error('Error fetching user role:', error);
+        return;
+      }
+      
+      console.log("Role received:", data);
+      setUserRole(data);
+    } catch (error) {
+      console.error('Error in refreshUserRole:', error);
+    }
+  };
+
   useEffect(() => {
     // Set up the auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
+        console.log("Auth state changed:", event);
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
+        
+        // Si el evento es signIn o tokenRefreshed, actualizar el rol
+        if (currentSession?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+          setTimeout(() => {
+            refreshUserRole();
+          }, 0);
+        }
       }
     );
 
@@ -38,37 +71,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
       setLoading(false);
+      
+      // Si hay sesión, obtener el rol
+      if (currentSession?.user) {
+        refreshUserRole();
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
-
-  // Get user role when user changes
-  useEffect(() => {
-    const getUserRole = async () => {
-      if (!user) {
-        setUserRole(null);
-        return;
-      }
-
-      try {
-        const { data, error } = await supabase.rpc('get_user_role', {
-          user_uid: user.id
-        });
-
-        if (error) {
-          console.error('Error fetching user role:', error);
-          return;
-        }
-
-        setUserRole(data);
-      } catch (error) {
-        console.error('Error in getUserRole:', error);
-      }
-    };
-
-    getUserRole();
-  }, [user]);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -138,6 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         return Promise.reject(error);
       }
+      setUserRole(null);
     } catch (error) {
       toast({
         title: "Error",
@@ -156,6 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signUp,
     signOut,
     userRole,
+    refreshUserRole,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

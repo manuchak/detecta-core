@@ -30,6 +30,7 @@ import SupplyChainMonitoring from "./pages/Monitoring/SupplyChainMonitoring";
 
 // Admin Pages
 import LandingManager from "./pages/Admin/LandingManager";
+import AssignRole from "./pages/Admin/AssignRole";
 
 // Query client for React Query
 const queryClient = new QueryClient();
@@ -84,6 +85,7 @@ const App = () => {
                 
                 {/* Admin Routes */}
                 <Route path="/admin/landing" element={<LandingManager />} />
+                <Route path="/admin/assign-role" element={<AssignRole />} />
               </Route>
               
               {/* Catch-all route */}
