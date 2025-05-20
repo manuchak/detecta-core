@@ -16,21 +16,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth, useToast } from "@/hooks";
 import { useRoleValidation } from "@/hooks/useRoleValidation";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Shield, AlertCircle } from "lucide-react";
+import { Shield, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const Dashboard = () => {
-  const { userRole } = useAuth();
+  const { userRole, refreshUserRole } = useAuth();
   const { toast } = useToast();
-  const { validateUserRole, ensureOwnerRole, isOwner, currentRole } = useRoleValidation();
-  const [isValidating, setIsValidating] = useState(false);
+  const { validateUserRole, ensureOwnerRole, isOwner, currentRole, isLoading } = useRoleValidation();
 
   const [timeframe, setTimeframe] = useState<TimeframeOption>("month");
   const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceTypeOption>("all");
   const [activeTab, setActiveTab] = useState<"overview" | "calendar">("overview");
   
   const {
-    isLoading,
+    isLoading: dataLoading,
     dashboardData,
     monthlyGmvData,
     serviceStatusData,
@@ -56,21 +55,40 @@ export const Dashboard = () => {
   };
 
   const handleEnsureOwnerRole = async () => {
-    setIsValidating(true);
-    try {
-      await ensureOwnerRole();
-    } finally {
-      setIsValidating(false);
+    const success = await ensureOwnerRole();
+    
+    if (success) {
+      // Refresh the page data after role update
+      refreshAllData();
     }
+  };
+
+  const handleRefreshRole = async () => {
+    await refreshUserRole();
+    toast({
+      title: "Rol actualizado",
+      description: `Rol actual: ${userRole || 'Sin rol asignado'}`,
+    });
   };
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto px-4 md:px-0 animate-fade-in">
-      <div className="py-6">
-        <h1 className="text-3xl font-medium tracking-tight text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">
-          Rendimiento de Servicios
-        </p>
+      <div className="py-6 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-medium tracking-tight text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
+            Rendimiento de Servicios
+          </p>
+        </div>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleRefreshRole}
+          className="flex items-center gap-1"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Actualizar rol
+        </Button>
       </div>
       
       {!isOwner && (
@@ -79,13 +97,14 @@ export const Dashboard = () => {
           <AlertTitle className="text-yellow-800">Validación de rol requerida</AlertTitle>
           <AlertDescription className="text-yellow-700">
             No tienes el rol de 'owner' asignado. Este rol es necesario para acceder a todas las funcionalidades del sistema.
+            Tu rol actual es: {currentRole || 'Sin rol asignado'}
             <Button 
               variant="outline" 
               className="ml-4 border-yellow-300 text-yellow-700 hover:bg-yellow-100"
               onClick={handleEnsureOwnerRole}
-              disabled={isValidating}
+              disabled={isLoading}
             >
-              {isValidating ? (
+              {isLoading ? (
                 <>Asignando rol...</>
               ) : (
                 <>Asignar rol de Owner</>
@@ -122,7 +141,7 @@ export const Dashboard = () => {
           />
           
           {/* Key metrics cards */}
-          <MetricsCards metrics={dashboardData} isLoading={isLoading} />
+          <MetricsCards metrics={dashboardData} isLoading={dataLoading} />
           
           {/* Main charts */}
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-7">
