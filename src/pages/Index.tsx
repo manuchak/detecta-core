@@ -2,8 +2,8 @@
 import { Navigate } from "react-router-dom";
 
 const Index = () => {
-  // Redirect to dashboard - this is also handled in App.tsx
-  return <Navigate to="/dashboard" replace />;
+  // Redirect to landing page instead of dashboard
+  return <Navigate to="/" replace />;
 };
 
 export default Index;

@@ -1,6 +1,6 @@
 
-import React, { useEffect } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import React from 'react';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from "@/contexts/AuthContext";
 import { HeroSection } from '@/components/landing/HeroSection';
 import { BenefitsSection } from '@/components/landing/BenefitsSection';
@@ -15,10 +15,11 @@ import { Logo } from '@/components/landing/Logo';
 import { Button } from '@/components/ui/button';
 
 const Landing = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
   
-  // Si el usuario está autenticado, redirigir al dashboard
-  if (user) {
+  // Redirigir solo si el usuario está autenticado y no estamos cargando
+  if (user && !loading) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -29,10 +30,10 @@ const Landing = () => {
         <div className="container flex h-16 items-center justify-between">
           <Logo />
           <nav className="hidden md:flex gap-6 items-center">
-            <Link to="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Características</Link>
-            <Link to="#pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Precios</Link>
-            <Link to="#testimonials" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Testimonios</Link>
-            <Link to="#faq" className="text-sm text-muted-foreground hover:text-foreground transition-colors">FAQ</Link>
+            <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Características</a>
+            <a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Precios</a>
+            <a href="#testimonials" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Testimonios</a>
+            <a href="#faq" className="text-sm text-muted-foreground hover:text-foreground transition-colors">FAQ</a>
           </nav>
           <div className="flex items-center gap-4">
             <Link to="/login">

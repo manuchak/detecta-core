@@ -45,6 +45,7 @@ const App = () => {
             <Routes>
               {/* Landing page para usuarios no autenticados */}
               <Route path="/" element={<Landing />} />
+              <Route path="/index" element={<Navigate to="/" replace />} />
               
               {/* Auth Routes */}
               <Route element={<AuthLayout />}>
