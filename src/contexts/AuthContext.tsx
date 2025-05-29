@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -68,6 +67,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Auto-assign owner role to manuel.chacon@detectasecurity.io
+  const autoAssignOwnerRole = async (currentUser: User) => {
+    if (currentUser.email === 'manuel.chacon@detectasecurity.io') {
+      try {
+        console.log("Auto-assigning owner role to project creator");
+        
+        // Check if user already has a role
+        const { data: existingRole } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', currentUser.id)
+          .single();
+        
+        if (!existingRole) {
+          // Get the current session
+          const { data: { session: currentSession } } = await supabase.auth.getSession();
+          
+          if (currentSession) {
+            // Call the Edge Function to assign the owner role
+            const response = await fetch('https://beefjsdgrdeiymzxwxru.supabase.co/functions/v1/assign-role', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${currentSession.access_token}`
+              },
+              body: JSON.stringify({
+                user_id: currentUser.id,
+                role: 'owner'
+              })
+            });
+
+            const result = await response.json();
+            
+            if (response.ok) {
+              console.log("Owner role auto-assigned successfully:", result);
+              toast({
+                title: "Rol asignado",
+                description: "Rol de propietario asignado automáticamente",
+              });
+              
+              // Refresh role
+              setTimeout(() => {
+                refreshUserRole();
+              }, 500);
+            } else {
+              console.error("Error auto-assigning role:", result);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error in auto-assign owner role:', error);
+      }
+    }
+  };
+
   // Función para confirmar email manualmente
   const confirmEmail = async (token: string, type: string) => {
     try {
@@ -114,6 +168,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Manejar diferentes eventos de autenticación
         if (event === 'SIGNED_IN' && currentSession?.user) {
           console.log("User signed in:", currentSession.user.email);
+          
+          // Auto-assign owner role if needed
+          await autoAssignOwnerRole(currentSession.user);
           
           // Actualizar último login
           try {
@@ -169,8 +226,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentSession?.user ?? null);
       setLoading(false);
       
-      // Si hay sesión, obtener el rol
+      // Si hay sesión, obtener el rol y auto-asignar owner si es necesario
       if (currentSession?.user) {
+        autoAssignOwnerRole(currentSession.user);
         refreshUserRole();
       }
     });
