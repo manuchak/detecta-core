@@ -14,7 +14,8 @@ export const AuthLayout = () => {
     );
   }
   
-  if (user) {
+  // Only redirect if user is authenticated AND confirmed
+  if (user && user.email_confirmed_at) {
     return <Navigate to="/dashboard" replace />;
   }
   

@@ -20,8 +20,14 @@ export const DashboardLayout = () => {
     );
   }
 
+  // Redirect to auth/login instead of /login to avoid loop
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/auth/login" replace />;
+  }
+
+  // Check if user's email is confirmed
+  if (user && !user.email_confirmed_at) {
+    return <Navigate to="/auth/login" replace />;
   }
 
   // Additional padding for the monitoring page to give more space
