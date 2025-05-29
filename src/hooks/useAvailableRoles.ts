@@ -31,7 +31,8 @@ export const useAvailableRoles = () => {
           ] as Role[];
         }
         
-        return data as Role[];
+        // Map the returned data to Role type safely
+        return (data || []).map((item: { role: string }) => item.role as Role);
       } catch (err) {
         console.error('Error in fetchAvailableRoles:', err);
         // Return default roles as fallback
@@ -53,9 +54,13 @@ export const useAvailableRoles = () => {
 
   const createRole = useMutation({
     mutationFn: async (input: CreateRoleInput) => {
-      const { data, error } = await supabase.rpc('create_new_role', {
-        new_role: input.role
-      });
+      // Insert directly into user_roles table for new role creation
+      const { data, error } = await supabase
+        .from('user_roles')
+        .insert([{ 
+          user_id: '00000000-0000-0000-0000-000000000000', // Placeholder for role definition
+          role: input.role 
+        }]);
       
       if (error) {
         throw new Error(`Error creating role: ${error.message}`);
@@ -81,10 +86,11 @@ export const useAvailableRoles = () => {
 
   const updateRole = useMutation({
     mutationFn: async (input: UpdateRoleInput) => {
-      const { data, error } = await supabase.rpc('update_role_name', {
-        old_role: input.oldRole,
-        new_role: input.newRole
-      });
+      // Update all instances of the old role to the new role
+      const { data, error } = await supabase
+        .from('user_roles')
+        .update({ role: input.newRole })
+        .eq('role', input.oldRole);
       
       if (error) {
         throw new Error(`Error updating role: ${error.message}`);
@@ -111,9 +117,11 @@ export const useAvailableRoles = () => {
 
   const deleteRole = useMutation({
     mutationFn: async (input: DeleteRoleInput) => {
-      const { data, error } = await supabase.rpc('delete_role', {
-        target_role: input.role
-      });
+      // Delete all instances of the role
+      const { data, error } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('role', input.role);
       
       if (error) {
         throw new Error(`Error deleting role: ${error.message}`);

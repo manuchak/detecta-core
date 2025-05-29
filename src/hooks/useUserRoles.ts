@@ -20,7 +20,15 @@ export const useUserRoles = () => {
           throw error;
         }
         
-        return data as UserWithRole[];
+        // Map the returned data to UserWithRole type safely
+        return (data || []).map((user: any) => ({
+          id: user.id,
+          email: user.email,
+          display_name: user.display_name,
+          role: user.role as Role,
+          created_at: user.created_at,
+          last_login: user.last_login
+        })) as UserWithRole[];
       } catch (error) {
         console.error("Error in useUserRoles:", error);
         throw error;
