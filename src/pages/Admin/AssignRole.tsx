@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from '@/integrations/supabase/client';
@@ -23,7 +22,7 @@ import { Loader2 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 
 const AssignRole = () => {
-  const { user, refreshUserRole } = useAuth();
+  const { user, refetchRole } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState('');
@@ -84,7 +83,7 @@ const AssignRole = () => {
       
       // Refresh the user role immediately
       if (userId === user?.id) {
-        await refreshUserRole();
+        await refetchRole();
       }
       
     } catch (error) {
