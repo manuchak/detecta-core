@@ -9,14 +9,14 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 
 interface PermissionItemProps {
   permission: Permission;
-  onPermissionChange: (id: number, allowed: boolean) => void;
+  onPermissionChange: (id: string, allowed: boolean) => void; // Fixed: changed from number to string
 }
 
 export const PermissionItem = ({ permission, onPermissionChange }: PermissionItemProps) => {
   const friendlyName = getFriendlyPermissionName(permission.permission_id);
   const description = getPermissionDescription(permission.permission_type, permission.permission_id);
 
-  // Handler para cambiar el estado del permiso
+  // Handler para cambiar el estado del permiso - Fixed: using string ID
   const handleTogglePermission = () => {
     onPermissionChange(permission.id, !permission.allowed);
   };

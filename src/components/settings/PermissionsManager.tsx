@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { useRoles } from '@/hooks/useRoles';
 import { Role, Permission } from '@/types/roleTypes';
@@ -14,7 +15,7 @@ import {
   Lock,
   X,
   AlertTriangle,
-  RefreshCcw
+  RefreshCw
 } from 'lucide-react';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -85,8 +86,8 @@ export const PermissionsManager = () => {
     return result;
   }, [permissions]);
 
-  // Safely handle permission changes
-  const handlePermissionChange = (id: string | number, allowed: boolean) => {
+  // Safely handle permission changes - fixed to handle string ID
+  const handlePermissionChange = (id: string, allowed: boolean) => {
     if (updatePermission) {
       updatePermission.mutate({ id, allowed });
     }
@@ -174,12 +175,23 @@ export const PermissionsManager = () => {
     setRetryCount(prev => prev + 1);
   };
 
-  // Create a fallback permissions structure when there's an error
+  // Create a fallback permissions structure when there's an error - Fixed type issue
   const fallbackPermissions = useMemo(() => {
     if (!error || !roles || roles.length === 0) return null;
     
-    // Create empty structure with default roles
-    const fallback: Record<Role, Permission[]> = {};
+    // Create empty structure with all required roles
+    const fallback: Record<Role, Permission[]> = {
+      owner: [],
+      admin: [],
+      supply_admin: [],
+      bi: [],
+      monitoring_supervisor: [],
+      monitoring: [],
+      supply: [],
+      soporte: [],
+      pending: [],
+      unverified: []
+    };
     
     // Add each role with an empty array
     (roles as Role[]).forEach(role => {
@@ -242,7 +254,7 @@ export const PermissionsManager = () => {
                 onClick={handleRetry}
                 className="flex items-center gap-2"
               >
-                <RefreshCcw className="h-4 w-4" />
+                <RefreshCw className="h-4 w-4" />
                 Reintentar
               </Button>
             </div>

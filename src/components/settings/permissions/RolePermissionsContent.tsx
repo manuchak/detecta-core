@@ -13,7 +13,7 @@ interface RolePermissionsContentProps {
   permissions: Permission[] | undefined;
   filteredPermissions: Permission[] | undefined;
   typeFilter: string;
-  onPermissionChange: (id: number, allowed: boolean) => void;
+  onPermissionChange: (id: string, allowed: boolean) => void; // Fixed: changed from number to string
   onAddPermission: (role: Role) => void; 
 }
 

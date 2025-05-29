@@ -16,7 +16,7 @@ import { Check, X, ShieldCheck, File, Folder, Key } from 'lucide-react';
 interface PermissionsListProps {
   type: string;
   typePermissions: Permission[];
-  onPermissionChange: (id: number, allowed: boolean) => void;
+  onPermissionChange: (id: string, allowed: boolean) => void; // Fixed: changed from number to string
 }
 
 export const PermissionsList = ({ 
@@ -148,7 +148,7 @@ export const PermissionsList = ({
                   <Switch
                     checked={permission.allowed}
                     onCheckedChange={(checked) => 
-                      onPermissionChange(permission.id, checked)
+                      onPermissionChange(permission.id, checked) // Fixed: using string ID
                     }
                     className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
                   />
