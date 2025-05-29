@@ -3,7 +3,96 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { Permission, PermissionsByRole, RolePermissionInput, Role } from '@/types/roleTypes';
-import { fetchUserRoles, fetchRolePermissions } from '@/utils/dbHelpers';
+
+// Helper function to fetch roles safely
+const fetchAvailableRoles = async (): Promise<Role[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('role')
+      .order('created_at');
+    
+    if (error) {
+      console.error('Error fetching roles:', error);
+      // Return default roles as fallback
+      return [
+        'owner',
+        'admin',
+        'supply_admin',
+        'supply',
+        'soporte',
+        'bi',
+        'monitoring_supervisor',
+        'monitoring',
+        'pending',
+        'unverified'
+      ];
+    }
+    
+    // Get unique roles and sort them by hierarchy
+    const uniqueRoles = [...new Set(data.map(item => item.role as Role))];
+    
+    return uniqueRoles.sort((a, b) => {
+      const sortOrder = {
+        'owner': 1,
+        'admin': 2,
+        'supply_admin': 3,
+        'bi': 4,
+        'monitoring_supervisor': 5,
+        'monitoring': 6,
+        'supply': 7,
+        'soporte': 8,
+        'pending': 9,
+        'unverified': 10
+      };
+      const orderA = sortOrder[a as keyof typeof sortOrder] || 100;
+      const orderB = sortOrder[b as keyof typeof sortOrder] || 100;
+      return orderA - orderB;
+    });
+  } catch (err) {
+    console.error('Error in fetchAvailableRoles:', err);
+    // Return default roles as fallback
+    return [
+      'owner',
+      'admin',
+      'supply_admin',
+      'supply',
+      'soporte',
+      'bi',
+      'monitoring_supervisor',
+      'monitoring',
+      'pending',
+      'unverified'
+    ];
+  }
+};
+
+// Helper function to fetch permissions safely
+const fetchRolePermissions = async (): Promise<Permission[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('role_permissions')
+      .select('id, role, permission_type, permission_id, allowed')
+      .order('role', { ascending: true })
+      .order('permission_type', { ascending: true });
+      
+    if (error) {
+      console.error('Error fetching permissions:', error);
+      return [];
+    }
+    
+    return data.map((p: any) => ({
+      id: p.id, // Keep as UUID string
+      role: p.role as Role,
+      permission_type: p.permission_type,
+      permission_id: p.permission_id,
+      allowed: p.allowed
+    }));
+  } catch (err) {
+    console.error('Error in fetchRolePermissions:', err);
+    return [];
+  }
+};
 
 export const useRolePermissions = () => {
   const { toast } = useToast();
@@ -18,7 +107,7 @@ export const useRolePermissions = () => {
         const rolePermissions = await fetchRolePermissions();
         
         // Get all available roles
-        const allRoles = await fetchUserRoles();
+        const allRoles = await fetchAvailableRoles();
         
         // Group permissions by role
         const permissionsByRole = {} as PermissionsByRole;
@@ -59,15 +148,12 @@ export const useRolePermissions = () => {
 
   // Mutation to update an existing permission
   const updatePermission = useMutation({
-    mutationFn: async ({ id, allowed }: { id: string | number, allowed: boolean }) => {
+    mutationFn: async ({ id, allowed }: { id: string, allowed: boolean }) => {
       try {
-        // Ensure id is a string for database compatibility
-        const permissionId = typeof id === 'number' ? id.toString() : id;
-
         const { data, error } = await supabase
           .from('role_permissions')
           .update({ allowed })
-          .eq('id', permissionId)
+          .eq('id', id)
           .select('id, allowed')
           .single();
         
@@ -75,7 +161,7 @@ export const useRolePermissions = () => {
           throw new Error(`Error updating permission: ${error.message}`);
         }
         
-        return { id: permissionId, allowed };
+        return { id, allowed };
       } catch (error) {
         console.error('Error in updatePermission:', error);
         throw error;

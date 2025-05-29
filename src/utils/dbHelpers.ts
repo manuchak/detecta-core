@@ -78,11 +78,11 @@ export const fetchRolePermissions = async (): Promise<Permission[]> => {
       
     if (error) {
       console.error('Error fetching permissions:', error);
-      throw error;
+      return [];
     }
     
     return data.map((p: any) => ({
-      id: p.id.toString(), // Ensure id is string for consistency
+      id: p.id, // Keep as UUID string
       role: p.role as Role,
       permission_type: p.permission_type,
       permission_id: p.permission_id,
@@ -104,7 +104,7 @@ export const fetchUsersWithRoles = async (): Promise<UserWithRole[]> => {
       
     if (rolesError) {
       console.error('Error fetching user roles:', rolesError);
-      throw rolesError;
+      return [];
     }
     
     // Get profiles
@@ -115,7 +115,7 @@ export const fetchUsersWithRoles = async (): Promise<UserWithRole[]> => {
       
     if (profilesError) {
       console.error('Error fetching profiles:', profilesError);
-      throw profilesError;
+      return [];
     }
     
     // Map roles to users (using highest priority role per user)

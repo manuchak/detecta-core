@@ -10,7 +10,7 @@ export const usePermissions = () => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const { toast } = useToast();
   
-  // Get user's role using a safe function
+  // Get user's role safely using direct database query
   const { data: role, isLoading } = useQuery({
     queryKey: ['user-role', user?.id],
     queryFn: async () => {
@@ -18,16 +18,22 @@ export const usePermissions = () => {
       
       try {
         console.log("Getting role for user:", user.id);
-        // Use RPC function to safely get the user's role
+        
+        // Direct query to user_roles table
         const { data, error } = await supabase
-          .rpc('get_user_role_safe', { user_uid: user.id });
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
         
         if (error) {
           console.error('Error getting user role:', error);
           
           // If no role found, try to create owner role for first user
-          if (error.message.includes('not found')) {
-            console.log('Trying to create owner role...');
+          if (error.code === 'PGRST116') { // No rows returned
+            console.log('No role found, creating owner role...');
             const { error: insertError } = await supabase
               .from('user_roles')
               .insert([{ 
@@ -41,8 +47,8 @@ export const usePermissions = () => {
               console.error('Error creating owner role:', insertError);
             } else {
               toast({
-                title: "Access granted",
-                description: "Owner role has been configured for your user",
+                title: "Acceso concedido",
+                description: "Se ha configurado el rol de propietario para tu usuario",
                 variant: "default",
               });
               return 'owner';
@@ -53,32 +59,8 @@ export const usePermissions = () => {
           return 'owner';
         }
         
-        console.log("Role received:", data);
-        
-        // If no role found, set as owner (simplified approach)
-        if (!data) {
-          // Insert owner role
-          const { error: insertError } = await supabase
-            .from('user_roles')
-            .insert([{
-              user_id: user.id,
-              role: 'owner'
-            }]);
-            
-          toast({
-            title: "Access granted",
-            description: "Owner role has been configured for your user",
-            variant: "default",
-          });
-          
-          if (insertError) {
-            console.error('Error creating owner role:', insertError);
-          }
-          
-          return 'owner';
-        }
-        
-        return data;
+        console.log("Role received:", data?.role);
+        return data?.role || 'owner';
       } catch (err) {
         console.error('Unexpected error in usePermissions:', err);
         return 'owner'; // Fallback to owner to avoid blocking access
@@ -112,14 +94,19 @@ export const usePermissions = () => {
       if (userRole === 'owner') return true;
       
       if (user?.id) {
-        // Use existing function for compatibility
-        const { data } = await supabase
-          .rpc('has_role', { 
-            user_uid: user.id, 
-            required_role: requiredRole 
-          });
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('role', requiredRole)
+          .limit(1);
         
-        return !!data;
+        if (error) {
+          console.error('Error checking role:', error);
+          return false;
+        }
+        
+        return data.length > 0;
       }
       return false;
     } catch (err) {
@@ -165,15 +152,22 @@ export const usePermissions = () => {
           return true;
         }
         
-        // Use existing function
-        const { data } = await supabase
-          .rpc('user_has_permission', { 
-            user_uid: user.id, 
-            permission_type: permissionType, 
-            permission_id: permissionId 
-          });
+        // Query role_permissions table directly
+        const { data, error } = await supabase
+          .from('role_permissions')
+          .select('allowed')
+          .eq('role', userRole)
+          .eq('permission_type', permissionType)
+          .eq('permission_id', permissionId)
+          .eq('allowed', true)
+          .limit(1);
         
-        return !!data;
+        if (error) {
+          console.error('Error checking permission:', error);
+          return false;
+        }
+        
+        return data.length > 0;
       }
       return false;
     } catch (err) {

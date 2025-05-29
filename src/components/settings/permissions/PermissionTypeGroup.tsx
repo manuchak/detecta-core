@@ -18,7 +18,7 @@ import * as LucideIcons from 'lucide-react';
 interface PermissionTypeGroupProps {
   type: string;
   permissions: Permission[];
-  onPermissionChange: (id: number, allowed: boolean) => void;
+  onPermissionChange: (id: string, allowed: boolean) => void; // Fixed: changed from number to string
 }
 
 export const PermissionTypeGroup = ({ type, permissions, onPermissionChange }: PermissionTypeGroupProps) => {

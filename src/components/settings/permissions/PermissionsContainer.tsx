@@ -8,7 +8,7 @@ import { AlertCircle } from 'lucide-react';
 interface PermissionsContainerProps {
   role: string;
   permissions: Permission[] | undefined;
-  onPermissionChange: (id: number, allowed: boolean) => void;
+  onPermissionChange: (id: string, allowed: boolean) => void; // Fixed: changed from number to string
 }
 
 export const PermissionsContainer = ({ 
