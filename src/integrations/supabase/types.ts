@@ -715,6 +715,10 @@ export type Database = {
         Args: { user_id: string }
         Returns: undefined
       }
+      assign_initial_owner: {
+        Args: { target_email: string }
+        Returns: boolean
+      }
       assign_user_role: {
         Args: { target_user_id: string; new_role: string }
         Returns: boolean
