@@ -77,9 +77,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
           
           // Update last login in background without blocking
-          setTimeout(() => {
+          setTimeout(async () => {
             if (mounted) {
-              supabase.rpc('update_last_login').catch(console.error);
+              try {
+                await supabase.rpc('update_last_login');
+              } catch (error) {
+                console.error('Error updating last login:', error);
+              }
             }
           }, 100);
         }
