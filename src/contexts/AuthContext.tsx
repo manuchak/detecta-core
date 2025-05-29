@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,28 +55,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // Set up the auth state listener
+    let mounted = true;
+
+    // Set up the auth state listener - KEEP IT SIMPLE
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
+        if (!mounted) return;
+
         console.log("Auth state changed:", event, currentSession?.user?.email);
         
+        // Only update state - no other async operations
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         
+        // Show appropriate toasts for auth events
         if (event === 'SIGNED_IN' && currentSession?.user) {
           console.log("User signed in:", currentSession.user.email);
-          
-          // Update last login
-          try {
-            await supabase.rpc('update_last_login');
-          } catch (error) {
-            console.error('Error updating last login:', error);
-          }
-          
           toast({
             title: "Bienvenido",
             description: `Has iniciado sesión como ${currentSession.user.email}`,
           });
+          
+          // Update last login in background without blocking
+          setTimeout(() => {
+            if (mounted) {
+              supabase.rpc('update_last_login').catch(console.error);
+            }
+          }, 100);
         }
         
         if (event === 'SIGNED_OUT') {
@@ -101,13 +105,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      if (!mounted) return;
+      
       console.log("Initial session check:", currentSession?.user?.email);
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [toast]);
 
   const signIn = async (email: string, password: string) => {
