@@ -6,30 +6,82 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 export const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showEmailNotConfirmed, setShowEmailNotConfirmed] = useState(false);
   const { toast } = useToast();
   const { signIn } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
+    setShowEmailNotConfirmed(false);
     
     try {
       await signIn(email, password);
       // No need to redirect, this will be handled by the AuthLayout component
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error);
+      
+      // Mostrar alerta específica para email no confirmado
+      if (error.message?.includes('Email not confirmed') || 
+          error.message?.includes('email_not_confirmed')) {
+        setShowEmailNotConfirmed(true);
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  const handleResendConfirmation = async () => {
+    if (!email) {
+      toast({
+        title: "Error",
+        description: "Por favor ingresa tu email para reenviar la confirmación",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Aquí podrías implementar la lógica para reenviar el email de confirmación
+      toast({
+        title: "Email enviado",
+        description: "Se ha reenviado el email de confirmación a tu bandeja de entrada",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo reenviar el email de confirmación",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {showEmailNotConfirmed && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Tu email no está confirmado. Revisa tu bandeja de entrada y haz clic en el enlace de confirmación.
+            <Button 
+              variant="link" 
+              className="p-0 h-auto ml-2 text-destructive underline"
+              onClick={handleResendConfirmation}
+              type="button"
+            >
+              Reenviar email
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input

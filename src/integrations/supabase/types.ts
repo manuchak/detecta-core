@@ -1386,6 +1386,16 @@ export type Database = {
           km_travelled: number
         }[]
       }
+      get_user_confirmation_status: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          user_id: string
+          email: string
+          email_confirmed_at: string
+          is_confirmed: boolean
+          profile_verified: boolean
+        }[]
+      }
       get_user_role: {
         Args: { user_id: string }
         Returns: string
@@ -1534,6 +1544,10 @@ export type Database = {
         Returns: {
           linked_services: number
         }[]
+      }
+      manually_verify_user: {
+        Args: { user_email: string }
+        Returns: boolean
       }
       migrate_existing_categories: {
         Args: Record<PropertyKey, never>
