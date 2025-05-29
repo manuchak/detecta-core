@@ -149,12 +149,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }, 100);
         }
         
-        // Manejar confirmación de email
-        if (event === 'SIGNED_UP') {
-          toast({
-            title: "Registro exitoso",
-            description: "Por favor revisa tu email para confirmar tu cuenta.",
-          });
+        // Manejar confirmación de email - Fixed the comparison
+        if (event === 'USER_UPDATED' && currentSession?.user) {
+          // Check if email was just confirmed
+          if (currentSession.user.email_confirmed_at) {
+            toast({
+              title: "Email confirmado",
+              description: "Tu email ha sido confirmado exitosamente.",
+            });
+          }
         }
       }
     );
@@ -239,7 +242,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: {
             display_name: name,
           },
-          emailRedirectTo: `${window.location.origin}/dashboard`
+          emailRedirectTo: `${window.location.origin}/auth/confirm`
         },
       });
 
