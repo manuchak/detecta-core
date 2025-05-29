@@ -135,7 +135,7 @@ export const usePermissions = () => {
       if (userRole === 'owner') return true;
       
       if (user?.id) {
-        // Intentar usar la nueva función con fallback a la antigua
+        // Intentar usar la nueva función si existe, sino usar la función existente
         try {
           const { data } = await supabase
             .rpc('has_role_or_higher', { 
