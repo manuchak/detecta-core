@@ -9,12 +9,12 @@ export const useRolePermissions = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Query to get all permissions by role
+  // Query to get all permissions by role - MANTENER FUNCIONALIDAD EXISTENTE
   const { data: permissions, isLoading, error, refetch } = useQuery({
     queryKey: ['role-permissions'],
     queryFn: async () => {
       try {
-        // Get all permissions using type casting
+        // Get all permissions using helper functions (manteniendo compatibilidad)
         const rolePermissions = await fetchRolePermissions();
         
         // Get all available roles
@@ -57,12 +57,12 @@ export const useRolePermissions = () => {
     retry: 1,
   });
 
-  // Mutation to update an existing permission
+  // Mutation to update an existing permission - MANTENER FUNCIONALIDAD EXISTENTE
   const updatePermission = useMutation({
     mutationFn: async ({ id, allowed }: { id: number, allowed: boolean }) => {
       try {
-        // Use type casting to bypass TypeScript issues
-        const { data, error } = await (supabase as any)
+        // Mantener query directo para compatibilidad
+        const { data, error } = await supabase
           .from('role_permissions')
           .update({ allowed })
           .eq('id', id)
@@ -95,14 +95,14 @@ export const useRolePermissions = () => {
     }
   });
 
-  // Mutation to add a new permission
+  // Mutation to add a new permission - MANTENER FUNCIONALIDAD EXISTENTE
   const addPermission = useMutation({
     mutationFn: async ({ role, permissionType, permissionId, allowed }: RolePermissionInput) => {
       try {
         console.log(`Adding permission: ${role}.${permissionType}.${permissionId}=${allowed}`);
         
-        // Use type casting to bypass TypeScript issues
-        const { data, error } = await (supabase as any)
+        // Mantener insert directo para compatibilidad
+        const { data, error } = await supabase
           .from('role_permissions')
           .insert([{
             role: role,

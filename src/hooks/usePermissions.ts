@@ -107,14 +107,14 @@ export const usePermissions = () => {
     setUserRole(role);
   }, [role, user, isLoading]);
 
-  // Check if user has a specific role
+  // Check if user has a specific role - MANTENER FUNCIONALIDAD EXISTENTE
   const hasRole = async (requiredRole: string): Promise<boolean> => {
     try {
       if (userRole === 'owner') return true;
       
       if (user?.id) {
-        // Use type casting to bypass TypeScript until types are regenerated
-        const { data } = await (supabase as any)
+        // Usar función existente para mantener compatibilidad
+        const { data } = await supabase
           .rpc('has_role', { 
             user_uid: user.id, 
             required_role: requiredRole 
@@ -129,7 +129,34 @@ export const usePermissions = () => {
     }
   };
 
-  // Check if user has a specific permission
+  // Nueva función helper para jerarquía (OPCIONAL - no afecta funcionalidad existente)
+  const hasRoleOrHigher = async (requiredRole: string): Promise<boolean> => {
+    try {
+      if (userRole === 'owner') return true;
+      
+      if (user?.id) {
+        // Intentar usar la nueva función con fallback a la antigua
+        try {
+          const { data } = await supabase
+            .rpc('has_role_or_higher', { 
+              user_uid: user.id, 
+              required_role: requiredRole 
+            });
+          return !!data;
+        } catch (newFuncError) {
+          // Fallback a función existente si la nueva no está disponible
+          console.log('Falling back to original hasRole function');
+          return await hasRole(requiredRole);
+        }
+      }
+      return false;
+    } catch (err) {
+      console.error('Error in hasRoleOrHigher:', err);
+      return false;
+    }
+  };
+
+  // Check if user has a specific permission - MANTENER FUNCIONALIDAD EXISTENTE
   const hasPermission = async (permissionType: string, permissionId: string): Promise<boolean> => {
     try {
       if (user?.id && userRole) {
@@ -137,8 +164,8 @@ export const usePermissions = () => {
           return true;
         }
         
-        // Use type casting to bypass TypeScript until types are regenerated
-        const { data } = await (supabase as any)
+        // Mantener función existente
+        const { data } = await supabase
           .rpc('user_has_permission', { 
             user_uid: user.id, 
             permission_type: permissionType, 
@@ -156,7 +183,8 @@ export const usePermissions = () => {
 
   return {
     userRole: userRole || 'owner',
-    hasRole,
+    hasRole, // Función existente mantenida
+    hasRoleOrHigher, // Nueva función opcional
     hasPermission,
     isLoading,
     isAdmin: userRole === 'admin' || userRole === 'owner',
