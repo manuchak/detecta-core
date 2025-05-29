@@ -3,7 +3,7 @@ import { Navigate, Outlet } from "react-router-dom";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { useState } from "react";
 import { Header } from "@/components/dashboard/Header";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 import { useLocation } from "react-router-dom";
 

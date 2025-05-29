@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { assignOwnerRoleToUser } from '@/utils/assignOwnerRole';
+import { useAuth } from '@/hooks/useAuth';
 import { useToast } from "@/components/ui/use-toast";
 import { 
   Card, 
@@ -15,16 +15,29 @@ import { Loader2 } from 'lucide-react';
 const AssignOwnerRole = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { user, assignRole, refetchRole } = useAuth();
 
   const handleAssignOwnerRole = async () => {
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "No hay usuario autenticado",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      await assignOwnerRoleToUser('manuel.chacon@detectasecurity.io');
+      const success = await assignRole(user.id, 'owner');
       
-      toast({
-        title: "Éxito",
-        description: "Rol de owner asignado correctamente a manuel.chacon@detectasecurity.io",
-      });
+      if (success) {
+        await refetchRole();
+        toast({
+          title: "Éxito",
+          description: "Rol de owner asignado correctamente",
+        });
+      }
       
     } catch (error) {
       toast({
@@ -43,13 +56,13 @@ const AssignOwnerRole = () => {
         <CardHeader>
           <CardTitle>Asignar Rol de Owner</CardTitle>
           <CardDescription>
-            Asignar rol de propietario al usuario creador del proyecto
+            Asignar rol de propietario al usuario autenticado actual
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="p-4 bg-muted rounded-lg">
             <p className="text-sm">
-              <strong>Usuario:</strong> manuel.chacon@detectasecurity.io
+              <strong>Usuario:</strong> {user?.email || 'No autenticado'}
             </p>
             <p className="text-sm text-muted-foreground mt-1">
               Este usuario será asignado como propietario del proyecto
@@ -59,7 +72,7 @@ const AssignOwnerRole = () => {
           <Button
             className="w-full"
             onClick={handleAssignOwnerRole}
-            disabled={loading}
+            disabled={loading || !user}
           >
             {loading ? (
               <>

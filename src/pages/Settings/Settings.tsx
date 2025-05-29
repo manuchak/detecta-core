@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import ApiCredentials from "@/components/settings/ApiCredentials";
 import { UserRoleManager } from "@/components/settings/UserRoleManager";
 import { PermissionsManager } from "@/components/settings/PermissionsManager";
