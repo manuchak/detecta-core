@@ -1,8 +1,8 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { Role, UserWithRole } from '@/types/roleTypes';
-import { fetchUsersWithRoles } from '@/utils/dbHelpers';
 
 export const useUserRoles = () => {
   const { toast } = useToast();
@@ -12,8 +12,15 @@ export const useUserRoles = () => {
     queryKey: ['users-with-roles'],
     queryFn: async () => {
       try {
-        // Use the helper function that avoids RLS recursion
-        return await fetchUsersWithRoles();
+        // Use the new secure function
+        const { data, error } = await supabase.rpc('get_users_with_roles_secure');
+        
+        if (error) {
+          console.error("Error fetching users with roles:", error);
+          throw error;
+        }
+        
+        return data as UserWithRole[];
       } catch (error) {
         console.error("Error in useUserRoles:", error);
         throw error;
@@ -23,7 +30,6 @@ export const useUserRoles = () => {
 
   const updateUserRole = useMutation({
     mutationFn: async ({ userId, role }: { userId: string, role: Role }) => {
-      // Direct SQL approach to avoid recursion
       try {
         // First delete any existing role
         const { error: deleteError } = await supabase
@@ -72,7 +78,6 @@ export const useUserRoles = () => {
     mutationFn: async ({ userId }: { userId: string }) => {
       try {
         // Directly update the auth.users table with the service role
-        // This approach avoids RLS restrictions
         const { data, error } = await supabase.auth.admin.updateUserById(
           userId,
           { email_confirm: true }

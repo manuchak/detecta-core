@@ -8,10 +8,7 @@ import { Role, Permission, UserWithRole } from '@/types/roleTypes';
 
 export const fetchUserRoles = async (): Promise<Role[]> => {
   try {
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('role')
-      .order('created_at');
+    const { data, error } = await supabase.rpc('get_available_roles_secure');
     
     if (error) {
       console.error('Error fetching user roles:', error);
@@ -30,26 +27,7 @@ export const fetchUserRoles = async (): Promise<Role[]> => {
       ];
     }
     
-    // Get unique roles and sort them by hierarchy
-    const uniqueRoles = [...new Set(data.map(item => item.role))];
-    
-    return uniqueRoles.sort((a, b) => {
-      const sortOrder = {
-        'owner': 1,
-        'admin': 2,
-        'supply_admin': 3,
-        'bi': 4,
-        'monitoring_supervisor': 5,
-        'monitoring': 6,
-        'supply': 7,
-        'soporte': 8,
-        'pending': 9,
-        'unverified': 10
-      };
-      const orderA = sortOrder[a as keyof typeof sortOrder] || 100;
-      const orderB = sortOrder[b as keyof typeof sortOrder] || 100;
-      return orderA - orderB;
-    }) as Role[];
+    return data || [];
   } catch (err) {
     console.error('Error in fetchUserRoles:', err);
     // Return default roles as fallback
@@ -82,7 +60,7 @@ export const fetchRolePermissions = async (): Promise<Permission[]> => {
     }
     
     return data.map((p: any) => ({
-      id: p.id, // Keep as UUID string
+      id: p.id,
       role: p.role as Role,
       permission_type: p.permission_type,
       permission_id: p.permission_id,
@@ -96,64 +74,14 @@ export const fetchRolePermissions = async (): Promise<Permission[]> => {
 
 export const fetchUsersWithRoles = async (): Promise<UserWithRole[]> => {
   try {
-    // Get all user roles
-    const { data: userRoles, error: rolesError } = await supabase
-      .from('user_roles')
-      .select('user_id, role')
-      .order('user_id');
-      
-    if (rolesError) {
-      console.error('Error fetching user roles:', rolesError);
+    const { data, error } = await supabase.rpc('get_users_with_roles_secure');
+    
+    if (error) {
+      console.error('Error fetching users with roles:', error);
       return [];
     }
     
-    // Get profiles
-    const { data: profiles, error: profilesError } = await supabase
-      .from('profiles')
-      .select('id, email, display_name, created_at, last_login')
-      .order('created_at', { ascending: false });
-      
-    if (profilesError) {
-      console.error('Error fetching profiles:', profilesError);
-      return [];
-    }
-    
-    // Map roles to users (using highest priority role per user)
-    const roleMap = new Map<string, Role>();
-    const roleHierarchy = {
-      'owner': 10,
-      'admin': 9,
-      'supply_admin': 8,
-      'bi': 7,
-      'monitoring_supervisor': 6,
-      'monitoring': 5,
-      'supply': 4,
-      'soporte': 3,
-      'pending': 2,
-      'unverified': 1
-    };
-    
-    if (Array.isArray(userRoles)) {
-      userRoles.forEach((ur: any) => {
-        const currentRole = roleMap.get(ur.user_id);
-        const currentPriority = currentRole ? roleHierarchy[currentRole as keyof typeof roleHierarchy] || 0 : 0;
-        const newPriority = roleHierarchy[ur.role as keyof typeof roleHierarchy] || 0;
-        
-        if (newPriority > currentPriority) {
-          roleMap.set(ur.user_id, ur.role);
-        }
-      });
-    }
-    
-    // Combine data
-    return profiles.map(profile => ({
-      id: profile.id,
-      email: profile.email,
-      display_name: profile.display_name,
-      role: roleMap.get(profile.id) || 'unverified',
-      created_at: profile.created_at,
-      last_login: profile.last_login
-    }));
+    return data || [];
   } catch (err) {
     console.error('Error in fetchUsersWithRoles:', err);
     return [];

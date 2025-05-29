@@ -1107,6 +1107,12 @@ export type Database = {
           user_roles: string[]
         }[]
       }
+      get_available_roles_secure: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          role: string
+        }[]
+      }
       get_current_user_ranking_stats: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1498,6 +1504,17 @@ export type Database = {
           manager_users: number
           custodio_users: number
           users_last_30_days: number
+        }[]
+      }
+      get_users_with_roles_secure: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          email: string
+          display_name: string
+          role: string
+          created_at: string
+          last_login: string
         }[]
       }
       get_weekly_leaderboard: {
