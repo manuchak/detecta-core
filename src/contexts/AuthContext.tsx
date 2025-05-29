@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,91 +35,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log("Getting role for user:", user.id);
       
-      // Try using the function with proper type casting
-      const { data, error } = await (supabase as any)
-        .rpc('get_user_role_safe', { user_uid: user.id });
+      // Direct table query to avoid function issues
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
       
-      if (error) {
-        console.error('Error fetching user role:', error);
-        // Fallback to direct table query
-        const { data: roleData, error: roleError } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1);
-        
-        if (roleError) {
-          console.error('Error fetching user role from table:', roleError);
-          setUserRole('pending'); // Default role para nuevos usuarios
-          return;
-        }
-        
-        const role = roleData && roleData.length > 0 ? roleData[0].role : 'pending';
-        setUserRole(role);
+      if (roleError) {
+        console.error('Error fetching user role from table:', roleError);
+        setUserRole('pending'); // Default role para nuevos usuarios
         return;
       }
       
-      console.log("Role received:", data);
-      setUserRole(typeof data === 'string' ? data : 'pending');
+      const role = roleData && roleData.length > 0 ? roleData[0].role : 'pending';
+      console.log("Role received:", role);
+      setUserRole(role);
     } catch (error) {
       console.error('Error in refreshUserRole:', error);
       setUserRole('pending'); // Default role
-    }
-  };
-
-  // Auto-assign owner role to manuel.chacon@detectasecurity.io
-  const autoAssignOwnerRole = async (currentUser: User) => {
-    if (currentUser.email === 'manuel.chacon@detectasecurity.io') {
-      try {
-        console.log("Auto-assigning owner role to project creator");
-        
-        // Check if user already has a role
-        const { data: existingRole } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', currentUser.id)
-          .single();
-        
-        if (!existingRole) {
-          // Get the current session
-          const { data: { session: currentSession } } = await supabase.auth.getSession();
-          
-          if (currentSession) {
-            // Call the Edge Function to assign the owner role
-            const response = await fetch('https://beefjsdgrdeiymzxwxru.supabase.co/functions/v1/assign-role', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${currentSession.access_token}`
-              },
-              body: JSON.stringify({
-                user_id: currentUser.id,
-                role: 'owner'
-              })
-            });
-
-            const result = await response.json();
-            
-            if (response.ok) {
-              console.log("Owner role auto-assigned successfully:", result);
-              toast({
-                title: "Rol asignado",
-                description: "Rol de propietario asignado automáticamente",
-              });
-              
-              // Refresh role
-              setTimeout(() => {
-                refreshUserRole();
-              }, 500);
-            } else {
-              console.error("Error auto-assigning role:", result);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error in auto-assign owner role:', error);
-      }
     }
   };
 
@@ -169,9 +105,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (event === 'SIGNED_IN' && currentSession?.user) {
           console.log("User signed in:", currentSession.user.email);
           
-          // Auto-assign owner role if needed
-          await autoAssignOwnerRole(currentSession.user);
-          
           // Actualizar último login
           try {
             await supabase.rpc('update_last_login');
@@ -182,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Actualizar rol después de un breve delay
           setTimeout(() => {
             refreshUserRole();
-          }, 100);
+          }, 500);
           
           toast({
             title: "Bienvenido",
@@ -206,7 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }, 100);
         }
         
-        // Manejar confirmación de email - Fixed the comparison
+        // Manejar confirmación de email
         if (event === 'USER_UPDATED' && currentSession?.user) {
           // Check if email was just confirmed
           if (currentSession.user.email_confirmed_at) {
@@ -226,9 +159,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentSession?.user ?? null);
       setLoading(false);
       
-      // Si hay sesión, obtener el rol y auto-asignar owner si es necesario
+      // Si hay sesión, obtener el rol
       if (currentSession?.user) {
-        autoAssignOwnerRole(currentSession.user);
         refreshUserRole();
       }
     });

@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 export const Dashboard = () => {
   const { userRole, refreshUserRole } = useAuth();
   const { toast } = useToast();
-  const { validateUserRole, ensureOwnerRole, isOwner, currentRole, isLoading } = useRoleValidation();
+  const { ensureOwnerRole, isOwner, currentRole, isLoading } = useRoleValidation();
 
   const [timeframe, setTimeframe] = useState<TimeframeOption>("month");
   const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceTypeOption>("all");
@@ -38,17 +38,6 @@ export const Dashboard = () => {
     topClientsData,
     refreshAllData
   } = useDashboardData(timeframe, serviceTypeFilter);
-
-  useEffect(() => {
-    // Display a toast with user role information to help debug
-    if (userRole) {
-      toast({
-        title: "Información de Sesión",
-        description: `Rol actual: ${userRole}`,
-        duration: 5000,
-      });
-    }
-  }, [userRole, toast]);
 
   const handleTabChange = (value: string) => {
     setActiveTab(value as "overview" | "calendar");
