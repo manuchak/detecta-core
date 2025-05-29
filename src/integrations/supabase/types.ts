@@ -120,6 +120,57 @@ export type Database = {
         }
         Relationships: []
       }
+      leads: {
+        Row: {
+          asignado_a: string | null
+          created_at: string
+          email: string
+          empresa: string | null
+          estado: string | null
+          fecha_contacto: string | null
+          fecha_creacion: string
+          fuente: string | null
+          id: string
+          mensaje: string | null
+          nombre: string
+          notas: string | null
+          telefono: string | null
+          updated_at: string
+        }
+        Insert: {
+          asignado_a?: string | null
+          created_at?: string
+          email: string
+          empresa?: string | null
+          estado?: string | null
+          fecha_contacto?: string | null
+          fecha_creacion?: string
+          fuente?: string | null
+          id?: string
+          mensaje?: string | null
+          nombre: string
+          notas?: string | null
+          telefono?: string | null
+          updated_at?: string
+        }
+        Update: {
+          asignado_a?: string | null
+          created_at?: string
+          email?: string
+          empresa?: string | null
+          estado?: string | null
+          fecha_contacto?: string | null
+          fecha_creacion?: string
+          fuente?: string | null
+          id?: string
+          mensaje?: string | null
+          nombre?: string
+          notas?: string | null
+          telefono?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       point_rules: {
         Row: {
           category: string
@@ -384,6 +435,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      role_permissions: {
+        Row: {
+          allowed: boolean
+          created_at: string
+          id: string
+          permission_id: string
+          permission_type: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          allowed?: boolean
+          created_at?: string
+          id?: string
+          permission_id: string
+          permission_type: string
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          allowed?: boolean
+          created_at?: string
+          id?: string
+          permission_id?: string
+          permission_type?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       servicios_custodia: {
         Row: {
@@ -1001,6 +1082,13 @@ export type Database = {
           category_id: string
         }[]
       }
+      get_all_user_roles_safe: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          user_id: string
+          role: string
+        }[]
+      }
       get_all_users_with_roles: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1312,6 +1400,12 @@ export type Database = {
           role: string
         }[]
       }
+      get_user_roles_safe: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          role: string
+        }[]
+      }
       get_user_services_by_phone: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1398,6 +1492,10 @@ export type Database = {
           puntos: number
           posicion: number
         }[]
+      }
+      has_role: {
+        Args: { user_uid: string; required_role: string }
+        Returns: boolean
       }
       is_admin: {
         Args: Record<PropertyKey, never> | { user_id: string }
@@ -1518,6 +1616,14 @@ export type Database = {
         }
         Returns: string
       }
+      user_has_permission: {
+        Args: {
+          user_uid: string
+          permission_type: string
+          permission_id: string
+        }
+        Returns: boolean
+      }
       user_has_role: {
         Args: { user_id: string; required_role: string }
         Returns: boolean
@@ -1558,7 +1664,18 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      app_role:
+        | "owner"
+        | "admin"
+        | "supply_admin"
+        | "bi"
+        | "monitoring_supervisor"
+        | "monitoring"
+        | "supply"
+        | "soporte"
+        | "pending"
+        | "unverified"
+        | "custodio"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1673,6 +1790,20 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: [
+        "owner",
+        "admin",
+        "supply_admin",
+        "bi",
+        "monitoring_supervisor",
+        "monitoring",
+        "supply",
+        "soporte",
+        "pending",
+        "unverified",
+        "custodio",
+      ],
+    },
   },
 } as const

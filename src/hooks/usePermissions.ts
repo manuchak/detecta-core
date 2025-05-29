@@ -86,22 +86,21 @@ export const usePermissions = () => {
       }
     },
     enabled: !!user,
-    retry: 1, // Limit retries to avoid excessive calls on error
-    staleTime: 60000, // Cache results for 1 minute
+    retry: 1,
+    staleTime: 60000,
   });
 
   // Update role state when data changes
   useEffect(() => {
     if (role === undefined) {
       if (user && !isLoading) {
-        // Fallback to owner if query failed but user exists
         setUserRole('owner');
       }
       return;
     }
 
     if (role === null) {
-      setUserRole('owner'); // Set default role if null
+      setUserRole('owner');
       return;
     }
     
@@ -111,12 +110,11 @@ export const usePermissions = () => {
   // Check if user has a specific role
   const hasRole = async (requiredRole: string): Promise<boolean> => {
     try {
-      // If user is owner, they have all roles
       if (userRole === 'owner') return true;
       
-      // Direct query to check role
       if (user?.id) {
-        const { data } = await supabase
+        // Use type casting to bypass TypeScript until types are regenerated
+        const { data } = await (supabase as any)
           .rpc('has_role', { 
             user_uid: user.id, 
             required_role: requiredRole 
@@ -134,15 +132,13 @@ export const usePermissions = () => {
   // Check if user has a specific permission
   const hasPermission = async (permissionType: string, permissionId: string): Promise<boolean> => {
     try {
-      // Direct query to check permission
       if (user?.id && userRole) {
-        // Owner always has all permissions
         if (userRole === 'owner') {
           return true;
         }
         
-        // Check specific permission
-        const { data } = await supabase
+        // Use type casting to bypass TypeScript until types are regenerated
+        const { data } = await (supabase as any)
           .rpc('user_has_permission', { 
             user_uid: user.id, 
             permission_type: permissionType, 

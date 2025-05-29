@@ -35,17 +35,22 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 
-// Interface for the Lead data from Supabase
+// Interface for the Lead data from the new leads table
 interface Lead {
-  id: number;
-  nombre: string | null;
-  email: string | null;
+  id: string;
+  nombre: string;
+  email: string;
   telefono: string | null;
-  estado: string | null;
   empresa: string | null;
-  fecha_creacion: string | null;
+  mensaje: string | null;
+  fuente: string;
+  estado: string;
+  fecha_creacion: string;
+  fecha_contacto: string | null;
+  notas: string | null;
+  asignado_a: string | null;
   created_at: string;
-  fuente: string | null;
+  updated_at: string;
 }
 
 const statusBadgeStyles = {
@@ -54,6 +59,7 @@ const statusBadgeStyles = {
   aprobacion: "bg-purple-100 text-purple-800 hover:bg-purple-100",
   aprobado: "bg-green-100 text-green-800 hover:bg-green-100",
   rechazado: "bg-red-100 text-red-800 hover:bg-red-100",
+  contactado: "bg-orange-100 text-orange-800 hover:bg-orange-100",
 };
 
 export const LeadsList = () => {
@@ -64,12 +70,13 @@ export const LeadsList = () => {
   const [statusFilter, setStatusFilter] = useState("todos");
   const { toast } = useToast();
 
-  // Fetch leads from Supabase
+  // Fetch leads from the new leads table
   useEffect(() => {
     const fetchLeads = async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase
+        // Use type casting to bypass TypeScript issues until types are regenerated
+        const { data, error } = await (supabase as any)
           .from('leads')
           .select('*')
           .order('created_at', { ascending: false });
@@ -78,8 +85,25 @@ export const LeadsList = () => {
           throw error;
         }
         
-        setLeads(data || []);
-        setFilteredLeads(data || []);
+        const typedData: Lead[] = (data || []).map((item: any) => ({
+          id: item.id,
+          nombre: item.nombre || '',
+          email: item.email || '',
+          telefono: item.telefono,
+          empresa: item.empresa,
+          mensaje: item.mensaje,
+          fuente: item.fuente || 'web',
+          estado: item.estado || 'nuevo',
+          fecha_creacion: item.fecha_creacion || item.created_at,
+          fecha_contacto: item.fecha_contacto,
+          notas: item.notas,
+          asignado_a: item.asignado_a,
+          created_at: item.created_at,
+          updated_at: item.updated_at
+        }));
+        
+        setLeads(typedData);
+        setFilteredLeads(typedData);
       } catch (error) {
         console.error('Error fetching leads:', error);
         toast({
@@ -103,10 +127,10 @@ export const LeadsList = () => {
     if (searchTerm) {
       const lowerSearchTerm = searchTerm.toLowerCase();
       result = result.filter((lead) => 
-        (lead.nombre?.toLowerCase().includes(lowerSearchTerm) || false) ||
-        (lead.email?.toLowerCase().includes(lowerSearchTerm) || false) ||
-        (lead.telefono?.toLowerCase().includes(lowerSearchTerm) || false) ||
-        (lead.empresa?.toLowerCase().includes(lowerSearchTerm) || false)
+        lead.nombre.toLowerCase().includes(lowerSearchTerm) ||
+        lead.email.toLowerCase().includes(lowerSearchTerm) ||
+        (lead.telefono && lead.telefono.toLowerCase().includes(lowerSearchTerm)) ||
+        (lead.empresa && lead.empresa.toLowerCase().includes(lowerSearchTerm))
       );
     }
     
@@ -188,6 +212,7 @@ export const LeadsList = () => {
                   <SelectItem value="todos">Todos los estados</SelectItem>
                   <SelectItem value="nuevo">Nuevo</SelectItem>
                   <SelectItem value="proceso">En proceso</SelectItem>
+                  <SelectItem value="contactado">Contactado</SelectItem>
                   <SelectItem value="aprobacion">En aprobación</SelectItem>
                   <SelectItem value="aprobado">Aprobado</SelectItem>
                   <SelectItem value="rechazado">Rechazado</SelectItem>
@@ -202,7 +227,7 @@ export const LeadsList = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nombre</TableHead>
-                  <TableHead>Contacto</TableHead>
+                  <TableHead>Empresa</TableHead>
                   <TableHead className="hidden md:table-cell">Email</TableHead>
                   <TableHead className="hidden lg:table-cell">Teléfono</TableHead>
                   <TableHead>Estado</TableHead>
@@ -234,9 +259,9 @@ export const LeadsList = () => {
                 ) : (
                   filteredLeads.map((lead) => (
                     <TableRow key={lead.id}>
-                      <TableCell className="font-medium">{lead.nombre || "Sin nombre"}</TableCell>
+                      <TableCell className="font-medium">{lead.nombre}</TableCell>
                       <TableCell>{lead.empresa || "Sin empresa"}</TableCell>
-                      <TableCell className="hidden md:table-cell">{lead.email || "Sin email"}</TableCell>
+                      <TableCell className="hidden md:table-cell">{lead.email}</TableCell>
                       <TableCell className="hidden lg:table-cell">{lead.telefono || "Sin teléfono"}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={getStatusBadgeStyle(lead.estado)}>
@@ -244,7 +269,7 @@ export const LeadsList = () => {
                         </Badge>
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
-                        {formatDate(lead.fecha_creacion || lead.created_at)}
+                        {formatDate(lead.fecha_creacion)}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>

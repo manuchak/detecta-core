@@ -8,9 +8,8 @@ import { Role, Permission, UserWithRole } from '@/types/roleTypes';
 
 export const fetchUserRoles = async (): Promise<Role[]> => {
   try {
-    // Using a direct function call instead of querying the table
-    // This avoids the RLS policies that cause recursion
-    const { data, error } = await supabase
+    // Use type casting to bypass TypeScript issues until types are regenerated
+    const { data, error } = await (supabase as any)
       .rpc('get_user_roles_safe');
     
     if (error) {
@@ -70,7 +69,8 @@ export const fetchUserRoles = async (): Promise<Role[]> => {
 
 export const fetchRolePermissions = async (): Promise<Permission[]> => {
   try {
-    const { data, error } = await supabase
+    // Use type casting to bypass TypeScript issues
+    const { data, error } = await (supabase as any)
       .from('role_permissions')
       .select('id, role, permission_type, permission_id, allowed');
       
@@ -79,7 +79,7 @@ export const fetchRolePermissions = async (): Promise<Permission[]> => {
       throw error;
     }
     
-    return data.map(p => ({
+    return data.map((p: any) => ({
       id: p.id,
       role: p.role as Role,
       permission_type: p.permission_type,
@@ -95,7 +95,7 @@ export const fetchRolePermissions = async (): Promise<Permission[]> => {
 export const fetchUsersWithRoles = async (): Promise<UserWithRole[]> => {
   try {
     // Get all user roles through the safe function
-    const { data: allUserRoles, error: rolesError } = await supabase
+    const { data: allUserRoles, error: rolesError } = await (supabase as any)
       .rpc('get_all_user_roles_safe');
       
     if (rolesError) {
@@ -116,7 +116,7 @@ export const fetchUsersWithRoles = async (): Promise<UserWithRole[]> => {
     // Map roles to users
     const roleMap = new Map();
     if (Array.isArray(allUserRoles)) {
-      allUserRoles.forEach(ur => {
+      allUserRoles.forEach((ur: any) => {
         roleMap.set(ur.user_id, ur.role);
       });
     }

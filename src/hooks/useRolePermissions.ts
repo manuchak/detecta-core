@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
@@ -13,7 +14,7 @@ export const useRolePermissions = () => {
     queryKey: ['role-permissions'],
     queryFn: async () => {
       try {
-        // Get all permissions
+        // Get all permissions using type casting
         const rolePermissions = await fetchRolePermissions();
         
         // Get all available roles
@@ -30,7 +31,6 @@ export const useRolePermissions = () => {
         // Populate with fetched permissions
         if (rolePermissions && Array.isArray(rolePermissions)) {
           rolePermissions.forEach(permission => {
-            // Add the role to our list if it doesn't exist yet
             const typedRole = permission.role as Role;
             
             if (!permissionsByRole[typedRole]) {
@@ -53,15 +53,16 @@ export const useRolePermissions = () => {
         throw err;
       }
     },
-    staleTime: 60000, // Cache for 1 minute
-    retry: 1, // Only one retry to avoid excessive requests
+    staleTime: 60000,
+    retry: 1,
   });
 
   // Mutation to update an existing permission
   const updatePermission = useMutation({
     mutationFn: async ({ id, allowed }: { id: number, allowed: boolean }) => {
       try {
-        const { data, error } = await supabase
+        // Use type casting to bypass TypeScript issues
+        const { data, error } = await (supabase as any)
           .from('role_permissions')
           .update({ allowed })
           .eq('id', id)
@@ -100,8 +101,8 @@ export const useRolePermissions = () => {
       try {
         console.log(`Adding permission: ${role}.${permissionType}.${permissionId}=${allowed}`);
         
-        // Use direct insert instead of RPC to avoid recursion issues
-        const { data, error } = await supabase
+        // Use type casting to bypass TypeScript issues
+        const { data, error } = await (supabase as any)
           .from('role_permissions')
           .insert([{
             role: role,
