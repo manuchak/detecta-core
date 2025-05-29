@@ -25,6 +25,7 @@ import MonitoringPage from "@/pages/Monitoring/MonitoringPage";
 import SupplyChainMonitoring from "@/pages/Monitoring/SupplyChainMonitoring";
 import InstallerPortal from "@/pages/Installers/InstallerPortal";
 import AssignRole from "@/pages/Admin/AssignRole";
+import AssignOwnerRole from "@/pages/Admin/AssignOwnerRole";
 import LandingManager from "@/pages/Admin/LandingManager";
 import Landing from "@/pages/Landing/Landing";
 import NotFound from "@/pages/NotFound";
@@ -74,6 +75,7 @@ function App() {
                   <Route path="supply-chain" element={<SupplyChainMonitoring />} />
                   <Route path="installers" element={<InstallerPortal />} />
                   <Route path="admin/assign-role" element={<AssignRole />} />
+                  <Route path="admin/assign-owner" element={<AssignOwnerRole />} />
                   <Route path="admin/landing" element={<LandingManager />} />
                 </Route>
                 
