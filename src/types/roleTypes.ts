@@ -1,48 +1,51 @@
 
-export type Role = 'admin' | 'supply' | 'supply_admin' | 'soporte' | 'bi' | 'monitoring' | 'monitoring_supervisor' | 'owner' | 'pending' | 'unverified' | string;
+export type Role = 
+  | 'owner'
+  | 'admin'
+  | 'supply_admin'
+  | 'bi'
+  | 'monitoring_supervisor'
+  | 'monitoring'
+  | 'supply'
+  | 'soporte'
+  | 'pending'
+  | 'unverified';
 
-export type UserWithRole = {
+export interface Permission {
+  id: string; // Changed from number to string for Supabase UUID compatibility
+  role: Role;
+  permission_type: string;
+  permission_id: string;
+  allowed: boolean;
+}
+
+export interface UserWithRole {
   id: string;
   email: string;
   display_name: string;
   role: Role;
   created_at: string;
-  last_login: string;
-};
+  last_login?: string;
+}
 
-export type Permission = {
-  id: number;
-  role: Role;
-  permission_type: string;
-  permission_id: string;
-  allowed: boolean;
-};
-
-export type PermissionsByRole = Record<Role, Permission[]>;
-
-export type RolePermissionInput = {
+export interface RolePermissionInput {
   role: Role;
   permissionType: string;
   permissionId: string;
   allowed: boolean;
-};
+}
 
-export type NewPermission = {
+export interface CreateRoleInput {
   role: Role;
-  permissionType: string;
-  permissionId: string;
-  allowed: boolean;
-};
+}
 
-export type CreateRoleInput = {
-  role: Role;
-};
-
-export type UpdateRoleInput = {
+export interface UpdateRoleInput {
   oldRole: Role;
   newRole: Role;
-};
+}
 
-export type DeleteRoleInput = {
+export interface DeleteRoleInput {
   role: Role;
-};
+}
+
+export type PermissionsByRole = Record<Role, Permission[]>;

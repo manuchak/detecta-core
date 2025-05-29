@@ -59,18 +59,15 @@ export const useRolePermissions = () => {
 
   // Mutation to update an existing permission
   const updatePermission = useMutation({
-    mutationFn: async ({ id, allowed }: { id: string, allowed: boolean }) => {
+    mutationFn: async ({ id, allowed }: { id: string | number, allowed: boolean }) => {
       try {
-        // Convert id to number for database compatibility
-        const numericId = parseInt(id);
-        if (isNaN(numericId)) {
-          throw new Error('Invalid permission ID');
-        }
+        // Ensure id is a string for database compatibility
+        const permissionId = typeof id === 'number' ? id.toString() : id;
 
         const { data, error } = await supabase
           .from('role_permissions')
           .update({ allowed })
-          .eq('id', numericId)
+          .eq('id', permissionId)
           .select('id, allowed')
           .single();
         
@@ -78,7 +75,7 @@ export const useRolePermissions = () => {
           throw new Error(`Error updating permission: ${error.message}`);
         }
         
-        return { id: numericId, allowed };
+        return { id: permissionId, allowed };
       } catch (error) {
         console.error('Error in updatePermission:', error);
         throw error;

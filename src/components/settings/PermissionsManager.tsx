@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useRoles } from '@/hooks/useRoles';
 import { Role, Permission } from '@/types/roleTypes';
@@ -87,7 +86,7 @@ export const PermissionsManager = () => {
   }, [permissions]);
 
   // Safely handle permission changes
-  const handlePermissionChange = (id: number, allowed: boolean) => {
+  const handlePermissionChange = (id: string | number, allowed: boolean) => {
     if (updatePermission) {
       updatePermission.mutate({ id, allowed });
     }
