@@ -53,7 +53,8 @@ export function useBenefits() {
     setError(null);
     
     try {
-      const { data, error } = await supabase
+      // Use type casting to bypass TypeScript issues until types are regenerated
+      const { data, error } = await (supabase as any)
         .from('benefits')
         .select('*')
         .order('order');
@@ -75,7 +76,10 @@ export function useBenefits() {
         variant: 'destructive',
       });
       // Use default benefits in case of error
-      setBenefits(defaultBenefits as Benefit[]);
+      setBenefits(defaultBenefits.map((benefit, index) => ({
+        ...benefit,
+        id: `default-${index + 1}`
+      })));
     } finally {
       setLoading(false);
     }
@@ -84,7 +88,7 @@ export function useBenefits() {
   // Initialize benefits with default values
   const initializeBenefits = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('benefits')
         .insert(defaultBenefits)
         .select();
@@ -107,14 +111,17 @@ export function useBenefits() {
         variant: 'destructive',
       });
       // Use default benefits in case of error
-      setBenefits(defaultBenefits as Benefit[]);
+      setBenefits(defaultBenefits.map((benefit, index) => ({
+        ...benefit,
+        id: `default-${index + 1}`
+      })));
     }
   };
 
   // Create a new benefit
   const createBenefit = async (benefit: Omit<Benefit, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('benefits')
         .insert([benefit])
         .select();
@@ -143,7 +150,7 @@ export function useBenefits() {
   // Update an existing benefit
   const updateBenefit = async (id: string, updates: Partial<Omit<Benefit, 'id' | 'created_at' | 'updated_at'>>) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('benefits')
         .update(updates)
         .eq('id', id);
@@ -172,7 +179,7 @@ export function useBenefits() {
   // Delete a benefit
   const deleteBenefit = async (id: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('benefits')
         .delete()
         .eq('id', id);
@@ -205,7 +212,7 @@ export function useBenefits() {
       // Update the order in the database
       for (let i = 0; i < reorderedBenefits.length; i++) {
         const benefit = reorderedBenefits[i];
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('benefits')
           .update({ order: i + 1 })
           .eq('id', benefit.id);

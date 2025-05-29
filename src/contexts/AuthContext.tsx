@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,18 +32,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       console.log("Getting role for user:", user.id);
-      const { data, error } = await supabase
+      
+      // Try using the function with proper type casting
+      const { data, error } = await (supabase as any)
         .rpc('get_user_role_safe', { user_uid: user.id });
       
       if (error) {
         console.error('Error fetching user role:', error);
+        // Fallback to direct table query
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        
+        if (roleError) {
+          console.error('Error fetching user role from table:', roleError);
+          setUserRole('custodio'); // Default role
+          return;
+        }
+        
+        const role = roleData && roleData.length > 0 ? roleData[0].role : 'custodio';
+        setUserRole(role);
         return;
       }
       
       console.log("Role received:", data);
-      setUserRole(data);
+      setUserRole(typeof data === 'string' ? data : 'custodio');
     } catch (error) {
       console.error('Error in refreshUserRole:', error);
+      setUserRole('custodio'); // Default role
     }
   };
 

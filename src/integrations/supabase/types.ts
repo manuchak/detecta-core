@@ -9,6 +9,36 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      benefits: {
+        Row: {
+          created_at: string
+          description: string
+          icon: string
+          id: string
+          order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          icon: string
+          id?: string
+          order: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          icon?: string
+          id?: string
+          order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       custodio_points: {
         Row: {
           created_at: string
@@ -1270,6 +1300,10 @@ export type Database = {
       }
       get_user_role: {
         Args: { user_id: string }
+        Returns: string
+      }
+      get_user_role_safe: {
+        Args: { user_uid: string }
         Returns: string
       }
       get_user_roles: {
