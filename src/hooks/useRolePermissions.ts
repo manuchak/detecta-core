@@ -9,12 +9,12 @@ export const useRolePermissions = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Query to get all permissions by role - MANTENER FUNCIONALIDAD EXISTENTE
+  // Query to get all permissions by role
   const { data: permissions, isLoading, error, refetch } = useQuery({
     queryKey: ['role-permissions'],
     queryFn: async () => {
       try {
-        // Get all permissions using helper functions (manteniendo compatibilidad)
+        // Get all permissions using helper functions
         const rolePermissions = await fetchRolePermissions();
         
         // Get all available roles
@@ -57,15 +57,20 @@ export const useRolePermissions = () => {
     retry: 1,
   });
 
-  // Mutation to update an existing permission - MANTENER FUNCIONALIDAD EXISTENTE
+  // Mutation to update an existing permission
   const updatePermission = useMutation({
-    mutationFn: async ({ id, allowed }: { id: number, allowed: boolean }) => {
+    mutationFn: async ({ id, allowed }: { id: string, allowed: boolean }) => {
       try {
-        // Mantener query directo para compatibilidad
+        // Convert id to number for database compatibility
+        const numericId = parseInt(id);
+        if (isNaN(numericId)) {
+          throw new Error('Invalid permission ID');
+        }
+
         const { data, error } = await supabase
           .from('role_permissions')
           .update({ allowed })
-          .eq('id', id)
+          .eq('id', numericId)
           .select('id, allowed')
           .single();
         
@@ -73,7 +78,7 @@ export const useRolePermissions = () => {
           throw new Error(`Error updating permission: ${error.message}`);
         }
         
-        return { id, allowed };
+        return { id: numericId, allowed };
       } catch (error) {
         console.error('Error in updatePermission:', error);
         throw error;
@@ -95,13 +100,12 @@ export const useRolePermissions = () => {
     }
   });
 
-  // Mutation to add a new permission - MANTENER FUNCIONALIDAD EXISTENTE
+  // Mutation to add a new permission
   const addPermission = useMutation({
     mutationFn: async ({ role, permissionType, permissionId, allowed }: RolePermissionInput) => {
       try {
         console.log(`Adding permission: ${role}.${permissionType}.${permissionId}=${allowed}`);
         
-        // Mantener insert directo para compatibilidad
         const { data, error } = await supabase
           .from('role_permissions')
           .insert([{

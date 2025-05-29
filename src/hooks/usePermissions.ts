@@ -18,7 +18,7 @@ export const usePermissions = () => {
       
       try {
         console.log("Getting role for user:", user.id);
-        // Use RPC function to safely get the user's role without recursion
+        // Use RPC function to safely get the user's role
         const { data, error } = await supabase
           .rpc('get_user_role_safe', { user_uid: user.id });
         
@@ -53,7 +53,6 @@ export const usePermissions = () => {
           return 'owner';
         }
         
-        // Debug received role data
         console.log("Role received:", data);
         
         // If no role found, set as owner (simplified approach)
@@ -107,13 +106,13 @@ export const usePermissions = () => {
     setUserRole(role);
   }, [role, user, isLoading]);
 
-  // Check if user has a specific role - MANTENER FUNCIONALIDAD EXISTENTE
+  // Check if user has a specific role
   const hasRole = async (requiredRole: string): Promise<boolean> => {
     try {
       if (userRole === 'owner') return true;
       
       if (user?.id) {
-        // Usar función existente para mantener compatibilidad
+        // Use existing function for compatibility
         const { data } = await supabase
           .rpc('has_role', { 
             user_uid: user.id, 
@@ -129,34 +128,36 @@ export const usePermissions = () => {
     }
   };
 
-  // Nueva función helper para jerarquía (OPCIONAL - no afecta funcionalidad existente)
+  // Check role hierarchy (owner > admin > other roles)
   const hasRoleOrHigher = async (requiredRole: string): Promise<boolean> => {
     try {
-      if (userRole === 'owner') return true;
+      if (!userRole || !user?.id) return false;
       
-      if (user?.id) {
-        // Intentar usar la nueva función si existe, sino usar la función existente
-        try {
-          const { data } = await supabase
-            .rpc('has_role_or_higher', { 
-              user_uid: user.id, 
-              required_role: requiredRole 
-            });
-          return !!data;
-        } catch (newFuncError) {
-          // Fallback a función existente si la nueva no está disponible
-          console.log('Falling back to original hasRole function');
-          return await hasRole(requiredRole);
-        }
-      }
-      return false;
+      // Define role hierarchy
+      const roleHierarchy = {
+        'owner': 10,
+        'admin': 9,
+        'supply_admin': 8,
+        'bi': 7,
+        'monitoring_supervisor': 6,
+        'monitoring': 5,
+        'supply': 4,
+        'soporte': 3,
+        'pending': 2,
+        'unverified': 1
+      };
+      
+      const userRoleLevel = roleHierarchy[userRole as keyof typeof roleHierarchy] || 0;
+      const requiredRoleLevel = roleHierarchy[requiredRole as keyof typeof roleHierarchy] || 0;
+      
+      return userRoleLevel >= requiredRoleLevel;
     } catch (err) {
       console.error('Error in hasRoleOrHigher:', err);
       return false;
     }
   };
 
-  // Check if user has a specific permission - MANTENER FUNCIONALIDAD EXISTENTE
+  // Check if user has a specific permission
   const hasPermission = async (permissionType: string, permissionId: string): Promise<boolean> => {
     try {
       if (user?.id && userRole) {
@@ -164,7 +165,7 @@ export const usePermissions = () => {
           return true;
         }
         
-        // Mantener función existente
+        // Use existing function
         const { data } = await supabase
           .rpc('user_has_permission', { 
             user_uid: user.id, 
@@ -183,8 +184,8 @@ export const usePermissions = () => {
 
   return {
     userRole: userRole || 'owner',
-    hasRole, // Función existente mantenida
-    hasRoleOrHigher, // Nueva función opcional
+    hasRole,
+    hasRoleOrHigher,
     hasPermission,
     isLoading,
     isAdmin: userRole === 'admin' || userRole === 'owner',
