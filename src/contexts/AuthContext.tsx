@@ -11,8 +11,6 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signOut: () => Promise<void>;
-  userRole: string | null;
-  refreshUserRole: () => Promise<void>;
   confirmEmail: (token: string, type: string) => Promise<void>;
 }
 
@@ -23,42 +21,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const [userRole, setUserRole] = useState<string | null>(null);
 
-  // Función para actualizar el rol del usuario
-  const refreshUserRole = async () => {
-    if (!user) {
-      setUserRole(null);
-      return;
-    }
-
-    try {
-      console.log("Getting role for user:", user.id);
-      
-      // Direct table query to avoid function issues
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1);
-      
-      if (roleError) {
-        console.error('Error fetching user role from table:', roleError);
-        setUserRole('pending'); // Default role para nuevos usuarios
-        return;
-      }
-      
-      const role = roleData && roleData.length > 0 ? roleData[0].role : 'pending';
-      console.log("Role received:", role);
-      setUserRole(role);
-    } catch (error) {
-      console.error('Error in refreshUserRole:', error);
-      setUserRole('pending'); // Default role
-    }
-  };
-
-  // Función para confirmar email manualmente
   const confirmEmail = async (token: string, type: string) => {
     try {
       const { data, error } = await supabase.auth.verifyOtp({
@@ -93,7 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // Set up the auth state listener first
+    // Set up the auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         console.log("Auth state changed:", event, currentSession?.user?.email);
@@ -101,21 +64,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         
-        // Manejar diferentes eventos de autenticación
         if (event === 'SIGNED_IN' && currentSession?.user) {
           console.log("User signed in:", currentSession.user.email);
           
-          // Actualizar último login
+          // Update last login
           try {
             await supabase.rpc('update_last_login');
           } catch (error) {
             console.error('Error updating last login:', error);
           }
-          
-          // Actualizar rol después de un breve delay
-          setTimeout(() => {
-            refreshUserRole();
-          }, 500);
           
           toast({
             title: "Bienvenido",
@@ -125,23 +82,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (event === 'SIGNED_OUT') {
           console.log("User signed out");
-          setUserRole(null);
           toast({
             title: "Sesión cerrada",
             description: "Has cerrado sesión exitosamente",
           });
         }
         
-        if (event === 'TOKEN_REFRESHED' && currentSession?.user) {
-          console.log("Token refreshed for:", currentSession.user.email);
-          setTimeout(() => {
-            refreshUserRole();
-          }, 100);
-        }
-        
-        // Manejar confirmación de email
         if (event === 'USER_UPDATED' && currentSession?.user) {
-          // Check if email was just confirmed
           if (currentSession.user.email_confirmed_at) {
             toast({
               title: "Email confirmado",
@@ -152,21 +99,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    // Then check for existing session
+    // Check for existing session
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
       console.log("Initial session check:", currentSession?.user?.email);
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
       setLoading(false);
-      
-      // Si hay sesión, obtener el rol
-      if (currentSession?.user) {
-        refreshUserRole();
-      }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [toast]);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -179,7 +121,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         console.error('Sign in error:', error);
         
-        // Proporcionar mensajes de error más específicos
         let errorMessage = "Error al iniciar sesión";
         
         if (error.message.includes('Invalid login credentials')) {
@@ -198,7 +139,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return Promise.reject(error);
       }
 
-      // Verificar si el email está confirmado
       if (data.user && !data.user.email_confirmed_at) {
         await supabase.auth.signOut();
         toast({
@@ -288,7 +228,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         return Promise.reject(error);
       }
-      setUserRole(null);
     } catch (error) {
       toast({
         title: "Error",
@@ -308,18 +247,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signIn,
     signUp,
     signOut,
-    userRole,
-    refreshUserRole,
     confirmEmail,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-};
+export { AuthContext };

@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { 
   useDashboardData, 
   TimeframeOption, 
@@ -13,20 +13,18 @@ import { SecondaryCharts } from "@/components/dashboard/SecondaryCharts";
 import { GmvProgress } from "@/components/dashboard/GmvProgress";
 import { ServicesCalendar } from "@/components/dashboard/ServicesCalendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuth, useToast } from "@/hooks";
-import { useRoleValidation } from "@/hooks/useRoleValidation";
+import { useAuth } from "@/hooks/useAuth";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Shield, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const Dashboard = () => {
-  const { userRole, refreshUserRole } = useAuth();
-  const { toast } = useToast();
-  const { ensureOwnerRole, isOwner, currentRole, isLoading } = useRoleValidation();
+  const { userRole, isOwner, user, assignRole, refetchRole, roleLoading } = useAuth();
 
   const [timeframe, setTimeframe] = useState<TimeframeOption>("month");
   const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceTypeOption>("all");
   const [activeTab, setActiveTab] = useState<"overview" | "calendar">("overview");
+  const [assigningRole, setAssigningRole] = useState(false);
   
   const {
     isLoading: dataLoading,
@@ -43,21 +41,22 @@ export const Dashboard = () => {
     setActiveTab(value as "overview" | "calendar");
   };
 
-  const handleEnsureOwnerRole = async () => {
-    const success = await ensureOwnerRole();
+  const handleAssignOwnerRole = async () => {
+    if (!user?.id) return;
     
-    if (success) {
-      // Refresh the page data after role update
-      refreshAllData();
+    setAssigningRole(true);
+    try {
+      const success = await assignRole(user.id, 'owner');
+      if (success) {
+        await refetchRole();
+      }
+    } finally {
+      setAssigningRole(false);
     }
   };
 
   const handleRefreshRole = async () => {
-    await refreshUserRole();
-    toast({
-      title: "Rol actualizado",
-      description: `Rol actual: ${userRole || 'Sin rol asignado'}`,
-    });
+    await refetchRole();
   };
 
   return (
@@ -73,31 +72,28 @@ export const Dashboard = () => {
           variant="outline" 
           size="sm" 
           onClick={handleRefreshRole}
+          disabled={roleLoading}
           className="flex items-center gap-1"
         >
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw className={`h-4 w-4 ${roleLoading ? 'animate-spin' : ''}`} />
           Actualizar rol
         </Button>
       </div>
       
-      {!isOwner && (
+      {!isOwner && !roleLoading && (
         <Alert className="bg-yellow-50 border-yellow-200">
           <AlertCircle className="h-4 w-4 text-yellow-600" />
           <AlertTitle className="text-yellow-800">Validación de rol requerida</AlertTitle>
           <AlertDescription className="text-yellow-700">
             No tienes el rol de 'owner' asignado. Este rol es necesario para acceder a todas las funcionalidades del sistema.
-            Tu rol actual es: {currentRole || 'Sin rol asignado'}
+            Tu rol actual es: {userRole || 'Sin rol asignado'}
             <Button 
               variant="outline" 
               className="ml-4 border-yellow-300 text-yellow-700 hover:bg-yellow-100"
-              onClick={handleEnsureOwnerRole}
-              disabled={isLoading}
+              onClick={handleAssignOwnerRole}
+              disabled={assigningRole}
             >
-              {isLoading ? (
-                <>Asignando rol...</>
-              ) : (
-                <>Asignar rol de Owner</>
-              )}
+              {assigningRole ? 'Asignando rol...' : 'Asignar rol de Owner'}
             </Button>
           </AlertDescription>
         </Alert>
@@ -120,7 +116,6 @@ export const Dashboard = () => {
         </TabsList>
         
         <TabsContent value="overview" className="space-y-8">
-          {/* Timeframe and service type filters */}
           <DashboardFilters
             timeframe={timeframe}
             serviceTypeFilter={serviceTypeFilter}
@@ -129,28 +124,23 @@ export const Dashboard = () => {
             onRefresh={refreshAllData}
           />
           
-          {/* Key metrics cards */}
           <MetricsCards metrics={dashboardData} isLoading={dataLoading} />
           
-          {/* Main charts */}
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-7">
             <GmvChart data={monthlyGmvData} />
             <ServiceStatusChart data={serviceStatusData} metrics={dashboardData} />
           </div>
           
-          {/* Secondary charts */}
           <SecondaryCharts
             dailyServiceData={dailyServiceData}
             serviceTypesData={serviceTypesData}
             topClientsData={topClientsData}
           />
           
-          {/* GMV Progress */}
           <GmvProgress totalGMV={dashboardData.totalGMV} />
         </TabsContent>
         
         <TabsContent value="calendar" className="space-y-8">
-          {/* Calendar view */}
           <ServicesCalendar />
         </TabsContent>
       </Tabs>

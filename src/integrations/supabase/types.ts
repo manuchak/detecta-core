@@ -1404,6 +1404,10 @@ export type Database = {
         Args: { user_uid: string }
         Returns: string
       }
+      get_user_role_secure: {
+        Args: { user_uuid: string }
+        Returns: string
+      }
       get_user_roles: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1517,6 +1521,10 @@ export type Database = {
       }
       is_admin_no_recursion: {
         Args: { check_user_id: string }
+        Returns: boolean
+      }
+      is_admin_or_owner: {
+        Args: { user_uuid: string }
         Returns: boolean
       }
       is_admin_safe: {
@@ -1640,6 +1648,10 @@ export type Database = {
       }
       user_has_role: {
         Args: { user_id: string; required_role: string }
+        Returns: boolean
+      }
+      user_has_role_secure: {
+        Args: { user_uuid: string; required_role: string }
         Returns: boolean
       }
       validate_image_url: {
