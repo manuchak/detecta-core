@@ -9,901 +9,174 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      benefits: {
-        Row: {
-          created_at: string
-          description: string
-          icon: string
-          id: string
-          order: number
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          description: string
-          icon: string
-          id?: string
-          order: number
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          description?: string
-          icon?: string
-          id?: string
-          order?: number
-          title?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      car_brands: {
-        Row: {
-          created_at: string
-          id: number
-          name: string
-        }
-        Insert: {
-          created_at?: string
-          id?: number
-          name: string
-        }
-        Update: {
-          created_at?: string
-          id?: number
-          name?: string
-        }
-        Relationships: []
-      }
-      car_models: {
-        Row: {
-          brand_id: number
-          created_at: string
-          id: number
-          name: string
-        }
-        Insert: {
-          brand_id: number
-          created_at?: string
-          id?: number
-          name: string
-        }
-        Update: {
-          brand_id?: number
-          created_at?: string
-          id?: number
-          name?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "car_models_brand_id_fkey"
-            columns: ["brand_id"]
-            isOneToOne: false
-            referencedRelation: "car_brands"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      custodio_excel_data: {
-        Row: {
-          calificacion_promedio: number | null
-          confiabilidad: number | null
-          created_at: string
-          estado: string | null
-          fecha_cita: string | null
-          id: number
-          ingresos: number | null
-          meses_activo: number | null
-          nombre_custodio: string | null
-          tiempo_respuesta: number | null
-          trabajos_completados: number | null
-          valor_vida_cliente: number | null
-        }
-        Insert: {
-          calificacion_promedio?: number | null
-          confiabilidad?: number | null
-          created_at?: string
-          estado?: string | null
-          fecha_cita?: string | null
-          id?: number
-          ingresos?: number | null
-          meses_activo?: number | null
-          nombre_custodio?: string | null
-          tiempo_respuesta?: number | null
-          trabajos_completados?: number | null
-          valor_vida_cliente?: number | null
-        }
-        Update: {
-          calificacion_promedio?: number | null
-          confiabilidad?: number | null
-          created_at?: string
-          estado?: string | null
-          fecha_cita?: string | null
-          id?: number
-          ingresos?: number | null
-          meses_activo?: number | null
-          nombre_custodio?: string | null
-          tiempo_respuesta?: number | null
-          trabajos_completados?: number | null
-          valor_vida_cliente?: number | null
-        }
-        Relationships: []
-      }
-      custodio_metrics: {
-        Row: {
-          acquisition_cost_manual: number | null
-          asset_cost: number | null
-          avg_onboarding_days: number | null
-          campaign_cost: number | null
-          campaign_name: string | null
-          campaign_revenue: number | null
-          created_at: string | null
-          id: number
-          marketing_cost: number | null
-          month_year: string
-          nps_detractors: number | null
-          nps_neutral: number | null
-          nps_promoters: number | null
-          staff_cost: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          acquisition_cost_manual?: number | null
-          asset_cost?: number | null
-          avg_onboarding_days?: number | null
-          campaign_cost?: number | null
-          campaign_name?: string | null
-          campaign_revenue?: number | null
-          created_at?: string | null
-          id?: number
-          marketing_cost?: number | null
-          month_year: string
-          nps_detractors?: number | null
-          nps_neutral?: number | null
-          nps_promoters?: number | null
-          staff_cost?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          acquisition_cost_manual?: number | null
-          asset_cost?: number | null
-          avg_onboarding_days?: number | null
-          campaign_cost?: number | null
-          campaign_name?: string | null
-          campaign_revenue?: number | null
-          created_at?: string | null
-          id?: number
-          marketing_cost?: number | null
-          month_year?: string
-          nps_detractors?: number | null
-          nps_neutral?: number | null
-          nps_promoters?: number | null
-          staff_cost?: number | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
       custodio_points: {
         Row: {
           created_at: string
           id: string
-          last_points_calculation_date: string | null
           level: number
+          on_time_rate: number
           points: number
-          total_services_counted: number | null
+          safety_score: number
           total_trips: number
-          tyasa_trips: number
           updated_at: string
           user_id: string
-          weekly_points: number
         }
         Insert: {
           created_at?: string
           id?: string
-          last_points_calculation_date?: string | null
           level?: number
+          on_time_rate?: number
           points?: number
-          total_services_counted?: number | null
+          safety_score?: number
           total_trips?: number
-          tyasa_trips?: number
           updated_at?: string
           user_id: string
-          weekly_points?: number
         }
         Update: {
           created_at?: string
           id?: string
-          last_points_calculation_date?: string | null
           level?: number
+          on_time_rate?: number
           points?: number
-          total_services_counted?: number | null
+          safety_score?: number
           total_trips?: number
-          tyasa_trips?: number
           updated_at?: string
           user_id?: string
-          weekly_points?: number
         }
         Relationships: []
       }
-      custodio_validations: {
+      flagged_services: {
         Row: {
-          additional_notes: string | null
-          age_requirement_met: boolean | null
-          background_check_passed: boolean | null
-          call_quality_score: number | null
-          communication_score: number | null
-          created_at: string
-          has_firearm_license: boolean | null
-          has_military_background: boolean | null
-          has_security_experience: boolean | null
-          has_vehicle: boolean | null
+          admin_notes: string | null
+          created_at: string | null
+          flag_reason: string
           id: string
-          interview_passed: boolean | null
-          lead_id: number
-          lifetime_id: string | null
-          rejection_reason: string | null
-          reliability_score: number | null
-          status: string
-          updated_at: string
-          validated_by: string | null
-          validation_date: string
-          validation_duration_seconds: number | null
+          original_km: number | null
+          original_points: number | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          service_id: string
+          status: string | null
+          suggested_km: number | null
+          suggested_points: number | null
         }
         Insert: {
-          additional_notes?: string | null
-          age_requirement_met?: boolean | null
-          background_check_passed?: boolean | null
-          call_quality_score?: number | null
-          communication_score?: number | null
-          created_at?: string
-          has_firearm_license?: boolean | null
-          has_military_background?: boolean | null
-          has_security_experience?: boolean | null
-          has_vehicle?: boolean | null
+          admin_notes?: string | null
+          created_at?: string | null
+          flag_reason: string
           id?: string
-          interview_passed?: boolean | null
-          lead_id: number
-          lifetime_id?: string | null
-          rejection_reason?: string | null
-          reliability_score?: number | null
-          status?: string
-          updated_at?: string
-          validated_by?: string | null
-          validation_date?: string
-          validation_duration_seconds?: number | null
+          original_km?: number | null
+          original_points?: number | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          service_id: string
+          status?: string | null
+          suggested_km?: number | null
+          suggested_points?: number | null
         }
         Update: {
-          additional_notes?: string | null
-          age_requirement_met?: boolean | null
-          background_check_passed?: boolean | null
-          call_quality_score?: number | null
-          communication_score?: number | null
-          created_at?: string
-          has_firearm_license?: boolean | null
-          has_military_background?: boolean | null
-          has_security_experience?: boolean | null
-          has_vehicle?: boolean | null
+          admin_notes?: string | null
+          created_at?: string | null
+          flag_reason?: string
           id?: string
-          interview_passed?: boolean | null
-          lead_id?: number
-          lifetime_id?: string | null
-          rejection_reason?: string | null
-          reliability_score?: number | null
-          status?: string
-          updated_at?: string
-          validated_by?: string | null
-          validation_date?: string
-          validation_duration_seconds?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "custodio_validations_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "custodio_validations_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "prospects"
-            referencedColumns: ["lead_id"]
-          },
-        ]
-      }
-      driver_behavior_scores: {
-        Row: {
-          client: string
-          created_at: string
-          distance: number | null
-          distance_text: string | null
-          driver_group: string
-          driver_name: string
-          duration_interval: unknown | null
-          duration_text: string | null
-          end_date: string
-          id: number
-          penalty_points: number
-          score: number
-          start_date: string
-          trips_count: number
-          updated_at: string
-        }
-        Insert: {
-          client: string
-          created_at?: string
-          distance?: number | null
-          distance_text?: string | null
-          driver_group: string
-          driver_name: string
-          duration_interval?: unknown | null
-          duration_text?: string | null
-          end_date: string
-          id?: number
-          penalty_points: number
-          score: number
-          start_date: string
-          trips_count: number
-          updated_at?: string
-        }
-        Update: {
-          client?: string
-          created_at?: string
-          distance?: number | null
-          distance_text?: string | null
-          driver_group?: string
-          driver_name?: string
-          duration_interval?: unknown | null
-          duration_text?: string | null
-          end_date?: string
-          id?: number
-          penalty_points?: number
-          score?: number
-          start_date?: string
-          trips_count?: number
-          updated_at?: string
+          original_km?: number | null
+          original_points?: number | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          service_id?: string
+          status?: string | null
+          suggested_km?: number | null
+          suggested_points?: number | null
         }
         Relationships: []
       }
-      driver_groups: {
+      point_rules: {
         Row: {
-          client: string
-          created_at: string
+          category: string
+          created_at: string | null
           description: string | null
-          driver_ids: string[]
           id: string
           name: string
-          updated_at: string
+          point_value: number
+          updated_at: string | null
         }
         Insert: {
-          client: string
-          created_at?: string
+          category: string
+          created_at?: string | null
           description?: string | null
-          driver_ids?: string[]
-          id: string
+          id?: string
           name: string
-          updated_at?: string
+          point_value: number
+          updated_at?: string | null
         }
         Update: {
-          client?: string
-          created_at?: string
+          category?: string
+          created_at?: string | null
           description?: string | null
-          driver_ids?: string[]
           id?: string
           name?: string
-          updated_at?: string
+          point_value?: number
+          updated_at?: string | null
         }
         Relationships: []
       }
-      driver_productivity_analysis: {
-        Row: {
-          actual_daily_distance: number | null
-          client: string
-          created_at: string
-          days_count: number
-          distance: number
-          driver_group: string
-          driver_name: string
-          duration_interval: unknown | null
-          end_date: string
-          estimated_fuel_cost: number | null
-          estimated_fuel_usage_liters: number | null
-          expected_daily_distance: number | null
-          expected_daily_time_minutes: number | null
-          expected_fuel_efficiency: number | null
-          fuel_cost_per_liter: number | null
-          id: number
-          productivity_score: number | null
-          start_date: string
-          trips_count: number
-          updated_at: string
-        }
-        Insert: {
-          actual_daily_distance?: number | null
-          client: string
-          created_at?: string
-          days_count: number
-          distance: number
-          driver_group: string
-          driver_name: string
-          duration_interval?: unknown | null
-          end_date: string
-          estimated_fuel_cost?: number | null
-          estimated_fuel_usage_liters?: number | null
-          expected_daily_distance?: number | null
-          expected_daily_time_minutes?: number | null
-          expected_fuel_efficiency?: number | null
-          fuel_cost_per_liter?: number | null
-          id?: number
-          productivity_score?: number | null
-          start_date: string
-          trips_count: number
-          updated_at?: string
-        }
-        Update: {
-          actual_daily_distance?: number | null
-          client?: string
-          created_at?: string
-          days_count?: number
-          distance?: number
-          driver_group?: string
-          driver_name?: string
-          duration_interval?: unknown | null
-          end_date?: string
-          estimated_fuel_cost?: number | null
-          estimated_fuel_usage_liters?: number | null
-          expected_daily_distance?: number | null
-          expected_daily_time_minutes?: number | null
-          expected_fuel_efficiency?: number | null
-          fuel_cost_per_liter?: number | null
-          id?: number
-          productivity_score?: number | null
-          start_date?: string
-          trips_count?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      driver_productivity_parameters: {
-        Row: {
-          client: string
-          created_at: string
-          driver_group: string | null
-          expected_daily_distance: number
-          expected_daily_time_minutes: number
-          expected_fuel_efficiency: number
-          fuel_cost_per_liter: number
-          id: number
-          updated_at: string
-          user_id: string | null
-        }
-        Insert: {
-          client: string
-          created_at?: string
-          driver_group?: string | null
-          expected_daily_distance: number
-          expected_daily_time_minutes: number
-          expected_fuel_efficiency: number
-          fuel_cost_per_liter: number
-          id?: number
-          updated_at?: string
-          user_id?: string | null
-        }
-        Update: {
-          client?: string
-          created_at?: string
-          driver_group?: string | null
-          expected_daily_distance?: number
-          expected_daily_time_minutes?: number
-          expected_fuel_efficiency?: number
-          fuel_cost_per_liter?: number
-          id?: number
-          updated_at?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
-      gps_installations: {
+      points_history: {
         Row: {
           created_at: string
-          date: string
-          email: string | null
+          description: string | null
           id: string
-          install_address: Json
-          installer_id: number
-          notes: string | null
-          owner_name: string
-          status: string | null
-          time: string
-          timezone: string
-          updated_at: string
-          user_id: string | null
-          vehicles: Json
+          points_earned: number
+          points_type: string
+          trip_id: string | null
+          user_id: string
         }
         Insert: {
           created_at?: string
-          date: string
-          email?: string | null
+          description?: string | null
           id?: string
-          install_address: Json
-          installer_id: number
-          notes?: string | null
-          owner_name: string
-          status?: string | null
-          time: string
-          timezone?: string
-          updated_at?: string
-          user_id?: string | null
-          vehicles: Json
+          points_earned: number
+          points_type: string
+          trip_id?: string | null
+          user_id: string
         }
         Update: {
           created_at?: string
-          date?: string
-          email?: string | null
+          description?: string | null
           id?: string
-          install_address?: Json
-          installer_id?: number
-          notes?: string | null
-          owner_name?: string
-          status?: string | null
-          time?: string
-          timezone?: string
-          updated_at?: string
-          user_id?: string | null
-          vehicles?: Json
-        }
-        Relationships: [
-          {
-            foreignKeyName: "gps_installations_installer_id_fkey"
-            columns: ["installer_id"]
-            isOneToOne: false
-            referencedRelation: "gps_installers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      gps_installers: {
-        Row: {
-          certificaciones: string | null
-          comentarios: string | null
-          created_at: string
-          direccion_personal: string | null
-          direccion_personal_city: string | null
-          direccion_personal_colonia: string | null
-          direccion_personal_number: string | null
-          direccion_personal_postal_code: string | null
-          direccion_personal_references: string | null
-          direccion_personal_state: string | null
-          direccion_personal_street: string | null
-          email: string | null
-          foto_instalador: string | null
-          id: number
-          nombre: string
-          rfc: string | null
-          taller: boolean | null
-          taller_direccion: string | null
-          taller_direccion_city: string | null
-          taller_direccion_colonia: string | null
-          taller_direccion_number: string | null
-          taller_direccion_postal_code: string | null
-          taller_direccion_references: string | null
-          taller_direccion_state: string | null
-          taller_direccion_street: string | null
-          taller_features: Json
-          taller_images: Json | null
-          telefono: string | null
-          updated_at: string
-        }
-        Insert: {
-          certificaciones?: string | null
-          comentarios?: string | null
-          created_at?: string
-          direccion_personal?: string | null
-          direccion_personal_city?: string | null
-          direccion_personal_colonia?: string | null
-          direccion_personal_number?: string | null
-          direccion_personal_postal_code?: string | null
-          direccion_personal_references?: string | null
-          direccion_personal_state?: string | null
-          direccion_personal_street?: string | null
-          email?: string | null
-          foto_instalador?: string | null
-          id?: number
-          nombre: string
-          rfc?: string | null
-          taller?: boolean | null
-          taller_direccion?: string | null
-          taller_direccion_city?: string | null
-          taller_direccion_colonia?: string | null
-          taller_direccion_number?: string | null
-          taller_direccion_postal_code?: string | null
-          taller_direccion_references?: string | null
-          taller_direccion_state?: string | null
-          taller_direccion_street?: string | null
-          taller_features?: Json
-          taller_images?: Json | null
-          telefono?: string | null
-          updated_at?: string
-        }
-        Update: {
-          certificaciones?: string | null
-          comentarios?: string | null
-          created_at?: string
-          direccion_personal?: string | null
-          direccion_personal_city?: string | null
-          direccion_personal_colonia?: string | null
-          direccion_personal_number?: string | null
-          direccion_personal_postal_code?: string | null
-          direccion_personal_references?: string | null
-          direccion_personal_state?: string | null
-          direccion_personal_street?: string | null
-          email?: string | null
-          foto_instalador?: string | null
-          id?: number
-          nombre?: string
-          rfc?: string | null
-          taller?: boolean | null
-          taller_direccion?: string | null
-          taller_direccion_city?: string | null
-          taller_direccion_colonia?: string | null
-          taller_direccion_number?: string | null
-          taller_direccion_postal_code?: string | null
-          taller_direccion_references?: string | null
-          taller_direccion_state?: string | null
-          taller_direccion_street?: string | null
-          taller_features?: Json
-          taller_images?: Json | null
-          telefono?: string | null
-          updated_at?: string
+          points_earned?: number
+          points_type?: string
+          trip_id?: string | null
+          user_id?: string
         }
         Relationships: []
       }
-      import_progress: {
+      points_system_config: {
         Row: {
-          created_at: string
           id: string
-          message: string | null
-          processed: number
-          status: string
-          total: number
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id: string
-          message?: string | null
-          processed?: number
-          status: string
-          total?: number
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          message?: string | null
-          processed?: number
-          status?: string
-          total?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      lead_assignments: {
-        Row: {
-          assigned_by: string
-          assigned_to: string
-          created_at: string
-          id: string
-          lead_id: number
-          notes: string | null
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          assigned_by: string
-          assigned_to: string
-          created_at?: string
-          id?: string
-          lead_id: number
-          notes?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          assigned_by?: string
-          assigned_to?: string
-          created_at?: string
-          id?: string
-          lead_id?: number
-          notes?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "lead_assignments_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lead_assignments_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "prospects"
-            referencedColumns: ["lead_id"]
-          },
-        ]
-      }
-      leads: {
-        Row: {
-          anovehiculo: string | null
-          assigned_at: string | null
-          assigned_to: string | null
-          call_count: number
-          created_at: string
-          credencialsedena: string | null
-          email: string | null
-          empresa: string | null
-          esarmado: string | null
-          esmilitar: string | null
-          estado: string | null
-          experienciaseguridad: string | null
-          fecha_creacion: string | null
-          fuente: string | null
-          id: number
-          last_call_date: string | null
-          modelovehiculo: string | null
-          nombre: string | null
-          original_id: number | null
-          telefono: string | null
-          tienevehiculo: string | null
-          valor: number | null
-        }
-        Insert: {
-          anovehiculo?: string | null
-          assigned_at?: string | null
-          assigned_to?: string | null
-          call_count?: number
-          created_at?: string
-          credencialsedena?: string | null
-          email?: string | null
-          empresa?: string | null
-          esarmado?: string | null
-          esmilitar?: string | null
-          estado?: string | null
-          experienciaseguridad?: string | null
-          fecha_creacion?: string | null
-          fuente?: string | null
-          id?: number
-          last_call_date?: string | null
-          modelovehiculo?: string | null
-          nombre?: string | null
-          original_id?: number | null
-          telefono?: string | null
-          tienevehiculo?: string | null
-          valor?: number | null
-        }
-        Update: {
-          anovehiculo?: string | null
-          assigned_at?: string | null
-          assigned_to?: string | null
-          call_count?: number
-          created_at?: string
-          credencialsedena?: string | null
-          email?: string | null
-          empresa?: string | null
-          esarmado?: string | null
-          esmilitar?: string | null
-          estado?: string | null
-          experienciaseguridad?: string | null
-          fecha_creacion?: string | null
-          fuente?: string | null
-          id?: number
-          last_call_date?: string | null
-          modelovehiculo?: string | null
-          nombre?: string | null
-          original_id?: number | null
-          telefono?: string | null
-          tienevehiculo?: string | null
-          valor?: number | null
-        }
-        Relationships: []
-      }
-      points_configuration: {
-        Row: {
-          created_at: string
-          high_margin_threshold: number
-          id: string
-          level_threshold: number | null
-          low_margin_threshold: number
-          margin_multiplier_high: number
-          margin_multiplier_low: number
-          margin_multiplier_medium: number
-          margin_multiplier_minimal: number
-          max_points_per_trip: number
-          medium_margin_threshold: number
-          min_points_per_trip: number
-          points_per_100km: number
-          priority_client_multiplier: number
-          tyasa_multiplier: number
+          level_names: Json
+          level_thresholds: Json
+          min_points_for_rewards: number
+          points_multiplier: number
           updated_at: string
           updated_by: string | null
         }
         Insert: {
-          created_at?: string
-          high_margin_threshold?: number
           id?: string
-          level_threshold?: number | null
-          low_margin_threshold?: number
-          margin_multiplier_high?: number
-          margin_multiplier_low?: number
-          margin_multiplier_medium?: number
-          margin_multiplier_minimal?: number
-          max_points_per_trip?: number
-          medium_margin_threshold?: number
-          min_points_per_trip?: number
-          points_per_100km?: number
-          priority_client_multiplier?: number
-          tyasa_multiplier?: number
+          level_names?: Json
+          level_thresholds?: Json
+          min_points_for_rewards?: number
+          points_multiplier?: number
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
-          created_at?: string
-          high_margin_threshold?: number
           id?: string
-          level_threshold?: number | null
-          low_margin_threshold?: number
-          margin_multiplier_high?: number
-          margin_multiplier_low?: number
-          margin_multiplier_medium?: number
-          margin_multiplier_minimal?: number
-          max_points_per_trip?: number
-          medium_margin_threshold?: number
-          min_points_per_trip?: number
-          points_per_100km?: number
-          priority_client_multiplier?: number
-          tyasa_multiplier?: number
+          level_names?: Json
+          level_thresholds?: Json
+          min_points_for_rewards?: number
+          points_multiplier?: number
           updated_at?: string
           updated_by?: string | null
-        }
-        Relationships: []
-      }
-      prizes: {
-        Row: {
-          available: boolean
-          category: string
-          created_at: string
-          description: string
-          id: string
-          image: string | null
-          points: number
-          title: string
-        }
-        Insert: {
-          available?: boolean
-          category: string
-          created_at?: string
-          description: string
-          id?: string
-          image?: string | null
-          points: number
-          title: string
-        }
-        Update: {
-          available?: boolean
-          category?: string
-          created_at?: string
-          description?: string
-          id?: string
-          image?: string | null
-          points?: number
-          title?: string
         }
         Relationships: []
       }
@@ -913,130 +186,185 @@ export type Database = {
           display_name: string
           email: string
           id: string
-          last_login: string
-          phone: string | null
+          is_verified: boolean | null
+          last_login: string | null
+          phone: string
           photo_url: string | null
+          updated_at: string
         }
         Insert: {
           created_at?: string
           display_name: string
           email: string
           id: string
-          last_login?: string
-          phone?: string | null
+          is_verified?: boolean | null
+          last_login?: string | null
+          phone?: string
           photo_url?: string | null
+          updated_at?: string
         }
         Update: {
           created_at?: string
           display_name?: string
           email?: string
           id?: string
-          last_login?: string
-          phone?: string | null
+          is_verified?: boolean | null
+          last_login?: string | null
+          phone?: string
           photo_url?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
-      redeemed_prizes: {
+      redemptions: {
         Row: {
+          admin_notes: string | null
+          created_at: string | null
+          delivered_at: string | null
           id: string
-          notes: string | null
-          prize_id: string
-          prize_points: number
-          prize_title: string
-          redeemed_at: string
-          shipping_address: Json | null
+          points_spent: number
+          reward_id: string
           status: string
+          tracking_code: string | null
+          updated_at: string | null
           user_id: string
         }
         Insert: {
+          admin_notes?: string | null
+          created_at?: string | null
+          delivered_at?: string | null
           id?: string
-          notes?: string | null
-          prize_id: string
-          prize_points: number
-          prize_title: string
-          redeemed_at?: string
-          shipping_address?: Json | null
+          points_spent: number
+          reward_id: string
           status?: string
+          tracking_code?: string | null
+          updated_at?: string | null
           user_id: string
         }
         Update: {
+          admin_notes?: string | null
+          created_at?: string | null
+          delivered_at?: string | null
           id?: string
-          notes?: string | null
-          prize_id?: string
-          prize_points?: number
-          prize_title?: string
-          redeemed_at?: string
-          shipping_address?: Json | null
+          points_spent?: number
+          reward_id?: string
           status?: string
+          tracking_code?: string | null
+          updated_at?: string | null
           user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "redemptions_reward_id_fkey"
+            columns: ["reward_id"]
+            isOneToOne: false
+            referencedRelation: "rewards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reward_categories: {
+        Row: {
+          color: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          display_order: number | null
+          icon: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
-      role_permissions: {
+      rewards: {
         Row: {
-          allowed: boolean
+          availability: number | null
+          category: string | null
+          category_id: string | null
           created_at: string | null
-          id: number
-          permission_id: string
-          permission_type: string
-          role: string
+          description: string | null
+          featured: boolean | null
+          id: string
+          image_url: string | null
+          name: string
+          point_cost: number
           updated_at: string | null
         }
         Insert: {
-          allowed?: boolean
+          availability?: number | null
+          category?: string | null
+          category_id?: string | null
           created_at?: string | null
-          id?: never
-          permission_id: string
-          permission_type: string
-          role: string
+          description?: string | null
+          featured?: boolean | null
+          id?: string
+          image_url?: string | null
+          name: string
+          point_cost: number
           updated_at?: string | null
         }
         Update: {
-          allowed?: boolean
+          availability?: number | null
+          category?: string | null
+          category_id?: string | null
           created_at?: string | null
-          id?: never
-          permission_id?: string
-          permission_type?: string
-          role?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      secrets: {
-        Row: {
-          created_at: string
-          id: string
-          name: string
-          updated_at: string
-          value: string
-        }
-        Insert: {
-          created_at?: string
+          description?: string | null
+          featured?: boolean | null
           id?: string
-          name: string
-          updated_at?: string
-          value: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
+          image_url?: string | null
           name?: string
-          updated_at?: string
-          value?: string
+          point_cost?: number
+          updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "rewards_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "reward_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       servicios_custodia: {
         Row: {
-          armado: boolean | null
+          armado: string | null
           auto: string | null
-          cantidad_transportes: number | null
-          casetas: number | null
+          cantidad_transportes: string | null
+          casetas: string | null
           cobro_cliente: number | null
           comentarios_adicionales: string | null
           contacto_emergencia: string | null
-          costo_custodio: number | null
+          costo_custodio: string | null
           creado_por: string | null
           creado_via: string | null
           created_at: string | null
@@ -1055,11 +383,11 @@ export type Database = {
           hora_finalizacion: string | null
           hora_inicio_custodia: string | null
           hora_presentacion: string | null
-          id: number
+          id: number | null
           id_cotizacion: string | null
           id_custodio: string | null
           id_servicio: string | null
-          km_extras: number | null
+          km_extras: string | null
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
@@ -1080,9 +408,9 @@ export type Database = {
           telefono_emergencia: string | null
           telefono_operador: string | null
           telefono_operador_adicional: string | null
-          tiempo_estimado: unknown | null
-          tiempo_punto_origen: unknown | null
-          tiempo_retraso: unknown | null
+          tiempo_estimado: string | null
+          tiempo_punto_origen: string | null
+          tiempo_retraso: number | null
           tipo_carga: string | null
           tipo_carga_adicional: string | null
           tipo_gadget: string | null
@@ -1092,14 +420,14 @@ export type Database = {
           updated_time: string | null
         }
         Insert: {
-          armado?: boolean | null
+          armado?: string | null
           auto?: string | null
-          cantidad_transportes?: number | null
-          casetas?: number | null
+          cantidad_transportes?: string | null
+          casetas?: string | null
           cobro_cliente?: number | null
           comentarios_adicionales?: string | null
           contacto_emergencia?: string | null
-          costo_custodio?: number | null
+          costo_custodio?: string | null
           creado_por?: string | null
           creado_via?: string | null
           created_at?: string | null
@@ -1118,11 +446,11 @@ export type Database = {
           hora_finalizacion?: string | null
           hora_inicio_custodia?: string | null
           hora_presentacion?: string | null
-          id?: number
+          id?: number | null
           id_cotizacion?: string | null
           id_custodio?: string | null
           id_servicio?: string | null
-          km_extras?: number | null
+          km_extras?: string | null
           km_recorridos?: number | null
           km_teorico?: number | null
           local_foraneo?: string | null
@@ -1143,9 +471,9 @@ export type Database = {
           telefono_emergencia?: string | null
           telefono_operador?: string | null
           telefono_operador_adicional?: string | null
-          tiempo_estimado?: unknown | null
-          tiempo_punto_origen?: unknown | null
-          tiempo_retraso?: unknown | null
+          tiempo_estimado?: string | null
+          tiempo_punto_origen?: string | null
+          tiempo_retraso?: number | null
           tipo_carga?: string | null
           tipo_carga_adicional?: string | null
           tipo_gadget?: string | null
@@ -1155,14 +483,14 @@ export type Database = {
           updated_time?: string | null
         }
         Update: {
-          armado?: boolean | null
+          armado?: string | null
           auto?: string | null
-          cantidad_transportes?: number | null
-          casetas?: number | null
+          cantidad_transportes?: string | null
+          casetas?: string | null
           cobro_cliente?: number | null
           comentarios_adicionales?: string | null
           contacto_emergencia?: string | null
-          costo_custodio?: number | null
+          costo_custodio?: string | null
           creado_por?: string | null
           creado_via?: string | null
           created_at?: string | null
@@ -1181,11 +509,11 @@ export type Database = {
           hora_finalizacion?: string | null
           hora_inicio_custodia?: string | null
           hora_presentacion?: string | null
-          id?: number
+          id?: number | null
           id_cotizacion?: string | null
           id_custodio?: string | null
           id_servicio?: string | null
-          km_extras?: number | null
+          km_extras?: string | null
           km_recorridos?: number | null
           km_teorico?: number | null
           local_foraneo?: string | null
@@ -1206,9 +534,9 @@ export type Database = {
           telefono_emergencia?: string | null
           telefono_operador?: string | null
           telefono_operador_adicional?: string | null
-          tiempo_estimado?: unknown | null
-          tiempo_punto_origen?: unknown | null
-          tiempo_retraso?: unknown | null
+          tiempo_estimado?: string | null
+          tiempo_punto_origen?: string | null
+          tiempo_retraso?: number | null
           tipo_carga?: string | null
           tipo_carga_adicional?: string | null
           tipo_gadget?: string | null
@@ -1219,824 +547,984 @@ export type Database = {
         }
         Relationships: []
       }
-      support_tickets: {
+      system_limits: {
         Row: {
-          assigned_to: string | null
-          channel: string
-          created_at: string
-          customer_email: string
-          customer_id: string | null
-          customer_name: string
-          description: string
+          created_at: string | null
+          description: string | null
           id: string
-          priority: string
-          resolution_time_seconds: number | null
-          resolved_at: string | null
-          status: string
-          subject: string
-          ticket_number: string
-          updated_at: string
+          name: string
+          updated_at: string | null
+          value: number
         }
         Insert: {
-          assigned_to?: string | null
-          channel?: string
-          created_at?: string
-          customer_email: string
-          customer_id?: string | null
-          customer_name: string
-          description: string
+          created_at?: string | null
+          description?: string | null
           id?: string
-          priority?: string
-          resolution_time_seconds?: number | null
-          resolved_at?: string | null
-          status?: string
-          subject: string
-          ticket_number: string
-          updated_at?: string
+          name: string
+          updated_at?: string | null
+          value: number
         }
         Update: {
-          assigned_to?: string | null
-          channel?: string
-          created_at?: string
-          customer_email?: string
-          customer_id?: string | null
-          customer_name?: string
-          description?: string
+          created_at?: string | null
+          description?: string | null
           id?: string
-          priority?: string
-          resolution_time_seconds?: number | null
-          resolved_at?: string | null
-          status?: string
-          subject?: string
-          ticket_number?: string
-          updated_at?: string
+          name?: string
+          updated_at?: string | null
+          value?: number
         }
         Relationships: []
-      }
-      table_name: {
-        Row: {
-          data: Json | null
-          id: number
-          inserted_at: string
-          name: string | null
-          updated_at: string
-        }
-        Insert: {
-          data?: Json | null
-          id?: number
-          inserted_at?: string
-          name?: string | null
-          updated_at?: string
-        }
-        Update: {
-          data?: Json | null
-          id?: number
-          inserted_at?: string
-          name?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      ticket_comments: {
-        Row: {
-          author_email: string
-          author_name: string
-          content: string
-          created_at: string
-          id: string
-          is_internal: boolean
-          ticket_id: string
-          user_id: string | null
-        }
-        Insert: {
-          author_email: string
-          author_name: string
-          content: string
-          created_at?: string
-          id?: string
-          is_internal?: boolean
-          ticket_id: string
-          user_id?: string | null
-        }
-        Update: {
-          author_email?: string
-          author_name?: string
-          content?: string
-          created_at?: string
-          id?: string
-          is_internal?: boolean
-          ticket_id?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ticket_comments_ticket_id_fkey"
-            columns: ["ticket_id"]
-            isOneToOne: false
-            referencedRelation: "support_tickets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ticket_history: {
-        Row: {
-          action: string
-          created_at: string
-          field_name: string
-          id: string
-          new_value: string | null
-          previous_value: string | null
-          ticket_id: string
-          user_id: string | null
-        }
-        Insert: {
-          action: string
-          created_at?: string
-          field_name: string
-          id?: string
-          new_value?: string | null
-          previous_value?: string | null
-          ticket_id: string
-          user_id?: string | null
-        }
-        Update: {
-          action?: string
-          created_at?: string
-          field_name?: string
-          id?: string
-          new_value?: string | null
-          previous_value?: string | null
-          ticket_id?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ticket_history_ticket_id_fkey"
-            columns: ["ticket_id"]
-            isOneToOne: false
-            referencedRelation: "support_tickets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ticket_satisfaction: {
-        Row: {
-          created_at: string
-          feedback: string | null
-          id: string
-          rating: number
-          ticket_id: string
-        }
-        Insert: {
-          created_at?: string
-          feedback?: string | null
-          id?: string
-          rating: number
-          ticket_id: string
-        }
-        Update: {
-          created_at?: string
-          feedback?: string | null
-          id?: string
-          rating?: number
-          ticket_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ticket_satisfaction_ticket_id_fkey"
-            columns: ["ticket_id"]
-            isOneToOne: false
-            referencedRelation: "support_tickets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ticket_tags: {
-        Row: {
-          created_at: string
-          id: string
-          tag_name: string
-          ticket_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          tag_name: string
-          ticket_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          tag_name?: string
-          ticket_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ticket_tags_ticket_id_fkey"
-            columns: ["ticket_id"]
-            isOneToOne: false
-            referencedRelation: "support_tickets"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       user_roles: {
         Row: {
-          assigned_at: string
-          assigned_by: string | null
+          created_at: string
           id: string
           role: string
           user_id: string
         }
         Insert: {
-          assigned_at?: string
-          assigned_by?: string | null
+          created_at?: string
           id?: string
           role: string
           user_id: string
         }
         Update: {
-          assigned_at?: string
-          assigned_by?: string | null
+          created_at?: string
           id?: string
           role?: string
           user_id?: string
         }
         Relationships: []
       }
-      validated_leads: {
-        Row: {
-          call_id: string | null
-          car_brand: string | null
-          car_model: string | null
-          car_year: number | null
-          created_at: string
-          custodio_name: string | null
-          id: number
-          phone_number: number | null
-          phone_number_intl: string | null
-          security_exp: string | null
-          sedena_id: string | null
-          vapi_call_data: Json | null
-        }
-        Insert: {
-          call_id?: string | null
-          car_brand?: string | null
-          car_model?: string | null
-          car_year?: number | null
-          created_at?: string
-          custodio_name?: string | null
-          id?: number
-          phone_number?: number | null
-          phone_number_intl?: string | null
-          security_exp?: string | null
-          sedena_id?: string | null
-          vapi_call_data?: Json | null
-        }
-        Update: {
-          call_id?: string | null
-          car_brand?: string | null
-          car_model?: string | null
-          car_year?: number | null
-          created_at?: string
-          custodio_name?: string | null
-          id?: number
-          phone_number?: number | null
-          phone_number_intl?: string | null
-          security_exp?: string | null
-          sedena_id?: string | null
-          vapi_call_data?: Json | null
-        }
-        Relationships: []
-      }
-      vapi_call_logs: {
-        Row: {
-          assistant_id: string
-          assistant_name: string | null
-          assistant_phone_number: string | null
-          call_type: string | null
-          caller_phone_number: string | null
-          conversation_id: string | null
-          cost: number | null
-          created_at: string | null
-          customer_number: string | null
-          direction: string | null
-          duration: number | null
-          end_time: string | null
-          ended_reason: string | null
-          id: string
-          log_id: string
-          metadata: Json | null
-          organization_id: string
-          phone_number: string | null
-          recording_url: string | null
-          start_time: string | null
-          status: string | null
-          success_evaluation: string | null
-          transcript: Json | null
-          updated_at: string | null
-        }
-        Insert: {
-          assistant_id: string
-          assistant_name?: string | null
-          assistant_phone_number?: string | null
-          call_type?: string | null
-          caller_phone_number?: string | null
-          conversation_id?: string | null
-          cost?: number | null
-          created_at?: string | null
-          customer_number?: string | null
-          direction?: string | null
-          duration?: number | null
-          end_time?: string | null
-          ended_reason?: string | null
-          id?: string
-          log_id: string
-          metadata?: Json | null
-          organization_id: string
-          phone_number?: string | null
-          recording_url?: string | null
-          start_time?: string | null
-          status?: string | null
-          success_evaluation?: string | null
-          transcript?: Json | null
-          updated_at?: string | null
-        }
-        Update: {
-          assistant_id?: string
-          assistant_name?: string | null
-          assistant_phone_number?: string | null
-          call_type?: string | null
-          caller_phone_number?: string | null
-          conversation_id?: string | null
-          cost?: number | null
-          created_at?: string | null
-          customer_number?: string | null
-          direction?: string | null
-          duration?: number | null
-          end_time?: string | null
-          ended_reason?: string | null
-          id?: string
-          log_id?: string
-          metadata?: Json | null
-          organization_id?: string
-          phone_number?: string | null
-          recording_url?: string | null
-          start_time?: string | null
-          status?: string | null
-          success_evaluation?: string | null
-          transcript?: Json | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
     }
     Views: {
-      custodio_kpi_data: {
-        Row: {
-          avg_revenue_per_service: number | null
-          avg_services_per_custodio: number | null
-          month_year: string | null
-          total_custodios: number | null
-          total_revenue: number | null
-          total_servicios: number | null
-        }
-        Relationships: []
-      }
-      custodio_validation_stats: {
-        Row: {
-          avg_call_quality: number | null
-          avg_communication: number | null
-          avg_duration: number | null
-          avg_reliability: number | null
-          status: string | null
-          validation_count: number | null
-          validation_day: string | null
-        }
-        Relationships: []
-      }
-      prospects: {
-        Row: {
-          call_count: number | null
-          call_duration: number | null
-          call_log_id: string | null
-          call_start_time: string | null
-          call_status: string | null
-          car_brand: string | null
-          car_model: string | null
-          car_year: number | null
-          custodio_name: string | null
-          last_call_date: string | null
-          lead_created_at: string | null
-          lead_email: string | null
-          lead_id: number | null
-          lead_name: string | null
-          lead_phone: string | null
-          lead_source: string | null
-          lead_status: string | null
-          phone_number_intl: string | null
-          recording_url: string | null
-          security_exp: string | null
-          sedena_id: string | null
-          transcript: Json | null
-          validated_lead_id: number | null
-          validation_date: string | null
-          vapi_log_id: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       add_admin_role: {
         Args: { user_id: string }
         Returns: undefined
       }
-      add_permission_safe: {
+      assign_user_role: {
+        Args: { target_user_id: string; new_role: string }
+        Returns: boolean
+      }
+      award_points: {
         Args: {
-          p_role: string
-          p_permission_type: string
-          p_permission_id: string
-          p_allowed: boolean
+          p_user_id: string
+          p_trip_id: string
+          p_points: number
+          p_type: string
+          p_description?: string
         }
-        Returns: Json
-      }
-      calcular_kpi_cliente: {
-        Args: { p_cliente: string; fecha_inicio: string; fecha_fin: string }
-        Returns: {
-          nombre_cliente: string
-          total_servicios: number
-          km_totales: number
-          costo_total: number
-          duracion_promedio: unknown
-          servicios_por_dia: number
-        }[]
-      }
-      calculate_custodio_ltv: {
-        Args: { months_lookback?: number }
-        Returns: {
-          nombre_custodio: string
-          months_active: number
-          total_revenue: number
-          avg_monthly_revenue: number
-          estimated_ltv: number
-          last_service_date: string
-        }[]
-      }
-      calculate_custodio_retention: {
-        Args: { start_date: string; end_date: string }
-        Returns: {
-          month_year: string
-          active_start: number
-          active_end: number
-          retention_rate: number
-          new_custodios: number
-          lost_custodios: number
-          growth_rate: number
-        }[]
-      }
-      calculate_points_for_service: {
-        Args: { servicio_id: number; config_id?: string }
         Returns: number
       }
-      clean_cobro_cliente_values: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      convert_cobro_cliente_to_integer: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      create_new_role: {
-        Args: { new_role: string }
-        Returns: undefined
-      }
-      deduplicate_leads: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      deduplicate_servicios_custodia: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      delete_role: {
-        Args: { target_role: string }
-        Returns: undefined
-      }
-      get_all_prospects: {
-        Args: Record<PropertyKey, never>
+      bypass_rls_get_servicios: {
+        Args: { max_records?: number }
         Returns: {
-          lead_id: number
-          lead_name: string
-          lead_phone: string
-          lead_email: string
-          lead_status: string
-          lead_created_at: string
-          lead_source: string
-          call_count: number
-          last_call_date: string
-          validated_lead_id: number
-          custodio_name: string
-          car_brand: string
-          car_model: string
-          car_year: number
-          security_exp: string
-          sedena_id: string
-          phone_number_intl: string
-          validation_date: string
-          call_log_id: string
-          vapi_log_id: string
-          call_status: string
-          call_duration: number
-          call_start_time: string
-          recording_url: string
-          transcript: Json
+          armado: string | null
+          auto: string | null
+          cantidad_transportes: string | null
+          casetas: string | null
+          cobro_cliente: number | null
+          comentarios_adicionales: string | null
+          contacto_emergencia: string | null
+          costo_custodio: string | null
+          creado_por: string | null
+          creado_via: string | null
+          created_at: string | null
+          destino: string | null
+          duracion_servicio: unknown | null
+          estado: string | null
+          fecha_contratacion: string | null
+          fecha_hora_asignacion: string | null
+          fecha_hora_cita: string | null
+          fecha_primer_servicio: string | null
+          folio_cliente: string | null
+          gadget: string | null
+          gadget_solicitado: string | null
+          gm_transport_id: string | null
+          hora_arribo: string | null
+          hora_finalizacion: string | null
+          hora_inicio_custodia: string | null
+          hora_presentacion: string | null
+          id: number | null
+          id_cotizacion: string | null
+          id_custodio: string | null
+          id_servicio: string | null
+          km_extras: string | null
+          km_recorridos: number | null
+          km_teorico: number | null
+          local_foraneo: string | null
+          nombre_armado: string | null
+          nombre_cliente: string | null
+          nombre_custodio: string | null
+          nombre_operador_adicional: string | null
+          nombre_operador_transporte: string | null
+          origen: string | null
+          placa: string | null
+          placa_carga: string | null
+          placa_carga_adicional: string | null
+          presentacion: string | null
+          proveedor: string | null
+          ruta: string | null
+          telefono: string | null
+          telefono_armado: string | null
+          telefono_emergencia: string | null
+          telefono_operador: string | null
+          telefono_operador_adicional: string | null
+          tiempo_estimado: string | null
+          tiempo_punto_origen: string | null
+          tiempo_retraso: number | null
+          tipo_carga: string | null
+          tipo_carga_adicional: string | null
+          tipo_gadget: string | null
+          tipo_servicio: string | null
+          tipo_unidad: string | null
+          tipo_unidad_adicional: string | null
+          updated_time: string | null
         }[]
       }
-      get_all_user_roles_safe: {
+      bypass_rls_get_servicios_safe: {
+        Args: { max_records?: number }
+        Returns: {
+          armado: string | null
+          auto: string | null
+          cantidad_transportes: string | null
+          casetas: string | null
+          cobro_cliente: number | null
+          comentarios_adicionales: string | null
+          contacto_emergencia: string | null
+          costo_custodio: string | null
+          creado_por: string | null
+          creado_via: string | null
+          created_at: string | null
+          destino: string | null
+          duracion_servicio: unknown | null
+          estado: string | null
+          fecha_contratacion: string | null
+          fecha_hora_asignacion: string | null
+          fecha_hora_cita: string | null
+          fecha_primer_servicio: string | null
+          folio_cliente: string | null
+          gadget: string | null
+          gadget_solicitado: string | null
+          gm_transport_id: string | null
+          hora_arribo: string | null
+          hora_finalizacion: string | null
+          hora_inicio_custodia: string | null
+          hora_presentacion: string | null
+          id: number | null
+          id_cotizacion: string | null
+          id_custodio: string | null
+          id_servicio: string | null
+          km_extras: string | null
+          km_recorridos: number | null
+          km_teorico: number | null
+          local_foraneo: string | null
+          nombre_armado: string | null
+          nombre_cliente: string | null
+          nombre_custodio: string | null
+          nombre_operador_adicional: string | null
+          nombre_operador_transporte: string | null
+          origen: string | null
+          placa: string | null
+          placa_carga: string | null
+          placa_carga_adicional: string | null
+          presentacion: string | null
+          proveedor: string | null
+          ruta: string | null
+          telefono: string | null
+          telefono_armado: string | null
+          telefono_emergencia: string | null
+          telefono_operador: string | null
+          telefono_operador_adicional: string | null
+          tiempo_estimado: string | null
+          tiempo_punto_origen: string | null
+          tiempo_retraso: number | null
+          tipo_carga: string | null
+          tipo_carga_adicional: string | null
+          tipo_gadget: string | null
+          tipo_servicio: string | null
+          tipo_unidad: string | null
+          tipo_unidad_adicional: string | null
+          updated_time: string | null
+        }[]
+      }
+      calcular_puntos_viaje: {
+        Args: { km_viaje: number; estado_viaje: string }
+        Returns: number
+      }
+      calculate_custodian_level: {
+        Args: { total_points: number }
+        Returns: number
+      }
+      calculate_custodian_level_dynamic: {
+        Args: { total_points: number }
+        Returns: number
+      }
+      calculate_points_with_validation: {
+        Args: {
+          p_km_recorridos: number
+          p_estado: string
+          p_service_id?: string
+        }
+        Returns: {
+          calculated_points: number
+          is_flagged: boolean
+          flag_reason: string
+        }[]
+      }
+      calculate_punctuality_rate: {
+        Args: { p_custodian_name: string }
+        Returns: number
+      }
+      calculate_unified_points: {
+        Args: { p_km_recorridos: number; p_estado: string }
+        Returns: number
+      }
+      calculate_user_punctuality_rate: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
+      check_admin_for_rewards: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      check_user_role: {
+        Args: { user_id: string; role_name: string }
+        Returns: boolean
+      }
+      check_user_role_no_recursion: {
+        Args: { check_user_id: string; role_name: string }
+        Returns: boolean
+      }
+      check_user_role_safe: {
+        Args: { check_user_id: string; role_name: string }
+        Returns: boolean
+      }
+      check_user_role_secure: {
+        Args: { user_id: string; role_name: string }
+        Returns: boolean
+      }
+      clear_redemptions_bypass_rls: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      create_redemptions_bypass_rls: {
+        Args: { redemptions_data: Json }
+        Returns: {
+          id: string
+        }[]
+      }
+      create_reward_bypass_rls: {
+        Args: {
+          reward_name: string
+          reward_description: string
+          reward_point_cost: number
+          reward_image_url: string
+          reward_category_id: string
+          reward_availability: number
+          reward_featured: boolean
+        }
+        Returns: string
+      }
+      create_test_trips_for_user: {
+        Args: { p_user_id: string; p_user_phone: string; p_user_name: string }
+        Returns: number
+      }
+      delete_reward_bypass_rls: {
+        Args: { reward_id: string }
+        Returns: boolean
+      }
+      diagnose_phone_services: {
+        Args: { p_phone: string }
+        Returns: {
+          found_services: number
+          sample_service_id: string
+          sample_custodian: string
+          sample_phone: string
+          sample_estado: string
+          distinct_phones: string[]
+          phone_variations: string[]
+        }[]
+      }
+      ensure_admin_privileges: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      es_usuario_admin: {
+        Args: Record<PropertyKey, never> | { user_id: string }
+        Returns: boolean
+      }
+      flag_service_for_review: {
+        Args: {
+          p_service_id: string
+          p_flag_reason: string
+          p_original_km: number
+          p_suggested_km: number
+          p_original_points: number
+          p_suggested_points: number
+        }
+        Returns: string
+      }
+      get_active_custodians_count: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          count: number
+          custodians: string[]
+        }[]
+      }
+      get_all_recent_trips: {
+        Args: { days_back?: number }
+        Returns: {
+          armado: string | null
+          auto: string | null
+          cantidad_transportes: string | null
+          casetas: string | null
+          cobro_cliente: number | null
+          comentarios_adicionales: string | null
+          contacto_emergencia: string | null
+          costo_custodio: string | null
+          creado_por: string | null
+          creado_via: string | null
+          created_at: string | null
+          destino: string | null
+          duracion_servicio: unknown | null
+          estado: string | null
+          fecha_contratacion: string | null
+          fecha_hora_asignacion: string | null
+          fecha_hora_cita: string | null
+          fecha_primer_servicio: string | null
+          folio_cliente: string | null
+          gadget: string | null
+          gadget_solicitado: string | null
+          gm_transport_id: string | null
+          hora_arribo: string | null
+          hora_finalizacion: string | null
+          hora_inicio_custodia: string | null
+          hora_presentacion: string | null
+          id: number | null
+          id_cotizacion: string | null
+          id_custodio: string | null
+          id_servicio: string | null
+          km_extras: string | null
+          km_recorridos: number | null
+          km_teorico: number | null
+          local_foraneo: string | null
+          nombre_armado: string | null
+          nombre_cliente: string | null
+          nombre_custodio: string | null
+          nombre_operador_adicional: string | null
+          nombre_operador_transporte: string | null
+          origen: string | null
+          placa: string | null
+          placa_carga: string | null
+          placa_carga_adicional: string | null
+          presentacion: string | null
+          proveedor: string | null
+          ruta: string | null
+          telefono: string | null
+          telefono_armado: string | null
+          telefono_emergencia: string | null
+          telefono_operador: string | null
+          telefono_operador_adicional: string | null
+          tiempo_estimado: string | null
+          tiempo_punto_origen: string | null
+          tiempo_retraso: number | null
+          tipo_carga: string | null
+          tipo_carga_adicional: string | null
+          tipo_gadget: string | null
+          tipo_servicio: string | null
+          tipo_unidad: string | null
+          tipo_unidad_adicional: string | null
+          updated_time: string | null
+        }[]
+      }
+      get_all_redemptions_bypass_rls: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          user_id: string
+          reward_id: string
+          points_spent: number
+          status: string
+          admin_notes: string
+          created_at: string
+          reward: Json
+          custodian_name: string
+          custodian_phone: string
+        }[]
+      }
+      get_all_rewards: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          name: string
+          description: string
+          point_cost: number
+          image_url: string
+          category: string
+          availability: number
+          featured: boolean
+          created_at: string
+          updated_at: string
+          category_id: string
+        }[]
+      }
+      get_all_users_with_roles: {
         Args: Record<PropertyKey, never>
         Returns: {
           user_id: string
-          role: string
+          email: string
+          display_name: string
+          phone: string
+          photo_url: string
+          is_verified: boolean
+          last_sign_in_at: string
+          created_at: string
+          user_roles: string[]
         }[]
       }
-      get_custodios_with_services: {
+      get_current_user_ranking_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          posicion: number
+          total_custodios: number
+          puntos_totales: number
+          total_viajes: number
+          km_totales: number
+          nombre_custodio: string
+        }[]
+      }
+      get_current_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_custodian_full_stats: {
+        Args: { p_custodio_id: string }
+        Returns: {
+          total_viajes: number
+          viajes_completados: number
+          viajes_pendientes: number
+          km_totales: number
+          puntos_totales: number
+          nivel: number
+          viajes_mes_actual: number
+          puntos_mes_actual: number
+        }[]
+      }
+      get_custodian_performance_safe: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          nombre_custodio: string
+          total_viajes: number
+          puntos_totales: number
+          km_totales: number
+          posicion: number
+        }[]
+      }
+      get_custodian_performance_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          nombre_custodio: string
+          total_viajes: number
+          puntos_totales: number
+          km_totales: number
+          posicion: number
+        }[]
+      }
+      get_custodian_performance_unified: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          nombre_custodio: string
+          total_viajes: number
+          puntos_totales: number
+          km_totales: number
+          posicion: number
+        }[]
+      }
+      get_custodian_services: {
+        Args: { custodian_name: string }
+        Returns: {
+          id_servicio: string
+          origen: string
+          destino: string
+          fecha_hora_cita: string
+          estado: string
+          km_recorridos: number
+          nombre_cliente: string
+          tipo_servicio: string
+        }[]
+      }
+      get_custodian_services_with_points: {
+        Args: { p_custodian_name: string }
+        Returns: {
+          id_servicio: string
+          origen: string
+          destino: string
+          fecha_hora_cita: string
+          estado: string
+          km_recorridos: number
+          puntos_ganados: number
+          nombre_cliente: string
+          tipo_servicio: string
+          is_flagged: boolean
+          flag_reason: string
+        }[]
+      }
+      get_custodians_levels_and_average: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          total_custodians: number
+          average_level: number
+          level_1_count: number
+          level_2_count: number
+          level_3_count: number
+          level_4_count: number
+          level_5_count: number
+        }[]
+      }
+      get_points_system_config: {
         Args: Record<PropertyKey, never>
         Returns: {
           id: string
-          nombre_custodio: string
-          servicio_count: number
-          puntos_totales: number
-          ultimo_servicio: string
-          procesados: number
+          points_multiplier: number
+          min_points_for_rewards: number
+          level_thresholds: Json
+          level_names: Json
+          updated_at: string
         }[]
       }
-      get_new_custodios_by_month: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          month_year: string
-          new_custodios: number
-        }[]
-      }
-      get_points_configuration_safe: {
+      get_profiles_bypass_rls: {
         Args: Record<PropertyKey, never>
         Returns: {
           created_at: string
-          high_margin_threshold: number
+          display_name: string
+          email: string
           id: string
-          level_threshold: number | null
-          low_margin_threshold: number
-          margin_multiplier_high: number
-          margin_multiplier_low: number
-          margin_multiplier_medium: number
-          margin_multiplier_minimal: number
-          max_points_per_trip: number
-          medium_margin_threshold: number
-          min_points_per_trip: number
-          points_per_100km: number
-          priority_client_multiplier: number
-          tyasa_multiplier: number
+          is_verified: boolean | null
+          last_login: string | null
+          phone: string
+          photo_url: string | null
           updated_at: string
-          updated_by: string | null
         }[]
       }
-      get_prospect_by_id: {
-        Args: { p_lead_id: number }
-        Returns: {
-          lead_id: number
-          lead_name: string
-          lead_phone: string
-          lead_email: string
-          lead_status: string
-          lead_created_at: string
-          lead_source: string
-          call_count: number
-          last_call_date: string
-          validated_lead_id: number
-          custodio_name: string
-          car_brand: string
-          car_model: string
-          car_year: number
-          security_exp: string
-          sedena_id: string
-          phone_number_intl: string
-          validation_date: string
-          call_log_id: string
-          vapi_log_id: string
-          call_status: string
-          call_duration: number
-          call_start_time: string
-          recording_url: string
-          transcript: Json
-        }[]
-      }
-      get_prospects_by_status: {
-        Args: { p_status: string }
-        Returns: {
-          lead_id: number
-          lead_name: string
-          lead_phone: string
-          lead_email: string
-          lead_status: string
-          lead_created_at: string
-          lead_source: string
-          call_count: number
-          last_call_date: string
-          validated_lead_id: number
-          custodio_name: string
-          car_brand: string
-          car_model: string
-          car_year: number
-          security_exp: string
-          sedena_id: string
-          phone_number_intl: string
-          validation_date: string
-          call_log_id: string
-          vapi_log_id: string
-          call_status: string
-          call_duration: number
-          call_start_time: string
-          recording_url: string
-          transcript: Json
-        }[]
-      }
-      get_qualified_leads_from_calls: {
+      get_redemptions_with_custodian_info: {
         Args: Record<PropertyKey, never>
         Returns: {
-          lead_id: number
-          lead_name: string
-          lead_phone: string
-          call_count: number
-          last_call_date: string
-          transcript: Json
+          redemption_id: string
+          user_id: string
+          reward_id: string
+          points_spent: number
+          status: string
+          admin_notes: string
+          created_at: string
+          reward_name: string
+          reward_description: string
+          reward_point_cost: number
+          custodian_name: string
+          custodian_phone: string
+          custodian_total_points: number
+          custodian_level: number
+        }[]
+      }
+      get_reward_categories_with_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          name: string
+          description: string
+          icon: string
+          color: string
+          is_active: boolean
+          display_order: number
+          total_rewards: number
+          active_rewards: number
+          total_redemptions: number
+        }[]
+      }
+      get_reward_image_url: {
+        Args: { image_path: string }
+        Returns: string
+      }
+      get_rewards_bypass_rls: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          availability: number | null
+          category: string | null
+          category_id: string | null
+          created_at: string | null
+          description: string | null
+          featured: boolean | null
+          id: string
+          image_url: string | null
+          name: string
+          point_cost: number
+          updated_at: string | null
+        }[]
+      }
+      get_rewards_with_category: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          name: string
+          description: string
+          point_cost: number
+          image_url: string
+          availability: number
+          featured: boolean
+          created_at: string
+          category_name: string
+          category_color: string
+          category_icon: string
+        }[]
+      }
+      get_services_by_exact_phone: {
+        Args: { p_phone: string }
+        Returns: {
+          armado: string | null
+          auto: string | null
+          cantidad_transportes: string | null
+          casetas: string | null
+          cobro_cliente: number | null
+          comentarios_adicionales: string | null
+          contacto_emergencia: string | null
+          costo_custodio: string | null
+          creado_por: string | null
+          creado_via: string | null
+          created_at: string | null
+          destino: string | null
+          duracion_servicio: unknown | null
+          estado: string | null
+          fecha_contratacion: string | null
+          fecha_hora_asignacion: string | null
+          fecha_hora_cita: string | null
+          fecha_primer_servicio: string | null
+          folio_cliente: string | null
+          gadget: string | null
+          gadget_solicitado: string | null
+          gm_transport_id: string | null
+          hora_arribo: string | null
+          hora_finalizacion: string | null
+          hora_inicio_custodia: string | null
+          hora_presentacion: string | null
+          id: number | null
+          id_cotizacion: string | null
+          id_custodio: string | null
+          id_servicio: string | null
+          km_extras: string | null
+          km_recorridos: number | null
+          km_teorico: number | null
+          local_foraneo: string | null
+          nombre_armado: string | null
+          nombre_cliente: string | null
+          nombre_custodio: string | null
+          nombre_operador_adicional: string | null
+          nombre_operador_transporte: string | null
+          origen: string | null
+          placa: string | null
+          placa_carga: string | null
+          placa_carga_adicional: string | null
+          presentacion: string | null
+          proveedor: string | null
+          ruta: string | null
+          telefono: string | null
+          telefono_armado: string | null
+          telefono_emergencia: string | null
+          telefono_operador: string | null
+          telefono_operador_adicional: string | null
+          tiempo_estimado: string | null
+          tiempo_punto_origen: string | null
+          tiempo_retraso: number | null
+          tipo_carga: string | null
+          tipo_carga_adicional: string | null
+          tipo_gadget: string | null
+          tipo_servicio: string | null
+          tipo_unidad: string | null
+          tipo_unidad_adicional: string | null
+          updated_time: string | null
+        }[]
+      }
+      get_services_by_phone: {
+        Args: { p_phone: string }
+        Returns: {
+          total_servicios: number
+          servicios_completados: number
+          servicios_pendientes: number
+          km_totales: number
+          puntos_totales: number
+          servicios_data: Json
+        }[]
+      }
+      get_services_by_user_phone: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          service_id: string
+          origin: string
+          destination: string
+          status: string
+          date: string
+          client_name: string
+          km_travelled: number
         }[]
       }
       get_user_role: {
-        Args: { user_uid: string }
+        Args: { user_id: string }
         Returns: string
       }
-      get_user_role_safe: {
-        Args: { user_uid: string }
-        Returns: string
-      }
-      get_user_roles_safe: {
+      get_user_roles: {
         Args: Record<PropertyKey, never>
         Returns: {
           role: string
-          sort_order: number
         }[]
       }
-      has_role: {
-        Args: { user_uid: string; required_role: string }
-        Returns: boolean
-      }
-      import_servicios_custodia_data: {
-        Args: { file_content: string }
-        Returns: Json
-      }
-      invoke_deduplicate_function: {
+      get_user_services_by_phone: {
         Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      is_registration_or_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      normalize_currency_value: {
-        Args: { value_to_clean: string }
-        Returns: number
-      }
-      obtener_alertas_clientes: {
-        Args: {
-          mes_actual_inicio: string
-          mes_actual_fin: string
-          mes_anterior_inicio: string
-          mes_anterior_fin: string
-          umbral_variacion: number
-        }
         Returns: {
-          nombre: string
-          servicios_actual: number
-          servicios_anterior: number
-          variacion: number
-          kmpromedio: number
-          costopromedio: number
+          id_servicio: string
+          origen: string
+          destino: string
+          estado: string
+          fecha_hora_cita: string
+          km_recorridos: number
+          nombre_cliente: string
+          user_id: string
+          user_name: string
+          user_phone: string
         }[]
       }
-      obtener_metricas_generales: {
+      get_user_services_by_phone_secure: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id_servicio: string
+          origen: string
+          destino: string
+          fecha_hora_cita: string
+          estado: string
+          nombre_cliente: string
+          nombre_custodio: string
+          km_recorridos: number
+          telefono: string
+          puntos_ganados: number
+        }[]
+      }
+      get_user_services_comprehensive: {
         Args: {
-          fecha_inicio: string
-          fecha_fin: string
-          mes_actual_inicio: string
-          mes_actual_fin: string
-          mes_anterior_inicio: string
-          mes_anterior_fin: string
-          semana_actual_inicio: string
-          semana_actual_fin: string
-          semana_anterior_inicio: string
-          semana_anterior_fin: string
+          p_user_id?: string
+          p_user_phone?: string
+          p_user_email?: string
+          p_user_name?: string
         }
         Returns: {
           total_servicios: number
+          servicios_completados: number
+          servicios_pendientes: number
           km_totales: number
-          servicios_mes_actual: number
-          servicios_mes_anterior: number
-          servicios_semana_actual: number
-          servicios_semana_anterior: number
-          km_promedio_mes_actual: number
-          km_promedio_mes_anterior: number
-          clientes_activos: number
-          clientes_nuevos: number
+          puntos_totales: number
+          servicios_data: Json
         }[]
       }
-      obtener_servicios_por_cliente: {
-        Args: { fecha_inicio: string; fecha_fin: string }
+      get_user_services_list: {
+        Args: { p_phone: string }
         Returns: {
+          id_servicio: string
+          origen: string
+          destino: string
+          estado: string
+          km_recorridos: number
+          fecha_hora_cita: string
           nombre_cliente: string
-          totalservicios: number
-          kmpromedio: number
-          costopromedio: number
+          nombre_custodio: string
+          tipo_servicio: string
+          telefono: string
+          id_custodio: string
+          tiempo_retraso: number
+          puntos_ganados: number
         }[]
       }
-      obtener_servicios_por_tipo: {
-        Args: { fecha_inicio: string; fecha_fin: string }
+      get_user_statistics: {
+        Args: Record<PropertyKey, never>
         Returns: {
-          tipo: string
-          count: number
+          total_users: number
+          verified_users: number
+          unverified_users: number
+          admin_users: number
+          manager_users: number
+          custodio_users: number
+          users_last_30_days: number
         }[]
       }
-      save_points_configuration_safe: {
-        Args:
-          | { p_level_threshold: number; p_user_id: string }
-          | {
-              p_points_per_100km: number
-              p_min_points_per_trip: number
-              p_max_points_per_trip: number
-              p_margin_multiplier_high: number
-              p_margin_multiplier_medium: number
-              p_margin_multiplier_low: number
-              p_margin_multiplier_minimal: number
-              p_tyasa_multiplier: number
-              p_priority_client_multiplier: number
-              p_high_margin_threshold: number
-              p_medium_margin_threshold: number
-              p_low_margin_threshold: number
-              p_level_threshold: number
-              p_user_id: string
-            }
-        Returns: Json
-      }
-      update_custodio_points: {
-        Args: { p_custodio_name: string }
-        Returns: undefined
-      }
-      update_productivity_parameters: {
-        Args: {
-          p_id: number
-          p_client: string
-          p_driver_group: string
-          p_expected_daily_distance: number
-          p_expected_daily_time_minutes: number
-          p_fuel_cost_per_liter: number
-          p_expected_fuel_efficiency: number
-          p_user_id: string
-        }
+      get_weekly_leaderboard: {
+        Args: Record<PropertyKey, never>
         Returns: {
-          id: number
+          custodio_id: string
+          nombre_custodio: string
+          total_viajes: number
+          km_totales: number
+          puntos: number
+          posicion: number
         }[]
       }
-      update_role_name: {
-        Args: { old_role: string; new_role: string }
+      is_admin: {
+        Args: Record<PropertyKey, never> | { user_id: string }
+        Returns: boolean
+      }
+      is_admin_bypass_rls: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_admin_no_recursion: {
+        Args: { check_user_id: string }
+        Returns: boolean
+      }
+      is_admin_safe: {
+        Args: { check_user_id: string }
+        Returns: boolean
+      }
+      is_admin_secure: {
+        Args: { user_id: string }
+        Returns: boolean
+      }
+      is_admin_user: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_service_owner: {
+        Args: { user_id: string; service_custodio_id: string }
+        Returns: boolean
+      }
+      is_super_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      link_user_to_custodio_services: {
+        Args: { p_user_id: string; p_phone: string }
+        Returns: {
+          linked_services: number
+        }[]
+      }
+      migrate_existing_categories: {
+        Args: Record<PropertyKey, never>
         Returns: undefined
       }
-      update_user_role: {
-        Args: { target_user_id: string; new_role: string }
-        Returns: undefined
+      obtener_estadisticas_custodio: {
+        Args: { custodio_id: string }
+        Returns: {
+          total_viajes: number
+          puntos_totales: number
+          km_totales: number
+          viajes_completados: number
+          viajes_pendientes: number
+        }[]
       }
-      user_has_permission: {
+      redeem_points: {
+        Args: { p_user_id: string; p_reward_id: string; p_quantity?: number }
+        Returns: string
+      }
+      review_flagged_service: {
         Args: {
-          user_uid: string
-          permission_type: string
-          permission_id: string
+          p_flag_id: string
+          p_status: string
+          p_admin_notes?: string
+          p_override_km?: number
+          p_override_points?: number
         }
         Returns: boolean
       }
-      verify_user_email: {
-        Args: { target_user_id: string }
+      self_verify_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      update_all_custodian_levels: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      update_last_login: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      update_points_system_config: {
+        Args: {
+          p_points_multiplier: number
+          p_min_points_for_rewards: number
+          p_level_thresholds: Json
+          p_level_names: Json
+        }
+        Returns: string
+      }
+      update_redemption_status_bypass_rls: {
+        Args: {
+          p_redemption_id: string
+          p_status: string
+          p_admin_notes?: string
+        }
+        Returns: boolean
+      }
+      update_reward_bypass_rls: {
+        Args: {
+          reward_id: string
+          reward_name: string
+          reward_description: string
+          reward_point_cost: number
+          reward_image_url: string
+          reward_category_id: string
+          reward_availability: number
+          reward_featured: boolean
+        }
+        Returns: string
+      }
+      upsert_user_profile: {
+        Args: {
+          user_id: string
+          user_email: string
+          user_display_name: string
+          user_phone?: string
+          user_photo_url?: string
+          user_role?: string
+        }
+        Returns: string
+      }
+      user_has_role: {
+        Args: { user_id: string; required_role: string }
+        Returns: boolean
+      }
+      validate_image_url: {
+        Args: { url: string }
+        Returns: boolean
+      }
+      validate_service_distance: {
+        Args: {
+          p_km_recorridos: number
+          p_origen: string
+          p_destino: string
+          p_service_id?: string
+        }
+        Returns: {
+          is_valid: boolean
+          suggested_km: number
+          flag_reason: string
+          should_flag: boolean
+        }[]
+      }
+      verificar_admin_seguro: {
+        Args: { check_user_id: string }
+        Returns: boolean
+      }
+      verify_admin_email: {
+        Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      verify_user_account: {
+        Args: { target_user_id: string; verify_status: boolean }
+        Returns: boolean
+      }
+      verify_user_role: {
+        Args: { role_to_check: string }
+        Returns: boolean
       }
     }
     Enums: {
-      app_role:
-        | "admin"
-        | "supply"
-        | "supply_admin"
-        | "soporte"
-        | "bi"
-        | "monitoring"
-        | "monitoring_supervisor"
-        | "owner"
-        | "pending"
-        | "unverified"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2151,19 +1639,6 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {
-      app_role: [
-        "admin",
-        "supply",
-        "supply_admin",
-        "soporte",
-        "bi",
-        "monitoring",
-        "monitoring_supervisor",
-        "owner",
-        "pending",
-        "unverified",
-      ],
-    },
+    Enums: {},
   },
 } as const
