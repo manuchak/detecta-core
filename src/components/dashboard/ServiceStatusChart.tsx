@@ -116,7 +116,7 @@ export const ServiceStatusChart = ({ data, metrics }: ServiceStatusChartProps) =
                 <div className="h-2 rounded-full bg-secondary overflow-hidden">
                   <div 
                     className="h-full bg-green-500 transition-all duration-300" 
-                    style={{width: `${metrics.totalServices > 0 ? (metrics.completedServices / metrics.totalServices) * 100 : 0}%`}}
+                    style={{ width: `${metrics.totalServices > 0 ? (metrics.completedServices / metrics.totalServices) * 100 : 0}%` }}
                   />
                 </div>
               </div>
@@ -137,7 +137,7 @@ export const ServiceStatusChart = ({ data, metrics }: ServiceStatusChartProps) =
                 <div className="h-2 rounded-full bg-secondary overflow-hidden">
                   <div 
                     className="h-full bg-blue-500 transition-all duration-300" 
-                    style={{width: `${metrics.totalServices > 0 ? (metrics.ongoingServices / metrics.totalServices) * 100 : 0}%`}}
+                    style={{ width: `${metrics.totalServices > 0 ? (metrics.ongoingServices / metrics.totalServices) * 100 : 0}%` }}
                   />
                 </div>
               </div>
@@ -158,7 +158,7 @@ export const ServiceStatusChart = ({ data, metrics }: ServiceStatusChartProps) =
                 <div className="h-2 rounded-full bg-secondary overflow-hidden">
                   <div 
                     className="h-full bg-amber-500 transition-all duration-300" 
-                    style={{width: `${metrics.totalServices > 0 ? (metrics.pendingServices / metrics.totalServices) * 100 : 0}%`}}
+                    style={{ width: `${metrics.totalServices > 0 ? (metrics.pendingServices / metrics.totalServices) * 100 : 0}%` }}
                   />
                 </div>
               </div>
@@ -172,14 +172,14 @@ export const ServiceStatusChart = ({ data, metrics }: ServiceStatusChartProps) =
                   <div className="flex items-center">
                     <p className="text-sm font-bold">{metrics.cancelledServices}</p>
                     <span className="text-sm text-muted-foreground ml-2">
-                      {metrics.totalServices > 0 ? Math.round((metrics.cancelledServices / metrics.totalServices) * 100 : 0}%
+                      {metrics.totalServices > 0 ? Math.round((metrics.cancelledServices / metrics.totalServices) * 100) : 0}%
                     </span>
                   </div>
                 </div>
                 <div className="h-2 rounded-full bg-secondary overflow-hidden">
                   <div 
                     className="h-full bg-red-500 transition-all duration-300" 
-                    style={{width: `${metrics.totalServices > 0 ? (metrics.cancelledServices / metrics.totalServices) * 100 : 0}%`}}
+                    style={{ width: `${metrics.totalServices > 0 ? (metrics.cancelledServices / metrics.totalServices) * 100 : 0}%` }}
                   />
                 </div>
               </div>
