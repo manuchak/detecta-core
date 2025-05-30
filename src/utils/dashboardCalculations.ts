@@ -53,16 +53,23 @@ export const cleanTextValue = (value: string | null | undefined): string => {
 
 // Calcular métricas básicas
 export const calculateBasicMetrics = (data: ServiceData[]) => {
+  console.log('calculateBasicMetrics - Datos recibidos:', data.length);
+  console.log('calculateBasicMetrics - Primeros 3 registros:', data.slice(0, 3));
+  
   // Contar servicios únicos basados en id_servicio
   const uniqueServiceIds = new Set(
     data
       .map(service => cleanTextValue(service.id_servicio))
       .filter(id => id !== '')
   );
+  
+  console.log('calculateBasicMetrics - IDs únicos encontrados:', Array.from(uniqueServiceIds).slice(0, 5));
+  
   const totalServices = uniqueServiceIds.size;
   
   const totalGMV = data.reduce((sum, service) => {
-    return sum + cleanNumericValue(service.cobro_cliente);
+    const amount = cleanNumericValue(service.cobro_cliente);
+    return sum + amount;
   }, 0);
 
   const uniqueClients = new Set(
@@ -74,22 +81,30 @@ export const calculateBasicMetrics = (data: ServiceData[]) => {
 
   const averageServiceValue = totalServices > 0 ? totalGMV / totalServices : 0;
 
-  return {
+  const result = {
     totalServices,
     totalGMV,
     activeClients,
     averageServiceValue
   };
+  
+  console.log('calculateBasicMetrics - Resultado:', result);
+  
+  return result;
 };
 
 // Calcular contadores por estado
 export const calculateServiceCounts = (data: ServiceData[]) => {
+  console.log('calculateServiceCounts - Datos recibidos:', data.length);
+  
   const serviceCounts = data.reduce((counts, service) => {
     const rawState = cleanState(service.estado);
     const mappedState = STATE_MAPPING[rawState] || 'Otros';
     counts[mappedState] = (counts[mappedState] || 0) + 1;
     return counts;
   }, {} as { [key: string]: number });
+
+  console.log('calculateServiceCounts - Estados contados:', serviceCounts);
 
   return {
     completedServices: serviceCounts['Completado'] || 0,

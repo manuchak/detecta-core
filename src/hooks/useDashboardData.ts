@@ -85,6 +85,8 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
         if (data && data.length > 0) {
           console.log('Sample record:', data[0]);
           console.log('Sample id_servicio values:', data.slice(0, 5).map(d => d.id_servicio));
+          console.log('Sample estados values:', data.slice(0, 5).map(d => d.estado));
+          console.log('Sample cobro_cliente values:', data.slice(0, 5).map(d => d.cobro_cliente));
         }
         
         return data || [];
@@ -97,6 +99,8 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
     retry: 1,
   });
 
+  console.log('Hook - allServicesData length:', allServicesData.length);
+
   // Convertir datos a formato ServiceData
   const serviceData: ServiceData[] = allServicesData.map(service => ({
     id_servicio: service.id_servicio,
@@ -107,6 +111,9 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
     tipo_servicio: service.tipo_servicio,
     km_recorridos: service.km_recorridos
   }));
+
+  console.log('Hook - serviceData length after mapping:', serviceData.length);
+  console.log('Hook - First 3 mapped records:', serviceData.slice(0, 3));
 
   // Calcular métricas usando las funciones refactorizadas
   const basicMetrics = calculateBasicMetrics(serviceData);
