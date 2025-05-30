@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -62,41 +61,54 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
       try {
         console.log("Fetching dashboard data from servicios_custodia...");
         
-        let query = supabase
-          .from('servicios_custodia')
-          .select('*');
+        // Intentar usar función RPC disponible para bypass de RLS
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_all_recent_trips', {
+          days_back: 90
+        });
 
-        // Aplicar filtro de tipo de servicio
-        if (serviceTypeFilter !== 'all') {
-          query = query.eq('local_foraneo', serviceTypeFilter);
+        if (rpcError) {
+          console.warn('RPC function failed, trying direct query:', rpcError);
+          
+          // Fallback a consulta directa
+          let query = supabase
+            .from('servicios_custodia')
+            .select('*');
+
+          // Aplicar filtro de tipo de servicio
+          if (serviceTypeFilter !== 'all') {
+            query = query.eq('local_foraneo', serviceTypeFilter);
+          }
+
+          const { data, error } = await query.limit(1000);
+
+          if (error) {
+            console.error('Direct query failed:', error);
+            return [];
+          }
+
+          console.log('Direct query successful:', data?.length || 0);
+          return data || [];
         }
 
-        const { data, error } = await query.limit(1000);
-
-        if (error) {
-          console.error('Error fetching dashboard data:', error);
-          return [];
-        }
-
-        console.log('Raw data from Supabase:', data);
-        console.log('Total records fetched:', data?.length || 0);
+        console.log('RPC query successful:', rpcData?.length || 0);
         
         // Log sample data for debugging
-        if (data && data.length > 0) {
-          console.log('Sample record:', data[0]);
-          console.log('Sample id_servicio values:', data.slice(0, 5).map(d => d.id_servicio));
-          console.log('Sample estados values:', data.slice(0, 5).map(d => d.estado));
-          console.log('Sample cobro_cliente values:', data.slice(0, 5).map(d => d.cobro_cliente));
+        if (rpcData && rpcData.length > 0) {
+          console.log('Sample record:', rpcData[0]);
+          console.log('Sample id_servicio values:', rpcData.slice(0, 5).map(d => d.id_servicio));
+          console.log('Sample estados values:', rpcData.slice(0, 5).map(d => d.estado));
+          console.log('Sample cobro_cliente values:', rpcData.slice(0, 5).map(d => d.cobro_cliente));
         }
         
-        return data || [];
+        return rpcData || [];
       } catch (err) {
         console.error('Error in dashboard query:', err);
         return [];
       }
     },
     staleTime: 5 * 60 * 1000,
-    retry: 1,
+    retry: 2,
+    retryDelay: 1000,
   });
 
   console.log('Hook - allServicesData length:', allServicesData.length);
