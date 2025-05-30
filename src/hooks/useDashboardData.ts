@@ -10,7 +10,6 @@ import {
   processServiceStatus,
   ServiceData
 } from '@/utils/dashboardCalculations';
-import { canAccessDashboardData } from '@/utils/authHelpers';
 
 export interface MonthlyGmvData {
   name: string;
@@ -55,22 +54,22 @@ export type TimeframeOption = "day" | "week" | "month" | "quarter" | "year";
 export type ServiceTypeOption = "all" | "local" | "foraneo";
 
 export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTypeFilter: ServiceTypeOption = "all") => {
-  // Query para obtener servicios con autenticación apropiada
+  // Query para obtener servicios con verificación simple de permisos
   const { data: allServicesData = [], isLoading, error } = useQuery({
     queryKey: ['dashboard-services', timeframe, serviceTypeFilter],
     queryFn: async () => {
       try {
-        console.log("Checking user permissions for dashboard data...");
+        console.log("Fetching dashboard data...");
         
-        // Verificar permisos del usuario
-        const hasAccess = await canAccessDashboardData();
+        // Verificación simple de usuario autenticado
+        const { data: { user } } = await supabase.auth.getUser();
         
-        if (!hasAccess) {
-          console.warn('User does not have permission to access dashboard data');
+        if (!user) {
+          console.warn('User not authenticated');
           return [];
         }
         
-        console.log("User has access, fetching dashboard data...");
+        console.log("User authenticated, fetching services...");
         
         // Calcular fechas basadas en timeframe
         let startDate: Date;
@@ -104,7 +103,7 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
         
         console.log(`Fetching data from ${startDate.toISOString()} to ${endDate.toISOString()}`);
         
-        // Construir consulta con filtros apropiados
+        // Construir consulta base
         let query = supabase
           .from('servicios_custodia')
           .select('*')
@@ -114,14 +113,12 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
 
         // Aplicar filtro de tipo de servicio usando el nombre correcto de la columna
         if (serviceTypeFilter !== 'all') {
-          // La columna se llama "Local/foráneo" según el usuario
           const filterValue = serviceTypeFilter === 'local' ? 'Local' : 'Foráneo';
-          query = query.eq('Local/foráneo', filterValue);
+          query = query.eq('local_foraneo', filterValue);
+          console.log(`Applying service type filter: ${filterValue}`);
         }
 
-        // Remover el límite de 1000 para ver todos los servicios
-        // Si hay problemas de rendimiento, podemos implementar paginación después
-
+        // Ejecutar consulta sin límite para obtener todos los registros
         const { data, error } = await query;
 
         if (error) {
@@ -139,7 +136,7 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
             first: data[data.length - 1]?.fecha_hora_cita,
             last: data[0]?.fecha_hora_cita
           });
-          console.log('Sample Local/foráneo values:', data.slice(0, 5).map(d => d['Local/foráneo']));
+          console.log('Sample local_foraneo values:', data.slice(0, 5).map(d => d.local_foraneo));
         }
         
         return data || [];
@@ -149,7 +146,7 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
       }
     },
     enabled: true,
-    staleTime: 2 * 60 * 1000, // Reducir cache para ver cambios más rápido
+    staleTime: 30 * 1000, // 30 segundos para ver cambios más rápido
     retry: (failureCount, error) => {
       // Don't retry on permission errors
       if (error?.message?.includes('permission') || error?.message?.includes('Access denied')) {
