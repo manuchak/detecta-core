@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -177,7 +178,7 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
 
   // Contar servicios por estado mapeado
   const serviceCounts = allServicesData.reduce((counts, service) => {
-    const rawState = String(service.estado || '').toLowerCase().trim();
+    const rawState = service.estado ? String(service.estado).toLowerCase().trim() : '';
     const mappedState = stateMapping[rawState] || 'Otros';
     counts[mappedState] = (counts[mappedState] || 0) + 1;
     return counts;
