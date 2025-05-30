@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -73,30 +72,55 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
         
         console.log("User has access, fetching dashboard data...");
         
-        // Calcular fecha límite basada en timeframe
-        let daysBack = 30;
+        // Calcular fechas basadas en timeframe
+        let startDate: Date;
+        let endDate: Date = new Date(); // Hasta hoy
+        
         switch (timeframe) {
-          case 'day': daysBack = 1; break;
-          case 'week': daysBack = 7; break;
-          case 'month': daysBack = 30; break;
-          case 'quarter': daysBack = 90; break;
-          case 'year': daysBack = 365; break;
+          case 'day':
+            startDate = new Date();
+            startDate.setHours(0, 0, 0, 0);
+            break;
+          case 'week':
+            startDate = new Date();
+            startDate.setDate(startDate.getDate() - 7);
+            break;
+          case 'month':
+            startDate = new Date();
+            startDate.setMonth(startDate.getMonth() - 1);
+            break;
+          case 'quarter':
+            startDate = new Date();
+            startDate.setMonth(startDate.getMonth() - 3);
+            break;
+          case 'year':
+            startDate = new Date();
+            startDate.setFullYear(startDate.getFullYear() - 1);
+            break;
+          default:
+            startDate = new Date();
+            startDate.setMonth(startDate.getMonth() - 1);
         }
+        
+        console.log(`Fetching data from ${startDate.toISOString()} to ${endDate.toISOString()}`);
         
         // Construir consulta con filtros apropiados
         let query = supabase
           .from('servicios_custodia')
           .select('*')
-          .gte('fecha_hora_cita', new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString())
+          .gte('fecha_hora_cita', startDate.toISOString())
+          .lte('fecha_hora_cita', endDate.toISOString())
           .order('fecha_hora_cita', { ascending: false });
 
-        // Aplicar filtro de tipo de servicio si es necesario
+        // Aplicar filtro de tipo de servicio usando el nombre correcto de la columna
         if (serviceTypeFilter !== 'all') {
-          query = query.eq('local_foraneo', serviceTypeFilter);
+          // La columna se llama "Local/foráneo" según el usuario
+          const filterValue = serviceTypeFilter === 'local' ? 'Local' : 'Foráneo';
+          query = query.eq('Local/foráneo', filterValue);
         }
 
-        // Limitar resultados para rendimiento
-        query = query.limit(1000);
+        // Remover el límite de 1000 para ver todos los servicios
+        // Si hay problemas de rendimiento, podemos implementar paginación después
 
         const { data, error } = await query;
 
@@ -106,13 +130,16 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
         }
 
         console.log('Dashboard data fetched successfully:', data?.length || 0);
+        console.log(`Timeframe: ${timeframe}, Service filter: ${serviceTypeFilter}`);
         
         // Log sample data for debugging
         if (data && data.length > 0) {
           console.log('Sample record:', data[0]);
-          console.log('Sample id_servicio values:', data.slice(0, 3).map(d => d.id_servicio));
-          console.log('Sample estados values:', data.slice(0, 3).map(d => d.estado));
-          console.log('Sample cobro_cliente values:', data.slice(0, 3).map(d => d.cobro_cliente));
+          console.log('Date range in results:', {
+            first: data[data.length - 1]?.fecha_hora_cita,
+            last: data[0]?.fecha_hora_cita
+          });
+          console.log('Sample Local/foráneo values:', data.slice(0, 5).map(d => d['Local/foráneo']));
         }
         
         return data || [];
@@ -121,8 +148,8 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
         throw err;
       }
     },
-    enabled: true, // Always try to fetch, permissions are checked inside
-    staleTime: 5 * 60 * 1000,
+    enabled: true,
+    staleTime: 2 * 60 * 1000, // Reducir cache para ver cambios más rápido
     retry: (failureCount, error) => {
       // Don't retry on permission errors
       if (error?.message?.includes('permission') || error?.message?.includes('Access denied')) {
@@ -133,7 +160,7 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
     retryDelay: 1000,
   });
 
-  console.log('Hook - allServicesData length:', allServicesData.length);
+  console.log(`Hook - allServicesData length: ${allServicesData.length} for timeframe: ${timeframe}`);
 
   // Convertir datos a formato ServiceData
   const serviceData: ServiceData[] = allServicesData.map(service => ({

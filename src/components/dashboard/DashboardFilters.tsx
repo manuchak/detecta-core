@@ -28,10 +28,10 @@ export const DashboardFilters = ({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="day">Hoy</SelectItem>
-            <SelectItem value="week">Esta semana</SelectItem>
-            <SelectItem value="month">Este mes</SelectItem>
-            <SelectItem value="quarter">Este trimestre</SelectItem>
-            <SelectItem value="year">Este año</SelectItem>
+            <SelectItem value="week">Últimos 7 días</SelectItem>
+            <SelectItem value="month">Último mes</SelectItem>
+            <SelectItem value="quarter">Último trimestre</SelectItem>
+            <SelectItem value="year">Último año</SelectItem>
           </SelectContent>
         </Select>
       </div>
