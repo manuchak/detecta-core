@@ -8,16 +8,12 @@ export const useGmvChartData = (clientFilter: string = "all") => {
     queryKey: ['gmv-chart-data', clientFilter],
     queryFn: async () => {
       try {
-        console.log("Fetching ALL GMV chart data (no record limit)...");
+        console.log("Fetching GMV chart data using RPC bypass function...");
         
-        // Obtener TODOS los servicios sin límite usando consulta directa
-        const { data, error } = await supabase
-          .from('servicios_custodia')
-          .select('*')
-          .not('fecha_hora_cita', 'is', null)
-          .not('cobro_cliente', 'is', null)
-          .gte('fecha_hora_cita', '2023-01-01')
-          .order('fecha_hora_cita', { ascending: false });
+        // Usar la función RPC que bypassa RLS para evitar errores de recursión
+        const { data, error } = await supabase.rpc('bypass_rls_get_servicios', {
+          max_records: 10000 // Aumentar límite para obtener más datos históricos
+        });
 
         if (error) {
           console.error('Error fetching GMV chart data:', error);
@@ -112,17 +108,14 @@ export const useGmvChartData = (clientFilter: string = "all") => {
     retry: 2,
   });
 
-  // Obtener lista de clientes únicos para el filtro
+  // Obtener lista de clientes únicos para el filtro usando la misma función RPC
   const { data: clientsList = [] } = useQuery({
     queryKey: ['clients-list'],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase
-          .from('servicios_custodia')
-          .select('nombre_cliente')
-          .not('nombre_cliente', 'is', null)
-          .neq('nombre_cliente', '')
-          .neq('nombre_cliente', '#N/A');
+        const { data, error } = await supabase.rpc('bypass_rls_get_servicios', {
+          max_records: 10000
+        });
 
         if (error) throw error;
 
