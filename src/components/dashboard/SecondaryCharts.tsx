@@ -159,10 +159,10 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-      {/* Servicios Diarios - Gráfico de líneas comparativo optimizado */}
+      {/* Servicios Diarios - Optimizado para mejor uso del espacio */}
       <div className="lg:col-span-4">
-        <Card className="h-full">
-          <CardHeader className="pb-3">
+        <Card className="h-full flex flex-col">
+          <CardHeader className="pb-2 flex-shrink-0">
             <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-purple-600"></div>
               Servicios Diarios
@@ -183,12 +183,12 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
               </div>
             </div>
           </CardHeader>
-          <CardContent className="h-96 flex flex-col">
-            <div className="flex-1 min-h-0">
-              <ResponsiveContainer width="100%" height="75%">
+          <CardContent className="flex-1 flex flex-col p-4 min-h-0">
+            <div className="flex-1 min-h-0 mb-3">
+              <ResponsiveContainer width="100%" height="100%">
                 <LineChart 
                   data={weeklyComparisonData}
-                  margin={{ top: 15, right: 25, left: 15, bottom: 20 }}
+                  margin={{ top: 20, right: 25, left: 15, bottom: 25 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis 
@@ -239,8 +239,8 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
               </ResponsiveContainer>
             </div>
             
-            {/* Estadísticas adicionales optimizadas */}
-            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+            {/* Estadísticas compactas en la parte inferior */}
+            <div className="grid grid-cols-2 gap-3 text-sm flex-shrink-0">
               <div className="bg-gray-50 rounded-lg p-3">
                 <div className="text-gray-600 text-xs mb-1">Día pico</div>
                 <div className="font-semibold text-purple-600">
