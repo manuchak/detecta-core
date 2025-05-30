@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -83,15 +84,15 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
   
   // Calcular GMV total directamente de cobro_cliente
   const totalGMV = allServicesData.reduce((sum, service) => {
-    const cobro = parseFloat(service.cobro_cliente) || 0;
+    const cobro = parseFloat(String(service.cobro_cliente || 0)) || 0;
     return sum + cobro;
   }, 0);
 
   // Calcular clientes únicos activos
   const uniqueClients = new Set(
     allServicesData
-      .filter(service => service.nombre_cliente && service.nombre_cliente.trim() !== '')
-      .map(service => service.nombre_cliente.trim())
+      .filter(service => service.nombre_cliente && String(service.nombre_cliente).trim() !== '')
+      .map(service => String(service.nombre_cliente).trim())
   );
   const activeClients = uniqueClients.size;
 
@@ -106,19 +107,19 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
 
   // Contar servicios por estado real
   const completedServices = allServicesData.filter(service => 
-    completedStates.includes(service.estado?.toLowerCase().trim() || '')
+    completedStates.includes(String(service.estado || '').toLowerCase().trim())
   ).length;
 
   const ongoingServices = allServicesData.filter(service => 
-    ongoingStates.includes(service.estado?.toLowerCase().trim() || '')
+    ongoingStates.includes(String(service.estado || '').toLowerCase().trim())
   ).length;
 
   const pendingServices = allServicesData.filter(service => 
-    pendingStates.includes(service.estado?.toLowerCase().trim() || '')
+    pendingStates.includes(String(service.estado || '').toLowerCase().trim())
   ).length;
 
   const cancelledServices = allServicesData.filter(service => 
-    cancelledStates.includes(service.estado?.toLowerCase().trim() || '')
+    cancelledStates.includes(String(service.estado || '').toLowerCase().trim())
   ).length;
 
   console.log('Estados únicos encontrados:', [...new Set(allServicesData.map(s => s.estado).filter(Boolean))]);
@@ -198,7 +199,7 @@ function processServiceStatusReal(data: any[]): ServiceStatusData[] {
   };
 
   data.forEach(item => {
-    const rawState = item.estado?.toLowerCase().trim() || 'sin estado';
+    const rawState = String(item.estado || '').toLowerCase().trim();
     const mappedState = stateMapping[rawState] || 'Otros';
     statusCounts[mappedState] = (statusCounts[mappedState] || 0) + 1;
   });
