@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { ServiceTypesData, DailyServiceData, TopClientsData } from "@/hooks/useDashboardData";
@@ -127,90 +126,85 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
         </Card>
       </div>
 
-      {/* Tipos de Servicios - Rediseñado con mejor layout */}
+      {/* Tipos de Servicios - Diseño optimizado */}
       <div className="lg:col-span-4">
         <Card className="h-full">
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-4">
             <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-blue-600"></div>
               Tipos de Servicios
             </CardTitle>
             <p className="text-sm text-gray-600">Distribución por tipo</p>
           </CardHeader>
-          <CardContent className="h-80 flex flex-col">
-            {/* Contenedor principal con layout mejorado */}
-            <div className="flex-1 flex items-center">
-              {serviceTypesData && serviceTypesData.length > 0 ? (
-                <div className="w-full grid grid-cols-2 gap-4">
-                  {/* Lado izquierdo: Barras de progreso visuales */}
-                  <div className="space-y-3">
-                    {serviceTypesData.map((item, index) => {
-                      const color = SERVICE_TYPE_COLORS[item.name as keyof typeof SERVICE_TYPE_COLORS] || '#6b7280';
-                      return (
-                        <div key={item.name} className="space-y-1">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-gray-700 truncate">
-                              {item.name}
-                            </span>
-                            <span className="text-sm font-bold text-gray-900">
-                              {item.value}%
-                            </span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2.5">
+          <CardContent className="h-80">
+            {serviceTypesData && serviceTypesData.length > 0 ? (
+              <div className="h-full flex flex-col">
+                {/* Gráfico de dona centrado */}
+                <div className="flex-1 flex items-center justify-center">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie
+                        data={serviceTypesData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={45}
+                        outerRadius={85}
+                        paddingAngle={2}
+                        dataKey="value"
+                        stroke="#fff"
+                        strokeWidth={2}
+                      >
+                        {serviceTypesData.map((entry, index) => {
+                          const color = SERVICE_TYPE_COLORS[entry.name as keyof typeof SERVICE_TYPE_COLORS] || '#6b7280';
+                          return (
+                            <Cell key={`cell-${index}`} fill={color} />
+                          );
+                        })}
+                      </Pie>
+                      <Tooltip content={<ServiceTypeTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                
+                {/* Lista de tipos con barras de progreso */}
+                <div className="space-y-2.5 mt-2">
+                  {serviceTypesData.map((item, index) => {
+                    const color = SERVICE_TYPE_COLORS[item.name as keyof typeof SERVICE_TYPE_COLORS] || '#6b7280';
+                    return (
+                      <div key={item.name} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div 
+                            className="w-3 h-3 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: color }}
+                          />
+                          <span className="text-sm font-medium text-gray-700 truncate">
+                            {item.name}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          <div className="w-16 bg-gray-200 rounded-full h-2">
                             <div
-                              className="h-2.5 rounded-full transition-all duration-300"
+                              className="h-2 rounded-full transition-all duration-300"
                               style={{
                                 width: `${item.value}%`,
                                 backgroundColor: color
                               }}
                             />
                           </div>
+                          <span className="text-sm font-bold text-gray-900 w-8 text-right">
+                            {item.value}%
+                          </span>
                         </div>
-                      );
-                    })}
-                  </div>
-                  
-                  {/* Lado derecho: Gráfico de dona compacto */}
-                  <div className="flex items-center justify-center">
-                    <ResponsiveContainer width="100%" height={180}>
-                      <PieChart>
-                        <Pie
-                          data={serviceTypesData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={30}
-                          outerRadius={70}
-                          paddingAngle={2}
-                          dataKey="value"
-                          stroke="#fff"
-                          strokeWidth={2}
-                        >
-                          {serviceTypesData.map((entry, index) => {
-                            const color = SERVICE_TYPE_COLORS[entry.name as keyof typeof SERVICE_TYPE_COLORS] || '#6b7280';
-                            return (
-                              <Cell key={`cell-${index}`} fill={color} />
-                            );
-                          })}
-                        </Pie>
-                        <Tooltip content={<ServiceTypeTooltip />} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              ) : (
-                <div className="w-full flex items-center justify-center text-gray-500">
-                  <p>No hay datos disponibles</p>
-                </div>
-              )}
-            </div>
-            
-            {/* Resumen total en la parte inferior */}
-            <div className="mt-3 pt-3 border-t border-gray-100">
-              <div className="flex justify-between items-center text-xs text-gray-600">
-                <span>Total de tipos:</span>
-                <span className="font-semibold">{serviceTypesData.length}</span>
               </div>
-            </div>
+            ) : (
+              <div className="h-full flex items-center justify-center text-gray-500">
+                <p>No hay datos disponibles</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
