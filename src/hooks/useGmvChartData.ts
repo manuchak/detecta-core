@@ -8,11 +8,11 @@ export const useGmvChartData = (clientFilter: string = "all") => {
     queryKey: ['gmv-chart-data', clientFilter],
     queryFn: async () => {
       try {
-        console.log("Fetching GMV chart data using RPC bypass function...");
+        console.log("Fetching GMV chart data using secure RPC function...");
         
-        // Usar la función RPC que bypassa RLS para evitar errores de recursión
-        const { data, error } = await supabase.rpc('bypass_rls_get_servicios', {
-          max_records: 10000 // Aumentar límite para obtener más datos históricos
+        // Usar la nueva función RPC específica para el dashboard
+        const { data, error } = await supabase.rpc('get_gmv_chart_data_secure', {
+          max_records: 10000
         });
 
         if (error) {
@@ -113,7 +113,7 @@ export const useGmvChartData = (clientFilter: string = "all") => {
     queryKey: ['clients-list'],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase.rpc('bypass_rls_get_servicios', {
+        const { data, error } = await supabase.rpc('get_gmv_chart_data_secure', {
           max_records: 10000
         });
 
