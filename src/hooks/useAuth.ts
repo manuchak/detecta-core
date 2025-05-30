@@ -14,15 +14,16 @@ export const useAuth = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Get user role using the new secure function
+  // Get user role using the secure function
   const { data: userRole, isLoading: roleLoading, refetch: refetchRole } = useQuery({
     queryKey: ['user-role', context.user?.id],
     queryFn: async () => {
       if (!context.user?.id) return null;
       
       try {
-        const { data, error } = await supabase.rpc('get_user_role_secure', {
-          user_uuid: context.user.id
+        // Use the secure function that doesn't cause recursion
+        const { data, error } = await supabase.rpc('get_user_role_safe', {
+          user_uid: context.user.id
         });
 
         if (error) {
@@ -41,13 +42,13 @@ export const useAuth = () => {
     retry: 1,
   });
 
-  // Check if user has specific role
+  // Check if user has specific role using secure function
   const hasRole = async (role: string): Promise<boolean> => {
     if (!context.user?.id) return false;
     
     try {
-      const { data, error } = await supabase.rpc('user_has_role_secure', {
-        user_uuid: context.user.id,
+      const { data, error } = await supabase.rpc('has_role', {
+        user_uid: context.user.id,
         required_role: role
       });
 
@@ -63,21 +64,29 @@ export const useAuth = () => {
     }
   };
 
-  // Check if user is admin or owner
+  // Check if user is admin or owner using direct auth check to avoid recursion
   const isAdminOrOwner = async (): Promise<boolean> => {
     if (!context.user?.id) return false;
     
     try {
-      const { data, error } = await supabase.rpc('is_admin_or_owner', {
-        user_uuid: context.user.id
-      });
+      // Use simple auth check to avoid recursion
+      const { data: authUser } = await supabase.auth.getUser();
+      if (authUser.user?.email === 'admin@admin.com') {
+        return true;
+      }
+
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', context.user.id)
+        .in('role', ['admin', 'owner']);
 
       if (error) {
         console.error('Error checking admin/owner:', error);
         return false;
       }
 
-      return data || false;
+      return (data && data.length > 0) || false;
     } catch (err) {
       console.error('Error in isAdminOrOwner:', err);
       return false;

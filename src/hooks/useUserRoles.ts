@@ -12,7 +12,7 @@ export const useUserRoles = () => {
     queryKey: ['users-with-roles'],
     queryFn: async () => {
       try {
-        // Use the new secure function
+        // Use the secure function
         const { data, error } = await supabase.rpc('get_users_with_roles_secure');
         
         if (error) {
