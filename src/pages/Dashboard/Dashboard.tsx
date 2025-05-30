@@ -15,7 +15,7 @@ import { ServicesCalendar } from "@/components/dashboard/ServicesCalendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Shield, AlertCircle, RefreshCw } from "lucide-react";
+import { Shield, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const Dashboard = () => {
@@ -28,6 +28,7 @@ export const Dashboard = () => {
   
   const {
     isLoading: dataLoading,
+    error: dataError,
     dashboardData,
     monthlyGmvData,
     serviceStatusData,
@@ -58,6 +59,52 @@ export const Dashboard = () => {
   const handleRefreshRole = async () => {
     await refetchRole();
   };
+
+  // Si hay un error crítico, mostrar mensaje de error
+  if (dataError) {
+    console.error('Dashboard data error:', dataError);
+    return (
+      <div className="space-y-8 max-w-5xl mx-auto px-4 md:px-0 animate-fade-in">
+        <div className="py-6">
+          <h1 className="text-3xl font-medium tracking-tight text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">Rendimiento de Servicios</p>
+        </div>
+        
+        <Alert className="bg-red-50 border-red-200">
+          <AlertCircle className="h-4 w-4 text-red-600" />
+          <AlertTitle className="text-red-800">Error cargando datos</AlertTitle>
+          <AlertDescription className="text-red-700">
+            Ocurrió un error al cargar los datos del dashboard. Por favor, intenta recargar la página.
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => window.location.reload()}
+              className="ml-4"
+            >
+              Recargar página
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Si está cargando, mostrar indicador
+  if (dataLoading || !dashboardData) {
+    return (
+      <div className="space-y-8 max-w-5xl mx-auto px-4 md:px-0 animate-fade-in">
+        <div className="py-6">
+          <h1 className="text-3xl font-medium tracking-tight text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">Rendimiento de Servicios</p>
+        </div>
+        
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2 text-muted-foreground">Cargando datos...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto px-4 md:px-0 animate-fade-in">

@@ -45,19 +45,16 @@ export type TimeframeOption = "day" | "week" | "month" | "quarter" | "year";
 export type ServiceTypeOption = "all" | "local" | "foraneo";
 
 export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTypeFilter: ServiceTypeOption = "all") => {
-  // Query para datos de GMV mensual usando cobro_cliente
-  const { data: monthlyGmvData = [], isLoading: gmvLoading, error: gmvError } = useQuery({
-    queryKey: ['monthly-gmv', timeframe, serviceTypeFilter],
+  // Query para obtener todos los servicios
+  const { data: allServicesData = [], isLoading, error } = useQuery({
+    queryKey: ['dashboard-services', timeframe, serviceTypeFilter],
     queryFn: async () => {
       try {
-        console.log("Fetching monthly GMV data from servicios_custodia...");
+        console.log("Fetching dashboard data from servicios_custodia...");
         
         let query = supabase
           .from('servicios_custodia')
-          .select('cobro_cliente, fecha_hora_cita, local_foraneo')
-          .not('cobro_cliente', 'is', null)
-          .gte('fecha_hora_cita', '2025-01-01')
-          .lte('fecha_hora_cita', '2025-12-31');
+          .select('*');
 
         // Aplicar filtro de tipo de servicio
         if (serviceTypeFilter !== 'all') {
@@ -67,156 +64,38 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
         const { data, error } = await query.limit(1000);
 
         if (error) {
-          console.error('Error fetching GMV data:', error);
-          return getDefaultGmvData();
+          console.error('Error fetching dashboard data:', error);
+          return [];
         }
 
-        return processGmvData(data || []);
+        return data || [];
       } catch (err) {
-        console.error('Error in monthly GMV query:', err);
-        return getDefaultGmvData();
+        console.error('Error in dashboard query:', err);
+        return [];
       }
     },
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });
 
-  // Query para tipos de servicio
-  const { data: serviceTypesData = [], isLoading: typesLoading, error: typesError } = useQuery({
-    queryKey: ['service-types', timeframe, serviceTypeFilter],
-    queryFn: async () => {
-      try {
-        console.log("Fetching service types data...");
-        
-        let query = supabase
-          .from('servicios_custodia')
-          .select('tipo_servicio, local_foraneo')
-          .not('tipo_servicio', 'is', null);
+  // Procesar datos para GMV mensual
+  const monthlyGmvData: MonthlyGmvData[] = processGmvData(allServicesData);
+  
+  // Procesar datos para tipos de servicios
+  const serviceTypesData: ServiceTypesData[] = processServiceTypes(allServicesData);
+  
+  // Procesar datos para servicios diarios
+  const dailyServiceData: DailyServiceData[] = processDailyData(allServicesData);
+  
+  // Procesar datos para clientes principales
+  const topClientsData: TopClientsData[] = processTopClients(allServicesData);
+  
+  // Procesar datos para estado de servicios
+  const serviceStatusData: ServiceStatusData[] = processServiceStatus(allServicesData);
 
-        if (serviceTypeFilter !== 'all') {
-          query = query.eq('local_foraneo', serviceTypeFilter);
-        }
-
-        const { data, error } = await query.limit(500);
-
-        if (error) {
-          console.error('Error fetching service types:', error);
-          return getDefaultServiceTypes();
-        }
-
-        return processServiceTypes(data || []);
-      } catch (err) {
-        console.error('Error in service types query:', err);
-        return getDefaultServiceTypes();
-      }
-    },
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
-  });
-
-  // Query para servicios diarios
-  const { data: dailyServiceData = [], isLoading: dailyLoading, error: dailyError } = useQuery({
-    queryKey: ['daily-services', timeframe, serviceTypeFilter],
-    queryFn: async () => {
-      try {
-        console.log("Fetching daily service data...");
-        
-        let query = supabase
-          .from('servicios_custodia')
-          .select('fecha_hora_cita, local_foraneo')
-          .not('fecha_hora_cita', 'is', null)
-          .gte('fecha_hora_cita', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
-
-        if (serviceTypeFilter !== 'all') {
-          query = query.eq('local_foraneo', serviceTypeFilter);
-        }
-
-        const { data, error } = await query.limit(1000);
-
-        if (error) {
-          console.error('Error fetching daily services:', error);
-          return getDefaultDailyData();
-        }
-
-        return processDailyData(data || []);
-      } catch (err) {
-        console.error('Error in daily services query:', err);
-        return getDefaultDailyData();
-      }
-    },
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
-  });
-
-  // Query para clientes principales
-  const { data: topClientsData = [], isLoading: clientsLoading, error: clientsError } = useQuery({
-    queryKey: ['top-clients', timeframe, serviceTypeFilter],
-    queryFn: async () => {
-      try {
-        console.log("Fetching top clients data...");
-        
-        let query = supabase
-          .from('servicios_custodia')
-          .select('nombre_cliente, local_foraneo')
-          .not('nombre_cliente', 'is', null);
-
-        if (serviceTypeFilter !== 'all') {
-          query = query.eq('local_foraneo', serviceTypeFilter);
-        }
-
-        const { data, error } = await query.limit(500);
-
-        if (error) {
-          console.error('Error fetching top clients:', error);
-          return getDefaultTopClients();
-        }
-
-        return processTopClients(data || []);
-      } catch (err) {
-        console.error('Error in top clients query:', err);
-        return getDefaultTopClients();
-      }
-    },
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
-  });
-
-  // Query para estado de servicios
-  const { data: serviceStatusData = [], isLoading: statusLoading, error: statusError } = useQuery({
-    queryKey: ['service-status', timeframe, serviceTypeFilter],
-    queryFn: async () => {
-      try {
-        console.log("Fetching service status data...");
-        
-        let query = supabase
-          .from('servicios_custodia')
-          .select('estado, local_foraneo')
-          .not('estado', 'is', null);
-
-        if (serviceTypeFilter !== 'all') {
-          query = query.eq('local_foraneo', serviceTypeFilter);
-        }
-
-        const { data, error } = await query.limit(1000);
-
-        if (error) {
-          console.error('Error fetching service status:', error);
-          return getDefaultServiceStatus();
-        }
-
-        return processServiceStatus(data || []);
-      } catch (err) {
-        console.error('Error in service status query:', err);
-        return getDefaultServiceStatus();
-      }
-    },
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
-  });
-
-  // Calcular métricas usando los datos reales
+  // Calcular métricas del dashboard
   const totalGMV = monthlyGmvData.reduce((sum, item) => sum + (item.value || 0), 0);
-  const totalServices = dailyServiceData.reduce((sum, item) => sum + (item.count || 0), 0);
+  const totalServices = allServicesData.length;
   const activeClients = topClientsData.length;
   const averageServiceValue = totalServices > 0 ? totalGMV / totalServices : 0;
 
@@ -226,7 +105,7 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
   )?.value || 0;
   
   const ongoingServices = serviceStatusData.find(s => 
-    s.name.toLowerCase().includes('proceso') || s.name.toLowerCase().includes('activo')
+    s.name.toLowerCase().includes('proceso') || s.name.toLowerCase().includes('activo') || s.name.toLowerCase().includes('en_proceso')
   )?.value || 0;
   
   const cancelledServices = serviceStatusData.find(s => 
@@ -249,9 +128,6 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
     pendingServices
   };
 
-  const isLoading = gmvLoading || typesLoading || dailyLoading || clientsLoading || statusLoading;
-  const error = gmvError || typesError || dailyError || clientsError || statusError;
-
   const refreshAllData = () => {
     console.log("Refreshing dashboard data...");
   };
@@ -272,24 +148,39 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
 
 // Funciones de procesamiento de datos
 function processGmvData(data: any[]): MonthlyGmvData[] {
+  if (!data || data.length === 0) {
+    return getDefaultGmvData();
+  }
+
   const monthlyTotals: { [key: string]: number } = {};
   
   data.forEach(item => {
     if (item.fecha_hora_cita && item.cobro_cliente) {
-      const month = new Date(item.fecha_hora_cita).getMonth();
-      const monthKey = new Date(2025, month).toLocaleDateString('es-ES', { month: 'short' });
-      monthlyTotals[monthKey] = (monthlyTotals[monthKey] || 0) + parseFloat(item.cobro_cliente);
+      try {
+        const month = new Date(item.fecha_hora_cita).getMonth();
+        const monthKey = new Date(2025, month).toLocaleDateString('es-ES', { month: 'short' });
+        const amount = parseFloat(item.cobro_cliente) || 0;
+        monthlyTotals[monthKey] = (monthlyTotals[monthKey] || 0) + amount;
+      } catch (e) {
+        console.warn('Error processing GMV data item:', e);
+      }
     }
   });
   
-  return Object.entries(monthlyTotals).map(([name, value]) => ({
+  const result = Object.entries(monthlyTotals).map(([name, value]) => ({
     name,
     value,
     previousYear: value * 0.8
   }));
+
+  return result.length > 0 ? result : getDefaultGmvData();
 }
 
 function processServiceTypes(data: any[]): ServiceTypesData[] {
+  if (!data || data.length === 0) {
+    return getDefaultServiceTypes();
+  }
+
   const typeCounts: { [key: string]: number } = {};
   
   data.forEach(item => {
@@ -298,6 +189,10 @@ function processServiceTypes(data: any[]): ServiceTypesData[] {
   });
   
   const total = Object.values(typeCounts).reduce((sum, count) => sum + count, 0);
+  
+  if (total === 0) {
+    return getDefaultServiceTypes();
+  }
   
   return Object.entries(typeCounts)
     .map(([name, count]) => ({
@@ -308,33 +203,55 @@ function processServiceTypes(data: any[]): ServiceTypesData[] {
 }
 
 function processDailyData(data: any[]): DailyServiceData[] {
+  if (!data || data.length === 0) {
+    return getDefaultDailyData();
+  }
+
   const dailyCounts: { [key: string]: number } = {};
   
   data.forEach(item => {
     if (item.fecha_hora_cita) {
-      const day = new Date(item.fecha_hora_cita).toLocaleDateString('es-ES', { weekday: 'short' });
-      dailyCounts[day] = (dailyCounts[day] || 0) + 1;
+      try {
+        const day = new Date(item.fecha_hora_cita).toLocaleDateString('es-ES', { weekday: 'short' });
+        dailyCounts[day] = (dailyCounts[day] || 0) + 1;
+      } catch (e) {
+        console.warn('Error processing daily data item:', e);
+      }
     }
   });
   
-  return Object.entries(dailyCounts).map(([day, count]) => ({ day, count }));
+  const result = Object.entries(dailyCounts).map(([day, count]) => ({ day, count }));
+  
+  return result.length > 0 ? result : getDefaultDailyData();
 }
 
 function processTopClients(data: any[]): TopClientsData[] {
+  if (!data || data.length === 0) {
+    return getDefaultTopClients();
+  }
+
   const clientCounts: { [key: string]: number } = {};
   
   data.forEach(item => {
     const client = item.nombre_cliente || 'Sin especificar';
-    clientCounts[client] = (clientCounts[client] || 0) + 1;
+    if (client && client !== 'Sin especificar') {
+      clientCounts[client] = (clientCounts[client] || 0) + 1;
+    }
   });
   
-  return Object.entries(clientCounts)
+  const result = Object.entries(clientCounts)
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 5);
+
+  return result.length > 0 ? result : getDefaultTopClients();
 }
 
 function processServiceStatus(data: any[]): ServiceStatusData[] {
+  if (!data || data.length === 0) {
+    return getDefaultServiceStatus();
+  }
+
   const statusCounts: { [key: string]: number } = {};
   
   data.forEach(item => {
@@ -344,13 +261,15 @@ function processServiceStatus(data: any[]): ServiceStatusData[] {
   
   const colors = ['#10b981', '#f59e0b', '#ef4444', '#6b7280', '#8b5cf6'];
   
-  return Object.entries(statusCounts)
+  const result = Object.entries(statusCounts)
     .map(([name, value], index) => ({
       name,
       value,
       color: colors[index % colors.length]
     }))
     .slice(0, 5);
+
+  return result.length > 0 ? result : getDefaultServiceStatus();
 }
 
 // Funciones de datos por defecto
