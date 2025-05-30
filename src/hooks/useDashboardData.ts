@@ -156,7 +156,7 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
 
   console.log(`Hook - allServicesData length: ${allServicesData.length} for timeframe: ${timeframe}`);
 
-  // Convertir datos a formato ServiceData
+  // Convertir datos a formato ServiceData incluyendo local_foraneo
   const serviceData: ServiceData[] = allServicesData.map(service => ({
     id_servicio: service.id_servicio,
     estado: service.estado,
@@ -164,7 +164,8 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
     nombre_cliente: service.nombre_cliente,
     fecha_hora_cita: service.fecha_hora_cita,
     tipo_servicio: service.tipo_servicio,
-    km_recorridos: service.km_recorridos
+    km_recorridos: service.km_recorridos,
+    local_foraneo: service.local_foraneo
   }));
 
   console.log('Hook - serviceData length after mapping:', serviceData.length);

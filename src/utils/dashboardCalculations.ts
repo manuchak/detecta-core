@@ -10,6 +10,7 @@ export interface ServiceData {
   fecha_hora_cita?: string | Date | null;
   tipo_servicio?: string | null;
   km_recorridos?: number | string | null;
+  local_foraneo?: string | null;
 }
 
 // Mapeo de estados de la base de datos a categorías principales
@@ -146,18 +147,23 @@ export const processMonthlyGmv = (data: ServiceData[]): MonthlyGmvData[] => {
   return result.length > 0 ? result : getDefaultGmvData();
 };
 
-// Procesar tipos de servicio
+// Procesar tipos de servicio basado en local_foraneo
 export const processServiceTypes = (data: ServiceData[]): ServiceTypesData[] => {
   if (!data || data.length === 0) {
     return getDefaultServiceTypes();
   }
 
+  console.log('processServiceTypes - Datos recibidos:', data.length);
+  console.log('processServiceTypes - Primeros 5 local_foraneo:', data.slice(0, 5).map(d => d.local_foraneo));
+
   const typeCounts: { [key: string]: number } = {};
   
   data.forEach(item => {
-    const type = cleanTextValue(item.tipo_servicio) || 'Sin especificar';
+    const type = cleanTextValue(item.local_foraneo) || 'Sin especificar';
     typeCounts[type] = (typeCounts[type] || 0) + 1;
   });
+  
+  console.log('processServiceTypes - Conteos por tipo:', typeCounts);
   
   const total = Object.values(typeCounts).reduce((sum, count) => sum + count, 0);
   
@@ -165,12 +171,17 @@ export const processServiceTypes = (data: ServiceData[]): ServiceTypesData[] => 
     return getDefaultServiceTypes();
   }
   
-  return Object.entries(typeCounts)
+  const result = Object.entries(typeCounts)
     .map(([name, count]) => ({
       name,
       value: Math.round((count / total) * 100)
     }))
-    .slice(0, 5);
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 6); // Mostrar hasta 6 tipos
+    
+  console.log('processServiceTypes - Resultado final:', result);
+  
+  return result;
 };
 
 // Procesar datos diarios
@@ -266,10 +277,10 @@ function getDefaultGmvData(): MonthlyGmvData[] {
 
 function getDefaultServiceTypes(): ServiceTypesData[] {
   return [
-    { name: 'Custodia Regular', value: 45 },
-    { name: 'Custodia Especializada', value: 25 },
-    { name: 'Custodia Local', value: 20 },
-    { name: 'Custodia Express', value: 10 }
+    { name: 'Foráneo', value: 45 },
+    { name: 'Local', value: 30 },
+    { name: 'Foráneo CORTO', value: 20 },
+    { name: 'REPARTO', value: 5 }
   ];
 }
 
