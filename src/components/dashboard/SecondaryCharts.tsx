@@ -217,7 +217,7 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
                   x={peakDay.day} 
                   stroke="#fbbf24" 
                   strokeDasharray="2 2"
-                  label={{ value: "Pico", position: "topRight", fontSize: 10, fill: "#f59e0b" }}
+                  label={{ value: "Pico", fontSize: 10, fill: "#f59e0b" }}
                 />
               </LineChart>
             </ResponsiveContainer>
