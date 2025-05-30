@@ -21,7 +21,7 @@ export const STATE_MAPPING: { [key: string]: string } = {
   'en ruta': 'En Proceso',
   'en destino': 'En Proceso', 
   'punto de origen': 'En Proceso',
-  'retornándooslas al armado': 'En Proceso',
+  'retornándoos las al armado': 'En Proceso',
   
   // Estados pendientes
   'programado': 'Pendiente',
@@ -183,7 +183,7 @@ export const processServiceTypes = (data: ServiceData[]): ServiceTypesData[] => 
   return result;
 };
 
-// Procesar datos diarios - CORREGIDO para usar datos reales
+// Procesar datos diarios - CORREGIDO con debugging mejorado
 export const processDailyData = (data: ServiceData[]): DailyServiceData[] => {
   console.log('processDailyData - Datos recibidos:', data.length);
   
@@ -191,6 +191,20 @@ export const processDailyData = (data: ServiceData[]): DailyServiceData[] => {
     console.log('processDailyData - No hay datos, retornando valores por defecto');
     return getDefaultDailyData();
   }
+
+  // Primero, filtrar y limpiar los datos para debugging
+  const validServices = data.filter(item => {
+    const hasValidDate = item.fecha_hora_cita && !isNaN(new Date(item.fecha_hora_cita).getTime());
+    const hasValidId = item.id_servicio && cleanTextValue(item.id_servicio) !== '';
+    return hasValidDate && hasValidId;
+  });
+
+  console.log('processDailyData - Servicios válidos después del filtro:', validServices.length);
+  console.log('processDailyData - Muestra de servicios válidos:', validServices.slice(0, 3).map(s => ({
+    id: s.id_servicio,
+    fecha: s.fecha_hora_cita,
+    fecha_parsed: new Date(s.fecha_hora_cita!).toLocaleDateString('es-ES')
+  })));
 
   // Mapeo de días en español con el orden correcto
   const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -204,28 +218,42 @@ export const processDailyData = (data: ServiceData[]): DailyServiceData[] => {
     'Sáb': new Set()
   };
   
-  data.forEach(item => {
-    if (item.fecha_hora_cita && item.id_servicio) {
-      try {
-        const date = new Date(item.fecha_hora_cita);
-        if (!isNaN(date.getTime())) {
-          const dayIndex = date.getDay(); // 0=domingo, 1=lunes, etc.
-          const dayName = dayNames[dayIndex];
-          const serviceId = cleanTextValue(item.id_servicio);
-          
-          if (serviceId && dayName) {
-            dailyCounts[dayName].add(serviceId);
-          }
+  // Procesar cada servicio válido
+  validServices.forEach(item => {
+    try {
+      const date = new Date(item.fecha_hora_cita!);
+      const dayIndex = date.getDay(); // 0=domingo, 1=lunes, etc.
+      const dayName = dayNames[dayIndex];
+      const serviceId = cleanTextValue(item.id_servicio);
+      
+      if (serviceId && dayName) {
+        dailyCounts[dayName].add(serviceId);
+        
+        // Log detallado para martes (debugging)
+        if (dayName === 'Mar') {
+          console.log(`processDailyData - Martes servicio agregado: ${serviceId}, fecha: ${date.toLocaleDateString('es-ES')}`);
         }
-      } catch (e) {
-        console.warn('Error processing daily data item:', e, item);
       }
+    } catch (e) {
+      console.warn('Error processing daily data item:', e, item);
     }
   });
   
-  console.log('processDailyData - Conteos por día:', Object.fromEntries(
-    Object.entries(dailyCounts).map(([day, set]) => [day, set.size])
-  ));
+  // Log detallado de conteos por día
+  console.log('processDailyData - Conteos por día detallados:');
+  Object.entries(dailyCounts).forEach(([day, set]) => {
+    console.log(`  ${day}: ${set.size} servicios únicos`);
+    if (day === 'Mar' && set.size > 0) {
+      console.log(`  IDs únicos del martes:`, Array.from(set).slice(0, 5), '...');
+    }
+  });
+  
+  // Verificar si hay IDs duplicados en el dataset original
+  const allServiceIds = validServices.map(s => cleanTextValue(s.id_servicio)).filter(id => id !== '');
+  const uniqueServiceIds = new Set(allServiceIds);
+  console.log('processDailyData - Total registros válidos:', allServiceIds.length);
+  console.log('processDailyData - IDs únicos totales:', uniqueServiceIds.size);
+  console.log('processDailyData - Posibles duplicados:', allServiceIds.length - uniqueServiceIds.size);
   
   // Convertir a formato requerido, manteniendo el orden de lunes a domingo
   const orderedDays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
