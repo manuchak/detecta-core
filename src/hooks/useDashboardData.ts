@@ -84,6 +84,7 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
         // Log sample data for debugging
         if (data && data.length > 0) {
           console.log('Sample record:', data[0]);
+          console.log('Sample id_servicio values:', data.slice(0, 5).map(d => d.id_servicio));
         }
         
         return data || [];
@@ -98,6 +99,7 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
 
   // Convertir datos a formato ServiceData
   const serviceData: ServiceData[] = allServicesData.map(service => ({
+    id_servicio: service.id_servicio,
     estado: service.estado,
     cobro_cliente: service.cobro_cliente,
     nombre_cliente: service.nombre_cliente,

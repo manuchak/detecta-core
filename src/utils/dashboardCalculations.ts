@@ -3,6 +3,7 @@ import { MonthlyGmvData, ServiceTypesData, DailyServiceData, TopClientsData, Ser
 
 // Tipos para los datos de servicios
 export interface ServiceData {
+  id_servicio?: string | null;
   estado?: string | null;
   cobro_cliente?: number | string | null;
   nombre_cliente?: string | null;
@@ -52,7 +53,13 @@ export const cleanTextValue = (value: string | null | undefined): string => {
 
 // Calcular métricas básicas
 export const calculateBasicMetrics = (data: ServiceData[]) => {
-  const totalServices = data.length;
+  // Contar servicios únicos basados en id_servicio
+  const uniqueServiceIds = new Set(
+    data
+      .map(service => cleanTextValue(service.id_servicio))
+      .filter(id => id !== '')
+  );
+  const totalServices = uniqueServiceIds.size;
   
   const totalGMV = data.reduce((sum, service) => {
     return sum + cleanNumericValue(service.cobro_cliente);
