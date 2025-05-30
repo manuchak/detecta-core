@@ -159,10 +159,10 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-      {/* Servicios Diarios - Gráfico de líneas comparativo */}
+      {/* Servicios Diarios - Gráfico de líneas comparativo con altura optimizada */}
       <div className="lg:col-span-4">
         <Card className="h-full">
-          <CardHeader className="pb-4">
+          <CardHeader className="pb-2">
             <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-purple-600"></div>
               Servicios Diarios
@@ -172,7 +172,7 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
                 Semana: {weekRange}
               </div>
             )}
-            <div className="flex items-center gap-4 text-sm text-gray-600">
+            <div className="flex items-center gap-4 text-xs text-gray-600">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-purple-600"></div>
                 <span>Semana actual</span>
@@ -183,72 +183,74 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
               </div>
             </div>
           </CardHeader>
-          <CardContent className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart 
-                data={weeklyComparisonData}
-                margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis 
-                  dataKey="day" 
-                  fontSize={12}
-                  stroke="#64748b"
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis 
-                  fontSize={12} 
-                  stroke="#64748b"
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip content={<CustomLineTooltip />} />
-                
-                {/* Línea de la semana anterior */}
-                <Line 
-                  type="monotone"
-                  dataKey="semanaAnterior" 
-                  stroke="#c4b5fd"
-                  strokeWidth={2}
-                  dot={{ fill: '#c4b5fd', strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6, fill: '#c4b5fd' }}
-                  name="Semana anterior"
-                />
-                
-                {/* Línea de la semana actual */}
-                <Line 
-                  type="monotone"
-                  dataKey="semanaActual" 
-                  stroke="#8b5cf6"
-                  strokeWidth={3}
-                  dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 5 }}
-                  activeDot={{ r: 7, fill: '#8b5cf6', stroke: '#fff', strokeWidth: 2 }}
-                  name="Semana actual"
-                />
-                
-                {/* Línea de referencia para el día pico */}
-                <ReferenceLine 
-                  x={peakDay.day} 
-                  stroke="#fbbf24" 
-                  strokeDasharray="2 2"
-                  label={{ value: "Pico", fontSize: 10, fill: "#f59e0b" }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+          <CardContent className="h-64 flex flex-col">
+            <div className="flex-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart 
+                  data={weeklyComparisonData}
+                  margin={{ top: 10, right: 20, left: 10, bottom: 15 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis 
+                    dataKey="day" 
+                    fontSize={11}
+                    stroke="#64748b"
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis 
+                    fontSize={11} 
+                    stroke="#64748b"
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip content={<CustomLineTooltip />} />
+                  
+                  {/* Línea de la semana anterior */}
+                  <Line 
+                    type="monotone"
+                    dataKey="semanaAnterior" 
+                    stroke="#c4b5fd"
+                    strokeWidth={2}
+                    dot={{ fill: '#c4b5fd', strokeWidth: 2, r: 3 }}
+                    activeDot={{ r: 5, fill: '#c4b5fd' }}
+                    name="Semana anterior"
+                  />
+                  
+                  {/* Línea de la semana actual */}
+                  <Line 
+                    type="monotone"
+                    dataKey="semanaActual" 
+                    stroke="#8b5cf6"
+                    strokeWidth={3}
+                    dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, fill: '#8b5cf6', stroke: '#fff', strokeWidth: 2 }}
+                    name="Semana actual"
+                  />
+                  
+                  {/* Línea de referencia para el día pico */}
+                  <ReferenceLine 
+                    x={peakDay.day} 
+                    stroke="#fbbf24" 
+                    strokeDasharray="2 2"
+                    label={{ value: "Pico", fontSize: 9, fill: "#f59e0b" }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
             
-            {/* Estadísticas adicionales mejoradas */}
-            <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
-              <div className="bg-gray-50 rounded-lg p-2">
-                <div className="text-gray-600">Día pico</div>
-                <div className="font-semibold text-purple-600">
+            {/* Estadísticas adicionales optimizadas para el espacio */}
+            <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+              <div className="bg-gray-50 rounded p-2">
+                <div className="text-gray-600 text-[10px]">Día pico</div>
+                <div className="font-semibold text-purple-600 text-xs">
                   {peakDay.day} ({peakDay.semanaActual})
-                  {peakDay.date && <div className="text-gray-500 text-[10px]">{peakDay.date}</div>}
+                  {peakDay.date && <div className="text-gray-500 text-[9px]">{peakDay.date}</div>}
                 </div>
               </div>
-              <div className="bg-gray-50 rounded-lg p-2">
-                <div className="text-gray-600">Tendencia semanal</div>
-                <div className={`font-semibold ${
+              <div className="bg-gray-50 rounded p-2">
+                <div className="text-gray-600 text-[10px]">Tendencia semanal</div>
+                <div className={`font-semibold text-xs ${
                   weeklyComparisonData.reduce((sum, day) => sum + day.diferencia, 0) >= 0 
                     ? 'text-green-600' 
                     : 'text-red-600'
@@ -263,10 +265,10 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
         </Card>
       </div>
 
-      {/* Tipos de Servicios - Diseño optimizado */}
+      {/* Tipos de Servicios - Altura optimizada */}
       <div className="lg:col-span-4">
         <Card className="h-full">
-          <CardHeader className="pb-4">
+          <CardHeader className="pb-3">
             <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-blue-600"></div>
               Tipos de Servicios
@@ -276,16 +278,15 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
           <CardContent className="h-80">
             {serviceTypesData && serviceTypesData.length > 0 ? (
               <div className="h-full flex flex-col">
-                {/* Gráfico de dona centrado */}
                 <div className="flex-1 flex items-center justify-center">
-                  <ResponsiveContainer width="100%" height={200}>
+                  <ResponsiveContainer width="100%" height={180}>
                     <PieChart>
                       <Pie
                         data={serviceTypesData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={45}
-                        outerRadius={85}
+                        innerRadius={40}
+                        outerRadius={75}
                         paddingAngle={2}
                         dataKey="value"
                         stroke="#fff"
@@ -303,13 +304,12 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
                   </ResponsiveContainer>
                 </div>
                 
-                {/* Lista de tipos con barras de progreso */}
-                <div className="space-y-2.5 mt-2">
+                <div className="space-y-2 mt-1">
                   {serviceTypesData.map((item, index) => {
                     const color = SERVICE_TYPE_COLORS[item.name as keyof typeof SERVICE_TYPE_COLORS] || '#6b7280';
                     return (
                       <div key={item.name} className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
                           <div 
                             className="w-3 h-3 rounded-full flex-shrink-0"
                             style={{ backgroundColor: color }}
@@ -318,8 +318,8 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
                             {item.name}
                           </span>
                         </div>
-                        <div className="flex items-center gap-3 flex-shrink-0">
-                          <div className="w-16 bg-gray-200 rounded-full h-2">
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <div className="w-14 bg-gray-200 rounded-full h-2">
                             <div
                               className="h-2 rounded-full transition-all duration-300"
                               style={{
@@ -328,7 +328,7 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
                               }}
                             />
                           </div>
-                          <span className="text-sm font-bold text-gray-900 w-8 text-right">
+                          <span className="text-sm font-bold text-gray-900 w-7 text-right">
                             {item.value}%
                           </span>
                         </div>
@@ -346,10 +346,10 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
         </Card>
       </div>
 
-      {/* Clientes Principales - Gráfico de dona rediseñado */}
+      {/* Clientes Principales - Altura optimizada */}
       <div className="lg:col-span-4">
         <Card className="h-full">
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-2">
             <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-orange-600"></div>
               Clientes Principales
@@ -357,16 +357,15 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
             <p className="text-sm text-gray-600">Top 15 clientes + otros</p>
           </CardHeader>
           <CardContent className="h-96 flex flex-col">
-            {/* Contenedor del gráfico */}
             <div className="flex-1 relative">
-              <ResponsiveContainer width="100%" height={200}>
+              <ResponsiveContainer width="100%" height={180}>
                 <PieChart>
                   <Pie
                     data={processedClientsData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={35}
-                    outerRadius={75}
+                    innerRadius={30}
+                    outerRadius={70}
                     paddingAngle={1}
                     dataKey="value"
                     stroke="#fff"
@@ -384,16 +383,15 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
               </ResponsiveContainer>
             </div>
             
-            {/* Leyenda mejorada con scroll */}
-            <div className="mt-2 bg-gray-50 rounded-lg p-3 max-h-32 overflow-y-auto">
-              <div className="space-y-1.5">
+            <div className="mt-1 bg-gray-50 rounded-lg p-2 max-h-28 overflow-y-auto">
+              <div className="space-y-1">
                 {processedClientsData.map((entry, index) => {
                   const percentage = ((entry.value / totalClients) * 100).toFixed(1);
                   return (
                     <div key={entry.name} className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-2 min-w-0 flex-1">
                         <div 
-                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                          className="w-2 h-2 rounded-full flex-shrink-0"
                           style={{ backgroundColor: COLORS[index % COLORS.length] }}
                         />
                         <span 
