@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -112,73 +111,32 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
   // Calcular valor promedio por servicio
   const averageServiceValue = totalServices > 0 ? totalGMV / totalServices : 0;
 
-  // Mapear estados reales encontrados en la base de datos a categorías principales
-  // Basado en análisis de estados reales comunes en sistemas mexicanos
+  // Mapear estados reales de la base de datos a categorías principales
   const stateMapping: { [key: string]: string } = {
     // Estados completados
     'finalizado': 'Completado',
     'finalizados': 'Completado',
-    'completado': 'Completado', 
-    'completados': 'Completado',
-    'entregado': 'Completado',
-    'entregados': 'Completado',
-    'terminado': 'Completado',
-    'terminados': 'Completado',
-    'concluido': 'Completado',
-    'concluidos': 'Completado',
-    'exitoso': 'Completado',
-    'realizado': 'Completado',
-    'cumplido': 'Completado',
     
     // Estados en proceso
-    'en_proceso': 'En Proceso',
-    'en proceso': 'En Proceso',
-    'enproceso': 'En Proceso',
-    'activo': 'En Proceso',
-    'activos': 'En Proceso',
-    'en_transito': 'En Proceso',
-    'en transito': 'En Proceso',
-    'entransito': 'En Proceso',
-    'en_ruta': 'En Proceso',
     'en ruta': 'En Proceso',
-    'enruta': 'En Proceso',
-    'ejecutando': 'En Proceso',
-    'iniciado': 'En Proceso',
-    'trabajando': 'En Proceso',
+    'en destino': 'En Proceso',
+    'punto de origen': 'En Proceso',
+    'retornándooslas al armado': 'En Proceso',
     
     // Estados pendientes
-    'pendiente': 'Pendiente',
-    'pendientes': 'Pendiente',
     'programado': 'Pendiente',
-    'programados': 'Pendiente',
-    'asignado': 'Pendiente',
-    'asignados': 'Pendiente',
-    'por_iniciar': 'Pendiente',
-    'por iniciar': 'Pendiente',
-    'porinicial': 'Pendiente',
-    'nuevo': 'Pendiente',
-    'nuevos': 'Pendiente',
-    'solicitado': 'Pendiente',
-    'agendado': 'Pendiente',
-    'confirmado': 'Pendiente',
+    'en espera': 'Pendiente',
     
     // Estados cancelados
     'cancelado': 'Cancelado',
-    'cancelados': 'Cancelado',
-    'cancelled': 'Cancelado',
-    'anulado': 'Cancelado',
-    'anulados': 'Cancelado',
-    'rechazado': 'Cancelado',
-    'rechazados': 'Cancelado',
-    'no_realizado': 'Cancelado',
-    'no realizado': 'Cancelado',
-    'fallido': 'Cancelado',
-    'suspendido': 'Cancelado'
+    'cancelados': 'Cancelado'
   };
 
   // Contar servicios por estado mapeado
   const serviceCounts = allServicesData.reduce((counts, service) => {
-    const rawState = (service.estado != null) ? String(service.estado).toLowerCase().trim() : '';
+    const rawState = (service.estado !== null && service.estado !== undefined) 
+      ? String(service.estado).toLowerCase().trim() 
+      : '';
     const mappedState = stateMapping[rawState] || 'Otros';
     counts[mappedState] = (counts[mappedState] || 0) + 1;
     return counts;
