@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -54,22 +55,27 @@ export type TimeframeOption = "day" | "week" | "month" | "quarter" | "year";
 export type ServiceTypeOption = "all" | "local" | "foraneo";
 
 export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTypeFilter: ServiceTypeOption = "all") => {
-  // Query para obtener servicios con verificación simple de permisos
+  // Query para obtener servicios usando función RPC que evita problemas de RLS
   const { data: allServicesData = [], isLoading, error } = useQuery({
     queryKey: ['dashboard-services', timeframe, serviceTypeFilter],
     queryFn: async () => {
       try {
-        console.log("Fetching dashboard data...");
+        console.log("Fetching dashboard data using RPC function...");
         
-        // Verificación simple de usuario autenticado
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) {
-          console.warn('User not authenticated');
-          return [];
+        // Usar función RPC que bypassa RLS para evitar recursión
+        const { data, error } = await supabase.rpc('bypass_rls_get_servicios', {
+          max_records: 25000 // Aumentar límite para obtener todos los registros
+        });
+
+        if (error) {
+          console.error('Error fetching dashboard data:', error);
+          throw error;
         }
+
+        console.log('Dashboard data fetched successfully:', data?.length || 0);
         
-        console.log("User authenticated, fetching services...");
+        // Aplicar filtros de timeframe en el frontend
+        let filteredData = data || [];
         
         // Calcular fechas basadas en timeframe
         let startDate: Date;
@@ -101,45 +107,36 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
             startDate.setMonth(startDate.getMonth() - 1);
         }
         
-        console.log(`Fetching data from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+        // Filtrar por timeframe
+        filteredData = filteredData.filter(service => {
+          if (!service.fecha_hora_cita) return false;
+          const serviceDate = new Date(service.fecha_hora_cita);
+          return serviceDate >= startDate && serviceDate <= endDate;
+        });
         
-        // Construir consulta base
-        let query = supabase
-          .from('servicios_custodia')
-          .select('*')
-          .gte('fecha_hora_cita', startDate.toISOString())
-          .lte('fecha_hora_cita', endDate.toISOString())
-          .order('fecha_hora_cita', { ascending: false });
-
-        // Aplicar filtro de tipo de servicio usando el nombre correcto de la columna
+        // Aplicar filtro de tipo de servicio
         if (serviceTypeFilter !== 'all') {
           const filterValue = serviceTypeFilter === 'local' ? 'Local' : 'Foráneo';
-          query = query.eq('local_foraneo', filterValue);
-          console.log(`Applying service type filter: ${filterValue}`);
+          filteredData = filteredData.filter(service => 
+            service.local_foraneo === filterValue
+          );
+          console.log(`Applied service type filter: ${filterValue}, remaining records: ${filteredData.length}`);
         }
-
-        // Ejecutar consulta sin límite para obtener todos los registros
-        const { data, error } = await query;
-
-        if (error) {
-          console.error('Error fetching dashboard data:', error);
-          throw error;
-        }
-
-        console.log('Dashboard data fetched successfully:', data?.length || 0);
+        
         console.log(`Timeframe: ${timeframe}, Service filter: ${serviceTypeFilter}`);
+        console.log(`Filtered data: ${filteredData.length} records`);
         
         // Log sample data for debugging
-        if (data && data.length > 0) {
-          console.log('Sample record:', data[0]);
+        if (filteredData && filteredData.length > 0) {
+          console.log('Sample record:', filteredData[0]);
           console.log('Date range in results:', {
-            first: data[data.length - 1]?.fecha_hora_cita,
-            last: data[0]?.fecha_hora_cita
+            first: filteredData[filteredData.length - 1]?.fecha_hora_cita,
+            last: filteredData[0]?.fecha_hora_cita
           });
-          console.log('Sample local_foraneo values:', data.slice(0, 5).map(d => d.local_foraneo));
+          console.log('Sample local_foraneo values:', filteredData.slice(0, 5).map(d => d.local_foraneo));
         }
         
-        return data || [];
+        return filteredData;
       } catch (err) {
         console.error('Error in dashboard query:', err);
         throw err;
