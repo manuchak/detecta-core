@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { 
   useDashboardData, 
@@ -26,7 +25,6 @@ export const Dashboard = () => {
     isLoading: dataLoading,
     error: dataError,
     dashboardData,
-    monthlyGmvData,
     serviceStatusData,
     serviceTypesData,
     dailyServiceData,
@@ -144,7 +142,7 @@ export const Dashboard = () => {
             {/* Gráficos principales */}
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
               <div className="lg:col-span-8">
-                <GmvChart data={monthlyGmvData} />
+                <GmvChart />
               </div>
               <div className="lg:col-span-4">
                 <ServiceStatusChart data={serviceStatusData} metrics={dashboardData} />
