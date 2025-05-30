@@ -121,19 +121,53 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
     return null;
   };
 
+  // Tooltip personalizado mejorado para clientes con mejor información
   const CustomPieTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const percentage = totalClients > 0 ? ((payload[0].value / totalClients) * 100).toFixed(1) : '0.0';
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-medium text-gray-900">{payload[0].name}</p>
-          <p className="text-blue-600">
-            {`Servicios: ${payload[0].value} (${percentage}%)`}
-          </p>
+        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg min-w-[180px]">
+          <p className="font-semibold text-gray-900 mb-1">{payload[0].name}</p>
+          <div className="space-y-1">
+            <p className="text-blue-600 text-sm">
+              <span className="font-medium">{payload[0].value}</span> servicios
+            </p>
+            <p className="text-gray-600 text-sm">
+              <span className="font-bold">{percentage}%</span> del total
+            </p>
+          </div>
         </div>
       );
     }
     return null;
+  };
+
+  // Función para renderizar etiquetas en el gráfico circular
+  const renderCustomizedLabel = ({
+    cx, cy, midAngle, innerRadius, outerRadius, percent, index
+  }: any) => {
+    const RADIAN = Math.PI / 180;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    // Solo mostrar porcentaje si es mayor al 5%
+    if (percent < 0.05) return null;
+
+    return (
+      <text 
+        x={x} 
+        y={y} 
+        fill="white" 
+        textAnchor={x > cx ? 'start' : 'end'} 
+        dominantBaseline="central"
+        fontSize="12"
+        fontWeight="600"
+        className="drop-shadow-sm"
+      >
+        {`${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
   };
 
   const ServiceTypeTooltip = ({ active, payload, label }: any) => {
@@ -339,27 +373,29 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
         </Card>
       </div>
 
-      {/* Clientes Principales - CORREGIDO para TOP 5 + Otros */}
+      {/* Clientes Principales - MEJORADO con etiquetas en el gráfico y diseño optimizado */}
       <div className="lg:col-span-4">
         <Card className="h-full">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-3">
             <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-orange-600"></div>
               Clientes Principales
             </CardTitle>
             <p className="text-sm text-gray-600">Top 5 clientes + otros</p>
           </CardHeader>
-          <CardContent className="h-96 flex flex-col">
-            <div className="flex-1 relative">
-              <ResponsiveContainer width="100%" height={180}>
+          <CardContent className="h-80 flex flex-col p-4">
+            <div className="flex-1 relative mb-2">
+              <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={processedClientsData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={30}
-                    outerRadius={70}
-                    paddingAngle={1}
+                    labelLine={false}
+                    label={renderCustomizedLabel}
+                    innerRadius={35}
+                    outerRadius={85}
+                    paddingAngle={2}
                     dataKey="value"
                     stroke="#fff"
                     strokeWidth={2}
@@ -376,31 +412,30 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
               </ResponsiveContainer>
             </div>
             
-            <div className="mt-1 bg-gray-50 rounded-lg p-2 max-h-28 overflow-y-auto">
-              <div className="space-y-1">
-                {processedClientsData.map((entry, index) => {
-                  const percentage = totalClients > 0 ? ((entry.value / totalClients) * 100).toFixed(1) : '0.0';
-                  return (
-                    <div key={entry.name} className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <div 
-                          className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                        />
-                        <span 
-                          className="truncate text-gray-700 font-medium" 
-                          title={entry.name}
-                        >
-                          {entry.name}
-                        </span>
+            {/* Leyenda compacta sin scroll */}
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+              {processedClientsData.map((entry, index) => {
+                const percentage = totalClients > 0 ? ((entry.value / totalClients) * 100).toFixed(1) : '0.0';
+                return (
+                  <div key={entry.name} className="flex items-center gap-2 min-h-[20px]">
+                    <div 
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div 
+                        className="truncate text-gray-700 font-medium leading-tight" 
+                        title={entry.name}
+                      >
+                        {entry.name}
                       </div>
-                      <span className="text-gray-600 font-semibold ml-2 flex-shrink-0">
+                      <div className="text-gray-600 font-semibold">
                         {percentage}%
-                      </span>
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
