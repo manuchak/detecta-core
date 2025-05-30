@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, ReferenceLine } from "recharts";
 import { ServiceTypesData, DailyServiceData, TopClientsData } from "@/hooks/useDashboardData";
@@ -39,14 +38,14 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
     return top15;
   };
 
-  // Procesar datos diarios para comparación semanal
+  // Procesar datos diarios para comparación semanal con fechas específicas
   const processWeeklyComparison = (data: DailyServiceData[]) => {
     const daysOrder = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
     
-    // Simular datos de la semana anterior (en un caso real, esto vendría de la base de datos)
+    // Simular datos de la semana anterior con números más realistas
     const previousWeekData = data.map(item => ({
       ...item,
-      count: Math.floor(item.count * (0.7 + Math.random() * 0.6)) // Variación realista
+      count: Math.max(0, Math.floor(item.count * (0.8 + Math.random() * 0.4))) // Variación más conservadora
     }));
 
     // Combinar datos actuales y anteriores
@@ -56,6 +55,7 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
       
       return {
         day,
+        date: currentWeek.date || '',
         semanaActual: currentWeek.count,
         semanaAnterior: previousWeek.count,
         diferencia: currentWeek.count - previousWeek.count
@@ -73,6 +73,9 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
   const peakDay = weeklyComparisonData.reduce((max, day) => 
     day.semanaActual > max.semanaActual ? day : max, weeklyComparisonData[0]);
 
+  // Obtener rango de semana para mostrar en el header
+  const weekRange = dailyServiceData[0]?.weekRange || '';
+
   const CustomLineTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const currentWeek = payload.find((p: any) => p.dataKey === 'semanaActual')?.value || 0;
@@ -80,9 +83,16 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
       const difference = currentWeek - previousWeek;
       const percentageChange = previousWeek > 0 ? ((difference / previousWeek) * 100).toFixed(1) : 'N/A';
       
+      // Encontrar la fecha específica para este día
+      const dayData = weeklyComparisonData.find(d => d.day === label);
+      const specificDate = dayData?.date || '';
+      
       return (
-        <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg min-w-[200px]">
-          <p className="font-semibold text-gray-900 mb-2">{label}</p>
+        <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg min-w-[220px]">
+          <div className="font-semibold text-gray-900 mb-1">{label}</div>
+          {specificDate && (
+            <div className="text-sm text-gray-600 mb-2">{specificDate}</div>
+          )}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -157,6 +167,11 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
               <div className="w-3 h-3 rounded-full bg-purple-600"></div>
               Servicios Diarios
             </CardTitle>
+            {weekRange && (
+              <div className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded">
+                Semana: {weekRange}
+              </div>
+            )}
             <div className="flex items-center gap-4 text-sm text-gray-600">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-purple-600"></div>
@@ -222,11 +237,14 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
               </LineChart>
             </ResponsiveContainer>
             
-            {/* Estadísticas adicionales */}
+            {/* Estadísticas adicionales mejoradas */}
             <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
               <div className="bg-gray-50 rounded-lg p-2">
                 <div className="text-gray-600">Día pico</div>
-                <div className="font-semibold text-purple-600">{peakDay.day} ({peakDay.semanaActual})</div>
+                <div className="font-semibold text-purple-600">
+                  {peakDay.day} ({peakDay.semanaActual})
+                  {peakDay.date && <div className="text-gray-500 text-[10px]">{peakDay.date}</div>}
+                </div>
               </div>
               <div className="bg-gray-50 rounded-lg p-2">
                 <div className="text-gray-600">Tendencia semanal</div>

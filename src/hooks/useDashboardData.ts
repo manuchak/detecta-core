@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -26,6 +25,8 @@ export interface ServiceTypesData {
 export interface DailyServiceData {
   day: string;
   count: number;
+  date?: string; // Agregar fecha específica opcional
+  weekRange?: string; // Agregar rango de semana opcional
 }
 
 export interface TopClientsData {

@@ -183,7 +183,7 @@ export const processServiceTypes = (data: ServiceData[]): ServiceTypesData[] => 
   return result;
 };
 
-// Procesar datos diarios - CORREGIDO con debugging mejorado
+// Procesar datos diarios - CORREGIDO para conteos únicos reales
 export const processDailyData = (data: ServiceData[]): DailyServiceData[] => {
   console.log('processDailyData - Datos recibidos:', data.length);
   
@@ -192,7 +192,7 @@ export const processDailyData = (data: ServiceData[]): DailyServiceData[] => {
     return getDefaultDailyData();
   }
 
-  // Primero, filtrar y limpiar los datos para debugging
+  // Filtrar datos válidos con mejor validación
   const validServices = data.filter(item => {
     const hasValidDate = item.fecha_hora_cita && !isNaN(new Date(item.fecha_hora_cita).getTime());
     const hasValidId = item.id_servicio && cleanTextValue(item.id_servicio) !== '';
@@ -200,77 +200,89 @@ export const processDailyData = (data: ServiceData[]): DailyServiceData[] => {
   });
 
   console.log('processDailyData - Servicios válidos después del filtro:', validServices.length);
-  console.log('processDailyData - Muestra de servicios válidos:', validServices.slice(0, 3).map(s => ({
-    id: s.id_servicio,
-    fecha: s.fecha_hora_cita,
-    fecha_parsed: new Date(s.fecha_hora_cita!).toLocaleDateString('es-ES')
-  })));
 
-  // Mapeo de días en español con el orden correcto
-  const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-  const dailyCounts: { [key: string]: Set<string> } = {
-    'Dom': new Set(),
-    'Lun': new Set(),
-    'Mar': new Set(),
-    'Mié': new Set(),
-    'Jue': new Set(),
-    'Vie': new Set(),
-    'Sáb': new Set()
-  };
+  // Obtener rango de fechas para la última semana completa
+  const today = new Date();
+  const lastMonday = new Date(today);
+  lastMonday.setDate(today.getDate() - today.getDay() + 1); // Último lunes
+  if (lastMonday > today) {
+    lastMonday.setDate(lastMonday.getDate() - 7); // Si es futuro, ir a la semana anterior
+  }
   
-  // Procesar cada servicio válido
-  validServices.forEach(item => {
+  const lastSunday = new Date(lastMonday);
+  lastSunday.setDate(lastMonday.getDate() + 6); // Domingo de esa semana
+
+  console.log('processDailyData - Rango de fecha objetivo:', {
+    desde: lastMonday.toLocaleDateString('es-ES'),
+    hasta: lastSunday.toLocaleDateString('es-ES')
+  });
+
+  // Filtrar servicios de la última semana y crear mapa por día específico
+  const weeklyServices = validServices.filter(item => {
+    const serviceDate = new Date(item.fecha_hora_cita!);
+    serviceDate.setHours(0, 0, 0, 0); // Normalizar a medianoche
+    return serviceDate >= lastMonday && serviceDate <= lastSunday;
+  });
+
+  console.log('processDailyData - Servicios de la semana objetivo:', weeklyServices.length);
+
+  // Crear conteos por día específico usando fecha completa
+  const dailyServiceIds: { [key: string]: Set<string> } = {};
+  const dayDates: { [key: string]: string } = {}; // Para guardar la fecha específica
+
+  weeklyServices.forEach(item => {
     try {
-      const date = new Date(item.fecha_hora_cita!);
-      const dayIndex = date.getDay(); // 0=domingo, 1=lunes, etc.
-      const dayName = dayNames[dayIndex];
+      const serviceDate = new Date(item.fecha_hora_cita!);
+      const dayKey = serviceDate.toLocaleDateString('es-ES'); // "13/05/2025"
+      const dayName = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'][serviceDate.getDay()];
       const serviceId = cleanTextValue(item.id_servicio);
       
-      if (serviceId && dayName) {
-        dailyCounts[dayName].add(serviceId);
+      if (serviceId) {
+        if (!dailyServiceIds[dayName]) {
+          dailyServiceIds[dayName] = new Set();
+          dayDates[dayName] = dayKey;
+        }
+        dailyServiceIds[dayName].add(serviceId);
         
-        // Log detallado para martes (debugging)
+        // Log específico para martes para debugging
         if (dayName === 'Mar') {
-          console.log(`processDailyData - Martes servicio agregado: ${serviceId}, fecha: ${date.toLocaleDateString('es-ES')}`);
+          console.log(`processDailyData - Martes ${dayKey} - ID: ${serviceId}`);
         }
       }
     } catch (e) {
-      console.warn('Error processing daily data item:', e, item);
+      console.warn('Error processing daily data item:', e);
     }
   });
-  
-  // Log detallado de conteos por día
-  console.log('processDailyData - Conteos por día detallados:');
-  Object.entries(dailyCounts).forEach(([day, set]) => {
-    console.log(`  ${day}: ${set.size} servicios únicos`);
-    if (day === 'Mar' && set.size > 0) {
-      console.log(`  IDs únicos del martes:`, Array.from(set).slice(0, 5), '...');
+
+  // Log detallado de conteos finales
+  console.log('processDailyData - Conteos finales por día:');
+  Object.entries(dailyServiceIds).forEach(([day, set]) => {
+    const count = set.size;
+    const date = dayDates[day];
+    console.log(`  ${day} ${date}: ${count} servicios únicos`);
+    if (day === 'Mar') {
+      console.log(`  IDs únicos del martes:`, Array.from(set).slice(0, 10));
     }
   });
-  
-  // Verificar si hay IDs duplicados en el dataset original
-  const allServiceIds = validServices.map(s => cleanTextValue(s.id_servicio)).filter(id => id !== '');
-  const uniqueServiceIds = new Set(allServiceIds);
-  console.log('processDailyData - Total registros válidos:', allServiceIds.length);
-  console.log('processDailyData - IDs únicos totales:', uniqueServiceIds.size);
-  console.log('processDailyData - Posibles duplicados:', allServiceIds.length - uniqueServiceIds.size);
-  
-  // Convertir a formato requerido, manteniendo el orden de lunes a domingo
+
+  // Convertir a formato requerido con fechas específicas
   const orderedDays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
   const result = orderedDays.map(day => ({
     day,
-    count: dailyCounts[day].size
+    count: dailyServiceIds[day]?.size || 0,
+    date: dayDates[day] || '', // Agregar fecha específica
+    weekRange: `${lastMonday.toLocaleDateString('es-ES')} - ${lastSunday.toLocaleDateString('es-ES')}`
   }));
-  
+
   console.log('processDailyData - Resultado final:', result);
-  
+
   // Si todos los conteos son cero, retornar datos por defecto
   const totalCount = result.reduce((sum, item) => sum + item.count, 0);
   if (totalCount === 0) {
     console.log('processDailyData - Todos los conteos en cero, retornando datos por defecto');
     return getDefaultDailyData();
   }
-  
+
   return result;
 };
 
@@ -351,14 +363,18 @@ function getDefaultServiceTypes(): ServiceTypesData[] {
 }
 
 function getDefaultDailyData(): DailyServiceData[] {
+  const today = new Date();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - today.getDay() + 1);
+  
   return [
-    { day: 'Lun', count: 12 },
-    { day: 'Mar', count: 19 },
-    { day: 'Mié', count: 15 },
-    { day: 'Jue', count: 22 },
-    { day: 'Vie', count: 18 },
-    { day: 'Sáb', count: 8 },
-    { day: 'Dom', count: 5 }
+    { day: 'Lun', count: 12, date: monday.toLocaleDateString('es-ES') },
+    { day: 'Mar', count: 19, date: new Date(monday.getTime() + 86400000).toLocaleDateString('es-ES') },
+    { day: 'Mié', count: 15, date: new Date(monday.getTime() + 172800000).toLocaleDateString('es-ES') },
+    { day: 'Jue', count: 22, date: new Date(monday.getTime() + 259200000).toLocaleDateString('es-ES') },
+    { day: 'Vie', count: 18, date: new Date(monday.getTime() + 345600000).toLocaleDateString('es-ES') },
+    { day: 'Sáb', count: 8, date: new Date(monday.getTime() + 432000000).toLocaleDateString('es-ES') },
+    { day: 'Dom', count: 5, date: new Date(monday.getTime() + 518400000).toLocaleDateString('es-ES') }
   ];
 }
 
