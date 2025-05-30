@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -68,6 +67,7 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
           return [];
         }
 
+        console.log('Raw data from Supabase:', data);
         return data || [];
       } catch (err) {
         console.error('Error in dashboard query:', err);
@@ -78,43 +78,66 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
     retry: 1,
   });
 
-  // Procesar datos para GMV mensual
-  const monthlyGmvData: MonthlyGmvData[] = processGmvData(allServicesData);
-  
-  // Procesar datos para tipos de servicios
-  const serviceTypesData: ServiceTypesData[] = processServiceTypes(allServicesData);
-  
-  // Procesar datos para servicios diarios
-  const dailyServiceData: DailyServiceData[] = processDailyData(allServicesData);
-  
-  // Procesar datos para clientes principales
-  const topClientsData: TopClientsData[] = processTopClients(allServicesData);
-  
-  // Procesar datos para estado de servicios
-  const serviceStatusData: ServiceStatusData[] = processServiceStatus(allServicesData);
-
-  // Calcular métricas del dashboard
-  const totalGMV = monthlyGmvData.reduce((sum, item) => sum + (item.value || 0), 0);
+  // Calcular métricas directamente de los datos reales
   const totalServices = allServicesData.length;
-  const activeClients = topClientsData.length;
+  
+  // Calcular GMV total directamente de cobro_cliente
+  const totalGMV = allServicesData.reduce((sum, service) => {
+    const cobro = parseFloat(service.cobro_cliente) || 0;
+    return sum + cobro;
+  }, 0);
+
+  // Calcular clientes únicos activos
+  const uniqueClients = new Set(
+    allServicesData
+      .filter(service => service.nombre_cliente && service.nombre_cliente.trim() !== '')
+      .map(service => service.nombre_cliente.trim())
+  );
+  const activeClients = uniqueClients.size;
+
+  // Calcular valor promedio por servicio
   const averageServiceValue = totalServices > 0 ? totalGMV / totalServices : 0;
 
-  // Calcular servicios por estado
-  const completedServices = serviceStatusData.find(s => 
-    s.name.toLowerCase().includes('completado') || s.name.toLowerCase().includes('finalizado')
-  )?.value || 0;
-  
-  const ongoingServices = serviceStatusData.find(s => 
-    s.name.toLowerCase().includes('proceso') || s.name.toLowerCase().includes('activo') || s.name.toLowerCase().includes('en_proceso')
-  )?.value || 0;
-  
-  const cancelledServices = serviceStatusData.find(s => 
-    s.name.toLowerCase().includes('cancelado')
-  )?.value || 0;
-  
-  const pendingServices = serviceStatusData.find(s => 
-    s.name.toLowerCase().includes('pendiente')
-  )?.value || 0;
+  // Mapear estados reales de la base de datos
+  const completedStates = ['finalizado', 'completado', 'entregado', 'terminado'];
+  const ongoingStates = ['en_proceso', 'en proceso', 'activo', 'en_transito', 'en transito'];
+  const pendingStates = ['pendiente', 'programado', 'asignado', 'por_iniciar'];
+  const cancelledStates = ['cancelado', 'cancelled', 'anulado'];
+
+  // Contar servicios por estado real
+  const completedServices = allServicesData.filter(service => 
+    completedStates.includes(service.estado?.toLowerCase().trim() || '')
+  ).length;
+
+  const ongoingServices = allServicesData.filter(service => 
+    ongoingStates.includes(service.estado?.toLowerCase().trim() || '')
+  ).length;
+
+  const pendingServices = allServicesData.filter(service => 
+    pendingStates.includes(service.estado?.toLowerCase().trim() || '')
+  ).length;
+
+  const cancelledServices = allServicesData.filter(service => 
+    cancelledStates.includes(service.estado?.toLowerCase().trim() || '')
+  ).length;
+
+  console.log('Estados únicos encontrados:', [...new Set(allServicesData.map(s => s.estado).filter(Boolean))]);
+  console.log('Métricas calculadas:', {
+    totalServices,
+    totalGMV,
+    activeClients,
+    completedServices,
+    ongoingServices,
+    pendingServices,
+    cancelledServices
+  });
+
+  // Procesar datos para gráficos
+  const monthlyGmvData: MonthlyGmvData[] = processGmvData(allServicesData);
+  const serviceTypesData: ServiceTypesData[] = processServiceTypes(allServicesData);
+  const dailyServiceData: DailyServiceData[] = processDailyData(allServicesData);
+  const topClientsData: TopClientsData[] = processTopClients(allServicesData);
+  const serviceStatusData: ServiceStatusData[] = processServiceStatusReal(allServicesData);
 
   const dashboardData: DashboardMetrics = {
     totalServices,
@@ -145,6 +168,59 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
     refreshAllData
   };
 };
+
+// Función para procesar estados reales de la base de datos
+function processServiceStatusReal(data: any[]): ServiceStatusData[] {
+  if (!data || data.length === 0) {
+    return getDefaultServiceStatus();
+  }
+
+  const statusCounts: { [key: string]: number } = {};
+  
+  // Mapear estados reales a categorías principales
+  const stateMapping: { [key: string]: string } = {
+    'finalizado': 'Completado',
+    'completado': 'Completado',
+    'entregado': 'Completado',
+    'terminado': 'Completado',
+    'en_proceso': 'En Proceso',
+    'en proceso': 'En Proceso',
+    'activo': 'En Proceso',
+    'en_transito': 'En Proceso',
+    'en transito': 'En Proceso',
+    'pendiente': 'Pendiente',
+    'programado': 'Pendiente',
+    'asignado': 'Pendiente',
+    'por_iniciar': 'Pendiente',
+    'cancelado': 'Cancelado',
+    'cancelled': 'Cancelado',
+    'anulado': 'Cancelado'
+  };
+
+  data.forEach(item => {
+    const rawState = item.estado?.toLowerCase().trim() || 'sin estado';
+    const mappedState = stateMapping[rawState] || 'Otros';
+    statusCounts[mappedState] = (statusCounts[mappedState] || 0) + 1;
+  });
+  
+  const colors: { [key: string]: string } = {
+    'Completado': '#10b981',
+    'En Proceso': '#f59e0b', 
+    'Pendiente': '#ef4444',
+    'Cancelado': '#6b7280',
+    'Otros': '#8b5cf6'
+  };
+  
+  const result = Object.entries(statusCounts)
+    .map(([name, value]) => ({
+      name,
+      value,
+      color: colors[name] || '#8b5cf6'
+    }))
+    .sort((a, b) => b.value - a.value);
+
+  return result.length > 0 ? result : getDefaultServiceStatus();
+}
 
 // Funciones de procesamiento de datos
 function processGmvData(data: any[]): MonthlyGmvData[] {
@@ -245,31 +321,6 @@ function processTopClients(data: any[]): TopClientsData[] {
     .slice(0, 5);
 
   return result.length > 0 ? result : getDefaultTopClients();
-}
-
-function processServiceStatus(data: any[]): ServiceStatusData[] {
-  if (!data || data.length === 0) {
-    return getDefaultServiceStatus();
-  }
-
-  const statusCounts: { [key: string]: number } = {};
-  
-  data.forEach(item => {
-    const status = item.estado || 'Sin estado';
-    statusCounts[status] = (statusCounts[status] || 0) + 1;
-  });
-  
-  const colors = ['#10b981', '#f59e0b', '#ef4444', '#6b7280', '#8b5cf6'];
-  
-  const result = Object.entries(statusCounts)
-    .map(([name, value], index) => ({
-      name,
-      value,
-      color: colors[index % colors.length]
-    }))
-    .slice(0, 5);
-
-  return result.length > 0 ? result : getDefaultServiceStatus();
 }
 
 // Funciones de datos por defecto
