@@ -384,7 +384,7 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
             <p className="text-sm text-gray-600">Top 5 clientes + otros</p>
           </CardHeader>
           <CardContent className="h-80 flex flex-col p-4">
-            <div className="flex-1 relative mb-2">
+            <div className="flex-1 relative mb-4">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -412,24 +412,31 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
               </ResponsiveContainer>
             </div>
             
-            {/* Leyenda compacta sin scroll */}
-            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+            {/* Leyenda horizontal compacta y organizada */}
+            <div className="space-y-3 flex-shrink-0">
               {processedClientsData.map((entry, index) => {
                 const percentage = totalClients > 0 ? ((entry.value / totalClients) * 100).toFixed(1) : '0.0';
                 return (
-                  <div key={entry.name} className="flex items-center gap-2 min-h-[20px]">
-                    <div 
-                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                    />
-                    <div className="min-w-0 flex-1">
+                  <div key={entry.name} className="flex items-center justify-between py-1">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div 
-                        className="truncate text-gray-700 font-medium leading-tight" 
-                        title={entry.name}
-                      >
-                        {entry.name}
+                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div 
+                          className="text-sm font-medium text-gray-900 truncate leading-tight" 
+                          title={entry.name}
+                        >
+                          {entry.name}
+                        </div>
                       </div>
-                      <div className="text-gray-600 font-semibold">
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <div className="text-sm text-gray-600">
+                        {entry.value} servicios
+                      </div>
+                      <div className="text-sm font-bold text-gray-900 min-w-[3rem] text-right">
                         {percentage}%
                       </div>
                     </div>
