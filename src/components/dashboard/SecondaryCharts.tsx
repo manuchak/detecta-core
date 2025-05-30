@@ -384,7 +384,7 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
             <p className="text-sm text-gray-600">Top 5 clientes + otros</p>
           </CardHeader>
           <CardContent className="h-80 flex flex-col p-4">
-            {/* Gráfico circular más pequeño */}
+            {/* Gráfico circular más pequeño sin etiquetas */}
             <div className="flex-1 relative mb-2">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -392,8 +392,6 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
                     data={processedClientsData}
                     cx="50%"
                     cy="50%"
-                    labelLine={false}
-                    label={renderCustomizedLabel}
                     innerRadius={30}
                     outerRadius={75}
                     paddingAngle={2}
