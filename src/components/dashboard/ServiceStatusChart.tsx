@@ -148,72 +148,100 @@ export const ServiceStatusChart = ({ data, metrics }: ServiceStatusChartProps) =
           </TabsContent>
           
           <TabsContent value="numbers" className="h-[360px] overflow-y-auto">
-            <div className="grid grid-cols-2 gap-4">
-              {statusItems.map((item, index) => {
-                const config = getStatusConfig(item.name);
-                const percentage = metrics.totalServices > 0 ? Math.round((item.value / metrics.totalServices) * 100) : 0;
-                
-                return (
-                  <div key={index} className={`p-5 rounded-2xl border-2 ${config.bgColor} ${config.borderColor} transition-all duration-300 hover:shadow-lg hover:scale-105`}>
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm" 
-                             style={{ backgroundColor: config.color }}>
-                          {config.icon}
+            {/* Vista mejorada en columnas para mejor uso del espacio horizontal */}
+            <div className="h-full flex flex-col gap-6">
+              {/* Grid principal con 2 columnas */}
+              <div className="grid grid-cols-2 gap-4 flex-1">
+                {statusItems.map((item, index) => {
+                  const config = getStatusConfig(item.name);
+                  const percentage = metrics.totalServices > 0 ? Math.round((item.value / metrics.totalServices) * 100) : 0;
+                  
+                  return (
+                    <div key={index} className={`relative p-5 rounded-2xl border-2 ${config.bgColor} ${config.borderColor} transition-all duration-300 hover:shadow-lg hover:scale-105 overflow-hidden`}>
+                      {/* Fondo decorativo */}
+                      <div className="absolute top-0 right-0 w-20 h-20 opacity-10 transform rotate-12 translate-x-6 -translate-y-6" 
+                           style={{ backgroundColor: config.color }}>
+                      </div>
+                      
+                      <div className="relative z-10">
+                        {/* Header con icono y nombre */}
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg" 
+                               style={{ backgroundColor: config.color }}>
+                            {config.icon}
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-base font-bold text-gray-900">{item.name}</p>
+                            <p className="text-xs text-gray-500">Servicios activos</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-bold text-gray-900">{item.name}</p>
-                          <p className="text-xs text-gray-500">Servicios</p>
+                        
+                        {/* Número principal */}
+                        <div className="text-center mb-4">
+                          <p className="text-4xl font-bold mb-1" style={{ color: config.color }}>
+                            {item.value}
+                          </p>
+                          <p className="text-lg font-semibold text-gray-500">
+                            {percentage}%
+                          </p>
+                        </div>
+                        
+                        {/* Barra de progreso */}
+                        <div className="relative">
+                          <div className="h-3 rounded-full bg-white border-2 border-gray-200 overflow-hidden shadow-inner">
+                            <div 
+                              className="h-full transition-all duration-1000 ease-out rounded-full relative" 
+                              style={{ 
+                                backgroundColor: config.color,
+                                width: `${percentage}%`,
+                                boxShadow: `inset 0 1px 2px rgba(255, 255, 255, 0.4)`
+                              }}
+                            >
+                              {/* Efecto de brillo en la barra */}
+                              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-pulse"></div>
+                            </div>
+                          </div>
+                          <div className="flex justify-between mt-2">
+                            <span className="text-xs text-gray-400 font-medium">0</span>
+                            <span className="text-xs text-gray-400 font-medium">{metrics.totalServices}</span>
+                          </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-bold" style={{ color: config.color }}>
-                          {item.value}
-                        </p>
-                        <p className="text-sm text-gray-500 font-semibold">
-                          {percentage}%
-                        </p>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {/* Resumen total mejorado - más compacto y horizontal */}
+              <div className="bg-gradient-to-r from-slate-50 via-blue-50 to-indigo-50 rounded-2xl border-2 border-slate-200 p-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600 mb-1 font-medium">Total de Servicios</p>
+                    <p className="text-3xl font-bold text-gray-900">{metrics.totalServices}</p>
+                  </div>
+                  
+                  <div className="h-12 w-px bg-gray-300"></div>
+                  
+                  <div className="flex gap-8 text-sm">
+                    <div className="text-center">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                        <span className="text-emerald-600 font-semibold">Completados</span>
                       </div>
+                      <p className="text-2xl font-bold text-emerald-600">
+                        {Math.round((metrics.completedServices / metrics.totalServices) * 100)}%
+                      </p>
                     </div>
                     
-                    <div className="relative">
-                      <div className="h-2 rounded-full bg-white border overflow-hidden shadow-inner">
-                        <div 
-                          className="h-full transition-all duration-700 ease-out rounded-full" 
-                          style={{ 
-                            backgroundColor: config.color,
-                            width: `${percentage}%`,
-                            boxShadow: `inset 0 1px 2px rgba(255, 255, 255, 0.4)`
-                          }}
-                        />
+                    <div className="text-center">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                        <span className="text-blue-600 font-semibold">En Proceso</span>
                       </div>
-                      <div className="flex justify-between mt-2">
-                        <span className="text-xs text-gray-400 font-medium">0</span>
-                        <span className="text-xs text-gray-400 font-medium">{metrics.totalServices}</span>
-                      </div>
+                      <p className="text-2xl font-bold text-blue-600">
+                        {Math.round((metrics.ongoingServices / metrics.totalServices) * 100)}%
+                      </p>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-            
-            {/* Resumen total mejorado */}
-            <div className="mt-6 p-6 bg-gradient-to-r from-gray-50 to-blue-50 rounded-2xl border-2 border-gray-200">
-              <div className="text-center">
-                <p className="text-sm text-gray-600 mb-2 font-medium">Total de Servicios</p>
-                <p className="text-4xl font-bold text-gray-900 mb-4">{metrics.totalServices}</p>
-                <div className="flex justify-center gap-6 text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-                    <span className="text-emerald-600 font-semibold">
-                      {Math.round((metrics.completedServices / metrics.totalServices) * 100)}% Completados
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                    <span className="text-blue-600 font-semibold">
-                      {Math.round((metrics.ongoingServices / metrics.totalServices) * 100)}% En Proceso
-                    </span>
                   </div>
                 </div>
               </div>
