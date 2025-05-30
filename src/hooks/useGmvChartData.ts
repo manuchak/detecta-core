@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { MonthlyGmvData } from './useDashboardData';
@@ -69,15 +68,14 @@ export const useGmvChartData = (clientFilter: string = "all") => {
                 monthlyTotals[monthKey] = { current: 0, previous: 0 };
               }
               
-              // Sumar todos los años en "current" excepto el año anterior
+              // Lógica corregida: current = año actual, previous = año anterior
               if (year === currentYear) {
                 monthlyTotals[monthKey].current += amount;
               } else if (year === previousYear) {
                 monthlyTotals[monthKey].previous += amount;
-              } else {
-                // Para años anteriores a 2024, sumarlos también a "current" para mostrar tendencia histórica
-                monthlyTotals[monthKey].current += amount;
               }
+              // Nota: Para años anteriores a 2024, no los incluimos en ninguna línea
+              // Si quieres mostrar todo el histórico en una línea, cambiar la lógica aquí
             } catch (e) {
               console.warn('Error processing GMV data item:', e);
             }
