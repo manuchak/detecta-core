@@ -115,7 +115,6 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
   const stateMapping: { [key: string]: string } = {
     // Estados completados
     'finalizado': 'Completado',
-    'finalizados': 'Completado',
     
     // Estados en proceso
     'en ruta': 'En Proceso',
@@ -128,15 +127,12 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
     'en espera': 'Pendiente',
     
     // Estados cancelados
-    'cancelado': 'Cancelado',
-    'cancelados': 'Cancelado'
+    'cancelado': 'Cancelado'
   };
 
   // Contar servicios por estado mapeado
   const serviceCounts = allServicesData.reduce((counts, service) => {
-    const rawState = (service.estado !== null && service.estado !== undefined) 
-      ? String(service.estado).toLowerCase().trim() 
-      : '';
+    const rawState = service.estado ? String(service.estado).toLowerCase().trim() : '';
     const mappedState = stateMapping[rawState] || 'Otros';
     counts[mappedState] = (counts[mappedState] || 0) + 1;
     return counts;

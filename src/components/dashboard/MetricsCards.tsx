@@ -8,7 +8,11 @@ import {
   Clock, 
   CheckCircle, 
   XCircle, 
-  AlertCircle 
+  AlertCircle,
+  MapPin,
+  RefreshCw,
+  Calendar,
+  PauseCircle
 } from "lucide-react";
 import { DashboardMetrics } from "@/hooks/useDashboardData";
 import { useFormatters } from "@/hooks/useFormatters";
@@ -55,27 +59,27 @@ export const MetricsCards = ({ metrics, isLoading }: MetricsCardsProps) => {
       trend: "+5% vs promedio anterior"
     },
     {
-      title: "Servicios Completados",
+      title: "Finalizados",
       value: metrics.completedServices,
       icon: CheckCircle,
       color: "bg-emerald-500",
-      description: "Servicios finalizados exitosamente",
+      description: "Servicios completados exitosamente",
       trend: `${metrics.totalServices > 0 ? Math.round((metrics.completedServices / metrics.totalServices) * 100) : 0}% del total`
     },
     {
-      title: "En Proceso",
+      title: "En Ruta/Destino",
       value: metrics.ongoingServices,
-      icon: Clock,
-      color: "bg-blue-500",
-      description: "Servicios actualmente en curso",
+      icon: MapPin,
+      color: "bg-blue-600",
+      description: "En ruta, destino o punto origen",
       trend: `${metrics.totalServices > 0 ? Math.round((metrics.ongoingServices / metrics.totalServices) * 100) : 0}% del total`
     },
     {
-      title: "Pendientes",
+      title: "Programados",
       value: metrics.pendingServices,
-      icon: AlertCircle,
+      icon: Calendar,
       color: "bg-amber-500",
-      description: "Servicios por iniciar",
+      description: "Servicios programados y en espera",
       trend: `${metrics.totalServices > 0 ? Math.round((metrics.pendingServices / metrics.totalServices) * 100) : 0}% del total`
     },
     {
@@ -83,7 +87,7 @@ export const MetricsCards = ({ metrics, isLoading }: MetricsCardsProps) => {
       value: metrics.cancelledServices,
       icon: XCircle,
       color: "bg-red-500",
-      description: "Servicios no realizados",
+      description: "Servicios cancelados",
       trend: `${metrics.totalServices > 0 ? Math.round((metrics.cancelledServices / metrics.totalServices) * 100) : 0}% del total`
     }
   ];
