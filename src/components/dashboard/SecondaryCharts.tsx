@@ -159,10 +159,10 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-      {/* Servicios Diarios - Gráfico de líneas comparativo con altura optimizada */}
+      {/* Servicios Diarios - Gráfico de líneas comparativo optimizado */}
       <div className="lg:col-span-4">
         <Card className="h-full">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-3">
             <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-purple-600"></div>
               Servicios Diarios
@@ -183,23 +183,23 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
               </div>
             </div>
           </CardHeader>
-          <CardContent className="h-64 flex flex-col">
-            <div className="flex-1">
-              <ResponsiveContainer width="100%" height="100%">
+          <CardContent className="h-96 flex flex-col">
+            <div className="flex-1 min-h-0">
+              <ResponsiveContainer width="100%" height="75%">
                 <LineChart 
                   data={weeklyComparisonData}
-                  margin={{ top: 10, right: 20, left: 10, bottom: 15 }}
+                  margin={{ top: 15, right: 25, left: 15, bottom: 20 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis 
                     dataKey="day" 
-                    fontSize={11}
+                    fontSize={12}
                     stroke="#64748b"
                     axisLine={false}
                     tickLine={false}
                   />
                   <YAxis 
-                    fontSize={11} 
+                    fontSize={12} 
                     stroke="#64748b"
                     axisLine={false}
                     tickLine={false}
@@ -212,8 +212,8 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
                     dataKey="semanaAnterior" 
                     stroke="#c4b5fd"
                     strokeWidth={2}
-                    dot={{ fill: '#c4b5fd', strokeWidth: 2, r: 3 }}
-                    activeDot={{ r: 5, fill: '#c4b5fd' }}
+                    dot={{ fill: '#c4b5fd', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, fill: '#c4b5fd' }}
                     name="Semana anterior"
                   />
                   
@@ -223,8 +223,8 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
                     dataKey="semanaActual" 
                     stroke="#8b5cf6"
                     strokeWidth={3}
-                    dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 4 }}
-                    activeDot={{ r: 6, fill: '#8b5cf6', stroke: '#fff', strokeWidth: 2 }}
+                    dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 5 }}
+                    activeDot={{ r: 7, fill: '#8b5cf6', stroke: '#fff', strokeWidth: 2 }}
                     name="Semana actual"
                   />
                   
@@ -233,24 +233,24 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
                     x={peakDay.day} 
                     stroke="#fbbf24" 
                     strokeDasharray="2 2"
-                    label={{ value: "Pico", fontSize: 9, fill: "#f59e0b" }}
+                    label={{ value: "Pico", fontSize: 10, fill: "#f59e0b" }}
                   />
                 </LineChart>
               </ResponsiveContainer>
             </div>
             
-            {/* Estadísticas adicionales optimizadas para el espacio */}
-            <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-              <div className="bg-gray-50 rounded p-2">
-                <div className="text-gray-600 text-[10px]">Día pico</div>
-                <div className="font-semibold text-purple-600 text-xs">
+            {/* Estadísticas adicionales optimizadas */}
+            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <div className="bg-gray-50 rounded-lg p-3">
+                <div className="text-gray-600 text-xs mb-1">Día pico</div>
+                <div className="font-semibold text-purple-600">
                   {peakDay.day} ({peakDay.semanaActual})
-                  {peakDay.date && <div className="text-gray-500 text-[9px]">{peakDay.date}</div>}
+                  {peakDay.date && <div className="text-gray-500 text-xs mt-1">{peakDay.date}</div>}
                 </div>
               </div>
-              <div className="bg-gray-50 rounded p-2">
-                <div className="text-gray-600 text-[10px]">Tendencia semanal</div>
-                <div className={`font-semibold text-xs ${
+              <div className="bg-gray-50 rounded-lg p-3">
+                <div className="text-gray-600 text-xs mb-1">Tendencia semanal</div>
+                <div className={`font-semibold ${
                   weeklyComparisonData.reduce((sum, day) => sum + day.diferencia, 0) >= 0 
                     ? 'text-green-600' 
                     : 'text-red-600'
