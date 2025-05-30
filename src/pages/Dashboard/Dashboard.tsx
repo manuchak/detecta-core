@@ -13,18 +13,14 @@ import { SecondaryCharts } from "@/components/dashboard/SecondaryCharts";
 import { GmvProgress } from "@/components/dashboard/GmvProgress";
 import { ServicesCalendar } from "@/components/dashboard/ServicesCalendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuth } from "@/hooks/useAuth";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Shield, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const Dashboard = () => {
-  const { userRole, isOwner, user, assignRole, refetchRole, roleLoading } = useAuth();
-
   const [timeframe, setTimeframe] = useState<TimeframeOption>("month");
   const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceTypeOption>("all");
   const [activeTab, setActiveTab] = useState<"overview" | "calendar">("overview");
-  const [assigningRole, setAssigningRole] = useState(false);
   
   const {
     isLoading: dataLoading,
@@ -42,49 +38,35 @@ export const Dashboard = () => {
     setActiveTab(value as "overview" | "calendar");
   };
 
-  const handleAssignOwnerRole = async () => {
-    if (!user?.id) return;
-    
-    setAssigningRole(true);
-    try {
-      const success = await assignRole(user.id, 'owner');
-      if (success) {
-        await refetchRole();
-      }
-    } finally {
-      setAssigningRole(false);
-    }
-  };
-
-  const handleRefreshRole = async () => {
-    await refetchRole();
-  };
-
   // Si hay un error crítico, mostrar mensaje de error
   if (dataError) {
     console.error('Dashboard data error:', dataError);
     return (
-      <div className="space-y-8 max-w-5xl mx-auto px-4 md:px-0 animate-fade-in">
-        <div className="py-6">
-          <h1 className="text-3xl font-medium tracking-tight text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">Rendimiento de Servicios</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+        <div className="space-y-8 max-w-7xl mx-auto px-6 py-8">
+          <div className="text-center py-12">
+            <h1 className="text-4xl font-bold tracking-tight text-slate-900 mb-2">
+              Dashboard de Servicios
+            </h1>
+            <p className="text-lg text-slate-600">Monitoreo y análisis de servicios de custodia</p>
+          </div>
+          
+          <Alert className="bg-red-50 border-red-200 max-w-2xl mx-auto">
+            <AlertCircle className="h-5 w-5 text-red-600" />
+            <AlertTitle className="text-red-800 text-lg">Error al cargar datos</AlertTitle>
+            <AlertDescription className="text-red-700">
+              No se pudieron cargar los datos del dashboard. Por favor, verifica tu conexión e intenta nuevamente.
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => window.location.reload()}
+                className="ml-4 border-red-300 text-red-700 hover:bg-red-100"
+              >
+                Recargar página
+              </Button>
+            </AlertDescription>
+          </Alert>
         </div>
-        
-        <Alert className="bg-red-50 border-red-200">
-          <AlertCircle className="h-4 w-4 text-red-600" />
-          <AlertTitle className="text-red-800">Error cargando datos</AlertTitle>
-          <AlertDescription className="text-red-700">
-            Ocurrió un error al cargar los datos del dashboard. Por favor, intenta recargar la página.
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => window.location.reload()}
-              className="ml-4"
-            >
-              Recargar página
-            </Button>
-          </AlertDescription>
-        </Alert>
       </div>
     );
   }
@@ -92,105 +74,101 @@ export const Dashboard = () => {
   // Si está cargando, mostrar indicador
   if (dataLoading || !dashboardData) {
     return (
-      <div className="space-y-8 max-w-5xl mx-auto px-4 md:px-0 animate-fade-in">
-        <div className="py-6">
-          <h1 className="text-3xl font-medium tracking-tight text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">Rendimiento de Servicios</p>
-        </div>
-        
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <span className="ml-2 text-muted-foreground">Cargando datos...</span>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+        <div className="space-y-8 max-w-7xl mx-auto px-6 py-8">
+          <div className="text-center py-12">
+            <h1 className="text-4xl font-bold tracking-tight text-slate-900 mb-2">
+              Dashboard de Servicios
+            </h1>
+            <p className="text-lg text-slate-600">Monitoreo y análisis de servicios de custodia</p>
+          </div>
+          
+          <div className="flex items-center justify-center py-16">
+            <div className="text-center">
+              <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
+              <p className="text-lg text-slate-600">Cargando datos del dashboard...</p>
+              <p className="text-sm text-slate-500 mt-2">Esto puede tomar unos segundos</p>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto px-4 md:px-0 animate-fade-in">
-      <div className="py-6 flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-medium tracking-tight text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">
-            Rendimiento de Servicios
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      <div className="space-y-8 max-w-7xl mx-auto px-6 py-8">
+        {/* Header mejorado */}
+        <div className="text-center py-8 border-b border-slate-200">
+          <h1 className="text-4xl font-bold tracking-tight text-slate-900 mb-2">
+            Dashboard de Servicios
+          </h1>
+          <p className="text-lg text-slate-600">
+            Monitoreo y análisis en tiempo real de servicios de custodia
           </p>
         </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={handleRefreshRole}
-          disabled={roleLoading}
-          className="flex items-center gap-1"
-        >
-          <RefreshCw className={`h-4 w-4 ${roleLoading ? 'animate-spin' : ''}`} />
-          Actualizar rol
-        </Button>
-      </div>
-      
-      {!isOwner && !roleLoading && (
-        <Alert className="bg-yellow-50 border-yellow-200">
-          <AlertCircle className="h-4 w-4 text-yellow-600" />
-          <AlertTitle className="text-yellow-800">Validación de rol requerida</AlertTitle>
-          <AlertDescription className="text-yellow-700">
-            No tienes el rol de 'owner' asignado. Este rol es necesario para acceder a todas las funcionalidades del sistema.
-            Tu rol actual es: {userRole || 'Sin rol asignado'}
-            <Button 
-              variant="outline" 
-              className="ml-4 border-yellow-300 text-yellow-700 hover:bg-yellow-100"
-              onClick={handleAssignOwnerRole}
-              disabled={assigningRole}
-            >
-              {assigningRole ? 'Asignando rol...' : 'Asignar rol de Owner'}
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {isOwner && (
-        <Alert className="bg-green-50 border-green-200">
-          <Shield className="h-4 w-4 text-green-600" />
-          <AlertTitle className="text-green-800">Rol de Owner verificado</AlertTitle>
-          <AlertDescription className="text-green-700">
-            Tienes acceso completo al sistema con el rol de 'owner'.
-          </AlertDescription>
-        </Alert>
-      )}
-      
-      <Tabs defaultValue="overview" onValueChange={handleTabChange}>
-        <TabsList>
-          <TabsTrigger value="overview">Vista General</TabsTrigger>
-          <TabsTrigger value="calendar">Calendario</TabsTrigger>
-        </TabsList>
         
-        <TabsContent value="overview" className="space-y-8">
-          <DashboardFilters
-            timeframe={timeframe}
-            serviceTypeFilter={serviceTypeFilter}
-            onTimeframeChange={setTimeframe}
-            onServiceTypeChange={setServiceTypeFilter}
-            onRefresh={refreshAllData}
-          />
-          
-          <MetricsCards metrics={dashboardData} isLoading={dataLoading} />
-          
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-7">
-            <GmvChart data={monthlyGmvData} />
-            <ServiceStatusChart data={serviceStatusData} metrics={dashboardData} />
+        <Tabs defaultValue="overview" onValueChange={handleTabChange} className="w-full">
+          <div className="flex justify-center mb-8">
+            <TabsList className="bg-white shadow-lg border border-slate-200">
+              <TabsTrigger 
+                value="overview" 
+                className="px-6 py-3 data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+              >
+                Vista General
+              </TabsTrigger>
+              <TabsTrigger 
+                value="calendar" 
+                className="px-6 py-3 data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+              >
+                Calendario
+              </TabsTrigger>
+            </TabsList>
           </div>
           
-          <SecondaryCharts
-            dailyServiceData={dailyServiceData}
-            serviceTypesData={serviceTypesData}
-            topClientsData={topClientsData}
-          />
+          <TabsContent value="overview" className="space-y-8">
+            {/* Filtros con mejor diseño */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+              <DashboardFilters
+                timeframe={timeframe}
+                serviceTypeFilter={serviceTypeFilter}
+                onTimeframeChange={setTimeframe}
+                onServiceTypeChange={setServiceTypeFilter}
+                onRefresh={refreshAllData}
+              />
+            </div>
+            
+            {/* Tarjetas de métricas rediseñadas */}
+            <MetricsCards metrics={dashboardData} isLoading={dataLoading} />
+            
+            {/* Gráficos principales */}
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+              <div className="lg:col-span-8">
+                <GmvChart data={monthlyGmvData} />
+              </div>
+              <div className="lg:col-span-4">
+                <ServiceStatusChart data={serviceStatusData} metrics={dashboardData} />
+              </div>
+            </div>
+            
+            {/* Gráficos secundarios */}
+            <SecondaryCharts
+              dailyServiceData={dailyServiceData}
+              serviceTypesData={serviceTypesData}
+              topClientsData={topClientsData}
+            />
+            
+            {/* Progreso de GMV */}
+            <GmvProgress totalGMV={dashboardData.totalGMV} />
+          </TabsContent>
           
-          <GmvProgress totalGMV={dashboardData.totalGMV} />
-        </TabsContent>
-        
-        <TabsContent value="calendar" className="space-y-8">
-          <ServicesCalendar />
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="calendar" className="space-y-8">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+              <ServicesCalendar />
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 };

@@ -1,6 +1,15 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Calendar, ArrowUp, ArrowDown, CircleDollarSign, TrendingUp } from "lucide-react";
+import { 
+  Truck, 
+  DollarSign, 
+  Users, 
+  TrendingUp, 
+  Clock, 
+  CheckCircle, 
+  XCircle, 
+  AlertCircle 
+} from "lucide-react";
 import { DashboardMetrics } from "@/hooks/useDashboardData";
 import { useFormatters } from "@/hooks/useFormatters";
 
@@ -12,73 +21,108 @@ interface MetricsCardsProps {
 export const MetricsCards = ({ metrics, isLoading }: MetricsCardsProps) => {
   const { formatCurrency } = useFormatters();
   
+  const cards = [
+    {
+      title: "Total de Servicios",
+      value: metrics.totalServices,
+      icon: Truck,
+      color: "bg-blue-500",
+      description: "Servicios totales registrados",
+      trend: "+12% vs mes anterior"
+    },
+    {
+      title: "Ingresos Totales",
+      value: formatCurrency(metrics.totalGMV),
+      icon: DollarSign,
+      color: "bg-green-500", 
+      description: "Facturación acumulada",
+      trend: "+21% vs mes anterior"
+    },
+    {
+      title: "Clientes Activos",
+      value: metrics.activeClients,
+      icon: Users,
+      color: "bg-purple-500",
+      description: "Clientes con servicios",
+      trend: "+3 nuevos clientes"
+    },
+    {
+      title: "Valor Promedio",
+      value: formatCurrency(metrics.averageServiceValue),
+      icon: TrendingUp,
+      color: "bg-orange-500",
+      description: "Por servicio realizado",
+      trend: "+5% vs promedio anterior"
+    },
+    {
+      title: "Servicios Completados",
+      value: metrics.completedServices,
+      icon: CheckCircle,
+      color: "bg-emerald-500",
+      description: "Servicios finalizados exitosamente",
+      trend: `${metrics.totalServices > 0 ? Math.round((metrics.completedServices / metrics.totalServices) * 100) : 0}% del total`
+    },
+    {
+      title: "En Proceso",
+      value: metrics.ongoingServices,
+      icon: Clock,
+      color: "bg-blue-500",
+      description: "Servicios actualmente en curso",
+      trend: `${metrics.totalServices > 0 ? Math.round((metrics.ongoingServices / metrics.totalServices) * 100) : 0}% del total`
+    },
+    {
+      title: "Pendientes",
+      value: metrics.pendingServices,
+      icon: AlertCircle,
+      color: "bg-amber-500",
+      description: "Servicios por iniciar",
+      trend: `${metrics.totalServices > 0 ? Math.round((metrics.pendingServices / metrics.totalServices) * 100) : 0}% del total`
+    },
+    {
+      title: "Cancelados",
+      value: metrics.cancelledServices,
+      icon: XCircle,
+      color: "bg-red-500",
+      description: "Servicios no realizados",
+      trend: `${metrics.totalServices > 0 ? Math.round((metrics.cancelledServices / metrics.totalServices) * 100) : 0}% del total`
+    }
+  ];
+  
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-      <Card className="card-apple hover-lift">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Total de Servicios</CardTitle>
-          <Calendar className="h-4 w-4 text-primary" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-semibold">{isLoading ? '...' : metrics.totalServices}</div>
-          <p className="text-xs text-muted-foreground flex items-center mt-1">
-            {metrics.yearlyGrowth >= 0 ? (
-              <>
-                <ArrowUp className="mr-1 h-3 w-3 text-green-500" />
-                <span className="text-green-500">{metrics.yearlyGrowth}%</span>
-              </>
-            ) : (
-              <>
-                <ArrowDown className="mr-1 h-3 w-3 text-red-500" />
-                <span className="text-red-500">{Math.abs(metrics.yearlyGrowth)}%</span>
-              </>
-            )}
-            {' desde el mes anterior'}
-          </p>
-        </CardContent>
-      </Card>
-      
-      <Card className="card-apple hover-lift">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">GMV Total</CardTitle>
-          <CircleDollarSign className="h-4 w-4 text-primary" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-semibold">{isLoading ? '...' : formatCurrency(metrics.totalGMV)}</div>
-          <p className="text-xs text-muted-foreground flex items-center mt-1">
-            <ArrowUp className="mr-1 h-3 w-3 text-green-500" />
-            <span className="text-green-500">21%</span> desde el mes anterior
-          </p>
-        </CardContent>
-      </Card>
-      
-      <Card className="card-apple hover-lift">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Clientes Activos</CardTitle>
-          <Users className="h-4 w-4 text-primary" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-semibold">{isLoading ? '...' : metrics.activeClients}</div>
-          <p className="text-xs text-muted-foreground flex items-center mt-1">
-            <ArrowUp className="mr-1 h-3 w-3 text-green-500" />
-            <span className="text-green-500">3.3%</span> desde el mes anterior
-          </p>
-        </CardContent>
-      </Card>
-      
-      <Card className="card-apple hover-lift">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Valor Promedio</CardTitle>
-          <TrendingUp className="h-4 w-4 text-primary" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-semibold">{isLoading ? '...' : formatCurrency(metrics.averageServiceValue)}</div>
-          <p className="text-xs text-muted-foreground flex items-center mt-1">
-            <ArrowUp className="mr-1 h-3 w-3 text-green-500" />
-            <span className="text-green-500">5%</span> desde el mes anterior
-          </p>
-        </CardContent>
-      </Card>
+      {cards.map((card, index) => {
+        const Icon = card.icon;
+        return (
+          <Card key={index} className="relative overflow-hidden bg-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <div className={`absolute top-0 left-0 w-full h-1 ${card.color}`}></div>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-sm font-medium text-slate-600 leading-tight">
+                {card.title}
+              </CardTitle>
+              <div className={`p-2 rounded-lg ${card.color} bg-opacity-10`}>
+                <Icon className={`h-5 w-5 text-white ${card.color.replace('bg-', 'text-')}`} />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="text-2xl font-bold text-slate-900">
+                {isLoading ? (
+                  <div className="h-8 w-16 bg-slate-200 animate-pulse rounded"></div>
+                ) : (
+                  card.value
+                )}
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-slate-500 leading-tight">
+                  {card.description}
+                </p>
+                <p className="text-xs font-medium text-slate-700">
+                  {card.trend}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 };
