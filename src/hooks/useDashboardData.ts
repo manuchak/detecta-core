@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -69,6 +68,19 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
         }
 
         console.log('Raw data from Supabase:', data);
+        console.log('Total records fetched:', data?.length || 0);
+        
+        // Log unique states found
+        const uniqueStates = [...new Set(data?.map(s => s.estado).filter(Boolean))] || [];
+        console.log('Estados únicos encontrados en la BD:', uniqueStates);
+        
+        // Log sample data for debugging
+        if (data && data.length > 0) {
+          console.log('Sample record:', data[0]);
+          console.log('Sample cobro_cliente values:', data.slice(0, 5).map(s => s.cobro_cliente));
+          console.log('Sample nombre_cliente values:', data.slice(0, 5).map(s => s.nombre_cliente));
+        }
+        
         return data || [];
       } catch (err) {
         console.error('Error in dashboard query:', err);
@@ -99,30 +111,85 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
   // Calcular valor promedio por servicio
   const averageServiceValue = totalServices > 0 ? totalGMV / totalServices : 0;
 
-  // Mapear estados reales de la base de datos
-  const completedStates = ['finalizado', 'completado', 'entregado', 'terminado'];
-  const ongoingStates = ['en_proceso', 'en proceso', 'activo', 'en_transito', 'en transito'];
-  const pendingStates = ['pendiente', 'programado', 'asignado', 'por_iniciar'];
-  const cancelledStates = ['cancelado', 'cancelled', 'anulado'];
+  // Mapear estados reales encontrados en la base de datos a categorías principales
+  // Basado en análisis de estados reales comunes en sistemas mexicanos
+  const stateMapping: { [key: string]: string } = {
+    // Estados completados
+    'finalizado': 'Completado',
+    'finalizados': 'Completado',
+    'completado': 'Completado', 
+    'completados': 'Completado',
+    'entregado': 'Completado',
+    'entregados': 'Completado',
+    'terminado': 'Completado',
+    'terminados': 'Completado',
+    'concluido': 'Completado',
+    'concluidos': 'Completado',
+    'exitoso': 'Completado',
+    'realizado': 'Completado',
+    'cumplido': 'Completado',
+    
+    // Estados en proceso
+    'en_proceso': 'En Proceso',
+    'en proceso': 'En Proceso',
+    'enproceso': 'En Proceso',
+    'activo': 'En Proceso',
+    'activos': 'En Proceso',
+    'en_transito': 'En Proceso',
+    'en transito': 'En Proceso',
+    'entransito': 'En Proceso',
+    'en_ruta': 'En Proceso',
+    'en ruta': 'En Proceso',
+    'enruta': 'En Proceso',
+    'ejecutando': 'En Proceso',
+    'iniciado': 'En Proceso',
+    'trabajando': 'En Proceso',
+    
+    // Estados pendientes
+    'pendiente': 'Pendiente',
+    'pendientes': 'Pendiente',
+    'programado': 'Pendiente',
+    'programados': 'Pendiente',
+    'asignado': 'Pendiente',
+    'asignados': 'Pendiente',
+    'por_iniciar': 'Pendiente',
+    'por iniciar': 'Pendiente',
+    'porinicial': 'Pendiente',
+    'nuevo': 'Pendiente',
+    'nuevos': 'Pendiente',
+    'solicitado': 'Pendiente',
+    'agendado': 'Pendiente',
+    'confirmado': 'Pendiente',
+    
+    // Estados cancelados
+    'cancelado': 'Cancelado',
+    'cancelados': 'Cancelado',
+    'cancelled': 'Cancelado',
+    'anulado': 'Cancelado',
+    'anulados': 'Cancelado',
+    'rechazado': 'Cancelado',
+    'rechazados': 'Cancelado',
+    'no_realizado': 'Cancelado',
+    'no realizado': 'Cancelado',
+    'fallido': 'Cancelado',
+    'suspendido': 'Cancelado'
+  };
 
-  // Contar servicios por estado real
-  const completedServices = allServicesData.filter(service => 
-    completedStates.includes(String(service.estado || '').toLowerCase().trim())
-  ).length;
+  // Contar servicios por estado mapeado
+  const serviceCounts = allServicesData.reduce((counts, service) => {
+    const rawState = String(service.estado || '').toLowerCase().trim();
+    const mappedState = stateMapping[rawState] || 'Otros';
+    counts[mappedState] = (counts[mappedState] || 0) + 1;
+    return counts;
+  }, {} as { [key: string]: number });
 
-  const ongoingServices = allServicesData.filter(service => 
-    ongoingStates.includes(String(service.estado || '').toLowerCase().trim())
-  ).length;
+  const completedServices = serviceCounts['Completado'] || 0;
+  const ongoingServices = serviceCounts['En Proceso'] || 0;
+  const pendingServices = serviceCounts['Pendiente'] || 0;
+  const cancelledServices = serviceCounts['Cancelado'] || 0;
+  const otherServices = serviceCounts['Otros'] || 0;
 
-  const pendingServices = allServicesData.filter(service => 
-    pendingStates.includes(String(service.estado || '').toLowerCase().trim())
-  ).length;
-
-  const cancelledServices = allServicesData.filter(service => 
-    cancelledStates.includes(String(service.estado || '').toLowerCase().trim())
-  ).length;
-
-  console.log('Estados únicos encontrados:', [...new Set(allServicesData.map(s => s.estado).filter(Boolean))]);
+  console.log('Estados mapeados:', serviceCounts);
   console.log('Métricas calculadas:', {
     totalServices,
     totalGMV,
@@ -130,7 +197,8 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
     completedServices,
     ongoingServices,
     pendingServices,
-    cancelledServices
+    cancelledServices,
+    otherServices
   });
 
   // Procesar datos para gráficos
@@ -138,7 +206,7 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
   const serviceTypesData: ServiceTypesData[] = processServiceTypes(allServicesData);
   const dailyServiceData: DailyServiceData[] = processDailyData(allServicesData);
   const topClientsData: TopClientsData[] = processTopClients(allServicesData);
-  const serviceStatusData: ServiceStatusData[] = processServiceStatusReal(allServicesData);
+  const serviceStatusData: ServiceStatusData[] = processServiceStatusReal(allServicesData, stateMapping);
 
   const dashboardData: DashboardMetrics = {
     totalServices,
@@ -170,34 +238,14 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
   };
 };
 
-// Función para procesar estados reales de la base de datos
-function processServiceStatusReal(data: any[]): ServiceStatusData[] {
+// Función mejorada para procesar estados reales de la base de datos
+function processServiceStatusReal(data: any[], stateMapping: { [key: string]: string }): ServiceStatusData[] {
   if (!data || data.length === 0) {
     return getDefaultServiceStatus();
   }
 
   const statusCounts: { [key: string]: number } = {};
   
-  // Mapear estados reales a categorías principales
-  const stateMapping: { [key: string]: string } = {
-    'finalizado': 'Completado',
-    'completado': 'Completado',
-    'entregado': 'Completado',
-    'terminado': 'Completado',
-    'en_proceso': 'En Proceso',
-    'en proceso': 'En Proceso',
-    'activo': 'En Proceso',
-    'en_transito': 'En Proceso',
-    'en transito': 'En Proceso',
-    'pendiente': 'Pendiente',
-    'programado': 'Pendiente',
-    'asignado': 'Pendiente',
-    'por_iniciar': 'Pendiente',
-    'cancelado': 'Cancelado',
-    'cancelled': 'Cancelado',
-    'anulado': 'Cancelado'
-  };
-
   data.forEach(item => {
     const rawState = String(item.estado || '').toLowerCase().trim();
     const mappedState = stateMapping[rawState] || 'Otros';
@@ -236,7 +284,7 @@ function processGmvData(data: any[]): MonthlyGmvData[] {
       try {
         const month = new Date(item.fecha_hora_cita).getMonth();
         const monthKey = new Date(2025, month).toLocaleDateString('es-ES', { month: 'short' });
-        const amount = parseFloat(item.cobro_cliente) || 0;
+        const amount = parseFloat(String(item.cobro_cliente || 0)) || 0;
         monthlyTotals[monthKey] = (monthlyTotals[monthKey] || 0) + amount;
       } catch (e) {
         console.warn('Error processing GMV data item:', e);
@@ -310,8 +358,8 @@ function processTopClients(data: any[]): TopClientsData[] {
   const clientCounts: { [key: string]: number } = {};
   
   data.forEach(item => {
-    const client = item.nombre_cliente || 'Sin especificar';
-    if (client && client !== 'Sin especificar') {
+    const client = String(item.nombre_cliente || '').trim();
+    if (client && client !== 'Sin especificar' && client !== '') {
       clientCounts[client] = (clientCounts[client] || 0) + 1;
     }
   });
