@@ -33,7 +33,7 @@ export const ServiceStatusChart = ({ data, metrics }: ServiceStatusChartProps) =
                 <YAxis type="category" dataKey="name" />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="value" name="Porcentaje" fill="#8b5cf6" />
+                <Bar dataKey="value" name="Cantidad" fill="#8b5cf6" />
               </BarChart>
             </ResponsiveContainer>
           </TabsContent>
@@ -42,7 +42,7 @@ export const ServiceStatusChart = ({ data, metrics }: ServiceStatusChartProps) =
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <div className="h-3 w-3 rounded-full bg-primary mr-2"></div>
+                    <div className="h-3 w-3 rounded-full bg-green-500 mr-2"></div>
                     <p className="text-sm">Completados</p>
                   </div>
                   <div className="flex items-center">
@@ -54,7 +54,7 @@ export const ServiceStatusChart = ({ data, metrics }: ServiceStatusChartProps) =
                 </div>
                 <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
                   <div 
-                    className="h-full bg-primary" 
+                    className="h-full bg-green-500" 
                     style={{width: `${metrics.totalServices > 0 ? (metrics.completedServices / metrics.totalServices) * 100 : 0}%`}}
                   />
                 </div>
@@ -85,19 +85,19 @@ export const ServiceStatusChart = ({ data, metrics }: ServiceStatusChartProps) =
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <div className="h-3 w-3 rounded-full bg-amber-500 mr-2"></div>
-                    <p className="text-sm">Retrasados</p>
+                    <p className="text-sm">Pendientes</p>
                   </div>
                   <div className="flex items-center">
-                    <p className="text-sm font-medium">12</p>
+                    <p className="text-sm font-medium">{metrics.pendingServices}</p>
                     <span className="text-xs text-muted-foreground ml-2">
-                      {metrics.totalServices > 0 ? Math.round((12 / metrics.totalServices) * 100) : 0}%
+                      {metrics.totalServices > 0 ? Math.round((metrics.pendingServices / metrics.totalServices) * 100) : 0}%
                     </span>
                   </div>
                 </div>
                 <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
                   <div 
                     className="h-full bg-amber-500" 
-                    style={{width: `${metrics.totalServices > 0 ? (12 / metrics.totalServices) * 100 : 0}%`}}
+                    style={{width: `${metrics.totalServices > 0 ? (metrics.pendingServices / metrics.totalServices) * 100 : 0}%`}}
                   />
                 </div>
               </div>

@@ -35,56 +35,69 @@ export interface DashboardMetrics {
   activeClients: number;
   averageServiceValue: number;
   yearlyGrowth: number;
+  completedServices: number;
+  ongoingServices: number;
+  cancelledServices: number;
+  pendingServices: number;
 }
 
 export type TimeframeOption = "day" | "week" | "month" | "quarter" | "year";
 export type ServiceTypeOption = "all" | "local" | "foraneo";
 
 export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTypeFilter: ServiceTypeOption = "all") => {
-  // Simplified queries that don't depend on complex RLS
+  // Query para datos de GMV mensual usando cobro_cliente
   const { data: monthlyGmvData = [], isLoading: gmvLoading, error: gmvError } = useQuery({
     queryKey: ['monthly-gmv', timeframe, serviceTypeFilter],
     queryFn: async () => {
       try {
-        console.log("Fetching monthly GMV data with simplified query...");
+        console.log("Fetching monthly GMV data from servicios_custodia...");
         
-        // Use a simple aggregation without complex filters
-        const { data, error } = await supabase
+        let query = supabase
           .from('servicios_custodia')
-          .select('cobro_cliente, fecha_hora_cita')
+          .select('cobro_cliente, fecha_hora_cita, local_foraneo')
           .not('cobro_cliente', 'is', null)
           .gte('fecha_hora_cita', '2025-01-01')
-          .lte('fecha_hora_cita', '2025-12-31')
-          .limit(1000);
+          .lte('fecha_hora_cita', '2025-12-31');
+
+        // Aplicar filtro de tipo de servicio
+        if (serviceTypeFilter !== 'all') {
+          query = query.eq('local_foraneo', serviceTypeFilter);
+        }
+
+        const { data, error } = await query.limit(1000);
 
         if (error) {
           console.error('Error fetching GMV data:', error);
           return getDefaultGmvData();
         }
 
-        // Process data locally
-        const monthlyData = processGmvData(data || []);
-        return monthlyData;
+        return processGmvData(data || []);
       } catch (err) {
         console.error('Error in monthly GMV query:', err);
         return getDefaultGmvData();
       }
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
     retry: 1,
   });
 
+  // Query para tipos de servicio
   const { data: serviceTypesData = [], isLoading: typesLoading, error: typesError } = useQuery({
     queryKey: ['service-types', timeframe, serviceTypeFilter],
     queryFn: async () => {
       try {
         console.log("Fetching service types data...");
         
-        const { data, error } = await supabase
+        let query = supabase
           .from('servicios_custodia')
-          .select('tipo_servicio')
-          .not('tipo_servicio', 'is', null)
-          .limit(500);
+          .select('tipo_servicio, local_foraneo')
+          .not('tipo_servicio', 'is', null);
+
+        if (serviceTypeFilter !== 'all') {
+          query = query.eq('local_foraneo', serviceTypeFilter);
+        }
+
+        const { data, error } = await query.limit(500);
 
         if (error) {
           console.error('Error fetching service types:', error);
@@ -101,18 +114,24 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
     retry: 1,
   });
 
+  // Query para servicios diarios
   const { data: dailyServiceData = [], isLoading: dailyLoading, error: dailyError } = useQuery({
     queryKey: ['daily-services', timeframe, serviceTypeFilter],
     queryFn: async () => {
       try {
         console.log("Fetching daily service data...");
         
-        const { data, error } = await supabase
+        let query = supabase
           .from('servicios_custodia')
-          .select('fecha_hora_cita')
+          .select('fecha_hora_cita, local_foraneo')
           .not('fecha_hora_cita', 'is', null)
-          .gte('fecha_hora_cita', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-          .limit(1000);
+          .gte('fecha_hora_cita', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+
+        if (serviceTypeFilter !== 'all') {
+          query = query.eq('local_foraneo', serviceTypeFilter);
+        }
+
+        const { data, error } = await query.limit(1000);
 
         if (error) {
           console.error('Error fetching daily services:', error);
@@ -129,17 +148,23 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
     retry: 1,
   });
 
+  // Query para clientes principales
   const { data: topClientsData = [], isLoading: clientsLoading, error: clientsError } = useQuery({
     queryKey: ['top-clients', timeframe, serviceTypeFilter],
     queryFn: async () => {
       try {
         console.log("Fetching top clients data...");
         
-        const { data, error } = await supabase
+        let query = supabase
           .from('servicios_custodia')
-          .select('nombre_cliente')
-          .not('nombre_cliente', 'is', null)
-          .limit(500);
+          .select('nombre_cliente, local_foraneo')
+          .not('nombre_cliente', 'is', null);
+
+        if (serviceTypeFilter !== 'all') {
+          query = query.eq('local_foraneo', serviceTypeFilter);
+        }
+
+        const { data, error } = await query.limit(500);
 
         if (error) {
           console.error('Error fetching top clients:', error);
@@ -156,17 +181,23 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
     retry: 1,
   });
 
+  // Query para estado de servicios
   const { data: serviceStatusData = [], isLoading: statusLoading, error: statusError } = useQuery({
     queryKey: ['service-status', timeframe, serviceTypeFilter],
     queryFn: async () => {
       try {
         console.log("Fetching service status data...");
         
-        const { data, error } = await supabase
+        let query = supabase
           .from('servicios_custodia')
-          .select('estado')
-          .not('estado', 'is', null)
-          .limit(1000);
+          .select('estado, local_foraneo')
+          .not('estado', 'is', null);
+
+        if (serviceTypeFilter !== 'all') {
+          query = query.eq('local_foraneo', serviceTypeFilter);
+        }
+
+        const { data, error } = await query.limit(1000);
 
         if (error) {
           console.error('Error fetching service status:', error);
@@ -183,25 +214,45 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
     retry: 1,
   });
 
-  // Calculate metrics
+  // Calcular métricas usando los datos reales
   const totalGMV = monthlyGmvData.reduce((sum, item) => sum + (item.value || 0), 0);
   const totalServices = dailyServiceData.reduce((sum, item) => sum + (item.count || 0), 0);
   const activeClients = topClientsData.length;
   const averageServiceValue = totalServices > 0 ? totalGMV / totalServices : 0;
+
+  // Calcular servicios por estado
+  const completedServices = serviceStatusData.find(s => 
+    s.name.toLowerCase().includes('completado') || s.name.toLowerCase().includes('finalizado')
+  )?.value || 0;
+  
+  const ongoingServices = serviceStatusData.find(s => 
+    s.name.toLowerCase().includes('proceso') || s.name.toLowerCase().includes('activo')
+  )?.value || 0;
+  
+  const cancelledServices = serviceStatusData.find(s => 
+    s.name.toLowerCase().includes('cancelado')
+  )?.value || 0;
+  
+  const pendingServices = serviceStatusData.find(s => 
+    s.name.toLowerCase().includes('pendiente')
+  )?.value || 0;
 
   const dashboardData: DashboardMetrics = {
     totalServices,
     totalGMV,
     activeClients,
     averageServiceValue,
-    yearlyGrowth: 15 // Default growth percentage
+    yearlyGrowth: 15,
+    completedServices,
+    ongoingServices,
+    cancelledServices,
+    pendingServices
   };
 
   const isLoading = gmvLoading || typesLoading || dailyLoading || clientsLoading || statusLoading;
   const error = gmvError || typesError || dailyError || clientsError || statusError;
 
   const refreshAllData = () => {
-    // This function can be used to manually refresh all queries if needed
     console.log("Refreshing dashboard data...");
   };
 
@@ -219,7 +270,7 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
   };
 };
 
-// Helper functions for data processing
+// Funciones de procesamiento de datos
 function processGmvData(data: any[]): MonthlyGmvData[] {
   const monthlyTotals: { [key: string]: number } = {};
   
@@ -234,7 +285,7 @@ function processGmvData(data: any[]): MonthlyGmvData[] {
   return Object.entries(monthlyTotals).map(([name, value]) => ({
     name,
     value,
-    previousYear: value * 0.8 // Simulated previous year data
+    previousYear: value * 0.8
   }));
 }
 
@@ -291,7 +342,7 @@ function processServiceStatus(data: any[]): ServiceStatusData[] {
     statusCounts[status] = (statusCounts[status] || 0) + 1;
   });
   
-  const colors = ['#8b5cf6', '#0ea5e9', '#f97316', '#ef4444', '#10b981'];
+  const colors = ['#10b981', '#f59e0b', '#ef4444', '#6b7280', '#8b5cf6'];
   
   return Object.entries(statusCounts)
     .map(([name, value], index) => ({
@@ -302,7 +353,7 @@ function processServiceStatus(data: any[]): ServiceStatusData[] {
     .slice(0, 5);
 }
 
-// Default data functions
+// Funciones de datos por defecto
 function getDefaultGmvData(): MonthlyGmvData[] {
   return [
     { name: 'Ene', value: 85000, previousYear: 68000 },
