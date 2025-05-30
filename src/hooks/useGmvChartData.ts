@@ -61,17 +61,16 @@ export const useGmvChartData = (clientFilter: string = "all") => {
           }
         });
         
-        // Convertir a formato de gráfico
+        // Convertir a formato de gráfico - mostrar TODOS los meses
         const monthOrder = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-        const result: MonthlyGmvData[] = monthOrder
-          .filter(month => monthlyTotals[month] && (monthlyTotals[month].current > 0 || monthlyTotals[month].previous > 0))
-          .map(month => ({
-            name: month,
-            value: monthlyTotals[month]?.current || 0,
-            previousYear: monthlyTotals[month]?.previous || 0
-          }));
+        const result: MonthlyGmvData[] = monthOrder.map(month => ({
+          name: month,
+          value: monthlyTotals[month]?.current || 0,
+          previousYear: monthlyTotals[month]?.previous || 0
+        }));
         
         console.log('Processed GMV data by month:', result);
+        console.log('Monthly totals object:', monthlyTotals);
         return result;
         
       } catch (err) {
