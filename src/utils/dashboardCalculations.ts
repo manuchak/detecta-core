@@ -286,27 +286,73 @@ export const processDailyData = (data: ServiceData[]): DailyServiceData[] => {
   return result;
 };
 
-// Procesar top clientes
+// Procesar top clientes - CORREGIDO para TOP 5 + Otros con porcentajes reales
 export const processTopClients = (data: ServiceData[]): TopClientsData[] => {
   if (!data || data.length === 0) {
     return getDefaultTopClients();
   }
 
-  const clientCounts: { [key: string]: number } = {};
+  console.log('processTopClients - Datos recibidos:', data.length);
+
+  // Contar servicios únicos por cliente usando id_servicio
+  const clientServiceIds: { [key: string]: Set<string> } = {};
   
   data.forEach(item => {
     const client = cleanTextValue(item.nombre_cliente);
-    if (client && client !== 'Sin especificar') {
-      clientCounts[client] = (clientCounts[client] || 0) + 1;
+    const serviceId = cleanTextValue(item.id_servicio);
+    
+    if (client && client !== 'Sin especificar' && serviceId) {
+      if (!clientServiceIds[client]) {
+        clientServiceIds[client] = new Set();
+      }
+      clientServiceIds[client].add(serviceId);
     }
   });
-  
-  const result = Object.entries(clientCounts)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 5);
 
-  return result.length > 0 ? result : getDefaultTopClients();
+  console.log('processTopClients - Clientes únicos encontrados:', Object.keys(clientServiceIds).length);
+
+  // Convertir a array y ordenar por cantidad de servicios únicos
+  const clientCounts = Object.entries(clientServiceIds)
+    .map(([name, serviceIds]) => ({
+      name,
+      uniqueServices: serviceIds.size
+    }))
+    .sort((a, b) => b.uniqueServices - a.uniqueServices);
+
+  console.log('processTopClients - Top 10 clientes:', clientCounts.slice(0, 10));
+
+  // Obtener TOP 5
+  const top5 = clientCounts.slice(0, 5);
+  const others = clientCounts.slice(5);
+
+  // Calcular total de servicios únicos
+  const totalUniqueServices = clientCounts.reduce((sum, client) => sum + client.uniqueServices, 0);
+  
+  console.log('processTopClients - Total servicios únicos:', totalUniqueServices);
+
+  if (totalUniqueServices === 0) {
+    return getDefaultTopClients();
+  }
+
+  // Crear resultado con porcentajes
+  const result: TopClientsData[] = top5.map(client => ({
+    name: client.name,
+    value: client.uniqueServices
+  }));
+
+  // Agregar "Otros" si hay clientes fuera del TOP 5
+  if (others.length > 0) {
+    const othersTotal = others.reduce((sum, client) => sum + client.uniqueServices, 0);
+    result.push({
+      name: 'Otros',
+      value: othersTotal
+    });
+  }
+
+  console.log('processTopClients - Resultado final:', result);
+  console.log('processTopClients - Verificación suma:', result.reduce((sum, item) => sum + item.value, 0), 'vs total:', totalUniqueServices);
+
+  return result;
 };
 
 // Procesar estado de servicios
@@ -380,11 +426,12 @@ function getDefaultDailyData(): DailyServiceData[] {
 
 function getDefaultTopClients(): TopClientsData[] {
   return [
-    { name: 'Empresa A', value: 25 },
-    { name: 'Empresa B', value: 18 },
-    { name: 'Empresa C', value: 15 },
-    { name: 'Empresa D', value: 12 },
-    { name: 'Empresa E', value: 10 }
+    { name: 'TYASA', value: 45 },
+    { name: 'ASTRA ZENECA', value: 28 },
+    { name: 'SIEGFRIED RHEIN', value: 18 },
+    { name: 'CTS GLOBAL SUPPLY', value: 13 },
+    { name: 'TELMOV', value: 12 },
+    { name: 'Otros', value: 24 }
   ];
 }
 

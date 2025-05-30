@@ -24,18 +24,11 @@ const SERVICE_TYPE_COLORS = {
 };
 
 export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClientsData }: SecondaryChartsProps) => {
-  // Procesar datos de clientes principales para mostrar top 15 + "Otros"
-  const processTopClients = (data: TopClientsData[]) => {
-    const sortedData = [...data].sort((a, b) => b.value - a.value);
-    const top15 = sortedData.slice(0, 15);
-    const others = sortedData.slice(15);
-    
-    if (others.length > 0) {
-      const othersSum = others.reduce((sum, client) => sum + client.value, 0);
-      top15.push({ name: 'Otros', value: othersSum });
-    }
-    
-    return top15;
+  // Procesar datos de clientes principales - CORREGIDO para mostrar TOP 5 + Otros
+  const processTopClientsForDisplay = (data: TopClientsData[]) => {
+    // Los datos ya vienen procesados correctamente desde el hook
+    // Solo necesitamos asegurar que sean máximo 6 elementos (TOP 5 + Otros)
+    return data.slice(0, 6);
   };
 
   // Procesar datos diarios para comparación semanal con fechas específicas
@@ -65,7 +58,7 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
     return combinedData;
   };
 
-  const processedClientsData = processTopClients(topClientsData);
+  const processedClientsData = processTopClientsForDisplay(topClientsData);
   const totalClients = processedClientsData.reduce((sum, item) => sum + item.value, 0);
   const weeklyComparisonData = processWeeklyComparison(dailyServiceData);
 
@@ -130,7 +123,7 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
 
   const CustomPieTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
-      const percentage = ((payload[0].value / totalClients) * 100).toFixed(1);
+      const percentage = totalClients > 0 ? ((payload[0].value / totalClients) * 100).toFixed(1) : '0.0';
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
           <p className="font-medium text-gray-900">{payload[0].name}</p>
@@ -346,7 +339,7 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
         </Card>
       </div>
 
-      {/* Clientes Principales - Altura optimizada */}
+      {/* Clientes Principales - CORREGIDO para TOP 5 + Otros */}
       <div className="lg:col-span-4">
         <Card className="h-full">
           <CardHeader className="pb-2">
@@ -354,7 +347,7 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
               <div className="w-3 h-3 rounded-full bg-orange-600"></div>
               Clientes Principales
             </CardTitle>
-            <p className="text-sm text-gray-600">Top 15 clientes + otros</p>
+            <p className="text-sm text-gray-600">Top 5 clientes + otros</p>
           </CardHeader>
           <CardContent className="h-96 flex flex-col">
             <div className="flex-1 relative">
@@ -386,7 +379,7 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
             <div className="mt-1 bg-gray-50 rounded-lg p-2 max-h-28 overflow-y-auto">
               <div className="space-y-1">
                 {processedClientsData.map((entry, index) => {
-                  const percentage = ((entry.value / totalClients) * 100).toFixed(1);
+                  const percentage = totalClients > 0 ? ((entry.value / totalClients) * 100).toFixed(1) : '0.0';
                   return (
                     <div key={entry.name} className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-2 min-w-0 flex-1">
