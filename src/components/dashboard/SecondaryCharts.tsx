@@ -152,68 +152,69 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
         </Card>
       </div>
 
-      {/* Clientes Principales - Gráfico de dona */}
+      {/* Clientes Principales - Gráfico de dona rediseñado */}
       <div className="lg:col-span-4">
         <Card className="h-full">
-          <CardHeader className="pb-4">
+          <CardHeader className="pb-3">
             <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-orange-600"></div>
               Clientes Principales
             </CardTitle>
-            <p className="text-sm text-gray-600 mt-1">Top 15 clientes + otros</p>
+            <p className="text-sm text-gray-600">Top 15 clientes + otros</p>
           </CardHeader>
-          <CardContent className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={processedClientsData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={40}
-                  outerRadius={80}
-                  paddingAngle={2}
-                  dataKey="value"
-                  stroke="#fff"
-                  strokeWidth={2}
-                >
-                  {processedClientsData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={COLORS[index % COLORS.length]} 
-                    />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomPieTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
+          <CardContent className="h-96 flex flex-col">
+            {/* Contenedor del gráfico */}
+            <div className="flex-1 relative">
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={processedClientsData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={35}
+                    outerRadius={75}
+                    paddingAngle={1}
+                    dataKey="value"
+                    stroke="#fff"
+                    strokeWidth={2}
+                  >
+                    {processedClientsData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={COLORS[index % COLORS.length]} 
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomPieTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
             
-            {/* Leyenda personalizada */}
-            <div className="mt-4 max-h-32 overflow-y-auto">
-              <div className="grid grid-cols-1 gap-1 text-xs">
-                {processedClientsData.slice(0, 8).map((entry, index) => {
+            {/* Leyenda mejorada con scroll */}
+            <div className="mt-2 bg-gray-50 rounded-lg p-3 max-h-32 overflow-y-auto">
+              <div className="space-y-1.5">
+                {processedClientsData.map((entry, index) => {
                   const percentage = ((entry.value / totalClients) * 100).toFixed(1);
                   return (
-                    <div key={entry.name} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+                    <div key={entry.name} className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
                         <div 
-                          className="w-2 h-2 rounded-full flex-shrink-0"
+                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                           style={{ backgroundColor: COLORS[index % COLORS.length] }}
                         />
-                        <span className="truncate text-gray-700" title={entry.name}>
+                        <span 
+                          className="truncate text-gray-700 font-medium" 
+                          title={entry.name}
+                        >
                           {entry.name}
                         </span>
                       </div>
-                      <span className="text-gray-600 font-medium">
+                      <span className="text-gray-600 font-semibold ml-2 flex-shrink-0">
                         {percentage}%
                       </span>
                     </div>
                   );
                 })}
-                {processedClientsData.length > 8 && (
-                  <div className="text-gray-500 text-center mt-1">
-                    +{processedClientsData.length - 8} más...
-                  </div>
-                )}
               </div>
             </div>
           </CardContent>
