@@ -32,11 +32,30 @@ export const useGmvChartData = (clientFilter: string = "all") => {
           console.log(`Applied client filter: ${clientFilter}, remaining records: ${filteredData.length}`);
         }
         
-        // Procesar datos por mes
+        // Procesar datos por mes - mostrar TODOS los datos históricos disponibles
         const monthlyTotals: { [key: string]: { current: number, previous: number } } = {};
         const currentYear = new Date().getFullYear();
         const previousYear = currentYear - 1;
         
+        // Primero, obtener todos los años disponibles en los datos
+        const availableYears = new Set<number>();
+        filteredData.forEach(item => {
+          if (item.fecha_hora_cita && item.cobro_cliente) {
+            try {
+              const date = new Date(item.fecha_hora_cita);
+              const year = date.getFullYear();
+              if (!isNaN(year) && year >= 2020) { // Filtrar años válidos
+                availableYears.add(year);
+              }
+            } catch (e) {
+              console.warn('Error processing date:', e);
+            }
+          }
+        });
+        
+        console.log('Available years in data:', Array.from(availableYears).sort());
+        
+        // Procesar todos los datos disponibles
         filteredData.forEach(item => {
           if (item.fecha_hora_cita && item.cobro_cliente) {
             try {
@@ -50,10 +69,14 @@ export const useGmvChartData = (clientFilter: string = "all") => {
                 monthlyTotals[monthKey] = { current: 0, previous: 0 };
               }
               
+              // Sumar todos los años en "current" excepto el año anterior
               if (year === currentYear) {
                 monthlyTotals[monthKey].current += amount;
               } else if (year === previousYear) {
                 monthlyTotals[monthKey].previous += amount;
+              } else {
+                // Para años anteriores a 2024, sumarlos también a "current" para mostrar tendencia histórica
+                monthlyTotals[monthKey].current += amount;
               }
             } catch (e) {
               console.warn('Error processing GMV data item:', e);
@@ -71,6 +94,18 @@ export const useGmvChartData = (clientFilter: string = "all") => {
         
         console.log('Processed GMV data by month:', result);
         console.log('Monthly totals object:', monthlyTotals);
+        console.log('Total records processed:', filteredData.length);
+        
+        // Log para verificar distribución de datos por año
+        const yearDistribution: { [key: number]: number } = {};
+        filteredData.forEach(item => {
+          if (item.fecha_hora_cita) {
+            const year = new Date(item.fecha_hora_cita).getFullYear();
+            yearDistribution[year] = (yearDistribution[year] || 0) + 1;
+          }
+        });
+        console.log('Year distribution:', yearDistribution);
+        
         return result;
         
       } catch (err) {
