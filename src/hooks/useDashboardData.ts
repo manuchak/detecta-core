@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -10,6 +11,7 @@ import {
   processServiceStatus,
   ServiceData
 } from '@/utils/dashboardCalculations';
+import { canAccessDashboardData } from '@/utils/authHelpers';
 
 export interface MonthlyGmvData {
   name: string;
@@ -54,60 +56,80 @@ export type TimeframeOption = "day" | "week" | "month" | "quarter" | "year";
 export type ServiceTypeOption = "all" | "local" | "foraneo";
 
 export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTypeFilter: ServiceTypeOption = "all") => {
-  // Query para obtener todos los servicios
+  // Query para obtener servicios con autenticación apropiada
   const { data: allServicesData = [], isLoading, error } = useQuery({
     queryKey: ['dashboard-services', timeframe, serviceTypeFilter],
     queryFn: async () => {
       try {
-        console.log("Fetching dashboard data from servicios_custodia...");
+        console.log("Checking user permissions for dashboard data...");
         
-        // Intentar usar función RPC disponible para bypass de RLS
-        const { data: rpcData, error: rpcError } = await supabase.rpc('get_all_recent_trips', {
-          days_back: 90
-        });
+        // Verificar permisos del usuario
+        const hasAccess = await canAccessDashboardData();
+        
+        if (!hasAccess) {
+          console.warn('User does not have permission to access dashboard data');
+          return [];
+        }
+        
+        console.log("User has access, fetching dashboard data...");
+        
+        // Calcular fecha límite basada en timeframe
+        let daysBack = 30;
+        switch (timeframe) {
+          case 'day': daysBack = 1; break;
+          case 'week': daysBack = 7; break;
+          case 'month': daysBack = 30; break;
+          case 'quarter': daysBack = 90; break;
+          case 'year': daysBack = 365; break;
+        }
+        
+        // Construir consulta con filtros apropiados
+        let query = supabase
+          .from('servicios_custodia')
+          .select('*')
+          .gte('fecha_hora_cita', new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString())
+          .order('fecha_hora_cita', { ascending: false });
 
-        if (rpcError) {
-          console.warn('RPC function failed, trying direct query:', rpcError);
-          
-          // Fallback a consulta directa
-          let query = supabase
-            .from('servicios_custodia')
-            .select('*');
-
-          // Aplicar filtro de tipo de servicio
-          if (serviceTypeFilter !== 'all') {
-            query = query.eq('local_foraneo', serviceTypeFilter);
-          }
-
-          const { data, error } = await query.limit(1000);
-
-          if (error) {
-            console.error('Direct query failed:', error);
-            return [];
-          }
-
-          console.log('Direct query successful:', data?.length || 0);
-          return data || [];
+        // Aplicar filtro de tipo de servicio si es necesario
+        if (serviceTypeFilter !== 'all') {
+          query = query.eq('local_foraneo', serviceTypeFilter);
         }
 
-        console.log('RPC query successful:', rpcData?.length || 0);
+        // Limitar resultados para rendimiento
+        query = query.limit(1000);
+
+        const { data, error } = await query;
+
+        if (error) {
+          console.error('Error fetching dashboard data:', error);
+          throw error;
+        }
+
+        console.log('Dashboard data fetched successfully:', data?.length || 0);
         
         // Log sample data for debugging
-        if (rpcData && rpcData.length > 0) {
-          console.log('Sample record:', rpcData[0]);
-          console.log('Sample id_servicio values:', rpcData.slice(0, 5).map(d => d.id_servicio));
-          console.log('Sample estados values:', rpcData.slice(0, 5).map(d => d.estado));
-          console.log('Sample cobro_cliente values:', rpcData.slice(0, 5).map(d => d.cobro_cliente));
+        if (data && data.length > 0) {
+          console.log('Sample record:', data[0]);
+          console.log('Sample id_servicio values:', data.slice(0, 3).map(d => d.id_servicio));
+          console.log('Sample estados values:', data.slice(0, 3).map(d => d.estado));
+          console.log('Sample cobro_cliente values:', data.slice(0, 3).map(d => d.cobro_cliente));
         }
         
-        return rpcData || [];
+        return data || [];
       } catch (err) {
         console.error('Error in dashboard query:', err);
-        return [];
+        throw err;
       }
     },
+    enabled: true, // Always try to fetch, permissions are checked inside
     staleTime: 5 * 60 * 1000,
-    retry: 2,
+    retry: (failureCount, error) => {
+      // Don't retry on permission errors
+      if (error?.message?.includes('permission') || error?.message?.includes('Access denied')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
     retryDelay: 1000,
   });
 
