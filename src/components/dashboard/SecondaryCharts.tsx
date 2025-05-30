@@ -373,10 +373,10 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
         </Card>
       </div>
 
-      {/* Clientes Principales - MEJORADO con etiquetas en el gráfico y diseño optimizado */}
+      {/* Clientes Principales - DISEÑO ULTRA COMPACTO */}
       <div className="lg:col-span-4">
         <Card className="h-full">
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-2">
             <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-orange-600"></div>
               Clientes Principales
@@ -384,7 +384,8 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
             <p className="text-sm text-gray-600">Top 5 clientes + otros</p>
           </CardHeader>
           <CardContent className="h-80 flex flex-col p-4">
-            <div className="flex-1 relative mb-4">
+            {/* Gráfico circular más pequeño */}
+            <div className="flex-1 relative mb-2">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -393,8 +394,8 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
                     cy="50%"
                     labelLine={false}
                     label={renderCustomizedLabel}
-                    innerRadius={35}
-                    outerRadius={85}
+                    innerRadius={30}
+                    outerRadius={75}
                     paddingAngle={2}
                     dataKey="value"
                     stroke="#fff"
@@ -412,33 +413,26 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
               </ResponsiveContainer>
             </div>
             
-            {/* Leyenda horizontal compacta y organizada */}
-            <div className="space-y-3 flex-shrink-0">
+            {/* Leyenda ultra compacta */}
+            <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs flex-shrink-0">
               {processedClientsData.map((entry, index) => {
                 const percentage = totalClients > 0 ? ((entry.value / totalClients) * 100).toFixed(1) : '0.0';
                 return (
-                  <div key={entry.name} className="flex items-center justify-between py-1">
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div 
-                        className="w-3 h-3 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div 
-                          className="text-sm font-medium text-gray-900 truncate leading-tight" 
-                          title={entry.name}
-                        >
-                          {entry.name}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <div className="text-sm text-gray-600">
-                        {entry.value} servicios
-                      </div>
-                      <div className="text-sm font-bold text-gray-900 min-w-[3rem] text-right">
+                  <div key={entry.name} className="flex items-center gap-2 min-h-[18px]">
+                    <div 
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    />
+                    <div className="min-w-0 flex-1 flex items-center justify-between">
+                      <span 
+                        className="text-gray-700 font-medium truncate leading-tight text-xs" 
+                        title={entry.name}
+                      >
+                        {entry.name}
+                      </span>
+                      <span className="text-gray-900 font-bold ml-1 text-xs">
                         {percentage}%
-                      </div>
+                      </span>
                     </div>
                   </div>
                 );
