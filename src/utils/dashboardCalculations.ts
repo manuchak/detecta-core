@@ -1,4 +1,3 @@
-
 import { MonthlyGmvData, ServiceTypesData, DailyServiceData, TopClientsData, ServiceStatusData } from "@/hooks/useDashboardData";
 
 // Tipos para los datos de servicios
@@ -184,28 +183,67 @@ export const processServiceTypes = (data: ServiceData[]): ServiceTypesData[] => 
   return result;
 };
 
-// Procesar datos diarios
+// Procesar datos diarios - CORREGIDO para usar datos reales
 export const processDailyData = (data: ServiceData[]): DailyServiceData[] => {
+  console.log('processDailyData - Datos recibidos:', data.length);
+  
   if (!data || data.length === 0) {
+    console.log('processDailyData - No hay datos, retornando valores por defecto');
     return getDefaultDailyData();
   }
 
-  const dailyCounts: { [key: string]: number } = {};
+  // Mapeo de días en español con el orden correcto
+  const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  const dailyCounts: { [key: string]: Set<string> } = {
+    'Dom': new Set(),
+    'Lun': new Set(),
+    'Mar': new Set(),
+    'Mié': new Set(),
+    'Jue': new Set(),
+    'Vie': new Set(),
+    'Sáb': new Set()
+  };
   
   data.forEach(item => {
-    if (item.fecha_hora_cita) {
+    if (item.fecha_hora_cita && item.id_servicio) {
       try {
-        const day = new Date(item.fecha_hora_cita).toLocaleDateString('es-ES', { weekday: 'short' });
-        dailyCounts[day] = (dailyCounts[day] || 0) + 1;
+        const date = new Date(item.fecha_hora_cita);
+        if (!isNaN(date.getTime())) {
+          const dayIndex = date.getDay(); // 0=domingo, 1=lunes, etc.
+          const dayName = dayNames[dayIndex];
+          const serviceId = cleanTextValue(item.id_servicio);
+          
+          if (serviceId && dayName) {
+            dailyCounts[dayName].add(serviceId);
+          }
+        }
       } catch (e) {
-        console.warn('Error processing daily data item:', e);
+        console.warn('Error processing daily data item:', e, item);
       }
     }
   });
   
-  const result = Object.entries(dailyCounts).map(([day, count]) => ({ day, count }));
+  console.log('processDailyData - Conteos por día:', Object.fromEntries(
+    Object.entries(dailyCounts).map(([day, set]) => [day, set.size])
+  ));
   
-  return result.length > 0 ? result : getDefaultDailyData();
+  // Convertir a formato requerido, manteniendo el orden de lunes a domingo
+  const orderedDays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+  const result = orderedDays.map(day => ({
+    day,
+    count: dailyCounts[day].size
+  }));
+  
+  console.log('processDailyData - Resultado final:', result);
+  
+  // Si todos los conteos son cero, retornar datos por defecto
+  const totalCount = result.reduce((sum, item) => sum + item.count, 0);
+  if (totalCount === 0) {
+    console.log('processDailyData - Todos los conteos en cero, retornando datos por defecto');
+    return getDefaultDailyData();
+  }
+  
+  return result;
 };
 
 // Procesar top clientes
