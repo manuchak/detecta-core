@@ -65,11 +65,15 @@ function App() {
                 <Route path="/register" element={<Navigate to="/auth/register" replace />} />
                 <Route path="/forgot-password" element={<Navigate to="/auth/forgot-password" replace />} />
                 
+                {/* Protected leads route (standalone with dashboard layout) */}
+                <Route path="/leads" element={<DashboardLayout />}>
+                  <Route index element={<LeadsList />} />
+                </Route>
+                
                 {/* Protected dashboard routes */}
                 <Route path="/dashboard" element={<DashboardLayout />}>
                   <Route index element={<Dashboard />} />
                   <Route path="settings" element={<Settings />} />
-                  <Route path="leads" element={<LeadsList />} />
                   <Route path="tickets" element={<TicketsList />} />
                   <Route path="monitoring" element={<MonitoringPage />} />
                   <Route path="supply-chain" element={<SupplyChainMonitoring />} />
