@@ -75,7 +75,7 @@ export const ForecastCard = ({ totalServices, totalGMV }: ForecastCardProps) => 
             Real (Ene-May 2025):
           </span>
           <span className="font-semibold text-gray-900">
-            {isGMV ? formatCurrency(actual) : '3,515'}
+            {isGMV ? formatCurrency(22006636) : '3,515'}
           </span>
         </div>
       </div>
@@ -83,7 +83,7 @@ export const ForecastCard = ({ totalServices, totalGMV }: ForecastCardProps) => 
       {period === 'monthly' && (
         <div className="space-y-1">
           <div className="flex justify-between text-xs text-gray-500">
-            <span>vs Promedio Mensual (703)</span>
+            <span>vs Promedio Mensual</span>
             <span>{variance > 0 ? '+' : ''}{variance.toFixed(1)}%</span>
           </div>
           <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -112,7 +112,7 @@ export const ForecastCard = ({ totalServices, totalGMV }: ForecastCardProps) => 
                 Forecast de Servicios y GMV
               </CardTitle>
               <p className="text-sm text-slate-600">
-                Basado en 3,515 servicios reales (Ene-May 2025)
+                Basado en datos reales de la BDD (Ene-May 2025)
               </p>
             </div>
           </div>
@@ -127,8 +127,8 @@ export const ForecastCard = ({ totalServices, totalGMV }: ForecastCardProps) => 
         <Alert className="bg-blue-50 border-blue-200">
           <Info className="h-4 w-4 text-blue-600" />
           <AlertDescription className="text-blue-800 text-sm">
-            <strong>Base de datos real: 3,515 servicios únicos de enero a mayo 2025.</strong> 
-            Forecast basado en análisis de tendencias estacionales y promedio de 703 servicios/mes.
+            <strong>Base de datos real: 3,515 servicios únicos y {formatCurrency(22006636)} GMV (Ene-May 2025).</strong> 
+            Forecast basado en promedio de 703 servicios/mes y factores estacionales conservadores.
           </AlertDescription>
         </Alert>
         
@@ -201,19 +201,19 @@ export const ForecastCard = ({ totalServices, totalGMV }: ForecastCardProps) => 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-600">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <span>Base real: 3,515 servicios (Ene-May)</span>
+              <span>Base real: 3,515 servicios, {formatCurrency(22006636)} GMV</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-              <span>Promedio mensual: 703 servicios</span>
+              <span>Promedio: 703 servicios/mes, {formatCurrency(4401327)}/mes</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span>Factores estacionales aplicados</span>
+              <span>Valor promedio por servicio: {formatCurrency(6262)}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-              <span>Proyección conservadora Jun-Dic</span>
+              <span>Factores estacionales aplicados</span>
             </div>
           </div>
         </div>

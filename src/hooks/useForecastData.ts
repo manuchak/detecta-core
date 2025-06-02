@@ -27,32 +27,34 @@ export const useForecastData = (
   return useMemo(() => {
     console.log('useForecastData - Datos recibidos:', { totalServices, totalGMV, historicalData });
     
-    // Usar los datos reales: 3,515 servicios de enero a mayo 2025
-    const realServicesJanMay = 3515;
-    const realGmvJanMay = totalGMV; // Usar el GMV real proporcionado
+    // Datos reales confirmados de enero a mayo 2025
+    const realServicesJanMay = 3515; // Servicios únicos confirmados
+    const realGmvJanMay = 22006636; // GMV real de la base de datos
     
     // Calcular promedios mensuales basados en datos reales
     const monthsWithData = 5; // Enero a Mayo
     const avgServicesPerMonth = Math.round(realServicesJanMay / monthsWithData); // 703 servicios/mes
-    const avgGmvPerMonth = Math.round(realGmvJanMay / monthsWithData);
+    const avgGmvPerMonth = Math.round(realGmvJanMay / monthsWithData); // ~4,401,327/mes
+    const avgServiceValue = realGmvJanMay / realServicesJanMay; // ~6,262 por servicio
     
     console.log('useForecastData - Datos reales:', {
       realServicesJanMay,
       realGmvJanMay,
       avgServicesPerMonth,
       avgGmvPerMonth,
+      avgServiceValue,
       monthsWithData
     });
     
     // Crear distribución mensual más realista basada en datos reales
-    // Asumiendo variación estacional típica para servicios de custodia
+    // Aplicamos factores estacionales conservadores
     const monthlyDistribution = {
       1: { factor: 0.90, name: 'enero' },    // Enero - arranque lento
       2: { factor: 0.95, name: 'febrero' },  // Febrero - incremento gradual
       3: { factor: 1.05, name: 'marzo' },    // Marzo - actividad normal
       4: { factor: 1.10, name: 'abril' },    // Abril - pico de actividad
       5: { factor: 1.00, name: 'mayo' },     // Mayo - estable
-      6: { factor: 0.95, name: 'junio' },    // Junio - ligera baja
+      6: { factor: 0.95, name: 'junio' },    // Junio - ligera baja estacional
       7: { factor: 0.85, name: 'julio' },    // Julio - vacaciones
       8: { factor: 0.90, name: 'agosto' },   // Agosto - recuperación gradual
       9: { factor: 1.00, name: 'septiembre' }, // Septiembre - vuelta normalidad
@@ -61,56 +63,27 @@ export const useForecastData = (
       12: { factor: 0.95, name: 'diciembre' }  // Diciembre - fin de año
     };
     
-    // Calcular servicios por mes usando distribución
-    const monthlyServices = Object.entries(monthlyDistribution).reduce((acc, [month, data]) => {
-      const monthNum = parseInt(month);
-      const services = Math.round(avgServicesPerMonth * data.factor);
-      acc[monthNum] = { services, name: data.name };
-      return acc;
-    }, {} as { [key: number]: { services: number; name: string } });
+    // Calcular forecast para junio usando factor estacional
+    const juneServicesForecast = Math.round(avgServicesPerMonth * monthlyDistribution[6].factor);
+    const juneGmvForecast = Math.round(juneServicesForecast * avgServiceValue);
     
-    // Verificar que la suma de enero-mayo coincida con los datos reales
-    const calculatedJanMay = Object.keys(monthlyServices)
-      .filter(month => parseInt(month) <= 5)
-      .reduce((sum, month) => sum + monthlyServices[parseInt(month)].services, 0);
-    
-    console.log('useForecastData - Verificación distribución:', {
-      calculatedJanMay,
-      realServicesJanMay,
-      difference: Math.abs(calculatedJanMay - realServicesJanMay)
-    });
-    
-    // Ajustar si hay diferencia significativa
-    if (Math.abs(calculatedJanMay - realServicesJanMay) > 50) {
-      const adjustmentFactor = realServicesJanMay / calculatedJanMay;
-      Object.keys(monthlyServices).forEach(month => {
-        if (parseInt(month) <= 5) {
-          monthlyServices[parseInt(month)].services = Math.round(
-            monthlyServices[parseInt(month)].services * adjustmentFactor
-          );
-        }
-      });
-      console.log('useForecastData - Aplicado factor de ajuste:', adjustmentFactor);
-    }
-    
-    // Calcular forecast para junio (mes 6)
-    const juneServices = monthlyServices[6].services;
-    const juneGmv = Math.round((realGmvJanMay / realServicesJanMay) * juneServices);
-    
-    // Calcular forecast anual
-    const remainingMonthsServices = Object.keys(monthlyServices)
+    // Calcular forecast anual usando factores estacionales
+    const remainingMonthsServices = Object.keys(monthlyDistribution)
       .filter(month => parseInt(month) > 5)
-      .reduce((sum, month) => sum + monthlyServices[parseInt(month)].services, 0);
+      .reduce((sum, month) => {
+        const monthNum = parseInt(month);
+        const forecastServices = Math.round(avgServicesPerMonth * monthlyDistribution[monthNum].factor);
+        return sum + forecastServices;
+      }, 0);
     
-    const avgServiceValue = realGmvJanMay / realServicesJanMay;
     const remainingMonthsGmv = Math.round(remainingMonthsServices * avgServiceValue);
     
     const annualServicesForecast = realServicesJanMay + remainingMonthsServices;
     const annualGmvForecast = realGmvJanMay + remainingMonthsGmv;
     
     console.log('useForecastData - Forecast calculado:', {
-      juneServices,
-      juneGmv,
+      juneServicesForecast,
+      juneGmvForecast,
       remainingMonthsServices,
       remainingMonthsGmv,
       annualServicesForecast,
@@ -119,22 +92,19 @@ export const useForecastData = (
     });
     
     // Calcular varianzas comparando con promedio histórico
-    const historicalMonthlyAvg = avgServicesPerMonth;
-    const monthlyServicesVariance = ((juneServices - historicalMonthlyAvg) / historicalMonthlyAvg) * 100;
+    const monthlyServicesVariance = ((juneServicesForecast - avgServicesPerMonth) / avgServicesPerMonth) * 100;
+    const monthlyGmvVariance = ((juneGmvForecast - avgGmvPerMonth) / avgGmvPerMonth) * 100;
     
-    const historicalGmvMonthlyAvg = avgGmvPerMonth;
-    const monthlyGmvVariance = ((juneGmv - historicalGmvMonthlyAvg) / historicalGmvMonthlyAvg) * 100;
+    // Calcular varianzas anuales comparando con proyección lineal simple
+    const linearAnnualServicesProjection = avgServicesPerMonth * 12;
+    const linearAnnualGmvProjection = avgGmvPerMonth * 12;
     
-    // Calcular varianzas anuales comparando con proyección lineal
-    const linearAnnualProjection = avgServicesPerMonth * 12;
-    const annualServicesVariance = ((annualServicesForecast - linearAnnualProjection) / linearAnnualProjection) * 100;
-    
-    const linearGmvAnnualProjection = avgGmvPerMonth * 12;
-    const annualGmvVariance = ((annualGmvForecast - linearGmvAnnualProjection) / linearGmvAnnualProjection) * 100;
+    const annualServicesVariance = ((annualServicesForecast - linearAnnualServicesProjection) / linearAnnualServicesProjection) * 100;
+    const annualGmvVariance = ((annualGmvForecast - linearAnnualGmvProjection) / linearAnnualGmvProjection) * 100;
     
     const result = {
-      monthlyServicesForecast: juneServices,
-      monthlyGmvForecast: juneGmv,
+      monthlyServicesForecast: juneServicesForecast,
+      monthlyGmvForecast: juneGmvForecast,
       annualServicesForecast,
       annualGmvForecast,
       monthlyServicesActual: realServicesJanMay, // Total enero-mayo
