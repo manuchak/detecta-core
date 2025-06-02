@@ -27,14 +27,14 @@ export const useForecastData = (
 ): ForecastData => {
   
   // Query para obtener servicios finalizados de enero a mayo 2025
-  const { data: realData, isLoading } = useQuery({
+  const { data: realData, isLoading, error } = useQuery({
     queryKey: ['forecast-real-data'],
     queryFn: async () => {
       console.log('Obteniendo datos reales de servicios finalizados...');
       
       const { data, error } = await supabase
         .from('servicios_custodia')
-        .select('id_servicio, cobro_cliente, fecha_hora_cita')
+        .select('id_servicio, cobro_cliente, fecha_hora_cita, estado')
         .eq('estado', 'Finalizado')
         .gte('fecha_hora_cita', '2025-01-01T00:00:00.000Z')
         .lte('fecha_hora_cita', '2025-05-31T23:59:59.999Z')
@@ -46,19 +46,37 @@ export const useForecastData = (
         throw error;
       }
 
-      // Conteo distintivo de ID servicios y suma de GMV
-      const uniqueServices = new Set(data.map(item => item.id_servicio)).size;
-      const totalGmv = data.reduce((sum, item) => sum + (Number(item.cobro_cliente) || 0), 0);
+      console.log('Datos raw obtenidos:', data?.length || 0, 'registros');
+      console.log('Muestra de datos:', data?.slice(0, 3));
 
-      console.log('Datos reales obtenidos:', {
-        serviciosUnicos: uniqueServices,
+      // Verificar que tenemos datos
+      if (!data || data.length === 0) {
+        console.warn('No se encontraron datos de servicios finalizados en el rango de fechas');
+        return {
+          uniqueServices: 0,
+          totalGmv: 0,
+          rawData: []
+        };
+      }
+
+      // Conteo distintivo de ID servicios y suma de GMV
+      const uniqueServiceIds = new Set(data.map(item => item.id_servicio)).size;
+      const totalGmv = data.reduce((sum, item) => {
+        const cobro = Number(item.cobro_cliente) || 0;
+        return sum + cobro;
+      }, 0);
+
+      console.log('Datos calculados:', {
+        serviciosUnicos: uniqueServiceIds,
         gmvTotal: totalGmv,
-        registrosTotales: data.length
+        registrosTotales: data.length,
+        primerServicio: data[0]?.id_servicio,
+        ultimoServicio: data[data.length - 1]?.id_servicio
       });
 
       return {
-        uniqueServices,
-        totalGmv,
+        uniqueServices: uniqueServiceIds,
+        totalGmv: totalGmv,
         rawData: data
       };
     },
@@ -67,12 +85,37 @@ export const useForecastData = (
   });
   
   return useMemo(() => {
-    console.log('useForecastData - Calculando forecast con datos:', { 
-      realData: realData ? `${realData.uniqueServices} servicios, $${realData.totalGmv}` : 'cargando...',
-      isLoading 
+    console.log('useForecastData - Estado de datos:', { 
+      isLoading,
+      hasError: !!error,
+      error: error?.message,
+      hasData: !!realData,
+      uniqueServices: realData?.uniqueServices,
+      totalGmv: realData?.totalGmv
     });
     
-    // Si aún no tenemos datos reales, usar valores por defecto temporales
+    // Si hay error, mostrar el error en consola y usar valores por defecto
+    if (error) {
+      console.error('Error en forecast data:', error);
+      return {
+        monthlyServicesForecast: 0,
+        monthlyGmvForecast: 0,
+        annualServicesForecast: 0,
+        annualGmvForecast: 0,
+        monthlyServicesActual: 0,
+        monthlyGmvActual: 0,
+        annualServicesActual: 0,
+        annualGmvActual: 0,
+        monthlyServicesVariance: 0,
+        monthlyGmvVariance: 0,
+        annualServicesVariance: 0,
+        annualGmvVariance: 0,
+        lastDataMonth: 'mayo',
+        forecastMonth: 'junio'
+      };
+    }
+    
+    // Si aún está cargando, mostrar valores temporales
     if (isLoading || !realData) {
       return {
         monthlyServicesForecast: 0,
@@ -96,15 +139,43 @@ export const useForecastData = (
     const realServicesJanMay = realData.uniqueServices;
     const realGmvJanMay = realData.totalGmv;
     
+    console.log('useForecastData - Datos reales confirmados:', {
+      realServicesJanMay,
+      realGmvJanMay,
+      formatoGMV: new Intl.NumberFormat('es-MX', { 
+        style: 'currency', 
+        currency: 'MXN' 
+      }).format(realGmvJanMay)
+    });
+    
+    // Si no hay servicios reales, retornar ceros
+    if (realServicesJanMay === 0) {
+      console.warn('No se encontraron servicios finalizados para el cálculo de forecast');
+      return {
+        monthlyServicesForecast: 0,
+        monthlyGmvForecast: 0,
+        annualServicesForecast: 0,
+        annualGmvForecast: 0,
+        monthlyServicesActual: realServicesJanMay,
+        monthlyGmvActual: realGmvJanMay,
+        annualServicesActual: realServicesJanMay,
+        annualGmvActual: realGmvJanMay,
+        monthlyServicesVariance: 0,
+        monthlyGmvVariance: 0,
+        annualServicesVariance: 0,
+        annualGmvVariance: 0,
+        lastDataMonth: 'mayo',
+        forecastMonth: 'junio'
+      };
+    }
+    
     // Calcular promedios mensuales basados en datos reales
     const monthsWithData = 5; // Enero a Mayo
     const avgServicesPerMonth = Math.round(realServicesJanMay / monthsWithData);
     const avgGmvPerMonth = Math.round(realGmvJanMay / monthsWithData);
     const avgServiceValue = realGmvJanMay / realServicesJanMay;
     
-    console.log('useForecastData - Datos reales de BDD:', {
-      realServicesJanMay,
-      realGmvJanMay,
+    console.log('useForecastData - Promedios calculados:', {
       avgServicesPerMonth,
       avgGmvPerMonth,
       avgServiceValue,
@@ -156,15 +227,15 @@ export const useForecastData = (
     });
     
     // Calcular varianzas comparando con promedio histórico
-    const monthlyServicesVariance = ((juneServicesForecast - avgServicesPerMonth) / avgServicesPerMonth) * 100;
-    const monthlyGmvVariance = ((juneGmvForecast - avgGmvPerMonth) / avgGmvPerMonth) * 100;
+    const monthlyServicesVariance = avgServicesPerMonth > 0 ? ((juneServicesForecast - avgServicesPerMonth) / avgServicesPerMonth) * 100 : 0;
+    const monthlyGmvVariance = avgGmvPerMonth > 0 ? ((juneGmvForecast - avgGmvPerMonth) / avgGmvPerMonth) * 100 : 0;
     
     // Calcular varianzas anuales comparando con proyección lineal simple
     const linearAnnualServicesProjection = avgServicesPerMonth * 12;
     const linearAnnualGmvProjection = avgGmvPerMonth * 12;
     
-    const annualServicesVariance = ((annualServicesForecast - linearAnnualServicesProjection) / linearAnnualServicesProjection) * 100;
-    const annualGmvVariance = ((annualGmvForecast - linearAnnualGmvProjection) / linearAnnualGmvProjection) * 100;
+    const annualServicesVariance = linearAnnualServicesProjection > 0 ? ((annualServicesForecast - linearAnnualServicesProjection) / linearAnnualServicesProjection) * 100 : 0;
+    const annualGmvVariance = linearAnnualGmvProjection > 0 ? ((annualGmvForecast - linearAnnualGmvProjection) / linearAnnualGmvProjection) * 100 : 0;
     
     const result = {
       monthlyServicesForecast: juneServicesForecast,
@@ -183,8 +254,8 @@ export const useForecastData = (
       forecastMonth: 'junio'
     };
     
-    console.log('useForecastData - Resultado final con datos reales:', result);
+    console.log('useForecastData - Resultado final:', result);
     
     return result;
-  }, [realData, isLoading]);
+  }, [realData, isLoading, error]);
 };
