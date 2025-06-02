@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { 
-  useDashboardData, 
+  useDashboardDataCorrected as useDashboardData, 
   TimeframeOption, 
   ServiceTypeOption 
-} from "@/hooks/useDashboardData";
+} from "@/hooks/useDashboardDataCorrected";
 import { DashboardFilters } from "@/components/dashboard/DashboardFilters";
 import { MetricsCards } from "@/components/dashboard/MetricsCards";
 import { GmvChart } from "@/components/dashboard/GmvChart";
