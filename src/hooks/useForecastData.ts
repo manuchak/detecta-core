@@ -28,9 +28,9 @@ export const useForecastData = (
   
   // Query para obtener servicios usando función bypass con rango dinámico
   const { data: realData, isLoading, error } = useQuery({
-    queryKey: ['forecast-real-data-bypass'],
+    queryKey: ['forecast-real-data-bypass-enhanced'],
     queryFn: async () => {
-      console.log('Obteniendo datos reales usando bypass RLS...');
+      console.log('=== INICIO DEBUG FORECAST ===');
       
       try {
         // Usar la función bypass con límite aumentado
@@ -43,16 +43,17 @@ export const useForecastData = (
           throw error;
         }
 
-        console.log('Servicios obtenidos:', allServices?.length || 0);
+        console.log('Total servicios obtenidos de BD:', allServices?.length || 0);
 
         if (!allServices || !Array.isArray(allServices) || allServices.length === 0) {
-          console.warn('No se encontraron servicios');
+          console.warn('No se encontraron servicios en la BD');
           return {
             uniqueServices: 0,
             totalGmv: 0,
             rawData: [],
             currentMonth: new Date().getMonth() + 1,
-            currentYear: new Date().getFullYear()
+            currentYear: new Date().getFullYear(),
+            debugInfo: { totalFromDB: 0, afterDateFilter: 0, afterStatusFilter: 0 }
           };
         }
 
@@ -63,7 +64,7 @@ export const useForecastData = (
         const startDate = new Date(currentYear, 0, 1); // 1 enero del año actual
         const endDate = new Date(currentYear, currentMonth - 1, 0, 23, 59, 59); // Último día del mes anterior
         
-        console.log('Rango de fechas:', {
+        console.log('Rango de fechas configurado:', {
           año: currentYear,
           mesActual: currentMonth,
           rangoDesde: startDate.toISOString(),
@@ -71,23 +72,63 @@ export const useForecastData = (
           descripcion: `Enero a ${new Date(currentYear, currentMonth - 2, 1).toLocaleDateString('es-ES', { month: 'long' })} ${currentYear}`
         });
 
-        // Filtrar servicios finalizados en el rango de fechas
-        const finalizedServices = allServices.filter(service => {
-          const isFinalizado = service.estado === 'Finalizado';
-          const hasValidDate = service.fecha_hora_cita;
-          const hasValidData = service.id_servicio && service.cobro_cliente !== null;
-          
-          if (!isFinalizado || !hasValidDate || !hasValidData) {
+        // Debug: Analizar todos los estados únicos en la BD
+        const estadosUnicos = [...new Set(allServices.map(s => s.estado))].filter(Boolean);
+        console.log('Estados únicos encontrados en BD:', estadosUnicos);
+
+        // Debug: Contar servicios por estado
+        const conteoEstados = {};
+        allServices.forEach(service => {
+          const estado = service.estado || 'null';
+          conteoEstados[estado] = (conteoEstados[estado] || 0) + 1;
+        });
+        console.log('Conteo por estado:', conteoEstados);
+
+        // Filtrar por rango de fechas primero
+        const servicesInDateRange = allServices.filter(service => {
+          if (!service.fecha_hora_cita) {
             return false;
           }
           
           const serviceDate = new Date(service.fecha_hora_cita);
-          const isInDateRange = serviceDate >= startDate && serviceDate <= endDate;
-          
-          return isInDateRange;
+          return serviceDate >= startDate && serviceDate <= endDate;
         });
 
-        console.log('Servicios finalizados en rango:', finalizedServices.length);
+        console.log('Servicios después de filtro de fechas:', servicesInDateRange.length);
+
+        // Debug: Analizar estados en el rango de fechas
+        const estadosEnRango = [...new Set(servicesInDateRange.map(s => s.estado))].filter(Boolean);
+        console.log('Estados en rango de fechas:', estadosEnRango);
+
+        // Filtrar servicios finalizados (probando diferentes variaciones)
+        const finalizedServices = servicesInDateRange.filter(service => {
+          const estado = service.estado?.toString().trim() || '';
+          
+          // Probar múltiples variaciones del estado "Finalizado"
+          const isFinalized = 
+            estado === 'Finalizado' ||
+            estado === 'finalizado' ||
+            estado === 'FINALIZADO' ||
+            estado.toLowerCase() === 'finalizado';
+          
+          const hasValidData = service.id_servicio && service.cobro_cliente !== null && service.cobro_cliente !== undefined;
+          
+          return isFinalized && hasValidData;
+        });
+
+        console.log('Servicios finalizados con datos válidos:', finalizedServices.length);
+
+        // Debug: Mostrar algunos ejemplos de servicios finalizados
+        if (finalizedServices.length > 0) {
+          console.log('Ejemplo de servicios finalizados (primeros 3):', 
+            finalizedServices.slice(0, 3).map(s => ({
+              id: s.id_servicio,
+              estado: s.estado,
+              fecha: s.fecha_hora_cita,
+              cobro: s.cobro_cliente
+            }))
+          );
+        }
 
         // Obtener servicios únicos y calcular GMV total
         const uniqueServiceIds = new Set();
@@ -105,18 +146,21 @@ export const useForecastData = (
           totalGmv: totalGmvCalculated,
           rawData: finalizedServices,
           currentMonth,
-          currentYear
+          currentYear,
+          debugInfo: {
+            totalFromDB: allServices.length,
+            afterDateFilter: servicesInDateRange.length,
+            afterStatusFilter: finalizedServices.length,
+            uniqueIds: uniqueServiceIds.size,
+            dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() }
+          }
         };
 
-        console.log('Datos procesados:', {
-          serviciosUnicos: result.uniqueServices,
-          gmvTotal: result.totalGmv,
-          formatoGMV: new Intl.NumberFormat('es-MX', { 
-            style: 'currency', 
-            currency: 'MXN' 
-          }).format(result.totalGmv),
-          rangoEvaluado: `Enero-${new Date(currentYear, currentMonth - 2, 1).toLocaleDateString('es-ES', { month: 'long' })} ${currentYear}`
-        });
+        console.log('=== RESULTADO FINAL ===');
+        console.log('Servicios únicos encontrados:', result.uniqueServices);
+        console.log('GMV total calculado:', result.totalGmv);
+        console.log('Debug info completo:', result.debugInfo);
+        console.log('=== FIN DEBUG FORECAST ===');
 
         return result;
       } catch (error) {
@@ -135,7 +179,8 @@ export const useForecastData = (
       error: error?.message,
       hasData: !!realData,
       uniqueServices: realData?.uniqueServices,
-      totalGmv: realData?.totalGmv
+      totalGmv: realData?.totalGmv,
+      debugInfo: realData?.debugInfo
     });
     
     // Si hay error, mostrar el error en consola y usar valores por defecto
