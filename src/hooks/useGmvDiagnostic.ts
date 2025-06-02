@@ -161,7 +161,7 @@ export const useGmvDiagnostic = () => {
     
     // Estrategia 3: Solo servicios "Finalizado" con cobro válido
     const serviciosFinalizadosConCobro = serviciosCobroValido.filter(service => {
-      const estado = (service.estado || '').trim();
+      const estado = (service.estado || '').toString().trim();
       return estado === 'Finalizado';
     });
     
@@ -174,11 +174,81 @@ export const useGmvDiagnostic = () => {
       }
     });
     
+    // PASO 4: ANÁLISIS NUEVOS ENFOQUES DE DISCREPANCIA
+    console.log('\n🔍 === ANÁLISIS PROFUNDO DE DISCREPANCIA ===');
+    
+    // 4.1: Análisis por estado detallado
+    const estadosCount = {};
+    const estadosGmv = {};
+    serviciosEnRango.forEach(service => {
+      const estado = (service.estado || 'Sin estado').toString().trim();
+      const cobro = Number(service.cobro_cliente);
+      
+      estadosCount[estado] = (estadosCount[estado] || 0) + 1;
+      if (!isNaN(cobro) && cobro > 0) {
+        estadosGmv[estado] = (estadosGmv[estado] || 0) + cobro;
+      }
+    });
+    
+    console.log('📊 DISTRIBUCIÓN POR ESTADOS:');
+    Object.entries(estadosCount).forEach(([estado, count]) => {
+      const gmvEstado = estadosGmv[estado] || 0;
+      console.log(`  ${estado}: ${count} servicios, GMV: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(gmvEstado)}`);
+    });
+    
+    // 4.2: Análisis de servicios sin cobro_cliente o con valor extraño
+    const serviciosSinCobro = serviciosEnRango.filter(service => {
+      const cobro = service.cobro_cliente;
+      return cobro === null || cobro === undefined || (typeof cobro === 'string' && cobro === '') || (Number(cobro) === 0);
+    });
+    
+    console.log(`\n🚫 SERVICIOS SIN COBRO VÁLIDO: ${serviciosSinCobro.length}`);
+    if (serviciosSinCobro.length > 0) {
+      console.log('📋 Primeros 5 servicios sin cobro:');
+      serviciosSinCobro.slice(0, 5).forEach((service, i) => {
+        console.log(`  ${i+1}. ID: ${service.id_servicio}, Estado: ${service.estado}, Cobro: ${service.cobro_cliente}, Fecha: ${service.fecha_hora_cita}`);
+      });
+    }
+    
+    // 4.3: Análisis de fechas más amplio
+    console.log('\n📅 === ANÁLISIS DE FECHAS EXTENDIDO ===');
+    
+    // Todo 2025
+    const startDate2025 = new Date('2025-01-01');
+    const endDate2025 = new Date('2025-12-31T23:59:59');
+    
+    const servicios2025 = allServices.filter(service => {
+      if (!service.fecha_hora_cita) return false;
+      const serviceDate = new Date(service.fecha_hora_cita);
+      return serviceDate >= startDate2025 && serviceDate <= endDate2025;
+    });
+    
+    const servicios2025ConCobro = servicios2025.filter(service => {
+      const cobro = service.cobro_cliente;
+      if (cobro === null || cobro === undefined) return false;
+      if (typeof cobro === 'string' && cobro === '') return false;
+      const cobroNumerico = Number(cobro);
+      return !isNaN(cobroNumerico) && cobroNumerico > 0;
+    });
+    
+    let gmv2025Total = 0;
+    const uniqueIds2025 = new Set();
+    servicios2025ConCobro.forEach(service => {
+      if (service.id_servicio && !uniqueIds2025.has(service.id_servicio)) {
+        uniqueIds2025.add(service.id_servicio);
+        gmv2025Total += Number(service.cobro_cliente);
+      }
+    });
+    
+    console.log(`📅 Servicios TODO 2025: ${servicios2025.length}`);
+    console.log(`💰 GMV TODO 2025: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(gmv2025Total)}`);
+    console.log(`📊 Si extrapolamos Ene-May a todo el año: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(gmvEstrategia1 * 2.4)}`);
+    
     console.log(`💰 Estrategia 1 (cobro > 0): ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(gmvEstrategia1)} | Servicios únicos: ${uniqueIds1.size}`);
     console.log(`💰 Estrategia 2 (cobro >= 0): ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(gmvEstrategia2)} | Servicios únicos: ${uniqueIds2.size}`);
     console.log(`💰 Estrategia 3 (solo "Finalizado"): ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(gmvEstrategia3)} | Servicios únicos: ${uniqueIds3.size}`);
     
-    // PASO 4: ANÁLISIS DE DUPLICADOS
+    // PASO 5: ANÁLISIS DE DUPLICADOS
     console.log('\n🔄 === ANÁLISIS DE DUPLICADOS ===');
     
     const idCounts = {};
@@ -198,7 +268,7 @@ export const useGmvDiagnostic = () => {
       });
     }
     
-    // PASO 5: ANÁLISIS POR RANGOS DE COBRO
+    // PASO 6: ANÁLISIS POR RANGOS DE COBRO
     console.log('\n📊 === ANÁLISIS POR RANGOS DE COBRO ===');
     
     const rangos = {
@@ -227,7 +297,7 @@ export const useGmvDiagnostic = () => {
     
     console.log(`💰 Suma total por rangos: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(sumaRangos)}`);
     
-    // PASO 6: COMPARACIÓN FINAL
+    // PASO 7: COMPARACIÓN FINAL
     console.log('\n🎯 === COMPARACIÓN CON EXPECTATIVA 22M ===');
     console.log(`💰 Expectativa: $22,000,000 MXN`);
     console.log(`💰 Calculado (>0): ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(gmvEstrategia1)}`);
@@ -238,13 +308,15 @@ export const useGmvDiagnostic = () => {
     const porcentajeCobertura = (gmvEstrategia1 / 22000000) * 100;
     console.log(`📊 Cobertura: ${porcentajeCobertura.toFixed(1)}% de lo esperado`);
     
-    // PASO 7: TEORÍAS SOBRE LA DISCREPANCIA
+    // PASO 8: TEORÍAS SOBRE LA DISCREPANCIA
     console.log('\n🤔 === POSIBLES CAUSAS DE LA DISCREPANCIA ===');
     console.log('1. 📅 Rango de fechas: ¿Los 22M incluyen TODO el año 2025?');
     console.log('2. 🔄 Duplicados: ¿Se están contando servicios duplicados en BDD?');
     console.log('3. 💰 Tipos de datos: ¿Algunos cobros están en formato diferente?');
     console.log('4. 🏷️ Estados: ¿Se incluyen otros estados además de "Finalizado"?');
     console.log('5. 📊 Fuente: ¿Los 22M vienen de otra tabla o vista?');
+    console.log('6. 🎯 Proyección: Si extrapolamos 5 meses a 12: ~14.8M (aún falta)');
+    console.log('7. 🔍 Datos faltantes: ¿Hay servicios sin fecha_hora_cita?');
     
     return {
       totalServicios: serviciosEnRango.length,
@@ -258,7 +330,11 @@ export const useGmvDiagnostic = () => {
       cobroAnalysis,
       duplicados: duplicados.length,
       rangos,
-      porcentajeCobertura
+      porcentajeCobertura,
+      gmv2025Total,
+      estadosCount,
+      estadosGmv,
+      serviciosSinCobro: serviciosSinCobro.length
     };
   }, [allServices, isLoading, error]);
   
