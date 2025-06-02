@@ -183,7 +183,7 @@ export const processServiceTypes = (data: ServiceData[]): ServiceTypesData[] => 
   return result;
 };
 
-// Procesar datos diarios - CORREGIDO para conteos únicos reales
+// Procesar datos diarios - CORREGIDO para mostrar la última semana con datos reales
 export const processDailyData = (data: ServiceData[]): DailyServiceData[] => {
   console.log('processDailyData - Datos recibidos:', data.length);
   
@@ -201,30 +201,81 @@ export const processDailyData = (data: ServiceData[]): DailyServiceData[] => {
 
   console.log('processDailyData - Servicios válidos después del filtro:', validServices.length);
 
-  // Obtener rango de fechas para la última semana completa
-  const today = new Date();
-  const lastMonday = new Date(today);
-  lastMonday.setDate(today.getDate() - today.getDay() + 1); // Último lunes
-  if (lastMonday > today) {
-    lastMonday.setDate(lastMonday.getDate() - 7); // Si es futuro, ir a la semana anterior
+  if (validServices.length === 0) {
+    console.log('processDailyData - No hay servicios válidos, retornando datos por defecto');
+    return getDefaultDailyData();
   }
-  
-  const lastSunday = new Date(lastMonday);
-  lastSunday.setDate(lastMonday.getDate() + 6); // Domingo de esa semana
 
-  console.log('processDailyData - Rango de fecha objetivo:', {
-    desde: lastMonday.toLocaleDateString('es-ES'),
-    hasta: lastSunday.toLocaleDateString('es-ES')
+  // Encontrar la fecha más reciente en los datos
+  const latestDate = validServices.reduce((latest, service) => {
+    const serviceDate = new Date(service.fecha_hora_cita!);
+    return serviceDate > latest ? serviceDate : latest;
+  }, new Date(validServices[0].fecha_hora_cita!));
+
+  console.log('processDailyData - Fecha más reciente en datos:', latestDate.toLocaleDateString('es-ES'));
+
+  // Calcular la semana que incluye la fecha más reciente
+  const dayOfWeek = latestDate.getDay(); // 0 = domingo, 1 = lunes, etc.
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Calcular cuántos días restar para llegar al lunes
+  
+  const weekStart = new Date(latestDate);
+  weekStart.setDate(latestDate.getDate() + mondayOffset);
+  weekStart.setHours(0, 0, 0, 0);
+  
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  weekEnd.setHours(23, 59, 59, 999);
+
+  console.log('processDailyData - Rango de semana calculado:', {
+    desde: weekStart.toLocaleDateString('es-ES'),
+    hasta: weekEnd.toLocaleDateString('es-ES')
   });
 
-  // Filtrar servicios de la última semana y crear mapa por día específico
+  // Filtrar servicios de esa semana
   const weeklyServices = validServices.filter(item => {
     const serviceDate = new Date(item.fecha_hora_cita!);
-    serviceDate.setHours(0, 0, 0, 0); // Normalizar a medianoche
-    return serviceDate >= lastMonday && serviceDate <= lastSunday;
+    return serviceDate >= weekStart && serviceDate <= weekEnd;
   });
 
   console.log('processDailyData - Servicios de la semana objetivo:', weeklyServices.length);
+
+  // Si no hay servicios en esa semana, buscar la semana anterior con datos
+  if (weeklyServices.length === 0) {
+    console.log('processDailyData - No hay servicios en la semana más reciente, buscando semana anterior');
+    
+    // Buscar semanas anteriores hasta encontrar datos
+    let searchWeekStart = new Date(weekStart);
+    let searchWeekEnd = new Date(weekEnd);
+    let weeklyServicesFound: ServiceData[] = [];
+    let weeksSearched = 0;
+    const maxWeeksToSearch = 8; // Buscar hasta 8 semanas atrás
+    
+    while (weeklyServicesFound.length === 0 && weeksSearched < maxWeeksToSearch) {
+      searchWeekStart.setDate(searchWeekStart.getDate() - 7);
+      searchWeekEnd.setDate(searchWeekEnd.getDate() - 7);
+      weeksSearched++;
+      
+      weeklyServicesFound = validServices.filter(item => {
+        const serviceDate = new Date(item.fecha_hora_cita!);
+        return serviceDate >= searchWeekStart && serviceDate <= searchWeekEnd;
+      });
+      
+      console.log(`processDailyData - Semana ${weeksSearched} atrás (${searchWeekStart.toLocaleDateString('es-ES')} - ${searchWeekEnd.toLocaleDateString('es-ES')}): ${weeklyServicesFound.length} servicios`);
+    }
+    
+    if (weeklyServicesFound.length > 0) {
+      weekStart.setTime(searchWeekStart.getTime());
+      weekEnd.setTime(searchWeekEnd.getTime());
+      weeklyServices.splice(0, 0, ...weeklyServicesFound);
+      console.log(`processDailyData - Usando semana ${weeksSearched} atrás con ${weeklyServicesFound.length} servicios`);
+    }
+  }
+
+  // Si aún no hay servicios, usar datos por defecto
+  if (weeklyServices.length === 0) {
+    console.log('processDailyData - No se encontraron servicios en ninguna semana, usando datos por defecto');
+    return getDefaultDailyData();
+  }
 
   // Crear conteos por día específico usando fecha completa
   const dailyServiceIds: { [key: string]: Set<string> } = {};
@@ -243,11 +294,6 @@ export const processDailyData = (data: ServiceData[]): DailyServiceData[] => {
           dayDates[dayName] = dayKey;
         }
         dailyServiceIds[dayName].add(serviceId);
-        
-        // Log específico para martes para debugging
-        if (dayName === 'Mar') {
-          console.log(`processDailyData - Martes ${dayKey} - ID: ${serviceId}`);
-        }
       }
     } catch (e) {
       console.warn('Error processing daily data item:', e);
@@ -260,9 +306,6 @@ export const processDailyData = (data: ServiceData[]): DailyServiceData[] => {
     const count = set.size;
     const date = dayDates[day];
     console.log(`  ${day} ${date}: ${count} servicios únicos`);
-    if (day === 'Mar') {
-      console.log(`  IDs únicos del martes:`, Array.from(set).slice(0, 10));
-    }
   });
 
   // Convertir a formato requerido con fechas específicas
@@ -271,18 +314,11 @@ export const processDailyData = (data: ServiceData[]): DailyServiceData[] => {
     day,
     count: dailyServiceIds[day]?.size || 0,
     date: dayDates[day] || '', // Agregar fecha específica
-    weekRange: `${lastMonday.toLocaleDateString('es-ES')} - ${lastSunday.toLocaleDateString('es-ES')}`
+    weekRange: `${weekStart.toLocaleDateString('es-ES')} - ${weekEnd.toLocaleDateString('es-ES')}`
   }));
 
   console.log('processDailyData - Resultado final:', result);
-
-  // Si todos los conteos son cero, retornar datos por defecto
-  const totalCount = result.reduce((sum, item) => sum + item.count, 0);
-  if (totalCount === 0) {
-    console.log('processDailyData - Todos los conteos en cero, retornando datos por defecto');
-    return getDefaultDailyData();
-  }
-
+  
   return result;
 };
 
@@ -409,12 +445,16 @@ function getDefaultServiceTypes(): ServiceTypesData[] {
 }
 
 function getDefaultDailyData(): DailyServiceData[] {
-  const today = new Date();
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - today.getDay() + 1);
+  // Cambiar para mostrar una semana realista en el pasado
+  const lastMonth = new Date();
+  lastMonth.setMonth(lastMonth.getMonth() - 1);
+  const monday = new Date(lastMonth);
+  const dayOfWeek = monday.getDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  monday.setDate(monday.getDate() + mondayOffset);
   
   return [
-    { day: 'Lun', count: 12, date: monday.toLocaleDateString('es-ES') },
+    { day: 'Lun', count: 12, date: monday.toLocaleDateString('es-ES'), weekRange: `${monday.toLocaleDateString('es-ES')} - ${new Date(monday.getTime() + 6 * 86400000).toLocaleDateString('es-ES')}` },
     { day: 'Mar', count: 19, date: new Date(monday.getTime() + 86400000).toLocaleDateString('es-ES') },
     { day: 'Mié', count: 15, date: new Date(monday.getTime() + 172800000).toLocaleDateString('es-ES') },
     { day: 'Jue', count: 22, date: new Date(monday.getTime() + 259200000).toLocaleDateString('es-ES') },
