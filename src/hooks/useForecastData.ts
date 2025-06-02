@@ -25,11 +25,11 @@ export const useForecastData = (
   historicalData?: Array<{ month: number; services: number; gmv: number }>
 ): ForecastData => {
   
-  // Query para obtener servicios usando la tabla directamente con filtros
+  // Query para obtener servicios usando la función RPC segura que ya existe
   const { data: realData, isLoading, error } = useQuery({
-    queryKey: ['forecast-real-data-direct'],
+    queryKey: ['forecast-real-data-secure'],
     queryFn: async () => {
-      console.log('=== INICIO DEBUG FORECAST (MÉTODO DIRECTO) ===');
+      console.log('=== INICIO DEBUG FORECAST (FUNCIÓN SEGURA) ===');
       
       try {
         // Calcular rango dinámico: desde enero hasta mes anterior al actual
@@ -47,88 +47,58 @@ export const useForecastData = (
           descripcion: `Enero a ${new Date(currentYear, currentMonth - 2, 1).toLocaleDateString('es-ES', { month: 'long' })} ${currentYear}`
         });
 
-        // Consultar directamente la tabla servicios_custodia con filtros
-        const { data: allServices, error } = await supabase
-          .from('servicios_custodia')
-          .select('id_servicio, estado, fecha_hora_cita, cobro_cliente')
-          .gte('fecha_hora_cita', startDate.toISOString())
-          .lte('fecha_hora_cita', endDate.toISOString())
-          .eq('estado', 'Finalizado')
-          .not('id_servicio', 'is', null)
-          .not('cobro_cliente', 'is', null)
-          .limit(25000);
+        // Usar la función RPC segura que ya existe en la base de datos
+        const { data: serviceData, error } = await supabase.rpc('get_finalized_services_data_secure', {
+          start_date: startDate.toISOString(),
+          end_date: endDate.toISOString()
+        });
 
         if (error) {
-          console.error('Error al obtener servicios:', error);
+          console.error('Error al obtener servicios con función segura:', error);
           throw error;
         }
 
-        console.log('Total servicios obtenidos de BD:', allServices?.length || 0);
+        console.log('Datos obtenidos con función segura:', serviceData);
 
-        if (!allServices || !Array.isArray(allServices) || allServices.length === 0) {
-          console.warn('No se encontraron servicios finalizados en el rango de fechas');
+        if (!serviceData || !Array.isArray(serviceData) || serviceData.length === 0) {
+          console.warn('No se encontraron datos usando la función segura');
           return {
             uniqueServices: 0,
             totalGmv: 0,
-            rawData: [],
             currentMonth,
             currentYear,
             debugInfo: { 
               totalFromDB: 0, 
-              afterDateFilter: 0, 
-              afterStatusFilter: 0,
-              dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() }
+              dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
+              source: 'secure_function'
             }
           };
         }
 
-        // Debug: Mostrar algunos ejemplos de servicios obtenidos
-        if (allServices.length > 0) {
-          console.log('Ejemplo de servicios obtenidos (primeros 3):', 
-            allServices.slice(0, 3).map(s => ({
-              id: s.id_servicio,
-              estado: s.estado,
-              fecha: s.fecha_hora_cita,
-              cobro: s.cobro_cliente
-            }))
-          );
-        }
+        // La función devuelve los datos agregados directamente
+        const result = serviceData[0];
 
-        // Obtener servicios únicos y calcular GMV total
-        const uniqueServiceIds = new Set();
-        let totalGmvCalculated = 0;
-
-        allServices.forEach(service => {
-          if (!uniqueServiceIds.has(service.id_servicio)) {
-            uniqueServiceIds.add(service.id_servicio);
-            totalGmvCalculated += Number(service.cobro_cliente) || 0;
-          }
-        });
-
-        const result = {
-          uniqueServices: uniqueServiceIds.size,
-          totalGmv: totalGmvCalculated,
-          rawData: allServices,
+        const response = {
+          uniqueServices: Number(result.total_services) || 0,
+          totalGmv: Number(result.total_gmv) || 0,
           currentMonth,
           currentYear,
           debugInfo: {
-            totalFromDB: allServices.length,
-            afterDateFilter: allServices.length,
-            afterStatusFilter: allServices.length,
-            uniqueIds: uniqueServiceIds.size,
-            dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() }
+            totalFromDB: Number(result.service_count) || 0,
+            dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
+            source: 'secure_function'
           }
         };
 
-        console.log('=== RESULTADO FINAL (MÉTODO DIRECTO) ===');
-        console.log('Servicios únicos encontrados:', result.uniqueServices);
-        console.log('GMV total calculado:', result.totalGmv);
-        console.log('Debug info completo:', result.debugInfo);
+        console.log('=== RESULTADO FINAL (FUNCIÓN SEGURA) ===');
+        console.log('Servicios únicos encontrados:', response.uniqueServices);
+        console.log('GMV total calculado:', response.totalGmv);
+        console.log('Debug info completo:', response.debugInfo);
         console.log('=== FIN DEBUG FORECAST ===');
 
-        return result;
+        return response;
       } catch (error) {
-        console.error('Error en consulta directa:', error);
+        console.error('Error en consulta con función segura:', error);
         throw error;
       }
     },
@@ -188,7 +158,7 @@ export const useForecastData = (
       };
     }
 
-    // Usar datos reales de la consulta directa
+    // Usar datos reales de la función segura
     const realServicesJanToLastMonth = realData.uniqueServices;
     const realGmvJanToLastMonth = realData.totalGmv;
     
