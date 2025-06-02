@@ -1,3 +1,4 @@
+
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,7 +30,7 @@ export const useForecastData = (
   const { data: allServices, isLoading, error } = useQuery({
     queryKey: ['forecast-services-data'],
     queryFn: async () => {
-      console.log('=== INICIO FORECAST CON BYPASS RLS ===');
+      console.log('=== INICIO DIAGNÓSTICO FORECAST ===');
       
       try {
         // Usar la función que ya funciona en otros componentes
@@ -41,10 +42,31 @@ export const useForecastData = (
           throw error;
         }
 
-        console.log('Datos obtenidos con bypass RLS:', {
-          totalRecords: serviceData?.length || 0,
-          sampleRecord: serviceData?.[0]
-        });
+        console.log('📊 FASE 1: AUDITORÍA DE DATOS TOTALES');
+        console.log(`Total de registros retornados por RLS: ${serviceData?.length || 0}`);
+
+        // Analizar estados únicos
+        const estadosUnicos = [...new Set(serviceData?.map(s => s.estado))];
+        console.log('📋 Estados únicos en la base de datos:', estadosUnicos);
+        
+        // Contar por cada estado
+        const conteoEstados = estadosUnicos.reduce((acc, estado) => {
+          acc[estado || 'NULL'] = serviceData?.filter(s => s.estado === estado).length || 0;
+          return acc;
+        }, {} as Record<string, number>);
+        console.log('📈 Conteo por estado:', conteoEstados);
+
+        // Analizar distribución de cobro_cliente
+        const serviciosConCobro = serviceData?.filter(s => s.cobro_cliente && !isNaN(Number(s.cobro_cliente))) || [];
+        const serviciosSinCobro = serviceData?.filter(s => !s.cobro_cliente || isNaN(Number(s.cobro_cliente))) || [];
+        console.log(`💰 Servicios con cobro válido: ${serviciosConCobro.length}`);
+        console.log(`❌ Servicios sin cobro o inválido: ${serviciosSinCobro.length}`);
+
+        // Analizar IDs de servicio
+        const serviciosConId = serviceData?.filter(s => s.id_servicio && s.id_servicio.trim() !== '') || [];
+        const serviciosSinId = serviceData?.filter(s => !s.id_servicio || s.id_servicio.trim() === '') || [];
+        console.log(`🆔 Servicios con ID válido: ${serviciosConId.length}`);
+        console.log(`❌ Servicios sin ID o ID vacío: ${serviciosSinId.length}`);
 
         return serviceData || [];
       } catch (error) {
@@ -57,13 +79,7 @@ export const useForecastData = (
   });
   
   return useMemo(() => {
-    console.log('useForecastData - Estado de datos:', { 
-      isLoading,
-      hasError: !!error,
-      error: error?.message,
-      hasData: !!allServices,
-      totalRecords: allServices?.length
-    });
+    console.log('📊 FASE 2: ANÁLISIS DE FILTROS');
     
     // Si hay error, mostrar el error en consola y usar valores por defecto
     if (error) {
@@ -106,52 +122,76 @@ export const useForecastData = (
       };
     }
 
-    // Procesar datos localmente con lógica corregida
+    // Procesar datos localmente con análisis paso a paso
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth() + 1; // 1-12
     
-    // Filtrar servicios finalizados desde enero 1, 2025 hasta hoy
+    // Filtrar servicios desde enero 1, 2025 hasta hoy
     const startDate = new Date(2025, 0, 1); // Enero 1, 2025
     const endDate = new Date(); // Hasta hoy
     
-    console.log('Filtros de fecha corregidos:', {
+    console.log('🗓️ Filtros de fecha:', {
       año: 2025,
       mesActual: currentMonth,
       startDate: startDate.toISOString(),
-      endDate: endDate.toISOString()
+      endDate: endDate.toISOString(),
+      totalRegistrosOriginales: allServices.length
     });
 
-    // CORRECCIÓN: Filtrar correctamente por estado "Finalizado" (case-insensitive)
-    const filteredServices = allServices.filter(service => {
+    // PASO 1: Filtrar por rango de fechas
+    const serviciosEnRango = allServices.filter(service => {
       const serviceDate = new Date(service.fecha_hora_cita);
-      const isFinalized = service.estado?.toLowerCase().trim() === 'finalizado';
-      const hasValidId = service.id_servicio && service.id_servicio.trim() !== '';
-      const hasValidAmount = service.cobro_cliente && !isNaN(Number(service.cobro_cliente)) && Number(service.cobro_cliente) > 0;
       const inDateRange = serviceDate >= startDate && serviceDate <= endDate;
-      
-      return isFinalized && hasValidId && hasValidAmount && inDateRange;
+      return inDateRange;
     });
+    console.log(`📅 Después de filtro de fechas: ${serviciosEnRango.length} servicios (${((serviciosEnRango.length/allServices.length)*100).toFixed(1)}%)`);
 
-    console.log('Servicios filtrados correctamente:', {
-      totalOriginal: allServices.length,
-      filtrados: filteredServices.length,
-      criterios: {
-        estado: 'finalizado (case-insensitive)',
-        rango: 'Enero 1, 2025 - Hoy',
-        validaciones: 'ID válido + cobro_cliente > 0'
-      }
+    // PASO 2: Analizar estados en servicios filtrados por fecha
+    const estadosEnRango = [...new Set(serviciosEnRango.map(s => s.estado))];
+    console.log('📋 Estados disponibles en rango de fechas:', estadosEnRango);
+    
+    const conteoEstadosRango = estadosEnRango.reduce((acc, estado) => {
+      acc[estado || 'NULL'] = serviciosEnRango.filter(s => s.estado === estado).length;
+      return acc;
+    }, {} as Record<string, number>);
+    console.log('📈 Conteo por estado en rango:', conteoEstadosRango);
+
+    // PASO 3: Probar diferentes variaciones de "finalizado"
+    const variacionesFinalizados = serviciosEnRango.filter(service => {
+      const estado = service.estado?.toLowerCase().trim() || '';
+      return estado.includes('final') || estado.includes('complet') || estado === 'finalizado' || estado === 'completado';
     });
+    console.log(`✅ Servicios con variaciones de "finalizado/completado": ${variacionesFinalizados.length}`);
 
-    // CORRECCIÓN: Conteo distintivo correcto y suma de GMV
+    // PASO 4: Filtrar por estado exacto "finalizado"
+    const serviciosFinalizados = serviciosEnRango.filter(service => {
+      const isFinalized = service.estado?.toLowerCase().trim() === 'finalizado';
+      return isFinalized;
+    });
+    console.log(`🎯 Servicios con estado exacto "finalizado": ${serviciosFinalizados.length}`);
+
+    // PASO 5: Validar IDs
+    const serviciosConIdValido = serviciosFinalizados.filter(service => {
+      const hasValidId = service.id_servicio && service.id_servicio.trim() !== '';
+      return hasValidId;
+    });
+    console.log(`🆔 Servicios finalizados con ID válido: ${serviciosConIdValido.length}`);
+
+    // PASO 6: Validar montos
+    const serviciosConMontoValido = serviciosConIdValido.filter(service => {
+      const hasValidAmount = service.cobro_cliente && !isNaN(Number(service.cobro_cliente)) && Number(service.cobro_cliente) > 0;
+      return hasValidAmount;
+    });
+    console.log(`💰 Servicios finalizados con monto válido: ${serviciosConMontoValido.length}`);
+
+    // PASO 7: Conteo distintivo final
     const uniqueServiceIds = new Set();
     let totalGmvCalculated = 0;
 
-    filteredServices.forEach(service => {
-      // Solo agregar si el ID es único
+    serviciosConMontoValido.forEach(service => {
       if (service.id_servicio && !uniqueServiceIds.has(service.id_servicio)) {
         uniqueServiceIds.add(service.id_servicio);
-        // Sumar el cobro_cliente para el GMV
         const cobroCliente = Number(service.cobro_cliente) || 0;
         totalGmvCalculated += cobroCliente;
       }
@@ -160,18 +200,18 @@ export const useForecastData = (
     const realServicesEneroAHoy = uniqueServiceIds.size;
     const realGmvEneroAHoy = totalGmvCalculated;
     
-    console.log('DATOS CORREGIDOS:', {
-      serviciosUnicosEneroAHoy: realServicesEneroAHoy,
-      gmvTotalEneroAHoy: realGmvEneroAHoy,
-      formatoGMV: new Intl.NumberFormat('es-MX', { 
-        style: 'currency', 
-        currency: 'MXN' 
-      }).format(realGmvEneroAHoy),
-      validacion: {
-        deberiaSerCerca: '3,370 servicios y $22M GMV',
-        loQueObtenemos: `${realServicesEneroAHoy.toLocaleString()} servicios y ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(realGmvEneroAHoy)}`
-      }
-    });
+    console.log('🎯 RESULTADOS FINALES DEL DIAGNÓSTICO:');
+    console.log(`└─ Servicios únicos procesados: ${realServicesEneroAHoy}`);
+    console.log(`└─ GMV total calculado: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(realGmvEneroAHoy)}`);
+    console.log(`└─ Porcentaje de registros finales vs originales: ${((realServicesEneroAHoy/allServices.length)*100).toFixed(2)}%`);
+    
+    // Análisis de pérdidas
+    console.log('📉 ANÁLISIS DE PÉRDIDAS POR FILTRO:');
+    console.log(`└─ Pérdida por fechas: ${allServices.length - serviciosEnRango.length} registros`);
+    console.log(`└─ Pérdida por estado: ${serviciosEnRango.length - serviciosFinalizados.length} registros`);
+    console.log(`└─ Pérdida por ID inválido: ${serviciosFinalizados.length - serviciosConIdValido.length} registros`);
+    console.log(`└─ Pérdida por monto inválido: ${serviciosConIdValido.length - serviciosConMontoValido.length} registros`);
+    console.log(`└─ Servicios duplicados removidos: ${serviciosConMontoValido.length - realServicesEneroAHoy} registros`);
     
     // Calcular nombres de meses dinámicamente
     const lastDataMonth = new Date(2025, currentMonth - 2, 1).toLocaleDateString('es-ES', { month: 'long' });
@@ -182,7 +222,7 @@ export const useForecastData = (
     
     // Si no hay servicios reales, retornar ceros
     if (realServicesEneroAHoy === 0) {
-      console.warn('No se encontraron servicios finalizados para el cálculo de forecast');
+      console.warn('❌ No se encontraron servicios finalizados para el cálculo de forecast');
       return {
         monthlyServicesForecast: 0,
         monthlyGmvForecast: 0,
@@ -206,18 +246,6 @@ export const useForecastData = (
     const avgGmvPerMonth = Math.round(realGmvEneroAHoy / monthsWithData);
     const avgServiceValue = realGmvEneroAHoy / realServicesEneroAHoy;
     
-    console.log('Promedios corregidos:', {
-      avgServicesPerMonth,
-      avgGmvPerMonth,
-      avgServiceValue,
-      monthsWithData,
-      validacion: {
-        serviciosPorMes: `${avgServicesPerMonth} (${realServicesEneroAHoy} ÷ ${monthsWithData} meses)`,
-        gmvPorMes: new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(avgGmvPerMonth)
-      }
-    });
-    
-    // ... keep existing code (distribución mensual y cálculos de forecast)
     const monthlyDistribution = {
       1: { factor: 0.90, name: 'enero' },
       2: { factor: 0.95, name: 'febrero' },
@@ -279,13 +307,7 @@ export const useForecastData = (
       forecastMonth
     };
     
-    console.log('=== RESULTADO FINAL CORREGIDO ===', {
-      ...result,
-      validacionVsLooker: {
-        servicios: `${result.monthlyServicesActual.toLocaleString()} vs 3,370 esperados`,
-        gmv: `${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(result.monthlyGmvActual)} vs $22M esperados`
-      }
-    });
+    console.log('=== DIAGNÓSTICO COMPLETO ===');
     
     return result;
   }, [allServices, isLoading, error]);
