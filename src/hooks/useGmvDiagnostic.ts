@@ -51,146 +51,214 @@ export const useGmvDiagnostic = () => {
     
     console.log(`📅 Servicios en rango Enero-Mayo: ${serviciosEnRango.length}`);
     
-    // PASO 2: Analizar cobro_cliente
-    console.log('\n💰 === ANÁLISIS DE COBRO_CLIENTE ===');
+    // PASO 2: ANÁLISIS EXHAUSTIVO DE COBRO_CLIENTE
+    console.log('\n💰 === ANÁLISIS EXHAUSTIVO DE COBRO_CLIENTE ===');
     
-    const serviciosConCobroValido = serviciosEnRango.filter(service => {
+    // Analizar todos los tipos de valores en cobro_cliente
+    const cobroAnalysis = {
+      nulos: 0,
+      vacios: 0,
+      ceros: 0,
+      validos: 0,
+      negativos: 0,
+      textoInvalido: 0,
+      valoresEjemplo: []
+    };
+    
+    let totalCobroRaw = 0;
+    const valoresUnicos = new Set();
+    
+    serviciosEnRango.forEach((service, index) => {
       const cobro = service.cobro_cliente;
-      // Check for null, undefined first
+      
+      // Guardar ejemplos de los primeros 10 registros
+      if (index < 10) {
+        cobroAnalysis.valoresEjemplo.push({
+          id: service.id_servicio,
+          cobro_original: cobro,
+          tipo: typeof cobro,
+          fecha: service.fecha_hora_cita
+        });
+      }
+      
       if (cobro === null || cobro === undefined) {
-        return false;
+        cobroAnalysis.nulos++;
+      } else if (typeof cobro === 'string' && cobro === '') {
+        cobroAnalysis.vacios++;
+      } else {
+        const cobroNumerico = Number(cobro);
+        if (isNaN(cobroNumerico)) {
+          cobroAnalysis.textoInvalido++;
+          if (valoresUnicos.size < 10) {
+            valoresUnicos.add(`"${cobro}" (${typeof cobro})`);
+          }
+        } else if (cobroNumerico === 0) {
+          cobroAnalysis.ceros++;
+        } else if (cobroNumerico < 0) {
+          cobroAnalysis.negativos++;
+        } else {
+          cobroAnalysis.validos++;
+          totalCobroRaw += cobroNumerico;
+        }
       }
-      // Check for empty string (only if it's a string)
-      if (typeof cobro === 'string' && cobro === '') {
-        return false;
-      }
+    });
+    
+    console.log('📊 DISTRIBUCIÓN DE VALORES EN COBRO_CLIENTE:');
+    console.log(`  ❌ Nulos (null/undefined): ${cobroAnalysis.nulos}`);
+    console.log(`  📝 Vacíos (''): ${cobroAnalysis.vacios}`);
+    console.log(`  🚫 Ceros (0): ${cobroAnalysis.ceros}`);
+    console.log(`  ✅ Válidos (>0): ${cobroAnalysis.validos}`);
+    console.log(`  ⚠️ Negativos: ${cobroAnalysis.negativos}`);
+    console.log(`  🔤 Texto inválido: ${cobroAnalysis.textoInvalido}`);
+    
+    if (valoresUnicos.size > 0) {
+      console.log(`  🔤 Ejemplos de texto inválido: ${Array.from(valoresUnicos).join(', ')}`);
+    }
+    
+    console.log('\n🔬 MUESTRA DE PRIMEROS 10 REGISTROS:');
+    cobroAnalysis.valoresEjemplo.forEach((ejemplo, i) => {
+      console.log(`  ${i+1}. ID: ${ejemplo.id}, Cobro: ${ejemplo.cobro_original} (${ejemplo.tipo}), Fecha: ${ejemplo.fecha}`);
+    });
+    
+    // PASO 3: CÁLCULO GMV CON DIFERENTES ESTRATEGIAS
+    console.log('\n🧮 === CÁLCULO GMV CON DIFERENTES ESTRATEGIAS ===');
+    
+    // Estrategia 1: Solo servicios con cobro válido > 0
+    const serviciosCobroValido = serviciosEnRango.filter(service => {
+      const cobro = service.cobro_cliente;
+      if (cobro === null || cobro === undefined) return false;
+      if (typeof cobro === 'string' && cobro === '') return false;
       const cobroNumerico = Number(cobro);
       return !isNaN(cobroNumerico) && cobroNumerico > 0;
     });
     
-    const serviciosConCobroNulo = serviciosEnRango.filter(service => {
-      const cobro = service.cobro_cliente;
-      return cobro === null || cobro === undefined;
+    let gmvEstrategia1 = 0;
+    const uniqueIds1 = new Set();
+    serviciosCobroValido.forEach(service => {
+      if (service.id_servicio && !uniqueIds1.has(service.id_servicio)) {
+        uniqueIds1.add(service.id_servicio);
+        gmvEstrategia1 += Number(service.cobro_cliente);
+      }
     });
     
-    const serviciosConCobroCero = serviciosEnRango.filter(service => {
+    // Estrategia 2: Incluir ceros también
+    const serviciosConCobroNumerico = serviciosEnRango.filter(service => {
       const cobro = service.cobro_cliente;
-      if (cobro === null || cobro === undefined) {
-        return false;
-      }
-      // Check for empty string (only if it's a string)
-      if (typeof cobro === 'string' && cobro === '') {
-        return false;
-      }
+      if (cobro === null || cobro === undefined) return false;
+      if (typeof cobro === 'string' && cobro === '') return false;
       const cobroNumerico = Number(cobro);
-      return !isNaN(cobroNumerico) && cobroNumerico === 0;
+      return !isNaN(cobroNumerico) && cobroNumerico >= 0;
     });
     
-    const serviciosConCobroVacio = serviciosEnRango.filter(service => {
-      const cobro = service.cobro_cliente;
-      return typeof cobro === 'string' && cobro === '';
-    });
-    
-    console.log(`💳 Servicios con cobro válido (>0): ${serviciosConCobroValido.length}`);
-    console.log(`❌ Servicios con cobro nulo: ${serviciosConCobroNulo.length}`);
-    console.log(`🚫 Servicios con cobro = 0: ${serviciosConCobroCero.length}`);
-    console.log(`📝 Servicios con cobro vacío (''): ${serviciosConCobroVacio.length}`);
-    
-    // PASO 3: Calcular GMV SIN filtros de estado
-    console.log('\n🧮 === CÁLCULO GMV SIN FILTROS DE ESTADO ===');
-    
-    let gmvTotalSinFiltros = 0;
-    const uniqueServicesIds = new Set();
-    
-    serviciosConCobroValido.forEach(service => {
-      if (service.id_servicio && !uniqueServicesIds.has(service.id_servicio)) {
-        uniqueServicesIds.add(service.id_servicio);
-        const cobro = Number(service.cobro_cliente);
-        gmvTotalSinFiltros += cobro;
+    let gmvEstrategia2 = 0;
+    const uniqueIds2 = new Set();
+    serviciosConCobroNumerico.forEach(service => {
+      if (service.id_servicio && !uniqueIds2.has(service.id_servicio)) {
+        uniqueIds2.add(service.id_servicio);
+        gmvEstrategia2 += Number(service.cobro_cliente);
       }
     });
     
-    console.log(`💰 GMV total SIN filtros de estado: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(gmvTotalSinFiltros)}`);
-    console.log(`🆔 Servicios únicos con cobro: ${uniqueServicesIds.size}`);
-    
-    // PASO 4: Analizar por estado
-    console.log('\n📋 === ANÁLISIS POR ESTADO ===');
-    
-    const estadosConteo: Record<string, number> = {};
-    const estadosGmv: Record<string, number> = {};
-    
-    serviciosConCobroValido.forEach(service => {
-      const estado = service.estado || 'SIN_ESTADO';
-      estadosConteo[estado] = (estadosConteo[estado] || 0) + 1;
-      
-      if (!estadosGmv[estado]) {
-        estadosGmv[estado] = 0;
-      }
-      estadosGmv[estado] += Number(service.cobro_cliente);
-    });
-    
-    console.log('📊 Distribución por estado (cantidad):');
-    Object.entries(estadosConteo).forEach(([estado, cantidad]) => {
-      console.log(`  ${estado}: ${cantidad} servicios`);
-    });
-    
-    console.log('\n💰 Distribución por estado (GMV):');
-    Object.entries(estadosGmv).forEach(([estado, gmv]) => {
-      console.log(`  ${estado}: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(gmv)}`);
-    });
-    
-    // PASO 5: Aplicar filtro de "Finalizado" como hace el código actual
-    console.log('\n✅ === ANÁLISIS CON FILTRO "FINALIZADO" ===');
-    
-    const serviciosFinalizados = serviciosConCobroValido.filter(service => {
+    // Estrategia 3: Solo servicios "Finalizado" con cobro válido
+    const serviciosFinalizadosConCobro = serviciosCobroValido.filter(service => {
       const estado = (service.estado || '').trim();
       return estado === 'Finalizado';
     });
     
-    let gmvSoloFinalizados = 0;
-    const uniqueFinalizadosIds = new Set();
-    
-    serviciosFinalizados.forEach(service => {
-      if (service.id_servicio && !uniqueFinalizadosIds.has(service.id_servicio)) {
-        uniqueFinalizadosIds.add(service.id_servicio);
-        gmvSoloFinalizados += Number(service.cobro_cliente);
+    let gmvEstrategia3 = 0;
+    const uniqueIds3 = new Set();
+    serviciosFinalizadosConCobro.forEach(service => {
+      if (service.id_servicio && !uniqueIds3.has(service.id_servicio)) {
+        uniqueIds3.add(service.id_servicio);
+        gmvEstrategia3 += Number(service.cobro_cliente);
       }
     });
     
-    console.log(`✅ Servicios con estado "Finalizado": ${serviciosFinalizados.length}`);
-    console.log(`💰 GMV solo servicios "Finalizado": ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(gmvSoloFinalizados)}`);
-    console.log(`🆔 Servicios únicos finalizados: ${uniqueFinalizadosIds.size}`);
+    console.log(`💰 Estrategia 1 (cobro > 0): ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(gmvEstrategia1)} | Servicios únicos: ${uniqueIds1.size}`);
+    console.log(`💰 Estrategia 2 (cobro >= 0): ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(gmvEstrategia2)} | Servicios únicos: ${uniqueIds2.size}`);
+    console.log(`💰 Estrategia 3 (solo "Finalizado"): ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(gmvEstrategia3)} | Servicios únicos: ${uniqueIds3.size}`);
     
-    // PASO 6: Comparación con expectativa (22M)
-    console.log('\n🎯 === COMPARACIÓN CON EXPECTATIVA ===');
-    console.log(`💰 Expectativa (consulta directa BDD): $22,000,000 MXN`);
-    console.log(`💰 Resultado sin filtros estado: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(gmvTotalSinFiltros)}`);
-    console.log(`💰 Resultado solo "Finalizado": ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(gmvSoloFinalizados)}`);
-    console.log(`📉 Diferencia sin filtros: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(22000000 - gmvTotalSinFiltros)}`);
-    console.log(`📉 Diferencia solo "Finalizado": ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(22000000 - gmvSoloFinalizados)}`);
+    // PASO 4: ANÁLISIS DE DUPLICADOS
+    console.log('\n🔄 === ANÁLISIS DE DUPLICADOS ===');
     
-    // PASO 7: Análisis de muestras
-    console.log('\n🔬 === MUESTRA DE DATOS ===');
-    console.log('Primeros 5 servicios con mayor cobro:');
-    const serviciosOrdenados = serviciosConCobroValido
-      .sort((a, b) => Number(b.cobro_cliente) - Number(a.cobro_cliente))
-      .slice(0, 5);
-    
-    serviciosOrdenados.forEach((service, index) => {
-      console.log(`${index + 1}. ID: ${service.id_servicio}, Estado: ${service.estado}, Cobro: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(service.cobro_cliente))}, Fecha: ${service.fecha_hora_cita}`);
+    const idCounts = {};
+    serviciosEnRango.forEach(service => {
+      if (service.id_servicio) {
+        idCounts[service.id_servicio] = (idCounts[service.id_servicio] || 0) + 1;
+      }
     });
+    
+    const duplicados = Object.entries(idCounts).filter(([id, count]) => count > 1);
+    console.log(`🔄 Servicios con ID duplicado: ${duplicados.length}`);
+    
+    if (duplicados.length > 0) {
+      console.log('📋 Primeros 5 IDs duplicados:');
+      duplicados.slice(0, 5).forEach(([id, count]) => {
+        console.log(`  ID: ${id} aparece ${count} veces`);
+      });
+    }
+    
+    // PASO 5: ANÁLISIS POR RANGOS DE COBRO
+    console.log('\n📊 === ANÁLISIS POR RANGOS DE COBRO ===');
+    
+    const rangos = {
+      '0-1000': 0,
+      '1000-5000': 0,
+      '5000-10000': 0,
+      '10000-50000': 0,
+      '50000+': 0
+    };
+    
+    let sumaRangos = 0;
+    serviciosCobroValido.forEach(service => {
+      const cobro = Number(service.cobro_cliente);
+      sumaRangos += cobro;
+      
+      if (cobro <= 1000) rangos['0-1000']++;
+      else if (cobro <= 5000) rangos['1000-5000']++;
+      else if (cobro <= 10000) rangos['5000-10000']++;
+      else if (cobro <= 50000) rangos['10000-50000']++;
+      else rangos['50000+']++;
+    });
+    
+    Object.entries(rangos).forEach(([rango, cantidad]) => {
+      console.log(`  ${rango}: ${cantidad} servicios`);
+    });
+    
+    console.log(`💰 Suma total por rangos: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(sumaRangos)}`);
+    
+    // PASO 6: COMPARACIÓN FINAL
+    console.log('\n🎯 === COMPARACIÓN CON EXPECTATIVA 22M ===');
+    console.log(`💰 Expectativa: $22,000,000 MXN`);
+    console.log(`💰 Calculado (>0): ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(gmvEstrategia1)}`);
+    console.log(`💰 Calculado (>=0): ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(gmvEstrategia2)}`);
+    console.log(`💰 Solo "Finalizado": ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(gmvEstrategia3)}`);
+    console.log(`📉 Diferencia mayor: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(22000000 - gmvEstrategia1)}`);
+    
+    const porcentajeCobertura = (gmvEstrategia1 / 22000000) * 100;
+    console.log(`📊 Cobertura: ${porcentajeCobertura.toFixed(1)}% de lo esperado`);
+    
+    // PASO 7: TEORÍAS SOBRE LA DISCREPANCIA
+    console.log('\n🤔 === POSIBLES CAUSAS DE LA DISCREPANCIA ===');
+    console.log('1. 📅 Rango de fechas: ¿Los 22M incluyen TODO el año 2025?');
+    console.log('2. 🔄 Duplicados: ¿Se están contando servicios duplicados en BDD?');
+    console.log('3. 💰 Tipos de datos: ¿Algunos cobros están en formato diferente?');
+    console.log('4. 🏷️ Estados: ¿Se incluyen otros estados además de "Finalizado"?');
+    console.log('5. 📊 Fuente: ¿Los 22M vienen de otra tabla o vista?');
     
     return {
       totalServicios: serviciosEnRango.length,
-      serviciosConCobro: serviciosConCobroValido.length,
-      serviciosUnicos: uniqueServicesIds.size,
-      gmvTotalSinFiltros,
-      gmvSoloFinalizados,
-      serviciosFinalizados: serviciosFinalizados.length,
-      estadosConteo,
-      estadosGmv,
-      diferenciaSinFiltros: 22000000 - gmvTotalSinFiltros,
-      diferenciaFinalizados: 22000000 - gmvSoloFinalizados
+      serviciosConCobro: serviciosCobroValido.length,
+      serviciosUnicos: uniqueIds1.size,
+      gmvTotalSinFiltros: gmvEstrategia1,
+      gmvSoloFinalizados: gmvEstrategia3,
+      serviciosFinalizados: serviciosFinalizadosConCobro.length,
+      diferenciaSinFiltros: 22000000 - gmvEstrategia1,
+      diferenciaFinalizados: 22000000 - gmvEstrategia3,
+      cobroAnalysis,
+      duplicados: duplicados.length,
+      rangos,
+      porcentajeCobertura
     };
   }, [allServices, isLoading, error]);
   
