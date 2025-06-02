@@ -23,6 +23,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { 
   Card,
   CardContent,
@@ -30,12 +37,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Search, Plus, MoreHorizontal, ChevronRight, Loader2 } from "lucide-react";
+import { Search, Plus, MoreHorizontal, ChevronRight, Loader2, Eye, Edit, UserCheck, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { LeadForm } from "@/components/leads/LeadForm";
 
-// Interface for the Lead data from the new leads table
 interface Lead {
   id: string;
   nombre: string;
@@ -55,11 +62,12 @@ interface Lead {
 
 const statusBadgeStyles = {
   nuevo: "bg-blue-100 text-blue-800 hover:bg-blue-100",
-  proceso: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100",
-  aprobacion: "bg-purple-100 text-purple-800 hover:bg-purple-100",
+  contactado: "bg-orange-100 text-orange-800 hover:bg-orange-100",
+  entrevista: "bg-purple-100 text-purple-800 hover:bg-purple-100",
+  documentos: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100",
   aprobado: "bg-green-100 text-green-800 hover:bg-green-100",
   rechazado: "bg-red-100 text-red-800 hover:bg-red-100",
-  contactado: "bg-orange-100 text-orange-800 hover:bg-orange-100",
+  en_proceso: "bg-amber-100 text-amber-800 hover:bg-amber-100",
 };
 
 export const LeadsList = () => {
@@ -68,73 +76,68 @@ export const LeadsList = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
+  const [showForm, setShowForm] = useState(false);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
   const { toast } = useToast();
 
-  // Fetch leads from the new leads table
   useEffect(() => {
-    const fetchLeads = async () => {
-      try {
-        setLoading(true);
-        // Use type casting to bypass TypeScript issues until types are regenerated
-        const { data, error } = await (supabase as any)
-          .from('leads')
-          .select('*')
-          .order('created_at', { ascending: false });
-        
-        if (error) {
-          throw error;
-        }
-        
-        const typedData: Lead[] = (data || []).map((item: any) => ({
-          id: item.id,
-          nombre: item.nombre || '',
-          email: item.email || '',
-          telefono: item.telefono,
-          empresa: item.empresa,
-          mensaje: item.mensaje,
-          fuente: item.fuente || 'web',
-          estado: item.estado || 'nuevo',
-          fecha_creacion: item.fecha_creacion || item.created_at,
-          fecha_contacto: item.fecha_contacto,
-          notas: item.notas,
-          asignado_a: item.asignado_a,
-          created_at: item.created_at,
-          updated_at: item.updated_at
-        }));
-        
-        setLeads(typedData);
-        setFilteredLeads(typedData);
-      } catch (error) {
-        console.error('Error fetching leads:', error);
-        toast({
-          title: "Error",
-          description: "No se pudieron cargar los leads. Por favor, intenta de nuevo.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchLeads();
-  }, [toast]);
+  }, []);
 
-  // Handle search and filter
+  const fetchLeads = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('leads')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      const typedData: Lead[] = (data || []).map((item: any) => ({
+        id: item.id,
+        nombre: item.nombre || '',
+        email: item.email || '',
+        telefono: item.telefono,
+        empresa: item.empresa,
+        mensaje: item.mensaje,
+        fuente: item.fuente || 'web',
+        estado: item.estado || 'nuevo',
+        fecha_creacion: item.fecha_creacion || item.created_at,
+        fecha_contacto: item.fecha_contacto,
+        notas: item.notas,
+        asignado_a: item.asignado_a,
+        created_at: item.created_at,
+        updated_at: item.updated_at
+      }));
+      
+      setLeads(typedData);
+      setFilteredLeads(typedData);
+    } catch (error) {
+      console.error('Error fetching leads:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los candidatos.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     let result = leads;
     
-    // Apply search filter
     if (searchTerm) {
       const lowerSearchTerm = searchTerm.toLowerCase();
       result = result.filter((lead) => 
         lead.nombre.toLowerCase().includes(lowerSearchTerm) ||
         lead.email.toLowerCase().includes(lowerSearchTerm) ||
-        (lead.telefono && lead.telefono.toLowerCase().includes(lowerSearchTerm)) ||
-        (lead.empresa && lead.empresa.toLowerCase().includes(lowerSearchTerm))
+        (lead.telefono && lead.telefono.toLowerCase().includes(lowerSearchTerm))
       );
     }
     
-    // Apply status filter
     if (statusFilter !== "todos") {
       result = result.filter((lead) => {
         const leadStatus = lead.estado?.toLowerCase() || '';
@@ -145,7 +148,6 @@ export const LeadsList = () => {
     setFilteredLeads(result);
   }, [searchTerm, statusFilter, leads]);
 
-  // Get the status badge style based on lead status
   const getStatusBadgeStyle = (status: string | null) => {
     if (!status) return "bg-gray-100 text-gray-800 hover:bg-gray-100";
     
@@ -157,7 +159,6 @@ export const LeadsList = () => {
     return matchedStyle ? matchedStyle[1] : "bg-gray-100 text-gray-800 hover:bg-gray-100";
   };
 
-  // Format date for display
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "-";
     return new Date(dateString).toLocaleDateString('es-MX', {
@@ -167,25 +168,158 @@ export const LeadsList = () => {
     });
   };
 
+  const updateLeadStatus = async (leadId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update({ 
+          estado: newStatus,
+          fecha_contacto: newStatus === 'contactado' ? new Date().toISOString() : null
+        })
+        .eq('id', leadId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Estado actualizado",
+        description: `El estado del candidato ha sido actualizado a ${newStatus}.`,
+      });
+
+      fetchLeads();
+    } catch (error) {
+      console.error('Error updating lead status:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado del candidato.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const renderLeadDetails = (lead: Lead) => {
+    let candidateDetails = null;
+    try {
+      candidateDetails = lead.notas ? JSON.parse(lead.notas) : null;
+    } catch (e) {
+      console.error('Error parsing candidate details:', e);
+    }
+
+    return (
+      <div className="space-y-6 max-h-[70vh] overflow-y-auto">
+        <div>
+          <h3 className="text-lg font-semibold mb-3">Información Personal</h3>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div><strong>Nombre:</strong> {lead.nombre}</div>
+            <div><strong>Email:</strong> {lead.email}</div>
+            <div><strong>Teléfono:</strong> {lead.telefono || 'No especificado'}</div>
+            <div><strong>Estado:</strong> 
+              <Badge variant="outline" className={getStatusBadgeStyle(lead.estado)}>
+                {lead.estado}
+              </Badge>
+            </div>
+            {candidateDetails?.datos_personales && (
+              <>
+                <div><strong>Edad:</strong> {candidateDetails.datos_personales.edad || 'No especificado'}</div>
+                <div><strong>Ciudad:</strong> {candidateDetails.datos_personales.ciudad || 'No especificado'}</div>
+                <div className="col-span-2"><strong>Dirección:</strong> {candidateDetails.datos_personales.direccion || 'No especificado'}</div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {candidateDetails?.vehiculo && (
+          <div>
+            <h3 className="text-lg font-semibold mb-3">Información del Vehículo</h3>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div><strong>Marca:</strong> {candidateDetails.vehiculo.marca || 'No especificado'}</div>
+              <div><strong>Modelo:</strong> {candidateDetails.vehiculo.modelo || 'No especificado'}</div>
+              <div><strong>Año:</strong> {candidateDetails.vehiculo.año || 'No especificado'}</div>
+              <div><strong>Placas:</strong> {candidateDetails.vehiculo.placas || 'No especificado'}</div>
+              <div><strong>Color:</strong> {candidateDetails.vehiculo.color || 'No especificado'}</div>
+              <div><strong>Tipo:</strong> {candidateDetails.vehiculo.tipo || 'No especificado'}</div>
+              <div className="col-span-2"><strong>Seguro vigente:</strong> {candidateDetails.vehiculo.seguro_vigente || 'No especificado'}</div>
+            </div>
+          </div>
+        )}
+
+        {candidateDetails?.experiencia && (
+          <div>
+            <h3 className="text-lg font-semibold mb-3">Experiencia Laboral</h3>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div><strong>Experiencia en custodia:</strong> {candidateDetails.experiencia.experiencia_custodia || 'No especificado'}</div>
+              <div><strong>Años de experiencia:</strong> {candidateDetails.experiencia.años_experiencia || 'No especificado'}</div>
+              <div><strong>Licencia:</strong> {candidateDetails.experiencia.licencia_conducir || 'No especificado'}</div>
+              <div><strong>Tipo licencia:</strong> {candidateDetails.experiencia.tipo_licencia || 'No especificado'}</div>
+              <div className="col-span-2"><strong>Empresas anteriores:</strong> {candidateDetails.experiencia.empresas_anteriores || 'No especificado'}</div>
+              <div className="col-span-2"><strong>Antecedentes penales:</strong> {candidateDetails.experiencia.antecedentes_penales || 'No especificado'}</div>
+            </div>
+          </div>
+        )}
+
+        {candidateDetails?.zona_trabajo && (
+          <div>
+            <h3 className="text-lg font-semibold mb-3">Zona de Trabajo</h3>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div><strong>Zona preferida:</strong> {candidateDetails.zona_trabajo.zona_preferida || 'No especificado'}</div>
+              <div><strong>Rango km:</strong> {candidateDetails.zona_trabajo.rango_km || 'No especificado'}</div>
+              <div><strong>Horario:</strong> {candidateDetails.zona_trabajo.disponibilidad_horario || 'No especificado'}</div>
+              <div><strong>Días:</strong> {candidateDetails.zona_trabajo.disponibilidad_dias || 'No especificado'}</div>
+            </div>
+          </div>
+        )}
+
+        {lead.mensaje && (
+          <div>
+            <h3 className="text-lg font-semibold mb-3">Mensaje</h3>
+            <p className="text-sm bg-gray-50 p-3 rounded">{lead.mensaje}</p>
+          </div>
+        )}
+
+        {candidateDetails?.referencias && (
+          <div>
+            <h3 className="text-lg font-semibold mb-3">Referencias</h3>
+            <p className="text-sm bg-gray-50 p-3 rounded">{candidateDetails.referencias}</p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Leads</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Candidatos a Custodios</h1>
           <p className="text-muted-foreground">
-            Gestiona los leads y su proceso de aprobación.
+            Gestiona los candidatos y su proceso de selección.
           </p>
         </div>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" /> Nuevo Lead
-        </Button>
+        <Dialog open={showForm} onOpenChange={setShowForm}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" /> Nuevo Candidato
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Registrar Nuevo Candidato</DialogTitle>
+            </DialogHeader>
+            <LeadForm 
+              onSuccess={() => {
+                setShowForm(false);
+                fetchLeads();
+              }}
+              onCancel={() => setShowForm(false)}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
       
       <Card>
         <CardHeader>
-          <CardTitle>Listado de Leads</CardTitle>
+          <CardTitle>Listado de Candidatos</CardTitle>
           <CardDescription>
-            Total de leads: {filteredLeads.length}
+            Total de candidatos: {filteredLeads.length}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -193,7 +327,7 @@ export const LeadsList = () => {
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="Buscar por nombre, contacto o email..." 
+                placeholder="Buscar por nombre, email o teléfono..." 
                 className="pl-8" 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -201,7 +335,6 @@ export const LeadsList = () => {
             </div>
             <div className="flex gap-3">
               <Select 
-                defaultValue="todos"
                 value={statusFilter}
                 onValueChange={setStatusFilter}
               >
@@ -211,14 +344,14 @@ export const LeadsList = () => {
                 <SelectContent>
                   <SelectItem value="todos">Todos los estados</SelectItem>
                   <SelectItem value="nuevo">Nuevo</SelectItem>
-                  <SelectItem value="proceso">En proceso</SelectItem>
                   <SelectItem value="contactado">Contactado</SelectItem>
-                  <SelectItem value="aprobacion">En aprobación</SelectItem>
+                  <SelectItem value="entrevista">En entrevista</SelectItem>
+                  <SelectItem value="documentos">Documentos</SelectItem>
+                  <SelectItem value="en_proceso">En proceso</SelectItem>
                   <SelectItem value="aprobado">Aprobado</SelectItem>
                   <SelectItem value="rechazado">Rechazado</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="outline">Filtrar</Button>
             </div>
           </div>
           
@@ -227,32 +360,31 @@ export const LeadsList = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nombre</TableHead>
-                  <TableHead>Empresa</TableHead>
-                  <TableHead className="hidden md:table-cell">Email</TableHead>
-                  <TableHead className="hidden lg:table-cell">Teléfono</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead className="hidden md:table-cell">Teléfono</TableHead>
                   <TableHead>Estado</TableHead>
-                  <TableHead className="hidden md:table-cell">Fecha</TableHead>
+                  <TableHead className="hidden md:table-cell">Fecha Registro</TableHead>
                   <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-10">
+                    <TableCell colSpan={6} className="text-center py-10">
                       <div className="flex justify-center items-center">
                         <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                        <span>Cargando leads...</span>
+                        <span>Cargando candidatos...</span>
                       </div>
                     </TableCell>
                   </TableRow>
                 ) : filteredLeads.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-10">
-                      <p>No se encontraron leads</p>
+                    <TableCell colSpan={6} className="text-center py-10">
+                      <p>No se encontraron candidatos</p>
                       <p className="text-muted-foreground text-sm mt-1">
                         {searchTerm || statusFilter !== "todos" 
                           ? "Intenta con otros filtros de búsqueda" 
-                          : "Agrega nuevos leads para empezar a visualizarlos aquí"}
+                          : "Agrega nuevos candidatos para empezar a visualizarlos aquí"}
                       </p>
                     </TableCell>
                   </TableRow>
@@ -260,9 +392,8 @@ export const LeadsList = () => {
                   filteredLeads.map((lead) => (
                     <TableRow key={lead.id}>
                       <TableCell className="font-medium">{lead.nombre}</TableCell>
-                      <TableCell>{lead.empresa || "Sin empresa"}</TableCell>
-                      <TableCell className="hidden md:table-cell">{lead.email}</TableCell>
-                      <TableCell className="hidden lg:table-cell">{lead.telefono || "Sin teléfono"}</TableCell>
+                      <TableCell>{lead.email}</TableCell>
+                      <TableCell className="hidden md:table-cell">{lead.telefono || "Sin teléfono"}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={getStatusBadgeStyle(lead.estado)}>
                           {lead.estado ? (lead.estado.charAt(0).toUpperCase() + lead.estado.slice(1)) : "Nuevo"}
@@ -280,10 +411,27 @@ export const LeadsList = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>Ver detalles</DropdownMenuItem>
-                            <DropdownMenuItem>Editar</DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">
-                              Eliminar
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedLead(lead);
+                              setShowDetails(true);
+                            }}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              Ver detalles
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => updateLeadStatus(lead.id, 'contactado')}>
+                              <UserCheck className="h-4 w-4 mr-2" />
+                              Marcar contactado
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => updateLeadStatus(lead.id, 'aprobado')}>
+                              <UserCheck className="h-4 w-4 mr-2" />
+                              Aprobar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="text-destructive"
+                              onClick={() => updateLeadStatus(lead.id, 'rechazado')}
+                            >
+                              <X className="h-4 w-4 mr-2" />
+                              Rechazar
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -294,17 +442,17 @@ export const LeadsList = () => {
               </TableBody>
             </Table>
           </div>
-          
-          <div className="mt-4 flex items-center justify-end space-x-2">
-            <Button variant="outline" size="sm" disabled>
-              Anterior
-            </Button>
-            <Button variant="outline" size="sm">
-              Siguiente <ChevronRight className="ml-1 h-4 w-4" />
-            </Button>
-          </div>
         </CardContent>
       </Card>
+
+      <Dialog open={showDetails} onOpenChange={setShowDetails}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Detalles del Candidato</DialogTitle>
+          </DialogHeader>
+          {selectedLead && renderLeadDetails(selectedLead)}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
