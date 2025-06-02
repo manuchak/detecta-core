@@ -182,11 +182,11 @@ export const useGmvDiagnostic = () => {
     const estadosGmv = {};
     serviciosEnRango.forEach(service => {
       const estado = (service.estado || 'Sin estado').toString().trim();
-      const cobro = Number(service.cobro_cliente);
+      const cobroNumerico = Number(service.cobro_cliente);
       
       estadosCount[estado] = (estadosCount[estado] || 0) + 1;
-      if (!isNaN(cobro) && cobro > 0) {
-        estadosGmv[estado] = (estadosGmv[estado] || 0) + cobro;
+      if (!isNaN(cobroNumerico) && cobroNumerico > 0) {
+        estadosGmv[estado] = (estadosGmv[estado] || 0) + cobroNumerico;
       }
     });
     
@@ -199,7 +199,8 @@ export const useGmvDiagnostic = () => {
     // 4.2: Análisis de servicios sin cobro_cliente o con valor extraño
     const serviciosSinCobro = serviciosEnRango.filter(service => {
       const cobro = service.cobro_cliente;
-      return cobro === null || cobro === undefined || (typeof cobro === 'string' && cobro === '') || (Number(cobro) === 0);
+      const cobroNumerico = Number(cobro);
+      return cobro === null || cobro === undefined || (typeof cobro === 'string' && cobro === '') || (isNaN(cobroNumerico) || cobroNumerico === 0);
     });
     
     console.log(`\n🚫 SERVICIOS SIN COBRO VÁLIDO: ${serviciosSinCobro.length}`);
