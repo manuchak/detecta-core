@@ -1,4 +1,3 @@
-
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,37 +25,13 @@ export const useForecastData = (
   historicalData?: Array<{ month: number; services: number; gmv: number }>
 ): ForecastData => {
   
-  // Query para obtener servicios usando función bypass con rango dinámico
+  // Query para obtener servicios usando la tabla directamente con filtros
   const { data: realData, isLoading, error } = useQuery({
-    queryKey: ['forecast-real-data-bypass-enhanced'],
+    queryKey: ['forecast-real-data-direct'],
     queryFn: async () => {
-      console.log('=== INICIO DEBUG FORECAST ===');
+      console.log('=== INICIO DEBUG FORECAST (MÉTODO DIRECTO) ===');
       
       try {
-        // Usar la función bypass con límite aumentado
-        const { data: allServices, error } = await supabase.rpc('bypass_rls_get_servicios', {
-          max_records: 25000
-        });
-
-        if (error) {
-          console.error('Error al obtener servicios:', error);
-          throw error;
-        }
-
-        console.log('Total servicios obtenidos de BD:', allServices?.length || 0);
-
-        if (!allServices || !Array.isArray(allServices) || allServices.length === 0) {
-          console.warn('No se encontraron servicios en la BD');
-          return {
-            uniqueServices: 0,
-            totalGmv: 0,
-            rawData: [],
-            currentMonth: new Date().getMonth() + 1,
-            currentYear: new Date().getFullYear(),
-            debugInfo: { totalFromDB: 0, afterDateFilter: 0, afterStatusFilter: 0 }
-          };
-        }
-
         // Calcular rango dinámico: desde enero hasta mes anterior al actual
         const currentDate = new Date();
         const currentYear = currentDate.getFullYear();
@@ -72,56 +47,45 @@ export const useForecastData = (
           descripcion: `Enero a ${new Date(currentYear, currentMonth - 2, 1).toLocaleDateString('es-ES', { month: 'long' })} ${currentYear}`
         });
 
-        // Debug: Analizar todos los estados únicos en la BD
-        const estadosUnicos = [...new Set(allServices.map(s => s.estado))].filter(Boolean);
-        console.log('Estados únicos encontrados en BD:', estadosUnicos);
+        // Consultar directamente la tabla servicios_custodia con filtros
+        const { data: allServices, error } = await supabase
+          .from('servicios_custodia')
+          .select('id_servicio, estado, fecha_hora_cita, cobro_cliente')
+          .gte('fecha_hora_cita', startDate.toISOString())
+          .lte('fecha_hora_cita', endDate.toISOString())
+          .eq('estado', 'Finalizado')
+          .not('id_servicio', 'is', null)
+          .not('cobro_cliente', 'is', null)
+          .limit(25000);
 
-        // Debug: Contar servicios por estado
-        const conteoEstados = {};
-        allServices.forEach(service => {
-          const estado = service.estado || 'null';
-          conteoEstados[estado] = (conteoEstados[estado] || 0) + 1;
-        });
-        console.log('Conteo por estado:', conteoEstados);
+        if (error) {
+          console.error('Error al obtener servicios:', error);
+          throw error;
+        }
 
-        // Filtrar por rango de fechas primero
-        const servicesInDateRange = allServices.filter(service => {
-          if (!service.fecha_hora_cita) {
-            return false;
-          }
-          
-          const serviceDate = new Date(service.fecha_hora_cita);
-          return serviceDate >= startDate && serviceDate <= endDate;
-        });
+        console.log('Total servicios obtenidos de BD:', allServices?.length || 0);
 
-        console.log('Servicios después de filtro de fechas:', servicesInDateRange.length);
+        if (!allServices || !Array.isArray(allServices) || allServices.length === 0) {
+          console.warn('No se encontraron servicios finalizados en el rango de fechas');
+          return {
+            uniqueServices: 0,
+            totalGmv: 0,
+            rawData: [],
+            currentMonth,
+            currentYear,
+            debugInfo: { 
+              totalFromDB: 0, 
+              afterDateFilter: 0, 
+              afterStatusFilter: 0,
+              dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() }
+            }
+          };
+        }
 
-        // Debug: Analizar estados en el rango de fechas
-        const estadosEnRango = [...new Set(servicesInDateRange.map(s => s.estado))].filter(Boolean);
-        console.log('Estados en rango de fechas:', estadosEnRango);
-
-        // Filtrar servicios finalizados (probando diferentes variaciones)
-        const finalizedServices = servicesInDateRange.filter(service => {
-          const estado = service.estado?.toString().trim() || '';
-          
-          // Probar múltiples variaciones del estado "Finalizado"
-          const isFinalized = 
-            estado === 'Finalizado' ||
-            estado === 'finalizado' ||
-            estado === 'FINALIZADO' ||
-            estado.toLowerCase() === 'finalizado';
-          
-          const hasValidData = service.id_servicio && service.cobro_cliente !== null && service.cobro_cliente !== undefined;
-          
-          return isFinalized && hasValidData;
-        });
-
-        console.log('Servicios finalizados con datos válidos:', finalizedServices.length);
-
-        // Debug: Mostrar algunos ejemplos de servicios finalizados
-        if (finalizedServices.length > 0) {
-          console.log('Ejemplo de servicios finalizados (primeros 3):', 
-            finalizedServices.slice(0, 3).map(s => ({
+        // Debug: Mostrar algunos ejemplos de servicios obtenidos
+        if (allServices.length > 0) {
+          console.log('Ejemplo de servicios obtenidos (primeros 3):', 
+            allServices.slice(0, 3).map(s => ({
               id: s.id_servicio,
               estado: s.estado,
               fecha: s.fecha_hora_cita,
@@ -134,7 +98,7 @@ export const useForecastData = (
         const uniqueServiceIds = new Set();
         let totalGmvCalculated = 0;
 
-        finalizedServices.forEach(service => {
+        allServices.forEach(service => {
           if (!uniqueServiceIds.has(service.id_servicio)) {
             uniqueServiceIds.add(service.id_servicio);
             totalGmvCalculated += Number(service.cobro_cliente) || 0;
@@ -144,19 +108,19 @@ export const useForecastData = (
         const result = {
           uniqueServices: uniqueServiceIds.size,
           totalGmv: totalGmvCalculated,
-          rawData: finalizedServices,
+          rawData: allServices,
           currentMonth,
           currentYear,
           debugInfo: {
             totalFromDB: allServices.length,
-            afterDateFilter: servicesInDateRange.length,
-            afterStatusFilter: finalizedServices.length,
+            afterDateFilter: allServices.length,
+            afterStatusFilter: allServices.length,
             uniqueIds: uniqueServiceIds.size,
             dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() }
           }
         };
 
-        console.log('=== RESULTADO FINAL ===');
+        console.log('=== RESULTADO FINAL (MÉTODO DIRECTO) ===');
         console.log('Servicios únicos encontrados:', result.uniqueServices);
         console.log('GMV total calculado:', result.totalGmv);
         console.log('Debug info completo:', result.debugInfo);
@@ -164,7 +128,7 @@ export const useForecastData = (
 
         return result;
       } catch (error) {
-        console.error('Error en bypass RLS:', error);
+        console.error('Error en consulta directa:', error);
         throw error;
       }
     },
@@ -224,7 +188,7 @@ export const useForecastData = (
       };
     }
 
-    // Usar datos reales de la función bypass
+    // Usar datos reales de la consulta directa
     const realServicesJanToLastMonth = realData.uniqueServices;
     const realGmvJanToLastMonth = realData.totalGmv;
     
