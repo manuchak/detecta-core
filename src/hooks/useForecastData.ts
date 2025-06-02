@@ -1,3 +1,4 @@
+
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,16 +26,16 @@ export const useForecastData = (
   historicalData?: Array<{ month: number; services: number; gmv: number }>
 ): ForecastData => {
   
-  // Query para obtener servicios usando función bypass segura
+  // Query para obtener servicios usando función bypass con rango dinámico
   const { data: realData, isLoading, error } = useQuery({
     queryKey: ['forecast-real-data-bypass'],
     queryFn: async () => {
       console.log('Obteniendo datos reales usando bypass RLS...');
       
       try {
-        // Usar la función bypass disponible en el sistema
+        // Usar la función bypass con límite aumentado
         const { data: allServices, error } = await supabase.rpc('bypass_rls_get_servicios', {
-          max_records: 1000
+          max_records: 25000
         });
 
         if (error) {
@@ -49,21 +50,44 @@ export const useForecastData = (
           return {
             uniqueServices: 0,
             totalGmv: 0,
-            rawData: []
+            rawData: [],
+            currentMonth: new Date().getMonth() + 1,
+            currentYear: new Date().getFullYear()
           };
         }
 
-        // Filtrar servicios finalizados del 2025
-        const finalizedServices = allServices.filter(service => {
-          const isFinalizado = service.estado === 'Finalizado';
-          const isYear2025 = service.fecha_hora_cita && 
-            new Date(service.fecha_hora_cita).getFullYear() === 2025;
-          const hasValidData = service.id_servicio && service.cobro_cliente !== null;
-          
-          return isFinalizado && isYear2025 && hasValidData;
+        // Calcular rango dinámico: desde enero hasta mes anterior al actual
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = currentDate.getMonth() + 1; // 1-12
+        const startDate = new Date(currentYear, 0, 1); // 1 enero del año actual
+        const endDate = new Date(currentYear, currentMonth - 1, 0, 23, 59, 59); // Último día del mes anterior
+        
+        console.log('Rango de fechas:', {
+          año: currentYear,
+          mesActual: currentMonth,
+          rangoDesde: startDate.toISOString(),
+          rangoHasta: endDate.toISOString(),
+          descripcion: `Enero a ${new Date(currentYear, currentMonth - 2, 1).toLocaleDateString('es-ES', { month: 'long' })} ${currentYear}`
         });
 
-        console.log('Servicios finalizados 2025:', finalizedServices.length);
+        // Filtrar servicios finalizados en el rango de fechas
+        const finalizedServices = allServices.filter(service => {
+          const isFinalizado = service.estado === 'Finalizado';
+          const hasValidDate = service.fecha_hora_cita;
+          const hasValidData = service.id_servicio && service.cobro_cliente !== null;
+          
+          if (!isFinalizado || !hasValidDate || !hasValidData) {
+            return false;
+          }
+          
+          const serviceDate = new Date(service.fecha_hora_cita);
+          const isInDateRange = serviceDate >= startDate && serviceDate <= endDate;
+          
+          return isInDateRange;
+        });
+
+        console.log('Servicios finalizados en rango:', finalizedServices.length);
 
         // Obtener servicios únicos y calcular GMV total
         const uniqueServiceIds = new Set();
@@ -79,7 +103,9 @@ export const useForecastData = (
         const result = {
           uniqueServices: uniqueServiceIds.size,
           totalGmv: totalGmvCalculated,
-          rawData: finalizedServices
+          rawData: finalizedServices,
+          currentMonth,
+          currentYear
         };
 
         console.log('Datos procesados:', {
@@ -88,7 +114,8 @@ export const useForecastData = (
           formatoGMV: new Intl.NumberFormat('es-MX', { 
             style: 'currency', 
             currency: 'MXN' 
-          }).format(result.totalGmv)
+          }).format(result.totalGmv),
+          rangoEvaluado: `Enero-${new Date(currentYear, currentMonth - 2, 1).toLocaleDateString('es-ES', { month: 'long' })} ${currentYear}`
         });
 
         return result;
@@ -153,44 +180,52 @@ export const useForecastData = (
     }
 
     // Usar datos reales de la función bypass
-    const realServicesJanMay = realData.uniqueServices;
-    const realGmvJanMay = realData.totalGmv;
+    const realServicesJanToLastMonth = realData.uniqueServices;
+    const realGmvJanToLastMonth = realData.totalGmv;
+    
+    // Calcular nombres de meses dinámicamente
+    const currentMonth = realData.currentMonth || new Date().getMonth() + 1;
+    const lastDataMonth = new Date(2025, currentMonth - 2, 1).toLocaleDateString('es-ES', { month: 'long' });
+    const forecastMonth = new Date(2025, currentMonth - 1, 1).toLocaleDateString('es-ES', { month: 'long' });
+    const monthsWithData = currentMonth - 1; // Enero a mes anterior
     
     console.log('useForecastData - Datos reales confirmados:', {
-      realServicesJanMay,
-      realGmvJanMay,
+      realServicesJanToLastMonth,
+      realGmvJanToLastMonth,
+      monthsWithData,
+      lastDataMonth,
+      forecastMonth,
       formatoGMV: new Intl.NumberFormat('es-MX', { 
         style: 'currency', 
         currency: 'MXN' 
-      }).format(realGmvJanMay)
+      }).format(realGmvJanToLastMonth)
     });
     
     // Si no hay servicios reales, retornar ceros
-    if (realServicesJanMay === 0) {
+    if (realServicesJanToLastMonth === 0) {
       console.warn('No se encontraron servicios finalizados para el cálculo de forecast');
       return {
         monthlyServicesForecast: 0,
         monthlyGmvForecast: 0,
         annualServicesForecast: 0,
         annualGmvForecast: 0,
-        monthlyServicesActual: realServicesJanMay,
-        monthlyGmvActual: realGmvJanMay,
-        annualServicesActual: realServicesJanMay,
-        annualGmvActual: realGmvJanMay,
+        monthlyServicesActual: realServicesJanToLastMonth,
+        monthlyGmvActual: realGmvJanToLastMonth,
+        annualServicesActual: realServicesJanToLastMonth,
+        annualGmvActual: realGmvJanToLastMonth,
         monthlyServicesVariance: 0,
         monthlyGmvVariance: 0,
         annualServicesVariance: 0,
         annualGmvVariance: 0,
-        lastDataMonth: 'mayo',
-        forecastMonth: 'junio'
+        lastDataMonth,
+        forecastMonth
       };
     }
     
     // Calcular promedios mensuales basados en datos reales
-    const monthsWithData = 5; // Enero a Mayo
-    const avgServicesPerMonth = Math.round(realServicesJanMay / monthsWithData);
-    const avgGmvPerMonth = Math.round(realGmvJanMay / monthsWithData);
-    const avgServiceValue = realGmvJanMay / realServicesJanMay;
+    const avgServicesPerMonth = Math.round(realServicesJanToLastMonth / monthsWithData);
+    const avgGmvPerMonth = Math.round(realGmvJanToLastMonth / monthsWithData);
+    const avgServiceValue = realGmvJanToLastMonth / realServicesJanToLastMonth;
     
     console.log('useForecastData - Promedios calculados:', {
       avgServicesPerMonth,
@@ -215,13 +250,13 @@ export const useForecastData = (
       12: { factor: 0.95, name: 'diciembre' }
     };
     
-    // Calcular forecast para junio usando factor estacional
-    const juneServicesForecast = Math.round(avgServicesPerMonth * monthlyDistribution[6].factor);
-    const juneGmvForecast = Math.round(juneServicesForecast * avgServiceValue);
+    // Calcular forecast para el mes actual usando factor estacional
+    const currentMonthServicesForecast = Math.round(avgServicesPerMonth * monthlyDistribution[currentMonth].factor);
+    const currentMonthGmvForecast = Math.round(currentMonthServicesForecast * avgServiceValue);
     
     // Calcular forecast anual usando factores estacionales
     const remainingMonthsServices = Object.keys(monthlyDistribution)
-      .filter(month => parseInt(month) > 5)
+      .filter(month => parseInt(month) >= currentMonth)
       .reduce((sum, month) => {
         const monthNum = parseInt(month);
         const forecastServices = Math.round(avgServicesPerMonth * monthlyDistribution[monthNum].factor);
@@ -230,12 +265,12 @@ export const useForecastData = (
     
     const remainingMonthsGmv = Math.round(remainingMonthsServices * avgServiceValue);
     
-    const annualServicesForecast = realServicesJanMay + remainingMonthsServices;
-    const annualGmvForecast = realGmvJanMay + remainingMonthsGmv;
+    const annualServicesForecast = realServicesJanToLastMonth + remainingMonthsServices;
+    const annualGmvForecast = realGmvJanToLastMonth + remainingMonthsGmv;
     
     console.log('useForecastData - Forecast calculado:', {
-      juneServicesForecast,
-      juneGmvForecast,
+      currentMonthServicesForecast,
+      currentMonthGmvForecast,
       remainingMonthsServices,
       remainingMonthsGmv,
       annualServicesForecast,
@@ -244,8 +279,8 @@ export const useForecastData = (
     });
     
     // Calcular varianzas comparando con promedio histórico
-    const monthlyServicesVariance = avgServicesPerMonth > 0 ? ((juneServicesForecast - avgServicesPerMonth) / avgServicesPerMonth) * 100 : 0;
-    const monthlyGmvVariance = avgGmvPerMonth > 0 ? ((juneGmvForecast - avgGmvPerMonth) / avgGmvPerMonth) * 100 : 0;
+    const monthlyServicesVariance = avgServicesPerMonth > 0 ? ((currentMonthServicesForecast - avgServicesPerMonth) / avgServicesPerMonth) * 100 : 0;
+    const monthlyGmvVariance = avgGmvPerMonth > 0 ? ((currentMonthGmvForecast - avgGmvPerMonth) / avgGmvPerMonth) * 100 : 0;
     
     // Calcular varianzas anuales comparando con proyección lineal simple
     const linearAnnualServicesProjection = avgServicesPerMonth * 12;
@@ -255,20 +290,20 @@ export const useForecastData = (
     const annualGmvVariance = linearAnnualGmvProjection > 0 ? ((annualGmvForecast - linearAnnualGmvProjection) / linearAnnualGmvProjection) * 100 : 0;
     
     const result = {
-      monthlyServicesForecast: juneServicesForecast,
-      monthlyGmvForecast: juneGmvForecast,
+      monthlyServicesForecast: currentMonthServicesForecast,
+      monthlyGmvForecast: currentMonthGmvForecast,
       annualServicesForecast,
       annualGmvForecast,
-      monthlyServicesActual: realServicesJanMay,
-      monthlyGmvActual: realGmvJanMay,
-      annualServicesActual: realServicesJanMay,
-      annualGmvActual: realGmvJanMay,
+      monthlyServicesActual: realServicesJanToLastMonth,
+      monthlyGmvActual: realGmvJanToLastMonth,
+      annualServicesActual: realServicesJanToLastMonth,
+      annualGmvActual: realGmvJanToLastMonth,
       monthlyServicesVariance,
       monthlyGmvVariance,
       annualServicesVariance,
       annualGmvVariance,
-      lastDataMonth: 'mayo',
-      forecastMonth: 'junio'
+      lastDataMonth,
+      forecastMonth
     };
     
     console.log('useForecastData - Resultado final:', result);
