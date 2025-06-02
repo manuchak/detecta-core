@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,7 +10,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, User, Car, MapPin, Briefcase, ChevronLeft, ChevronRight } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { PersonalInfoForm } from "./forms/PersonalInfoForm";
 import { LocationForm } from "./forms/LocationForm";
 import { VehicleForm } from "./forms/VehicleForm";
@@ -119,7 +118,6 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
       
-      // Reset campos dependientes cuando cambia el estado o ciudad
       if (field === 'estado_id') {
         newData.ciudad_id = "";
         newData.zona_trabajo_id = "";
@@ -133,14 +131,14 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
 
   const validarEtapa = (etapa: number): boolean => {
     switch (etapa) {
-      case 0: // Personal
+      case 0: 
         return !!(formData.nombre && formData.email && formData.telefono);
-      case 1: // Ubicación
+      case 1: 
         return !!(formData.estado_id && formData.ciudad_id && formData.direccion);
-      case 2: // Vehículo
-        return true; // Opcional
-      case 3: // Experiencia
-        return true; // Opcional
+      case 2: 
+        return true; 
+      case 3: 
+        return true; 
       default:
         return true;
     }
@@ -177,31 +175,36 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
     setLoading(true);
 
     try {
-      // Obtener nombres para el JSON usando las funciones seguras
+      // Obtener nombres para el JSON
       let estadoNombre = '';
       let ciudadNombre = '';
       let zonaNombre = '';
 
       if (formData.estado_id) {
-        const { data: estados } = await supabase.rpc('get_estados_safe');
-        const estado = estados?.find((e: any) => e.id === formData.estado_id);
-        estadoNombre = estado?.nombre || '';
+        const { data: estados } = await supabase
+          .from('estados')
+          .select('nombre')
+          .eq('id', formData.estado_id)
+          .single();
+        estadoNombre = estados?.nombre || '';
       }
 
       if (formData.ciudad_id) {
-        const { data: ciudades } = await supabase.rpc('get_ciudades_safe', {
-          estado_uuid: formData.estado_id
-        });
-        const ciudad = ciudades?.find((c: any) => c.id === formData.ciudad_id);
-        ciudadNombre = ciudad?.nombre || '';
+        const { data: ciudades } = await supabase
+          .from('ciudades')
+          .select('nombre')
+          .eq('id', formData.ciudad_id)
+          .single();
+        ciudadNombre = ciudades?.nombre || '';
       }
 
       if (formData.zona_trabajo_id) {
-        const { data: zonas } = await supabase.rpc('get_zonas_trabajo_safe', {
-          ciudad_uuid: formData.ciudad_id
-        });
-        const zona = zonas?.find((z: any) => z.id === formData.zona_trabajo_id);
-        zonaNombre = zona?.nombre || '';
+        const { data: zonas } = await supabase
+          .from('zonas_trabajo')
+          .select('nombre')
+          .eq('id', formData.zona_trabajo_id)
+          .single();
+        zonaNombre = zonas?.nombre || '';
       }
 
       // Crear el lead básico
