@@ -32,8 +32,8 @@ export const useGmvAnalysis = (allServices: ServiceData[] | null | undefined) =>
       isValidCobro(service.cobro_cliente)
     );
     
-    // Calcular GMV
-    let gmv = 0;
+    // Calcular GMV total sin filtros de estado
+    let gmvTotalSinFiltros = 0;
     const uniqueIds = new Set<string>();
     
     serviciosCobroValido.forEach(service => {
@@ -41,10 +41,34 @@ export const useGmvAnalysis = (allServices: ServiceData[] | null | undefined) =>
         uniqueIds.add(service.id_servicio);
         const cobro = parseCobroCliente(service.cobro_cliente);
         if (cobro !== null) {
-          gmv += cobro;
+          gmvTotalSinFiltros += cobro;
         }
       }
     });
+    
+    // Calcular GMV solo de servicios "Finalizado"
+    const serviciosFinalizados = serviciosEnRango.filter(service => {
+      const estado = (service.estado || '').trim();
+      return estado === 'Finalizado' && isValidCobro(service.cobro_cliente);
+    });
+    
+    let gmvSoloFinalizados = 0;
+    const uniqueFinalizadosIds = new Set<string>();
+    
+    serviciosFinalizados.forEach(service => {
+      if (service.id_servicio && !uniqueFinalizadosIds.has(service.id_servicio)) {
+        uniqueFinalizadosIds.add(service.id_servicio);
+        const cobro = parseCobroCliente(service.cobro_cliente);
+        if (cobro !== null) {
+          gmvSoloFinalizados += cobro;
+        }
+      }
+    });
+    
+    // Referencia de 22M para comparaciones
+    const referenciaGmv = 22000000;
+    const diferenciaSinFiltros = gmvTotalSinFiltros - referenciaGmv;
+    const diferenciaFinalizados = gmvSoloFinalizados - referenciaGmv;
     
     // Análisis por estados
     const estadosCount: Record<string, number> = {};
@@ -64,7 +88,11 @@ export const useGmvAnalysis = (allServices: ServiceData[] | null | undefined) =>
       totalServicios: serviciosEnRango.length,
       serviciosConCobro: serviciosCobroValido.length,
       serviciosUnicos: uniqueIds.size,
-      gmv,
+      gmv: gmvTotalSinFiltros,
+      gmvTotalSinFiltros,
+      gmvSoloFinalizados,
+      diferenciaSinFiltros,
+      diferenciaFinalizados,
       estadosCount,
       estadosGmv
     };
