@@ -18,30 +18,80 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, User, Car, MapPin, Briefcase } from "lucide-react";
+import { Loader2, User, Car, MapPin, Briefcase, ChevronLeft, ChevronRight } from "lucide-react";
+import { useEstados, useCiudades, useZonasTrabajo } from "@/hooks/useGeograficos";
 
 interface LeadFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
 }
 
+interface FormData {
+  // Datos personales
+  nombre: string;
+  email: string;
+  telefono: string;
+  edad: string;
+  direccion: string;
+  
+  // Ubicación (IDs de las tablas)
+  estado_id: string;
+  ciudad_id: string;
+  zona_trabajo_id: string;
+  
+  // Información del vehículo
+  marca_vehiculo: string;
+  modelo_vehiculo: string;
+  año_vehiculo: string;
+  placas: string;
+  color_vehiculo: string;
+  tipo_vehiculo: string;
+  seguro_vigente: string;
+  
+  // Experiencia laboral
+  experiencia_custodia: string;
+  años_experiencia: string;
+  empresas_anteriores: string;
+  licencia_conducir: string;
+  tipo_licencia: string;
+  antecedentes_penales: string;
+  
+  // Información adicional
+  disponibilidad_horario: string;
+  disponibilidad_dias: string;
+  rango_km: string;
+  mensaje: string;
+  referencias: string;
+  estado_solicitud: string;
+  fuente: string;
+}
+
+const ETAPAS = [
+  { id: 'personal', titulo: 'Datos Personales', icono: User },
+  { id: 'vehiculo', titulo: 'Vehículo', icono: Car },
+  { id: 'experiencia', titulo: 'Experiencia', icono: Briefcase },
+  { id: 'ubicacion', titulo: 'Ubicación', icono: MapPin }
+];
+
 export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
+  const [etapaActual, setEtapaActual] = useState(0);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     // Datos personales
     nombre: "",
     email: "",
     telefono: "",
     edad: "",
     direccion: "",
-    ciudad: "",
-    estado: "",
-    codigo_postal: "",
+    
+    // Ubicación
+    estado_id: "",
+    ciudad_id: "",
+    zona_trabajo_id: "",
     
     // Información del vehículo
     marca_vehiculo: "",
@@ -60,32 +110,89 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
     tipo_licencia: "",
     antecedentes_penales: "",
     
-    // Zona de trabajo
-    zona_preferida: "",
+    // Información adicional
     disponibilidad_horario: "",
     disponibilidad_dias: "",
     rango_km: "",
-    
-    // Información adicional
     mensaje: "",
     referencias: "",
     estado_solicitud: "nuevo",
     fuente: "web"
   });
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  // Hooks para datos geográficos
+  const { estados } = useEstados();
+  const { ciudades } = useCiudades(formData.estado_id || null);
+  const { zonas } = useZonasTrabajo(formData.ciudad_id || null);
+
+  const handleInputChange = (field: keyof FormData, value: string) => {
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // Reset campos dependientes cuando cambia el estado o ciudad
+      if (field === 'estado_id') {
+        newData.ciudad_id = "";
+        newData.zona_trabajo_id = "";
+      } else if (field === 'ciudad_id') {
+        newData.zona_trabajo_id = "";
+      }
+      
+      return newData;
+    });
+  };
+
+  const validarEtapa = (etapa: number): boolean => {
+    switch (etapa) {
+      case 0: // Personal
+        return !!(formData.nombre && formData.email && formData.telefono);
+      case 1: // Vehículo
+        return true; // Opcional
+      case 2: // Experiencia
+        return true; // Opcional
+      case 3: // Ubicación
+        return !!(formData.estado_id && formData.ciudad_id);
+      default:
+        return true;
+    }
+  };
+
+  const siguienteEtapa = () => {
+    if (validarEtapa(etapaActual)) {
+      setEtapaActual(prev => Math.min(prev + 1, ETAPAS.length - 1));
+    } else {
+      toast({
+        title: "Campos requeridos",
+        description: "Por favor completa los campos obligatorios antes de continuar.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const anteriorEtapa = () => {
+    setEtapaActual(prev => Math.max(prev - 1, 0));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validarEtapa(etapaActual)) {
+      toast({
+        title: "Campos requeridos",
+        description: "Por favor completa los campos obligatorios.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Crear el lead básico en la tabla leads
+      // Obtener nombres de estado, ciudad y zona para almacenar en el JSON
+      const estadoSeleccionado = estados.find(e => e.id === formData.estado_id);
+      const ciudadSeleccionada = ciudades.find(c => c.id === formData.ciudad_id);
+      const zonaSeleccionada = zonas.find(z => z.id === formData.zona_trabajo_id);
+
+      // Crear el lead básico
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
         .insert({
@@ -102,15 +209,18 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
 
       if (leadError) throw leadError;
 
-      // Crear un registro detallado del candidato (usaremos la tabla leads con campos JSON)
+      // Crear los detalles del candidato
       const candidateDetails = {
         lead_id: leadData.id,
         datos_personales: {
           edad: formData.edad,
           direccion: formData.direccion,
-          ciudad: formData.ciudad,
-          estado: formData.estado,
-          codigo_postal: formData.codigo_postal
+          estado: estadoSeleccionado?.nombre || '',
+          ciudad: ciudadSeleccionada?.nombre || '',
+          zona_trabajo: zonaSeleccionada?.nombre || '',
+          estado_id: formData.estado_id,
+          ciudad_id: formData.ciudad_id,
+          zona_trabajo_id: formData.zona_trabajo_id
         },
         vehiculo: {
           marca: formData.marca_vehiculo,
@@ -129,10 +239,9 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
           tipo_licencia: formData.tipo_licencia,
           antecedentes_penales: formData.antecedentes_penales
         },
-        zona_trabajo: {
-          zona_preferida: formData.zona_preferida,
-          disponibilidad_horario: formData.disponibilidad_horario,
-          disponibilidad_dias: formData.disponibilidad_dias,
+        disponibilidad: {
+          horario: formData.disponibilidad_horario,
+          dias: formData.disponibilidad_dias,
           rango_km: formData.rango_km
         },
         referencias: formData.referencias
@@ -166,343 +275,409 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
     }
   };
 
+  const renderEtapaPersonal = () => (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="nombre">Nombre Completo *</Label>
+          <Input
+            id="nombre"
+            value={formData.nombre}
+            onChange={(e) => handleInputChange('nombre', e.target.value)}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="email">Email *</Label>
+          <Input
+            id="email"
+            type="email"
+            value={formData.email}
+            onChange={(e) => handleInputChange('email', e.target.value)}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="telefono">Teléfono *</Label>
+          <Input
+            id="telefono"
+            value={formData.telefono}
+            onChange={(e) => handleInputChange('telefono', e.target.value)}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="edad">Edad</Label>
+          <Input
+            id="edad"
+            type="number"
+            value={formData.edad}
+            onChange={(e) => handleInputChange('edad', e.target.value)}
+          />
+        </div>
+        <div className="space-y-2 md:col-span-2">
+          <Label htmlFor="direccion">Dirección</Label>
+          <Input
+            id="direccion"
+            value={formData.direccion}
+            onChange={(e) => handleInputChange('direccion', e.target.value)}
+          />
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderEtapaVehiculo = () => (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="marca_vehiculo">Marca del Vehículo</Label>
+          <Input
+            id="marca_vehiculo"
+            value={formData.marca_vehiculo}
+            onChange={(e) => handleInputChange('marca_vehiculo', e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="modelo_vehiculo">Modelo</Label>
+          <Input
+            id="modelo_vehiculo"
+            value={formData.modelo_vehiculo}
+            onChange={(e) => handleInputChange('modelo_vehiculo', e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="año_vehiculo">Año</Label>
+          <Input
+            id="año_vehiculo"
+            type="number"
+            value={formData.año_vehiculo}
+            onChange={(e) => handleInputChange('año_vehiculo', e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="placas">Placas</Label>
+          <Input
+            id="placas"
+            value={formData.placas}
+            onChange={(e) => handleInputChange('placas', e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="color_vehiculo">Color</Label>
+          <Input
+            id="color_vehiculo"
+            value={formData.color_vehiculo}
+            onChange={(e) => handleInputChange('color_vehiculo', e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="tipo_vehiculo">Tipo de Vehículo</Label>
+          <Select onValueChange={(value) => handleInputChange('tipo_vehiculo', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="sedán">Sedán</SelectItem>
+              <SelectItem value="suv">SUV</SelectItem>
+              <SelectItem value="pickup">Pick-up</SelectItem>
+              <SelectItem value="van">Van</SelectItem>
+              <SelectItem value="motocicleta">Motocicleta</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2 md:col-span-2">
+          <Label htmlFor="seguro_vigente">¿Cuenta con seguro vigente?</Label>
+          <Select onValueChange={(value) => handleInputChange('seguro_vigente', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="si">Sí</SelectItem>
+              <SelectItem value="no">No</SelectItem>
+              <SelectItem value="en_tramite">En trámite</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderEtapaExperiencia = () => (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="experiencia_custodia">¿Tienes experiencia en custodia?</Label>
+          <Select onValueChange={(value) => handleInputChange('experiencia_custodia', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="si">Sí</SelectItem>
+              <SelectItem value="no">No</SelectItem>
+              <SelectItem value="similar">Experiencia similar</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="años_experiencia">Años de experiencia</Label>
+          <Select onValueChange={(value) => handleInputChange('años_experiencia', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">Sin experiencia</SelectItem>
+              <SelectItem value="1">1 año</SelectItem>
+              <SelectItem value="2-3">2-3 años</SelectItem>
+              <SelectItem value="4-5">4-5 años</SelectItem>
+              <SelectItem value="5+">Más de 5 años</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="licencia_conducir">¿Tienes licencia de conducir vigente?</Label>
+          <Select onValueChange={(value) => handleInputChange('licencia_conducir', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="si">Sí</SelectItem>
+              <SelectItem value="no">No</SelectItem>
+              <SelectItem value="tramite">En trámite</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="tipo_licencia">Tipo de licencia</Label>
+          <Select onValueChange={(value) => handleInputChange('tipo_licencia', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="automovilista">Automovilista</SelectItem>
+              <SelectItem value="chofer">Chofer</SelectItem>
+              <SelectItem value="motociclista">Motociclista</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2 md:col-span-2">
+          <Label htmlFor="empresas_anteriores">Empresas anteriores (opcional)</Label>
+          <Textarea
+            id="empresas_anteriores"
+            value={formData.empresas_anteriores}
+            onChange={(e) => handleInputChange('empresas_anteriores', e.target.value)}
+            placeholder="Menciona las empresas donde has trabajado en seguridad o custodia"
+          />
+        </div>
+        <div className="space-y-2 md:col-span-2">
+          <Label htmlFor="antecedentes_penales">¿Tienes antecedentes penales?</Label>
+          <Select onValueChange={(value) => handleInputChange('antecedentes_penales', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="no">No</SelectItem>
+              <SelectItem value="si">Sí</SelectItem>
+              <SelectItem value="no_se">No lo sé</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderEtapaUbicacion = () => (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="estado">Estado *</Label>
+          <Select onValueChange={(value) => handleInputChange('estado_id', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar estado" />
+            </SelectTrigger>
+            <SelectContent>
+              {estados.map((estado) => (
+                <SelectItem key={estado.id} value={estado.id}>
+                  {estado.nombre}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="ciudad">Ciudad *</Label>
+          <Select 
+            value={formData.ciudad_id}
+            onValueChange={(value) => handleInputChange('ciudad_id', value)}
+            disabled={!formData.estado_id}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar ciudad" />
+            </SelectTrigger>
+            <SelectContent>
+              {ciudades.map((ciudad) => (
+                <SelectItem key={ciudad.id} value={ciudad.id}>
+                  {ciudad.nombre}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2 md:col-span-2">
+          <Label htmlFor="zona_trabajo">Zona de trabajo preferida</Label>
+          <Select 
+            value={formData.zona_trabajo_id}
+            onValueChange={(value) => handleInputChange('zona_trabajo_id', value)}
+            disabled={!formData.ciudad_id}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar zona (opcional)" />
+            </SelectTrigger>
+            <SelectContent>
+              {zonas.map((zona) => (
+                <SelectItem key={zona.id} value={zona.id}>
+                  {zona.nombre} {zona.descripcion && `- ${zona.descripcion}`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="disponibilidad_horario">Disponibilidad de horario</Label>
+          <Select onValueChange={(value) => handleInputChange('disponibilidad_horario', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar horario" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="completo">Tiempo completo</SelectItem>
+              <SelectItem value="parcial">Tiempo parcial</SelectItem>
+              <SelectItem value="matutino">Turno matutino</SelectItem>
+              <SelectItem value="vespertino">Turno vespertino</SelectItem>
+              <SelectItem value="nocturno">Turno nocturno</SelectItem>
+              <SelectItem value="fines_semana">Solo fines de semana</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="rango_km">Rango de kilómetros dispuesto a trabajar</Label>
+          <Select onValueChange={(value) => handleInputChange('rango_km', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar rango" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0-50">0-50 km</SelectItem>
+              <SelectItem value="50-100">50-100 km</SelectItem>
+              <SelectItem value="100-200">100-200 km</SelectItem>
+              <SelectItem value="200+">Más de 200 km</SelectItem>
+              <SelectItem value="nacional">Nivel nacional</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2 md:col-span-2">
+          <Label htmlFor="disponibilidad_dias">Días disponibles</Label>
+          <Input
+            id="disponibilidad_dias"
+            value={formData.disponibilidad_dias}
+            onChange={(e) => handleInputChange('disponibilidad_dias', e.target.value)}
+            placeholder="Ej: Lunes a viernes, Fines de semana"
+          />
+        </div>
+        <div className="space-y-2 md:col-span-2">
+          <Label htmlFor="referencias">Referencias (opcional)</Label>
+          <Textarea
+            id="referencias"
+            value={formData.referencias}
+            onChange={(e) => handleInputChange('referencias', e.target.value)}
+            placeholder="Nombres y teléfonos de referencias laborales o personales"
+          />
+        </div>
+        <div className="space-y-2 md:col-span-2">
+          <Label htmlFor="mensaje">Comentarios adicionales</Label>
+          <Textarea
+            id="mensaje"
+            value={formData.mensaje}
+            onChange={(e) => handleInputChange('mensaje', e.target.value)}
+            placeholder="Cualquier información adicional que consideres relevante"
+          />
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderEtapaActual = () => {
+    switch (etapaActual) {
+      case 0:
+        return renderEtapaPersonal();
+      case 1:
+        return renderEtapaVehiculo();
+      case 2:
+        return renderEtapaExperiencia();
+      case 3:
+        return renderEtapaUbicacion();
+      default:
+        return null;
+    }
+  };
+
+  const EtapaActualIcon = ETAPAS[etapaActual].icono;
+
   return (
     <Card className="w-full max-w-4xl mx-auto">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <User className="h-5 w-5" />
-          Registro de Candidato a Custodio
+          <EtapaActualIcon className="h-5 w-5" />
+          Registro de Candidato - {ETAPAS[etapaActual].titulo}
         </CardTitle>
         <CardDescription>
-          Completa la información del candidato para iniciar el proceso de evaluación
+          Etapa {etapaActual + 1} de {ETAPAS.length}: {ETAPAS[etapaActual].titulo}
         </CardDescription>
+        
+        {/* Indicador de progreso */}
+        <div className="flex gap-2 mt-4">
+          {ETAPAS.map((etapa, index) => (
+            <div
+              key={etapa.id}
+              className={`flex-1 h-2 rounded-full ${
+                index <= etapaActual ? 'bg-primary' : 'bg-gray-200'
+              }`}
+            />
+          ))}
+        </div>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          <Tabs defaultValue="personal" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="personal" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                Personal
-              </TabsTrigger>
-              <TabsTrigger value="vehiculo" className="flex items-center gap-2">
-                <Car className="h-4 w-4" />
-                Vehículo
-              </TabsTrigger>
-              <TabsTrigger value="experiencia" className="flex items-center gap-2">
-                <Briefcase className="h-4 w-4" />
-                Experiencia
-              </TabsTrigger>
-              <TabsTrigger value="zona" className="flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                Zona
-              </TabsTrigger>
-            </TabsList>
+          {renderEtapaActual()}
 
-            <TabsContent value="personal" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="nombre">Nombre Completo *</Label>
-                  <Input
-                    id="nombre"
-                    value={formData.nombre}
-                    onChange={(e) => handleInputChange('nombre', e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="telefono">Teléfono *</Label>
-                  <Input
-                    id="telefono"
-                    value={formData.telefono}
-                    onChange={(e) => handleInputChange('telefono', e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edad">Edad</Label>
-                  <Input
-                    id="edad"
-                    type="number"
-                    value={formData.edad}
-                    onChange={(e) => handleInputChange('edad', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="direccion">Dirección</Label>
-                  <Input
-                    id="direccion"
-                    value={formData.direccion}
-                    onChange={(e) => handleInputChange('direccion', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ciudad">Ciudad</Label>
-                  <Input
-                    id="ciudad"
-                    value={formData.ciudad}
-                    onChange={(e) => handleInputChange('ciudad', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="estado">Estado</Label>
-                  <Input
-                    id="estado"
-                    value={formData.estado}
-                    onChange={(e) => handleInputChange('estado', e.target.value)}
-                  />
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="vehiculo" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="marca_vehiculo">Marca del Vehículo</Label>
-                  <Input
-                    id="marca_vehiculo"
-                    value={formData.marca_vehiculo}
-                    onChange={(e) => handleInputChange('marca_vehiculo', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="modelo_vehiculo">Modelo</Label>
-                  <Input
-                    id="modelo_vehiculo"
-                    value={formData.modelo_vehiculo}
-                    onChange={(e) => handleInputChange('modelo_vehiculo', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="año_vehiculo">Año</Label>
-                  <Input
-                    id="año_vehiculo"
-                    type="number"
-                    value={formData.año_vehiculo}
-                    onChange={(e) => handleInputChange('año_vehiculo', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="placas">Placas</Label>
-                  <Input
-                    id="placas"
-                    value={formData.placas}
-                    onChange={(e) => handleInputChange('placas', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="color_vehiculo">Color</Label>
-                  <Input
-                    id="color_vehiculo"
-                    value={formData.color_vehiculo}
-                    onChange={(e) => handleInputChange('color_vehiculo', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="tipo_vehiculo">Tipo de Vehículo</Label>
-                  <Select onValueChange={(value) => handleInputChange('tipo_vehiculo', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="sedán">Sedán</SelectItem>
-                      <SelectItem value="suv">SUV</SelectItem>
-                      <SelectItem value="pickup">Pick-up</SelectItem>
-                      <SelectItem value="van">Van</SelectItem>
-                      <SelectItem value="motocicleta">Motocicleta</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="seguro_vigente">¿Cuenta con seguro vigente?</Label>
-                  <Select onValueChange={(value) => handleInputChange('seguro_vigente', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="si">Sí</SelectItem>
-                      <SelectItem value="no">No</SelectItem>
-                      <SelectItem value="en_tramite">En trámite</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="experiencia" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="experiencia_custodia">¿Tienes experiencia en custodia?</Label>
-                  <Select onValueChange={(value) => handleInputChange('experiencia_custodia', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="si">Sí</SelectItem>
-                      <SelectItem value="no">No</SelectItem>
-                      <SelectItem value="similar">Experiencia similar</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="años_experiencia">Años de experiencia</Label>
-                  <Select onValueChange={(value) => handleInputChange('años_experiencia', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">Sin experiencia</SelectItem>
-                      <SelectItem value="1">1 año</SelectItem>
-                      <SelectItem value="2-3">2-3 años</SelectItem>
-                      <SelectItem value="4-5">4-5 años</SelectItem>
-                      <SelectItem value="5+">Más de 5 años</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="empresas_anteriores">Empresas anteriores (opcional)</Label>
-                  <Textarea
-                    id="empresas_anteriores"
-                    value={formData.empresas_anteriores}
-                    onChange={(e) => handleInputChange('empresas_anteriores', e.target.value)}
-                    placeholder="Menciona las empresas donde has trabajado en seguridad o custodia"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="licencia_conducir">¿Tienes licencia de conducir vigente?</Label>
-                  <Select onValueChange={(value) => handleInputChange('licencia_conducir', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="si">Sí</SelectItem>
-                      <SelectItem value="no">No</SelectItem>
-                      <SelectItem value="tramite">En trámite</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="tipo_licencia">Tipo de licencia</Label>
-                  <Select onValueChange={(value) => handleInputChange('tipo_licencia', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="automovilista">Automovilista</SelectItem>
-                      <SelectItem value="chofer">Chofer</SelectItem>
-                      <SelectItem value="motociclista">Motociclista</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="antecedentes_penales">¿Tienes antecedentes penales?</Label>
-                  <Select onValueChange={(value) => handleInputChange('antecedentes_penales', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="no">No</SelectItem>
-                      <SelectItem value="si">Sí</SelectItem>
-                      <SelectItem value="no_se">No lo sé</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="zona" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="zona_preferida">Zona de trabajo preferida</Label>
-                  <Input
-                    id="zona_preferida"
-                    value={formData.zona_preferida}
-                    onChange={(e) => handleInputChange('zona_preferida', e.target.value)}
-                    placeholder="Ej: Norte de la ciudad, Centro, etc."
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="rango_km">Rango de kilómetros dispuesto a trabajar</Label>
-                  <Select onValueChange={(value) => handleInputChange('rango_km', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar rango" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0-50">0-50 km</SelectItem>
-                      <SelectItem value="50-100">50-100 km</SelectItem>
-                      <SelectItem value="100-200">100-200 km</SelectItem>
-                      <SelectItem value="200+">Más de 200 km</SelectItem>
-                      <SelectItem value="nacional">Nivel nacional</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="disponibilidad_horario">Disponibilidad de horario</Label>
-                  <Select onValueChange={(value) => handleInputChange('disponibilidad_horario', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar horario" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="completo">Tiempo completo</SelectItem>
-                      <SelectItem value="parcial">Tiempo parcial</SelectItem>
-                      <SelectItem value="matutino">Turno matutino</SelectItem>
-                      <SelectItem value="vespertino">Turno vespertino</SelectItem>
-                      <SelectItem value="nocturno">Turno nocturno</SelectItem>
-                      <SelectItem value="fines_semana">Solo fines de semana</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="disponibilidad_dias">Días disponibles</Label>
-                  <Input
-                    id="disponibilidad_dias"
-                    value={formData.disponibilidad_dias}
-                    onChange={(e) => handleInputChange('disponibilidad_dias', e.target.value)}
-                    placeholder="Ej: Lunes a viernes, Fines de semana"
-                  />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="referencias">Referencias (opcional)</Label>
-                  <Textarea
-                    id="referencias"
-                    value={formData.referencias}
-                    onChange={(e) => handleInputChange('referencias', e.target.value)}
-                    placeholder="Nombres y teléfonos de referencias laborales o personales"
-                  />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="mensaje">Comentarios adicionales</Label>
-                  <Textarea
-                    id="mensaje"
-                    value={formData.mensaje}
-                    onChange={(e) => handleInputChange('mensaje', e.target.value)}
-                    placeholder="Cualquier información adicional que consideres relevante"
-                  />
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-
-          <div className="flex justify-end gap-3">
-            {onCancel && (
-              <Button type="button" variant="outline" onClick={onCancel}>
-                Cancelar
-              </Button>
-            )}
-            <Button type="submit" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Registrar Candidato
+          <div className="flex justify-between pt-6">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={anteriorEtapa}
+              disabled={etapaActual === 0}
+            >
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Anterior
             </Button>
+
+            <div className="flex gap-3">
+              {onCancel && (
+                <Button type="button" variant="outline" onClick={onCancel}>
+                  Cancelar
+                </Button>
+              )}
+              
+              {etapaActual < ETAPAS.length - 1 ? (
+                <Button type="button" onClick={siguienteEtapa}>
+                  Siguiente
+                  <ChevronRight className="h-4 w-4 ml-2" />
+                </Button>
+              ) : (
+                <Button type="submit" disabled={loading}>
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Registrar Candidato
+                </Button>
+              )}
+            </div>
           </div>
         </form>
       </CardContent>

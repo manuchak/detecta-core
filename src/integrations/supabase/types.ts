@@ -39,6 +39,35 @@ export type Database = {
         }
         Relationships: []
       }
+      ciudades: {
+        Row: {
+          created_at: string
+          estado_id: string
+          id: string
+          nombre: string
+        }
+        Insert: {
+          created_at?: string
+          estado_id: string
+          id?: string
+          nombre: string
+        }
+        Update: {
+          created_at?: string
+          estado_id?: string
+          id?: string
+          nombre?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ciudades_estado_id_fkey"
+            columns: ["estado_id"]
+            isOneToOne: false
+            referencedRelation: "estados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custodio_points: {
         Row: {
           created_at: string
@@ -72,6 +101,27 @@ export type Database = {
           total_trips?: number
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      estados: {
+        Row: {
+          codigo: string
+          created_at: string
+          id: string
+          nombre: string
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          id?: string
+          nombre: string
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          id?: string
+          nombre?: string
         }
         Relationships: []
       }
@@ -705,6 +755,41 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      zonas_trabajo: {
+        Row: {
+          ciudad_id: string
+          coordenadas: Json | null
+          created_at: string
+          descripcion: string | null
+          id: string
+          nombre: string
+        }
+        Insert: {
+          ciudad_id: string
+          coordenadas?: Json | null
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          nombre: string
+        }
+        Update: {
+          ciudad_id?: string
+          coordenadas?: Json | null
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zonas_trabajo_ciudad_id_fkey"
+            columns: ["ciudad_id"]
+            isOneToOne: false
+            referencedRelation: "ciudades"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
