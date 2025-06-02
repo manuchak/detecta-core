@@ -56,8 +56,12 @@ export const useGmvDiagnostic = () => {
     
     const serviciosConCobroValido = serviciosEnRango.filter(service => {
       const cobro = service.cobro_cliente;
+      // Check for null, undefined, or empty string first
+      if (cobro === null || cobro === undefined || cobro === '') {
+        return false;
+      }
       const cobroNumerico = Number(cobro);
-      return cobro !== null && cobro !== undefined && cobro !== '' && !isNaN(cobroNumerico) && cobroNumerico > 0;
+      return !isNaN(cobroNumerico) && cobroNumerico > 0;
     });
     
     const serviciosConCobroNulo = serviciosEnRango.filter(service => {
@@ -66,7 +70,11 @@ export const useGmvDiagnostic = () => {
     });
     
     const serviciosConCobroCero = serviciosEnRango.filter(service => {
-      const cobroNumerico = Number(service.cobro_cliente);
+      const cobro = service.cobro_cliente;
+      if (cobro === null || cobro === undefined || cobro === '') {
+        return false;
+      }
+      const cobroNumerico = Number(cobro);
       return !isNaN(cobroNumerico) && cobroNumerico === 0;
     });
     
