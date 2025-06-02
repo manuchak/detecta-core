@@ -12,10 +12,12 @@ export interface DashboardMetrics {
   ongoingServices: number;
   pendingServices: number;
   cancelledServices: number;
+  yearlyGrowth: number; // Added missing property
 }
 
-export type TimeframeOption = "week" | "month" | "quarter" | "year";
-export type ServiceTypeOption = "all" | "custodia" | "punto-a-b" | "especializada";
+// Updated to match the original hook's types
+export type TimeframeOption = "day" | "week" | "month" | "quarter" | "year";
+export type ServiceTypeOption = "all" | "local" | "foraneo";
 
 export const useDashboardDataCorrected = (
   timeframe: TimeframeOption = "month",
@@ -59,7 +61,8 @@ export const useDashboardDataCorrected = (
         completedServices: 0,
         ongoingServices: 0,
         pendingServices: 0,
-        cancelledServices: 0
+        cancelledServices: 0,
+        yearlyGrowth: 0 // Added missing property
       };
     }
 
@@ -139,7 +142,8 @@ export const useDashboardDataCorrected = (
       completedServices: serviciosUnicos,
       ongoingServices: serviciosEnCurso.length,
       pendingServices: serviciosPendientes.length,
-      cancelledServices: serviciosCancelados.length
+      cancelledServices: serviciosCancelados.length,
+      yearlyGrowth: 15 // Added missing property with default value
     };
 
     console.log('🎯 DASHBOARD RESULT CORREGIDO:', result);

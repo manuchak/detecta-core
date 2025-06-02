@@ -14,7 +14,7 @@ import {
   Calendar,
   PauseCircle
 } from "lucide-react";
-import { DashboardMetrics } from "@/hooks/useDashboardData";
+import { DashboardMetrics } from "@/hooks/useDashboardDataCorrected";
 import { useFormatters } from "@/hooks/useFormatters";
 
 interface MetricsCardsProps {

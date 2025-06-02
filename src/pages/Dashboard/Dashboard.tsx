@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { 
   useDashboardDataCorrected as useDashboardData, 
@@ -134,8 +135,8 @@ export const Dashboard = () => {
           <DashboardFilters
             timeframe={timeframe}
             serviceTypeFilter={serviceTypeFilter}
-            onTimeframeChange={setTimeframe}
-            onServiceTypeChange={setServiceTypeFilter}
+            onTimeframeChange={(value) => setTimeframe(value)}
+            onServiceTypeChange={(value) => setServiceTypeFilter(value)}
             onRefresh={refreshAllData}
           />
         </div>
