@@ -1,3 +1,4 @@
+
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -282,13 +283,15 @@ export const useGmvDiagnostic = () => {
     let sumaRangos = 0;
     serviciosCobroValido.forEach(service => {
       const cobroNumerico = Number(service.cobro_cliente);
-      sumaRangos += cobroNumerico;
-      
-      if (cobroNumerico <= 1000) rangos['0-1000']++;
-      else if (cobroNumerico <= 5000) rangos['1000-5000']++;
-      else if (cobroNumerico <= 10000) rangos['5000-10000']++;
-      else if (cobroNumerico <= 50000) rangos['10000-50000']++;
-      else rangos['50000+']++;
+      if (!isNaN(cobroNumerico)) {
+        sumaRangos += cobroNumerico;
+        
+        if (cobroNumerico <= 1000) rangos['0-1000']++;
+        else if (cobroNumerico <= 5000) rangos['1000-5000']++;
+        else if (cobroNumerico <= 10000) rangos['5000-10000']++;
+        else if (cobroNumerico <= 50000) rangos['10000-50000']++;
+        else rangos['50000+']++;
+      }
     });
     
     Object.entries(rangos).forEach(([rango, cantidad]) => {
