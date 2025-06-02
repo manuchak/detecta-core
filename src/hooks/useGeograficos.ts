@@ -30,6 +30,9 @@ export const useEstados = () => {
     const fetchEstados = async () => {
       try {
         console.log('Fetching estados...');
+        setLoading(true);
+        setError(null);
+        
         const { data, error } = await supabase
           .from('estados')
           .select('*')
@@ -37,14 +40,16 @@ export const useEstados = () => {
         
         if (error) {
           console.error('Error fetching estados:', error);
-          throw error;
+          setError(error.message);
+          return;
         }
         
-        console.log('Estados fetched:', data);
+        console.log('Estados fetched successfully:', data);
         setEstados(data || []);
       } catch (err) {
         console.error('Error in fetchEstados:', err);
-        setError(err instanceof Error ? err.message : 'Error al cargar estados');
+        const errorMessage = err instanceof Error ? err.message : 'Error al cargar estados';
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -64,13 +69,16 @@ export const useCiudades = (estadoId: string | null) => {
   useEffect(() => {
     if (!estadoId) {
       setCiudades([]);
+      setLoading(false);
       return;
     }
 
     const fetchCiudades = async () => {
       try {
         setLoading(true);
+        setError(null);
         console.log('Fetching ciudades for estado:', estadoId);
+        
         const { data, error } = await supabase
           .from('ciudades')
           .select('*')
@@ -79,14 +87,16 @@ export const useCiudades = (estadoId: string | null) => {
         
         if (error) {
           console.error('Error fetching ciudades:', error);
-          throw error;
+          setError(error.message);
+          return;
         }
         
         console.log('Ciudades fetched:', data);
         setCiudades(data || []);
       } catch (err) {
         console.error('Error in fetchCiudades:', err);
-        setError(err instanceof Error ? err.message : 'Error al cargar ciudades');
+        const errorMessage = err instanceof Error ? err.message : 'Error al cargar ciudades';
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -106,13 +116,16 @@ export const useZonasTrabajo = (ciudadId: string | null) => {
   useEffect(() => {
     if (!ciudadId) {
       setZonas([]);
+      setLoading(false);
       return;
     }
 
     const fetchZonas = async () => {
       try {
         setLoading(true);
+        setError(null);
         console.log('Fetching zonas for ciudad:', ciudadId);
+        
         const { data, error } = await supabase
           .from('zonas_trabajo')
           .select('*')
@@ -121,14 +134,16 @@ export const useZonasTrabajo = (ciudadId: string | null) => {
         
         if (error) {
           console.error('Error fetching zonas:', error);
-          throw error;
+          setError(error.message);
+          return;
         }
         
         console.log('Zonas fetched:', data);
         setZonas(data || []);
       } catch (err) {
         console.error('Error in fetchZonas:', err);
-        setError(err instanceof Error ? err.message : 'Error al cargar zonas');
+        const errorMessage = err instanceof Error ? err.message : 'Error al cargar zonas';
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
