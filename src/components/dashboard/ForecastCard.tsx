@@ -1,20 +1,85 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFormatters } from "@/hooks/useFormatters";
 import { useForecastData } from "@/hooks/useForecastData";
-import { TrendingUp, TrendingDown, BarChart3, DollarSign, Calendar, Target, Info, Database } from "lucide-react";
+import { TrendingUp, TrendingDown, BarChart3, DollarSign, Calendar, Target, Info, Database, Loader2, AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface ForecastCardProps {
   totalServices: number;
   totalGMV: number;
+  isLoading?: boolean;
+  error?: any;
 }
 
-export const ForecastCard = ({ totalServices, totalGMV }: ForecastCardProps) => {
+export const ForecastCard = ({ totalServices, totalGMV, isLoading = false, error }: ForecastCardProps) => {
   const { formatCurrency } = useFormatters();
   const forecastData = useForecastData(totalServices, totalGMV);
   
   const currentYear = new Date().getFullYear();
+  
+  // Si hay error en los datos del forecast
+  if (error) {
+    return (
+      <Card className="bg-gradient-to-br from-red-50 via-red-50 to-red-100 border-0 shadow-lg">
+        <CardHeader className="pb-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-red-600 rounded-lg">
+              <AlertTriangle className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-xl font-bold text-red-900">
+                Error en Forecast
+              </CardTitle>
+              <p className="text-sm text-red-700">
+                No se pudieron cargar los datos anuales
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Alert className="bg-red-100 border-red-300">
+            <AlertTriangle className="h-4 w-4 text-red-700" />
+            <AlertDescription className="text-red-800">
+              Error al obtener datos: {error?.message || 'Error desconocido'}
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Si está cargando
+  if (isLoading) {
+    return (
+      <Card className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border-0 shadow-lg">
+        <CardHeader className="pb-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg">
+              <Loader2 className="h-6 w-6 text-white animate-spin" />
+            </div>
+            <div>
+              <CardTitle className="text-xl font-bold text-slate-900">
+                Cargando Forecast...
+              </CardTitle>
+              <p className="text-sm text-slate-600">
+                Obteniendo datos anuales completos
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-white/70 rounded-lg p-4 animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div className="h-6 bg-gray-300 rounded w-1/2"></div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
   
   // Componente para mostrar varianza con colores
   const VarianceIndicator = ({ variance, isPositive = true }: { variance: number; isPositive?: boolean }) => {
@@ -113,7 +178,7 @@ export const ForecastCard = ({ totalServices, totalGMV }: ForecastCardProps) => 
               </CardTitle>
               <p className="text-sm text-slate-600 flex items-center gap-1">
                 <Database className="h-3 w-3" />
-                Basado en datos reales de Supabase (Ene-May 2025)
+                Datos anuales completos (sin filtros temporales)
               </p>
             </div>
           </div>
@@ -128,8 +193,8 @@ export const ForecastCard = ({ totalServices, totalGMV }: ForecastCardProps) => 
         <Alert className="bg-blue-50 border-blue-200">
           <Info className="h-4 w-4 text-blue-600" />
           <AlertDescription className="text-blue-800 text-sm">
-            <strong>Datos en tiempo real:</strong> {forecastData.monthlyServicesActual.toLocaleString()} servicios únicos con estado "Finalizado" 
-            y {formatCurrency(forecastData.monthlyGmvActual)} GMV total (Ene-May 2025) obtenidos directamente de la base de datos Supabase.
+            <strong>Datos anuales completos:</strong> {forecastData.monthlyServicesActual.toLocaleString()} servicios únicos con estado "Finalizado" 
+            y {formatCurrency(forecastData.monthlyGmvActual)} GMV total (Ene-May 2025). Los filtros superiores NO afectan estas métricas.
           </AlertDescription>
         </Alert>
         
@@ -197,7 +262,7 @@ export const ForecastCard = ({ totalServices, totalGMV }: ForecastCardProps) => 
         <div className="bg-white/70 rounded-lg p-4 border border-indigo-100">
           <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
             <Database className="h-4 w-4" />
-            Metodología del Forecast (Datos Reales)
+            Metodología del Forecast (Datos Reales Anuales)
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-600">
             <div className="flex items-center gap-2">
@@ -206,7 +271,7 @@ export const ForecastCard = ({ totalServices, totalGMV }: ForecastCardProps) => 
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-              <span>GMV real: {formatCurrency(forecastData.monthlyGmvActual)}</span>
+              <span>GMV real anual: {formatCurrency(forecastData.monthlyGmvActual)}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -214,7 +279,7 @@ export const ForecastCard = ({ totalServices, totalGMV }: ForecastCardProps) => 
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-              <span>Factores estacionales aplicados</span>
+              <span>Independiente de filtros temporales</span>
             </div>
           </div>
         </div>

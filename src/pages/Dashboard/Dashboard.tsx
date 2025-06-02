@@ -19,6 +19,7 @@ export const Dashboard = () => {
   const [timeframe, setTimeframe] = useState<TimeframeOption>("month");
   const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceTypeOption>("all");
   
+  // Datos filtrados para gráficos y métricas principales
   const {
     isLoading: dataLoading,
     error: dataError,
@@ -29,6 +30,14 @@ export const Dashboard = () => {
     topClientsData,
     refreshAllData
   } = useDashboardData(timeframe, serviceTypeFilter);
+
+  // Datos anuales globales SOLO para el Forecast (sin filtros)
+  const {
+    isLoading: forecastDataLoading,
+    error: forecastDataError,
+    dashboardData: forecastMetrics,
+    refreshAllData: refreshForecastData
+  } = useDashboardData("year", "all");
 
   // Si hay un error crítico, mostrar mensaje de error
   if (dataError) {
@@ -87,6 +96,11 @@ export const Dashboard = () => {
     );
   }
 
+  const handleRefresh = () => {
+    refreshAllData();
+    refreshForecastData();
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <div className="space-y-8 max-w-7xl mx-auto px-6 py-8">
@@ -137,7 +151,7 @@ export const Dashboard = () => {
             serviceTypeFilter={serviceTypeFilter}
             onTimeframeChange={(value) => setTimeframe(value)}
             onServiceTypeChange={(value) => setServiceTypeFilter(value)}
-            onRefresh={refreshAllData}
+            onRefresh={handleRefresh}
           />
         </div>
         
@@ -161,10 +175,12 @@ export const Dashboard = () => {
           topClientsData={topClientsData}
         />
         
-        {/* Forecast Card - Reemplaza GmvProgress */}
+        {/* Forecast Card - Usando datos anuales sin filtros */}
         <ForecastCard 
-          totalServices={dashboardData.totalServices} 
-          totalGMV={dashboardData.totalGMV} 
+          totalServices={forecastMetrics?.totalServices || 0} 
+          totalGMV={forecastMetrics?.totalGMV || 0}
+          isLoading={forecastDataLoading}
+          error={forecastDataError}
         />
       </div>
     </div>
