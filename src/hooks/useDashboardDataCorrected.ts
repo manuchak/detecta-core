@@ -116,7 +116,32 @@ export const useDashboardDataCorrected = (
       console.log(`🔍 Dashboard - Servicios después de filtro tipo "${serviceTypeFilter}": ${serviciosFiltrados.length}`);
     }
 
-    // PASO 4: Analizar estados
+    // PASO 4: Análisis de GMV - CORREGIDO para ser menos restrictivo
+    console.log('💰 ANÁLISIS DE GMV CORREGIDO:');
+    
+    // Contar servicios con cobro_cliente válido (no nulo, no vacío, > 0)
+    const serviciosConCobro = serviciosFiltrados.filter(service => {
+      const cobro = Number(service.cobro_cliente);
+      return !isNaN(cobro) && cobro > 0;
+    });
+    console.log(`💳 Servicios con cobro válido: ${serviciosConCobro.length}`);
+
+    // Calcular GMV total SIN filtrar por estado (incluir todos los servicios con cobro)
+    let totalGmvCalculated = 0;
+    const uniqueServiceIds = new Set();
+
+    serviciosConCobro.forEach(service => {
+      if (service.id_servicio && !uniqueServiceIds.has(service.id_servicio)) {
+        uniqueServiceIds.add(service.id_servicio);
+        const cobroCliente = Number(service.cobro_cliente) || 0;
+        totalGmvCalculated += cobroCliente;
+      }
+    });
+
+    console.log(`💰 GMV total calculado: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(totalGmvCalculated)}`);
+    console.log(`🆔 Servicios únicos con cobro: ${uniqueServiceIds.size}`);
+
+    // PASO 5: Analizar estados SOLO para métricas de estado
     const estadosConteo = {};
     serviciosFiltrados.forEach(s => {
       const estado = s.estado || 'NULL';
@@ -124,15 +149,13 @@ export const useDashboardDataCorrected = (
     });
     console.log('📋 Dashboard - Estados en rango:', estadosConteo);
 
-    // PASO 5: Servicios completados (mismas variaciones que forecast)
+    // PASO 6: Servicios por estado (para las métricas de estado)
     const variacionesCompletas = ['finalizado', 'completado', 'finished', 'completed', 'done'];
     const serviciosCompletados = serviciosFiltrados.filter(service => {
       const estado = (service.estado || '').toLowerCase().trim();
       return variacionesCompletas.some(variacion => estado.includes(variacion));
     });
-    console.log(`✅ Dashboard - Servicios completados en ${timeframe}: ${serviciosCompletados.length}`);
 
-    // PASO 6: Otros estados
     const serviciosCancelados = serviciosFiltrados.filter(service => {
       const estado = (service.estado || '').toLowerCase().trim();
       return estado.includes('cancelado');
@@ -148,39 +171,33 @@ export const useDashboardDataCorrected = (
       return estado.includes('pendiente') || estado.includes('programado') || estado.includes('espera');
     });
 
-    // PASO 7: Calcular GMV de servicios completados únicos
-    const uniqueServiceIds = new Set();
-    let totalGmvCalculated = 0;
-
+    // PASO 7: Servicios únicos completados (para la métrica de completados)
+    const completedServiceIds = new Set();
     serviciosCompletados.forEach(service => {
-      if (service.id_servicio && !uniqueServiceIds.has(service.id_servicio)) {
-        uniqueServiceIds.add(service.id_servicio);
-        const cobroCliente = Number(service.cobro_cliente) || 0;
-        totalGmvCalculated += cobroCliente;
+      if (service.id_servicio) {
+        completedServiceIds.add(service.id_servicio);
       }
     });
 
-    const serviciosUnicos = uniqueServiceIds.size;
-    
     // PASO 8: Clientes únicos en el período
     const clientesUnicos = new Set(
-      serviciosCompletados
+      serviciosFiltrados
         .filter(s => s.nombre_cliente)
         .map(s => s.nombre_cliente.trim().toUpperCase())
     ).size;
 
-    // PASO 9: Valor promedio
-    const valorPromedio = serviciosUnicos > 0 ? totalGmvCalculated / serviciosUnicos : 0;
+    // PASO 9: Valor promedio basado en servicios con cobro
+    const valorPromedio = uniqueServiceIds.size > 0 ? totalGmvCalculated / uniqueServiceIds.size : 0;
 
     // PASO 10: Total de servicios en el período (todos los estados)
     const totalServiciosEnPeriodo = serviciosFiltrados.length;
 
     const result = {
-      totalServices: totalServiciosEnPeriodo, // TOTAL DE SERVICIOS EN EL PERÍODO
-      totalGMV: totalGmvCalculated,
+      totalServices: totalServiciosEnPeriodo,
+      totalGMV: totalGmvCalculated, // GMV de TODOS los servicios con cobro, no solo completados
       activeClients: clientesUnicos,
       averageServiceValue: valorPromedio,
-      completedServices: serviciosUnicos, // SERVICIOS ÚNICOS COMPLETADOS
+      completedServices: completedServiceIds.size, // Servicios únicos completados
       ongoingServices: serviciosEnCurso.length,
       pendingServices: serviciosPendientes.length,
       cancelledServices: serviciosCancelados.length,
@@ -188,7 +205,8 @@ export const useDashboardDataCorrected = (
     };
 
     console.log(`🎯 DASHBOARD RESULT para ${timeframe}:`, result);
-    console.log(`📊 Resumen: ${totalServiciosEnPeriodo} servicios totales, ${serviciosUnicos} completados únicos`);
+    console.log(`📊 Resumen: ${totalServiciosEnPeriodo} servicios totales, ${uniqueServiceIds.size} con cobro válido`);
+    console.log(`💰 GMV incluye TODOS los servicios con cobro, no solo completados`);
     
     return result;
   }, [allServices, isLoading, error, timeframe, serviceTypeFilter]);
