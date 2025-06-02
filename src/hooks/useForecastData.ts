@@ -1,4 +1,3 @@
-
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,59 +25,52 @@ export const useForecastData = (
   historicalData?: Array<{ month: number; services: number; gmv: number }>
 ): ForecastData => {
   
-  // Query para obtener servicios finalizados de enero a mayo 2025
+  // Query para obtener servicios finalizados usando función segura
   const { data: realData, isLoading, error } = useQuery({
-    queryKey: ['forecast-real-data'],
+    queryKey: ['forecast-real-data-secure'],
     queryFn: async () => {
-      console.log('Obteniendo datos reales de servicios finalizados...');
+      console.log('Obteniendo datos reales usando función segura...');
       
-      const { data, error } = await supabase
-        .from('servicios_custodia')
-        .select('id_servicio, cobro_cliente, fecha_hora_cita, estado')
-        .eq('estado', 'Finalizado')
-        .gte('fecha_hora_cita', '2025-01-01T00:00:00.000Z')
-        .lte('fecha_hora_cita', '2025-05-31T23:59:59.999Z')
-        .not('id_servicio', 'is', null)
-        .not('cobro_cliente', 'is', null);
+      try {
+        // Usar la función segura que evita recursión RLS
+        const { data, error } = await supabase.rpc('get_finalized_services_data_secure', {
+          start_date: '2025-01-01T00:00:00.000Z',
+          end_date: '2025-05-31T23:59:59.999Z'
+        });
 
-      if (error) {
-        console.error('Error al obtener datos reales:', error);
+        if (error) {
+          console.error('Error al obtener datos usando función segura:', error);
+          throw error;
+        }
+
+        console.log('Datos obtenidos con función segura:', data);
+
+        if (!data || data.length === 0) {
+          console.warn('No se encontraron datos de servicios finalizados');
+          return {
+            uniqueServices: 0,
+            totalGmv: 0,
+            rawData: []
+          };
+        }
+
+        const result = data[0];
+        
+        console.log('Datos procesados:', {
+          serviciosUnicos: result.total_services,
+          gmvTotal: result.total_gmv,
+          registrosTotales: result.service_count
+        });
+
+        return {
+          uniqueServices: Number(result.total_services) || 0,
+          totalGmv: Number(result.total_gmv) || 0,
+          rawData: data
+        };
+      } catch (error) {
+        console.error('Error en función segura:', error);
         throw error;
       }
-
-      console.log('Datos raw obtenidos:', data?.length || 0, 'registros');
-      console.log('Muestra de datos:', data?.slice(0, 3));
-
-      // Verificar que tenemos datos
-      if (!data || data.length === 0) {
-        console.warn('No se encontraron datos de servicios finalizados en el rango de fechas');
-        return {
-          uniqueServices: 0,
-          totalGmv: 0,
-          rawData: []
-        };
-      }
-
-      // Conteo distintivo de ID servicios y suma de GMV
-      const uniqueServiceIds = new Set(data.map(item => item.id_servicio)).size;
-      const totalGmv = data.reduce((sum, item) => {
-        const cobro = Number(item.cobro_cliente) || 0;
-        return sum + cobro;
-      }, 0);
-
-      console.log('Datos calculados:', {
-        serviciosUnicos: uniqueServiceIds,
-        gmvTotal: totalGmv,
-        registrosTotales: data.length,
-        primerServicio: data[0]?.id_servicio,
-        ultimoServicio: data[data.length - 1]?.id_servicio
-      });
-
-      return {
-        uniqueServices: uniqueServiceIds,
-        totalGmv: totalGmv,
-        rawData: data
-      };
     },
     staleTime: 5 * 60 * 1000, // 5 minutos
     retry: 2
@@ -135,7 +127,7 @@ export const useForecastData = (
       };
     }
 
-    // Usar datos reales de la base de datos
+    // Usar datos reales de la función segura
     const realServicesJanMay = realData.uniqueServices;
     const realGmvJanMay = realData.totalGmv;
     

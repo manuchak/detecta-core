@@ -1,4 +1,3 @@
-
 -- Create a new role
 CREATE OR REPLACE FUNCTION public.create_new_role(new_role TEXT)
 RETURNS VOID
@@ -168,5 +167,47 @@ BEGIN
         WHEN 'unverified' THEN 10
         ELSE 11
       END;
+END;
+$$;
+
+-- Create a secure function to get finalized services data avoiding RLS recursion
+CREATE OR REPLACE FUNCTION public.get_finalized_services_data_secure(
+  start_date timestamp with time zone,
+  end_date timestamp with time zone
+)
+RETURNS TABLE(
+  total_services bigint,
+  total_gmv numeric,
+  service_count bigint
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+BEGIN
+  RETURN QUERY
+  WITH finalized_services AS (
+    SELECT 
+      sc.id_servicio,
+      sc.cobro_cliente
+    FROM public.servicios_custodia sc
+    WHERE sc.estado = 'Finalizado'
+      AND sc.fecha_hora_cita >= start_date
+      AND sc.fecha_hora_cita <= end_date
+      AND sc.id_servicio IS NOT NULL
+      AND sc.cobro_cliente IS NOT NULL
+  ),
+  aggregated_data AS (
+    SELECT 
+      COUNT(DISTINCT fs.id_servicio) as unique_services,
+      SUM(COALESCE(fs.cobro_cliente, 0)) as total_gmv,
+      COUNT(*) as total_records
+    FROM finalized_services fs
+  )
+  SELECT 
+    ad.unique_services::bigint as total_services,
+    ad.total_gmv::numeric as total_gmv,
+    ad.total_records::bigint as service_count
+  FROM aggregated_data ad;
 END;
 $$;
