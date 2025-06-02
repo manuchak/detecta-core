@@ -98,8 +98,8 @@ export const useGmvDiagnostic = () => {
     // PASO 4: Analizar por estado
     console.log('\n📋 === ANÁLISIS POR ESTADO ===');
     
-    const estadosConteo = {};
-    const estadosGmv = {};
+    const estadosConteo: Record<string, number> = {};
+    const estadosGmv: Record<string, number> = {};
     
     serviciosConCobroValido.forEach(service => {
       const estado = service.estado || 'SIN_ESTADO';
