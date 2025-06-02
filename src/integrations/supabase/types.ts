@@ -1198,6 +1198,14 @@ export type Database = {
           role: string
         }[]
       }
+      get_ciudades_safe: {
+        Args: { estado_uuid: string }
+        Returns: {
+          id: string
+          nombre: string
+          estado_id: string
+        }[]
+      }
       get_current_user_ranking_stats: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1295,6 +1303,14 @@ export type Database = {
           level_3_count: number
           level_4_count: number
           level_5_count: number
+        }[]
+      }
+      get_estados_safe: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          nombre: string
+          codigo: string
         }[]
       }
       get_gmv_chart_data_secure: {
@@ -1677,6 +1693,15 @@ export type Database = {
           km_totales: number
           puntos: number
           posicion: number
+        }[]
+      }
+      get_zonas_trabajo_safe: {
+        Args: { ciudad_uuid: string }
+        Returns: {
+          id: string
+          nombre: string
+          ciudad_id: string
+          descripcion: string
         }[]
       }
       has_role: {

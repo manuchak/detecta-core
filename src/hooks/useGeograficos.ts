@@ -33,8 +33,11 @@ export const useEstados = () => {
         setLoading(true);
         setError(null);
         
-        // Usar la función segura que creamos
-        const { data, error } = await supabase.rpc('get_estados_safe');
+        // Usar la función segura que creamos con tipo explícito
+        const { data, error } = await supabase.rpc('get_estados_safe') as {
+          data: Estado[] | null;
+          error: any;
+        };
         
         if (error) {
           console.error('Error fetching estados:', error);
@@ -77,10 +80,13 @@ export const useCiudades = (estadoId: string | null) => {
         setError(null);
         console.log('Fetching ciudades for estado:', estadoId);
         
-        // Usar la función segura que creamos
+        // Usar la función segura que creamos con tipo explícito
         const { data, error } = await supabase.rpc('get_ciudades_safe', {
           estado_uuid: estadoId
-        });
+        }) as {
+          data: Ciudad[] | null;
+          error: any;
+        };
         
         if (error) {
           console.error('Error fetching ciudades:', error);
@@ -123,10 +129,13 @@ export const useZonasTrabajo = (ciudadId: string | null) => {
         setError(null);
         console.log('Fetching zonas for ciudad:', ciudadId);
         
-        // Usar la función segura que creamos
+        // Usar la función segura que creamos con tipo explícito
         const { data, error } = await supabase.rpc('get_zonas_trabajo_safe', {
           ciudad_uuid: ciudadId
-        });
+        }) as {
+          data: ZonaTrabajo[] | null;
+          error: any;
+        };
         
         if (error) {
           console.error('Error fetching zonas:', error);
