@@ -33,10 +33,8 @@ export const useEstados = () => {
         setLoading(true);
         setError(null);
         
-        const { data, error } = await supabase
-          .from('estados')
-          .select('*')
-          .order('nombre');
+        // Usar la función segura para obtener estados
+        const { data, error } = await supabase.rpc('get_estados_safe');
         
         if (error) {
           console.error('Error fetching estados:', error);
@@ -79,11 +77,10 @@ export const useCiudades = (estadoId: string | null) => {
         setError(null);
         console.log('Fetching ciudades for estado:', estadoId);
         
-        const { data, error } = await supabase
-          .from('ciudades')
-          .select('*')
-          .eq('estado_id', estadoId)
-          .order('nombre');
+        // Usar la función segura para obtener ciudades
+        const { data, error } = await supabase.rpc('get_ciudades_safe', {
+          estado_uuid: estadoId
+        });
         
         if (error) {
           console.error('Error fetching ciudades:', error);
@@ -126,11 +123,10 @@ export const useZonasTrabajo = (ciudadId: string | null) => {
         setError(null);
         console.log('Fetching zonas for ciudad:', ciudadId);
         
-        const { data, error } = await supabase
-          .from('zonas_trabajo')
-          .select('*')
-          .eq('ciudad_id', ciudadId)
-          .order('nombre');
+        // Usar la función segura para obtener zonas de trabajo
+        const { data, error } = await supabase.rpc('get_zonas_trabajo_safe', {
+          ciudad_uuid: ciudadId
+        });
         
         if (error) {
           console.error('Error fetching zonas:', error);

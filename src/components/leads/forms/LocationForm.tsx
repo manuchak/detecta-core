@@ -3,6 +3,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEstados, useCiudades, useZonasTrabajo } from "@/hooks/useGeograficos";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 interface LocationFormProps {
   formData: {
@@ -29,9 +31,12 @@ export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => 
   return (
     <div className="space-y-6">
       {estadosError && (
-        <div className="text-red-600 text-sm bg-red-50 p-3 rounded">
-          Error cargando estados: {estadosError}
-        </div>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Error cargando estados: {estadosError}
+          </AlertDescription>
+        </Alert>
       )}
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

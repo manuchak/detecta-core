@@ -11,7 +11,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, User, Car, MapPin, Briefcase, ChevronLeft, ChevronRight } from "lucide-react";
-import { useEstados, useCiudades, useZonasTrabajo } from "@/hooks/useGeograficos";
+import { useAuth } from "@/contexts/AuthContext";
 import { PersonalInfoForm } from "./forms/PersonalInfoForm";
 import { LocationForm } from "./forms/LocationForm";
 import { VehicleForm } from "./forms/VehicleForm";
@@ -73,6 +73,7 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
   const [etapaActual, setEtapaActual] = useState(0);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
   
   const [formData, setFormData] = useState<FormData>({
     // Datos personales
@@ -113,11 +114,6 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
     estado_solicitud: "nuevo",
     fuente: "web"
   });
-
-  // Hooks para datos geográficos
-  const { estados, loading: estadosLoading, error: estadosError } = useEstados();
-  const { ciudades, loading: ciudadesLoading } = useCiudades(formData.estado_id || null);
-  const { zonas } = useZonasTrabajo(formData.ciudad_id || null);
 
   const handleInputChange = (field: keyof FormData, value: string) => {
     setFormData(prev => {
@@ -181,10 +177,32 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
     setLoading(true);
 
     try {
-      // Obtener nombres de estado, ciudad y zona para almacenar en el JSON
-      const estadoSeleccionado = estados.find(e => e.id === formData.estado_id);
-      const ciudadSeleccionada = ciudades.find(c => c.id === formData.ciudad_id);
-      const zonaSeleccionada = zonas.find(z => z.id === formData.zona_trabajo_id);
+      // Obtener nombres para el JSON usando las funciones seguras
+      let estadoNombre = '';
+      let ciudadNombre = '';
+      let zonaNombre = '';
+
+      if (formData.estado_id) {
+        const { data: estados } = await supabase.rpc('get_estados_safe');
+        const estado = estados?.find((e: any) => e.id === formData.estado_id);
+        estadoNombre = estado?.nombre || '';
+      }
+
+      if (formData.ciudad_id) {
+        const { data: ciudades } = await supabase.rpc('get_ciudades_safe', {
+          estado_uuid: formData.estado_id
+        });
+        const ciudad = ciudades?.find((c: any) => c.id === formData.ciudad_id);
+        ciudadNombre = ciudad?.nombre || '';
+      }
+
+      if (formData.zona_trabajo_id) {
+        const { data: zonas } = await supabase.rpc('get_zonas_trabajo_safe', {
+          ciudad_uuid: formData.ciudad_id
+        });
+        const zona = zonas?.find((z: any) => z.id === formData.zona_trabajo_id);
+        zonaNombre = zona?.nombre || '';
+      }
 
       // Crear el lead básico
       const { data: leadData, error: leadError } = await supabase
@@ -209,9 +227,9 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
         datos_personales: {
           edad: formData.edad,
           direccion: formData.direccion,
-          estado: estadoSeleccionado?.nombre || '',
-          ciudad: ciudadSeleccionada?.nombre || '',
-          zona_trabajo: zonaSeleccionada?.nombre || '',
+          estado: estadoNombre,
+          ciudad: ciudadNombre,
+          zona_trabajo: zonaNombre,
           estado_id: formData.estado_id,
           ciudad_id: formData.ciudad_id,
           zona_trabajo_id: formData.zona_trabajo_id
@@ -285,6 +303,20 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
   };
 
   const EtapaActualIcon = ETAPAS[etapaActual].icono;
+
+  // Mostrar mensaje si no hay usuario autenticado
+  if (!user) {
+    return (
+      <Card className="w-full max-w-4xl mx-auto">
+        <CardHeader>
+          <CardTitle>Acceso requerido</CardTitle>
+          <CardDescription>
+            Debes estar autenticado para acceder al formulario de candidatos.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full max-w-4xl mx-auto">
