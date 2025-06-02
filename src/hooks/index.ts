@@ -6,3 +6,4 @@ export { useIsMobile } from './use-mobile';
 export { useTestimonials } from './useTestimonials';
 export { useHeroSettings } from './useHeroSettings';
 export { useBenefits } from './useBenefits';
+export { useForecastData } from './useForecastData';

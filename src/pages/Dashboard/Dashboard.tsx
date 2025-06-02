@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { 
   useDashboardData, 
@@ -10,7 +9,7 @@ import { MetricsCards } from "@/components/dashboard/MetricsCards";
 import { GmvChart } from "@/components/dashboard/GmvChart";
 import { ServiceStatusChart } from "@/components/dashboard/ServiceStatusChart";
 import { SecondaryCharts } from "@/components/dashboard/SecondaryCharts";
-import { GmvProgress } from "@/components/dashboard/GmvProgress";
+import { ForecastCard } from "@/components/dashboard/ForecastCard";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Loader2, BarChart3, TrendingUp, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -161,8 +160,11 @@ export const Dashboard = () => {
           topClientsData={topClientsData}
         />
         
-        {/* Progreso de GMV */}
-        <GmvProgress totalGMV={dashboardData.totalGMV} />
+        {/* Forecast Card - Reemplaza GmvProgress */}
+        <ForecastCard 
+          totalServices={dashboardData.totalServices} 
+          totalGMV={dashboardData.totalGMV} 
+        />
       </div>
     </div>
   );
