@@ -2,7 +2,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFormatters } from "@/hooks/useFormatters";
 import { useForecastData } from "@/hooks/useForecastData";
-import { TrendingUp, TrendingDown, BarChart3, DollarSign, Calendar, Target } from "lucide-react";
+import { TrendingUp, TrendingDown, BarChart3, DollarSign, Calendar, Target, Info } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface ForecastCardProps {
   totalServices: number;
@@ -13,7 +14,6 @@ export const ForecastCard = ({ totalServices, totalGMV }: ForecastCardProps) => 
   const { formatCurrency } = useFormatters();
   const forecastData = useForecastData(totalServices, totalGMV);
   
-  const currentMonth = new Date().toLocaleDateString('es-MX', { month: 'long' });
   const currentYear = new Date().getFullYear();
   
   // Componente para mostrar varianza con colores
@@ -32,21 +32,23 @@ export const ForecastCard = ({ totalServices, totalGMV }: ForecastCardProps) => 
     );
   };
   
-  // Componente para métricas individuales
-  const MetricBox = ({ 
+  // Componente para métricas de forecast
+  const ForecastMetricBox = ({ 
     title, 
     actual, 
     forecast, 
     variance, 
     icon: Icon, 
-    isGMV = false 
+    isGMV = false,
+    period
   }: { 
     title: string; 
     actual: number; 
     forecast: number; 
     variance: number; 
     icon: any; 
-    isGMV?: boolean; 
+    isGMV?: boolean;
+    period: 'monthly' | 'annual';
   }) => (
     <div className="bg-white rounded-lg border border-gray-100 p-4 space-y-3">
       <div className="flex items-center justify-between">
@@ -61,32 +63,39 @@ export const ForecastCard = ({ totalServices, totalGMV }: ForecastCardProps) => 
       
       <div className="space-y-2">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600">Actual:</span>
+          <span className="text-gray-600">
+            {period === 'monthly' ? `Real (${forecastData.lastDataMonth}):` : 'Real (Ene-May):'}
+          </span>
           <span className="font-semibold text-gray-900">
             {isGMV ? formatCurrency(actual) : actual.toLocaleString()}
           </span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600">Forecast:</span>
+          <span className="text-gray-600">
+            {period === 'monthly' ? `Forecast (${forecastData.forecastMonth}):` : 'Forecast Anual:'}
+          </span>
           <span className="font-bold text-blue-600">
             {isGMV ? formatCurrency(forecast) : forecast.toLocaleString()}
           </span>
         </div>
       </div>
       
-      {/* Barra de progreso visual */}
-      <div className="space-y-1">
-        <div className="flex justify-between text-xs text-gray-500">
-          <span>Progreso</span>
-          <span>{((actual / forecast) * 100).toFixed(0)}%</span>
+      {period === 'monthly' && (
+        <div className="space-y-1">
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>vs Promedio Histórico</span>
+            <span>{variance > 0 ? '+' : ''}{variance.toFixed(1)}%</span>
+          </div>
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div 
+              className={`h-full transition-all duration-500 ${
+                variance > 0 ? 'bg-gradient-to-r from-green-500 to-green-600' : 'bg-gradient-to-r from-orange-500 to-orange-600'
+              }`}
+              style={{ width: `${Math.min(Math.abs(variance) * 2, 100)}%` }}
+            />
+          </div>
         </div>
-        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-500"
-            style={{ width: `${Math.min((actual / forecast) * 100, 100)}%` }}
-          />
-        </div>
-      </div>
+      )}
     </div>
   );
   
@@ -114,30 +123,40 @@ export const ForecastCard = ({ totalServices, totalGMV }: ForecastCardProps) => 
       </CardHeader>
       
       <CardContent className="space-y-6">
+        {/* Alerta informativa sobre los datos */}
+        <Alert className="bg-blue-50 border-blue-200">
+          <Info className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-800 text-sm">
+            <strong>Datos reales hasta {forecastData.lastDataMonth} 2025.</strong> Los forecasts están basados en tendencias históricas y factores estacionales.
+          </AlertDescription>
+        </Alert>
+        
         {/* Forecast Mensual */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 mb-3">
             <Calendar className="h-5 w-5 text-indigo-600" />
             <h3 className="text-lg font-semibold text-slate-800 capitalize">
-              Forecast de {currentMonth} {currentYear}
+              Forecast de {forecastData.forecastMonth} {currentYear}
             </h3>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <MetricBox
+            <ForecastMetricBox
               title="Servicios del Mes"
               actual={forecastData.monthlyServicesActual}
               forecast={forecastData.monthlyServicesForecast}
               variance={forecastData.monthlyServicesVariance}
               icon={BarChart3}
+              period="monthly"
             />
-            <MetricBox
+            <ForecastMetricBox
               title="GMV del Mes"
               actual={forecastData.monthlyGmvActual}
               forecast={forecastData.monthlyGmvForecast}
               variance={forecastData.monthlyGmvVariance}
               icon={DollarSign}
               isGMV={true}
+              period="monthly"
             />
           </div>
         </div>
@@ -152,20 +171,22 @@ export const ForecastCard = ({ totalServices, totalGMV }: ForecastCardProps) => 
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <MetricBox
+            <ForecastMetricBox
               title="Servicios Anuales"
               actual={forecastData.annualServicesActual}
               forecast={forecastData.annualServicesForecast}
               variance={forecastData.annualServicesVariance}
               icon={BarChart3}
+              period="annual"
             />
-            <MetricBox
+            <ForecastMetricBox
               title="GMV Anual"
               actual={forecastData.annualGmvActual}
               forecast={forecastData.annualGmvForecast}
               variance={forecastData.annualGmvVariance}
               icon={DollarSign}
               isGMV={true}
+              period="annual"
             />
           </div>
         </div>
@@ -174,20 +195,24 @@ export const ForecastCard = ({ totalServices, totalGMV }: ForecastCardProps) => 
         <div className="bg-white/70 rounded-lg p-4 border border-indigo-100">
           <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
             <Target className="h-4 w-4" />
-            Insights del Forecast
+            Metodología del Forecast
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-600">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <span>
-                Crecimiento mensual proyectado: {forecastData.monthlyGmvVariance > 0 ? 'Positivo' : 'Negativo'}
-              </span>
+              <span>Suavizado exponencial con tendencias</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-              <span>
-                Tendencia anual: {forecastData.annualGmvVariance > 0 ? 'Alcista' : 'Bajista'}
-              </span>
+              <span>Factores estacionales aplicados</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span>Datos históricos: enero-{forecastData.lastDataMonth}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+              <span>Proyección: {forecastData.forecastMonth}-diciembre</span>
             </div>
           </div>
         </div>
