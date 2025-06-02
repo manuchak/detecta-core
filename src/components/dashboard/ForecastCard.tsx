@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFormatters } from "@/hooks/useFormatters";
 import { useForecastData } from "@/hooks/useForecastData";
-import { TrendingUp, TrendingDown, BarChart3, DollarSign, Calendar, Target, Info } from "lucide-react";
+import { TrendingUp, TrendingDown, BarChart3, DollarSign, Calendar, Target, Info, Database } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface ForecastCardProps {
@@ -75,7 +75,7 @@ export const ForecastCard = ({ totalServices, totalGMV }: ForecastCardProps) => 
             Real (Ene-May 2025):
           </span>
           <span className="font-semibold text-gray-900">
-            {isGMV ? formatCurrency(22006636) : '3,515'}
+            {isGMV ? formatCurrency(actual) : actual.toLocaleString()}
           </span>
         </div>
       </div>
@@ -111,8 +111,9 @@ export const ForecastCard = ({ totalServices, totalGMV }: ForecastCardProps) => 
               <CardTitle className="text-xl font-bold text-slate-900">
                 Forecast de Servicios y GMV
               </CardTitle>
-              <p className="text-sm text-slate-600">
-                Basado en datos reales de la BDD (Ene-May 2025)
+              <p className="text-sm text-slate-600 flex items-center gap-1">
+                <Database className="h-3 w-3" />
+                Basado en datos reales de Supabase (Ene-May 2025)
               </p>
             </div>
           </div>
@@ -127,8 +128,8 @@ export const ForecastCard = ({ totalServices, totalGMV }: ForecastCardProps) => 
         <Alert className="bg-blue-50 border-blue-200">
           <Info className="h-4 w-4 text-blue-600" />
           <AlertDescription className="text-blue-800 text-sm">
-            <strong>Base de datos real: 3,515 servicios únicos y {formatCurrency(22006636)} GMV (Ene-May 2025).</strong> 
-            Forecast basado en promedio de 703 servicios/mes y factores estacionales conservadores.
+            <strong>Datos en tiempo real:</strong> {forecastData.monthlyServicesActual.toLocaleString()} servicios únicos con estado "Finalizado" 
+            y {formatCurrency(forecastData.monthlyGmvActual)} GMV total (Ene-May 2025) obtenidos directamente de la base de datos Supabase.
           </AlertDescription>
         </Alert>
         
@@ -192,24 +193,24 @@ export const ForecastCard = ({ totalServices, totalGMV }: ForecastCardProps) => 
           </div>
         </div>
         
-        {/* Resumen de insights */}
+        {/* Resumen de insights actualizado */}
         <div className="bg-white/70 rounded-lg p-4 border border-indigo-100">
           <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-            <Target className="h-4 w-4" />
-            Metodología del Forecast
+            <Database className="h-4 w-4" />
+            Metodología del Forecast (Datos Reales)
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-600">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <span>Base real: 3,515 servicios, {formatCurrency(22006636)} GMV</span>
+              <span>Base real BDD: {forecastData.monthlyServicesActual.toLocaleString()} servicios finalizados</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-              <span>Promedio: 703 servicios/mes, {formatCurrency(4401327)}/mes</span>
+              <span>GMV real: {formatCurrency(forecastData.monthlyGmvActual)}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span>Valor promedio por servicio: {formatCurrency(6262)}</span>
+              <span>Promedio mensual: {Math.round(forecastData.monthlyServicesActual / 5)} servicios</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-orange-500 rounded-full"></div>

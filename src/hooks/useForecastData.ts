@@ -1,5 +1,7 @@
 
 import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface ForecastData {
   monthlyServicesForecast: number;
@@ -24,20 +26,83 @@ export const useForecastData = (
   historicalData?: Array<{ month: number; services: number; gmv: number }>
 ): ForecastData => {
   
+  // Query para obtener servicios finalizados de enero a mayo 2025
+  const { data: realData, isLoading } = useQuery({
+    queryKey: ['forecast-real-data'],
+    queryFn: async () => {
+      console.log('Obteniendo datos reales de servicios finalizados...');
+      
+      const { data, error } = await supabase
+        .from('servicios_custodia')
+        .select('id_servicio, cobro_cliente, fecha_hora_cita')
+        .eq('estado', 'Finalizado')
+        .gte('fecha_hora_cita', '2025-01-01T00:00:00.000Z')
+        .lte('fecha_hora_cita', '2025-05-31T23:59:59.999Z')
+        .not('id_servicio', 'is', null)
+        .not('cobro_cliente', 'is', null);
+
+      if (error) {
+        console.error('Error al obtener datos reales:', error);
+        throw error;
+      }
+
+      // Conteo distintivo de ID servicios y suma de GMV
+      const uniqueServices = new Set(data.map(item => item.id_servicio)).size;
+      const totalGmv = data.reduce((sum, item) => sum + (Number(item.cobro_cliente) || 0), 0);
+
+      console.log('Datos reales obtenidos:', {
+        serviciosUnicos: uniqueServices,
+        gmvTotal: totalGmv,
+        registrosTotales: data.length
+      });
+
+      return {
+        uniqueServices,
+        totalGmv,
+        rawData: data
+      };
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutos
+    retry: 2
+  });
+  
   return useMemo(() => {
-    console.log('useForecastData - Datos recibidos:', { totalServices, totalGMV, historicalData });
+    console.log('useForecastData - Calculando forecast con datos:', { 
+      realData: realData ? `${realData.uniqueServices} servicios, $${realData.totalGmv}` : 'cargando...',
+      isLoading 
+    });
     
-    // Datos reales confirmados de enero a mayo 2025
-    const realServicesJanMay = 3515; // Servicios únicos confirmados
-    const realGmvJanMay = 22006636; // GMV real de la base de datos
+    // Si aún no tenemos datos reales, usar valores por defecto temporales
+    if (isLoading || !realData) {
+      return {
+        monthlyServicesForecast: 0,
+        monthlyGmvForecast: 0,
+        annualServicesForecast: 0,
+        annualGmvForecast: 0,
+        monthlyServicesActual: 0,
+        monthlyGmvActual: 0,
+        annualServicesActual: 0,
+        annualGmvActual: 0,
+        monthlyServicesVariance: 0,
+        monthlyGmvVariance: 0,
+        annualServicesVariance: 0,
+        annualGmvVariance: 0,
+        lastDataMonth: 'mayo',
+        forecastMonth: 'junio'
+      };
+    }
+
+    // Usar datos reales de la base de datos
+    const realServicesJanMay = realData.uniqueServices;
+    const realGmvJanMay = realData.totalGmv;
     
     // Calcular promedios mensuales basados en datos reales
     const monthsWithData = 5; // Enero a Mayo
-    const avgServicesPerMonth = Math.round(realServicesJanMay / monthsWithData); // 703 servicios/mes
-    const avgGmvPerMonth = Math.round(realGmvJanMay / monthsWithData); // ~4,401,327/mes
-    const avgServiceValue = realGmvJanMay / realServicesJanMay; // ~6,262 por servicio
+    const avgServicesPerMonth = Math.round(realServicesJanMay / monthsWithData);
+    const avgGmvPerMonth = Math.round(realGmvJanMay / monthsWithData);
+    const avgServiceValue = realGmvJanMay / realServicesJanMay;
     
-    console.log('useForecastData - Datos reales:', {
+    console.log('useForecastData - Datos reales de BDD:', {
       realServicesJanMay,
       realGmvJanMay,
       avgServicesPerMonth,
@@ -46,21 +111,20 @@ export const useForecastData = (
       monthsWithData
     });
     
-    // Crear distribución mensual más realista basada en datos reales
-    // Aplicamos factores estacionales conservadores
+    // Distribución mensual con factores estacionales conservadores
     const monthlyDistribution = {
-      1: { factor: 0.90, name: 'enero' },    // Enero - arranque lento
-      2: { factor: 0.95, name: 'febrero' },  // Febrero - incremento gradual
-      3: { factor: 1.05, name: 'marzo' },    // Marzo - actividad normal
-      4: { factor: 1.10, name: 'abril' },    // Abril - pico de actividad
-      5: { factor: 1.00, name: 'mayo' },     // Mayo - estable
-      6: { factor: 0.95, name: 'junio' },    // Junio - ligera baja estacional
-      7: { factor: 0.85, name: 'julio' },    // Julio - vacaciones
-      8: { factor: 0.90, name: 'agosto' },   // Agosto - recuperación gradual
-      9: { factor: 1.00, name: 'septiembre' }, // Septiembre - vuelta normalidad
-      10: { factor: 1.10, name: 'octubre' }, // Octubre - pico otoño
-      11: { factor: 1.15, name: 'noviembre' }, // Noviembre - alta demanda
-      12: { factor: 0.95, name: 'diciembre' }  // Diciembre - fin de año
+      1: { factor: 0.90, name: 'enero' },
+      2: { factor: 0.95, name: 'febrero' },
+      3: { factor: 1.05, name: 'marzo' },
+      4: { factor: 1.10, name: 'abril' },
+      5: { factor: 1.00, name: 'mayo' },
+      6: { factor: 0.95, name: 'junio' },
+      7: { factor: 0.85, name: 'julio' },
+      8: { factor: 0.90, name: 'agosto' },
+      9: { factor: 1.00, name: 'septiembre' },
+      10: { factor: 1.10, name: 'octubre' },
+      11: { factor: 1.15, name: 'noviembre' },
+      12: { factor: 0.95, name: 'diciembre' }
     };
     
     // Calcular forecast para junio usando factor estacional
@@ -107,10 +171,10 @@ export const useForecastData = (
       monthlyGmvForecast: juneGmvForecast,
       annualServicesForecast,
       annualGmvForecast,
-      monthlyServicesActual: realServicesJanMay, // Total enero-mayo
-      monthlyGmvActual: realGmvJanMay, // Total enero-mayo
-      annualServicesActual: realServicesJanMay, // Solo datos reales hasta mayo
-      annualGmvActual: realGmvJanMay, // Solo datos reales hasta mayo
+      monthlyServicesActual: realServicesJanMay,
+      monthlyGmvActual: realGmvJanMay,
+      annualServicesActual: realServicesJanMay,
+      annualGmvActual: realGmvJanMay,
       monthlyServicesVariance,
       monthlyGmvVariance,
       annualServicesVariance,
@@ -119,8 +183,8 @@ export const useForecastData = (
       forecastMonth: 'junio'
     };
     
-    console.log('useForecastData - Resultado final:', result);
+    console.log('useForecastData - Resultado final con datos reales:', result);
     
     return result;
-  }, [totalServices, totalGMV, historicalData]);
+  }, [realData, isLoading]);
 };
