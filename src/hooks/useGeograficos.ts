@@ -29,14 +29,21 @@ export const useEstados = () => {
   useEffect(() => {
     const fetchEstados = async () => {
       try {
+        console.log('Fetching estados...');
         const { data, error } = await supabase
           .from('estados')
           .select('*')
           .order('nombre');
         
-        if (error) throw error;
+        if (error) {
+          console.error('Error fetching estados:', error);
+          throw error;
+        }
+        
+        console.log('Estados fetched:', data);
         setEstados(data || []);
       } catch (err) {
+        console.error('Error in fetchEstados:', err);
         setError(err instanceof Error ? err.message : 'Error al cargar estados');
       } finally {
         setLoading(false);
@@ -63,15 +70,22 @@ export const useCiudades = (estadoId: string | null) => {
     const fetchCiudades = async () => {
       try {
         setLoading(true);
+        console.log('Fetching ciudades for estado:', estadoId);
         const { data, error } = await supabase
           .from('ciudades')
           .select('*')
           .eq('estado_id', estadoId)
           .order('nombre');
         
-        if (error) throw error;
+        if (error) {
+          console.error('Error fetching ciudades:', error);
+          throw error;
+        }
+        
+        console.log('Ciudades fetched:', data);
         setCiudades(data || []);
       } catch (err) {
+        console.error('Error in fetchCiudades:', err);
         setError(err instanceof Error ? err.message : 'Error al cargar ciudades');
       } finally {
         setLoading(false);
@@ -98,15 +112,22 @@ export const useZonasTrabajo = (ciudadId: string | null) => {
     const fetchZonas = async () => {
       try {
         setLoading(true);
+        console.log('Fetching zonas for ciudad:', ciudadId);
         const { data, error } = await supabase
           .from('zonas_trabajo')
           .select('*')
           .eq('ciudad_id', ciudadId)
           .order('nombre');
         
-        if (error) throw error;
+        if (error) {
+          console.error('Error fetching zonas:', error);
+          throw error;
+        }
+        
+        console.log('Zonas fetched:', data);
         setZonas(data || []);
       } catch (err) {
+        console.error('Error in fetchZonas:', err);
         setError(err instanceof Error ? err.message : 'Error al cargar zonas');
       } finally {
         setLoading(false);

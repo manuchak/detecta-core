@@ -70,9 +70,18 @@ interface FormData {
 
 const ETAPAS = [
   { id: 'personal', titulo: 'Datos Personales', icono: User },
+  { id: 'ubicacion', titulo: 'Ubicación', icono: MapPin },
   { id: 'vehiculo', titulo: 'Vehículo', icono: Car },
-  { id: 'experiencia', titulo: 'Experiencia', icono: Briefcase },
-  { id: 'ubicacion', titulo: 'Ubicación', icono: MapPin }
+  { id: 'experiencia', titulo: 'Experiencia', icono: Briefcase }
+];
+
+const MARCAS_VEHICULO = [
+  'Nissan', 'Volkswagen', 'Chevrolet', 'Ford', 'Toyota', 'Honda', 'Hyundai', 'Kia', 
+  'Mazda', 'Suzuki', 'Renault', 'Peugeot', 'SEAT', 'BMW', 'Mercedes-Benz', 'Audi', 'Otra'
+];
+
+const COLORES_VEHICULO = [
+  'Blanco', 'Negro', 'Gris', 'Plata', 'Azul', 'Rojo', 'Verde', 'Amarillo', 'Café', 'Otro'
 ];
 
 export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
@@ -121,8 +130,8 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
   });
 
   // Hooks para datos geográficos
-  const { estados } = useEstados();
-  const { ciudades } = useCiudades(formData.estado_id || null);
+  const { estados, loading: estadosLoading, error: estadosError } = useEstados();
+  const { ciudades, loading: ciudadesLoading } = useCiudades(formData.estado_id || null);
   const { zonas } = useZonasTrabajo(formData.ciudad_id || null);
 
   const handleInputChange = (field: keyof FormData, value: string) => {
@@ -145,12 +154,12 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
     switch (etapa) {
       case 0: // Personal
         return !!(formData.nombre && formData.email && formData.telefono);
-      case 1: // Vehículo
+      case 1: // Ubicación
+        return !!(formData.estado_id && formData.ciudad_id && formData.direccion);
+      case 2: // Vehículo
         return true; // Opcional
-      case 2: // Experiencia
+      case 3: // Experiencia
         return true; // Opcional
-      case 3: // Ubicación
-        return !!(formData.estado_id && formData.ciudad_id);
       default:
         return true;
     }
@@ -276,7 +285,7 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
   };
 
   const renderEtapaPersonal = () => (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="nombre">Nombre Completo *</Label>
@@ -284,6 +293,7 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
             id="nombre"
             value={formData.nombre}
             onChange={(e) => handleInputChange('nombre', e.target.value)}
+            placeholder="Ingresa el nombre completo"
             required
           />
         </div>
@@ -294,6 +304,7 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
             type="email"
             value={formData.email}
             onChange={(e) => handleInputChange('email', e.target.value)}
+            placeholder="ejemplo@correo.com"
             required
           />
         </div>
@@ -303,74 +314,242 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
             id="telefono"
             value={formData.telefono}
             onChange={(e) => handleInputChange('telefono', e.target.value)}
+            placeholder="10 dígitos sin espacios"
             required
           />
         </div>
         <div className="space-y-2">
           <Label htmlFor="edad">Edad</Label>
-          <Input
-            id="edad"
-            type="number"
-            value={formData.edad}
-            onChange={(e) => handleInputChange('edad', e.target.value)}
-          />
+          <Select onValueChange={(value) => handleInputChange('edad', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar edad" />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 43 }, (_, i) => i + 18).map(age => (
+                <SelectItem key={age} value={age.toString()}>
+                  {age} años
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
+      </div>
+    </div>
+  );
+
+  const renderEtapaUbicacion = () => (
+    <div className="space-y-6">
+      {estadosError && (
+        <div className="text-red-600 text-sm">
+          Error cargando estados: {estadosError}
+        </div>
+      )}
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="estado">Estado *</Label>
+          <Select 
+            value={formData.estado_id}
+            onValueChange={(value) => handleInputChange('estado_id', value)}
+            disabled={estadosLoading}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={estadosLoading ? "Cargando estados..." : "Seleccionar estado"} />
+            </SelectTrigger>
+            <SelectContent>
+              {estados.map((estado) => (
+                <SelectItem key={estado.id} value={estado.id}>
+                  {estado.nombre}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="ciudad">Ciudad *</Label>
+          <Select 
+            value={formData.ciudad_id}
+            onValueChange={(value) => handleInputChange('ciudad_id', value)}
+            disabled={!formData.estado_id || ciudadesLoading}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={
+                !formData.estado_id 
+                  ? "Primero selecciona un estado" 
+                  : ciudadesLoading 
+                    ? "Cargando ciudades..." 
+                    : "Seleccionar ciudad"
+              } />
+            </SelectTrigger>
+            <SelectContent>
+              {ciudades.map((ciudad) => (
+                <SelectItem key={ciudad.id} value={ciudad.id}>
+                  {ciudad.nombre}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
         <div className="space-y-2 md:col-span-2">
-          <Label htmlFor="direccion">Dirección</Label>
+          <Label htmlFor="direccion">Dirección Completa *</Label>
           <Input
             id="direccion"
             value={formData.direccion}
             onChange={(e) => handleInputChange('direccion', e.target.value)}
+            placeholder="Calle, número, colonia, código postal"
+            required
           />
+        </div>
+        
+        <div className="space-y-2 md:col-span-2">
+          <Label htmlFor="zona_trabajo">Zona de trabajo preferida</Label>
+          <Select 
+            value={formData.zona_trabajo_id}
+            onValueChange={(value) => handleInputChange('zona_trabajo_id', value)}
+            disabled={!formData.ciudad_id}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={
+                !formData.ciudad_id 
+                  ? "Primero selecciona una ciudad" 
+                  : "Seleccionar zona (opcional)"
+              } />
+            </SelectTrigger>
+            <SelectContent>
+              {zonas.map((zona) => (
+                <SelectItem key={zona.id} value={zona.id}>
+                  {zona.nombre} {zona.descripcion && `- ${zona.descripcion}`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="disponibilidad_horario">Disponibilidad de horario</Label>
+          <Select onValueChange={(value) => handleInputChange('disponibilidad_horario', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar horario" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="completo">Tiempo completo</SelectItem>
+              <SelectItem value="parcial">Tiempo parcial</SelectItem>
+              <SelectItem value="matutino">Turno matutino (6:00-14:00)</SelectItem>
+              <SelectItem value="vespertino">Turno vespertino (14:00-22:00)</SelectItem>
+              <SelectItem value="nocturno">Turno nocturno (22:00-6:00)</SelectItem>
+              <SelectItem value="fines_semana">Solo fines de semana</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="rango_km">Rango de kilómetros dispuesto a trabajar</Label>
+          <Select onValueChange={(value) => handleInputChange('rango_km', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar rango" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0-50">0-50 km (Local)</SelectItem>
+              <SelectItem value="50-100">50-100 km (Regional)</SelectItem>
+              <SelectItem value="100-200">100-200 km (Estatal)</SelectItem>
+              <SelectItem value="200+">Más de 200 km (Foráneo)</SelectItem>
+              <SelectItem value="nacional">Nivel nacional</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="space-y-2 md:col-span-2">
+          <Label htmlFor="disponibilidad_dias">Días disponibles</Label>
+          <Select onValueChange={(value) => handleInputChange('disponibilidad_dias', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar días" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="lunes_viernes">Lunes a viernes</SelectItem>
+              <SelectItem value="lunes_sabado">Lunes a sábado</SelectItem>
+              <SelectItem value="toda_semana">Toda la semana</SelectItem>
+              <SelectItem value="fines_semana">Solo fines de semana</SelectItem>
+              <SelectItem value="entre_semana">Solo entre semana</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
     </div>
   );
 
   const renderEtapaVehiculo = () => (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="marca_vehiculo">Marca del Vehículo</Label>
-          <Input
-            id="marca_vehiculo"
-            value={formData.marca_vehiculo}
-            onChange={(e) => handleInputChange('marca_vehiculo', e.target.value)}
-          />
+          <Select onValueChange={(value) => handleInputChange('marca_vehiculo', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar marca" />
+            </SelectTrigger>
+            <SelectContent>
+              {MARCAS_VEHICULO.map((marca) => (
+                <SelectItem key={marca} value={marca}>
+                  {marca}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
+        
         <div className="space-y-2">
           <Label htmlFor="modelo_vehiculo">Modelo</Label>
           <Input
             id="modelo_vehiculo"
             value={formData.modelo_vehiculo}
             onChange={(e) => handleInputChange('modelo_vehiculo', e.target.value)}
+            placeholder="Ej: Sentra, Jetta, Aveo"
           />
         </div>
+        
         <div className="space-y-2">
           <Label htmlFor="año_vehiculo">Año</Label>
-          <Input
-            id="año_vehiculo"
-            type="number"
-            value={formData.año_vehiculo}
-            onChange={(e) => handleInputChange('año_vehiculo', e.target.value)}
-          />
+          <Select onValueChange={(value) => handleInputChange('año_vehiculo', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar año" />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 25 }, (_, i) => 2024 - i).map(year => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
+        
         <div className="space-y-2">
           <Label htmlFor="placas">Placas</Label>
           <Input
             id="placas"
             value={formData.placas}
-            onChange={(e) => handleInputChange('placas', e.target.value)}
+            onChange={(e) => handleInputChange('placas', e.target.value.toUpperCase())}
+            placeholder="XXX-XXX"
           />
         </div>
+        
         <div className="space-y-2">
           <Label htmlFor="color_vehiculo">Color</Label>
-          <Input
-            id="color_vehiculo"
-            value={formData.color_vehiculo}
-            onChange={(e) => handleInputChange('color_vehiculo', e.target.value)}
-          />
+          <Select onValueChange={(value) => handleInputChange('color_vehiculo', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar color" />
+            </SelectTrigger>
+            <SelectContent>
+              {COLORES_VEHICULO.map((color) => (
+                <SelectItem key={color} value={color}>
+                  {color}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
+        
         <div className="space-y-2">
           <Label htmlFor="tipo_vehiculo">Tipo de Vehículo</Label>
           <Select onValueChange={(value) => handleInputChange('tipo_vehiculo', value)}>
@@ -379,6 +558,7 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="sedán">Sedán</SelectItem>
+              <SelectItem value="hatchback">Hatchback</SelectItem>
               <SelectItem value="suv">SUV</SelectItem>
               <SelectItem value="pickup">Pick-up</SelectItem>
               <SelectItem value="van">Van</SelectItem>
@@ -386,6 +566,7 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
             </SelectContent>
           </Select>
         </div>
+        
         <div className="space-y-2 md:col-span-2">
           <Label htmlFor="seguro_vigente">¿Cuenta con seguro vigente?</Label>
           <Select onValueChange={(value) => handleInputChange('seguro_vigente', value)}>
@@ -393,9 +574,10 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
               <SelectValue placeholder="Seleccionar" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="si">Sí</SelectItem>
+              <SelectItem value="si">Sí, vigente</SelectItem>
               <SelectItem value="no">No</SelectItem>
               <SelectItem value="en_tramite">En trámite</SelectItem>
+              <SelectItem value="vencido">Vencido</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -404,7 +586,7 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
   );
 
   const renderEtapaExperiencia = () => (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="experiencia_custodia">¿Tienes experiencia en custodia?</Label>
@@ -415,10 +597,11 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
             <SelectContent>
               <SelectItem value="si">Sí</SelectItem>
               <SelectItem value="no">No</SelectItem>
-              <SelectItem value="similar">Experiencia similar</SelectItem>
+              <SelectItem value="similar">Experiencia similar (seguridad, vigilancia)</SelectItem>
             </SelectContent>
           </Select>
         </div>
+        
         <div className="space-y-2">
           <Label htmlFor="años_experiencia">Años de experiencia</Label>
           <Select onValueChange={(value) => handleInputChange('años_experiencia', value)}>
@@ -427,13 +610,14 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="0">Sin experiencia</SelectItem>
-              <SelectItem value="1">1 año</SelectItem>
-              <SelectItem value="2-3">2-3 años</SelectItem>
-              <SelectItem value="4-5">4-5 años</SelectItem>
+              <SelectItem value="0-1">Menos de 1 año</SelectItem>
+              <SelectItem value="1-2">1-2 años</SelectItem>
+              <SelectItem value="2-5">2-5 años</SelectItem>
               <SelectItem value="5+">Más de 5 años</SelectItem>
             </SelectContent>
           </Select>
         </div>
+        
         <div className="space-y-2">
           <Label htmlFor="licencia_conducir">¿Tienes licencia de conducir vigente?</Label>
           <Select onValueChange={(value) => handleInputChange('licencia_conducir', value)}>
@@ -441,12 +625,14 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
               <SelectValue placeholder="Seleccionar" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="si">Sí</SelectItem>
+              <SelectItem value="si">Sí, vigente</SelectItem>
               <SelectItem value="no">No</SelectItem>
               <SelectItem value="tramite">En trámite</SelectItem>
+              <SelectItem value="vencida">Vencida</SelectItem>
             </SelectContent>
           </Select>
         </div>
+        
         <div className="space-y-2">
           <Label htmlFor="tipo_licencia">Tipo de licencia</Label>
           <Select onValueChange={(value) => handleInputChange('tipo_licencia', value)}>
@@ -457,18 +643,11 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
               <SelectItem value="automovilista">Automovilista</SelectItem>
               <SelectItem value="chofer">Chofer</SelectItem>
               <SelectItem value="motociclista">Motociclista</SelectItem>
+              <SelectItem value="federal">Federal</SelectItem>
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-2 md:col-span-2">
-          <Label htmlFor="empresas_anteriores">Empresas anteriores (opcional)</Label>
-          <Textarea
-            id="empresas_anteriores"
-            value={formData.empresas_anteriores}
-            onChange={(e) => handleInputChange('empresas_anteriores', e.target.value)}
-            placeholder="Menciona las empresas donde has trabajado en seguridad o custodia"
-          />
-        </div>
+        
         <div className="space-y-2 md:col-span-2">
           <Label htmlFor="antecedentes_penales">¿Tienes antecedentes penales?</Label>
           <Select onValueChange={(value) => handleInputChange('antecedentes_penales', value)}>
@@ -482,106 +661,18 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
             </SelectContent>
           </Select>
         </div>
-      </div>
-    </div>
-  );
-
-  const renderEtapaUbicacion = () => (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="estado">Estado *</Label>
-          <Select onValueChange={(value) => handleInputChange('estado_id', value)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Seleccionar estado" />
-            </SelectTrigger>
-            <SelectContent>
-              {estados.map((estado) => (
-                <SelectItem key={estado.id} value={estado.id}>
-                  {estado.nombre}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="ciudad">Ciudad *</Label>
-          <Select 
-            value={formData.ciudad_id}
-            onValueChange={(value) => handleInputChange('ciudad_id', value)}
-            disabled={!formData.estado_id}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Seleccionar ciudad" />
-            </SelectTrigger>
-            <SelectContent>
-              {ciudades.map((ciudad) => (
-                <SelectItem key={ciudad.id} value={ciudad.id}>
-                  {ciudad.nombre}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        
         <div className="space-y-2 md:col-span-2">
-          <Label htmlFor="zona_trabajo">Zona de trabajo preferida</Label>
-          <Select 
-            value={formData.zona_trabajo_id}
-            onValueChange={(value) => handleInputChange('zona_trabajo_id', value)}
-            disabled={!formData.ciudad_id}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Seleccionar zona (opcional)" />
-            </SelectTrigger>
-            <SelectContent>
-              {zonas.map((zona) => (
-                <SelectItem key={zona.id} value={zona.id}>
-                  {zona.nombre} {zona.descripcion && `- ${zona.descripcion}`}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="disponibilidad_horario">Disponibilidad de horario</Label>
-          <Select onValueChange={(value) => handleInputChange('disponibilidad_horario', value)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Seleccionar horario" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="completo">Tiempo completo</SelectItem>
-              <SelectItem value="parcial">Tiempo parcial</SelectItem>
-              <SelectItem value="matutino">Turno matutino</SelectItem>
-              <SelectItem value="vespertino">Turno vespertino</SelectItem>
-              <SelectItem value="nocturno">Turno nocturno</SelectItem>
-              <SelectItem value="fines_semana">Solo fines de semana</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="rango_km">Rango de kilómetros dispuesto a trabajar</Label>
-          <Select onValueChange={(value) => handleInputChange('rango_km', value)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Seleccionar rango" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="0-50">0-50 km</SelectItem>
-              <SelectItem value="50-100">50-100 km</SelectItem>
-              <SelectItem value="100-200">100-200 km</SelectItem>
-              <SelectItem value="200+">Más de 200 km</SelectItem>
-              <SelectItem value="nacional">Nivel nacional</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2 md:col-span-2">
-          <Label htmlFor="disponibilidad_dias">Días disponibles</Label>
-          <Input
-            id="disponibilidad_dias"
-            value={formData.disponibilidad_dias}
-            onChange={(e) => handleInputChange('disponibilidad_dias', e.target.value)}
-            placeholder="Ej: Lunes a viernes, Fines de semana"
+          <Label htmlFor="empresas_anteriores">Empresas anteriores (opcional)</Label>
+          <Textarea
+            id="empresas_anteriores"
+            value={formData.empresas_anteriores}
+            onChange={(e) => handleInputChange('empresas_anteriores', e.target.value)}
+            placeholder="Menciona las empresas donde has trabajado en seguridad o custodia"
+            rows={3}
           />
         </div>
+        
         <div className="space-y-2 md:col-span-2">
           <Label htmlFor="referencias">Referencias (opcional)</Label>
           <Textarea
@@ -589,8 +680,10 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
             value={formData.referencias}
             onChange={(e) => handleInputChange('referencias', e.target.value)}
             placeholder="Nombres y teléfonos de referencias laborales o personales"
+            rows={3}
           />
         </div>
+        
         <div className="space-y-2 md:col-span-2">
           <Label htmlFor="mensaje">Comentarios adicionales</Label>
           <Textarea
@@ -598,6 +691,7 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
             value={formData.mensaje}
             onChange={(e) => handleInputChange('mensaje', e.target.value)}
             placeholder="Cualquier información adicional que consideres relevante"
+            rows={3}
           />
         </div>
       </div>
@@ -609,11 +703,11 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
       case 0:
         return renderEtapaPersonal();
       case 1:
-        return renderEtapaVehiculo();
-      case 2:
-        return renderEtapaExperiencia();
-      case 3:
         return renderEtapaUbicacion();
+      case 2:
+        return renderEtapaVehiculo();
+      case 3:
+        return renderEtapaExperiencia();
       default:
         return null;
     }
