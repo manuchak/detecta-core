@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +30,7 @@ import { LeadEditDialog } from "@/components/leads/LeadEditDialog";
 import { VapiCallDialog } from "@/components/leads/VapiCallDialog";
 import { ManualInterviewDialog } from "@/components/leads/ManualInterviewDialog";
 import { CallHistoryDialog } from "@/components/leads/CallHistoryDialog";
+import { VapiCallLog } from "@/types/vapiTypes";
 
 interface AssignedLead {
   lead_id: string;
@@ -43,21 +43,6 @@ interface AssignedLead {
   phone_interview_completed: boolean;
   second_interview_required: boolean;
   final_decision: string | null;
-}
-
-interface VapiCallLog {
-  id: string;
-  vapi_call_id: string;
-  call_status: string;
-  phone_number: string;
-  started_at: string | null;
-  ended_at: string | null;
-  duration_seconds: number | null;
-  transcript: string | null;
-  summary: string | null;
-  analysis: any;
-  recording_url: string | null;
-  created_at: string;
 }
 
 export const LeadApprovals = () => {

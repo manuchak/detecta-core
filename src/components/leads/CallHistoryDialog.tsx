@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,22 +9,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Play, Pause, Volume2, Download, Calendar, Clock, Phone } from "lucide-react";
-
-interface VapiCallLog {
-  id: string;
-  vapi_call_id: string;
-  call_status: string;
-  phone_number: string;
-  started_at: string | null;
-  ended_at: string | null;
-  duration_seconds: number | null;
-  transcript: string | null;
-  summary: string | null;
-  analysis: any;
-  recording_url: string | null;
-  cost_usd: number | null;
-  created_at: string;
-}
+import { VapiCallLog } from "@/types/vapiTypes";
 
 interface CallHistoryDialogProps {
   open: boolean;
