@@ -8,11 +8,11 @@ export const useGmvChartData = (clientFilter: string = "all") => {
     queryKey: ['gmv-chart-data', clientFilter],
     queryFn: async () => {
       try {
-        console.log("🔄 Obteniendo datos históricos completos para gráfico GMV...");
+        console.log("🔄 Obteniendo datos históricos GMV con criterios forenses...");
         
         // Usar la función RPC para obtener TODOS los datos históricos
         const { data, error } = await supabase.rpc('bypass_rls_get_servicios', {
-          max_records: 50000 // Aumentar límite para asegurar datos completos
+          max_records: 50000
         });
 
         if (error) {
@@ -32,39 +32,46 @@ export const useGmvChartData = (clientFilter: string = "all") => {
           console.log(`🔍 Filtro cliente "${clientFilter}" aplicado: ${filteredData.length} registros`);
         }
         
-        // Análisis detallado de distribución de años
-        const yearDistribution: { [key: number]: number } = {};
-        const yearRevenue: { [key: number]: { total: number, validPayments: number } } = {};
-        
-        filteredData.forEach(item => {
-          if (item.fecha_hora_cita) {
-            try {
-              const date = new Date(item.fecha_hora_cita);
-              const year = date.getFullYear();
-              const cobro = parseFloat(String(item.cobro_cliente)) || 0;
-              const estado = (item.estado || '').trim();
-              
-              yearDistribution[year] = (yearDistribution[year] || 0) + 1;
-              
-              if (!yearRevenue[year]) {
-                yearRevenue[year] = { total: 0, validPayments: 0 };
-              }
-              
-              // Solo contar servicios finalizados con cobro válido (auditoría forense)
-              if (estado === 'Finalizado' && cobro > 0) {
-                yearRevenue[year].total += cobro;
-                yearRevenue[year].validPayments += 1;
-              }
-            } catch (e) {
-              console.warn('⚠️ Error procesando fecha:', e, item.fecha_hora_cita);
-            }
-          }
+        // Aplicar EXACTAMENTE los mismos criterios que la auditoría forense
+        const serviciosValidosForenses = filteredData.filter(item => {
+          // 1. Debe tener fecha válida
+          if (!item.fecha_hora_cita) return false;
+          
+          // 2. Debe tener ID de servicio válido
+          if (!item.id_servicio || item.id_servicio.trim() === '') return false;
+          
+          // 3. Debe estar finalizado EXACTAMENTE como en auditoría forense
+          const estado = (item.estado || '').trim();
+          if (estado !== 'Finalizado') return false;
+          
+          // 4. Debe tener cobro válido (mayor a 0)
+          const cobro = parseFloat(String(item.cobro_cliente)) || 0;
+          if (cobro <= 0) return false;
+          
+          return true;
         });
         
-        console.log('📅 Distribución por años (registros totales):', yearDistribution);
-        console.log('💰 Distribución de ingresos por año:', yearRevenue);
+        console.log(`✅ Servicios válidos según criterios forenses: ${serviciosValidosForenses.length}`);
         
-        // Procesar datos por mes para TODOS los años desde 2023
+        // Análisis de distribución por años (para debug)
+        const yearDistribution: { [key: number]: { count: number, revenue: number } } = {};
+        
+        serviciosValidosForenses.forEach(item => {
+          const date = new Date(item.fecha_hora_cita);
+          const year = date.getFullYear();
+          const cobro = parseFloat(String(item.cobro_cliente)) || 0;
+          
+          if (!yearDistribution[year]) {
+            yearDistribution[year] = { count: 0, revenue: 0 };
+          }
+          
+          yearDistribution[year].count += 1;
+          yearDistribution[year].revenue += cobro;
+        });
+        
+        console.log('📅 Distribución por años (criterios forenses):', yearDistribution);
+        
+        // Procesar datos mensuales para TODOS los años disponibles
         const monthlyTotals: { [key: string]: { current: number, previous: number } } = {};
         const currentYear = new Date().getFullYear(); // 2025
         
@@ -74,51 +81,48 @@ export const useGmvChartData = (clientFilter: string = "all") => {
           monthlyTotals[month] = { current: 0, previous: 0 };
         });
         
-        // Procesar SOLO servicios finalizados con cobro válido
-        const serviciosFinalizados = filteredData.filter(item => {
-          const estado = (item.estado || '').trim();
-          const cobro = parseFloat(String(item.cobro_cliente)) || 0;
-          return estado === 'Finalizado' && cobro > 0;
-        });
-        
-        console.log(`✅ Servicios finalizados con cobro válido: ${serviciosFinalizados.length}`);
-        
-        serviciosFinalizados.forEach(item => {
-          if (item.fecha_hora_cita) {
-            try {
-              const date = new Date(item.fecha_hora_cita);
-              const year = date.getFullYear();
-              const month = date.getMonth();
-              
-              // Convertir número de mes a nombre corto en español
-              const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-              const monthKey = monthNames[month];
-              const amount = parseFloat(String(item.cobro_cliente)) || 0;
-              
-              // Solo procesar años desde 2023
-              if (year >= 2023 && amount > 0) {
-                if (year === currentYear) {
-                  // Datos del año actual (2025)
-                  monthlyTotals[monthKey].current += amount;
-                } else {
-                  // Datos de años anteriores (2024, 2023, etc.)
-                  monthlyTotals[monthKey].previous += amount;
-                }
-              }
-            } catch (e) {
-              console.warn('⚠️ Error procesando item GMV:', e, item);
-            }
+        // Eliminar duplicados por ID de servicio (como en auditoría forense)
+        const serviciosUnicos = new Map();
+        serviciosValidosForenses.forEach(item => {
+          const id = item.id_servicio;
+          if (!serviciosUnicos.has(id)) {
+            serviciosUnicos.set(id, item);
           }
         });
         
-        console.log('📈 Totales mensuales calculados:', monthlyTotals);
+        const serviciosUnicosArray = Array.from(serviciosUnicos.values());
+        console.log(`🎯 Servicios únicos finales: ${serviciosUnicosArray.length}`);
         
-        // Verificar si tenemos datos históricos
-        const hasCurrentYearData = Object.values(monthlyTotals).some(month => month.current > 0);
-        const hasPreviousYearData = Object.values(monthlyTotals).some(month => month.previous > 0);
+        // Procesar cada servicio único
+        serviciosUnicosArray.forEach(item => {
+          const date = new Date(item.fecha_hora_cita);
+          const year = date.getFullYear();
+          const month = date.getMonth();
+          
+          // Convertir número de mes a nombre corto en español
+          const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+          const monthKey = monthNames[month];
+          const amount = parseFloat(String(item.cobro_cliente)) || 0;
+          
+          if (year === currentYear) {
+            // Datos del año actual (2025)
+            monthlyTotals[monthKey].current += amount;
+          } else {
+            // Datos de años anteriores (acumulados como "previous")
+            monthlyTotals[monthKey].previous += amount;
+          }
+        });
         
-        console.log(`📊 Datos año actual (${currentYear}):`, hasCurrentYearData);
-        console.log('📊 Datos años anteriores:', hasPreviousYearData);
+        console.log('📈 Totales mensuales calculados (criterios forenses):', monthlyTotals);
+        
+        // Verificar totales
+        const totalCurrentYear = Object.values(monthlyTotals).reduce((sum, month) => sum + month.current, 0);
+        const totalPreviousYears = Object.values(monthlyTotals).reduce((sum, month) => sum + month.previous, 0);
+        const totalGeneral = totalCurrentYear + totalPreviousYears;
+        
+        console.log(`💰 Total ${currentYear}: $${totalCurrentYear.toLocaleString()}`);
+        console.log(`💰 Total años anteriores: $${totalPreviousYears.toLocaleString()}`);
+        console.log(`💰 Total general: $${totalGeneral.toLocaleString()}`);
         
         // Convertir a formato de gráfico
         const result: MonthlyGmvData[] = monthOrder.map(month => ({
@@ -127,14 +131,7 @@ export const useGmvChartData = (clientFilter: string = "all") => {
           previousYear: monthlyTotals[month]?.previous || 0
         }));
         
-        console.log('📋 Resultado final para gráfico:', result);
-        
-        // Verificación final
-        const totalCurrentYear = result.reduce((sum, month) => sum + month.value, 0);
-        const totalPreviousYears = result.reduce((sum, month) => sum + month.previousYear, 0);
-        
-        console.log(`💰 Total ${currentYear}: $${totalCurrentYear.toLocaleString()}`);
-        console.log(`💰 Total años anteriores: $${totalPreviousYears.toLocaleString()}`);
+        console.log('📋 Resultado final para gráfico (criterios forenses):', result);
         
         return result;
         
@@ -144,7 +141,7 @@ export const useGmvChartData = (clientFilter: string = "all") => {
       }
     },
     enabled: true,
-    staleTime: 2 * 60 * 1000, // 2 minutos para datos más frescos
+    staleTime: 2 * 60 * 1000, // 2 minutos
     retry: 3
   });
 
