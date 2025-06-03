@@ -124,43 +124,32 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
     fuente: "web"
   });
 
-  // Verificar acceso al cargar el componente
+  // Verificar acceso al cargar el componente usando la nueva función
   useState(() => {
     const checkAccess = async () => {
       try {
-        // Usar función RPC existente para verificar si es admin
-        const { data: isAdmin, error: adminError } = await supabase.rpc('is_admin_user');
+        // Usar la nueva función RPC is_current_user_admin
+        const { data: isAdmin, error: adminError } = await supabase.rpc('is_current_user_admin');
         
         if (adminError) {
           console.error('Error verificando acceso admin:', adminError);
-        }
-
-        // También verificar roles específicos usando get_user_roles
-        const { data: userRoles, error: rolesError } = await supabase.rpc('get_user_roles');
-        
-        if (rolesError) {
-          console.error('Error obteniendo roles:', rolesError);
           setHasAccess(false);
           return;
         }
 
-        // Verificar si el usuario tiene acceso basado en roles
-        const allowedRoles = ['admin', 'owner', 'manager', 'supply_admin', 'supply'];
-        const hasRequiredRole = Array.isArray(userRoles) && userRoles.some((roleObj: any) => 
-          allowedRoles.includes(roleObj?.role)
-        );
-
-        const hasAccessResult = isAdmin || hasRequiredRole;
-        setHasAccess(hasAccessResult);
+        setHasAccess(isAdmin || false);
         
         // Obtener información del usuario
         const { data: { user } } = await supabase.auth.getUser();
+        const { data: userRoles } = await supabase.rpc('get_user_roles');
+        
         setUserInfo({
           user_email: user?.email || 'No disponible',
-          user_roles: Array.isArray(userRoles) ? userRoles.map((r: any) => r?.role).filter(Boolean) : []
+          user_roles: Array.isArray(userRoles) ? userRoles.map((r: any) => r?.role).filter(Boolean) : [],
+          is_admin: isAdmin
         });
 
-        if (!hasAccessResult) {
+        if (!isAdmin) {
           toast({
             title: "Acceso denegado",
             description: "No tienes permisos para crear candidatos.",
@@ -441,6 +430,7 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
               <div className="mt-2 text-sm">
                 <p>Email: {userInfo.user_email || 'No disponible'}</p>
                 <p>Roles: {userInfo.user_roles?.join(', ') || 'Sin roles asignados'}</p>
+                <p>Admin: {userInfo.is_admin ? 'Sí' : 'No'}</p>
               </div>
             )}
           </CardDescription>

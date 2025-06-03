@@ -2002,6 +2002,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      is_current_user_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       is_service_owner: {
         Args: { user_id: string; service_custodio_id: string }
         Returns: boolean
