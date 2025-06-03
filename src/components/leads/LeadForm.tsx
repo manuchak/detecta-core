@@ -81,6 +81,7 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
   const [referralData, setReferralData] = useState<ReferralData | null>(null);
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
   const [userInfo, setUserInfo] = useState<any>(null);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
   const { toast } = useToast();
   
   const [formData, setFormData] = useState<FormData>({
@@ -124,32 +125,88 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
     fuente: "web"
   });
 
-  // Verificar acceso al cargar el componente usando la nueva función
+  // Verificar acceso con diagnóstico detallado
   useState(() => {
     const checkAccess = async () => {
       try {
-        // Usar la nueva función RPC is_current_user_admin
-        const { data: isAdmin, error: adminError } = await supabase.rpc('is_current_user_admin');
+        console.log('🔍 Iniciando verificación de acceso...');
         
-        if (adminError) {
-          console.error('Error verificando acceso admin:', adminError);
+        // 1. Verificar usuario autenticado
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        console.log('👤 Usuario actual:', { user: user?.email, id: user?.id, error: userError });
+        
+        if (userError || !user) {
+          console.error('❌ Error de autenticación:', userError);
           setHasAccess(false);
+          setDebugInfo({ error: 'No autenticado', userError });
           return;
         }
 
-        setHasAccess(isAdmin || false);
+        // 2. Verificar función is_current_user_admin
+        const { data: isAdmin, error: adminError } = await supabase.rpc('is_current_user_admin');
+        console.log('🔐 Verificación admin:', { isAdmin, adminError });
         
-        // Obtener información del usuario
-        const { data: { user } } = await supabase.auth.getUser();
-        const { data: userRoles } = await supabase.rpc('get_user_roles');
+        // 3. Verificar roles del usuario
+        const { data: userRoles, error: rolesError } = await supabase.rpc('get_user_roles');
+        console.log('👥 Roles del usuario:', { userRoles, rolesError });
+        
+        // 4. Verificar tabla user_roles directamente
+        const { data: directRoles, error: directError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id);
+        console.log('📋 Roles directos:', { directRoles, directError });
+
+        // 5. Prueba de inserción simple en tabla leads (para diagnóstico)
+        console.log('🧪 Probando permisos de inserción...');
+        const testData = {
+          nombre: 'Test Usuario',
+          email: 'test@example.com',
+          telefono: '1234567890',
+          empresa: 'Test Company',
+          mensaje: 'Test message',
+          estado: 'nuevo',
+          fuente: 'web'
+        };
+        
+        const { data: testInsert, error: testError } = await supabase
+          .from('leads')
+          .insert(testData)
+          .select()
+          .single();
+        
+        if (testError) {
+          console.error('❌ Error en prueba de inserción:', testError);
+        } else {
+          console.log('✅ Prueba de inserción exitosa:', testInsert);
+          // Eliminar el registro de prueba
+          await supabase.from('leads').delete().eq('id', testInsert.id);
+        }
+
+        setDebugInfo({
+          user: user?.email,
+          userId: user?.id,
+          isAdmin,
+          adminError,
+          userRoles,
+          rolesError,
+          directRoles,
+          directError,
+          testError: testError?.message || 'No error',
+          canInsert: !testError
+        });
+
+        const hasAdminAccess = isAdmin || false;
+        setHasAccess(hasAdminAccess);
         
         setUserInfo({
           user_email: user?.email || 'No disponible',
           user_roles: Array.isArray(userRoles) ? userRoles.map((r: any) => r?.role).filter(Boolean) : [],
-          is_admin: isAdmin
+          is_admin: isAdmin,
+          direct_roles: directRoles?.map(r => r.role) || []
         });
 
-        if (!isAdmin) {
+        if (!hasAdminAccess) {
           toast({
             title: "Acceso denegado",
             description: "No tienes permisos para crear candidatos.",
@@ -157,8 +214,9 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
           });
         }
       } catch (error) {
-        console.error('Error en checkAccess:', error);
+        console.error('💥 Error crítico en checkAccess:', error);
         setHasAccess(false);
+        setDebugInfo({ criticalError: error });
       }
     };
     
@@ -229,6 +287,10 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('📤 Iniciando envío del formulario...');
+    console.log('📋 Datos del formulario:', formData);
+    console.log('🔍 Debug info:', debugInfo);
+    
     if (!validarEtapa(etapaActual)) {
       toast({
         title: "Campos requeridos",
@@ -241,6 +303,15 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
     setLoading(true);
 
     try {
+      // Verificar usuario antes de continuar
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Usuario no autenticado');
+      }
+      
+      console.log('👤 Usuario confirmado para inserción:', user.email);
+
+      // ... keep existing code (location name resolution)
       let estadoNombre = '';
       let ciudadNombre = '';
       let zonaNombre = '';
@@ -270,22 +341,33 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
       };
       zonaNombre = zonaMap[formData.zona_trabajo_id] || formData.zona_trabajo_id;
 
+      console.log('💾 Insertando lead...');
+      const leadInsertData = {
+        nombre: formData.nombre,
+        email: formData.email,
+        telefono: formData.telefono,
+        empresa: "Candidato a Custodio",
+        mensaje: formData.mensaje,
+        estado: formData.estado_solicitud,
+        fuente: formData.fuente
+      };
+      
+      console.log('📝 Datos de inserción del lead:', leadInsertData);
+
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
-        .insert({
-          nombre: formData.nombre,
-          email: formData.email,
-          telefono: formData.telefono,
-          empresa: "Candidato a Custodio",
-          mensaje: formData.mensaje,
-          estado: formData.estado_solicitud,
-          fuente: formData.fuente
-        })
+        .insert(leadInsertData)
         .select()
         .single();
 
-      if (leadError) throw leadError;
+      if (leadError) {
+        console.error('❌ Error insertando lead:', leadError);
+        throw new Error(`Error al crear lead: ${leadError.message}`);
+      }
 
+      console.log('✅ Lead creado exitosamente:', leadData);
+
+      // ... keep existing code (candidate details creation and update)
       const candidateDetails: any = {
         lead_id: leadData.id,
         tipo_custodio: formData.tipo_custodio,
@@ -348,6 +430,7 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
         };
       }
 
+      console.log('📝 Actualizando lead con detalles del candidato...');
       const { error: updateError } = await supabase
         .from('leads')
         .update({
@@ -355,8 +438,14 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
         })
         .eq('id', leadData.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('❌ Error actualizando lead:', updateError);
+        throw updateError;
+      }
 
+      console.log('✅ Lead actualizado con detalles del candidato');
+
+      // ... keep existing code (referral handling and success message)
       if (referralData) {
         const { error: referralError } = await supabase
           .from('referidos')
@@ -388,10 +477,10 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
 
       onSuccess?.();
     } catch (error) {
-      console.error('Error creating lead:', error);
+      console.error('💥 Error crítico creando lead:', error);
       toast({
         title: "Error",
-        description: "No se pudo guardar la información del candidato.",
+        description: `No se pudo guardar la información del candidato: ${error instanceof Error ? error.message : 'Error desconocido'}`,
         variant: "destructive",
       });
     } finally {
@@ -430,7 +519,14 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
               <div className="mt-2 text-sm">
                 <p>Email: {userInfo.user_email || 'No disponible'}</p>
                 <p>Roles: {userInfo.user_roles?.join(', ') || 'Sin roles asignados'}</p>
+                <p>Roles directos: {userInfo.direct_roles?.join(', ') || 'Sin roles'}</p>
                 <p>Admin: {userInfo.is_admin ? 'Sí' : 'No'}</p>
+              </div>
+            )}
+            {debugInfo && (
+              <div className="mt-4 p-3 bg-gray-100 rounded text-xs">
+                <p><strong>Debug Info:</strong></p>
+                <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
               </div>
             )}
           </CardDescription>
