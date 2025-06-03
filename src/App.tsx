@@ -1,99 +1,107 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { ThemeProvider } from "next-themes";
+import React, { useEffect, useState } from 'react';
+import { Routes, Route, BrowserRouter, Navigate } from 'react-router-dom';
+import { ThemeProvider } from "@/components/theme-provider"
+import { useTheme } from 'next-themes'
+import { Toaster } from "@/components/ui/toaster"
 
-// Import layouts
-import { AuthLayout } from "@/layouts/AuthLayout";
-import { DashboardLayout } from "@/layouts/DashboardLayout";
+import Landing from "./pages/Landing";
+import Login from "./pages/Auth/Login";
+import Register from "./pages/Auth/Register";
+import ForgotPassword from "./pages/Auth/ForgotPassword";
+import EmailConfirmation from "./pages/Auth/EmailConfirmation";
+import Dashboard from "./pages/Dashboard";
+import MonitoringPage from "./pages/Monitoring";
+import SupplyChainMonitoring from "./pages/Monitoring/SupplyChain";
+import ForensicAuditPage from "./pages/Monitoring/ForensicAudit";
+import Settings from "./pages/Settings";
+import LeadsList from "./pages/Leads/LeadsList";
+import TicketsList from "./pages/Tickets";
+import LandingManager from "./pages/Admin/LandingManager";
+import AssignRole from "./pages/Admin/AssignRole";
+import AssignOwnerRole from "./pages/Admin/AssignOwnerRole";
+import InstallerPortal from "./pages/InstallerPortal";
+import NotFound from "./pages/NotFound";
+import AuthLayout from './layouts/AuthLayout';
+import DashboardLayout from './layouts/DashboardLayout';
+import { supabase } from './integrations/supabase/client';
+import { useToast } from "@/components/ui/use-toast"
+import { Skeleton } from "@/components/ui/skeleton"
 
-// Import pages
-import Index from "@/pages/Index";
-import Dashboard from "@/pages/Dashboard/Dashboard";
-import Login from "@/pages/Auth/Login";
-import Register from "@/pages/Auth/Register";
-import ForgotPassword from "@/pages/Auth/ForgotPassword";
-import EmailConfirmation from "@/pages/Auth/EmailConfirmation";
-import Settings from "@/pages/Settings/Settings";
-import LeadsList from "@/pages/Leads/LeadsList";
-import TicketsList from "@/pages/Tickets/TicketsList";
-import MonitoringPage from "@/pages/Monitoring/MonitoringPage";
-import SupplyChainMonitoring from "@/pages/Monitoring/SupplyChainMonitoring";
-import ForensicAuditPage from "@/pages/Monitoring/ForensicAuditPage";
-import InstallerPortal from "@/pages/Installers/InstallerPortal";
-import AssignRole from "@/pages/Admin/AssignRole";
-import AssignOwnerRole from "@/pages/Admin/AssignOwnerRole";
-import LandingManager from "@/pages/Admin/LandingManager";
-import Landing from "@/pages/Landing/Landing";
-import NotFound from "@/pages/NotFound";
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 60 * 1000,
-    },
-  },
-});
+import LeadApprovals from "./pages/Leads/LeadApprovals";
 
 function App() {
+  const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState(null);
+  const { toast } = useToast()
+  const { theme } = useTheme()
+
+  useEffect(() => {
+    // Set loading to true on mount
+    setLoading(true);
+
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setSession(session);
+      })
+      .catch(error => {
+        console.error("Error getting session:", error);
+        toast({
+          title: "Error",
+          description: "Failed to retrieve session.",
+          variant: "destructive",
+        })
+      })
+      .finally(() => {
+        setLoading(false); // Set loading to false once the session is loaded or an error occurs
+      });
+
+    supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+  }, []);
+
+  // Conditionally render a loading indicator
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Skeleton className="w-[300px] h-[40px]" />
+      </div>
+    );
+  }
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-        <TooltipProvider>
-          <BrowserRouter>
-            <AuthProvider>
-              <Routes>
-                {/* Public routes */}
-                <Route path="/" element={<Index />} />
-                <Route path="/landing" element={<Landing />} />
-                
-                {/* Auth routes */}
-                <Route path="/auth" element={<AuthLayout />}>
-                  <Route path="login" element={<Login />} />
-                  <Route path="register" element={<Register />} />
-                  <Route path="forgot-password" element={<ForgotPassword />} />
-                </Route>
-                
-                {/* Email confirmation route (standalone) */}
-                <Route path="/auth/confirm" element={<EmailConfirmation />} />
-                
-                {/* Legacy auth routes for compatibility */}
-                <Route path="/login" element={<Navigate to="/auth/login" replace />} />
-                <Route path="/register" element={<Navigate to="/auth/register" replace />} />
-                <Route path="/forgot-password" element={<Navigate to="/auth/forgot-password" replace />} />
-                
-                {/* Protected leads route (standalone with dashboard layout) */}
-                <Route path="/leads" element={<DashboardLayout />}>
-                  <Route index element={<LeadsList />} />
-                </Route>
-                
-                {/* Protected dashboard routes */}
-                <Route path="/dashboard" element={<DashboardLayout />}>
-                  <Route index element={<Dashboard />} />
-                  <Route path="settings" element={<Settings />} />
-                  <Route path="tickets" element={<TicketsList />} />
-                  <Route path="monitoring" element={<MonitoringPage />} />
-                  <Route path="supply-chain" element={<SupplyChainMonitoring />} />
-                  <Route path="forensic-audit" element={<ForensicAuditPage />} />
-                  <Route path="installers" element={<InstallerPortal />} />
-                  <Route path="admin/assign-role" element={<AssignRole />} />
-                  <Route path="admin/assign-owner" element={<AssignOwnerRole />} />
-                  <Route path="admin/landing" element={<LandingManager />} />
-                </Route>
-                
-                {/* 404 route */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-              <Toaster />
-              <Sonner />
-            </AuthProvider>
-          </BrowserRouter>
-        </TooltipProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <BrowserRouter>
+        <Routes>
+          {/* Landing page route */}
+          <Route path="/" element={<Landing />} />
+          
+          {/* Auth routes */}
+          <Route path="/login" element={<AuthLayout><Login /></AuthLayout>} />
+          <Route path="/register" element={<AuthLayout><Register /></AuthLayout>} />
+          <Route path="/forgot-password" element={<AuthLayout><ForgotPassword /></AuthLayout>} />
+          <Route path="/confirm-email" element={<AuthLayout><EmailConfirmation /></AuthLayout>} />
+          
+          {/* Dashboard routes */}
+          <Route path="/dashboard" element={<DashboardLayout><Dashboard /></DashboardLayout>} />
+          <Route path="/monitoring" element={<DashboardLayout><MonitoringPage /></DashboardLayout>} />
+          <Route path="/monitoring/supply-chain" element={<DashboardLayout><SupplyChainMonitoring /></DashboardLayout>} />
+          <Route path="/monitoring/forensic-audit" element={<DashboardLayout><ForensicAuditPage /></DashboardLayout>} />
+          <Route path="/settings" element={<DashboardLayout><Settings /></DashboardLayout>} />
+          <Route path="/leads" element={<DashboardLayout><LeadsList /></DashboardLayout>} />
+          <Route path="/leads/approval" element={<DashboardLayout><LeadApprovals /></DashboardLayout>} />
+          <Route path="/tickets" element={<DashboardLayout><TicketsList /></DashboardLayout>} />
+          <Route path="/admin/landing" element={<DashboardLayout><LandingManager /></DashboardLayout>} />
+          <Route path="/admin/assign-role" element={<DashboardLayout><AssignRole /></DashboardLayout>} />
+          <Route path="/admin/assign-owner" element={<DashboardLayout><AssignOwnerRole /></DashboardLayout>} />
+          <Route path="/installers" element={<DashboardLayout><InstallerPortal /></DashboardLayout>} />
+          
+          {/* Catch all route */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+      <Toaster />
+    </ThemeProvider>
   );
 }
 

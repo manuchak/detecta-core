@@ -212,6 +212,78 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_approval_process: {
+        Row: {
+          analyst_id: string
+          created_at: string
+          current_stage: string
+          decision_reason: string | null
+          final_decision: string | null
+          id: string
+          interview_method: string | null
+          lead_id: string
+          phone_interview_completed: boolean | null
+          phone_interview_date: string | null
+          phone_interview_notes: string | null
+          second_interview_completed: boolean | null
+          second_interview_date: string | null
+          second_interview_notes: string | null
+          second_interview_required: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          analyst_id: string
+          created_at?: string
+          current_stage?: string
+          decision_reason?: string | null
+          final_decision?: string | null
+          id?: string
+          interview_method?: string | null
+          lead_id: string
+          phone_interview_completed?: boolean | null
+          phone_interview_date?: string | null
+          phone_interview_notes?: string | null
+          second_interview_completed?: boolean | null
+          second_interview_date?: string | null
+          second_interview_notes?: string | null
+          second_interview_required?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          analyst_id?: string
+          created_at?: string
+          current_stage?: string
+          decision_reason?: string | null
+          final_decision?: string | null
+          id?: string
+          interview_method?: string | null
+          lead_id?: string
+          phone_interview_completed?: boolean | null
+          phone_interview_date?: string | null
+          phone_interview_notes?: string | null
+          second_interview_completed?: boolean | null
+          second_interview_date?: string | null
+          second_interview_notes?: string | null
+          second_interview_required?: boolean | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_approval_process_analyst_id_fkey"
+            columns: ["analyst_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_approval_process_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           asignado_a: string | null
@@ -919,6 +991,87 @@ export type Database = {
         }
         Relationships: []
       }
+      vapi_call_logs: {
+        Row: {
+          analysis: Json | null
+          analyst_id: string
+          artifacts: Json | null
+          call_status: string | null
+          call_type: string | null
+          cost_usd: number | null
+          created_at: string
+          duration_seconds: number | null
+          ended_at: string | null
+          id: string
+          lead_id: string
+          phone_number: string | null
+          recording_url: string | null
+          started_at: string | null
+          summary: string | null
+          transcript: string | null
+          updated_at: string
+          vapi_assistant_id: string
+          vapi_call_id: string | null
+        }
+        Insert: {
+          analysis?: Json | null
+          analyst_id: string
+          artifacts?: Json | null
+          call_status?: string | null
+          call_type?: string | null
+          cost_usd?: number | null
+          created_at?: string
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          lead_id: string
+          phone_number?: string | null
+          recording_url?: string | null
+          started_at?: string | null
+          summary?: string | null
+          transcript?: string | null
+          updated_at?: string
+          vapi_assistant_id?: string
+          vapi_call_id?: string | null
+        }
+        Update: {
+          analysis?: Json | null
+          analyst_id?: string
+          artifacts?: Json | null
+          call_status?: string | null
+          call_type?: string | null
+          cost_usd?: number | null
+          created_at?: string
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          lead_id?: string
+          phone_number?: string | null
+          recording_url?: string | null
+          started_at?: string | null
+          summary?: string | null
+          transcript?: string | null
+          updated_at?: string
+          vapi_assistant_id?: string
+          vapi_call_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vapi_call_logs_analyst_id_fkey"
+            columns: ["analyst_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vapi_call_logs_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       zonas_trabajo: {
         Row: {
           activo: boolean
@@ -1209,6 +1362,14 @@ export type Database = {
         Args: { p_user_id: string; p_user_phone: string; p_user_name: string }
         Returns: number
       }
+      create_vapi_call_log: {
+        Args: {
+          p_lead_id: string
+          p_vapi_call_id: string
+          p_phone_number: string
+        }
+        Returns: string
+      }
       delete_reward_bypass_rls: {
         Args: { reward_id: string }
         Returns: boolean
@@ -1416,6 +1577,21 @@ export type Database = {
           last_sign_in_at: string
           created_at: string
           user_roles: string[]
+        }[]
+      }
+      get_analyst_assigned_leads: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          lead_id: string
+          lead_nombre: string
+          lead_email: string
+          lead_telefono: string
+          lead_estado: string
+          lead_fecha_creacion: string
+          approval_stage: string
+          phone_interview_completed: boolean
+          second_interview_required: boolean
+          final_decision: string
         }[]
       }
       get_available_roles_secure: {
@@ -2077,6 +2253,17 @@ export type Database = {
       update_all_custodian_levels: {
         Args: Record<PropertyKey, never>
         Returns: number
+      }
+      update_approval_process: {
+        Args: {
+          p_lead_id: string
+          p_stage: string
+          p_interview_method?: string
+          p_notes?: string
+          p_decision?: string
+          p_decision_reason?: string
+        }
+        Returns: undefined
       }
       update_last_login: {
         Args: Record<PropertyKey, never>
