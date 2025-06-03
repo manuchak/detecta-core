@@ -195,16 +195,15 @@ export const Dashboard = () => {
           <ForensicAuditPanel />
         </div>
         
-        {/* Filtros con mejor diseño */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <DashboardFilters
-            timeframe={timeframe}
-            serviceTypeFilter={serviceTypeFilter}
-            onTimeframeChange={(value) => setTimeframe(value)}
-            onServiceTypeChange={(value) => setServiceTypeFilter(value)}
-            onRefresh={handleRefresh}
-          />
-        </div>
+        {/* Filtros mejorados con estado de loading */}
+        <DashboardFilters
+          timeframe={timeframe}
+          serviceTypeFilter={serviceTypeFilter}
+          onTimeframeChange={(value) => setTimeframe(value)}
+          onServiceTypeChange={(value) => setServiceTypeFilter(value)}
+          onRefresh={handleRefresh}
+          isLoading={dataLoading}
+        />
         
         {/* Tarjetas de métricas rediseñadas */}
         <MetricsCards metrics={dashboardData} isLoading={dataLoading} />
