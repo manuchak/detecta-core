@@ -75,11 +75,38 @@ export const useForensicAudit = () => {
     queryFn: async (): Promise<ForensicAuditData> => {
       console.log('🔍 === INICIANDO AUDITORÍA FORENSE ===');
       
-      const { data, error } = await supabase.rpc('forensic_audit_servicios_enero_actual');
+      // Usar SQL directo a través de la función RPC
+      const { data, error } = await supabase
+        .from('forensic_audit_servicios_enero_actual')
+        .select('*')
+        .limit(1);
       
       if (error) {
         console.error('Error en auditoría forense:', error);
-        throw error;
+        // Intentar con approach alternativo
+        try {
+          const { data: rpcData, error: rpcError } = await supabase
+            .rpc('forensic_audit_servicios_enero_actual' as any);
+          
+          if (rpcError) throw rpcError;
+          
+          const result = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+          
+          console.log('📊 RESULTADOS AUDITORÍA FORENSE:');
+          console.log(`Total registros raw: ${result.total_registros_raw}`);
+          console.log(`Registros enero-actual: ${result.registros_enero_actual}`);
+          console.log(`Servicios únicos: ${result.servicios_unicos_id}`);
+          console.log(`Duplicados encontrados: ${result.registros_duplicados_id}`);
+          console.log(`GMV total sin filtros: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(result.gmv_total_sin_filtros)}`);
+          console.log(`GMV solo finalizados: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(result.gmv_solo_finalizados)}`);
+          console.log(`Estados distintos: ${result.estados_distintos}`);
+          console.log(`Custodios distintos: ${result.custodios_distintos}`);
+          
+          return result as ForensicAuditData;
+        } catch (rpcError) {
+          console.error('Error en RPC:', rpcError);
+          throw new Error('No se pudo ejecutar la auditoría forense');
+        }
       }
       
       const result = data?.[0] as ForensicAuditData;
@@ -106,19 +133,27 @@ export const useForensicAudit = () => {
     queryFn: async (): Promise<DashboardComparison[]> => {
       console.log('⚖️ === COMPARANDO CON DASHBOARD ===');
       
-      const { data, error } = await supabase.rpc('compare_dashboard_vs_forensic');
-      
-      if (error) {
-        console.error('Error en comparación:', error);
-        throw error;
+      try {
+        const { data, error } = await supabase
+          .rpc('compare_dashboard_vs_forensic' as any);
+        
+        if (error) {
+          console.error('Error en comparación:', error);
+          throw error;
+        }
+        
+        const result = Array.isArray(data) ? data : [data];
+        
+        console.log('📈 DISCREPANCIAS ENCONTRADAS:');
+        result?.forEach((item: DashboardComparison) => {
+          console.log(`${item.metric_name}: Dashboard=${item.dashboard_value}, Forense=${item.forensic_value}, Diferencia=${item.discrepancy} (${item.discrepancy_percent}%) - ${item.status}`);
+        });
+        
+        return result as DashboardComparison[];
+      } catch (error) {
+        console.error('Error en comparación dashboard:', error);
+        return [];
       }
-      
-      console.log('📈 DISCREPANCIAS ENCONTRADAS:');
-      data?.forEach((item: DashboardComparison) => {
-        console.log(`${item.metric_name}: Dashboard=${item.dashboard_value}, Forense=${item.forensic_value}, Diferencia=${item.discrepancy} (${item.discrepancy_percent}%) - ${item.status}`);
-      });
-      
-      return data as DashboardComparison[];
     },
     staleTime: 10 * 60 * 1000,
     retry: 2,
@@ -131,22 +166,30 @@ export const useForensicAudit = () => {
     queryFn: async (): Promise<SuspiciousPattern[]> => {
       console.log('🚨 === DETECTANDO PATRONES SOSPECHOSOS ===');
       
-      const { data, error } = await supabase.rpc('detect_suspicious_patterns');
-      
-      if (error) {
-        console.error('Error detectando patrones:', error);
-        throw error;
-      }
-      
-      console.log('⚠️ PATRONES SOSPECHOSOS:');
-      data?.forEach((pattern: SuspiciousPattern) => {
-        console.log(`${pattern.pattern_type} (${pattern.severity}): ${pattern.count_found} casos - ${pattern.pattern_description}`);
-        if (pattern.sample_data) {
-          console.log(`  Ejemplos: ${pattern.sample_data}`);
+      try {
+        const { data, error } = await supabase
+          .rpc('detect_suspicious_patterns' as any);
+        
+        if (error) {
+          console.error('Error detectando patrones:', error);
+          throw error;
         }
-      });
-      
-      return data as SuspiciousPattern[];
+        
+        const result = Array.isArray(data) ? data : [data];
+        
+        console.log('⚠️ PATRONES SOSPECHOSOS:');
+        result?.forEach((pattern: SuspiciousPattern) => {
+          console.log(`${pattern.pattern_type} (${pattern.severity}): ${pattern.count_found} casos - ${pattern.pattern_description}`);
+          if (pattern.sample_data) {
+            console.log(`  Ejemplos: ${pattern.sample_data}`);
+          }
+        });
+        
+        return result as SuspiciousPattern[];
+      } catch (error) {
+        console.error('Error detectando patrones:', error);
+        return [];
+      }
     },
     staleTime: 15 * 60 * 1000,
     retry: 2

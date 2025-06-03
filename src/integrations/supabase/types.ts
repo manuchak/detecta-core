@@ -1010,6 +1010,17 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      compare_dashboard_vs_forensic: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          metric_name: string
+          dashboard_value: number
+          forensic_value: number
+          discrepancy: number
+          discrepancy_percent: number
+          status: string
+        }[]
+      }
       create_redemptions_bypass_rls: {
         Args: { redemptions_data: Json }
         Returns: {
@@ -1035,6 +1046,16 @@ export type Database = {
       delete_reward_bypass_rls: {
         Args: { reward_id: string }
         Returns: boolean
+      }
+      detect_suspicious_patterns: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          pattern_type: string
+          pattern_description: string
+          count_found: number
+          severity: string
+          sample_data: string
+        }[]
       }
       diagnose_phone_services: {
         Args: { p_phone: string }
@@ -1066,6 +1087,41 @@ export type Database = {
           p_suggested_points: number
         }
         Returns: string
+      }
+      forensic_audit_servicios_enero_actual: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          total_registros_raw: number
+          registros_con_fecha_valida: number
+          registros_enero_actual: number
+          servicios_unicos_id: number
+          registros_duplicados_id: number
+          registros_sin_id: number
+          estados_distintos: number
+          servicios_finalizado_exact: number
+          servicios_completado: number
+          servicios_pendientes: number
+          servicios_cancelados: number
+          servicios_estado_null: number
+          servicios_estado_vacio: number
+          registros_con_cobro_valido: number
+          registros_con_cobro_zero: number
+          registros_con_cobro_null: number
+          gmv_total_sin_filtros: number
+          gmv_solo_finalizados: number
+          gmv_solo_completados: number
+          custodios_distintos: number
+          registros_sin_custodio: number
+          custodios_con_hash_na: number
+          clientes_distintos: number
+          registros_sin_cliente: number
+          registros_con_origen: number
+          registros_con_destino: number
+          registros_con_ruta_completa: number
+          fecha_mas_antigua: string
+          fecha_mas_reciente: string
+          registros_fuera_rango: number
+        }[]
       }
       get_active_custodians_count: {
         Args: Record<PropertyKey, never>
@@ -1311,6 +1367,14 @@ export type Database = {
           id: string
           nombre: string
           codigo: string
+        }[]
+      }
+      get_finalized_services_data_secure: {
+        Args: { start_date: string; end_date: string }
+        Returns: {
+          total_services: number
+          total_gmv: number
+          service_count: number
         }[]
       }
       get_gmv_chart_data_secure: {
