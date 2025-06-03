@@ -20,49 +20,60 @@ export const useVehicleData = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchMarcas = async () => {
       try {
         console.log('Fetching marcas...');
         setLoadingMarcas(true);
         setError(null);
         
-        // Usar la función RPC segura
-        const { data, error } = await supabase.rpc('get_marcas_vehiculos_safe') as {
-          data: Marca[] | null;
-          error: any;
-        };
+        const { data, error } = await supabase.rpc('get_marcas_vehiculos_safe');
         
         if (error) {
           console.error('Error fetching marcas:', error);
-          setError(error.message);
+          if (isMounted) {
+            setError(error.message);
+          }
           return;
         }
         
         console.log('Marcas fetched successfully:', data);
-        setMarcas(data || []);
+        if (isMounted) {
+          setMarcas(data || []);
+        }
       } catch (err) {
         console.error('Error in fetchMarcas:', err);
-        const errorMessage = err instanceof Error ? err.message : 'Error al cargar marcas';
-        setError(errorMessage);
+        if (isMounted) {
+          const errorMessage = err instanceof Error ? err.message : 'Error al cargar marcas';
+          setError(errorMessage);
+        }
       } finally {
-        setLoadingMarcas(false);
+        if (isMounted) {
+          setLoadingMarcas(false);
+        }
       }
     };
 
     fetchMarcas();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const fetchModelosPorMarca = async (marcaNombre: string): Promise<Modelo[]> => {
     try {
       console.log('Fetching modelos for marca:', marcaNombre);
       
-      // Usar la función RPC segura
+      if (!marcaNombre || marcaNombre.trim() === '') {
+        console.log('No marca provided, returning empty array');
+        return [];
+      }
+      
       const { data, error } = await supabase.rpc('get_modelos_por_marca_safe', {
-        p_marca_nombre: marcaNombre
-      }) as {
-        data: Modelo[] | null;
-        error: any;
-      };
+        p_marca_nombre: marcaNombre.trim()
+      });
       
       if (error) {
         console.error('Error fetching modelos:', error);
