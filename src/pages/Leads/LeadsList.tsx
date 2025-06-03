@@ -107,27 +107,43 @@ export const LeadsList = () => {
   const fetchLeads = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      console.log('Iniciando fetchLeads...');
+      
+      // Obtener datos básicos de leads
+      const { data: leadsData, error: leadsError } = await supabase
         .from('leads')
-        .select(`
-          *,
-          analista:profiles(display_name)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (leadsError) {
+        console.error('Error fetching leads:', leadsError);
+        throw leadsError;
+      }
       
-      const typedData: Lead[] = await Promise.all((data || []).map(async (item: any) => {
+      console.log('Leads data:', leadsData);
+      
+      if (!leadsData || leadsData.length === 0) {
+        console.log('No se encontraron leads en la base de datos');
+        setLeads([]);
+        setFilteredLeads([]);
+        return;
+      }
+
+      // Procesar cada lead para extraer información adicional
+      const processedLeads: Lead[] = leadsData.map((item: any) => {
         let referidoInfo = null;
         let referidoPor = null;
         let tipoCustodio = null;
         let ciudad = null;
         let estadoNombre = null;
+        let analistaNombre = null;
 
-        // Extraer información del campo notas
+        // Extraer información del campo notas si existe
         try {
           if (item.notas) {
             const notasData = JSON.parse(item.notas);
+            console.log('Notas data para lead', item.id, ':', notasData);
+            
             if (notasData.referido) {
               referidoInfo = notasData.referido;
               referidoPor = notasData.referido.custodio_referente_nombre;
@@ -141,10 +157,11 @@ export const LeadsList = () => {
             }
           }
         } catch (e) {
-          console.error('Error parsing notas:', e);
+          console.error('Error parsing notas for lead', item.id, ':', e);
         }
 
-        return {
+        // Mapear el lead con la información procesada
+        const processedLead: Lead = {
           id: item.id,
           nombre: item.nombre || '',
           email: item.email || '',
@@ -164,14 +181,42 @@ export const LeadsList = () => {
           tipo_custodio: tipoCustodio,
           ciudad: ciudad,
           estado_nombre: estadoNombre,
-          analista_nombre: item.analista?.display_name || null
+          analista_nombre: analistaNombre
         };
-      }));
+
+        console.log('Processed lead:', processedLead);
+        return processedLead;
+      });
+
+      // Obtener información de analistas asignados
+      if (processedLeads.some(lead => lead.asignado_a)) {
+        const analystIds = processedLeads
+          .filter(lead => lead.asignado_a)
+          .map(lead => lead.asignado_a);
+
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, display_name')
+          .in('id', analystIds);
+
+        if (!profilesError && profiles) {
+          processedLeads.forEach(lead => {
+            if (lead.asignado_a) {
+              const analyst = profiles.find(p => p.id === lead.asignado_a);
+              if (analyst) {
+                lead.analista_nombre = analyst.display_name;
+              }
+            }
+          });
+        }
+      }
       
-      setLeads(typedData);
-      setFilteredLeads(typedData);
+      console.log('Final processed leads:', processedLeads);
+      setLeads(processedLeads);
+      setFilteredLeads(processedLeads);
+      
     } catch (error) {
-      console.error('Error fetching leads:', error);
+      console.error('Error in fetchLeads:', error);
       toast({
         title: "Error",
         description: "No se pudieron cargar los candidatos.",
@@ -183,25 +228,31 @@ export const LeadsList = () => {
   };
 
   useEffect(() => {
-    let result = leads;
+    console.log('Filtering leads. Search term:', searchTerm, 'Status filter:', statusFilter);
+    console.log('All leads:', leads);
     
-    if (searchTerm) {
-      const lowerSearchTerm = searchTerm.toLowerCase();
-      result = result.filter((lead) => 
-        lead.nombre.toLowerCase().includes(lowerSearchTerm) ||
-        lead.email.toLowerCase().includes(lowerSearchTerm) ||
-        (lead.telefono && lead.telefono.toLowerCase().includes(lowerSearchTerm)) ||
-        (lead.referido_por && lead.referido_por.toLowerCase().includes(lowerSearchTerm))
-      );
+    let result = [...leads]; // Crear una copia para evitar mutaciones
+    
+    if (searchTerm && searchTerm.trim() !== '') {
+      const lowerSearchTerm = searchTerm.toLowerCase().trim();
+      result = result.filter((lead) => {
+        const matchesName = lead.nombre?.toLowerCase().includes(lowerSearchTerm);
+        const matchesEmail = lead.email?.toLowerCase().includes(lowerSearchTerm);
+        const matchesPhone = lead.telefono?.toLowerCase().includes(lowerSearchTerm);
+        const matchesReferrer = lead.referido_por?.toLowerCase().includes(lowerSearchTerm);
+        
+        return matchesName || matchesEmail || matchesPhone || matchesReferrer;
+      });
     }
     
     if (statusFilter !== "todos") {
       result = result.filter((lead) => {
-        const leadStatus = lead.estado?.toLowerCase() || '';
-        return leadStatus === statusFilter;
+        const leadStatus = (lead.estado || 'nuevo').toLowerCase();
+        return leadStatus === statusFilter.toLowerCase();
       });
     }
     
+    console.log('Filtered result:', result);
     setFilteredLeads(result);
   }, [searchTerm, statusFilter, leads]);
 
