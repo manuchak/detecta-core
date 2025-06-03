@@ -60,10 +60,11 @@ export const useTiempoRetraso = (fechaInicio?: Date, fechaFin?: Date) => {
       
       // Procesar y validar los datos
       const serviciosConRetraso = data.map((servicio) => {
-        const tiempoRetraso = parsePostgresInterval(servicio.tiempo_retraso);
+        const tiempoRetrasoStr = servicio.tiempo_retraso as string | null;
+        const tiempoRetraso = parsePostgresInterval(tiempoRetrasoStr);
         
         if (tiempoRetraso) {
-          console.log(`⏱️ Servicio ${servicio.id_servicio}: ${formatTiempoRetrasoDisplay(servicio.tiempo_retraso)}`);
+          console.log(`⏱️ Servicio ${servicio.id_servicio}: ${formatTiempoRetrasoDisplay(tiempoRetrasoStr)}`);
         }
         
         return servicio as ServicioConRetraso;
@@ -78,10 +79,12 @@ export const useTiempoRetraso = (fechaInicio?: Date, fechaFin?: Date) => {
 
 // Hook para estadísticas de tiempo de retraso
 export const useEstadisticasTiempoRetraso = (fechaInicio?: Date, fechaFin?: Date) => {
+  const { data: serviciosData } = useTiempoRetraso(fechaInicio, fechaFin);
+  
   return useQuery({
     queryKey: ['estadisticas-tiempo-retraso', fechaInicio, fechaFin],
     queryFn: async () => {
-      const { data } = await useTiempoRetraso(fechaInicio, fechaFin).queryFn();
+      const data = serviciosData;
       
       if (!data || data.length === 0) {
         return {
@@ -121,11 +124,11 @@ export const useEstadisticasTiempoRetraso = (fechaInicio?: Date, fechaFin?: Date
         }
 
         // Actualizar máximos y mínimos
-        if (!maxRetraso || totalMinutos > parsePostgresInterval(maxRetraso)?.horas * 60 + parsePostgresInterval(maxRetraso)?.minutos) {
+        if (!maxRetraso || totalMinutos > (parsePostgresInterval(maxRetraso)?.horas || 0) * 60 + (parsePostgresInterval(maxRetraso)?.minutos || 0)) {
           maxRetraso = servicio.tiempo_retraso;
         }
         
-        if (!minRetraso || totalMinutos < parsePostgresInterval(minRetraso)?.horas * 60 + parsePostgresInterval(minRetraso)?.minutos) {
+        if (!minRetraso || totalMinutos < (parsePostgresInterval(minRetraso)?.horas || 0) * 60 + (parsePostgresInterval(minRetraso)?.minutos || 0)) {
           minRetraso = servicio.tiempo_retraso;
         }
       });
@@ -141,6 +144,7 @@ export const useEstadisticasTiempoRetraso = (fechaInicio?: Date, fechaFin?: Date
       };
     },
     staleTime: 5 * 60 * 1000,
-    retry: 2
+    retry: 2,
+    enabled: !!serviciosData // Solo ejecutar cuando tengamos datos de servicios
   });
 };
