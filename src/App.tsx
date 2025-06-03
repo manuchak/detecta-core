@@ -1,25 +1,25 @@
+
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, BrowserRouter, Navigate } from 'react-router-dom';
 import { ThemeProvider } from "@/components/theme-provider"
-import { useTheme } from 'next-themes'
 import { Toaster } from "@/components/ui/toaster"
 
-import Landing from "./pages/Landing";
+import Landing from "./pages/Landing/Landing";
 import Login from "./pages/Auth/Login";
 import Register from "./pages/Auth/Register";
 import ForgotPassword from "./pages/Auth/ForgotPassword";
 import EmailConfirmation from "./pages/Auth/EmailConfirmation";
-import Dashboard from "./pages/Dashboard";
-import MonitoringPage from "./pages/Monitoring";
-import SupplyChainMonitoring from "./pages/Monitoring/SupplyChain";
-import ForensicAuditPage from "./pages/Monitoring/ForensicAudit";
-import Settings from "./pages/Settings";
+import Dashboard from "./pages/Dashboard/Dashboard";
+import MonitoringPage from "./pages/Monitoring/MonitoringPage";
+import SupplyChainMonitoring from "./pages/Monitoring/SupplyChainMonitoring";
+import ForensicAuditPage from "./pages/Monitoring/ForensicAuditPage";
+import Settings from "./pages/Settings/Settings";
 import LeadsList from "./pages/Leads/LeadsList";
-import TicketsList from "./pages/Tickets";
+import TicketsList from "./pages/Tickets/TicketsList";
 import LandingManager from "./pages/Admin/LandingManager";
 import AssignRole from "./pages/Admin/AssignRole";
 import AssignOwnerRole from "./pages/Admin/AssignOwnerRole";
-import InstallerPortal from "./pages/InstallerPortal";
+import InstallerPortal from "./pages/Installers/InstallerPortal";
 import NotFound from "./pages/NotFound";
 import AuthLayout from './layouts/AuthLayout';
 import DashboardLayout from './layouts/DashboardLayout';
@@ -33,7 +33,6 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
   const { toast } = useToast()
-  const { theme } = useTheme()
 
   useEffect(() => {
     // Set loading to true on mount
