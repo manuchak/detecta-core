@@ -12,8 +12,9 @@ import { ServiceStatusChart } from "@/components/dashboard/ServiceStatusChart";
 import { SecondaryCharts } from "@/components/dashboard/SecondaryCharts";
 import { ForecastCard } from "@/components/dashboard/ForecastCard";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Loader2, BarChart3, TrendingUp, Activity } from "lucide-react";
+import { AlertCircle, Loader2, BarChart3, TrendingUp, Activity, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ForensicAuditPanel } from "@/components/dashboard/ForensicAuditPanel";
 
 export const Dashboard = () => {
   const [timeframe, setTimeframe] = useState<TimeframeOption>("month");
@@ -176,6 +177,15 @@ export const Dashboard = () => {
             </AlertDescription>
           </Alert>
         )}
+        
+        {/* Panel de Auditoría Forense */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <Database className="h-5 w-5 mr-2" />
+            Auditoría Forense de Datos
+          </h2>
+          <ForensicAuditPanel />
+        </div>
         
         {/* Filtros con mejor diseño */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
