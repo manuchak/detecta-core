@@ -8,19 +8,19 @@ export const useGmvChartData = (clientFilter: string = "all") => {
     queryKey: ['gmv-chart-data', clientFilter],
     queryFn: async () => {
       try {
-        console.log("Fetching GMV chart data using secure RPC function...");
+        console.log("🔄 Obteniendo datos históricos completos para gráfico GMV...");
         
-        // Usar la nueva función RPC específica para el dashboard
-        const { data, error } = await supabase.rpc('get_gmv_chart_data_secure', {
-          max_records: 10000
+        // Usar la función RPC para obtener TODOS los datos históricos
+        const { data, error } = await supabase.rpc('bypass_rls_get_servicios', {
+          max_records: 50000 // Aumentar límite para asegurar datos completos
         });
 
         if (error) {
-          console.error('Error fetching GMV chart data:', error);
+          console.error('❌ Error al obtener datos GMV:', error);
           throw error;
         }
 
-        console.log('GMV chart data fetched successfully:', data?.length || 0);
+        console.log(`📊 Total de registros obtenidos: ${data?.length || 0}`);
         
         let filteredData = data || [];
         
@@ -29,58 +29,96 @@ export const useGmvChartData = (clientFilter: string = "all") => {
           filteredData = filteredData.filter(service => 
             service.nombre_cliente === clientFilter
           );
-          console.log(`Applied client filter: ${clientFilter}, remaining records: ${filteredData.length}`);
+          console.log(`🔍 Filtro cliente "${clientFilter}" aplicado: ${filteredData.length} registros`);
         }
         
-        // Procesar datos por mes - incluir TODOS los datos históricos desde 2023
+        // Análisis detallado de distribución de años
+        const yearDistribution: { [key: number]: number } = {};
+        const yearRevenue: { [key: number]: { total: number, validPayments: number } } = {};
+        
+        filteredData.forEach(item => {
+          if (item.fecha_hora_cita) {
+            try {
+              const date = new Date(item.fecha_hora_cita);
+              const year = date.getFullYear();
+              const cobro = parseFloat(String(item.cobro_cliente)) || 0;
+              const estado = (item.estado || '').trim();
+              
+              yearDistribution[year] = (yearDistribution[year] || 0) + 1;
+              
+              if (!yearRevenue[year]) {
+                yearRevenue[year] = { total: 0, validPayments: 0 };
+              }
+              
+              // Solo contar servicios finalizados con cobro válido (auditoría forense)
+              if (estado === 'Finalizado' && cobro > 0) {
+                yearRevenue[year].total += cobro;
+                yearRevenue[year].validPayments += 1;
+              }
+            } catch (e) {
+              console.warn('⚠️ Error procesando fecha:', e, item.fecha_hora_cita);
+            }
+          }
+        });
+        
+        console.log('📅 Distribución por años (registros totales):', yearDistribution);
+        console.log('💰 Distribución de ingresos por año:', yearRevenue);
+        
+        // Procesar datos por mes para TODOS los años desde 2023
         const monthlyTotals: { [key: string]: { current: number, previous: number } } = {};
         const currentYear = new Date().getFullYear(); // 2025
         
-        // Inicializar todos los meses en cero
+        // Inicializar todos los meses
         const monthOrder = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
         monthOrder.forEach(month => {
           monthlyTotals[month] = { current: 0, previous: 0 };
         });
         
-        // Analizar distribución de años para debugging
-        const yearDistribution: { [key: number]: number } = {};
-        const yearRevenue: { [key: number]: number } = {};
+        // Procesar SOLO servicios finalizados con cobro válido
+        const serviciosFinalizados = filteredData.filter(item => {
+          const estado = (item.estado || '').trim();
+          const cobro = parseFloat(String(item.cobro_cliente)) || 0;
+          return estado === 'Finalizado' && cobro > 0;
+        });
         
-        // Procesar todos los datos disponibles
-        filteredData.forEach(item => {
-          if (item.fecha_hora_cita && item.cobro_cliente) {
+        console.log(`✅ Servicios finalizados con cobro válido: ${serviciosFinalizados.length}`);
+        
+        serviciosFinalizados.forEach(item => {
+          if (item.fecha_hora_cita) {
             try {
               const date = new Date(item.fecha_hora_cita);
               const year = date.getFullYear();
               const month = date.getMonth();
-              const monthKey = new Date(2025, month).toLocaleDateString('es-ES', { month: 'short' });
+              
+              // Convertir número de mes a nombre corto en español
+              const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+              const monthKey = monthNames[month];
               const amount = parseFloat(String(item.cobro_cliente)) || 0;
               
-              // Contar para estadísticas
-              yearDistribution[year] = (yearDistribution[year] || 0) + 1;
-              yearRevenue[year] = (yearRevenue[year] || 0) + amount;
-              
-              // Solo incluir datos válidos con montos positivos desde 2023
+              // Solo procesar años desde 2023
               if (year >= 2023 && amount > 0) {
                 if (year === currentYear) {
-                  // Datos del año actual (2025) van en la línea "current"
+                  // Datos del año actual (2025)
                   monthlyTotals[monthKey].current += amount;
                 } else {
-                  // Datos de años anteriores (2024, 2023, etc.) van en la línea "previous"
+                  // Datos de años anteriores (2024, 2023, etc.)
                   monthlyTotals[monthKey].previous += amount;
                 }
               }
             } catch (e) {
-              console.warn('Error processing GMV data item:', e, item);
+              console.warn('⚠️ Error procesando item GMV:', e, item);
             }
           }
         });
         
-        // Logs para debugging
-        console.log('Year distribution (record count):', yearDistribution);
-        console.log('Year revenue distribution:', yearRevenue);
-        console.log('Available years in data:', Object.keys(yearDistribution).map(y => parseInt(y)).sort());
-        console.log('Total records processed:', filteredData.length);
+        console.log('📈 Totales mensuales calculados:', monthlyTotals);
+        
+        // Verificar si tenemos datos históricos
+        const hasCurrentYearData = Object.values(monthlyTotals).some(month => month.current > 0);
+        const hasPreviousYearData = Object.values(monthlyTotals).some(month => month.previous > 0);
+        
+        console.log(`📊 Datos año actual (${currentYear}):`, hasCurrentYearData);
+        console.log('📊 Datos años anteriores:', hasPreviousYearData);
         
         // Convertir a formato de gráfico
         const result: MonthlyGmvData[] = monthOrder.map(month => ({
@@ -89,45 +127,48 @@ export const useGmvChartData = (clientFilter: string = "all") => {
           previousYear: monthlyTotals[month]?.previous || 0
         }));
         
-        console.log('Processed GMV data by month:', result);
-        console.log('Monthly totals object:', monthlyTotals);
+        console.log('📋 Resultado final para gráfico:', result);
         
-        // Verificar si tenemos datos de años anteriores
-        const hasHistoricalData = Object.values(monthlyTotals).some(month => month.previous > 0);
-        console.log('Has historical data (2023-2024):', hasHistoricalData);
+        // Verificación final
+        const totalCurrentYear = result.reduce((sum, month) => sum + month.value, 0);
+        const totalPreviousYears = result.reduce((sum, month) => sum + month.previousYear, 0);
+        
+        console.log(`💰 Total ${currentYear}: $${totalCurrentYear.toLocaleString()}`);
+        console.log(`💰 Total años anteriores: $${totalPreviousYears.toLocaleString()}`);
         
         return result;
         
       } catch (err) {
-        console.error('Error in GMV chart query:', err);
+        console.error('❌ Error en consulta GMV chart:', err);
         throw err;
       }
     },
     enabled: true,
-    staleTime: 5 * 60 * 1000, // 5 minutos
-    retry: 2,
+    staleTime: 2 * 60 * 1000, // 2 minutos para datos más frescos
+    retry: 3
   });
 
-  // Obtener lista de clientes únicos para el filtro usando la misma función RPC
+  // Obtener lista de clientes únicos usando la misma función
   const { data: clientsList = [] } = useQuery({
-    queryKey: ['clients-list'],
+    queryKey: ['clients-list-gmv'],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase.rpc('get_gmv_chart_data_secure', {
-          max_records: 10000
+        const { data, error } = await supabase.rpc('bypass_rls_get_servicios', {
+          max_records: 50000
         });
 
         if (error) throw error;
 
         const uniqueClients = new Set(
           data
-            ?.map(service => service.nombre_cliente)
-            .filter(name => name && name.trim() !== '' && name !== '#N/A')
+            ?.filter(service => service.nombre_cliente && service.nombre_cliente.trim() !== '' && service.nombre_cliente !== '#N/A')
+            .map(service => service.nombre_cliente.trim())
         );
         
+        console.log(`👥 Clientes únicos encontrados: ${uniqueClients.size}`);
         return Array.from(uniqueClients).sort();
       } catch (err) {
-        console.error('Error fetching clients list:', err);
+        console.error('❌ Error obteniendo lista de clientes:', err);
         return [];
       }
     },
