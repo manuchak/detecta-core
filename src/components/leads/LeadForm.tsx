@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,7 +10,6 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, User, Car, MapPin, Briefcase, Users, ChevronLeft, ChevronRight } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
 import { PersonalInfoForm } from "./forms/PersonalInfoForm";
 import { LocationForm } from "./forms/LocationForm";
 import { VehicleForm } from "./forms/VehicleForm";
@@ -81,8 +79,9 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
   const [etapaActual, setEtapaActual] = useState(0);
   const [loading, setLoading] = useState(false);
   const [referralData, setReferralData] = useState<ReferralData | null>(null);
+  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
+  const [userInfo, setUserInfo] = useState<any>(null);
   const { toast } = useToast();
-  const { user } = useAuth();
   
   const [formData, setFormData] = useState<FormData>({
     // Datos personales
@@ -125,6 +124,42 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
     fuente: "web"
   });
 
+  // Verificar acceso al cargar el componente
+  useState(() => {
+    const checkAccess = async () => {
+      try {
+        const { data, error } = await supabase.rpc('verify_user_access');
+        
+        if (error) {
+          console.error('Error verificando acceso:', error);
+          setHasAccess(false);
+          return;
+        }
+        
+        if (data && data.length > 0) {
+          const accessInfo = data[0];
+          setHasAccess(accessInfo.has_access);
+          setUserInfo(accessInfo);
+          
+          if (!accessInfo.has_access) {
+            toast({
+              title: "Acceso denegado",
+              description: "No tienes permisos para crear candidatos.",
+              variant: "destructive",
+            });
+          }
+        } else {
+          setHasAccess(false);
+        }
+      } catch (error) {
+        console.error('Error en checkAccess:', error);
+        setHasAccess(false);
+      }
+    };
+    
+    checkAccess();
+  });
+
   const handleInputChange = (field: keyof FormData, value: string) => {
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
@@ -147,7 +182,6 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
       case 1: 
         return !!(formData.estado_id && formData.ciudad_id && formData.direccion);
       case 2: 
-        // Validación condicional según el tipo de custodio
         if (!formData.tipo_custodio) return false;
         
         const requiereVehiculo = formData.tipo_custodio === 'custodio_vehiculo' || formData.tipo_custodio === 'armado_vehiculo';
@@ -165,7 +199,7 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
       case 3: 
         return true; 
       case 4: 
-        return true; // La referencia es opcional
+        return true;
       default:
         return true;
     }
@@ -202,7 +236,6 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
     setLoading(true);
 
     try {
-      // Obtener nombres para el JSON
       let estadoNombre = '';
       let ciudadNombre = '';
       let zonaNombre = '';
@@ -225,7 +258,6 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
         ciudadNombre = ciudades?.nombre || '';
       }
 
-      // Convertir zona_trabajo_id a nombre legible
       const zonaMap: Record<string, string> = {
         'local': 'Local',
         'foraneo_corto': 'Foráneo Corto',
@@ -233,7 +265,6 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
       };
       zonaNombre = zonaMap[formData.zona_trabajo_id] || formData.zona_trabajo_id;
 
-      // Crear el lead básico
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
         .insert({
@@ -250,7 +281,6 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
 
       if (leadError) throw leadError;
 
-      // Construir datos condicionales según el tipo de custodio
       const candidateDetails: any = {
         lead_id: leadData.id,
         tipo_custodio: formData.tipo_custodio,
@@ -284,7 +314,6 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
         } : null
       };
 
-      // Agregar datos específicos según el tipo de custodio
       const requiereVehiculo = formData.tipo_custodio === 'custodio_vehiculo' || formData.tipo_custodio === 'armado_vehiculo';
       const esArmado = formData.tipo_custodio === 'armado' || formData.tipo_custodio === 'armado_vehiculo';
 
@@ -314,7 +343,6 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
         };
       }
 
-      // Actualizar el lead con los detalles completos
       const { error: updateError } = await supabase
         .from('leads')
         .update({
@@ -324,7 +352,6 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
 
       if (updateError) throw updateError;
 
-      // Crear registro de referido si aplica
       if (referralData) {
         const { error: referralError } = await supabase
           .from('referidos')
@@ -337,7 +364,6 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
 
         if (referralError) {
           console.error('Error creating referral record:', referralError);
-          // No fallar todo el proceso por esto, solo log el error
         }
       }
 
@@ -387,15 +413,35 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
 
   const EtapaActualIcon = ETAPAS[etapaActual].icono;
 
-  // Mostrar mensaje si no hay usuario autenticado
-  if (!user) {
+  // Mostrar mensaje si no hay acceso
+  if (hasAccess === false) {
     return (
       <Card className="w-full max-w-4xl mx-auto">
         <CardHeader>
           <CardTitle>Acceso requerido</CardTitle>
           <CardDescription>
-            Debes estar autenticado para acceder al formulario de candidatos.
+            No tienes permisos suficientes para acceder al formulario de candidatos.
+            {userInfo && (
+              <div className="mt-2 text-sm">
+                <p>Email: {userInfo.user_email || 'No disponible'}</p>
+                <p>Roles: {userInfo.user_roles?.join(', ') || 'Sin roles asignados'}</p>
+              </div>
+            )}
           </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  // Mostrar loading mientras se verifica el acceso
+  if (hasAccess === null) {
+    return (
+      <Card className="w-full max-w-4xl mx-auto">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Verificando permisos...
+          </CardTitle>
         </CardHeader>
       </Card>
     );
@@ -412,7 +458,6 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
           Etapa {etapaActual + 1} de {ETAPAS.length}: {ETAPAS[etapaActual].titulo}
         </CardDescription>
         
-        {/* Indicador de progreso */}
         <div className="flex gap-2 mt-4">
           {ETAPAS.map((etapa, index) => (
             <div
