@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +33,9 @@ interface FormData {
   estado_id: string;
   ciudad_id: string;
   zona_trabajo_id: string;
+  // Tipo de custodio
+  tipo_custodio: string;
+  // Datos del vehículo (condicionales)
   marca_vehiculo: string;
   modelo_vehiculo: string;
   año_vehiculo: string;
@@ -39,6 +43,13 @@ interface FormData {
   color_vehiculo: string;
   tipo_vehiculo: string;
   seguro_vigente: string;
+  // Datos de custodios armados
+  licencia_armas: string;
+  experiencia_militar: string;
+  años_experiencia_armada: string;
+  // Datos de custodios abordo
+  especialidad_abordo: string;
+  // Experiencia general
   experiencia_custodia: string;
   años_experiencia: string;
   empresas_anteriores: string;
@@ -61,7 +72,7 @@ interface ReferralData {
 const ETAPAS = [
   { id: 'personal', titulo: 'Datos Personales', icono: User },
   { id: 'ubicacion', titulo: 'Ubicación', icono: MapPin },
-  { id: 'vehiculo', titulo: 'Vehículo', icono: Car },
+  { id: 'vehiculo', titulo: 'Tipo y Vehículo', icono: Car },
   { id: 'experiencia', titulo: 'Experiencia', icono: Briefcase },
   { id: 'referido', titulo: 'Referencia', icono: Users }
 ];
@@ -83,6 +94,9 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
     estado_id: "",
     ciudad_id: "",
     zona_trabajo_id: "",
+    // Tipo de custodio
+    tipo_custodio: "",
+    // Datos del vehículo
     marca_vehiculo: "",
     modelo_vehiculo: "",
     año_vehiculo: "",
@@ -90,6 +104,13 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
     color_vehiculo: "",
     tipo_vehiculo: "",
     seguro_vigente: "",
+    // Datos de custodios armados
+    licencia_armas: "",
+    experiencia_militar: "",
+    años_experiencia_armada: "",
+    // Datos de custodios abordo
+    especialidad_abordo: "",
+    // Experiencia general
     experiencia_custodia: "",
     años_experiencia: "",
     empresas_anteriores: "",
@@ -126,7 +147,21 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
       case 1: 
         return !!(formData.estado_id && formData.ciudad_id && formData.direccion);
       case 2: 
-        return true; 
+        // Validación condicional según el tipo de custodio
+        if (!formData.tipo_custodio) return false;
+        
+        const requiereVehiculo = formData.tipo_custodio === 'custodio_vehiculo' || formData.tipo_custodio === 'armado_vehiculo';
+        const esArmado = formData.tipo_custodio === 'armado' || formData.tipo_custodio === 'armado_vehiculo';
+        
+        if (requiereVehiculo) {
+          if (!formData.marca_vehiculo || !formData.seguro_vigente) return false;
+        }
+        
+        if (esArmado) {
+          if (!formData.licencia_armas) return false;
+        }
+        
+        return true;
       case 3: 
         return true; 
       case 4: 
@@ -215,9 +250,10 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
 
       if (leadError) throw leadError;
 
-      // Crear los detalles del candidato
-      const candidateDetails = {
+      // Construir datos condicionales según el tipo de custodio
+      const candidateDetails: any = {
         lead_id: leadData.id,
+        tipo_custodio: formData.tipo_custodio,
         datos_personales: {
           edad: formData.edad,
           direccion: formData.direccion,
@@ -227,15 +263,6 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
           estado_id: formData.estado_id,
           ciudad_id: formData.ciudad_id,
           zona_trabajo_id: formData.zona_trabajo_id
-        },
-        vehiculo: {
-          marca: formData.marca_vehiculo,
-          modelo: formData.modelo_vehiculo,
-          año: formData.año_vehiculo,
-          placas: formData.placas,
-          color: formData.color_vehiculo,
-          tipo: formData.tipo_vehiculo,
-          seguro_vigente: formData.seguro_vigente
         },
         experiencia: {
           experiencia_custodia: formData.experiencia_custodia,
@@ -257,6 +284,36 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
         } : null
       };
 
+      // Agregar datos específicos según el tipo de custodio
+      const requiereVehiculo = formData.tipo_custodio === 'custodio_vehiculo' || formData.tipo_custodio === 'armado_vehiculo';
+      const esArmado = formData.tipo_custodio === 'armado' || formData.tipo_custodio === 'armado_vehiculo';
+
+      if (requiereVehiculo) {
+        candidateDetails.vehiculo = {
+          marca: formData.marca_vehiculo,
+          modelo: formData.modelo_vehiculo,
+          año: formData.año_vehiculo,
+          placas: formData.placas,
+          color: formData.color_vehiculo,
+          tipo: formData.tipo_vehiculo,
+          seguro_vigente: formData.seguro_vigente
+        };
+      }
+
+      if (esArmado) {
+        candidateDetails.seguridad_armada = {
+          licencia_armas: formData.licencia_armas,
+          experiencia_militar: formData.experiencia_militar,
+          años_experiencia_armada: formData.años_experiencia_armada
+        };
+      }
+
+      if (formData.tipo_custodio === 'abordo') {
+        candidateDetails.custodio_abordo = {
+          especialidad: formData.especialidad_abordo
+        };
+      }
+
       // Actualizar el lead con los detalles completos
       const { error: updateError } = await supabase
         .from('leads')
@@ -275,7 +332,7 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
             custodio_referente_id: referralData.custodio_referente_id,
             candidato_referido_id: leadData.id,
             estado_referido: 'pendiente',
-            notas: `Candidato referido por ${referralData.custodio_referente_nombre}`
+            notas: `Candidato ${formData.tipo_custodio} referido por ${referralData.custodio_referente_nombre}`
           });
 
         if (referralError) {
@@ -284,11 +341,18 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
         }
       }
 
+      const tipoTexto = {
+        'custodio_vehiculo': 'custodio con vehículo',
+        'armado': 'custodio armado',
+        'armado_vehiculo': 'custodio armado con vehículo',
+        'abordo': 'custodio abordo'
+      }[formData.tipo_custodio] || 'candidato';
+
       toast({
         title: "Candidato registrado",
         description: referralData 
-          ? `El candidato ha sido registrado exitosamente con referencia de ${referralData.custodio_referente_nombre}.`
-          : "La información del candidato ha sido guardada exitosamente.",
+          ? `El ${tipoTexto} ha sido registrado exitosamente con referencia de ${referralData.custodio_referente_nombre}.`
+          : `La información del ${tipoTexto} ha sido guardada exitosamente.`,
       });
 
       onSuccess?.();

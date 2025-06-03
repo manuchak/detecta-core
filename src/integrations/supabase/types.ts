@@ -1239,6 +1239,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      ensure_default_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       es_usuario_admin: {
         Args: Record<PropertyKey, never> | { user_id: string }
         Returns: boolean
@@ -2144,7 +2148,7 @@ export type Database = {
         Returns: boolean
       }
       verificar_cumplimiento_referido: {
-        Args: { p_referido_id: string }
+        Args: { referido_id: string }
         Returns: boolean
       }
       verify_admin_email: {
