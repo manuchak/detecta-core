@@ -25,6 +25,15 @@ interface MetricsCardsProps {
 export const MetricsCards = ({ metrics, isLoading }: MetricsCardsProps) => {
   const { formatCurrency } = useFormatters();
   
+  const formatTrend = (growth: number, type: 'percentage' | 'growth' = 'growth') => {
+    if (type === 'percentage') {
+      return `${growth}% del total`;
+    }
+    
+    const sign = growth >= 0 ? '+' : '';
+    return `${sign}${growth}% vs período anterior`;
+  };
+  
   const cards = [
     {
       title: "Total de Servicios",
@@ -32,7 +41,7 @@ export const MetricsCards = ({ metrics, isLoading }: MetricsCardsProps) => {
       icon: Truck,
       color: "bg-blue-500",
       description: "Servicios totales registrados",
-      trend: "+12% vs mes anterior"
+      trend: formatTrend(metrics.totalServicesGrowth)
     },
     {
       title: "Ingresos Totales",
@@ -40,7 +49,7 @@ export const MetricsCards = ({ metrics, isLoading }: MetricsCardsProps) => {
       icon: DollarSign,
       color: "bg-green-500", 
       description: "Facturación acumulada",
-      trend: "+21% vs mes anterior"
+      trend: formatTrend(metrics.totalGMVGrowth)
     },
     {
       title: "Clientes Activos",
@@ -48,7 +57,7 @@ export const MetricsCards = ({ metrics, isLoading }: MetricsCardsProps) => {
       icon: Users,
       color: "bg-purple-500",
       description: "Clientes con servicios",
-      trend: "+3 nuevos clientes"
+      trend: formatTrend(metrics.activeClientsGrowth)
     },
     {
       title: "Valor Promedio",
@@ -56,7 +65,7 @@ export const MetricsCards = ({ metrics, isLoading }: MetricsCardsProps) => {
       icon: TrendingUp,
       color: "bg-orange-500",
       description: "Por servicio realizado",
-      trend: "+5% vs promedio anterior"
+      trend: formatTrend(metrics.averageServiceValueGrowth)
     },
     {
       title: "Finalizados",
@@ -64,7 +73,7 @@ export const MetricsCards = ({ metrics, isLoading }: MetricsCardsProps) => {
       icon: CheckCircle,
       color: "bg-emerald-500",
       description: "Servicios completados exitosamente",
-      trend: `${metrics.totalServices > 0 ? Math.round((metrics.completedServices / metrics.totalServices) * 100) : 0}% del total`
+      trend: formatTrend(metrics.completedServicesPercentage, 'percentage')
     },
     {
       title: "En Ruta/Destino",
@@ -72,7 +81,7 @@ export const MetricsCards = ({ metrics, isLoading }: MetricsCardsProps) => {
       icon: MapPin,
       color: "bg-blue-600",
       description: "En ruta, destino o punto origen",
-      trend: `${metrics.totalServices > 0 ? Math.round((metrics.ongoingServices / metrics.totalServices) * 100) : 0}% del total`
+      trend: formatTrend(metrics.ongoingServicesPercentage, 'percentage')
     },
     {
       title: "Programados",
@@ -80,7 +89,7 @@ export const MetricsCards = ({ metrics, isLoading }: MetricsCardsProps) => {
       icon: Calendar,
       color: "bg-amber-500",
       description: "Servicios programados y en espera",
-      trend: `${metrics.totalServices > 0 ? Math.round((metrics.pendingServices / metrics.totalServices) * 100) : 0}% del total`
+      trend: formatTrend(metrics.pendingServicesPercentage, 'percentage')
     },
     {
       title: "Cancelados",
@@ -88,7 +97,7 @@ export const MetricsCards = ({ metrics, isLoading }: MetricsCardsProps) => {
       icon: XCircle,
       color: "bg-red-500",
       description: "Servicios cancelados",
-      trend: `${metrics.totalServices > 0 ? Math.round((metrics.cancelledServices / metrics.totalServices) * 100) : 0}% del total`
+      trend: formatTrend(metrics.cancelledServicesPercentage, 'percentage')
     }
   ];
   
