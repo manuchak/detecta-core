@@ -15,7 +15,7 @@ export interface DashboardMetrics {
   yearlyGrowth: number;
 }
 
-export type TimeframeOption = "day" | "week" | "month" | "quarter" | "year";
+export type TimeframeOption = "day" | "week" | "month" | "quarter" | "year" | "custom";
 export type ServiceTypeOption = "all" | "local" | "foraneo";
 
 // Función para calcular el rango de fechas basado en el timeframe
@@ -38,6 +38,10 @@ const getDateRange = (timeframe: TimeframeOption) => {
       break;
     case "year":
       startDate.setFullYear(now.getFullYear() - 1);
+      break;
+    case "custom":
+      // For custom, we'll return a default range that will be overridden by custom dates
+      startDate.setDate(now.getDate() - 30);
       break;
     default:
       startDate.setDate(now.getDate() - 30);
