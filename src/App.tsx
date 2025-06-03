@@ -4,6 +4,7 @@ import { Routes, Route, BrowserRouter, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
+import { AuthProvider } from './contexts/AuthContext';
 
 import Landing from "./pages/Landing/Landing";
 import Login from "./pages/Auth/Login";
@@ -82,38 +83,40 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-        <BrowserRouter>
-          <Routes>
-            {/* Landing page route */}
-            <Route path="/" element={<Landing />} />
-            
-            {/* Auth routes */}
-            <Route path="/login" element={<AuthLayout><Login /></AuthLayout>} />
-            <Route path="/register" element={<AuthLayout><Register /></AuthLayout>} />
-            <Route path="/forgot-password" element={<AuthLayout><ForgotPassword /></AuthLayout>} />
-            <Route path="/confirm-email" element={<AuthLayout><EmailConfirmation /></AuthLayout>} />
-            
-            {/* Dashboard routes */}
-            <Route path="/dashboard" element={<DashboardLayout><Dashboard /></DashboardLayout>} />
-            <Route path="/monitoring" element={<DashboardLayout><MonitoringPage /></DashboardLayout>} />
-            <Route path="/monitoring/supply-chain" element={<DashboardLayout><SupplyChainMonitoring /></DashboardLayout>} />
-            <Route path="/monitoring/forensic-audit" element={<DashboardLayout><ForensicAuditPage /></DashboardLayout>} />
-            <Route path="/settings" element={<DashboardLayout><Settings /></DashboardLayout>} />
-            <Route path="/leads" element={<DashboardLayout><LeadsList /></DashboardLayout>} />
-            <Route path="/leads/approval" element={<DashboardLayout><LeadApprovals /></DashboardLayout>} />
-            <Route path="/tickets" element={<DashboardLayout><TicketsList /></DashboardLayout>} />
-            <Route path="/admin/landing" element={<DashboardLayout><LandingManager /></DashboardLayout>} />
-            <Route path="/admin/assign-role" element={<DashboardLayout><AssignRole /></DashboardLayout>} />
-            <Route path="/admin/assign-owner" element={<DashboardLayout><AssignOwnerRole /></DashboardLayout>} />
-            <Route path="/installers" element={<DashboardLayout><InstallerPortal /></DashboardLayout>} />
-            
-            {/* Catch all route */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-        <Toaster />
-      </ThemeProvider>
+      <AuthProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <BrowserRouter>
+            <Routes>
+              {/* Landing page route */}
+              <Route path="/" element={<Landing />} />
+              
+              {/* Auth routes */}
+              <Route path="/login" element={<AuthLayout><Login /></AuthLayout>} />
+              <Route path="/register" element={<AuthLayout><Register /></AuthLayout>} />
+              <Route path="/forgot-password" element={<AuthLayout><ForgotPassword /></AuthLayout>} />
+              <Route path="/confirm-email" element={<AuthLayout><EmailConfirmation /></AuthLayout>} />
+              
+              {/* Dashboard routes */}
+              <Route path="/dashboard" element={<DashboardLayout><Dashboard /></DashboardLayout>} />
+              <Route path="/monitoring" element={<DashboardLayout><MonitoringPage /></DashboardLayout>} />
+              <Route path="/monitoring/supply-chain" element={<DashboardLayout><SupplyChainMonitoring /></DashboardLayout>} />
+              <Route path="/monitoring/forensic-audit" element={<DashboardLayout><ForensicAuditPage /></DashboardLayout>} />
+              <Route path="/settings" element={<DashboardLayout><Settings /></DashboardLayout>} />
+              <Route path="/leads" element={<DashboardLayout><LeadsList /></DashboardLayout>} />
+              <Route path="/leads/approval" element={<DashboardLayout><LeadApprovals /></DashboardLayout>} />
+              <Route path="/tickets" element={<DashboardLayout><TicketsList /></DashboardLayout>} />
+              <Route path="/admin/landing" element={<DashboardLayout><LandingManager /></DashboardLayout>} />
+              <Route path="/admin/assign-role" element={<DashboardLayout><AssignRole /></DashboardLayout>} />
+              <Route path="/admin/assign-owner" element={<DashboardLayout><AssignOwnerRole /></DashboardLayout>} />
+              <Route path="/installers" element={<DashboardLayout><InstallerPortal /></DashboardLayout>} />
+              
+              {/* Catch all route */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+          <Toaster />
+        </ThemeProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
