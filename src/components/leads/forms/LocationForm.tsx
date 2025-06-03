@@ -34,20 +34,28 @@ const ZONAS_TRABAJO = [
 export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => {
   const [estados, setEstados] = useState<Estado[]>([]);
   const [ciudades, setCiudades] = useState<Ciudad[]>([]);
+  const [loadingEstados, setLoadingEstados] = useState(true);
   const [loadingCiudades, setLoadingCiudades] = useState(false);
 
   // Cargar estados al montar el componente
   useEffect(() => {
     const fetchEstados = async () => {
-      const { data, error } = await supabase
-        .from('estados')
-        .select('id, nombre')
-        .order('nombre');
-      
-      if (error) {
-        console.error('Error fetching estados:', error);
-      } else {
-        setEstados(data || []);
+      try {
+        setLoadingEstados(true);
+        const { data, error } = await supabase
+          .from('estados')
+          .select('id, nombre')
+          .order('nombre');
+        
+        if (error) {
+          console.error('Error fetching estados:', error);
+        } else {
+          setEstados(data || []);
+        }
+      } catch (err) {
+        console.error('Error in fetchEstados:', err);
+      } finally {
+        setLoadingEstados(false);
       }
     };
 
@@ -62,32 +70,46 @@ export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => 
         return;
       }
 
-      setLoadingCiudades(true);
-      const { data, error } = await supabase
-        .from('ciudades')
-        .select('id, nombre')
-        .eq('estado_id', formData.estado_id)
-        .order('nombre');
-      
-      if (error) {
-        console.error('Error fetching ciudades:', error);
-      } else {
-        setCiudades(data || []);
+      try {
+        setLoadingCiudades(true);
+        const { data, error } = await supabase
+          .from('ciudades')
+          .select('id, nombre')
+          .eq('estado_id', formData.estado_id)
+          .order('nombre');
+        
+        if (error) {
+          console.error('Error fetching ciudades:', error);
+        } else {
+          setCiudades(data || []);
+        }
+      } catch (err) {
+        console.error('Error in fetchCiudades:', err);
+      } finally {
+        setLoadingCiudades(false);
       }
-      setLoadingCiudades(false);
     };
 
     fetchCiudades();
   }, [formData.estado_id]);
+
+  // Limpiar ciudad cuando cambie el estado
+  const handleEstadoChange = (value: string) => {
+    onInputChange('estado_id', value);
+    onInputChange('ciudad_id', ''); // Limpiar ciudad
+    onInputChange('zona_trabajo_id', ''); // Limpiar zona de trabajo
+  };
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="estado_id">Estado *</Label>
-          <Select value={formData.estado_id} onValueChange={(value) => onInputChange('estado_id', value)}>
+          <Select value={formData.estado_id} onValueChange={handleEstadoChange}>
             <SelectTrigger>
-              <SelectValue placeholder="Seleccionar estado" />
+              <SelectValue placeholder={
+                loadingEstados ? "Cargando estados..." : "Seleccionar estado"
+              } />
             </SelectTrigger>
             <SelectContent>
               {estados.map((estado) => (
