@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFormatters } from "@/hooks/useFormatters";
 import { useForecastData } from "@/hooks/useForecastData";
@@ -62,7 +63,7 @@ export const ForecastCard = ({ totalServices, totalGMV, isLoading = false, error
                 Cargando Forecast...
               </CardTitle>
               <p className="text-sm text-slate-600">
-                Obteniendo datos anuales completos
+                Obteniendo datos de auditoría forense
               </p>
             </div>
           </div>
@@ -178,7 +179,7 @@ export const ForecastCard = ({ totalServices, totalGMV, isLoading = false, error
               </CardTitle>
               <p className="text-sm text-slate-600 flex items-center gap-1">
                 <Database className="h-3 w-3" />
-                Datos anuales completos (sin filtros temporales)
+                Basado en auditoría forense (datos validados)
               </p>
             </div>
           </div>
@@ -193,8 +194,8 @@ export const ForecastCard = ({ totalServices, totalGMV, isLoading = false, error
         <Alert className="bg-blue-50 border-blue-200">
           <Info className="h-4 w-4 text-blue-600" />
           <AlertDescription className="text-blue-800 text-sm">
-            <strong>Datos anuales completos:</strong> {forecastData.monthlyServicesActual.toLocaleString()} servicios únicos con estado "Finalizado" 
-            y {formatCurrency(forecastData.monthlyGmvActual)} GMV total (Ene-May 2025). Los filtros superiores NO afectan estas métricas.
+            <strong>Datos auditados:</strong> {forecastData.monthlyServicesActual.toLocaleString()} servicios únicos con estado "Finalizado" 
+            y {formatCurrency(forecastData.monthlyGmvActual)} GMV total (Ene-May 2025). Calculados usando auditoría forense.
           </AlertDescription>
         </Alert>
         
@@ -262,16 +263,16 @@ export const ForecastCard = ({ totalServices, totalGMV, isLoading = false, error
         <div className="bg-white/70 rounded-lg p-4 border border-indigo-100">
           <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
             <Database className="h-4 w-4" />
-            Metodología del Forecast (Datos Reales Anuales)
+            Metodología del Forecast (Auditoría Forense)
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-600">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <span>Base real BDD: {forecastData.monthlyServicesActual.toLocaleString()} servicios finalizados</span>
+              <span>Base auditada: {forecastData.monthlyServicesActual.toLocaleString()} servicios finalizados</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-              <span>GMV real anual: {formatCurrency(forecastData.monthlyGmvActual)}</span>
+              <span>GMV validado: {formatCurrency(forecastData.monthlyGmvActual)}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -279,7 +280,7 @@ export const ForecastCard = ({ totalServices, totalGMV, isLoading = false, error
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-              <span>Independiente de filtros temporales</span>
+              <span>Datos 100% consistentes con análisis forense</span>
             </div>
           </div>
         </div>
