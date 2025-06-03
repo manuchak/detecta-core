@@ -1,33 +1,16 @@
 
-import { Navigate, Outlet } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
-import { Loader2 } from "lucide-react";
+import React from 'react';
 
-export const AuthLayout = () => {
-  const { user, loading } = useAuth();
-  
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-  
-  // Only redirect if user is authenticated AND confirmed
-  if (user && user.email_confirmed_at) {
-    return <Navigate to="/dashboard" replace />;
-  }
-  
+interface AuthLayoutProps {
+  children: React.ReactNode;
+}
+
+const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="w-full max-w-md p-6">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-primary">Lead Flow Navigator CRM</h1>
-          <p className="text-muted-foreground">Manage your leads and services with ease</p>
-        </div>
-        <div className="bg-card p-6 rounded-lg shadow-sm border">
-          <Outlet />
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          {children}
         </div>
       </div>
     </div>

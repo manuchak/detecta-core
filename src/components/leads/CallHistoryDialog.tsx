@@ -23,6 +23,7 @@ interface VapiCallLog {
   summary: string | null;
   analysis: any;
   recording_url: string | null;
+  cost_usd: number | null;
   created_at: string;
 }
 
