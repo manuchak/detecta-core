@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,11 +36,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Search, Plus, MoreHorizontal, ChevronRight, Loader2, Eye, Edit, UserCheck, X } from "lucide-react";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { Search, Plus, MoreHorizontal, ChevronRight, Loader2, Eye, Edit, UserCheck, X, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { LeadForm } from "@/components/leads/LeadForm";
+import { ReferralManager } from "@/components/leads/ReferralManager";
 
 interface Lead {
   id: string;
@@ -58,6 +64,9 @@ interface Lead {
   asignado_a: string | null;
   created_at: string;
   updated_at: string;
+  // Información de referido
+  referido_por?: string | null;
+  referido_info?: any;
 }
 
 const statusBadgeStyles = {
@@ -79,6 +88,7 @@ export const LeadsList = () => {
   const [showForm, setShowForm] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [activeTab, setActiveTab] = useState("candidatos");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -95,21 +105,41 @@ export const LeadsList = () => {
       
       if (error) throw error;
       
-      const typedData: Lead[] = (data || []).map((item: any) => ({
-        id: item.id,
-        nombre: item.nombre || '',
-        email: item.email || '',
-        telefono: item.telefono,
-        empresa: item.empresa,
-        mensaje: item.mensaje,
-        fuente: item.fuente || 'web',
-        estado: item.estado || 'nuevo',
-        fecha_creacion: item.fecha_creacion || item.created_at,
-        fecha_contacto: item.fecha_contacto,
-        notas: item.notas,
-        asignado_a: item.asignado_a,
-        created_at: item.created_at,
-        updated_at: item.updated_at
+      const typedData: Lead[] = await Promise.all((data || []).map(async (item: any) => {
+        let referidoInfo = null;
+        let referidoPor = null;
+
+        // Extraer información de referido del campo notas
+        try {
+          if (item.notas) {
+            const notasData = JSON.parse(item.notas);
+            if (notasData.referido) {
+              referidoInfo = notasData.referido;
+              referidoPor = notasData.referido.custodio_referente_nombre;
+            }
+          }
+        } catch (e) {
+          console.error('Error parsing notas for referral info:', e);
+        }
+
+        return {
+          id: item.id,
+          nombre: item.nombre || '',
+          email: item.email || '',
+          telefono: item.telefono,
+          empresa: item.empresa,
+          mensaje: item.mensaje,
+          fuente: item.fuente || 'web',
+          estado: item.estado || 'nuevo',
+          fecha_creacion: item.fecha_creacion || item.created_at,
+          fecha_contacto: item.fecha_contacto,
+          notas: item.notas,
+          asignado_a: item.asignado_a,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+          referido_por: referidoPor,
+          referido_info: referidoInfo
+        };
       }));
       
       setLeads(typedData);
@@ -134,7 +164,8 @@ export const LeadsList = () => {
       result = result.filter((lead) => 
         lead.nombre.toLowerCase().includes(lowerSearchTerm) ||
         lead.email.toLowerCase().includes(lowerSearchTerm) ||
-        (lead.telefono && lead.telefono.toLowerCase().includes(lowerSearchTerm))
+        (lead.telefono && lead.telefono.toLowerCase().includes(lowerSearchTerm)) ||
+        (lead.referido_por && lead.referido_por.toLowerCase().includes(lowerSearchTerm))
       );
     }
     
@@ -217,6 +248,15 @@ export const LeadsList = () => {
                 {lead.estado}
               </Badge>
             </div>
+            {lead.referido_por && (
+              <div className="col-span-2">
+                <strong>Referido por:</strong> 
+                <Badge variant="outline" className="ml-2 bg-blue-50 text-blue-700">
+                  <Users className="h-3 w-3 mr-1" />
+                  {lead.referido_por}
+                </Badge>
+              </div>
+            )}
             {candidateDetails?.datos_personales && (
               <>
                 <div><strong>Edad:</strong> {candidateDetails.datos_personales.edad || 'No especificado'}</div>
@@ -289,9 +329,9 @@ export const LeadsList = () => {
     <div className="space-y-6 animate-fade-in p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Candidatos a Custodios</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Gestión de Candidatos</h1>
           <p className="text-muted-foreground">
-            Gestiona los candidatos y su proceso de selección.
+            Administra candidatos a custodios y el sistema de referidos.
           </p>
         </div>
         <Dialog open={showForm} onOpenChange={setShowForm}>
@@ -314,136 +354,161 @@ export const LeadsList = () => {
           </DialogContent>
         </Dialog>
       </div>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Listado de Candidatos</CardTitle>
-          <CardDescription>
-            Total de candidatos: {filteredLeads.length}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4 flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Buscar por nombre, email o teléfono..." 
-                className="pl-8" 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <div className="flex gap-3">
-              <Select 
-                value={statusFilter}
-                onValueChange={setStatusFilter}
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos los estados</SelectItem>
-                  <SelectItem value="nuevo">Nuevo</SelectItem>
-                  <SelectItem value="contactado">Contactado</SelectItem>
-                  <SelectItem value="entrevista">En entrevista</SelectItem>
-                  <SelectItem value="documentos">Documentos</SelectItem>
-                  <SelectItem value="en_proceso">En proceso</SelectItem>
-                  <SelectItem value="aprobado">Aprobado</SelectItem>
-                  <SelectItem value="rechazado">Rechazado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead className="hidden md:table-cell">Teléfono</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="hidden md:table-cell">Fecha Registro</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-10">
-                      <div className="flex justify-center items-center">
-                        <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                        <span>Cargando candidatos...</span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : filteredLeads.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-10">
-                      <p>No se encontraron candidatos</p>
-                      <p className="text-muted-foreground text-sm mt-1">
-                        {searchTerm || statusFilter !== "todos" 
-                          ? "Intenta con otros filtros de búsqueda" 
-                          : "Agrega nuevos candidatos para empezar a visualizarlos aquí"}
-                      </p>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredLeads.map((lead) => (
-                    <TableRow key={lead.id}>
-                      <TableCell className="font-medium">{lead.nombre}</TableCell>
-                      <TableCell>{lead.email}</TableCell>
-                      <TableCell className="hidden md:table-cell">{lead.telefono || "Sin teléfono"}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={getStatusBadgeStyle(lead.estado)}>
-                          {lead.estado ? (lead.estado.charAt(0).toUpperCase() + lead.estado.slice(1)) : "Nuevo"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        {formatDate(lead.fecha_creacion)}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Acciones</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => {
-                              setSelectedLead(lead);
-                              setShowDetails(true);
-                            }}>
-                              <Eye className="h-4 w-4 mr-2" />
-                              Ver detalles
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => updateLeadStatus(lead.id, 'contactado')}>
-                              <UserCheck className="h-4 w-4 mr-2" />
-                              Marcar contactado
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => updateLeadStatus(lead.id, 'aprobado')}>
-                              <UserCheck className="h-4 w-4 mr-2" />
-                              Aprobar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="text-destructive"
-                              onClick={() => updateLeadStatus(lead.id, 'rechazado')}
-                            >
-                              <X className="h-4 w-4 mr-2" />
-                              Rechazar
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="candidatos">Candidatos</TabsTrigger>
+          <TabsTrigger value="referidos">Sistema de Referidos</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="candidatos">
+          <Card>
+            <CardHeader>
+              <CardTitle>Listado de Candidatos</CardTitle>
+              <CardDescription>
+                Total de candidatos: {filteredLeads.length} | 
+                Referidos: {leads.filter(l => l.referido_por).length}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4 flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="Buscar por nombre, email, teléfono o referente..." 
+                    className="pl-8" 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <Select 
+                    value={statusFilter}
+                    onValueChange={setStatusFilter}
+                  >
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Estado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos los estados</SelectItem>
+                      <SelectItem value="nuevo">Nuevo</SelectItem>
+                      <SelectItem value="contactado">Contactado</SelectItem>
+                      <SelectItem value="entrevista">En entrevista</SelectItem>
+                      <SelectItem value="documentos">Documentos</SelectItem>
+                      <SelectItem value="en_proceso">En proceso</SelectItem>
+                      <SelectItem value="aprobado">Aprobado</SelectItem>
+                      <SelectItem value="rechazado">Rechazado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead className="hidden md:table-cell">Teléfono</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead className="hidden lg:table-cell">Referido por</TableHead>
+                      <TableHead className="hidden md:table-cell">Fecha Registro</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-10">
+                          <div className="flex justify-center items-center">
+                            <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                            <span>Cargando candidatos...</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredLeads.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-10">
+                          <p>No se encontraron candidatos</p>
+                          <p className="text-muted-foreground text-sm mt-1">
+                            {searchTerm || statusFilter !== "todos" 
+                              ? "Intenta con otros filtros de búsqueda" 
+                              : "Agrega nuevos candidatos para empezar a visualizarlos aquí"}
+                          </p>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredLeads.map((lead) => (
+                        <TableRow key={lead.id}>
+                          <TableCell className="font-medium">{lead.nombre}</TableCell>
+                          <TableCell>{lead.email}</TableCell>
+                          <TableCell className="hidden md:table-cell">{lead.telefono || "Sin teléfono"}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={getStatusBadgeStyle(lead.estado)}>
+                              {lead.estado ? (lead.estado.charAt(0).toUpperCase() + lead.estado.slice(1)) : "Nuevo"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                            {lead.referido_por ? (
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                                <Users className="h-3 w-3 mr-1" />
+                                {lead.referido_por}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            {formatDate(lead.fecha_creacion)}
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                  <span className="sr-only">Acciones</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => {
+                                  setSelectedLead(lead);
+                                  setShowDetails(true);
+                                }}>
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Ver detalles
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => updateLeadStatus(lead.id, 'contactado')}>
+                                  <UserCheck className="h-4 w-4 mr-2" />
+                                  Marcar contactado
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => updateLeadStatus(lead.id, 'aprobado')}>
+                                  <UserCheck className="h-4 w-4 mr-2" />
+                                  Aprobar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  className="text-destructive"
+                                  onClick={() => updateLeadStatus(lead.id, 'rechazado')}
+                                >
+                                  <X className="h-4 w-4 mr-2" />
+                                  Rechazar
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="referidos">
+          <ReferralManager />
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={showDetails} onOpenChange={setShowDetails}>
         <DialogContent className="max-w-4xl">

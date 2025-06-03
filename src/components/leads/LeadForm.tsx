@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,12 +10,13 @@ import {
 } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, User, Car, MapPin, Briefcase, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, User, Car, MapPin, Briefcase, Users, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { PersonalInfoForm } from "./forms/PersonalInfoForm";
 import { LocationForm } from "./forms/LocationForm";
 import { VehicleForm } from "./forms/VehicleForm";
 import { ExperienceForm } from "./forms/ExperienceForm";
+import { ReferralForm } from "./forms/ReferralForm";
 
 interface LeadFormProps {
   onSuccess?: () => void;
@@ -28,13 +30,9 @@ interface FormData {
   telefono: string;
   edad: string;
   direccion: string;
-  
-  // Ubicación (IDs de las tablas)
   estado_id: string;
   ciudad_id: string;
   zona_trabajo_id: string;
-  
-  // Información del vehículo
   marca_vehiculo: string;
   modelo_vehiculo: string;
   año_vehiculo: string;
@@ -42,16 +40,12 @@ interface FormData {
   color_vehiculo: string;
   tipo_vehiculo: string;
   seguro_vigente: string;
-  
-  // Experiencia laboral
   experiencia_custodia: string;
   años_experiencia: string;
   empresas_anteriores: string;
   licencia_conducir: string;
   tipo_licencia: string;
   antecedentes_penales: string;
-  
-  // Información adicional
   disponibilidad_horario: string;
   disponibilidad_dias: string;
   rango_km: string;
@@ -61,16 +55,23 @@ interface FormData {
   fuente: string;
 }
 
+interface ReferralData {
+  custodio_referente_id: string;
+  custodio_referente_nombre: string;
+}
+
 const ETAPAS = [
   { id: 'personal', titulo: 'Datos Personales', icono: User },
   { id: 'ubicacion', titulo: 'Ubicación', icono: MapPin },
   { id: 'vehiculo', titulo: 'Vehículo', icono: Car },
-  { id: 'experiencia', titulo: 'Experiencia', icono: Briefcase }
+  { id: 'experiencia', titulo: 'Experiencia', icono: Briefcase },
+  { id: 'referido', titulo: 'Referencia', icono: Users }
 ];
 
 export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
   const [etapaActual, setEtapaActual] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [referralData, setReferralData] = useState<ReferralData | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
   
@@ -81,13 +82,9 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
     telefono: "",
     edad: "",
     direccion: "",
-    
-    // Ubicación
     estado_id: "",
     ciudad_id: "",
     zona_trabajo_id: "",
-    
-    // Información del vehículo
     marca_vehiculo: "",
     modelo_vehiculo: "",
     año_vehiculo: "",
@@ -95,16 +92,12 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
     color_vehiculo: "",
     tipo_vehiculo: "",
     seguro_vigente: "",
-    
-    // Experiencia laboral
     experiencia_custodia: "",
     años_experiencia: "",
     empresas_anteriores: "",
     licencia_conducir: "",
     tipo_licencia: "",
     antecedentes_penales: "",
-    
-    // Información adicional
     disponibilidad_horario: "",
     disponibilidad_dias: "",
     rango_km: "",
@@ -139,6 +132,8 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
         return true; 
       case 3: 
         return true; 
+      case 4: 
+        return true; // La referencia es opcional
       default:
         return true;
     }
@@ -259,7 +254,11 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
           dias: formData.disponibilidad_dias,
           rango_km: formData.rango_km
         },
-        referencias: formData.referencias
+        referencias: formData.referencias,
+        referido: referralData ? {
+          custodio_referente_id: referralData.custodio_referente_id,
+          custodio_referente_nombre: referralData.custodio_referente_nombre
+        } : null
       };
 
       // Actualizar el lead con los detalles completos
@@ -272,9 +271,28 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
 
       if (updateError) throw updateError;
 
+      // Crear registro de referido si aplica
+      if (referralData) {
+        const { error: referralError } = await supabase
+          .from('referidos')
+          .insert({
+            custodio_referente_id: referralData.custodio_referente_id,
+            candidato_referido_id: leadData.id,
+            estado_referido: 'pendiente',
+            notas: `Candidato referido por ${referralData.custodio_referente_nombre}`
+          });
+
+        if (referralError) {
+          console.error('Error creating referral record:', referralError);
+          // No fallar todo el proceso por esto, solo log el error
+        }
+      }
+
       toast({
         title: "Candidato registrado",
-        description: "La información del candidato ha sido guardada exitosamente.",
+        description: referralData 
+          ? `El candidato ha sido registrado exitosamente con referencia de ${referralData.custodio_referente_nombre}.`
+          : "La información del candidato ha sido guardada exitosamente.",
       });
 
       onSuccess?.();
@@ -300,6 +318,8 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
         return <VehicleForm formData={formData} onInputChange={handleInputChange} />;
       case 3:
         return <ExperienceForm formData={formData} onInputChange={handleInputChange} />;
+      case 4:
+        return <ReferralForm onReferralChange={setReferralData} />;
       default:
         return null;
     }

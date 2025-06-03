@@ -211,3 +211,90 @@ BEGIN
   FROM aggregated_data ad;
 END;
 $$;
+
+-- Función para obtener estadísticas de referidos para un custodio
+CREATE OR REPLACE FUNCTION public.get_custodio_referral_stats(p_custodio_id UUID)
+RETURNS TABLE(
+  total_referidos INTEGER,
+  referidos_activos INTEGER,
+  bonos_ganados NUMERIC,
+  ultimo_bono_fecha TIMESTAMP WITH TIME ZONE
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    COUNT(*)::INTEGER as total_referidos,
+    COUNT(CASE WHEN r.estado_referido = 'activado' THEN 1 END)::INTEGER as referidos_activos,
+    COALESCE(SUM(CASE WHEN r.bono_otorgado THEN r.monto_bono ELSE 0 END), 0) as bonos_ganados,
+    MAX(r.fecha_pago_bono) as ultimo_bono_fecha
+  FROM public.referidos r
+  WHERE r.custodio_referente_id = p_custodio_id;
+END;
+$$;
+
+-- Función para obtener lista de referidos de un custodio
+CREATE OR REPLACE FUNCTION public.get_custodio_referidos(p_custodio_id UUID)
+RETURNS TABLE(
+  referido_id UUID,
+  candidato_nombre TEXT,
+  candidato_email TEXT,
+  estado_referido TEXT,
+  fecha_referencia TIMESTAMP WITH TIME ZONE,
+  fecha_activacion TIMESTAMP WITH TIME ZONE,
+  bono_otorgado BOOLEAN,
+  monto_bono NUMERIC
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    r.id as referido_id,
+    l.nombre as candidato_nombre,
+    l.email as candidato_email,
+    r.estado_referido,
+    r.fecha_referencia,
+    r.fecha_activacion,
+    r.bono_otorgado,
+    r.monto_bono
+  FROM public.referidos r
+  JOIN public.leads l ON l.id = r.candidato_referido_id
+  WHERE r.custodio_referente_id = p_custodio_id
+  ORDER BY r.fecha_referencia DESC;
+END;
+$$;
+
+-- Función para notificar custodios sobre bonos disponibles
+CREATE OR REPLACE FUNCTION public.check_pending_referral_bonuses()
+RETURNS TABLE(
+  custodio_id UUID,
+  custodio_email TEXT,
+  pending_bonuses INTEGER,
+  total_amount NUMERIC
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    r.custodio_referente_id as custodio_id,
+    p.email as custodio_email,
+    COUNT(*)::INTEGER as pending_bonuses,
+    COALESCE(SUM(cb.monto_bono), 0) as total_amount
+  FROM public.referidos r
+  JOIN public.profiles p ON p.id = r.custodio_referente_id
+  JOIN public.configuracion_bonos_referidos cb ON cb.activo = true
+  WHERE r.estado_referido = 'activado' 
+    AND NOT r.bono_otorgado
+    AND public.verificar_cumplimiento_referido(r.id) = true
+  GROUP BY r.custodio_referente_id, p.email;
+END;
+$$;

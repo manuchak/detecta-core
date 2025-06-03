@@ -68,6 +68,42 @@ export type Database = {
           },
         ]
       }
+      configuracion_bonos_referidos: {
+        Row: {
+          activo: boolean
+          created_at: string
+          descripcion: string | null
+          dias_minimos_permanencia: number
+          id: string
+          monto_bono: number
+          nombre: string
+          servicios_minimos_requeridos: number
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          descripcion?: string | null
+          dias_minimos_permanencia?: number
+          id?: string
+          monto_bono: number
+          nombre: string
+          servicios_minimos_requeridos?: number
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          descripcion?: string | null
+          dias_minimos_permanencia?: number
+          id?: string
+          monto_bono?: number
+          nombre?: string
+          servicios_minimos_requeridos?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       custodio_points: {
         Row: {
           created_at: string
@@ -390,6 +426,62 @@ export type Database = {
             columns: ["reward_id"]
             isOneToOne: false
             referencedRelation: "rewards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referidos: {
+        Row: {
+          bono_otorgado: boolean
+          candidato_referido_id: string
+          created_at: string
+          custodio_referente_id: string
+          estado_referido: string
+          fecha_activacion: string | null
+          fecha_cumplimiento_requisitos: string | null
+          fecha_pago_bono: string | null
+          fecha_referencia: string
+          id: string
+          monto_bono: number | null
+          notas: string | null
+          updated_at: string
+        }
+        Insert: {
+          bono_otorgado?: boolean
+          candidato_referido_id: string
+          created_at?: string
+          custodio_referente_id: string
+          estado_referido?: string
+          fecha_activacion?: string | null
+          fecha_cumplimiento_requisitos?: string | null
+          fecha_pago_bono?: string | null
+          fecha_referencia?: string
+          id?: string
+          monto_bono?: number | null
+          notas?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bono_otorgado?: boolean
+          candidato_referido_id?: string
+          created_at?: string
+          custodio_referente_id?: string
+          estado_referido?: string
+          fecha_activacion?: string | null
+          fecha_cumplimiento_requisitos?: string | null
+          fecha_pago_bono?: string | null
+          fecha_referencia?: string
+          id?: string
+          monto_bono?: number | null
+          notas?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referidos_candidato_referido_id_fkey"
+            columns: ["candidato_referido_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
         ]
@@ -1836,6 +1928,10 @@ export type Database = {
         Args: { tiempo_str: string }
         Returns: unknown
       }
+      procesar_bono_referido: {
+        Args: { p_referido_id: string }
+        Returns: boolean
+      }
       redeem_points: {
         Args: { p_user_id: string; p_reward_id: string; p_quantity?: number }
         Returns: string
@@ -1939,6 +2035,10 @@ export type Database = {
       }
       verificar_admin_seguro: {
         Args: { check_user_id: string }
+        Returns: boolean
+      }
+      verificar_cumplimiento_referido: {
+        Args: { p_referido_id: string }
         Returns: boolean
       }
       verify_admin_email: {
