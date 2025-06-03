@@ -1527,6 +1527,14 @@ export type Database = {
           level_5_count: number
         }[]
       }
+      get_custodios_activos_safe: {
+        Args: { search_term?: string }
+        Returns: {
+          nombre_custodio: string
+          telefono: string
+          total_servicios: number
+        }[]
+      }
       get_estados_safe: {
         Args: Record<PropertyKey, never>
         Returns: {

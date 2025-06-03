@@ -39,7 +39,7 @@ export const ReferralForm = ({ onReferralChange }: ReferralFormProps) => {
       // Usar función RPC para evitar problemas de RLS
       const { data, error } = await supabase.rpc('get_custodios_activos_safe', {
         search_term: search.trim() || null
-      });
+      }) as { data: Custodio[] | null; error: any };
 
       if (error) {
         console.error('Error from RPC:', error);
