@@ -128,28 +128,44 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
   useState(() => {
     const checkAccess = async () => {
       try {
-        const { data, error } = await supabase.rpc('verify_user_access');
+        // Usar función RPC existente para verificar si es admin
+        const { data: isAdmin, error: adminError } = await supabase.rpc('is_admin_user');
         
-        if (error) {
-          console.error('Error verificando acceso:', error);
+        if (adminError) {
+          console.error('Error verificando acceso admin:', adminError);
+        }
+
+        // También verificar roles específicos usando get_user_roles
+        const { data: userRoles, error: rolesError } = await supabase.rpc('get_user_roles');
+        
+        if (rolesError) {
+          console.error('Error obteniendo roles:', rolesError);
           setHasAccess(false);
           return;
         }
+
+        // Verificar si el usuario tiene acceso basado en roles
+        const allowedRoles = ['admin', 'owner', 'manager', 'supply_admin', 'supply'];
+        const hasRequiredRole = Array.isArray(userRoles) && userRoles.some((roleObj: any) => 
+          allowedRoles.includes(roleObj?.role)
+        );
+
+        const hasAccessResult = isAdmin || hasRequiredRole;
+        setHasAccess(hasAccessResult);
         
-        if (data && data.length > 0) {
-          const accessInfo = data[0];
-          setHasAccess(accessInfo.has_access);
-          setUserInfo(accessInfo);
-          
-          if (!accessInfo.has_access) {
-            toast({
-              title: "Acceso denegado",
-              description: "No tienes permisos para crear candidatos.",
-              variant: "destructive",
-            });
-          }
-        } else {
-          setHasAccess(false);
+        // Obtener información del usuario
+        const { data: { user } } = await supabase.auth.getUser();
+        setUserInfo({
+          user_email: user?.email || 'No disponible',
+          user_roles: Array.isArray(userRoles) ? userRoles.map((r: any) => r?.role).filter(Boolean) : []
+        });
+
+        if (!hasAccessResult) {
+          toast({
+            title: "Acceso denegado",
+            description: "No tienes permisos para crear candidatos.",
+            variant: "destructive",
+          });
         }
       } catch (error) {
         console.error('Error en checkAccess:', error);
