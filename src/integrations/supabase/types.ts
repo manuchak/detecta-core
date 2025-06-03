@@ -257,6 +257,71 @@ export type Database = {
         }
         Relationships: []
       }
+      marcas_vehiculos: {
+        Row: {
+          activo: boolean
+          created_at: string
+          id: string
+          nombre: string
+          pais_origen: string | null
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          id?: string
+          nombre: string
+          pais_origen?: string | null
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          id?: string
+          nombre?: string
+          pais_origen?: string | null
+        }
+        Relationships: []
+      }
+      modelos_vehiculos: {
+        Row: {
+          activo: boolean
+          año_fin: number | null
+          año_inicio: number | null
+          created_at: string
+          id: string
+          marca_id: string
+          nombre: string
+          tipo_vehiculo: string | null
+        }
+        Insert: {
+          activo?: boolean
+          año_fin?: number | null
+          año_inicio?: number | null
+          created_at?: string
+          id?: string
+          marca_id: string
+          nombre: string
+          tipo_vehiculo?: string | null
+        }
+        Update: {
+          activo?: boolean
+          año_fin?: number | null
+          año_inicio?: number | null
+          created_at?: string
+          id?: string
+          marca_id?: string
+          nombre?: string
+          tipo_vehiculo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "modelos_vehiculos_marca_id_fkey"
+            columns: ["marca_id"]
+            isOneToOne: false
+            referencedRelation: "marcas_vehiculos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       point_rules: {
         Row: {
           category: string
@@ -1533,6 +1598,14 @@ export type Database = {
           tipo_unidad: string | null
           tipo_unidad_adicional: string | null
           updated_time: string | null
+        }[]
+      }
+      get_modelos_por_marca: {
+        Args: { p_marca_nombre: string }
+        Returns: {
+          id: string
+          nombre: string
+          tipo_vehiculo: string
         }[]
       }
       get_points_system_config: {

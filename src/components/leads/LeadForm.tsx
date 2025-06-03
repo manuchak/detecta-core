@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,7 +47,6 @@ interface FormData {
   antecedentes_penales: string;
   disponibilidad_horario: string;
   disponibilidad_dias: string;
-  rango_km: string;
   mensaje: string;
   referencias: string;
   estado_solicitud: string;
@@ -100,7 +98,6 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
     antecedentes_penales: "",
     disponibilidad_horario: "",
     disponibilidad_dias: "",
-    rango_km: "",
     mensaje: "",
     referencias: "",
     estado_solicitud: "nuevo",
@@ -193,14 +190,13 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
         ciudadNombre = ciudades?.nombre || '';
       }
 
-      if (formData.zona_trabajo_id) {
-        const { data: zonas } = await supabase
-          .from('zonas_trabajo')
-          .select('nombre')
-          .eq('id', formData.zona_trabajo_id)
-          .single();
-        zonaNombre = zonas?.nombre || '';
-      }
+      // Convertir zona_trabajo_id a nombre legible
+      const zonaMap: Record<string, string> = {
+        'local': 'Local',
+        'foraneo_corto': 'Foráneo Corto',
+        'foraneo': 'Foráneo'
+      };
+      zonaNombre = zonaMap[formData.zona_trabajo_id] || formData.zona_trabajo_id;
 
       // Crear el lead básico
       const { data: leadData, error: leadError } = await supabase
@@ -252,7 +248,7 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
         disponibilidad: {
           horario: formData.disponibilidad_horario,
           dias: formData.disponibilidad_dias,
-          rango_km: formData.rango_km
+          zona_trabajo: zonaNombre
         },
         referencias: formData.referencias,
         referido: referralData ? {
