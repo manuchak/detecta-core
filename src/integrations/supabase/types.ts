@@ -41,18 +41,21 @@ export type Database = {
       }
       ciudades: {
         Row: {
+          activo: boolean
           created_at: string
           estado_id: string
           id: string
           nombre: string
         }
         Insert: {
+          activo?: boolean
           created_at?: string
           estado_id: string
           id?: string
           nombre: string
         }
         Update: {
+          activo?: boolean
           created_at?: string
           estado_id?: string
           id?: string
@@ -142,18 +145,21 @@ export type Database = {
       }
       estados: {
         Row: {
+          activo: boolean
           codigo: string
           created_at: string
           id: string
           nombre: string
         }
         Insert: {
+          activo?: boolean
           codigo: string
           created_at?: string
           id?: string
           nombre: string
         }
         Update: {
+          activo?: boolean
           codigo?: string
           created_at?: string
           id?: string
@@ -915,6 +921,7 @@ export type Database = {
       }
       zonas_trabajo: {
         Row: {
+          activo: boolean
           ciudad_id: string
           coordenadas: Json | null
           created_at: string
@@ -923,6 +930,7 @@ export type Database = {
           nombre: string
         }
         Insert: {
+          activo?: boolean
           ciudad_id: string
           coordenadas?: Json | null
           created_at?: string
@@ -931,6 +939,7 @@ export type Database = {
           nombre: string
         }
         Update: {
+          activo?: boolean
           ciudad_id?: string
           coordenadas?: Json | null
           created_at?: string
@@ -1600,7 +1609,23 @@ export type Database = {
           updated_time: string | null
         }[]
       }
+      get_marcas_vehiculos_safe: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          nombre: string
+          pais_origen: string
+        }[]
+      }
       get_modelos_por_marca: {
+        Args: { p_marca_nombre: string }
+        Returns: {
+          id: string
+          nombre: string
+          tipo_vehiculo: string
+        }[]
+      }
+      get_modelos_por_marca_safe: {
         Args: { p_marca_nombre: string }
         Returns: {
           id: string

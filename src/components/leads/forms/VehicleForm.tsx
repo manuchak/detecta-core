@@ -1,4 +1,3 @@
-
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -39,9 +38,10 @@ const generateVehicleYears = () => {
 };
 
 export const VehicleForm = ({ formData, onInputChange }: VehicleFormProps) => {
-  const { marcas, loadingMarcas, fetchModelosPorMarca } = useVehicleData();
+  const { marcas, loadingMarcas, error: errorMarcas, fetchModelosPorMarca } = useVehicleData();
   const [modelos, setModelos] = useState<Modelo[]>([]);
   const [loadingModelos, setLoadingModelos] = useState(false);
+  const [errorModelos, setErrorModelos] = useState<string | null>(null);
   const vehicleYears = generateVehicleYears();
 
   // Cargar modelos cuando cambie la marca
@@ -49,15 +49,19 @@ export const VehicleForm = ({ formData, onInputChange }: VehicleFormProps) => {
     const loadModelos = async () => {
       if (!formData.marca_vehiculo) {
         setModelos([]);
+        setErrorModelos(null);
         return;
       }
 
       setLoadingModelos(true);
+      setErrorModelos(null);
       try {
         const modelosData = await fetchModelosPorMarca(formData.marca_vehiculo);
         setModelos(modelosData);
       } catch (error) {
         console.error('Error loading modelos:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Error al cargar modelos';
+        setErrorModelos(errorMessage);
         setModelos([]);
       } finally {
         setLoadingModelos(false);
@@ -73,6 +77,15 @@ export const VehicleForm = ({ formData, onInputChange }: VehicleFormProps) => {
     onInputChange('modelo_vehiculo', ''); // Limpiar modelo
   };
 
+  // Mostrar errores si los hay
+  if (errorMarcas) {
+    console.error('Error loading marcas:', errorMarcas);
+  }
+  
+  if (errorModelos) {
+    console.error('Error loading modelos:', errorModelos);
+  }
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -80,7 +93,11 @@ export const VehicleForm = ({ formData, onInputChange }: VehicleFormProps) => {
           <Label htmlFor="marca_vehiculo">Marca del Vehículo</Label>
           <Select value={formData.marca_vehiculo} onValueChange={handleMarcaChange} disabled={loadingMarcas}>
             <SelectTrigger>
-              <SelectValue placeholder={loadingMarcas ? "Cargando marcas..." : "Seleccionar marca"} />
+              <SelectValue placeholder={
+                loadingMarcas ? "Cargando marcas..." : 
+                errorMarcas ? "Error al cargar marcas" :
+                "Seleccionar marca"
+              } />
             </SelectTrigger>
             <SelectContent>
               {marcas.map((marca) => (
@@ -105,6 +122,8 @@ export const VehicleForm = ({ formData, onInputChange }: VehicleFormProps) => {
                   ? "Primero selecciona una marca" 
                   : loadingModelos 
                   ? "Cargando modelos..." 
+                  : errorModelos
+                  ? "Error al cargar modelos"
                   : "Seleccionar modelo"
               } />
             </SelectTrigger>

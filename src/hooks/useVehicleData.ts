@@ -17,20 +17,33 @@ interface Modelo {
 export const useVehicleData = () => {
   const [marcas, setMarcas] = useState<Marca[]>([]);
   const [loadingMarcas, setLoadingMarcas] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchMarcas = async () => {
       try {
-        const { data, error } = await supabase
-          .from('marcas_vehiculos')
-          .select('id, nombre, pais_origen')
-          .eq('activo', true)
-          .order('nombre');
+        console.log('Fetching marcas...');
+        setLoadingMarcas(true);
+        setError(null);
         
-        if (error) throw error;
+        // Usar la función RPC segura
+        const { data, error } = await supabase.rpc('get_marcas_vehiculos_safe') as {
+          data: Marca[] | null;
+          error: any;
+        };
+        
+        if (error) {
+          console.error('Error fetching marcas:', error);
+          setError(error.message);
+          return;
+        }
+        
+        console.log('Marcas fetched successfully:', data);
         setMarcas(data || []);
-      } catch (error) {
-        console.error('Error fetching marcas:', error);
+      } catch (err) {
+        console.error('Error in fetchMarcas:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Error al cargar marcas';
+        setError(errorMessage);
       } finally {
         setLoadingMarcas(false);
       }
@@ -41,13 +54,25 @@ export const useVehicleData = () => {
 
   const fetchModelosPorMarca = async (marcaNombre: string): Promise<Modelo[]> => {
     try {
-      const { data, error } = await supabase
-        .rpc('get_modelos_por_marca', { p_marca_nombre: marcaNombre });
+      console.log('Fetching modelos for marca:', marcaNombre);
       
-      if (error) throw error;
+      // Usar la función RPC segura
+      const { data, error } = await supabase.rpc('get_modelos_por_marca_safe', {
+        p_marca_nombre: marcaNombre
+      }) as {
+        data: Modelo[] | null;
+        error: any;
+      };
+      
+      if (error) {
+        console.error('Error fetching modelos:', error);
+        return [];
+      }
+      
+      console.log('Modelos fetched successfully:', data);
       return data || [];
     } catch (error) {
-      console.error('Error fetching modelos:', error);
+      console.error('Error in fetchModelosPorMarca:', error);
       return [];
     }
   };
@@ -55,6 +80,7 @@ export const useVehicleData = () => {
   return {
     marcas,
     loadingMarcas,
+    error,
     fetchModelosPorMarca
   };
 };
