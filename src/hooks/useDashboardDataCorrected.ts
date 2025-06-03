@@ -1,4 +1,3 @@
-
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +21,29 @@ export interface DashboardMetrics {
   ongoingServicesPercentage: number;
   pendingServicesPercentage: number;
   cancelledServicesPercentage: number;
+}
+
+export interface ServiceStatusData {
+  name: string;
+  value: number;
+  color: string;
+}
+
+export interface ServiceTypesData {
+  name: string;
+  value: number;
+}
+
+export interface DailyServiceData {
+  day: string;
+  count: number;
+  date?: string;
+  weekRange?: string;
+}
+
+export interface TopClientsData {
+  name: string;
+  value: number;
 }
 
 export type TimeframeOption = "day" | "week" | "month" | "quarter" | "year" | "custom" | "thisMonth" | "thisQuarter";
@@ -278,15 +300,155 @@ export const useDashboardDataCorrected = (
     return result;
   }, [allServices, isLoading, error, timeframe, serviceTypeFilter]);
 
+  // Nuevos datos para gráficos secundarios
+  const secondaryData = useMemo(() => {
+    if (isLoading || error || !allServices) {
+      return {
+        serviceStatusData: [],
+        serviceTypesData: [],
+        dailyServiceData: [],
+        topClientsData: []
+      };
+    }
+
+    console.log('🔄 Generando datos para gráficos secundarios...');
+    
+    // Filtrar servicios por período actual
+    const { startDate, endDate } = getDateRange(timeframe);
+    const serviciosEnRango = allServices.filter(service => {
+      if (!service.fecha_hora_cita) return false;
+      const serviceDate = new Date(service.fecha_hora_cita);
+      return serviceDate >= startDate && serviceDate <= endDate;
+    });
+
+    // Aplicar filtro de tipo de servicio
+    let serviciosFiltrados = serviciosEnRango;
+    if (serviceTypeFilter !== "all") {
+      serviciosFiltrados = serviciosEnRango.filter(service => {
+        const tipoServicio = (service.local_foraneo || service.tipo_servicio || '').toLowerCase();
+        return tipoServicio.includes(serviceTypeFilter.toLowerCase());
+      });
+    }
+
+    console.log(`📊 Servicios filtrados para gráficos: ${serviciosFiltrados.length}`);
+
+    // 1. SERVICE STATUS DATA
+    const statusCounts = {
+      'Finalizado': 0,
+      'En Curso': 0,
+      'Pendiente': 0,
+      'Cancelado': 0
+    };
+
+    serviciosFiltrados.forEach(service => {
+      const estado = (service.estado || '').toLowerCase().trim();
+      
+      if (estado === 'finalizado') {
+        statusCounts['Finalizado']++;
+      } else if (estado.includes('ruta') || estado.includes('destino') || estado.includes('origen')) {
+        statusCounts['En Curso']++;
+      } else if (estado.includes('pendiente') || estado.includes('programado') || estado.includes('espera')) {
+        statusCounts['Pendiente']++;
+      } else if (estado.includes('cancelado')) {
+        statusCounts['Cancelado']++;
+      }
+    });
+
+    const serviceStatusData: ServiceStatusData[] = [
+      { name: 'Finalizado', value: statusCounts['Finalizado'], color: '#10b981' },
+      { name: 'En Curso', value: statusCounts['En Curso'], color: '#3b82f6' },
+      { name: 'Pendiente', value: statusCounts['Pendiente'], color: '#f59e0b' },
+      { name: 'Cancelado', value: statusCounts['Cancelado'], color: '#ef4444' }
+    ];
+
+    // 2. SERVICE TYPES DATA
+    const typeCounts = new Map<string, number>();
+    serviciosFiltrados.forEach(service => {
+      const tipo = service.local_foraneo || service.tipo_servicio || 'Sin especificar';
+      typeCounts.set(tipo, (typeCounts.get(tipo) || 0) + 1);
+    });
+
+    const total = serviciosFiltrados.length;
+    const serviceTypesData: ServiceTypesData[] = Array.from(typeCounts.entries())
+      .map(([name, count]) => ({
+        name,
+        value: total > 0 ? Math.round((count / total) * 100) : 0
+      }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+
+    // 3. DAILY SERVICE DATA (última semana)
+    const dailyData = new Map<string, number>();
+    const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    
+    // Inicializar días de la semana
+    dayNames.forEach(day => dailyData.set(day, 0));
+    
+    // Procesar servicios de la última semana
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - 7);
+    
+    serviciosFiltrados.forEach(service => {
+      if (!service.fecha_hora_cita) return;
+      const serviceDate = new Date(service.fecha_hora_cita);
+      
+      if (serviceDate >= weekStart) {
+        const dayIndex = serviceDate.getDay();
+        const dayName = dayNames[dayIndex === 0 ? 6 : dayIndex - 1]; // Ajustar domingo
+        dailyData.set(dayName, (dailyData.get(dayName) || 0) + 1);
+      }
+    });
+
+    const dailyServiceData: DailyServiceData[] = dayNames.map(day => ({
+      day,
+      count: dailyData.get(day) || 0,
+      date: '', // Se puede agregar fecha específica si es necesario
+      weekRange: `${weekStart.toLocaleDateString()} - ${new Date().toLocaleDateString()}`
+    }));
+
+    // 4. TOP CLIENTS DATA
+    const clientCounts = new Map<string, number>();
+    serviciosFiltrados.forEach(service => {
+      if (!service.nombre_cliente || service.nombre_cliente.trim() === '' || service.nombre_cliente === '#N/A') return;
+      
+      const cliente = service.nombre_cliente.trim().toUpperCase();
+      clientCounts.set(cliente, (clientCounts.get(cliente) || 0) + 1);
+    });
+
+    const topClients = Array.from(clientCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+
+    const topClientsTotal = topClients.reduce((sum, [, count]) => sum + count, 0);
+    const othersCount = serviciosFiltrados.length - topClientsTotal;
+
+    const topClientsData: TopClientsData[] = [
+      ...topClients.map(([name, value]) => ({
+        name: name.length > 20 ? name.substring(0, 20) + '...' : name,
+        value
+      })),
+      ...(othersCount > 0 ? [{ name: 'Otros', value: othersCount }] : [])
+    ];
+
+    console.log('📊 Datos secundarios generados:');
+    console.log('  - Estados:', serviceStatusData.map(s => `${s.name}: ${s.value}`));
+    console.log('  - Tipos:', serviceTypesData.map(s => `${s.name}: ${s.value}%`));
+    console.log('  - Diarios:', dailyServiceData.map(s => `${s.day}: ${s.count}`));
+    console.log('  - Clientes:', topClientsData.map(s => `${s.name}: ${s.value}`));
+
+    return {
+      serviceStatusData,
+      serviceTypesData,
+      dailyServiceData,
+      topClientsData
+    };
+  }, [allServices, isLoading, error, timeframe, serviceTypeFilter]);
+
   return {
     isLoading,
     error,
     dashboardData,
     refreshAllData: refetch,
-    // Datos dummy para mantener compatibilidad
-    serviceStatusData: [],
-    serviceTypesData: [],
-    dailyServiceData: [],
-    topClientsData: []
+    ...secondaryData
   };
 };
