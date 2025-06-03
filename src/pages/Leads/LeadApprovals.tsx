@@ -65,16 +65,37 @@ export const LeadApprovals = () => {
 
   const fetchAssignedLeads = async () => {
     try {
+      console.log('Fetching assigned leads...');
+      
+      // Primero verificar que el usuario esté autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('Current user:', user?.id, user?.email);
+      
+      if (!user) {
+        throw new Error('Usuario no autenticado');
+      }
+      
       const { data, error } = await supabase.rpc('get_analyst_assigned_leads');
       
-      if (error) throw error;
+      if (error) {
+        console.error('RPC Error:', error);
+        throw error;
+      }
       
+      console.log('Assigned leads data:', data);
       setAssignedLeads(data || []);
+      
+      if (!data || data.length === 0) {
+        toast({
+          title: "Sin candidatos asignados",
+          description: "No tienes candidatos asignados en este momento.",
+        });
+      }
     } catch (error) {
       console.error('Error fetching assigned leads:', error);
       toast({
         title: "Error",
-        description: "No se pudieron cargar los candidatos asignados.",
+        description: `No se pudieron cargar los candidatos asignados: ${error.message}`,
         variant: "destructive",
       });
     } finally {
@@ -185,7 +206,26 @@ export const LeadApprovals = () => {
             Gestiona las entrevistas y aprobaciones de los candidatos asignados.
           </p>
         </div>
+        <Button
+          variant="outline"
+          onClick={fetchAssignedLeads}
+        >
+          Actualizar
+        </Button>
       </div>
+
+      {/* Debug information - solo mostrar en desarrollo */}
+      {process.env.NODE_ENV === 'development' && (
+        <Card className="bg-yellow-50 border-yellow-200">
+          <CardHeader>
+            <CardTitle className="text-sm">Debug Info</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs">Total leads encontrados: {assignedLeads.length}</p>
+            <p className="text-xs">Call logs: {callLogs.length}</p>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
