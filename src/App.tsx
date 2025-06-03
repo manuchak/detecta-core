@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -23,6 +22,7 @@ import LeadsList from "@/pages/Leads/LeadsList";
 import TicketsList from "@/pages/Tickets/TicketsList";
 import MonitoringPage from "@/pages/Monitoring/MonitoringPage";
 import SupplyChainMonitoring from "@/pages/Monitoring/SupplyChainMonitoring";
+import ForensicAuditPage from "@/pages/Monitoring/ForensicAuditPage";
 import InstallerPortal from "@/pages/Installers/InstallerPortal";
 import AssignRole from "@/pages/Admin/AssignRole";
 import AssignOwnerRole from "@/pages/Admin/AssignOwnerRole";
@@ -77,6 +77,7 @@ function App() {
                   <Route path="tickets" element={<TicketsList />} />
                   <Route path="monitoring" element={<MonitoringPage />} />
                   <Route path="supply-chain" element={<SupplyChainMonitoring />} />
+                  <Route path="forensic-audit" element={<ForensicAuditPage />} />
                   <Route path="installers" element={<InstallerPortal />} />
                   <Route path="admin/assign-role" element={<AssignRole />} />
                   <Route path="admin/assign-owner" element={<AssignOwnerRole />} />

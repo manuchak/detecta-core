@@ -157,6 +157,14 @@ export const Dashboard = () => {
                 <BarChart3 className="h-5 w-5 mr-2" />
                 <span className="text-sm font-medium">Visualización completa</span>
               </div>
+              {/* Nuevo enlace a auditoría forense */}
+              <a 
+                href="/dashboard/forensic-audit" 
+                className="flex items-center text-white/90 hover:text-white transition-colors bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg"
+              >
+                <Database className="h-5 w-5 mr-2" />
+                <span className="text-sm font-medium">Auditoría Forense</span>
+              </a>
             </div>
           </div>
         </div>
