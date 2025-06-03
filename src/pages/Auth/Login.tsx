@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,7 @@ export const Login = () => {
   const [showEmailNotConfirmed, setShowEmailNotConfirmed] = useState(false);
   const { toast } = useToast();
   const { signIn } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -24,7 +25,8 @@ export const Login = () => {
     
     try {
       await signIn(email, password);
-      // No need to redirect, this will be handled by the AuthLayout component
+      // Redirect to dashboard after successful login
+      navigate("/dashboard", { replace: true });
     } catch (error: any) {
       console.error("Login error:", error);
       
