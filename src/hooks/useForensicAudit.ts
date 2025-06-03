@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -48,6 +47,14 @@ interface ForensicAuditData {
   fecha_mas_antigua: string;
   fecha_mas_reciente: string;
   registros_fuera_rango: number;
+  
+  // Análisis de tiempo de retraso
+  registros_con_tiempo_retraso: number;
+  registros_sin_tiempo_retraso: number;
+  promedio_retraso_minutos: number;
+  servicios_con_retraso_positivo: number;
+  servicios_con_retraso_negativo: number;
+  servicios_puntuales: number;
 }
 
 interface DashboardComparison {
@@ -69,7 +76,7 @@ interface SuspiciousPattern {
 
 export const useForensicAudit = () => {
   
-  // Auditoría principal
+  // Auditoría principal con análisis de tiempo de retraso
   const { data: forensicData, isLoading: forensicLoading, error: forensicError } = useQuery({
     queryKey: ['forensic-audit'],
     queryFn: async (): Promise<ForensicAuditData> => {
@@ -90,18 +97,81 @@ export const useForensicAudit = () => {
         if (!result) {
           throw new Error('No se obtuvieron datos de la auditoría forense');
         }
+
+        // Análisis adicional de tiempo de retraso
+        const { data: tiempoRetrasoData, error: tiempoRetrasoError } = await supabase
+          .from('servicios_custodia')
+          .select('tiempo_retraso')
+          .gte('fecha_hora_cita', '2025-01-01')
+          .lte('fecha_hora_cita', new Date().toISOString());
+
+        if (tiempoRetrasoError) {
+          console.error('Error consultando tiempo retraso:', tiempoRetrasoError);
+        }
+
+        // Procesar datos de tiempo de retraso
+        const registrosConTiempoRetraso = tiempoRetrasoData?.filter(r => r.tiempo_retraso !== null).length || 0;
+        const registrosSinTiempoRetraso = (tiempoRetrasoData?.length || 0) - registrosConTiempoRetraso;
+        
+        let serviciosConRetrasoPositivo = 0;
+        let serviciosConRetrasoNegativo = 0;
+        let serviciosPuntuales = 0;
+        let totalMinutosRetraso = 0;
+        let contadorRetrasos = 0;
+
+        tiempoRetrasoData?.forEach(registro => {
+          if (registro.tiempo_retraso) {
+            const intervalStr = registro.tiempo_retraso.toString();
+            
+            // Análisis básico del interval
+            if (intervalStr.includes('-')) {
+              serviciosConRetrasoNegativo++;
+            } else if (intervalStr === '00:00:00' || intervalStr === '0') {
+              serviciosPuntuales++;
+            } else {
+              serviciosConRetrasoPositivo++;
+            }
+            
+            // Conversión aproximada a minutos para promedio
+            const hoursMatch = intervalStr.match(/(\d+):(\d+):(\d+)/);
+            if (hoursMatch) {
+              const horas = parseInt(hoursMatch[1]) || 0;
+              const minutos = parseInt(hoursMatch[2]) || 0;
+              const minutosTotales = (horas * 60) + minutos;
+              
+              if (intervalStr.includes('-')) {
+                totalMinutosRetraso -= minutosTotales;
+              } else {
+                totalMinutosRetraso += minutosTotales;
+              }
+              contadorRetrasos++;
+            }
+          }
+        });
+
+        const promedioRetrasoMinutos = contadorRetrasos > 0 ? totalMinutosRetraso / contadorRetrasos : 0;
         
         console.log('📊 RESULTADOS AUDITORÍA FORENSE:');
         console.log(`Total registros raw: ${result.total_registros_raw}`);
         console.log(`Registros enero-actual: ${result.registros_enero_actual}`);
         console.log(`Servicios únicos: ${result.servicios_unicos_id}`);
         console.log(`Duplicados encontrados: ${result.registros_duplicados_id}`);
+        console.log(`Registros con tiempo retraso: ${registrosConTiempoRetraso}`);
+        console.log(`Promedio retraso: ${promedioRetrasoMinutos.toFixed(2)} minutos`);
         console.log(`GMV total sin filtros: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(result.gmv_total_sin_filtros)}`);
         console.log(`GMV solo finalizados: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(result.gmv_solo_finalizados)}`);
         console.log(`Estados distintos: ${result.estados_distintos}`);
         console.log(`Custodios distintos: ${result.custodios_distintos}`);
         
-        return result as ForensicAuditData;
+        return {
+          ...result,
+          registros_con_tiempo_retraso: registrosConTiempoRetraso,
+          registros_sin_tiempo_retraso: registrosSinTiempoRetraso,
+          promedio_retraso_minutos: promedioRetrasoMinutos,
+          servicios_con_retraso_positivo: serviciosConRetrasoPositivo,
+          servicios_con_retraso_negativo: serviciosConRetrasoNegativo,
+          servicios_puntuales: serviciosPuntuales
+        } as ForensicAuditData;
       } catch (error) {
         console.error('Error ejecutando auditoría forense:', error);
         throw new Error('No se pudo ejecutar la auditoría forense');

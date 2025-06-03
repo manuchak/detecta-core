@@ -571,7 +571,7 @@ export type Database = {
           telefono_operador_adicional: string | null
           tiempo_estimado: string | null
           tiempo_punto_origen: string | null
-          tiempo_retraso: number | null
+          tiempo_retraso: unknown | null
           tipo_carga: string | null
           tipo_carga_adicional: string | null
           tipo_gadget: string | null
@@ -634,7 +634,7 @@ export type Database = {
           telefono_operador_adicional?: string | null
           tiempo_estimado?: string | null
           tiempo_punto_origen?: string | null
-          tiempo_retraso?: number | null
+          tiempo_retraso?: unknown | null
           tipo_carga?: string | null
           tipo_carga_adicional?: string | null
           tipo_gadget?: string | null
@@ -697,7 +697,7 @@ export type Database = {
           telefono_operador_adicional?: string | null
           tiempo_estimado?: string | null
           tiempo_punto_origen?: string | null
-          tiempo_retraso?: number | null
+          tiempo_retraso?: unknown | null
           tipo_carga?: string | null
           tipo_carga_adicional?: string | null
           tipo_gadget?: string | null
@@ -874,7 +874,7 @@ export type Database = {
           telefono_operador_adicional: string | null
           tiempo_estimado: string | null
           tiempo_punto_origen: string | null
-          tiempo_retraso: number | null
+          tiempo_retraso: unknown | null
           tipo_carga: string | null
           tipo_carga_adicional: string | null
           tipo_gadget: string | null
@@ -940,7 +940,7 @@ export type Database = {
           telefono_operador_adicional: string | null
           tiempo_estimado: string | null
           tiempo_punto_origen: string | null
-          tiempo_retraso: number | null
+          tiempo_retraso: unknown | null
           tipo_carga: string | null
           tipo_carga_adicional: string | null
           tipo_gadget: string | null
@@ -1186,7 +1186,7 @@ export type Database = {
           telefono_operador_adicional: string | null
           tiempo_estimado: string | null
           tiempo_punto_origen: string | null
-          tiempo_retraso: number | null
+          tiempo_retraso: unknown | null
           tipo_carga: string | null
           tipo_carga_adicional: string | null
           tipo_gadget: string | null
@@ -1433,7 +1433,7 @@ export type Database = {
           telefono_operador_adicional: string | null
           tiempo_estimado: string | null
           tiempo_punto_origen: string | null
-          tiempo_retraso: number | null
+          tiempo_retraso: unknown | null
           tipo_carga: string | null
           tipo_carga_adicional: string | null
           tipo_gadget: string | null
@@ -1594,7 +1594,7 @@ export type Database = {
           telefono_operador_adicional: string | null
           tiempo_estimado: string | null
           tiempo_punto_origen: string | null
-          tiempo_retraso: number | null
+          tiempo_retraso: unknown | null
           tipo_carga: string | null
           tipo_carga_adicional: string | null
           tipo_gadget: string | null
@@ -1831,6 +1831,10 @@ export type Database = {
           viajes_completados: number
           viajes_pendientes: number
         }[]
+      }
+      parse_tiempo_retraso: {
+        Args: { tiempo_str: string }
+        Returns: unknown
       }
       redeem_points: {
         Args: { p_user_id: string; p_reward_id: string; p_quantity?: number }
