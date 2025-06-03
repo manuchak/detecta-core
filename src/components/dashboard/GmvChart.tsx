@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { useGmvChartData } from "@/hooks/useGmvChartData";
-import { Loader2 } from "lucide-react";
+import { Loader2, Info } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export const GmvChart = () => {
   const [selectedClient, setSelectedClient] = useState<string>("all");
@@ -15,11 +16,17 @@ export const GmvChart = () => {
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-xl font-bold text-slate-900">
-              Evolución de Ingresos
-            </CardTitle>
+            <div className="flex items-center gap-2 mb-1">
+              <CardTitle className="text-xl font-bold text-slate-900">
+                Evolución de Ingresos
+              </CardTitle>
+              <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                <Info className="h-3 w-3" />
+                Datos históricos completos
+              </Badge>
+            </div>
             <CardDescription className="text-slate-600 mt-1">
-              Comparación mensual histórica completa (MoM)
+              Comparación mensual histórica completa (MoM) - No afectado por filtros
             </CardDescription>
           </div>
           <div className="flex items-center space-x-4">
