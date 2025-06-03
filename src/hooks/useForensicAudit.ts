@@ -75,53 +75,37 @@ export const useForensicAudit = () => {
     queryFn: async (): Promise<ForensicAuditData> => {
       console.log('🔍 === INICIANDO AUDITORÍA FORENSE ===');
       
-      // Usar SQL directo a través de la función RPC
-      const { data, error } = await supabase
-        .from('forensic_audit_servicios_enero_actual')
-        .select('*')
-        .limit(1);
-      
-      if (error) {
-        console.error('Error en auditoría forense:', error);
-        // Intentar con approach alternativo
-        try {
-          const { data: rpcData, error: rpcError } = await supabase
-            .rpc('forensic_audit_servicios_enero_actual' as any);
-          
-          if (rpcError) throw rpcError;
-          
-          const result = Array.isArray(rpcData) ? rpcData[0] : rpcData;
-          
-          console.log('📊 RESULTADOS AUDITORÍA FORENSE:');
-          console.log(`Total registros raw: ${result.total_registros_raw}`);
-          console.log(`Registros enero-actual: ${result.registros_enero_actual}`);
-          console.log(`Servicios únicos: ${result.servicios_unicos_id}`);
-          console.log(`Duplicados encontrados: ${result.registros_duplicados_id}`);
-          console.log(`GMV total sin filtros: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(result.gmv_total_sin_filtros)}`);
-          console.log(`GMV solo finalizados: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(result.gmv_solo_finalizados)}`);
-          console.log(`Estados distintos: ${result.estados_distintos}`);
-          console.log(`Custodios distintos: ${result.custodios_distintos}`);
-          
-          return result as ForensicAuditData;
-        } catch (rpcError) {
-          console.error('Error en RPC:', rpcError);
-          throw new Error('No se pudo ejecutar la auditoría forense');
+      try {
+        // Usar RPC para llamar a la función de auditoría forense
+        const { data, error } = await supabase.rpc('forensic_audit_servicios_enero_actual');
+        
+        if (error) {
+          console.error('Error en auditoría forense:', error);
+          throw error;
         }
+        
+        // La función devuelve un array con un solo resultado
+        const result = Array.isArray(data) ? data[0] : data;
+        
+        if (!result) {
+          throw new Error('No se obtuvieron datos de la auditoría forense');
+        }
+        
+        console.log('📊 RESULTADOS AUDITORÍA FORENSE:');
+        console.log(`Total registros raw: ${result.total_registros_raw}`);
+        console.log(`Registros enero-actual: ${result.registros_enero_actual}`);
+        console.log(`Servicios únicos: ${result.servicios_unicos_id}`);
+        console.log(`Duplicados encontrados: ${result.registros_duplicados_id}`);
+        console.log(`GMV total sin filtros: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(result.gmv_total_sin_filtros)}`);
+        console.log(`GMV solo finalizados: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(result.gmv_solo_finalizados)}`);
+        console.log(`Estados distintos: ${result.estados_distintos}`);
+        console.log(`Custodios distintos: ${result.custodios_distintos}`);
+        
+        return result as ForensicAuditData;
+      } catch (error) {
+        console.error('Error ejecutando auditoría forense:', error);
+        throw new Error('No se pudo ejecutar la auditoría forense');
       }
-      
-      const result = data?.[0] as ForensicAuditData;
-      
-      console.log('📊 RESULTADOS AUDITORÍA FORENSE:');
-      console.log(`Total registros raw: ${result.total_registros_raw}`);
-      console.log(`Registros enero-actual: ${result.registros_enero_actual}`);
-      console.log(`Servicios únicos: ${result.servicios_unicos_id}`);
-      console.log(`Duplicados encontrados: ${result.registros_duplicados_id}`);
-      console.log(`GMV total sin filtros: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(result.gmv_total_sin_filtros)}`);
-      console.log(`GMV solo finalizados: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(result.gmv_solo_finalizados)}`);
-      console.log(`Estados distintos: ${result.estados_distintos}`);
-      console.log(`Custodios distintos: ${result.custodios_distintos}`);
-      
-      return result;
     },
     staleTime: 10 * 60 * 1000, // 10 minutos
     retry: 2
@@ -134,8 +118,7 @@ export const useForensicAudit = () => {
       console.log('⚖️ === COMPARANDO CON DASHBOARD ===');
       
       try {
-        const { data, error } = await supabase
-          .rpc('compare_dashboard_vs_forensic' as any);
+        const { data, error } = await supabase.rpc('compare_dashboard_vs_forensic');
         
         if (error) {
           console.error('Error en comparación:', error);
@@ -167,8 +150,7 @@ export const useForensicAudit = () => {
       console.log('🚨 === DETECTANDO PATRONES SOSPECHOSOS ===');
       
       try {
-        const { data, error } = await supabase
-          .rpc('detect_suspicious_patterns' as any);
+        const { data, error } = await supabase.rpc('detect_suspicious_patterns');
         
         if (error) {
           console.error('Error detectando patrones:', error);
