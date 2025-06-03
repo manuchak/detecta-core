@@ -30,7 +30,7 @@ export const DeleteRoleDialog: React.FC<DeleteRoleDialogProps> = ({
         <DialogHeader>
           <DialogTitle>Eliminar Rol</DialogTitle>
           <DialogDescription>
-            ¿Está seguro que desea eliminar el rol "{roleToDelete}"? Esta acción no se puede deshacer.
+            ¿Está seguro que desea eliminar el rol "{roleToDelete?.name || roleToDelete}"? Esta acción no se puede deshacer.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
