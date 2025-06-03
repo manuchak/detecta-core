@@ -15,10 +15,9 @@ import { Search, UserCheck } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 interface Custodio {
-  id: string;
-  display_name: string;
-  email: string;
-  phone: string;
+  nombre_custodio: string;
+  telefono: string;
+  total_servicios: number;
 }
 
 interface ReferralFormProps {
@@ -36,21 +35,45 @@ export const ReferralForm = ({ onReferralChange }: ReferralFormProps) => {
     try {
       setLoading(true);
       
+      // Consultar custodios activos desde servicios_custodia
       let query = supabase
-        .from('profiles')
-        .select('id, display_name, email, phone')
-        .eq('is_verified', true)
-        .order('display_name');
+        .from('servicios_custodia')
+        .select('nombre_custodio, telefono')
+        .not('nombre_custodio', 'is', null)
+        .neq('nombre_custodio', '')
+        .neq('nombre_custodio', '#N/A');
 
       if (search.trim()) {
-        query = query.or(`display_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`);
+        query = query.or(`nombre_custodio.ilike.%${search}%,telefono.ilike.%${search}%`);
       }
 
-      const { data, error } = await query.limit(20);
+      const { data, error } = await query;
 
       if (error) throw error;
 
-      setCustodios(data || []);
+      // Agrupar por custodio y contar servicios
+      const custodiosMap = new Map<string, Custodio>();
+      
+      (data || []).forEach((servicio: any) => {
+        const key = servicio.nombre_custodio;
+        if (custodiosMap.has(key)) {
+          const existing = custodiosMap.get(key)!;
+          existing.total_servicios += 1;
+        } else {
+          custodiosMap.set(key, {
+            nombre_custodio: servicio.nombre_custodio,
+            telefono: servicio.telefono || 'Sin teléfono',
+            total_servicios: 1
+          });
+        }
+      });
+
+      // Convertir a array y ordenar por número de servicios (más activos primero)
+      const custodiosArray = Array.from(custodiosMap.values())
+        .sort((a, b) => b.total_servicios - a.total_servicios)
+        .slice(0, 20); // Limitar a 20 resultados
+
+      setCustodios(custodiosArray);
     } catch (error) {
       console.error('Error fetching custodios:', error);
       toast({
@@ -71,13 +94,13 @@ export const ReferralForm = ({ onReferralChange }: ReferralFormProps) => {
     fetchCustodios(searchTerm);
   };
 
-  const handleCustodioSelect = (custodioId: string) => {
-    const custodio = custodios.find(c => c.id === custodioId);
+  const handleCustodioSelect = (custodioNombre: string) => {
+    const custodio = custodios.find(c => c.nombre_custodio === custodioNombre);
     if (custodio) {
-      setSelectedCustodio(custodioId);
+      setSelectedCustodio(custodioNombre);
       onReferralChange({
-        custodio_referente_id: custodioId,
-        custodio_referente_nombre: custodio.display_name
+        custodio_referente_id: custodioNombre, // Usamos el nombre como ID
+        custodio_referente_nombre: custodio.nombre_custodio
       });
     }
   };
@@ -98,7 +121,7 @@ export const ReferralForm = ({ onReferralChange }: ReferralFormProps) => {
 
       <div className="flex gap-2">
         <Input
-          placeholder="Buscar custodio por nombre, email o teléfono..."
+          placeholder="Buscar custodio por nombre o teléfono..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -117,13 +140,13 @@ export const ReferralForm = ({ onReferralChange }: ReferralFormProps) => {
             </SelectTrigger>
             <SelectContent>
               {custodios.map((custodio) => (
-                <SelectItem key={custodio.id} value={custodio.id}>
+                <SelectItem key={custodio.nombre_custodio} value={custodio.nombre_custodio}>
                   <div className="flex items-center gap-2">
                     <UserCheck className="h-4 w-4" />
                     <div>
-                      <div className="font-medium">{custodio.display_name}</div>
+                      <div className="font-medium">{custodio.nombre_custodio}</div>
                       <div className="text-sm text-muted-foreground">
-                        {custodio.email} • {custodio.phone}
+                        {custodio.telefono} • {custodio.total_servicios} servicios
                       </div>
                     </div>
                   </div>
@@ -139,7 +162,7 @@ export const ReferralForm = ({ onReferralChange }: ReferralFormProps) => {
           <div className="flex items-center gap-2">
             <UserCheck className="h-4 w-4 text-green-600" />
             <span className="text-sm font-medium text-green-800">
-              Custodio referente seleccionado: {custodios.find(c => c.id === selectedCustodio)?.display_name}
+              Custodio referente seleccionado: {selectedCustodio}
             </span>
           </div>
           <Button type="button" variant="ghost" size="sm" onClick={clearSelection}>
