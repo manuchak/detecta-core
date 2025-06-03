@@ -15,7 +15,7 @@ export interface DashboardMetrics {
   yearlyGrowth: number;
 }
 
-export type TimeframeOption = "day" | "week" | "month" | "quarter" | "year" | "custom";
+export type TimeframeOption = "day" | "week" | "month" | "quarter" | "year" | "custom" | "thisMonth" | "thisQuarter";
 export type ServiceTypeOption = "all" | "local" | "foraneo";
 
 // Función para calcular el rango de fechas basado en el timeframe
@@ -33,8 +33,19 @@ const getDateRange = (timeframe: TimeframeOption) => {
     case "month":
       startDate.setDate(now.getDate() - 30);
       break;
+    case "thisMonth":
+      // Primer día del mes actual
+      startDate.setDate(1);
+      startDate.setHours(0, 0, 0, 0);
+      break;
     case "quarter":
       startDate.setDate(now.getDate() - 90);
+      break;
+    case "thisQuarter":
+      // Primer día del trimestre actual
+      const currentQuarter = Math.floor(now.getMonth() / 3);
+      startDate.setMonth(currentQuarter * 3, 1);
+      startDate.setHours(0, 0, 0, 0);
       break;
     case "year":
       startDate.setFullYear(now.getFullYear() - 1);
@@ -120,21 +131,23 @@ export const useDashboardDataCorrected = (
       console.log(`🔍 Dashboard - Servicios después de filtro tipo "${serviceTypeFilter}": ${serviciosFiltrados.length}`);
     }
 
-    // PASO 4: Análisis de GMV - Usando TODOS los servicios con cobro válido
-    console.log('💰 ANÁLISIS DE GMV CORREGIDO:');
+    // PASO 4: Análisis de GMV Corregido basado en auditoría forense
+    console.log('💰 ANÁLISIS DE GMV CORREGIDO CON AUDITORÍA FORENSE:');
     
-    // Contar servicios con cobro_cliente válido (no nulo, no vacío, > 0)
-    const serviciosConCobro = serviciosFiltrados.filter(service => {
+    // Aplicar filtros de auditoría forense: solo servicios finalizados con cobro válido
+    const serviciosFinalizadosConCobro = serviciosFiltrados.filter(service => {
+      const estado = (service.estado || '').trim();
       const cobro = Number(service.cobro_cliente);
-      return !isNaN(cobro) && cobro > 0;
+      return estado === 'Finalizado' && !isNaN(cobro) && cobro > 0;
     });
-    console.log(`💳 Servicios con cobro válido: ${serviciosConCobro.length}`);
+    
+    console.log(`💳 Servicios finalizados con cobro válido: ${serviciosFinalizadosConCobro.length}`);
 
-    // Calcular GMV total de TODOS los servicios con cobro (sin filtrar por estado)
+    // Calcular GMV solo de servicios finalizados (según auditoría forense)
     let totalGmvCalculated = 0;
     const uniqueServiceIds = new Set();
 
-    serviciosConCobro.forEach(service => {
+    serviciosFinalizadosConCobro.forEach(service => {
       if (service.id_servicio && !uniqueServiceIds.has(service.id_servicio)) {
         uniqueServiceIds.add(service.id_servicio);
         const cobroCliente = Number(service.cobro_cliente) || 0;
@@ -142,10 +155,10 @@ export const useDashboardDataCorrected = (
       }
     });
 
-    console.log(`💰 GMV total calculado: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(totalGmvCalculated)}`);
-    console.log(`🆔 Servicios únicos con cobro: ${uniqueServiceIds.size}`);
+    console.log(`💰 GMV corregido (solo finalizados): ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(totalGmvCalculated)}`);
+    console.log(`🆔 Servicios únicos finalizados con cobro: ${uniqueServiceIds.size}`);
 
-    // PASO 5: Analizar estados SOLO para métricas de estado (usando "Finalizado")
+    // PASO 5: Analizar estados para métricas de estado
     const estadosConteo = {};
     serviciosFiltrados.forEach(s => {
       const estado = s.estado || 'NULL';
@@ -153,7 +166,7 @@ export const useDashboardDataCorrected = (
     });
     console.log('📋 Dashboard - Estados en rango:', estadosConteo);
 
-    // PASO 6: Servicios por estado (usando el estado correcto "Finalizado")
+    // PASO 6: Servicios por estado (corregidos según auditoría)
     const serviciosFinalizados = serviciosFiltrados.filter(service => {
       const estado = (service.estado || '').trim();
       return estado === 'Finalizado';
@@ -179,7 +192,7 @@ export const useDashboardDataCorrected = (
     console.log(`🚛 Servicios En Curso: ${serviciosEnCurso.length}`);
     console.log(`⏳ Servicios Pendientes: ${serviciosPendientes.length}`);
 
-    // PASO 7: Servicios únicos finalizados (para la métrica de completados)
+    // PASO 7: Servicios únicos finalizados
     const finishedServiceIds = new Set();
     serviciosFinalizados.forEach(service => {
       if (service.id_servicio) {
@@ -187,14 +200,14 @@ export const useDashboardDataCorrected = (
       }
     });
 
-    // PASO 8: Clientes únicos en el período
+    // PASO 8: Clientes únicos en el período (solo de servicios finalizados)
     const clientesUnicos = new Set(
-      serviciosFiltrados
+      serviciosFinalizados
         .filter(s => s.nombre_cliente)
         .map(s => s.nombre_cliente.trim().toUpperCase())
     ).size;
 
-    // PASO 9: Valor promedio basado en servicios con cobro
+    // PASO 9: Valor promedio basado solo en servicios finalizados con cobro
     const valorPromedio = uniqueServiceIds.size > 0 ? totalGmvCalculated / uniqueServiceIds.size : 0;
 
     // PASO 10: Total de servicios en el período (todos los estados)
@@ -202,9 +215,9 @@ export const useDashboardDataCorrected = (
 
     const result = {
       totalServices: totalServiciosEnPeriodo,
-      totalGMV: totalGmvCalculated, // GMV de TODOS los servicios con cobro
-      activeClients: clientesUnicos,
-      averageServiceValue: valorPromedio,
+      totalGMV: totalGmvCalculated, // GMV solo de servicios finalizados (auditoría forense)
+      activeClients: clientesUnicos, // Solo clientes con servicios finalizados
+      averageServiceValue: valorPromedio, // Promedio solo de servicios finalizados
       completedServices: finishedServiceIds.size, // Servicios únicos finalizados
       ongoingServices: serviciosEnCurso.length,
       pendingServices: serviciosPendientes.length,
@@ -212,10 +225,10 @@ export const useDashboardDataCorrected = (
       yearlyGrowth: 15
     };
 
-    console.log(`🎯 DASHBOARD RESULT para ${timeframe}:`, result);
-    console.log(`📊 Resumen: ${totalServiciosEnPeriodo} servicios totales, ${uniqueServiceIds.size} con cobro válido`);
-    console.log(`💰 GMV incluye TODOS los servicios con cobro válido en el período`);
-    console.log(`✅ Solo servicios con estado "Finalizado" cuentan como completados`);
+    console.log(`🎯 DASHBOARD RESULT CORREGIDO para ${timeframe}:`, result);
+    console.log(`📊 Resumen: ${totalServiciosEnPeriodo} servicios totales, ${uniqueServiceIds.size} finalizados con cobro válido`);
+    console.log(`💰 GMV incluye SOLO servicios finalizados con cobro válido (auditoría forense)`);
+    console.log(`👥 Clientes activos SOLO de servicios finalizados`);
     
     return result;
   }, [allServices, isLoading, error, timeframe, serviceTypeFilter]);

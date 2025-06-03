@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -67,7 +66,9 @@ export const AdvancedFilters = ({
     { value: "day", label: "Hoy" },
     { value: "week", label: "Últimos 7 días" },
     { value: "month", label: "Último mes" },
+    { value: "thisMonth", label: "Este mes" },
     { value: "quarter", label: "Último trimestre" },
+    { value: "thisQuarter", label: "Este trimestre" },
     { value: "year", label: "Último año" },
     { value: "custom", label: "Rango personalizado" }
   ];
@@ -116,6 +117,9 @@ export const AdvancedFilters = ({
             <CardTitle className="text-lg font-semibold text-slate-800 flex items-center">
               <Filter className="h-5 w-5 mr-2 text-blue-600" />
               Filtros de Análisis
+              <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700">
+                Auditoría Forense Aplicada
+              </Badge>
             </CardTitle>
             {activeFiltersCount > 0 && (
               <Badge variant="secondary" className="bg-blue-100 text-blue-700">
@@ -218,6 +222,14 @@ export const AdvancedFilters = ({
               )}
             </div>
           </div>
+        </div>
+
+        {/* Nota sobre auditoría forense */}
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+          <p className="text-sm text-green-800">
+            <strong>Filtros de Auditoría Forense Aplicados:</strong> Los cálculos de GMV, clientes activos y valor promedio 
+            incluyen únicamente servicios con estado "Finalizado" y cobro válido, según las mejores prácticas de auditoría.
+          </p>
         </div>
 
         {/* Filtros avanzados - expandibles */}

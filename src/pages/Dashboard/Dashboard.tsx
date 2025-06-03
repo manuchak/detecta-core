@@ -5,7 +5,6 @@ import {
   TimeframeOption, 
   ServiceTypeOption 
 } from "@/hooks/useDashboardDataCorrected";
-import { useGmvDiagnostic } from "@/hooks/useGmvDiagnostic";
 import { DashboardFilters } from "@/components/dashboard/DashboardFilters";
 import { MetricsCards } from "@/components/dashboard/MetricsCards";
 import { GmvChart } from "@/components/dashboard/GmvChart";
@@ -19,22 +18,6 @@ import { Button } from "@/components/ui/button";
 export const Dashboard = () => {
   const [timeframe, setTimeframe] = useState<TimeframeOption>("month");
   const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceTypeOption>("all");
-  
-  // Ejecutar diagnóstico GMV
-  const { diagnosticResult } = useGmvDiagnostic();
-  
-  // Mostrar resultados del diagnóstico en consola cuando estén listos
-  useEffect(() => {
-    if (diagnosticResult) {
-      console.log('🎯 === RESUMEN DIAGNÓSTICO GMV ===');
-      console.log(`Total servicios Ene-May: ${diagnosticResult.totalServicios}`);
-      console.log(`Servicios con cobro válido: ${diagnosticResult.serviciosConCobro}`);
-      console.log(`GMV sin filtros estado: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(diagnosticResult.gmvTotalSinFiltros)}`);
-      console.log(`GMV solo "Finalizado": ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(diagnosticResult.gmvSoloFinalizados)}`);
-      console.log(`Diferencia vs 22M (sin filtros): ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(diagnosticResult.diferenciaSinFiltros)}`);
-      console.log(`Diferencia vs 22M (finalizados): ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(diagnosticResult.diferenciaFinalizados)}`);
-    }
-  }, [diagnosticResult]);
   
   // Datos filtrados para gráficos
   const {
@@ -168,23 +151,6 @@ export const Dashboard = () => {
             </div>
           </div>
         </div>
-        
-        {/* Alerta de diagnóstico GMV */}
-        {diagnosticResult && (
-          <Alert className="bg-yellow-50 border-yellow-200">
-            <AlertCircle className="h-4 w-4 text-yellow-600" />
-            <AlertTitle className="text-yellow-800">Diagnóstico GMV Activo</AlertTitle>
-            <AlertDescription className="text-yellow-800">
-              <strong>Análisis completado:</strong> Revisa la consola para ver el diagnóstico detallado del GMV.
-              <br />
-              <strong>GMV sin filtros estado:</strong> {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(diagnosticResult.gmvTotalSinFiltros)}
-              <br />
-              <strong>GMV solo "Finalizado":</strong> {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(diagnosticResult.gmvSoloFinalizados)}
-              <br />
-              <strong>Diferencia vs 22M:</strong> {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(diagnosticResult.diferenciaSinFiltros)}
-            </AlertDescription>
-          </Alert>
-        )}
         
         {/* Filtros mejorados con estado de loading */}
         <DashboardFilters
