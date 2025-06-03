@@ -42,7 +42,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Search, Plus, MoreHorizontal, ChevronRight, Loader2, Eye, Edit, UserCheck, X, Users } from "lucide-react";
+import { Search, Plus, MoreHorizontal, ChevronRight, Loader2, Eye, Edit, UserCheck, X, Users, User, MapPin, Phone, Mail, Calendar, Car, Briefcase, Shield, Award, Clock, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -109,7 +109,6 @@ export const LeadsList = () => {
       setLoading(true);
       console.log('Iniciando fetchLeads...');
       
-      // Obtener datos básicos de leads
       const { data: leadsData, error: leadsError } = await supabase
         .from('leads')
         .select('*')
@@ -129,7 +128,6 @@ export const LeadsList = () => {
         return;
       }
 
-      // Procesar cada lead para extraer información adicional
       const processedLeads: Lead[] = leadsData.map((item: any) => {
         let referidoInfo = null;
         let referidoPor = null;
@@ -138,7 +136,6 @@ export const LeadsList = () => {
         let estadoNombre = null;
         let analistaNombre = null;
 
-        // Extraer información del campo notas si existe
         try {
           if (item.notas) {
             const notasData = JSON.parse(item.notas);
@@ -160,7 +157,6 @@ export const LeadsList = () => {
           console.error('Error parsing notas for lead', item.id, ':', e);
         }
 
-        // Mapear el lead con la información procesada
         const processedLead: Lead = {
           id: item.id,
           nombre: item.nombre || '',
@@ -188,7 +184,6 @@ export const LeadsList = () => {
         return processedLead;
       });
 
-      // Obtener información de analistas asignados usando la función segura
       if (processedLeads.some(lead => lead.asignado_a)) {
         try {
           const { data: profiles, error: profilesError } = await supabase
@@ -229,7 +224,7 @@ export const LeadsList = () => {
     console.log('Filtering leads. Search term:', searchTerm, 'Status filter:', statusFilter);
     console.log('All leads:', leads);
     
-    let result = [...leads]; // Crear una copia para evitar mutaciones
+    let result = [...leads];
     
     if (searchTerm && searchTerm.trim() !== '') {
       const lowerSearchTerm = searchTerm.toLowerCase().trim();
@@ -310,178 +305,243 @@ export const LeadsList = () => {
       console.error('Error parsing candidate details:', e);
     }
 
+    const getExperienceYears = () => {
+      if (candidateDetails?.experiencia?.años_experiencia) {
+        return candidateDetails.experiencia.años_experiencia;
+      }
+      return "No especificado";
+    };
+
+    const getVehicleInfo = () => {
+      if (candidateDetails?.vehiculo) {
+        const { marca, modelo, año } = candidateDetails.vehiculo;
+        return `${marca || ''} ${modelo || ''} ${año || ''}`.trim() || "No especificado";
+      }
+      return "No especificado";
+    };
+
     return (
-      <div className="space-y-6 max-h-[70vh] overflow-y-auto">
-        {/* Información Personal */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
-          <h3 className="text-lg font-semibold mb-3 text-blue-900 flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Información Personal
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div className="bg-white p-3 rounded-md">
-              <strong className="text-gray-700">Nombre:</strong> 
-              <p className="text-gray-900 mt-1">{lead.nombre}</p>
-            </div>
-            <div className="bg-white p-3 rounded-md">
-              <strong className="text-gray-700">Email:</strong> 
-              <p className="text-gray-900 mt-1">{lead.email}</p>
-            </div>
-            <div className="bg-white p-3 rounded-md">
-              <strong className="text-gray-700">Teléfono:</strong> 
-              <p className="text-gray-900 mt-1">{lead.telefono || 'No especificado'}</p>
-            </div>
-            <div className="bg-white p-3 rounded-md">
-              <strong className="text-gray-700">Estado:</strong> 
-              <div className="mt-1">
-                <Badge variant="outline" className={getStatusBadgeStyle(lead.estado)}>
-                  {lead.estado}
-                </Badge>
+      <div className="space-y-6 max-h-[80vh] overflow-y-auto">
+        {/* Header moderno con avatar y información principal */}
+        <div className="relative bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 p-6 rounded-2xl text-white overflow-hidden">
+          <div className="absolute inset-0 bg-black/10"></div>
+          <div className="relative z-10">
+            <div className="flex items-start gap-6">
+              {/* Avatar moderno */}
+              <div className="relative">
+                <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/30">
+                  <User className="h-10 w-10 text-white" />
+                </div>
+                <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-green-400 rounded-full border-2 border-white flex items-center justify-center">
+                  <span className="text-xs font-bold text-green-800">✓</span>
+                </div>
               </div>
-            </div>
-            {lead.referido_por && (
-              <div className="bg-white p-3 rounded-md md:col-span-2">
-                <strong className="text-gray-700">Referido por:</strong> 
-                <div className="mt-1">
-                  <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                    <Users className="h-3 w-3 mr-1" />
-                    {lead.referido_por}
+              
+              {/* Información principal */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 mb-2">
+                  <h2 className="text-2xl font-bold text-white truncate">{lead.nombre}</h2>
+                  <Badge variant="outline" className="bg-white/20 text-white border-white/30 backdrop-blur-sm">
+                    {lead.estado?.charAt(0).toUpperCase() + lead.estado?.slice(1)}
                   </Badge>
                 </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div className="flex items-center gap-2 text-white/90">
+                    <Mail className="h-4 w-4" />
+                    <span className="truncate">{lead.email}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-white/90">
+                    <Phone className="h-4 w-4" />
+                    <span>{lead.telefono || 'No especificado'}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-white/90">
+                    <MapPin className="h-4 w-4" />
+                    <span>{lead.ciudad && lead.estado_nombre ? `${lead.ciudad}, ${lead.estado_nombre}` : 'No especificado'}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-white/90">
+                    <Calendar className="h-4 w-4" />
+                    <span>{formatDate(lead.fecha_creacion)}</span>
+                  </div>
+                </div>
+                
+                {lead.referido_por && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <Badge variant="outline" className="bg-amber-100/20 text-amber-100 border-amber-200/30 backdrop-blur-sm">
+                      <Users className="h-3 w-3 mr-1" />
+                      Referido por {lead.referido_por}
+                    </Badge>
+                  </div>
+                )}
               </div>
-            )}
-            {candidateDetails?.datos_personales && (
-              <>
-                <div className="bg-white p-3 rounded-md">
-                  <strong className="text-gray-700">Edad:</strong> 
-                  <p className="text-gray-900 mt-1">{candidateDetails.datos_personales.edad || 'No especificado'}</p>
-                </div>
-                <div className="bg-white p-3 rounded-md">
-                  <strong className="text-gray-700">Ciudad:</strong> 
-                  <p className="text-gray-900 mt-1">{candidateDetails.datos_personales.ciudad || 'No especificado'}</p>
-                </div>
-                <div className="bg-white p-3 rounded-md md:col-span-2">
-                  <strong className="text-gray-700">Dirección:</strong> 
-                  <p className="text-gray-900 mt-1">{candidateDetails.datos_personales.direccion || 'No especificado'}</p>
-                </div>
-              </>
-            )}
+            </div>
           </div>
         </div>
 
-        {/* Información del Vehículo */}
-        {candidateDetails?.vehiculo && (
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">
-            <h3 className="text-lg font-semibold mb-3 text-green-900">Información del Vehículo</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div className="bg-white p-3 rounded-md">
-                <strong className="text-gray-700">Marca:</strong> 
-                <p className="text-gray-900 mt-1">{candidateDetails.vehiculo.marca || 'No especificado'}</p>
-              </div>
-              <div className="bg-white p-3 rounded-md">
-                <strong className="text-gray-700">Modelo:</strong> 
-                <p className="text-gray-900 mt-1">{candidateDetails.vehiculo.modelo || 'No especificado'}</p>
-              </div>
-              <div className="bg-white p-3 rounded-md">
-                <strong className="text-gray-700">Año:</strong> 
-                <p className="text-gray-900 mt-1">{candidateDetails.vehiculo.año || 'No especificado'}</p>
-              </div>
-              <div className="bg-white p-3 rounded-md">
-                <strong className="text-gray-700">Color:</strong> 
-                <p className="text-gray-900 mt-1">{candidateDetails.vehiculo.color || 'No especificado'}</p>
-              </div>
-              <div className="bg-white p-3 rounded-md">
-                <strong className="text-gray-700">Placas:</strong> 
-                <p className="text-gray-900 mt-1">{candidateDetails.vehiculo.placas || 'No especificado'}</p>
-              </div>
-              <div className="bg-white p-3 rounded-md">
-                <strong className="text-gray-700">Tipo:</strong> 
-                <p className="text-gray-900 mt-1">{candidateDetails.vehiculo.tipo || 'No especificado'}</p>
-              </div>
-              <div className="bg-white p-3 rounded-md md:col-span-2">
-                <strong className="text-gray-700">Seguro vigente:</strong> 
-                <p className="text-gray-900 mt-1">{candidateDetails.vehiculo.seguro_vigente || 'No especificado'}</p>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Tarjetas de información organizadas */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Información Personal */}
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-indigo-50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold text-blue-900 flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Datos Personales
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {candidateDetails?.datos_personales?.edad && (
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-gray-600">Edad</span>
+                  <span className="text-sm font-medium">{candidateDetails.datos_personales.edad}</span>
+                </div>
+              )}
+              {candidateDetails?.datos_personales?.direccion && (
+                <div>
+                  <span className="text-xs text-gray-600">Dirección</span>
+                  <p className="text-sm font-medium mt-1 leading-tight">{candidateDetails.datos_personales.direccion}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-        {/* Experiencia Laboral */}
-        {candidateDetails?.experiencia && (
-          <div className="bg-gradient-to-r from-purple-50 to-violet-50 p-4 rounded-lg border border-purple-200">
-            <h3 className="text-lg font-semibold mb-3 text-purple-900">Experiencia Laboral</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div className="bg-white p-3 rounded-md">
-                <strong className="text-gray-700">Experiencia en custodia:</strong> 
-                <p className="text-gray-900 mt-1">{candidateDetails.experiencia.experiencia_custodia || 'No especificado'}</p>
-              </div>
-              <div className="bg-white p-3 rounded-md">
-                <strong className="text-gray-700">Años de experiencia:</strong> 
-                <p className="text-gray-900 mt-1">{candidateDetails.experiencia.años_experiencia || 'No especificado'}</p>
-              </div>
-              <div className="bg-white p-3 rounded-md">
-                <strong className="text-gray-700">Licencia:</strong> 
-                <p className="text-gray-900 mt-1">{candidateDetails.experiencia.licencia_conducir || 'No especificado'}</p>
-              </div>
-              <div className="bg-white p-3 rounded-md">
-                <strong className="text-gray-700">Tipo licencia:</strong> 
-                <p className="text-gray-900 mt-1">{candidateDetails.experiencia.tipo_licencia || 'No especificado'}</p>
-              </div>
-              <div className="bg-white p-3 rounded-md md:col-span-2">
-                <strong className="text-gray-700">Empresas anteriores:</strong> 
-                <p className="text-gray-900 mt-1">{candidateDetails.experiencia.empresas_anteriores || 'No especificado'}</p>
-              </div>
-              <div className="bg-white p-3 rounded-md md:col-span-2">
-                <strong className="text-gray-700">Antecedentes penales:</strong> 
-                <p className="text-gray-900 mt-1">{candidateDetails.experiencia.antecedentes_penales || 'No especificado'}</p>
-              </div>
-            </div>
-          </div>
-        )}
+          {/* Información del Vehículo */}
+          {candidateDetails?.vehiculo && (
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-green-50 to-emerald-50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold text-green-900 flex items-center gap-2">
+                  <Car className="h-4 w-4" />
+                  Vehículo
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-gray-600">Vehículo</span>
+                  <span className="text-sm font-medium">{getVehicleInfo()}</span>
+                </div>
+                {candidateDetails.vehiculo.color && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-600">Color</span>
+                    <span className="text-sm font-medium">{candidateDetails.vehiculo.color}</span>
+                  </div>
+                )}
+                {candidateDetails.vehiculo.placas && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-600">Placas</span>
+                    <span className="text-sm font-medium">{candidateDetails.vehiculo.placas}</span>
+                  </div>
+                )}
+                {candidateDetails.vehiculo.seguro_vigente && (
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-green-600" />
+                    <span className="text-xs text-green-700 font-medium">Seguro vigente</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
-        {/* Zona de Trabajo */}
-        {candidateDetails?.zona_trabajo && (
-          <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-4 rounded-lg border border-orange-200">
-            <h3 className="text-lg font-semibold mb-3 text-orange-900">Zona de Trabajo</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div className="bg-white p-3 rounded-md">
-                <strong className="text-gray-700">Zona preferida:</strong> 
-                <p className="text-gray-900 mt-1">{candidateDetails.zona_trabajo.zona_preferida || 'No especificado'}</p>
-              </div>
-              <div className="bg-white p-3 rounded-md">
-                <strong className="text-gray-700">Rango km:</strong> 
-                <p className="text-gray-900 mt-1">{candidateDetails.zona_trabajo.rango_km || 'No especificado'}</p>
-              </div>
-              <div className="bg-white p-3 rounded-md">
-                <strong className="text-gray-700">Horario:</strong> 
-                <p className="text-gray-900 mt-1">{candidateDetails.zona_trabajo.disponibilidad_horario || 'No especificado'}</p>
-              </div>
-              <div className="bg-white p-3 rounded-md">
-                <strong className="text-gray-700">Días:</strong> 
-                <p className="text-gray-900 mt-1">{candidateDetails.zona_trabajo.disponibilidad_dias || 'No especificado'}</p>
-              </div>
-            </div>
-          </div>
-        )}
+          {/* Experiencia */}
+          {candidateDetails?.experiencia && (
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-50 to-violet-50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold text-purple-900 flex items-center gap-2">
+                  <Briefcase className="h-4 w-4" />
+                  Experiencia
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-gray-600">Años de experiencia</span>
+                  <span className="text-sm font-medium">{getExperienceYears()}</span>
+                </div>
+                {candidateDetails.experiencia.experiencia_custodia && (
+                  <div className="flex items-center gap-2">
+                    <Star className="h-4 w-4 text-yellow-500" />
+                    <span className="text-xs text-purple-700 font-medium">Experiencia en custodia</span>
+                  </div>
+                )}
+                {candidateDetails.experiencia.licencia_conducir && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-600">Licencia</span>
+                    <span className="text-sm font-medium">{candidateDetails.experiencia.tipo_licencia || 'Sí'}</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
-        {/* Mensaje */}
+          {/* Zona de Trabajo */}
+          {candidateDetails?.zona_trabajo && (
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-orange-50 to-amber-50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold text-orange-900 flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Zona de Trabajo
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {candidateDetails.zona_trabajo.zona_preferida && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-600">Zona preferida</span>
+                    <span className="text-sm font-medium">{candidateDetails.zona_trabajo.zona_preferida}</span>
+                  </div>
+                )}
+                {candidateDetails.zona_trabajo.disponibilidad_horario && (
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-orange-600" />
+                    <span className="text-xs text-orange-700 font-medium">{candidateDetails.zona_trabajo.disponibilidad_horario}</span>
+                  </div>
+                )}
+                {candidateDetails.zona_trabajo.rango_km && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-600">Rango km</span>
+                    <span className="text-sm font-medium">{candidateDetails.zona_trabajo.rango_km}</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Tipo de Custodio */}
+          {lead.tipo_custodio && (
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-teal-50 to-cyan-50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold text-teal-900 flex items-center gap-2">
+                  <Award className="h-4 w-4" />
+                  Tipo de Custodio
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Badge variant="outline" className="bg-teal-100 text-teal-800 border-teal-300">
+                  {getTipoCustodioLabel(lead.tipo_custodio)}
+                </Badge>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Mensaje adicional */}
         {lead.mensaje && (
-          <div className="bg-gradient-to-r from-gray-50 to-slate-50 p-4 rounded-lg border border-gray-200">
-            <h3 className="text-lg font-semibold mb-3 text-gray-900">Mensaje</h3>
-            <div className="bg-white p-3 rounded-md">
-              <p className="text-gray-900">{lead.mensaje}</p>
-            </div>
-          </div>
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-gray-50 to-slate-50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold text-gray-900">Mensaje del Candidato</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-700 leading-relaxed italic">"{lead.mensaje}"</p>
+            </CardContent>
+          </Card>
         )}
 
         {/* Referencias */}
         {candidateDetails?.referencias && (
-          <div className="bg-gradient-to-r from-teal-50 to-cyan-50 p-4 rounded-lg border border-teal-200">
-            <h3 className="text-lg font-semibold mb-3 text-teal-900">Referencias</h3>
-            <div className="bg-white p-3 rounded-md">
-              <p className="text-gray-900">{candidateDetails.referencias}</p>
-            </div>
-          </div>
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-indigo-50 to-blue-50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold text-indigo-900">Referencias</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-700 leading-relaxed">{candidateDetails.referencias}</p>
+            </CardContent>
+          </Card>
         )}
       </div>
     );
@@ -730,9 +790,9 @@ export const LeadsList = () => {
       </Tabs>
 
       <Dialog open={showDetails} onOpenChange={setShowDetails}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl">Detalles del Candidato</DialogTitle>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
+          <DialogHeader className="pb-4">
+            <DialogTitle className="text-xl font-semibold">Perfil del Candidato</DialogTitle>
           </DialogHeader>
           {selectedLead && renderLeadDetails(selectedLead)}
         </DialogContent>
