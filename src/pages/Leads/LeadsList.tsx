@@ -48,6 +48,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { LeadForm } from "@/components/leads/LeadForm";
 import { ReferralManager } from "@/components/leads/ReferralManager";
+import { LeadAssignmentDialog } from "@/components/leads/LeadAssignmentDialog";
 
 interface Lead {
   id: string;
@@ -67,6 +68,12 @@ interface Lead {
   // Información de referido
   referido_por?: string | null;
   referido_info?: any;
+  // Información adicional del candidato
+  tipo_custodio?: string | null;
+  ciudad?: string | null;
+  estado_nombre?: string | null;
+  // Información del analista asignado
+  analista_nombre?: string | null;
 }
 
 const statusBadgeStyles = {
@@ -89,6 +96,8 @@ export const LeadsList = () => {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [activeTab, setActiveTab] = useState("candidatos");
+  const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
+  const [selectedLeadForAssignment, setSelectedLeadForAssignment] = useState<Lead | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -100,7 +109,10 @@ export const LeadsList = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('leads')
-        .select('*')
+        .select(`
+          *,
+          analista:profiles(display_name)
+        `)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -108,8 +120,11 @@ export const LeadsList = () => {
       const typedData: Lead[] = await Promise.all((data || []).map(async (item: any) => {
         let referidoInfo = null;
         let referidoPor = null;
+        let tipoCustodio = null;
+        let ciudad = null;
+        let estadoNombre = null;
 
-        // Extraer información de referido del campo notas
+        // Extraer información del campo notas
         try {
           if (item.notas) {
             const notasData = JSON.parse(item.notas);
@@ -117,9 +132,16 @@ export const LeadsList = () => {
               referidoInfo = notasData.referido;
               referidoPor = notasData.referido.custodio_referente_nombre;
             }
+            if (notasData.tipo_custodio) {
+              tipoCustodio = notasData.tipo_custodio;
+            }
+            if (notasData.datos_personales) {
+              ciudad = notasData.datos_personales.ciudad;
+              estadoNombre = notasData.datos_personales.estado;
+            }
           }
         } catch (e) {
-          console.error('Error parsing notas for referral info:', e);
+          console.error('Error parsing notas:', e);
         }
 
         return {
@@ -138,7 +160,11 @@ export const LeadsList = () => {
           created_at: item.created_at,
           updated_at: item.updated_at,
           referido_por: referidoPor,
-          referido_info: referidoInfo
+          referido_info: referidoInfo,
+          tipo_custodio: tipoCustodio,
+          ciudad: ciudad,
+          estado_nombre: estadoNombre,
+          analista_nombre: item.analista?.display_name || null
         };
       }));
       
@@ -325,6 +351,38 @@ export const LeadsList = () => {
     );
   };
 
+  const handleAssignLead = (lead: Lead) => {
+    setSelectedLeadForAssignment(lead);
+    setShowAssignmentDialog(true);
+  };
+
+  const getTipoCustodioLabel = (tipo: string | null | undefined) => {
+    if (!tipo) return 'No especificado';
+    
+    const tipos: Record<string, string> = {
+      'custodio_vehiculo': 'Con Vehículo',
+      'armado': 'Armado',
+      'armado_vehiculo': 'Armado con Vehículo',
+      'abordo': 'Abordo'
+    };
+    
+    return tipos[tipo] || tipo;
+  };
+
+  const getFuenteLabel = (fuente: string) => {
+    const fuentes: Record<string, string> = {
+      'web': 'Sitio Web',
+      'facebook': 'Facebook',
+      'indeed': 'Indeed',
+      'linkedin': 'LinkedIn',
+      'referido': 'Referido',
+      'whatsapp': 'WhatsApp',
+      'telefono': 'Teléfono'
+    };
+    
+    return fuentes[fuente] || fuente;
+  };
+
   return (
     <div className="space-y-6 animate-fade-in p-6">
       <div className="flex items-center justify-between">
@@ -409,17 +467,19 @@ export const LeadsList = () => {
                     <TableRow>
                       <TableHead>Nombre</TableHead>
                       <TableHead>Email</TableHead>
-                      <TableHead className="hidden md:table-cell">Teléfono</TableHead>
+                      <TableHead className="hidden md:table-cell">Tipo</TableHead>
+                      <TableHead className="hidden lg:table-cell">Ubicación</TableHead>
+                      <TableHead className="hidden lg:table-cell">Fuente</TableHead>
                       <TableHead>Estado</TableHead>
-                      <TableHead className="hidden lg:table-cell">Referido por</TableHead>
-                      <TableHead className="hidden md:table-cell">Fecha Registro</TableHead>
+                      <TableHead className="hidden lg:table-cell">Analista</TableHead>
+                      <TableHead className="hidden md:table-cell">Fecha</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-10">
+                        <TableCell colSpan={9} className="text-center py-10">
                           <div className="flex justify-center items-center">
                             <Loader2 className="h-6 w-6 animate-spin mr-2" />
                             <span>Cargando candidatos...</span>
@@ -428,7 +488,7 @@ export const LeadsList = () => {
                       </TableRow>
                     ) : filteredLeads.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-10">
+                        <TableCell colSpan={9} className="text-center py-10">
                           <p>No se encontraron candidatos</p>
                           <p className="text-muted-foreground text-sm mt-1">
                             {searchTerm || statusFilter !== "todos" 
@@ -440,22 +500,49 @@ export const LeadsList = () => {
                     ) : (
                       filteredLeads.map((lead) => (
                         <TableRow key={lead.id}>
-                          <TableCell className="font-medium">{lead.nombre}</TableCell>
+                          <TableCell className="font-medium">
+                            <div>
+                              {lead.nombre}
+                              {lead.referido_por && (
+                                <Badge variant="outline" className="ml-2 bg-blue-50 text-blue-700">
+                                  <Users className="h-3 w-3 mr-1" />
+                                  Referido
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell>{lead.email}</TableCell>
-                          <TableCell className="hidden md:table-cell">{lead.telefono || "Sin teléfono"}</TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            <Badge variant="outline" className="bg-purple-50 text-purple-700">
+                              {getTipoCustodioLabel(lead.tipo_custodio)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                            <div className="text-sm">
+                              {lead.ciudad && lead.estado_nombre ? 
+                                `${lead.ciudad}, ${lead.estado_nombre}` : 
+                                lead.ciudad || lead.estado_nombre || 'No especificado'
+                              }
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                            <Badge variant="outline" className="bg-gray-50 text-gray-700">
+                              {getFuenteLabel(lead.fuente)}
+                            </Badge>
+                          </TableCell>
                           <TableCell>
                             <Badge variant="outline" className={getStatusBadgeStyle(lead.estado)}>
                               {lead.estado ? (lead.estado.charAt(0).toUpperCase() + lead.estado.slice(1)) : "Nuevo"}
                             </Badge>
                           </TableCell>
                           <TableCell className="hidden lg:table-cell">
-                            {lead.referido_por ? (
-                              <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                                <Users className="h-3 w-3 mr-1" />
-                                {lead.referido_por}
+                            {lead.analista_nombre ? (
+                              <Badge variant="outline" className="bg-green-50 text-green-700">
+                                <UserCheck className="h-3 w-3 mr-1" />
+                                {lead.analista_nombre}
                               </Badge>
                             ) : (
-                              <span className="text-muted-foreground">-</span>
+                              <span className="text-muted-foreground text-sm">Sin asignar</span>
                             )}
                           </TableCell>
                           <TableCell className="hidden md:table-cell">
@@ -476,6 +563,10 @@ export const LeadsList = () => {
                                 }}>
                                   <Eye className="h-4 w-4 mr-2" />
                                   Ver detalles
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleAssignLead(lead)}>
+                                  <UserCheck className="h-4 w-4 mr-2" />
+                                  Asignar analista
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => updateLeadStatus(lead.id, 'contactado')}>
                                   <UserCheck className="h-4 w-4 mr-2" />
@@ -518,6 +609,16 @@ export const LeadsList = () => {
           {selectedLead && renderLeadDetails(selectedLead)}
         </DialogContent>
       </Dialog>
+
+      {/* Assignment Dialog */}
+      <LeadAssignmentDialog
+        open={showAssignmentDialog}
+        onOpenChange={setShowAssignmentDialog}
+        leadId={selectedLeadForAssignment?.id || ''}
+        leadName={selectedLeadForAssignment?.nombre || ''}
+        currentAssignee={selectedLeadForAssignment?.asignado_a}
+        onAssignmentUpdate={fetchLeads}
+      />
     </div>
   );
 };
