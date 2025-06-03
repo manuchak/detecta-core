@@ -1,256 +1,241 @@
+
+import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState, useEffect, useCallback } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useVehicleData } from "@/hooks/useVehicleData";
+import { Loader2, Car } from "lucide-react";
 
 interface VehicleFormProps {
-  formData: {
-    marca_vehiculo: string;
-    modelo_vehiculo: string;
-    año_vehiculo: string;
-    placas: string;
-    color_vehiculo: string;
-    tipo_vehiculo: string;
-    seguro_vigente: string;
-  };
+  formData: any;
   onInputChange: (field: string, value: string) => void;
 }
 
-interface Modelo {
-  id: string;
-  nombre: string;
-  tipo_vehiculo: string;
-}
-
-const COLORES_VEHICULO = [
-  'Blanco', 'Negro', 'Gris', 'Plata', 'Azul', 'Rojo', 'Verde', 'Amarillo', 'Café', 'Otro'
-];
-
-// Generar años de vehículo (máximo 10 años de antigüedad)
-const generateVehicleYears = () => {
-  const currentYear = new Date().getFullYear();
-  const years = [];
-  for (let i = 0; i <= 10; i++) {
-    years.push(currentYear - i);
-  }
-  return years;
-};
-
 export const VehicleForm = ({ formData, onInputChange }: VehicleFormProps) => {
-  const { marcas, loadingMarcas, error: errorMarcas, fetchModelosPorMarca } = useVehicleData();
-  const [modelos, setModelos] = useState<Modelo[]>([]);
+  const { marcas, loadingMarcas, error, fetchModelosPorMarca } = useVehicleData();
+  const [modelos, setModelos] = useState<any[]>([]);
   const [loadingModelos, setLoadingModelos] = useState(false);
-  const [errorModelos, setErrorModelos] = useState<string | null>(null);
-  const [lastFetchedMarca, setLastFetchedMarca] = useState<string>('');
-  const vehicleYears = generateVehicleYears();
 
-  // Memoized function to load models
-  const loadModelos = useCallback(async (marcaNombre: string) => {
-    if (!marcaNombre || marcaNombre.trim() === '') {
-      setModelos([]);
-      setErrorModelos(null);
-      setLastFetchedMarca('');
-      return;
-    }
-
-    // Avoid refetching if it's the same marca
-    if (marcaNombre === lastFetchedMarca) {
-      return;
-    }
-
-    setLoadingModelos(true);
-    setErrorModelos(null);
+  const handleMarcaChange = async (marcaNombre: string) => {
+    onInputChange('marca_vehiculo', marcaNombre);
+    onInputChange('modelo_vehiculo', ''); // Limpiar modelo cuando cambia la marca
     
-    try {
-      const modelosData = await fetchModelosPorMarca(marcaNombre);
-      setModelos(modelosData);
-      setLastFetchedMarca(marcaNombre);
-    } catch (error) {
-      console.error('Error loading modelos:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Error al cargar modelos';
-      setErrorModelos(errorMessage);
-      setModelos([]);
-    } finally {
-      setLoadingModelos(false);
-    }
-  }, [fetchModelosPorMarca, lastFetchedMarca]);
-
-  // Load models when marca changes
-  useEffect(() => {
-    if (formData.marca_vehiculo) {
-      loadModelos(formData.marca_vehiculo);
+    if (marcaNombre) {
+      setLoadingModelos(true);
+      try {
+        const modelosData = await fetchModelosPorMarca(marcaNombre);
+        setModelos(modelosData);
+      } catch (error) {
+        console.error('Error loading modelos:', error);
+        setModelos([]);
+      } finally {
+        setLoadingModelos(false);
+      }
     } else {
       setModelos([]);
-      setErrorModelos(null);
-      setLastFetchedMarca('');
     }
-  }, [formData.marca_vehiculo, loadModelos]);
+  };
 
-  // Handle marca change
-  const handleMarcaChange = useCallback((value: string) => {
-    onInputChange('marca_vehiculo', value);
-    onInputChange('modelo_vehiculo', ''); // Clear model selection
-    // The useEffect will handle loading the new models
-  }, [onInputChange]);
-
-  // Handle modelo change
-  const handleModeloChange = useCallback((value: string) => {
-    onInputChange('modelo_vehiculo', value);
-  }, [onInputChange]);
-
-  // Log errors but don't block the UI
+  // Cargar modelos si ya hay una marca seleccionada
   useEffect(() => {
-    if (errorMarcas) {
-      console.error('Error loading marcas:', errorMarcas);
+    if (formData.marca_vehiculo) {
+      handleMarcaChange(formData.marca_vehiculo);
     }
-  }, [errorMarcas]);
+  }, []);
 
-  useEffect(() => {
-    if (errorModelos) {
-      console.error('Error loading modelos:', errorModelos);
-    }
-  }, [errorModelos]);
+  const tiposVehiculo = [
+    { value: 'sedán', label: 'Sedán' },
+    { value: 'hatchback', label: 'Hatchback' },
+    { value: 'suv', label: 'SUV' },
+    { value: 'pickup', label: 'Pickup' },
+    { value: 'van', label: 'Van/Camioneta' },
+    { value: 'coupe', label: 'Coupé' },
+    { value: 'convertible', label: 'Convertible' },
+    { value: 'wagon', label: 'Station Wagon' },
+    { value: 'otro', label: 'Otro' }
+  ];
+
+  const años = [];
+  const currentYear = new Date().getFullYear();
+  for (let year = currentYear; year >= 1990; year--) {
+    años.push(year);
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 text-red-600">
+          <Car className="h-5 w-5" />
+          <span>Error al cargar datos de vehículos: {error}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 mb-4">
+        <Car className="h-5 w-5 text-primary" />
+        <h3 className="text-lg font-medium">Información del Vehículo</h3>
+      </div>
+      
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="marca_vehiculo">Marca del Vehículo</Label>
+        <div>
+          <Label htmlFor="marca_vehiculo">Marca del vehículo *</Label>
           <Select 
             value={formData.marca_vehiculo} 
-            onValueChange={handleMarcaChange} 
-            disabled={loadingMarcas}
+            onValueChange={(value) => handleMarcaChange(value)}
           >
             <SelectTrigger>
-              <SelectValue placeholder={
-                loadingMarcas ? "Cargando marcas..." : 
-                errorMarcas ? "Error al cargar marcas" :
-                "Seleccionar marca"
-              } />
+              <SelectValue placeholder={loadingMarcas ? "Cargando marcas..." : "Seleccionar marca"} />
             </SelectTrigger>
             <SelectContent>
-              {marcas.map((marca) => (
-                <SelectItem key={marca.id} value={marca.nombre}>
-                  {marca.nombre}
+              {loadingMarcas ? (
+                <SelectItem value="" disabled>
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Cargando marcas...
+                  </div>
                 </SelectItem>
-              ))}
+              ) : (
+                marcas.map((marca) => (
+                  <SelectItem key={marca.id} value={marca.nombre}>
+                    {marca.nombre} ({marca.pais_origen})
+                  </SelectItem>
+                ))
+              )}
             </SelectContent>
           </Select>
-          {errorMarcas && (
-            <p className="text-sm text-red-600">Error: {errorMarcas}</p>
-          )}
         </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="modelo_vehiculo">Modelo</Label>
+
+        <div>
+          <Label htmlFor="modelo_vehiculo">Modelo del vehículo</Label>
           <Select 
             value={formData.modelo_vehiculo} 
-            onValueChange={handleModeloChange}
+            onValueChange={(value) => onInputChange('modelo_vehiculo', value)}
             disabled={!formData.marca_vehiculo || loadingModelos}
           >
             <SelectTrigger>
               <SelectValue placeholder={
                 !formData.marca_vehiculo 
-                  ? "Primero selecciona una marca" 
+                  ? "Selecciona una marca primero" 
                   : loadingModelos 
-                  ? "Cargando modelos..." 
-                  : errorModelos
-                  ? "Error al cargar modelos"
-                  : modelos.length === 0
-                  ? "No hay modelos disponibles"
-                  : "Seleccionar modelo"
+                    ? "Cargando modelos..." 
+                    : "Seleccionar modelo"
               } />
             </SelectTrigger>
             <SelectContent>
-              {modelos.map((modelo) => (
-                <SelectItem key={modelo.id} value={modelo.nombre}>
-                  {modelo.nombre}
-                  {modelo.tipo_vehiculo && modelo.tipo_vehiculo !== 'otro' && (
-                    <span className="text-muted-foreground ml-2">({modelo.tipo_vehiculo})</span>
-                  )}
+              {loadingModelos ? (
+                <SelectItem value="" disabled>
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Cargando modelos...
+                  </div>
                 </SelectItem>
-              ))}
+              ) : modelos.length > 0 ? (
+                modelos.map((modelo) => (
+                  <SelectItem key={modelo.id} value={modelo.nombre}>
+                    {modelo.nombre} ({modelo.tipo_vehiculo})
+                  </SelectItem>
+                ))
+              ) : formData.marca_vehiculo ? (
+                <SelectItem value="" disabled>
+                  No hay modelos disponibles para esta marca
+                </SelectItem>
+              ) : null}
             </SelectContent>
           </Select>
-          {errorModelos && (
-            <p className="text-sm text-red-600">Error: {errorModelos}</p>
-          )}
         </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="año_vehiculo">Año (Máximo 10 años de antigüedad)</Label>
-          <Select value={formData.año_vehiculo} onValueChange={(value) => onInputChange('año_vehiculo', value)}>
+
+        <div>
+          <Label htmlFor="año_vehiculo">Año del vehículo</Label>
+          <Select 
+            value={formData.año_vehiculo} 
+            onValueChange={(value) => onInputChange('año_vehiculo', value)}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Seleccionar año" />
             </SelectTrigger>
             <SelectContent>
-              {vehicleYears.map(year => (
-                <SelectItem key={year} value={year.toString()}>
-                  {year}
+              {años.map((año) => (
+                <SelectItem key={año} value={año.toString()}>
+                  {año}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="placas">Placas</Label>
-          <Input
-            id="placas"
-            value={formData.placas}
-            onChange={(e) => onInputChange('placas', e.target.value.toUpperCase())}
-            placeholder="XXX-XXX"
-          />
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="color_vehiculo">Color</Label>
-          <Select value={formData.color_vehiculo} onValueChange={(value) => onInputChange('color_vehiculo', value)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Seleccionar color" />
-            </SelectTrigger>
-            <SelectContent>
-              {COLORES_VEHICULO.map((color) => (
-                <SelectItem key={color} value={color}>
-                  {color}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="tipo_vehiculo">Tipo de Vehículo</Label>
-          <Select value={formData.tipo_vehiculo} onValueChange={(value) => onInputChange('tipo_vehiculo', value)}>
+
+        <div>
+          <Label htmlFor="tipo_vehiculo">Tipo de vehículo</Label>
+          <Select 
+            value={formData.tipo_vehiculo} 
+            onValueChange={(value) => onInputChange('tipo_vehiculo', value)}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Seleccionar tipo" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="sedán">Sedán</SelectItem>
-              <SelectItem value="hatchback">Hatchback</SelectItem>
-              <SelectItem value="suv">SUV</SelectItem>
-              <SelectItem value="pickup">Pick-up</SelectItem>
-              <SelectItem value="van">Van</SelectItem>
-              <SelectItem value="motocicleta">Motocicleta</SelectItem>
+              {tiposVehiculo.map((tipo) => (
+                <SelectItem key={tipo.value} value={tipo.value}>
+                  {tipo.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
-        
-        <div className="space-y-2 md:col-span-2">
-          <Label htmlFor="seguro_vigente">¿Cuenta con seguro vigente?</Label>
-          <Select value={formData.seguro_vigente} onValueChange={(value) => onInputChange('seguro_vigente', value)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Seleccionar" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="si">Sí, vigente</SelectItem>
-              <SelectItem value="no">No</SelectItem>
-              <SelectItem value="en_tramite">En trámite</SelectItem>
-              <SelectItem value="vencido">Vencido</SelectItem>
-            </SelectContent>
-          </Select>
+
+        <div>
+          <Label htmlFor="placas">Placas del vehículo</Label>
+          <Input
+            id="placas"
+            type="text"
+            placeholder="Ej. ABC-123-D"
+            value={formData.placas}
+            onChange={(e) => onInputChange('placas', e.target.value.toUpperCase())}
+            maxLength={10}
+          />
         </div>
+
+        <div>
+          <Label htmlFor="color_vehiculo">Color del vehículo</Label>
+          <Input
+            id="color_vehiculo"
+            type="text"
+            placeholder="Ej. Blanco, Negro, Gris"
+            value={formData.color_vehiculo}
+            onChange={(e) => onInputChange('color_vehiculo', e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="seguro_vigente">¿Cuenta con seguro vigente?</Label>
+        <Select 
+          value={formData.seguro_vigente} 
+          onValueChange={(value) => onInputChange('seguro_vigente', value)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Seleccionar respuesta" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Si">Sí, tengo seguro vigente</SelectItem>
+            <SelectItem value="No">No tengo seguro</SelectItem>
+            <SelectItem value="En_proceso">En proceso de contratación</SelectItem>
+            <SelectItem value="Vencido">Tengo seguro pero está vencido</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="text-sm text-muted-foreground">
+        <p>* La información del vehículo es importante para validar que cumples con los requisitos para ser custodio.</p>
+        <p>** Es obligatorio contar con seguro vigente para trabajar como custodio.</p>
       </div>
     </div>
   );

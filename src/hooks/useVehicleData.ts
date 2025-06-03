@@ -28,7 +28,10 @@ export const useVehicleData = () => {
         setLoadingMarcas(true);
         setError(null);
         
-        const { data, error } = await supabase.rpc('get_marcas_vehiculos_safe');
+        const { data, error } = await supabase.rpc('get_marcas_vehiculos_safe') as {
+          data: Marca[] | null;
+          error: any;
+        };
         
         if (error) {
           console.error('Error fetching marcas:', error);
@@ -73,7 +76,7 @@ export const useVehicleData = () => {
       
       const { data, error } = await supabase.rpc('get_modelos_por_marca_safe', {
         p_marca_nombre: marcaNombre.trim()
-      });
+      }) as { data: Modelo[] | null; error: any };
       
       if (error) {
         console.error('Error fetching modelos:', error);
