@@ -97,7 +97,7 @@ export const VehicleForm = ({ formData, onInputChange }: VehicleFormProps) => {
             </SelectTrigger>
             <SelectContent>
               {loadingMarcas ? (
-                <SelectItem value="" disabled>
+                <SelectItem value="loading_marcas" disabled>
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Cargando marcas...
@@ -132,7 +132,7 @@ export const VehicleForm = ({ formData, onInputChange }: VehicleFormProps) => {
             </SelectTrigger>
             <SelectContent>
               {loadingModelos ? (
-                <SelectItem value="" disabled>
+                <SelectItem value="loading_modelos" disabled>
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Cargando modelos...
@@ -145,7 +145,7 @@ export const VehicleForm = ({ formData, onInputChange }: VehicleFormProps) => {
                   </SelectItem>
                 ))
               ) : formData.marca_vehiculo ? (
-                <SelectItem value="" disabled>
+                <SelectItem value="no_models_available" disabled>
                   No hay modelos disponibles para esta marca
                 </SelectItem>
               ) : null}
