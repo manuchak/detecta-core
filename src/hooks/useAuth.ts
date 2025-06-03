@@ -14,27 +14,27 @@ export const useAuth = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Get user role using the secure function
+  // Get user role using the secure function that doesn't cause recursion
   const { data: userRole, isLoading: roleLoading, refetch: refetchRole } = useQuery({
     queryKey: ['user-role', context.user?.id],
     queryFn: async () => {
       if (!context.user?.id) return null;
       
       try {
-        // Use the secure function that doesn't cause recursion
-        const { data, error } = await supabase.rpc('get_user_role_safe', {
+        // Use the new secure function that bypasses RLS
+        const { data, error } = await supabase.rpc('get_user_role_direct', {
           user_uid: context.user.id
         });
 
         if (error) {
           console.error('Error getting user role:', error);
-          return 'unverified';
+          return 'pending';
         }
 
-        return data || 'unverified';
+        return data || 'pending';
       } catch (err) {
         console.error('Unexpected error getting role:', err);
-        return 'unverified';
+        return 'pending';
       }
     },
     enabled: !!context.user?.id,
@@ -42,51 +42,19 @@ export const useAuth = () => {
     retry: 1,
   });
 
-  // Check if user has specific role using secure function
-  const hasRole = async (role: string): Promise<boolean> => {
-    if (!context.user?.id) return false;
-    
-    try {
-      const { data, error } = await supabase.rpc('has_role', {
-        user_uid: context.user.id,
-        required_role: role
-      });
-
-      if (error) {
-        console.error('Error checking role:', error);
-        return false;
-      }
-
-      return data || false;
-    } catch (err) {
-      console.error('Error in hasRole:', err);
-      return false;
-    }
-  };
-
-  // Check if user is admin or owner using direct auth check to avoid recursion
+  // Check if user is admin or owner using the secure bypass function
   const isAdminOrOwner = async (): Promise<boolean> => {
     if (!context.user?.id) return false;
     
     try {
-      // Use simple auth check to avoid recursion
-      const { data: authUser } = await supabase.auth.getUser();
-      if (authUser.user?.email === 'admin@admin.com') {
-        return true;
-      }
-
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', context.user.id)
-        .in('role', ['admin', 'owner']);
+      const { data, error } = await supabase.rpc('is_admin_bypass_rls');
 
       if (error) {
         console.error('Error checking admin/owner:', error);
         return false;
       }
 
-      return (data && data.length > 0) || false;
+      return data || false;
     } catch (err) {
       console.error('Error in isAdminOrOwner:', err);
       return false;
@@ -132,7 +100,6 @@ export const useAuth = () => {
     userRole,
     roleLoading,
     refetchRole,
-    hasRole,
     isAdminOrOwner,
     assignRole,
     isOwner: userRole === 'owner',

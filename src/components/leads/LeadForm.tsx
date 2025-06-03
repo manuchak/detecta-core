@@ -80,8 +80,6 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
   const [loading, setLoading] = useState(false);
   const [referralData, setReferralData] = useState<ReferralData | null>(null);
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
-  const [userInfo, setUserInfo] = useState<any>(null);
-  const [debugInfo, setDebugInfo] = useState<any>(null);
   const { toast } = useToast();
   
   const [formData, setFormData] = useState<FormData>({
@@ -125,98 +123,46 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
     fuente: "web"
   });
 
-  // Verificar acceso con diagnóstico detallado
+  // Verificar acceso usando la nueva función segura
   useState(() => {
     const checkAccess = async () => {
       try {
-        console.log('🔍 Iniciando verificación de acceso...');
+        console.log('🔍 Verificando acceso usando nueva función segura...');
         
-        // 1. Verificar usuario autenticado
+        // Verificar usuario autenticado
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         console.log('👤 Usuario actual:', { user: user?.email, id: user?.id, error: userError });
         
         if (userError || !user) {
           console.error('❌ Error de autenticación:', userError);
           setHasAccess(false);
-          setDebugInfo({ error: 'No autenticado', userError });
           return;
         }
 
-        // 2. Verificar función is_current_user_admin
-        const { data: isAdmin, error: adminError } = await supabase.rpc('is_current_user_admin');
-        console.log('🔐 Verificación admin:', { isAdmin, adminError });
+        // Usar la nueva función is_admin_bypass_rls que no causa recursión
+        const { data: isAdmin, error: adminError } = await supabase.rpc('is_admin_bypass_rls');
+        console.log('🔐 Verificación admin (bypass RLS):', { isAdmin, adminError });
         
-        // 3. Verificar roles del usuario
-        const { data: userRoles, error: rolesError } = await supabase.rpc('get_user_roles');
-        console.log('👥 Roles del usuario:', { userRoles, rolesError });
-        
-        // 4. Verificar tabla user_roles directamente
-        const { data: directRoles, error: directError } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id);
-        console.log('📋 Roles directos:', { directRoles, directError });
-
-        // 5. Prueba de inserción simple en tabla leads (para diagnóstico)
-        console.log('🧪 Probando permisos de inserción...');
-        const testData = {
-          nombre: 'Test Usuario',
-          email: 'test@example.com',
-          telefono: '1234567890',
-          empresa: 'Test Company',
-          mensaje: 'Test message',
-          estado: 'nuevo',
-          fuente: 'web'
-        };
-        
-        const { data: testInsert, error: testError } = await supabase
-          .from('leads')
-          .insert(testData)
-          .select()
-          .single();
-        
-        if (testError) {
-          console.error('❌ Error en prueba de inserción:', testError);
-        } else {
-          console.log('✅ Prueba de inserción exitosa:', testInsert);
-          // Eliminar el registro de prueba
-          await supabase.from('leads').delete().eq('id', testInsert.id);
+        if (adminError) {
+          console.error('❌ Error verificando permisos:', adminError);
+          setHasAccess(false);
+          return;
         }
 
-        setDebugInfo({
-          user: user?.email,
-          userId: user?.id,
-          isAdmin,
-          adminError,
-          userRoles,
-          rolesError,
-          directRoles,
-          directError,
-          testError: testError?.message || 'No error',
-          canInsert: !testError
-        });
-
-        const hasAdminAccess = isAdmin || false;
-        setHasAccess(hasAdminAccess);
+        setHasAccess(isAdmin || false);
         
-        setUserInfo({
-          user_email: user?.email || 'No disponible',
-          user_roles: Array.isArray(userRoles) ? userRoles.map((r: any) => r?.role).filter(Boolean) : [],
-          is_admin: isAdmin,
-          direct_roles: directRoles?.map(r => r.role) || []
-        });
-
-        if (!hasAdminAccess) {
+        if (!isAdmin) {
           toast({
             title: "Acceso denegado",
             description: "No tienes permisos para crear candidatos.",
             variant: "destructive",
           });
+        } else {
+          console.log('✅ Acceso concedido');
         }
       } catch (error) {
         console.error('💥 Error crítico en checkAccess:', error);
         setHasAccess(false);
-        setDebugInfo({ criticalError: error });
       }
     };
     
@@ -289,7 +235,6 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
     
     console.log('📤 Iniciando envío del formulario...');
     console.log('📋 Datos del formulario:', formData);
-    console.log('🔍 Debug info:', debugInfo);
     
     if (!validarEtapa(etapaActual)) {
       toast({
@@ -515,20 +460,7 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
           <CardTitle>Acceso requerido</CardTitle>
           <CardDescription>
             No tienes permisos suficientes para acceder al formulario de candidatos.
-            {userInfo && (
-              <div className="mt-2 text-sm">
-                <p>Email: {userInfo.user_email || 'No disponible'}</p>
-                <p>Roles: {userInfo.user_roles?.join(', ') || 'Sin roles asignados'}</p>
-                <p>Roles directos: {userInfo.direct_roles?.join(', ') || 'Sin roles'}</p>
-                <p>Admin: {userInfo.is_admin ? 'Sí' : 'No'}</p>
-              </div>
-            )}
-            {debugInfo && (
-              <div className="mt-4 p-3 bg-gray-100 rounded text-xs">
-                <p><strong>Debug Info:</strong></p>
-                <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
-              </div>
-            )}
+            Contacta al administrador para obtener los permisos necesarios.
           </CardDescription>
         </CardHeader>
       </Card>

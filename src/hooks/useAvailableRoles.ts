@@ -12,8 +12,8 @@ export const useAvailableRoles = () => {
     queryKey: ['available-roles'],
     queryFn: async () => {
       try {
-        // Use the secure function that doesn't cause recursion
-        const { data, error } = await supabase.rpc('get_user_roles_safe');
+        // Use the new secure function that doesn't cause recursion
+        const { data, error } = await supabase.rpc('get_available_roles_secure');
         
         if (error) {
           console.error('Error fetching available roles:', error);

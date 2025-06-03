@@ -1447,6 +1447,12 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_current_user_roles_safe: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          role: string
+        }[]
+      }
       get_custodian_full_stats: {
         Args: { p_custodio_id: string }
         Returns: {
@@ -1841,6 +1847,10 @@ export type Database = {
       }
       get_user_role: {
         Args: { user_id: string }
+        Returns: string
+      }
+      get_user_role_direct: {
+        Args: { user_uid: string }
         Returns: string
       }
       get_user_role_safe: {
