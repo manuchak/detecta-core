@@ -188,26 +188,24 @@ export const LeadsList = () => {
         return processedLead;
       });
 
-      // Obtener información de analistas asignados
+      // Obtener información de analistas asignados usando la función segura
       if (processedLeads.some(lead => lead.asignado_a)) {
-        const analystIds = processedLeads
-          .filter(lead => lead.asignado_a)
-          .map(lead => lead.asignado_a);
+        try {
+          const { data: profiles, error: profilesError } = await supabase
+            .rpc('get_users_with_roles_secure');
 
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, display_name')
-          .in('id', analystIds);
-
-        if (!profilesError && profiles) {
-          processedLeads.forEach(lead => {
-            if (lead.asignado_a) {
-              const analyst = profiles.find(p => p.id === lead.asignado_a);
-              if (analyst) {
-                lead.analista_nombre = analyst.display_name;
+          if (!profilesError && profiles) {
+            processedLeads.forEach(lead => {
+              if (lead.asignado_a) {
+                const analyst = profiles.find((p: any) => p.id === lead.asignado_a);
+                if (analyst) {
+                  lead.analista_nombre = analyst.display_name || analyst.email;
+                }
               }
-            }
-          });
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching analyst profiles:', error);
         }
       }
       
@@ -282,7 +280,7 @@ export const LeadsList = () => {
         .from('leads')
         .update({ 
           estado: newStatus,
-          fecha_contacto: newStatus === 'contactado' ? new Date().toISOString() : null
+          updated_at: new Date().toISOString()
         })
         .eq('id', leadId);
 
@@ -314,88 +312,175 @@ export const LeadsList = () => {
 
     return (
       <div className="space-y-6 max-h-[70vh] overflow-y-auto">
-        <div>
-          <h3 className="text-lg font-semibold mb-3">Información Personal</h3>
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div><strong>Nombre:</strong> {lead.nombre}</div>
-            <div><strong>Email:</strong> {lead.email}</div>
-            <div><strong>Teléfono:</strong> {lead.telefono || 'No especificado'}</div>
-            <div><strong>Estado:</strong> 
-              <Badge variant="outline" className={getStatusBadgeStyle(lead.estado)}>
-                {lead.estado}
-              </Badge>
+        {/* Información Personal */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+          <h3 className="text-lg font-semibold mb-3 text-blue-900 flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Información Personal
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div className="bg-white p-3 rounded-md">
+              <strong className="text-gray-700">Nombre:</strong> 
+              <p className="text-gray-900 mt-1">{lead.nombre}</p>
+            </div>
+            <div className="bg-white p-3 rounded-md">
+              <strong className="text-gray-700">Email:</strong> 
+              <p className="text-gray-900 mt-1">{lead.email}</p>
+            </div>
+            <div className="bg-white p-3 rounded-md">
+              <strong className="text-gray-700">Teléfono:</strong> 
+              <p className="text-gray-900 mt-1">{lead.telefono || 'No especificado'}</p>
+            </div>
+            <div className="bg-white p-3 rounded-md">
+              <strong className="text-gray-700">Estado:</strong> 
+              <div className="mt-1">
+                <Badge variant="outline" className={getStatusBadgeStyle(lead.estado)}>
+                  {lead.estado}
+                </Badge>
+              </div>
             </div>
             {lead.referido_por && (
-              <div className="col-span-2">
-                <strong>Referido por:</strong> 
-                <Badge variant="outline" className="ml-2 bg-blue-50 text-blue-700">
-                  <Users className="h-3 w-3 mr-1" />
-                  {lead.referido_por}
-                </Badge>
+              <div className="bg-white p-3 rounded-md md:col-span-2">
+                <strong className="text-gray-700">Referido por:</strong> 
+                <div className="mt-1">
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                    <Users className="h-3 w-3 mr-1" />
+                    {lead.referido_por}
+                  </Badge>
+                </div>
               </div>
             )}
             {candidateDetails?.datos_personales && (
               <>
-                <div><strong>Edad:</strong> {candidateDetails.datos_personales.edad || 'No especificado'}</div>
-                <div><strong>Ciudad:</strong> {candidateDetails.datos_personales.ciudad || 'No especificado'}</div>
-                <div className="col-span-2"><strong>Dirección:</strong> {candidateDetails.datos_personales.direccion || 'No especificado'}</div>
+                <div className="bg-white p-3 rounded-md">
+                  <strong className="text-gray-700">Edad:</strong> 
+                  <p className="text-gray-900 mt-1">{candidateDetails.datos_personales.edad || 'No especificado'}</p>
+                </div>
+                <div className="bg-white p-3 rounded-md">
+                  <strong className="text-gray-700">Ciudad:</strong> 
+                  <p className="text-gray-900 mt-1">{candidateDetails.datos_personales.ciudad || 'No especificado'}</p>
+                </div>
+                <div className="bg-white p-3 rounded-md md:col-span-2">
+                  <strong className="text-gray-700">Dirección:</strong> 
+                  <p className="text-gray-900 mt-1">{candidateDetails.datos_personales.direccion || 'No especificado'}</p>
+                </div>
               </>
             )}
           </div>
         </div>
 
+        {/* Información del Vehículo */}
         {candidateDetails?.vehiculo && (
-          <div>
-            <h3 className="text-lg font-semibold mb-3">Información del Vehículo</h3>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div><strong>Marca:</strong> {candidateDetails.vehiculo.marca || 'No especificado'}</div>
-              <div><strong>Modelo:</strong> {candidateDetails.vehiculo.modelo || 'No especificado'}</div>
-              <div><strong>Año:</strong> {candidateDetails.vehiculo.año || 'No especificado'}</div>
-              <div><strong>Placas:</strong> {candidateDetails.vehiculo.placas || 'No especificado'}</div>
-              <div><strong>Color:</strong> {candidateDetails.vehiculo.color || 'No especificado'}</div>
-              <div><strong>Tipo:</strong> {candidateDetails.vehiculo.tipo || 'No especificado'}</div>
-              <div className="col-span-2"><strong>Seguro vigente:</strong> {candidateDetails.vehiculo.seguro_vigente || 'No especificado'}</div>
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">
+            <h3 className="text-lg font-semibold mb-3 text-green-900">Información del Vehículo</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div className="bg-white p-3 rounded-md">
+                <strong className="text-gray-700">Marca:</strong> 
+                <p className="text-gray-900 mt-1">{candidateDetails.vehiculo.marca || 'No especificado'}</p>
+              </div>
+              <div className="bg-white p-3 rounded-md">
+                <strong className="text-gray-700">Modelo:</strong> 
+                <p className="text-gray-900 mt-1">{candidateDetails.vehiculo.modelo || 'No especificado'}</p>
+              </div>
+              <div className="bg-white p-3 rounded-md">
+                <strong className="text-gray-700">Año:</strong> 
+                <p className="text-gray-900 mt-1">{candidateDetails.vehiculo.año || 'No especificado'}</p>
+              </div>
+              <div className="bg-white p-3 rounded-md">
+                <strong className="text-gray-700">Color:</strong> 
+                <p className="text-gray-900 mt-1">{candidateDetails.vehiculo.color || 'No especificado'}</p>
+              </div>
+              <div className="bg-white p-3 rounded-md">
+                <strong className="text-gray-700">Placas:</strong> 
+                <p className="text-gray-900 mt-1">{candidateDetails.vehiculo.placas || 'No especificado'}</p>
+              </div>
+              <div className="bg-white p-3 rounded-md">
+                <strong className="text-gray-700">Tipo:</strong> 
+                <p className="text-gray-900 mt-1">{candidateDetails.vehiculo.tipo || 'No especificado'}</p>
+              </div>
+              <div className="bg-white p-3 rounded-md md:col-span-2">
+                <strong className="text-gray-700">Seguro vigente:</strong> 
+                <p className="text-gray-900 mt-1">{candidateDetails.vehiculo.seguro_vigente || 'No especificado'}</p>
+              </div>
             </div>
           </div>
         )}
 
+        {/* Experiencia Laboral */}
         {candidateDetails?.experiencia && (
-          <div>
-            <h3 className="text-lg font-semibold mb-3">Experiencia Laboral</h3>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div><strong>Experiencia en custodia:</strong> {candidateDetails.experiencia.experiencia_custodia || 'No especificado'}</div>
-              <div><strong>Años de experiencia:</strong> {candidateDetails.experiencia.años_experiencia || 'No especificado'}</div>
-              <div><strong>Licencia:</strong> {candidateDetails.experiencia.licencia_conducir || 'No especificado'}</div>
-              <div><strong>Tipo licencia:</strong> {candidateDetails.experiencia.tipo_licencia || 'No especificado'}</div>
-              <div className="col-span-2"><strong>Empresas anteriores:</strong> {candidateDetails.experiencia.empresas_anteriores || 'No especificado'}</div>
-              <div className="col-span-2"><strong>Antecedentes penales:</strong> {candidateDetails.experiencia.antecedentes_penales || 'No especificado'}</div>
+          <div className="bg-gradient-to-r from-purple-50 to-violet-50 p-4 rounded-lg border border-purple-200">
+            <h3 className="text-lg font-semibold mb-3 text-purple-900">Experiencia Laboral</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div className="bg-white p-3 rounded-md">
+                <strong className="text-gray-700">Experiencia en custodia:</strong> 
+                <p className="text-gray-900 mt-1">{candidateDetails.experiencia.experiencia_custodia || 'No especificado'}</p>
+              </div>
+              <div className="bg-white p-3 rounded-md">
+                <strong className="text-gray-700">Años de experiencia:</strong> 
+                <p className="text-gray-900 mt-1">{candidateDetails.experiencia.años_experiencia || 'No especificado'}</p>
+              </div>
+              <div className="bg-white p-3 rounded-md">
+                <strong className="text-gray-700">Licencia:</strong> 
+                <p className="text-gray-900 mt-1">{candidateDetails.experiencia.licencia_conducir || 'No especificado'}</p>
+              </div>
+              <div className="bg-white p-3 rounded-md">
+                <strong className="text-gray-700">Tipo licencia:</strong> 
+                <p className="text-gray-900 mt-1">{candidateDetails.experiencia.tipo_licencia || 'No especificado'}</p>
+              </div>
+              <div className="bg-white p-3 rounded-md md:col-span-2">
+                <strong className="text-gray-700">Empresas anteriores:</strong> 
+                <p className="text-gray-900 mt-1">{candidateDetails.experiencia.empresas_anteriores || 'No especificado'}</p>
+              </div>
+              <div className="bg-white p-3 rounded-md md:col-span-2">
+                <strong className="text-gray-700">Antecedentes penales:</strong> 
+                <p className="text-gray-900 mt-1">{candidateDetails.experiencia.antecedentes_penales || 'No especificado'}</p>
+              </div>
             </div>
           </div>
         )}
 
+        {/* Zona de Trabajo */}
         {candidateDetails?.zona_trabajo && (
-          <div>
-            <h3 className="text-lg font-semibold mb-3">Zona de Trabajo</h3>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div><strong>Zona preferida:</strong> {candidateDetails.zona_trabajo.zona_preferida || 'No especificado'}</div>
-              <div><strong>Rango km:</strong> {candidateDetails.zona_trabajo.rango_km || 'No especificado'}</div>
-              <div><strong>Horario:</strong> {candidateDetails.zona_trabajo.disponibilidad_horario || 'No especificado'}</div>
-              <div><strong>Días:</strong> {candidateDetails.zona_trabajo.disponibilidad_dias || 'No especificado'}</div>
+          <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-4 rounded-lg border border-orange-200">
+            <h3 className="text-lg font-semibold mb-3 text-orange-900">Zona de Trabajo</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div className="bg-white p-3 rounded-md">
+                <strong className="text-gray-700">Zona preferida:</strong> 
+                <p className="text-gray-900 mt-1">{candidateDetails.zona_trabajo.zona_preferida || 'No especificado'}</p>
+              </div>
+              <div className="bg-white p-3 rounded-md">
+                <strong className="text-gray-700">Rango km:</strong> 
+                <p className="text-gray-900 mt-1">{candidateDetails.zona_trabajo.rango_km || 'No especificado'}</p>
+              </div>
+              <div className="bg-white p-3 rounded-md">
+                <strong className="text-gray-700">Horario:</strong> 
+                <p className="text-gray-900 mt-1">{candidateDetails.zona_trabajo.disponibilidad_horario || 'No especificado'}</p>
+              </div>
+              <div className="bg-white p-3 rounded-md">
+                <strong className="text-gray-700">Días:</strong> 
+                <p className="text-gray-900 mt-1">{candidateDetails.zona_trabajo.disponibilidad_dias || 'No especificado'}</p>
+              </div>
             </div>
           </div>
         )}
 
+        {/* Mensaje */}
         {lead.mensaje && (
-          <div>
-            <h3 className="text-lg font-semibold mb-3">Mensaje</h3>
-            <p className="text-sm bg-gray-50 p-3 rounded">{lead.mensaje}</p>
+          <div className="bg-gradient-to-r from-gray-50 to-slate-50 p-4 rounded-lg border border-gray-200">
+            <h3 className="text-lg font-semibold mb-3 text-gray-900">Mensaje</h3>
+            <div className="bg-white p-3 rounded-md">
+              <p className="text-gray-900">{lead.mensaje}</p>
+            </div>
           </div>
         )}
 
+        {/* Referencias */}
         {candidateDetails?.referencias && (
-          <div>
-            <h3 className="text-lg font-semibold mb-3">Referencias</h3>
-            <p className="text-sm bg-gray-50 p-3 rounded">{candidateDetails.referencias}</p>
+          <div className="bg-gradient-to-r from-teal-50 to-cyan-50 p-4 rounded-lg border border-teal-200">
+            <h3 className="text-lg font-semibold mb-3 text-teal-900">Referencias</h3>
+            <div className="bg-white p-3 rounded-md">
+              <p className="text-gray-900">{candidateDetails.referencias}</p>
+            </div>
           </div>
         )}
       </div>
@@ -550,7 +635,7 @@ export const LeadsList = () => {
                       </TableRow>
                     ) : (
                       filteredLeads.map((lead) => (
-                        <TableRow key={lead.id}>
+                        <TableRow key={lead.id} className="hover:bg-gray-50/50">
                           <TableCell className="font-medium">
                             <div>
                               {lead.nombre}
@@ -619,14 +704,6 @@ export const LeadsList = () => {
                                   <UserCheck className="h-4 w-4 mr-2" />
                                   Asignar analista
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => updateLeadStatus(lead.id, 'contactado')}>
-                                  <UserCheck className="h-4 w-4 mr-2" />
-                                  Marcar contactado
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => updateLeadStatus(lead.id, 'aprobado')}>
-                                  <UserCheck className="h-4 w-4 mr-2" />
-                                  Aprobar
-                                </DropdownMenuItem>
                                 <DropdownMenuItem 
                                   className="text-destructive"
                                   onClick={() => updateLeadStatus(lead.id, 'rechazado')}
@@ -653,9 +730,9 @@ export const LeadsList = () => {
       </Tabs>
 
       <Dialog open={showDetails} onOpenChange={setShowDetails}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Detalles del Candidato</DialogTitle>
+            <DialogTitle className="text-xl">Detalles del Candidato</DialogTitle>
           </DialogHeader>
           {selectedLead && renderLeadDetails(selectedLead)}
         </DialogContent>

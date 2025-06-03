@@ -58,26 +58,33 @@ export const LeadAssignmentDialog = ({
   const fetchAnalysts = async () => {
     try {
       setLoadingAnalysts(true);
+      console.log('Fetching analysts...');
       
-      // Obtener usuarios con roles de analista, admin o manager
+      // Obtener usuarios con roles de admin o analista usando el hook seguro
       const { data: profiles, error } = await supabase
-        .from('profiles')
-        .select(`
-          id,
-          display_name,
-          email,
-          user_roles!inner(role)
-        `)
-        .in('user_roles.role', ['admin', 'manager', 'supply_admin', 'soporte']);
+        .rpc('get_users_with_roles_secure');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching analysts:', error);
+        throw error;
+      }
 
-      const mappedAnalysts: Analyst[] = (profiles || []).map((profile: any) => ({
+      console.log('Raw profiles data:', profiles);
+
+      // Filtrar solo usuarios con roles de admin (que pueden actuar como analistas)
+      const analystProfiles = (profiles || []).filter((profile: any) => 
+        ['admin', 'supply_admin', 'manager'].includes(profile.role)
+      );
+
+      console.log('Filtered analyst profiles:', analystProfiles);
+
+      const mappedAnalysts: Analyst[] = analystProfiles.map((profile: any) => ({
         id: profile.id,
-        display_name: profile.display_name,
+        display_name: profile.display_name || profile.email,
         email: profile.email
       }));
 
+      console.log('Mapped analysts:', mappedAnalysts);
       setAnalysts(mappedAnalysts);
     } catch (error) {
       console.error('Error fetching analysts:', error);
@@ -166,37 +173,46 @@ export const LeadAssignmentDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserCheck className="h-5 w-5" />
-            Asignar Candidato
+            Asignar Analista
           </DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4">
-          <div>
-            <p className="text-sm text-muted-foreground mb-2">
-              Candidato: <span className="font-medium">{leadName}</span>
+          <div className="bg-gray-50 p-3 rounded-md">
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium">Candidato:</span> {leadName}
             </p>
           </div>
 
           {loadingAnalysts ? (
-            <div className="flex items-center justify-center py-4">
+            <div className="flex items-center justify-center py-6">
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              <span>Cargando analistas...</span>
+              <span className="text-sm">Cargando analistas...</span>
+            </div>
+          ) : analysts.length === 0 ? (
+            <div className="text-center py-6">
+              <p className="text-sm text-muted-foreground">
+                No hay analistas disponibles
+              </p>
             </div>
           ) : (
-            <div>
+            <div className="space-y-2">
               <label className="text-sm font-medium">Seleccionar Analista</label>
               <Select value={selectedAnalyst} onValueChange={setSelectedAnalyst}>
-                <SelectTrigger className="mt-1">
+                <SelectTrigger>
                   <SelectValue placeholder="Selecciona un analista" />
                 </SelectTrigger>
                 <SelectContent>
                   {analysts.map((analyst) => (
                     <SelectItem key={analyst.id} value={analyst.id}>
-                      {analyst.display_name} ({analyst.email})
+                      <div className="flex flex-col">
+                        <span>{analyst.display_name}</span>
+                        <span className="text-xs text-muted-foreground">{analyst.email}</span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
