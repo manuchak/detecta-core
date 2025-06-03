@@ -3,26 +3,16 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { MonthlyGmvData } from './useDashboardData';
 
-export const useGmvChartData = (clientFilter: string = "all") => {
+export const useGmvChartData = () => {
   const { data: gmvData = [], isLoading, error } = useQuery({
-    queryKey: ['gmv-chart-data', clientFilter],
+    queryKey: ['gmv-chart-data-forensic'],
     queryFn: async () => {
       try {
-        console.log("🔄 NUEVA METODOLOGÍA: Replicando análisis forense EXACTO...");
+        console.log("🔄 GMV CHART: Usando metodología forense EXACTA (independiente de filtros)...");
         
-        // Usar la función forensic audit directamente para obtener datos históricos COMPLETOS
-        const { data: forensicResult, error: forensicError } = await supabase.rpc('forensic_audit_servicios_enero_actual');
-
-        if (forensicError) {
-          console.error('❌ Error en forensic audit:', forensicError);
-          throw forensicError;
-        }
-
-        console.log('📊 Datos forenses obtenidos:', forensicResult);
-
-        // Ahora obtener TODOS los datos RAW sin ningún filtro temporal inicial
+        // Obtener TODOS los datos RAW sin límites
         const { data: rawData, error: rawError } = await supabase.rpc('bypass_rls_get_servicios', {
-          max_records: 200000  // Aumentar límite para asegurar todos los datos
+          max_records: 500000  // Aumentar para asegurar todos los datos
         });
 
         if (rawError) {
@@ -32,22 +22,12 @@ export const useGmvChartData = (clientFilter: string = "all") => {
 
         console.log(`📋 Total registros RAW obtenidos: ${rawData?.length || 0}`);
         
-        let filteredData = rawData || [];
-        
-        // Aplicar filtro de cliente si está seleccionado
-        if (clientFilter !== 'all') {
-          filteredData = filteredData.filter(service => 
-            service.nombre_cliente === clientFilter
-          );
-          console.log(`🔍 Filtro cliente "${clientFilter}" aplicado: ${filteredData.length} registros`);
-        }
-        
-        // APLICAR METODOLOGÍA FORENSE EXACTA:
+        // APLICAR METODOLOGÍA FORENSE EXACTA (sin filtros de cliente):
         // 1. Solo servicios con estado "finalizado" (case insensitive)
         // 2. Solo con cobro_cliente > 0
         // 3. Solo con id_servicio válido
         // 4. Solo fechas válidas desde 2023
-        const serviciosValidosParaGMV = filteredData.filter(item => {
+        const serviciosValidosParaGMV = rawData?.filter(item => {
           // 1. Fecha válida
           if (!item.fecha_hora_cita) return false;
           
@@ -69,7 +49,7 @@ export const useGmvChartData = (clientFilter: string = "all") => {
           if (cobro <= 0) return false;
           
           return true;
-        });
+        }) || [];
         
         console.log(`✅ Servicios válidos para GMV: ${serviciosValidosParaGMV.length}`);
         
@@ -151,7 +131,7 @@ export const useGmvChartData = (clientFilter: string = "all") => {
         // Verificar totales finales
         const total2025 = result.reduce((sum, item) => sum + item.value, 0);
         const total2024 = result.reduce((sum, item) => sum + item.previousYear, 0);
-        console.log(`📊 VERIFICACIÓN FINAL:`);
+        console.log(`📊 VERIFICACIÓN FINAL GMV CHART:`);
         console.log(`📊 Total 2025: $${total2025.toLocaleString()}`);
         console.log(`📊 Total 2024: $${total2024.toLocaleString()}`);
         
@@ -169,13 +149,13 @@ export const useGmvChartData = (clientFilter: string = "all") => {
     refetchOnMount: true
   });
 
-  // Obtener lista de clientes únicos (usando misma metodología)
+  // Obtener lista de clientes únicos (usando misma metodología pero sin filtrar por cliente)
   const { data: clientsList = [] } = useQuery({
-    queryKey: ['clients-list-gmv'],
+    queryKey: ['clients-list-gmv-forensic'],
     queryFn: async () => {
       try {
         const { data, error } = await supabase.rpc('bypass_rls_get_servicios', {
-          max_records: 100000
+          max_records: 200000
         });
 
         if (error) throw error;
