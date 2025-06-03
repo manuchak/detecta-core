@@ -34,46 +34,20 @@ export const ReferralForm = ({ onReferralChange }: ReferralFormProps) => {
   const fetchCustodios = async (search: string = "") => {
     try {
       setLoading(true);
+      console.log('Fetching custodios with search:', search);
       
-      // Consultar custodios activos desde servicios_custodia
-      let query = supabase
-        .from('servicios_custodia')
-        .select('nombre_custodio, telefono')
-        .not('nombre_custodio', 'is', null)
-        .neq('nombre_custodio', '')
-        .neq('nombre_custodio', '#N/A');
-
-      if (search.trim()) {
-        query = query.or(`nombre_custodio.ilike.%${search}%,telefono.ilike.%${search}%`);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      // Agrupar por custodio y contar servicios
-      const custodiosMap = new Map<string, Custodio>();
-      
-      (data || []).forEach((servicio: any) => {
-        const key = servicio.nombre_custodio;
-        if (custodiosMap.has(key)) {
-          const existing = custodiosMap.get(key)!;
-          existing.total_servicios += 1;
-        } else {
-          custodiosMap.set(key, {
-            nombre_custodio: servicio.nombre_custodio,
-            telefono: servicio.telefono || 'Sin teléfono',
-            total_servicios: 1
-          });
-        }
+      // Usar función RPC para evitar problemas de RLS
+      const { data, error } = await supabase.rpc('get_custodios_activos_safe', {
+        search_term: search.trim() || null
       });
 
-      // Convertir a array y ordenar por número de servicios (más activos primero)
-      const custodiosArray = Array.from(custodiosMap.values())
-        .sort((a, b) => b.total_servicios - a.total_servicios)
-        .slice(0, 20); // Limitar a 20 resultados
+      if (error) {
+        console.error('Error from RPC:', error);
+        throw error;
+      }
 
-      setCustodios(custodiosArray);
+      console.log('Custodios fetched successfully:', data);
+      setCustodios(data || []);
     } catch (error) {
       console.error('Error fetching custodios:', error);
       toast({
