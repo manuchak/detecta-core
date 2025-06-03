@@ -8,11 +8,29 @@ export const useGmvChartData = () => {
     queryKey: ['gmv-chart-data-forensic'],
     queryFn: async () => {
       try {
-        console.log("🔄 GMV CHART: Usando metodología forense EXACTA (independiente de filtros)...");
+        console.log("🔄 GMV CHART: Usando metodología forense EXACTA...");
         
-        // Obtener TODOS los datos RAW sin límites
+        // Usar la MISMA función que usa el análisis forense
+        const { data: forensicResult, error: forensicError } = await supabase
+          .rpc('forensic_audit_servicios_enero_actual');
+
+        if (forensicError) {
+          console.error('❌ Error obteniendo auditoría forense:', forensicError);
+          throw forensicError;
+        }
+
+        console.log(`📋 Datos forenses obtenidos:`, forensicResult?.[0]);
+        
+        if (!forensicResult || forensicResult.length === 0) {
+          console.warn('⚠️ No se obtuvieron datos del análisis forense');
+          return [];
+        }
+
+        const forensicData = forensicResult[0];
+        
+        // Obtener TODOS los datos RAW usando la misma función que el análisis forense
         const { data: rawData, error: rawError } = await supabase.rpc('bypass_rls_get_servicios', {
-          max_records: 500000  // Aumentar para asegurar todos los datos
+          max_records: 500000
         });
 
         if (rawError) {
@@ -20,13 +38,9 @@ export const useGmvChartData = () => {
           throw rawError;
         }
 
-        console.log(`📋 Total registros RAW obtenidos: ${rawData?.length || 0}`);
+        console.log(`📋 Total registros RAW: ${rawData?.length || 0}`);
         
-        // APLICAR METODOLOGÍA FORENSE EXACTA (sin filtros de cliente):
-        // 1. Solo servicios con estado "finalizado" (case insensitive)
-        // 2. Solo con cobro_cliente > 0
-        // 3. Solo con id_servicio válido
-        // 4. Solo fechas válidas desde 2023
+        // APLICAR EXACTAMENTE LOS MISMOS FILTROS QUE EL ANÁLISIS FORENSE
         const serviciosValidosParaGMV = rawData?.filter(item => {
           // 1. Fecha válida
           if (!item.fecha_hora_cita) return false;
@@ -34,13 +48,13 @@ export const useGmvChartData = () => {
           const fecha = new Date(item.fecha_hora_cita);
           const year = fecha.getFullYear();
           
-          // Solo datos desde 2023 hasta 2025
-          if (year < 2023 || year > 2025) return false;
+          // Solo datos desde 2024 hasta 2025 (incluir 2024 para comparación)
+          if (year < 2024 || year > 2025) return false;
           
           // 2. ID de servicio válido
           if (!item.id_servicio || item.id_servicio.trim() === '') return false;
           
-          // 3. Estado finalizado (exactamente como en forensic audit)
+          // 3. Estado finalizado (EXACTAMENTE como en forensic audit)
           const estado = (item.estado || '').trim().toLowerCase();
           if (estado !== 'finalizado') return false;
           
@@ -51,9 +65,9 @@ export const useGmvChartData = () => {
           return true;
         }) || [];
         
-        console.log(`✅ Servicios válidos para GMV: ${serviciosValidosParaGMV.length}`);
+        console.log(`✅ Servicios válidos para GMV (aplicando filtros forenses): ${serviciosValidosParaGMV.length}`);
         
-        // ELIMINAR DUPLICADOS por ID de servicio (clave para forensic accuracy)
+        // ELIMINAR DUPLICADOS EXACTAMENTE como en el análisis forense
         const serviciosUnicos = new Map();
         serviciosValidosParaGMV.forEach(item => {
           const id = item.id_servicio.trim();
@@ -76,8 +90,8 @@ export const useGmvChartData = () => {
         // PROCESAR DATOS POR AÑO Y MES (metodología forense exacta)
         const dataPorAnioYMes: { [year: number]: { [month: number]: number } } = {};
         
-        // Inicializar estructura para 2023, 2024, 2025
-        [2023, 2024, 2025].forEach(year => {
+        // Inicializar estructura para 2024 y 2025
+        [2024, 2025].forEach(year => {
           dataPorAnioYMes[year] = {};
           for (let month = 0; month < 12; month++) {
             dataPorAnioYMes[year][month] = 0;
@@ -96,13 +110,21 @@ export const useGmvChartData = () => {
           }
         });
         
-        // LOG para verificación
-        console.log('💰 TOTALES POR AÑO (metodología forense):');
+        // VERIFICAR que los totales coincidan con el análisis forense
+        const total2025Calculado = Object.values(dataPorAnioYMes[2025]).reduce((sum, val) => sum + val, 0);
+        const total2024Calculado = Object.values(dataPorAnioYMes[2024]).reduce((sum, val) => sum + val, 0);
+        
+        console.log('💰 VERIFICACIÓN CON ANÁLISIS FORENSE:');
+        console.log(`📊 Total 2025 calculado: $${total2025Calculado.toLocaleString()}`);
+        console.log(`📊 Total 2024 calculado: $${total2024Calculado.toLocaleString()}`);
+        console.log(`📊 GMV forense 2025 (solo finalizados): $${forensicData.gmv_solo_finalizados?.toLocaleString() || 0}`);
+        
+        // LOG detallado por mes para debugging
+        console.log('📈 DESGLOSE MENSUAL DETALLADO:');
         Object.keys(dataPorAnioYMes).forEach(year => {
           const totalYear = Object.values(dataPorAnioYMes[parseInt(year)]).reduce((sum, val) => sum + val, 0);
           console.log(`${year}: $${totalYear.toLocaleString()}`);
           
-          // LOG detallado por mes para debugging
           Object.keys(dataPorAnioYMes[parseInt(year)]).forEach(month => {
             const monthValue = dataPorAnioYMes[parseInt(year)][parseInt(month)];
             if (monthValue > 0) {
@@ -121,7 +143,7 @@ export const useGmvChartData = () => {
           previousYear: dataPorAnioYMes[2024][index] || 0  // 2024 como comparación
         }));
         
-        console.log('📈 RESULTADO FINAL (2024 vs 2025):');
+        console.log('📈 RESULTADO FINAL PARA GRÁFICO (2024 vs 2025):');
         result.forEach(item => {
           if (item.value > 0 || item.previousYear > 0) {
             console.log(`${item.name}: 2025=$${item.value.toLocaleString()}, 2024=$${item.previousYear.toLocaleString()}`);
@@ -129,11 +151,12 @@ export const useGmvChartData = () => {
         });
         
         // Verificar totales finales
-        const total2025 = result.reduce((sum, item) => sum + item.value, 0);
-        const total2024 = result.reduce((sum, item) => sum + item.previousYear, 0);
-        console.log(`📊 VERIFICACIÓN FINAL GMV CHART:`);
-        console.log(`📊 Total 2025: $${total2025.toLocaleString()}`);
-        console.log(`📊 Total 2024: $${total2024.toLocaleString()}`);
+        const totalGrafico2025 = result.reduce((sum, item) => sum + item.value, 0);
+        const totalGrafico2024 = result.reduce((sum, item) => sum + item.previousYear, 0);
+        console.log(`🎯 VERIFICACIÓN FINAL - TOTALES GRÁFICO:`);
+        console.log(`📊 Total gráfico 2025: $${totalGrafico2025.toLocaleString()}`);
+        console.log(`📊 Total gráfico 2024: $${totalGrafico2024.toLocaleString()}`);
+        console.log(`📊 Diferencia con forense: $${Math.abs(totalGrafico2025 - (forensicData.gmv_solo_finalizados || 0)).toLocaleString()}`);
         
         return result;
         
@@ -149,7 +172,7 @@ export const useGmvChartData = () => {
     refetchOnMount: true
   });
 
-  // Obtener lista de clientes únicos (usando misma metodología pero sin filtrar por cliente)
+  // Obtener lista de clientes únicos usando la misma metodología
   const { data: clientsList = [] } = useQuery({
     queryKey: ['clients-list-gmv-forensic'],
     queryFn: async () => {
@@ -160,13 +183,13 @@ export const useGmvChartData = () => {
 
         if (error) throw error;
 
-        // Aplicar los mismos filtros que para los datos principales
+        // Aplicar EXACTAMENTE los mismos filtros que para los datos principales
         const serviciosValidos = data?.filter(item => {
           if (!item.fecha_hora_cita || !item.id_servicio || item.id_servicio.trim() === '') return false;
           
           const fecha = new Date(item.fecha_hora_cita);
           const year = fecha.getFullYear();
-          if (year < 2023 || year > 2025) return false;
+          if (year < 2024 || year > 2025) return false;
           
           const estado = (item.estado || '').trim().toLowerCase();
           if (estado !== 'finalizado') return false;
