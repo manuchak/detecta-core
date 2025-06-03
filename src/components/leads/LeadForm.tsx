@@ -7,9 +7,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, User, Car, MapPin, Briefcase, Users, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, User, Car, MapPin, Briefcase, Users, ChevronLeft, ChevronRight, Save } from "lucide-react";
 import { PersonalInfoForm } from "./forms/PersonalInfoForm";
 import { LocationForm } from "./forms/LocationForm";
 import { VehicleForm } from "./forms/VehicleForm";
@@ -80,6 +90,7 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
   const [loading, setLoading] = useState(false);
   const [referralData, setReferralData] = useState<ReferralData | null>(null);
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const { toast } = useToast();
   
   const [formData, setFormData] = useState<FormData>({
@@ -230,11 +241,20 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
     setEtapaActual(prev => Math.max(prev - 1, 0));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleGuardarClick = () => {
+    // Mostrar diálogo de confirmación
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmSave = async () => {
+    setShowConfirmDialog(false);
+    await handleSubmit();
+  };
+
+  const handleSubmit = async () => {
     console.log('📤 Iniciando envío del formulario...');
     console.log('📋 Datos del formulario:', formData);
+    console.log('👥 Datos del referido:', referralData);
     
     if (!validarEtapa(etapaActual)) {
       toast({
@@ -414,7 +434,7 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
       }[formData.tipo_custodio] || 'candidato';
 
       toast({
-        title: "Candidato registrado",
+        title: "Candidato registrado exitosamente",
         description: referralData 
           ? `El ${tipoTexto} ha sido registrado exitosamente con referencia de ${referralData.custodio_referente_nombre}.`
           : `La información del ${tipoTexto} ha sido guardada exitosamente.`,
@@ -482,64 +502,105 @@ export const LeadForm = ({ onSuccess, onCancel }: LeadFormProps) => {
   }
 
   return (
-    <Card className="w-full max-w-4xl mx-auto">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <EtapaActualIcon className="h-5 w-5" />
-          Registro de Candidato - {ETAPAS[etapaActual].titulo}
-        </CardTitle>
-        <CardDescription>
-          Etapa {etapaActual + 1} de {ETAPAS.length}: {ETAPAS[etapaActual].titulo}
-        </CardDescription>
-        
-        <div className="flex gap-2 mt-4">
-          {ETAPAS.map((etapa, index) => (
-            <div
-              key={etapa.id}
-              className={`flex-1 h-2 rounded-full ${
-                index <= etapaActual ? 'bg-primary' : 'bg-gray-200'
-              }`}
-            />
-          ))}
-        </div>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {renderEtapaActual()}
+    <>
+      <Card className="w-full max-w-4xl mx-auto">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <EtapaActualIcon className="h-5 w-5" />
+            Registro de Candidato - {ETAPAS[etapaActual].titulo}
+          </CardTitle>
+          <CardDescription>
+            Etapa {etapaActual + 1} de {ETAPAS.length}: {ETAPAS[etapaActual].titulo}
+          </CardDescription>
+          
+          <div className="flex gap-2 mt-4">
+            {ETAPAS.map((etapa, index) => (
+              <div
+                key={etapa.id}
+                className={`flex-1 h-2 rounded-full ${
+                  index <= etapaActual ? 'bg-primary' : 'bg-gray-200'
+                }`}
+              />
+            ))}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            {renderEtapaActual()}
 
-          <div className="flex justify-between pt-6">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={anteriorEtapa}
-              disabled={etapaActual === 0}
-            >
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              Anterior
-            </Button>
+            <div className="flex justify-between pt-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={anteriorEtapa}
+                disabled={etapaActual === 0}
+              >
+                <ChevronLeft className="h-4 w-4 mr-2" />
+                Anterior
+              </Button>
 
-            <div className="flex gap-3">
-              {onCancel && (
-                <Button type="button" variant="outline" onClick={onCancel}>
-                  Cancelar
-                </Button>
-              )}
-              
-              {etapaActual < ETAPAS.length - 1 ? (
-                <Button type="button" onClick={siguienteEtapa}>
-                  Siguiente
-                  <ChevronRight className="h-4 w-4 ml-2" />
-                </Button>
-              ) : (
-                <Button type="submit" disabled={loading}>
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Registrar Candidato
-                </Button>
-              )}
+              <div className="flex gap-3">
+                {onCancel && (
+                  <Button type="button" variant="outline" onClick={onCancel}>
+                    Cancelar
+                  </Button>
+                )}
+                
+                {etapaActual < ETAPAS.length - 1 ? (
+                  <Button type="button" onClick={siguienteEtapa}>
+                    Siguiente
+                    <ChevronRight className="h-4 w-4 ml-2" />
+                  </Button>
+                ) : (
+                  <Button 
+                    type="button" 
+                    onClick={handleGuardarClick}
+                    disabled={loading}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    <Save className="mr-2 h-4 w-4" />
+                    Registrar Candidato
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
-        </form>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      {/* Diálogo de Confirmación */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Registro</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas registrar este candidato?
+              <br /><br />
+              <strong>Datos del candidato:</strong>
+              <br />• Nombre: {formData.nombre}
+              <br />• Email: {formData.email}
+              <br />• Teléfono: {formData.telefono}
+              <br />• Tipo: {formData.tipo_custodio}
+              {referralData && (
+                <>
+                  <br /><br />
+                  <strong>Referido por:</strong> {referralData.custodio_referente_nombre}
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmSave}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Confirmar Registro
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
