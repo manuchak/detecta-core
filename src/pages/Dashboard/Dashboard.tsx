@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { 
   useDashboardDataCorrected as useDashboardData, 
@@ -14,7 +15,6 @@ import { ForecastCard } from "@/components/dashboard/ForecastCard";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Loader2, BarChart3, TrendingUp, Activity, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ForensicAuditPanel } from "@/components/dashboard/ForensicAuditPanel";
 
 export const Dashboard = () => {
   const [timeframe, setTimeframe] = useState<TimeframeOption>("month");
@@ -157,7 +157,7 @@ export const Dashboard = () => {
                 <BarChart3 className="h-5 w-5 mr-2" />
                 <span className="text-sm font-medium">Visualización completa</span>
               </div>
-              {/* Nuevo enlace a auditoría forense */}
+              {/* Enlace a auditoría forense */}
               <a 
                 href="/dashboard/forensic-audit" 
                 className="flex items-center text-white/90 hover:text-white transition-colors bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg"
@@ -185,15 +185,6 @@ export const Dashboard = () => {
             </AlertDescription>
           </Alert>
         )}
-        
-        {/* Panel de Auditoría Forense */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <Database className="h-5 w-5 mr-2" />
-            Auditoría Forense de Datos
-          </h2>
-          <ForensicAuditPanel />
-        </div>
         
         {/* Filtros mejorados con estado de loading */}
         <DashboardFilters
