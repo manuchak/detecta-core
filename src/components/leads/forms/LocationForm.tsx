@@ -2,8 +2,7 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useEstados, useCiudades } from "@/hooks/useGeograficos";
 
 interface LocationFormProps {
   formData: {
@@ -15,16 +14,6 @@ interface LocationFormProps {
   onInputChange: (field: string, value: string) => void;
 }
 
-interface Estado {
-  id: string;
-  nombre: string;
-}
-
-interface Ciudad {
-  id: string;
-  nombre: string;
-}
-
 const ZONAS_TRABAJO = [
   { value: 'local', label: 'Local' },
   { value: 'foraneo_corto', label: 'Foráneo Corto' },
@@ -32,66 +21,8 @@ const ZONAS_TRABAJO = [
 ];
 
 export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => {
-  const [estados, setEstados] = useState<Estado[]>([]);
-  const [ciudades, setCiudades] = useState<Ciudad[]>([]);
-  const [loadingEstados, setLoadingEstados] = useState(true);
-  const [loadingCiudades, setLoadingCiudades] = useState(false);
-
-  // Cargar estados al montar el componente
-  useEffect(() => {
-    const fetchEstados = async () => {
-      try {
-        setLoadingEstados(true);
-        const { data, error } = await supabase
-          .from('estados')
-          .select('id, nombre')
-          .order('nombre');
-        
-        if (error) {
-          console.error('Error fetching estados:', error);
-        } else {
-          setEstados(data || []);
-        }
-      } catch (err) {
-        console.error('Error in fetchEstados:', err);
-      } finally {
-        setLoadingEstados(false);
-      }
-    };
-
-    fetchEstados();
-  }, []);
-
-  // Cargar ciudades cuando cambie el estado
-  useEffect(() => {
-    const fetchCiudades = async () => {
-      if (!formData.estado_id) {
-        setCiudades([]);
-        return;
-      }
-
-      try {
-        setLoadingCiudades(true);
-        const { data, error } = await supabase
-          .from('ciudades')
-          .select('id, nombre')
-          .eq('estado_id', formData.estado_id)
-          .order('nombre');
-        
-        if (error) {
-          console.error('Error fetching ciudades:', error);
-        } else {
-          setCiudades(data || []);
-        }
-      } catch (err) {
-        console.error('Error in fetchCiudades:', err);
-      } finally {
-        setLoadingCiudades(false);
-      }
-    };
-
-    fetchCiudades();
-  }, [formData.estado_id]);
+  const { estados, loading: loadingEstados, error: errorEstados } = useEstados();
+  const { ciudades, loading: loadingCiudades, error: errorCiudades } = useCiudades(formData.estado_id);
 
   // Limpiar ciudad cuando cambie el estado
   const handleEstadoChange = (value: string) => {
@@ -99,6 +30,15 @@ export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => 
     onInputChange('ciudad_id', ''); // Limpiar ciudad
     onInputChange('zona_trabajo_id', ''); // Limpiar zona de trabajo
   };
+
+  // Mostrar errores si los hay
+  if (errorEstados) {
+    console.error('Error loading estados:', errorEstados);
+  }
+  
+  if (errorCiudades) {
+    console.error('Error loading ciudades:', errorCiudades);
+  }
 
   return (
     <div className="space-y-6">
@@ -108,7 +48,9 @@ export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => 
           <Select value={formData.estado_id} onValueChange={handleEstadoChange}>
             <SelectTrigger>
               <SelectValue placeholder={
-                loadingEstados ? "Cargando estados..." : "Seleccionar estado"
+                loadingEstados ? "Cargando estados..." : 
+                errorEstados ? "Error al cargar estados" :
+                "Seleccionar estado"
               } />
             </SelectTrigger>
             <SelectContent>
@@ -134,6 +76,8 @@ export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => 
                   ? "Primero selecciona un estado" 
                   : loadingCiudades 
                   ? "Cargando ciudades..." 
+                  : errorCiudades
+                  ? "Error al cargar ciudades"
                   : "Seleccionar ciudad"
               } />
             </SelectTrigger>
