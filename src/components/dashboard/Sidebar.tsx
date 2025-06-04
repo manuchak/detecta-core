@@ -1,3 +1,4 @@
+
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,14 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   BarChartBig,
   ChevronLeft,
   ChevronRight,
@@ -22,8 +31,12 @@ import {
   MonitorIcon,
   Settings,
   UsersRound,
+  User,
+  LogOut,
+  LogIn,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -33,9 +46,29 @@ interface SidebarProps {
 export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const { pathname } = useLocation();
   const isMobile = useIsMobile();
-  const { user, userRole } = useAuth();
+  const { user, userRole, signOut, isAuthenticated } = useAuth();
   
   const isAdmin = userRole === 'admin' || userRole === 'owner';
+
+  const getUserInitials = (email: string | undefined) => {
+    if (!email) return 'U';
+    return email.charAt(0).toUpperCase();
+  };
+
+  const getUserDisplayName = () => {
+    if (user?.user_metadata?.display_name) {
+      return user.user_metadata.display_name;
+    }
+    return user?.email?.split('@')[0] || 'Usuario';
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   const sidebarLinks = [
     {
@@ -137,6 +170,92 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     ] : []),
   ];
 
+  // Authenticated user section
+  const AuthenticatedUserSection = () => (
+    <div className="border-t p-4">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="w-full justify-start p-2 h-auto hover:bg-accent">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={user?.user_metadata?.avatar_url} />
+                <AvatarFallback className="bg-primary text-primary-foreground">
+                  {getUserInitials(user?.email)}
+                </AvatarFallback>
+              </Avatar>
+              {isOpen && (
+                <div className="flex flex-col min-w-0 flex-1 text-left">
+                  <span className="text-sm font-medium truncate">
+                    {getUserDisplayName()}
+                  </span>
+                  <span className="text-xs text-muted-foreground truncate">
+                    {user?.email}
+                  </span>
+                  {userRole && (
+                    <span className="text-xs text-green-600 capitalize font-medium">
+                      {userRole}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56 bg-background border shadow-lg">
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex flex-col space-y-1">
+              <p className="text-sm font-medium leading-none">{getUserDisplayName()}</p>
+              <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <Link to="/settings" className="flex items-center gap-2 cursor-pointer">
+              <User className="h-4 w-4" />
+              Mi Perfil
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link to="/settings" className="flex items-center gap-2 cursor-pointer">
+              <Settings className="h-4 w-4" />
+              Configuración
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem 
+            onClick={handleSignOut} 
+            className="flex items-center gap-2 text-red-600 cursor-pointer focus:text-red-600"
+          >
+            <LogOut className="h-4 w-4" />
+            Cerrar Sesión
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+
+  // Non-authenticated user section
+  const NonAuthenticatedUserSection = () => (
+    <div className="border-t p-4">
+      <div className="space-y-2">
+        <Button asChild variant="default" className="w-full justify-start">
+          <Link to="/login" className="flex items-center gap-2">
+            <LogIn className="h-4 w-4" />
+            {isOpen && "Iniciar Sesión"}
+          </Link>
+        </Button>
+        {isOpen && (
+          <Button asChild variant="outline" className="w-full justify-start">
+            <Link to="/register" className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Registrarse
+            </Link>
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+
   // Mobile sidebar with sheet
   if (isMobile) {
     return (
@@ -206,6 +325,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                 })}
               </div>
             </ScrollArea>
+            {isAuthenticated ? <AuthenticatedUserSection /> : <NonAuthenticatedUserSection />}
           </div>
         </SheetContent>
       </Sheet>
@@ -317,6 +437,7 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           )}
         </Button>
       </div>
+      {isAuthenticated ? <AuthenticatedUserSection /> : <NonAuthenticatedUserSection />}
     </div>
   );
 }
