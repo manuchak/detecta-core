@@ -193,7 +193,8 @@ export const LeadApprovals = () => {
 
   const handleApproveLead = async (lead: AssignedLead) => {
     try {
-      const { error } = await supabase.rpc('update_approval_process', {
+      // Primero actualizar el proceso de aprobación
+      const { error: approvalError } = await supabase.rpc('update_approval_process', {
         p_lead_id: lead.lead_id,
         p_stage: 'approved',
         p_interview_method: 'manual',
@@ -202,15 +203,34 @@ export const LeadApprovals = () => {
         p_decision_reason: 'Candidato calificado - aprobación directa'
       });
 
-      if (error) throw error;
+      if (approvalError) throw approvalError;
 
-      await supabase
+      // Luego actualizar el estado del lead
+      const { error: leadError } = await supabase
         .from('leads')
         .update({
           estado: 'aprobado',
           updated_at: new Date().toISOString()
         })
         .eq('id', lead.lead_id);
+
+      if (leadError) throw leadError;
+
+      // Asegurar que el registro en lead_approval_process existe y tiene final_decision
+      const { error: upsertError } = await supabase
+        .from('lead_approval_process')
+        .upsert({
+          lead_id: lead.lead_id,
+          analyst_id: (await supabase.auth.getUser()).data.user?.id,
+          final_decision: 'approved',
+          current_stage: 'approved',
+          phone_interview_completed: true,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'lead_id'
+        });
+
+      if (upsertError) throw upsertError;
 
       toast({
         title: "Candidato aprobado",
@@ -230,7 +250,8 @@ export const LeadApprovals = () => {
 
   const handleSendToSecondInterview = async (lead: AssignedLead) => {
     try {
-      const { error } = await supabase.rpc('update_approval_process', {
+      // Actualizar el proceso de aprobación
+      const { error: approvalError } = await supabase.rpc('update_approval_process', {
         p_lead_id: lead.lead_id,
         p_stage: 'second_interview',
         p_interview_method: 'manual',
@@ -239,7 +260,24 @@ export const LeadApprovals = () => {
         p_decision_reason: 'Requiere evaluación adicional en segunda entrevista'
       });
 
-      if (error) throw error;
+      if (approvalError) throw approvalError;
+
+      // Asegurar que el registro existe con la configuración correcta
+      const { error: upsertError } = await supabase
+        .from('lead_approval_process')
+        .upsert({
+          lead_id: lead.lead_id,
+          analyst_id: (await supabase.auth.getUser()).data.user?.id,
+          current_stage: 'second_interview',
+          second_interview_required: true,
+          phone_interview_completed: true,
+          final_decision: null,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'lead_id'
+        });
+
+      if (upsertError) throw upsertError;
 
       toast({
         title: "Candidato enviado a segunda entrevista",
@@ -259,7 +297,8 @@ export const LeadApprovals = () => {
 
   const handleReject = async (lead: AssignedLead) => {
     try {
-      const { error } = await supabase.rpc('update_approval_process', {
+      // Actualizar el proceso de aprobación
+      const { error: approvalError } = await supabase.rpc('update_approval_process', {
         p_lead_id: lead.lead_id,
         p_stage: 'rejected',
         p_interview_method: 'manual',
@@ -268,15 +307,33 @@ export const LeadApprovals = () => {
         p_decision_reason: 'No cumple con los requisitos'
       });
 
-      if (error) throw error;
+      if (approvalError) throw approvalError;
 
-      await supabase
+      // Actualizar el estado del lead
+      const { error: leadError } = await supabase
         .from('leads')
         .update({
           estado: 'rechazado',
           updated_at: new Date().toISOString()
         })
         .eq('id', lead.lead_id);
+
+      if (leadError) throw leadError;
+
+      // Asegurar que el registro existe con final_decision
+      const { error: upsertError } = await supabase
+        .from('lead_approval_process')
+        .upsert({
+          lead_id: lead.lead_id,
+          analyst_id: (await supabase.auth.getUser()).data.user?.id,
+          final_decision: 'rejected',
+          current_stage: 'rejected',
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'lead_id'
+        });
+
+      if (upsertError) throw upsertError;
 
       toast({
         title: "Candidato rechazado",
