@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +30,12 @@ import {
   Calendar,
   MoreHorizontal
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -81,7 +86,6 @@ export const LeadApprovals = () => {
     try {
       console.log('Fetching assigned leads...');
       
-      // Primero verificar que el usuario esté autenticado
       const { data: { user } } = await supabase.auth.getUser();
       console.log('Current user:', user?.id, user?.email);
       
@@ -134,19 +138,19 @@ export const LeadApprovals = () => {
 
   const getStatusBadge = (stage: string, decision: string | null) => {
     if (decision === 'approved') {
-      return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Aprobado</Badge>;
+      return <Badge className="bg-green-100 text-green-800 border-green-200">Aprobado</Badge>;
     }
     if (decision === 'rejected') {
-      return <Badge className="bg-red-100 text-red-800"><XCircle className="h-3 w-3 mr-1" />Rechazado</Badge>;
+      return <Badge className="bg-red-100 text-red-800 border-red-200">Rechazado</Badge>;
     }
     
     switch (stage) {
       case 'phone_interview':
-        return <Badge className="bg-blue-100 text-blue-800"><Phone className="h-3 w-3 mr-1" />Entrevista Telefónica</Badge>;
+        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Entrevista Telefónica</Badge>;
       case 'second_interview':
-        return <Badge className="bg-purple-100 text-purple-800"><Clock className="h-3 w-3 mr-1" />Segunda Entrevista</Badge>;
+        return <Badge className="bg-purple-100 text-purple-800 border-purple-200">Segunda Entrevista</Badge>;
       default:
-        return <Badge className="bg-gray-100 text-gray-800"><Clock className="h-3 w-3 mr-1" />Pendiente</Badge>;
+        return <Badge className="bg-gray-100 text-gray-800 border-gray-200">Pendiente</Badge>;
     }
   };
 
@@ -296,229 +300,254 @@ export const LeadApprovals = () => {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Aprobación de Candidatos</h1>
-          <p className="text-muted-foreground">
-            Gestiona las entrevistas y aprobaciones de los candidatos asignados.
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          onClick={fetchAssignedLeads}
-        >
-          Actualizar
-        </Button>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Candidatos Asignados</CardTitle>
-          <CardDescription>
-            Total: {assignedLeads.length} candidatos | 
-            Pendientes: {assignedLeads.filter(l => !l.final_decision).length} |
-            Aprobados: {assignedLeads.filter(l => l.final_decision === 'approved').length}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-6">
-            <div className="relative">
-              <Input
-                placeholder="Buscar por nombre, email o teléfono..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
-              />
-            </div>
+    <TooltipProvider>
+      <div className="space-y-6 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Aprobación de Candidatos</h1>
+            <p className="text-muted-foreground">
+              Gestiona las entrevistas y aprobaciones de los candidatos asignados.
+            </p>
           </div>
+          <Button
+            variant="outline"
+            onClick={fetchAssignedLeads}
+          >
+            Actualizar
+          </Button>
+        </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList>
-              <TabsTrigger value="pending">Pendientes</TabsTrigger>
-              <TabsTrigger value="approved">Aprobados</TabsTrigger>
-              <TabsTrigger value="rejected">Rechazados</TabsTrigger>
-            </TabsList>
+        <Card>
+          <CardHeader>
+            <CardTitle>Candidatos Asignados</CardTitle>
+            <CardDescription>
+              Total: {assignedLeads.length} candidatos | 
+              Pendientes: {assignedLeads.filter(l => !l.final_decision).length} |
+              Aprobados: {assignedLeads.filter(l => l.final_decision === 'approved').length}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-6">
+              <div className="relative">
+                <Input
+                  placeholder="Buscar por nombre, email o teléfono..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="max-w-sm"
+                />
+              </div>
+            </div>
 
-            <TabsContent value={activeTab} className="mt-6">
-              <div className="space-y-4">
-                {filteredLeads.length === 0 ? (
-                  <div className="text-center py-12">
-                    <p className="text-muted-foreground">No se encontraron candidatos</p>
-                  </div>
-                ) : (
-                  filteredLeads.map((lead) => {
-                    const leadCallLogs = getLeadCallLogs(lead.lead_id);
-                    
-                    return (
-                      <Card key={lead.lead_id} className="transition-all duration-200 hover:shadow-md border-l-4 border-l-blue-500">
-                        <CardContent className="p-6">
-                          <div className="flex items-start justify-between gap-6">
-                            {/* Información principal del candidato */}
-                            <div className="flex items-start gap-4 flex-1 min-w-0">
-                              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold shrink-0">
-                                {lead.lead_nombre.charAt(0).toUpperCase()}
-                              </div>
-                              
-                              <div className="flex-1 min-w-0">
-                                {/* Header con nombre y estado */}
-                                <div className="flex items-center gap-3 mb-3">
-                                  <h3 className="font-semibold text-lg text-gray-900 truncate">
-                                    {lead.lead_nombre}
-                                  </h3>
-                                  {getStatusBadge(lead.approval_stage, lead.final_decision)}
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList>
+                <TabsTrigger value="pending">Pendientes</TabsTrigger>
+                <TabsTrigger value="approved">Aprobados</TabsTrigger>
+                <TabsTrigger value="rejected">Rechazados</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value={activeTab} className="mt-6">
+                <div className="space-y-4">
+                  {filteredLeads.length === 0 ? (
+                    <div className="text-center py-12">
+                      <p className="text-muted-foreground">No se encontraron candidatos</p>
+                    </div>
+                  ) : (
+                    filteredLeads.map((lead) => {
+                      const leadCallLogs = getLeadCallLogs(lead.lead_id);
+                      
+                      return (
+                        <Card key={lead.lead_id} className="border-l-4 border-l-blue-500 hover:shadow-md transition-shadow">
+                          <CardContent className="p-6">
+                            <div className="flex items-center justify-between">
+                              {/* Información del candidato */}
+                              <div className="flex items-center gap-4 flex-1">
+                                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+                                  {lead.lead_nombre.charAt(0).toUpperCase()}
                                 </div>
                                 
-                                {/* Información de contacto */}
-                                <div className="space-y-2 mb-4">
-                                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                                    <Mail className="h-4 w-4 text-gray-400" />
-                                    <span className="truncate">{lead.lead_email}</span>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-3 mb-2">
+                                    <h3 className="font-semibold text-lg">{lead.lead_nombre}</h3>
+                                    {getStatusBadge(lead.approval_stage, lead.final_decision)}
                                   </div>
-                                  {lead.lead_telefono && (
-                                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                                      <Phone className="h-4 w-4 text-gray-400" />
-                                      <span>{lead.lead_telefono}</span>
+                                  
+                                  <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                                    <div className="flex items-center gap-1">
+                                      <Mail className="h-4 w-4" />
+                                      {lead.lead_email}
                                     </div>
-                                  )}
-                                </div>
-                                
-                                {/* Metadata */}
-                                <div className="flex items-center gap-4 text-xs text-gray-500">
-                                  <div className="flex items-center gap-1">
-                                    <Calendar className="h-3 w-3" />
-                                    {formatDate(lead.lead_fecha_creacion)}
+                                    {lead.lead_telefono && (
+                                      <div className="flex items-center gap-1">
+                                        <Phone className="h-4 w-4" />
+                                        {lead.lead_telefono}
+                                      </div>
+                                    )}
                                   </div>
-                                  <div className="flex items-center gap-1">
-                                    <Play className="h-3 w-3" />
-                                    {leadCallLogs.length} llamadas
+                                  
+                                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                                    <div className="flex items-center gap-1">
+                                      <Calendar className="h-3 w-3" />
+                                      {formatDate(lead.lead_fecha_creacion)}
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <Play className="h-3 w-3" />
+                                      {leadCallLogs.length} llamadas
+                                    </div>
                                   </div>
                                 </div>
                               </div>
-                            </div>
 
-                            {/* Panel de acciones */}
-                            <div className="flex items-start gap-3 shrink-0">
-                              {/* Acciones principales para candidatos pendientes */}
-                              {!lead.final_decision && (
-                                <div className="flex items-center gap-2">
-                                  {/* Botón de segunda entrevista o aprobación */}
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleApproveToNextStage(lead)}
-                                    className="bg-green-600 hover:bg-green-700 text-white shadow-sm"
-                                  >
-                                    {lead.approval_stage === 'phone_interview' ? (
+                              {/* Acciones con iconos y tooltips */}
+                              <div className="flex items-center gap-2">
+                                {/* Llamada VAPI - Acción principal */}
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleVapiCall(lead)}
+                                      className="h-9 w-9 p-0 bg-blue-50 hover:bg-blue-100 border-blue-200"
+                                    >
+                                      <Bot className="h-4 w-4 text-blue-600" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Llamada automática con VAPI</p>
+                                  </TooltipContent>
+                                </Tooltip>
+
+                                {/* Aprobar/Siguiente etapa - Solo para pendientes */}
+                                {!lead.final_decision && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleApproveToNextStage(lead)}
+                                        className="h-9 px-4 bg-green-600 hover:bg-green-700 text-white"
+                                      >
+                                        {lead.approval_stage === 'phone_interview' ? (
+                                          <>
+                                            <ArrowRight className="h-4 w-4 mr-1" />
+                                            2da Entrevista
+                                          </>
+                                        ) : (
+                                          <>
+                                            <CheckCircle className="h-4 w-4 mr-1" />
+                                            Aprobar
+                                          </>
+                                        )}
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>
+                                        {lead.approval_stage === 'phone_interview' 
+                                          ? "Enviar a segunda entrevista" 
+                                          : "Aprobar candidato"}
+                                      </p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+
+                                {/* Rechazar - Solo para pendientes */}
+                                {!lead.final_decision && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        size="sm"
+                                        variant="destructive"
+                                        onClick={() => handleReject(lead)}
+                                        className="h-9 w-9 p-0"
+                                      >
+                                        <XCircle className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Rechazar candidato</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+
+                                {/* Menú de acciones adicionales */}
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" size="sm" className="h-9 w-9 p-0">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-56">
+                                    <DropdownMenuItem onClick={() => handleEditLead(lead)}>
+                                      <Edit className="h-4 w-4 mr-2" />
+                                      Editar candidato
+                                    </DropdownMenuItem>
+                                    
+                                    <DropdownMenuSeparator />
+                                    
+                                    <DropdownMenuItem onClick={() => handleManualInterview(lead)}>
+                                      <Phone className="h-4 w-4 mr-2" />
+                                      Entrevista manual
+                                    </DropdownMenuItem>
+                                    
+                                    {leadCallLogs.length > 0 && (
                                       <>
-                                        <ArrowRight className="h-4 w-4 mr-1" />
-                                        2da Entrevista
-                                      </>
-                                    ) : (
-                                      <>
-                                        <UserCheck className="h-4 w-4 mr-1" />
-                                        Aprobar
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={() => handleViewCallHistory(lead)}>
+                                          <Play className="h-4 w-4 mr-2" />
+                                          Ver historial de llamadas
+                                        </DropdownMenuItem>
                                       </>
                                     )}
-                                  </Button>
-
-                                  {/* Botón de rechazo */}
-                                  <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={() => handleReject(lead)}
-                                    className="shadow-sm"
-                                  >
-                                    <XCircle className="h-4 w-4 mr-1" />
-                                    Rechazar
-                                  </Button>
-                                </div>
-                              )}
-
-                              {/* Menú de acciones adicionales */}
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-48">
-                                  <DropdownMenuItem onClick={() => handleEditLead(lead)}>
-                                    <Edit className="h-4 w-4 mr-2" />
-                                    Editar candidato
-                                  </DropdownMenuItem>
-                                  
-                                  <DropdownMenuSeparator />
-                                  
-                                  <DropdownMenuItem onClick={() => handleVapiCall(lead)}>
-                                    <Bot className="h-4 w-4 mr-2" />
-                                    Llamada VAPI
-                                  </DropdownMenuItem>
-                                  
-                                  <DropdownMenuItem onClick={() => handleManualInterview(lead)}>
-                                    <Phone className="h-4 w-4 mr-2" />
-                                    Entrevista Manual
-                                  </DropdownMenuItem>
-                                  
-                                  {leadCallLogs.length > 0 && (
-                                    <>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem onClick={() => handleViewCallHistory(lead)}>
-                                        <Play className="h-4 w-4 mr-2" />
-                                        Ver historial de llamadas
-                                      </DropdownMenuItem>
-                                    </>
-                                  )}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
 
-      {/* Dialogs */}
-      {selectedLead && (
-        <>
-          <LeadEditDialog
-            open={showEditDialog}
-            onOpenChange={setShowEditDialog}
-            lead={selectedLead}
-            onUpdate={fetchAssignedLeads}
-          />
-          
-          <VapiCallDialog
-            open={showVapiDialog}
-            onOpenChange={setShowVapiDialog}
-            lead={selectedLead}
-            onCallComplete={() => {
-              fetchCallLogs();
-              fetchAssignedLeads();
-            }}
-          />
-          
-          <ManualInterviewDialog
-            open={showManualDialog}
-            onOpenChange={setShowManualDialog}
-            lead={selectedLead}
-            onComplete={fetchAssignedLeads}
-          />
-          
-          <CallHistoryDialog
-            open={showCallHistory}
-            onOpenChange={setShowCallHistory}
-            lead={selectedLead}
-            callLogs={getLeadCallLogs(selectedLead.lead_id)}
-          />
-        </>
-      )}
-    </div>
+        {/* Dialogs */}
+        {selectedLead && (
+          <>
+            <LeadEditDialog
+              open={showEditDialog}
+              onOpenChange={setShowEditDialog}
+              lead={selectedLead}
+              onUpdate={fetchAssignedLeads}
+            />
+            
+            <VapiCallDialog
+              open={showVapiDialog}
+              onOpenChange={setShowVapiDialog}
+              lead={selectedLead}
+              onCallComplete={() => {
+                fetchCallLogs();
+                fetchAssignedLeads();
+              }}
+            />
+            
+            <ManualInterviewDialog
+              open={showManualDialog}
+              onOpenChange={setShowManualDialog}
+              lead={selectedLead}
+              onComplete={fetchAssignedLeads}
+            />
+            
+            <CallHistoryDialog
+              open={showCallHistory}
+              onOpenChange={setShowCallHistory}
+              lead={selectedLead}
+              callLogs={getLeadCallLogs(selectedLead.lead_id)}
+            />
+          </>
+        )}
+      </div>
+    </TooltipProvider>
   );
 };
 
