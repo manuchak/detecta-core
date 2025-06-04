@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,16 +15,21 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { 
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Phone, Bot, Edit, Play, CheckCircle, XCircle, Clock, User, Mail, MapPin } from "lucide-react";
+import { 
+  Phone, 
+  Bot, 
+  Edit, 
+  Play, 
+  CheckCircle, 
+  XCircle, 
+  Clock, 
+  User, 
+  Mail, 
+  ArrowRight,
+  UserCheck,
+  Calendar
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { LeadEditDialog } from "@/components/leads/LeadEditDialog";
@@ -172,6 +178,90 @@ export const LeadApprovals = () => {
     setShowCallHistory(true);
   };
 
+  const handleApproveToNextStage = async (lead: AssignedLead) => {
+    try {
+      let nextStage = 'approved';
+      let finalDecision = 'approved';
+      
+      if (lead.approval_stage === 'phone_interview') {
+        nextStage = 'second_interview';
+        finalDecision = null;
+      }
+
+      const { error } = await supabase.rpc('update_approval_process', {
+        p_lead_id: lead.lead_id,
+        p_stage: nextStage,
+        p_interview_method: 'manual',
+        p_notes: 'Aprobado directamente por el analista',
+        p_decision: finalDecision,
+        p_decision_reason: 'Candidato calificado para siguiente etapa'
+      });
+
+      if (error) throw error;
+
+      if (finalDecision) {
+        await supabase
+          .from('leads')
+          .update({
+            estado: 'aprobado',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', lead.lead_id);
+      }
+
+      toast({
+        title: "Candidato aprobado",
+        description: finalDecision ? "El candidato ha sido aprobado completamente." : "El candidato ha sido enviado a segunda entrevista.",
+      });
+
+      fetchAssignedLeads();
+    } catch (error) {
+      console.error('Error approving lead:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo aprobar el candidato.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleReject = async (lead: AssignedLead) => {
+    try {
+      const { error } = await supabase.rpc('update_approval_process', {
+        p_lead_id: lead.lead_id,
+        p_stage: 'rejected',
+        p_interview_method: 'manual',
+        p_notes: 'Rechazado por el analista',
+        p_decision: 'rejected',
+        p_decision_reason: 'No cumple con los requisitos'
+      });
+
+      if (error) throw error;
+
+      await supabase
+        .from('leads')
+        .update({
+          estado: 'rechazado',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', lead.lead_id);
+
+      toast({
+        title: "Candidato rechazado",
+        description: "El candidato ha sido rechazado.",
+      });
+
+      fetchAssignedLeads();
+    } catch (error) {
+      console.error('Error rejecting lead:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo rechazar el candidato.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('es-MX', {
       year: 'numeric',
@@ -214,19 +304,6 @@ export const LeadApprovals = () => {
         </Button>
       </div>
 
-      {/* Debug information - solo mostrar en desarrollo */}
-      {process.env.NODE_ENV === 'development' && (
-        <Card className="bg-yellow-50 border-yellow-200">
-          <CardHeader>
-            <CardTitle className="text-sm">Debug Info</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs">Total leads encontrados: {assignedLeads.length}</p>
-            <p className="text-xs">Call logs: {callLogs.length}</p>
-          </CardContent>
-        </Card>
-      )}
-
       <Card>
         <CardHeader>
           <CardTitle>Candidatos Asignados</CardTitle>
@@ -256,115 +333,141 @@ export const LeadApprovals = () => {
             </TabsList>
 
             <TabsContent value={activeTab}>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Candidato</TableHead>
-                      <TableHead>Contacto</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Llamadas</TableHead>
-                      <TableHead>Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredLeads.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-10">
-                          <p>No se encontraron candidatos</p>
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredLeads.map((lead) => {
-                        const leadCallLogs = getLeadCallLogs(lead.lead_id);
-                        
-                        return (
-                          <TableRow key={lead.lead_id}>
-                            <TableCell>
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                                  <User className="h-5 w-5 text-blue-600" />
-                                </div>
-                                <div>
-                                  <p className="font-medium">{lead.lead_nombre}</p>
-                                  <p className="text-sm text-muted-foreground">{lead.lead_email}</p>
-                                </div>
+              <div className="grid gap-4">
+                {filteredLeads.length === 0 ? (
+                  <div className="text-center py-10">
+                    <p>No se encontraron candidatos</p>
+                  </div>
+                ) : (
+                  filteredLeads.map((lead) => {
+                    const leadCallLogs = getLeadCallLogs(lead.lead_id);
+                    
+                    return (
+                      <Card key={lead.lead_id} className="hover:shadow-md transition-shadow">
+                        <CardContent className="p-6">
+                          <div className="flex items-start justify-between">
+                            {/* Información del candidato */}
+                            <div className="flex items-start gap-4 flex-1">
+                              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+                                {lead.lead_nombre.charAt(0).toUpperCase()}
                               </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-sm">
-                                  <Mail className="h-3 w-3" />
-                                  {lead.lead_email}
+                              
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h3 className="font-semibold text-lg">{lead.lead_nombre}</h3>
+                                  {getStatusBadge(lead.approval_stage, lead.final_decision)}
                                 </div>
-                                {lead.lead_telefono && (
-                                  <div className="flex items-center gap-2 text-sm">
-                                    <Phone className="h-3 w-3" />
-                                    {lead.lead_telefono}
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-muted-foreground mb-3">
+                                  <div className="flex items-center gap-2">
+                                    <Mail className="h-4 w-4" />
+                                    {lead.lead_email}
                                   </div>
-                                )}
+                                  {lead.lead_telefono && (
+                                    <div className="flex items-center gap-2">
+                                      <Phone className="h-4 w-4" />
+                                      {lead.lead_telefono}
+                                    </div>
+                                  )}
+                                  <div className="flex items-center gap-2">
+                                    <Calendar className="h-4 w-4" />
+                                    {formatDate(lead.lead_fecha_creacion)}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Play className="h-4 w-4" />
+                                    {leadCallLogs.length} llamadas
+                                  </div>
+                                </div>
                               </div>
-                            </TableCell>
-                            <TableCell>
-                              {getStatusBadge(lead.approval_stage, lead.final_decision)}
-                            </TableCell>
-                            <TableCell>
-                              {formatDate(lead.lead_fecha_creacion)}
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-1">
-                                <p className="text-sm">{leadCallLogs.length} llamadas</p>
-                                {leadCallLogs.length > 0 && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleViewCallHistory(lead)}
-                                  >
-                                    <Play className="h-3 w-3 mr-1" />
-                                    Ver historial
-                                  </Button>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
+                            </div>
+
+                            {/* Acciones */}
+                            <div className="flex flex-col gap-2 ml-4">
                               <div className="flex gap-2">
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleEditLead(lead)}
                                 >
-                                  <Edit className="h-3 w-3 mr-1" />
+                                  <Edit className="h-4 w-4 mr-1" />
                                   Editar
                                 </Button>
-                                {!lead.phone_interview_completed && (
-                                  <>
+                                
+                                {leadCallLogs.length > 0 && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleViewCallHistory(lead)}
+                                  >
+                                    <Play className="h-4 w-4 mr-1" />
+                                    Historial
+                                  </Button>
+                                )}
+                              </div>
+
+                              {!lead.final_decision && (
+                                <div className="flex gap-2">
+                                  {/* Entrevistas */}
+                                  <div className="flex gap-1">
                                     <Button
                                       variant="outline"
                                       size="sm"
                                       onClick={() => handleVapiCall(lead)}
+                                      className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
                                     >
-                                      <Bot className="h-3 w-3 mr-1" />
+                                      <Bot className="h-4 w-4 mr-1" />
                                       VAPI
                                     </Button>
                                     <Button
                                       variant="outline"
                                       size="sm"
                                       onClick={() => handleManualInterview(lead)}
+                                      className="bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200"
                                     >
-                                      <Phone className="h-3 w-3 mr-1" />
+                                      <Phone className="h-4 w-4 mr-1" />
                                       Manual
                                     </Button>
-                                  </>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
+                                  </div>
+                                </div>
+                              )}
+
+                              {!lead.final_decision && (
+                                <div className="flex gap-2">
+                                  {/* Decisiones rápidas */}
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleApproveToNextStage(lead)}
+                                    className="bg-green-600 hover:bg-green-700 text-white"
+                                  >
+                                    {lead.approval_stage === 'phone_interview' ? (
+                                      <>
+                                        <ArrowRight className="h-4 w-4 mr-1" />
+                                        2da Entrevista
+                                      </>
+                                    ) : (
+                                      <>
+                                        <UserCheck className="h-4 w-4 mr-1" />
+                                        Aprobar
+                                      </>
+                                    )}
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => handleReject(lead)}
+                                  >
+                                    <XCircle className="h-4 w-4 mr-1" />
+                                    Rechazar
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+                )}
               </div>
             </TabsContent>
           </Tabs>
