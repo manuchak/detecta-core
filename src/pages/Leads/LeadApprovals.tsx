@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -193,7 +192,7 @@ export const LeadApprovals = () => {
 
   const handleApproveLead = async (lead: AssignedLead) => {
     try {
-      // Primero actualizar el proceso de aprobación
+      // Usar la función SQL actualizada
       const { error: approvalError } = await supabase.rpc('update_approval_process', {
         p_lead_id: lead.lead_id,
         p_stage: 'approved',
@@ -205,7 +204,7 @@ export const LeadApprovals = () => {
 
       if (approvalError) throw approvalError;
 
-      // Luego actualizar el estado del lead
+      // Actualizar el estado del lead
       const { error: leadError } = await supabase
         .from('leads')
         .update({
@@ -215,22 +214,6 @@ export const LeadApprovals = () => {
         .eq('id', lead.lead_id);
 
       if (leadError) throw leadError;
-
-      // Asegurar que el registro en lead_approval_process existe y tiene final_decision
-      const { error: upsertError } = await supabase
-        .from('lead_approval_process')
-        .upsert({
-          lead_id: lead.lead_id,
-          analyst_id: (await supabase.auth.getUser()).data.user?.id,
-          final_decision: 'approved',
-          current_stage: 'approved',
-          phone_interview_completed: true,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'lead_id'
-        });
-
-      if (upsertError) throw upsertError;
 
       toast({
         title: "Candidato aprobado",
@@ -250,7 +233,7 @@ export const LeadApprovals = () => {
 
   const handleSendToSecondInterview = async (lead: AssignedLead) => {
     try {
-      // Actualizar el proceso de aprobación
+      // Usar la función SQL actualizada
       const { error: approvalError } = await supabase.rpc('update_approval_process', {
         p_lead_id: lead.lead_id,
         p_stage: 'second_interview',
@@ -261,23 +244,6 @@ export const LeadApprovals = () => {
       });
 
       if (approvalError) throw approvalError;
-
-      // Asegurar que el registro existe con la configuración correcta
-      const { error: upsertError } = await supabase
-        .from('lead_approval_process')
-        .upsert({
-          lead_id: lead.lead_id,
-          analyst_id: (await supabase.auth.getUser()).data.user?.id,
-          current_stage: 'second_interview',
-          second_interview_required: true,
-          phone_interview_completed: true,
-          final_decision: null,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'lead_id'
-        });
-
-      if (upsertError) throw upsertError;
 
       toast({
         title: "Candidato enviado a segunda entrevista",
@@ -297,7 +263,7 @@ export const LeadApprovals = () => {
 
   const handleReject = async (lead: AssignedLead) => {
     try {
-      // Actualizar el proceso de aprobación
+      // Usar la función SQL actualizada
       const { error: approvalError } = await supabase.rpc('update_approval_process', {
         p_lead_id: lead.lead_id,
         p_stage: 'rejected',
@@ -319,21 +285,6 @@ export const LeadApprovals = () => {
         .eq('id', lead.lead_id);
 
       if (leadError) throw leadError;
-
-      // Asegurar que el registro existe con final_decision
-      const { error: upsertError } = await supabase
-        .from('lead_approval_process')
-        .upsert({
-          lead_id: lead.lead_id,
-          analyst_id: (await supabase.auth.getUser()).data.user?.id,
-          final_decision: 'rejected',
-          current_stage: 'rejected',
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'lead_id'
-        });
-
-      if (upsertError) throw upsertError;
 
       toast({
         title: "Candidato rechazado",
