@@ -28,8 +28,16 @@ import {
   Mail, 
   ArrowRight,
   UserCheck,
-  Calendar
+  Calendar,
+  MoreHorizontal
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
+} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { LeadEditDialog } from "@/components/leads/LeadEditDialog";
@@ -314,7 +322,7 @@ export const LeadApprovals = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-4">
+          <div className="mb-6">
             <div className="relative">
               <Input
                 placeholder="Buscar por nombre, email o teléfono..."
@@ -332,112 +340,73 @@ export const LeadApprovals = () => {
               <TabsTrigger value="rejected">Rechazados</TabsTrigger>
             </TabsList>
 
-            <TabsContent value={activeTab}>
-              <div className="grid gap-4">
+            <TabsContent value={activeTab} className="mt-6">
+              <div className="space-y-4">
                 {filteredLeads.length === 0 ? (
-                  <div className="text-center py-10">
-                    <p>No se encontraron candidatos</p>
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground">No se encontraron candidatos</p>
                   </div>
                 ) : (
                   filteredLeads.map((lead) => {
                     const leadCallLogs = getLeadCallLogs(lead.lead_id);
                     
                     return (
-                      <Card key={lead.lead_id} className="hover:shadow-md transition-shadow">
+                      <Card key={lead.lead_id} className="transition-all duration-200 hover:shadow-md border-l-4 border-l-blue-500">
                         <CardContent className="p-6">
-                          <div className="flex items-start justify-between">
-                            {/* Información del candidato */}
-                            <div className="flex items-start gap-4 flex-1">
-                              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+                          <div className="flex items-start justify-between gap-6">
+                            {/* Información principal del candidato */}
+                            <div className="flex items-start gap-4 flex-1 min-w-0">
+                              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold shrink-0">
                                 {lead.lead_nombre.charAt(0).toUpperCase()}
                               </div>
                               
                               <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h3 className="font-semibold text-lg">{lead.lead_nombre}</h3>
+                                {/* Header con nombre y estado */}
+                                <div className="flex items-center gap-3 mb-3">
+                                  <h3 className="font-semibold text-lg text-gray-900 truncate">
+                                    {lead.lead_nombre}
+                                  </h3>
                                   {getStatusBadge(lead.approval_stage, lead.final_decision)}
                                 </div>
                                 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-muted-foreground mb-3">
-                                  <div className="flex items-center gap-2">
-                                    <Mail className="h-4 w-4" />
-                                    {lead.lead_email}
+                                {/* Información de contacto */}
+                                <div className="space-y-2 mb-4">
+                                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                                    <Mail className="h-4 w-4 text-gray-400" />
+                                    <span className="truncate">{lead.lead_email}</span>
                                   </div>
                                   {lead.lead_telefono && (
-                                    <div className="flex items-center gap-2">
-                                      <Phone className="h-4 w-4" />
-                                      {lead.lead_telefono}
+                                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                                      <Phone className="h-4 w-4 text-gray-400" />
+                                      <span>{lead.lead_telefono}</span>
                                     </div>
                                   )}
-                                  <div className="flex items-center gap-2">
-                                    <Calendar className="h-4 w-4" />
+                                </div>
+                                
+                                {/* Metadata */}
+                                <div className="flex items-center gap-4 text-xs text-gray-500">
+                                  <div className="flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
                                     {formatDate(lead.lead_fecha_creacion)}
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <Play className="h-4 w-4" />
+                                  <div className="flex items-center gap-1">
+                                    <Play className="h-3 w-3" />
                                     {leadCallLogs.length} llamadas
                                   </div>
                                 </div>
                               </div>
                             </div>
 
-                            {/* Acciones */}
-                            <div className="flex flex-col gap-2 ml-4">
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleEditLead(lead)}
-                                >
-                                  <Edit className="h-4 w-4 mr-1" />
-                                  Editar
-                                </Button>
-                                
-                                {leadCallLogs.length > 0 && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleViewCallHistory(lead)}
-                                  >
-                                    <Play className="h-4 w-4 mr-1" />
-                                    Historial
-                                  </Button>
-                                )}
-                              </div>
-
+                            {/* Panel de acciones */}
+                            <div className="flex items-start gap-3 shrink-0">
+                              {/* Acciones principales para candidatos pendientes */}
                               {!lead.final_decision && (
-                                <div className="flex gap-2">
-                                  {/* Entrevistas */}
-                                  <div className="flex gap-1">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleVapiCall(lead)}
-                                      className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
-                                    >
-                                      <Bot className="h-4 w-4 mr-1" />
-                                      VAPI
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleManualInterview(lead)}
-                                      className="bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200"
-                                    >
-                                      <Phone className="h-4 w-4 mr-1" />
-                                      Manual
-                                    </Button>
-                                  </div>
-                                </div>
-                              )}
-
-                              {!lead.final_decision && (
-                                <div className="flex gap-2">
-                                  {/* Decisiones rápidas */}
+                                <div className="flex items-center gap-2">
+                                  {/* Botón de segunda entrevista o aprobación */}
                                   <Button
                                     size="sm"
                                     onClick={() => handleApproveToNextStage(lead)}
-                                    className="bg-green-600 hover:bg-green-700 text-white"
+                                    className="bg-green-600 hover:bg-green-700 text-white shadow-sm"
                                   >
                                     {lead.approval_stage === 'phone_interview' ? (
                                       <>
@@ -451,16 +420,56 @@ export const LeadApprovals = () => {
                                       </>
                                     )}
                                   </Button>
+
+                                  {/* Botón de rechazo */}
                                   <Button
                                     variant="destructive"
                                     size="sm"
                                     onClick={() => handleReject(lead)}
+                                    className="shadow-sm"
                                   >
                                     <XCircle className="h-4 w-4 mr-1" />
                                     Rechazar
                                   </Button>
                                 </div>
                               )}
+
+                              {/* Menú de acciones adicionales */}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                  <DropdownMenuItem onClick={() => handleEditLead(lead)}>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Editar candidato
+                                  </DropdownMenuItem>
+                                  
+                                  <DropdownMenuSeparator />
+                                  
+                                  <DropdownMenuItem onClick={() => handleVapiCall(lead)}>
+                                    <Bot className="h-4 w-4 mr-2" />
+                                    Llamada VAPI
+                                  </DropdownMenuItem>
+                                  
+                                  <DropdownMenuItem onClick={() => handleManualInterview(lead)}>
+                                    <Phone className="h-4 w-4 mr-2" />
+                                    Entrevista Manual
+                                  </DropdownMenuItem>
+                                  
+                                  {leadCallLogs.length > 0 && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem onClick={() => handleViewCallHistory(lead)}>
+                                        <Play className="h-4 w-4 mr-2" />
+                                        Ver historial de llamadas
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </div>
                         </CardContent>
