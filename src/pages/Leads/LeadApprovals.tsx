@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -190,40 +191,30 @@ export const LeadApprovals = () => {
     setShowCallHistory(true);
   };
 
-  const handleApproveToNextStage = async (lead: AssignedLead) => {
+  const handleApproveLead = async (lead: AssignedLead) => {
     try {
-      let nextStage = 'approved';
-      let finalDecision = 'approved';
-      
-      if (lead.approval_stage === 'phone_interview') {
-        nextStage = 'second_interview';
-        finalDecision = null;
-      }
-
       const { error } = await supabase.rpc('update_approval_process', {
         p_lead_id: lead.lead_id,
-        p_stage: nextStage,
+        p_stage: 'approved',
         p_interview_method: 'manual',
         p_notes: 'Aprobado directamente por el analista',
-        p_decision: finalDecision,
-        p_decision_reason: 'Candidato calificado para siguiente etapa'
+        p_decision: 'approved',
+        p_decision_reason: 'Candidato calificado - aprobación directa'
       });
 
       if (error) throw error;
 
-      if (finalDecision) {
-        await supabase
-          .from('leads')
-          .update({
-            estado: 'aprobado',
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', lead.lead_id);
-      }
+      await supabase
+        .from('leads')
+        .update({
+          estado: 'aprobado',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', lead.lead_id);
 
       toast({
         title: "Candidato aprobado",
-        description: finalDecision ? "El candidato ha sido aprobado completamente." : "El candidato ha sido enviado a segunda entrevista.",
+        description: "El candidato ha sido aprobado directamente.",
       });
 
       fetchAssignedLeads();
@@ -232,6 +223,35 @@ export const LeadApprovals = () => {
       toast({
         title: "Error",
         description: "No se pudo aprobar el candidato.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSendToSecondInterview = async (lead: AssignedLead) => {
+    try {
+      const { error } = await supabase.rpc('update_approval_process', {
+        p_lead_id: lead.lead_id,
+        p_stage: 'second_interview',
+        p_interview_method: 'manual',
+        p_notes: 'Enviado a segunda entrevista por el analista',
+        p_decision: null,
+        p_decision_reason: 'Requiere evaluación adicional en segunda entrevista'
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Candidato enviado a segunda entrevista",
+        description: "El candidato ha sido programado para segunda entrevista.",
+      });
+
+      fetchAssignedLeads();
+    } catch (error) {
+      console.error('Error sending to second interview:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo enviar a segunda entrevista.",
         variant: "destructive",
       });
     }
@@ -416,55 +436,61 @@ export const LeadApprovals = () => {
                                   </TooltipContent>
                                 </Tooltip>
 
-                                {/* Aprobar/Siguiente etapa - Solo para pendientes */}
+                                {/* Acciones de aprobación - Solo para pendientes */}
                                 {!lead.final_decision && (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        size="sm"
-                                        onClick={() => handleApproveToNextStage(lead)}
-                                        className="h-9 px-4 bg-green-600 hover:bg-green-700 text-white"
-                                      >
-                                        {lead.approval_stage === 'phone_interview' ? (
-                                          <>
-                                            <ArrowRight className="h-4 w-4 mr-1" />
-                                            2da Entrevista
-                                          </>
-                                        ) : (
-                                          <>
-                                            <CheckCircle className="h-4 w-4 mr-1" />
-                                            Aprobar
-                                          </>
-                                        )}
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>
-                                        {lead.approval_stage === 'phone_interview' 
-                                          ? "Enviar a segunda entrevista" 
-                                          : "Aprobar candidato"}
-                                      </p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                )}
+                                  <>
+                                    {/* Aprobar directamente */}
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          size="sm"
+                                          onClick={() => handleApproveLead(lead)}
+                                          className="h-9 px-4 bg-green-600 hover:bg-green-700 text-white"
+                                        >
+                                          <CheckCircle className="h-4 w-4 mr-1" />
+                                          Aprobar
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Aprobar candidato directamente</p>
+                                      </TooltipContent>
+                                    </Tooltip>
 
-                                {/* Rechazar - Solo para pendientes */}
-                                {!lead.final_decision && (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        size="sm"
-                                        variant="destructive"
-                                        onClick={() => handleReject(lead)}
-                                        className="h-9 w-9 p-0"
-                                      >
-                                        <XCircle className="h-4 w-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>Rechazar candidato</p>
-                                    </TooltipContent>
-                                  </Tooltip>
+                                    {/* Enviar a segunda entrevista */}
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => handleSendToSecondInterview(lead)}
+                                          className="h-9 px-4 border-purple-200 text-purple-700 hover:bg-purple-50"
+                                        >
+                                          <ArrowRight className="h-4 w-4 mr-1" />
+                                          2da Entrevista
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Enviar a segunda entrevista</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+
+                                    {/* Rechazar */}
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          size="sm"
+                                          variant="destructive"
+                                          onClick={() => handleReject(lead)}
+                                          className="h-9 w-9 p-0"
+                                        >
+                                          <XCircle className="h-4 w-4" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Rechazar candidato</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </>
                                 )}
 
                                 {/* Menú de acciones adicionales */}
