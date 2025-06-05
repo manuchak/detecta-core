@@ -1,4 +1,3 @@
-
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
@@ -92,11 +91,6 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           title: "Aprobación de Leads",
           href: "/leads/approval",
           isActive: pathname === "/leads/approval",
-        },
-        {
-          title: "Crear Lead",
-          href: "/leads/new",
-          isActive: pathname === "/leads/new",
         },
       ],
     },

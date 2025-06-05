@@ -1,4 +1,3 @@
-
 -- Función para obtener leads asignados al analista actual con información del proceso de aprobación
 CREATE OR REPLACE FUNCTION public.get_analyst_assigned_leads()
 RETURNS TABLE(
@@ -11,7 +10,8 @@ RETURNS TABLE(
   approval_stage text,
   phone_interview_completed boolean,
   second_interview_required boolean,
-  final_decision text
+  final_decision text,
+  notas text
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -39,7 +39,8 @@ BEGIN
     COALESCE(lap.current_stage, 'phone_interview') as approval_stage,
     COALESCE(lap.phone_interview_completed, false) as phone_interview_completed,
     COALESCE(lap.second_interview_required, false) as second_interview_required,
-    lap.final_decision::text as final_decision
+    lap.final_decision::text as final_decision,
+    l.notas as notas
   FROM public.leads l
   LEFT JOIN public.lead_approval_process lap ON l.id = lap.lead_id
   WHERE l.asignado_a = current_user_id

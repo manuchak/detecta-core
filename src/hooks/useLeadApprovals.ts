@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { AssignedLead } from "@/types/leadTypes";
 import { VapiCallLog } from "@/types/vapiTypes";
+import { validateLeadForApproval, getValidationMessage } from "@/utils/leadValidation";
 
 export const useLeadApprovals = () => {
   const [assignedLeads, setAssignedLeads] = useState<AssignedLead[]>([]);
@@ -66,6 +67,19 @@ export const useLeadApprovals = () => {
   };
 
   const handleApproveLead = async (lead: AssignedLead) => {
+    // Validar que todos los campos requeridos estén completos
+    const validation = validateLeadForApproval(lead);
+    
+    if (!validation.isValid) {
+      const message = getValidationMessage(validation.missingFields);
+      toast({
+        title: "Información incompleta",
+        description: `No se puede aprobar el candidato. ${message}. Por favor, edita el candidato y completa la información faltante.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const { error: approvalError } = await supabase
         .from('lead_approval_process')
@@ -111,6 +125,19 @@ export const useLeadApprovals = () => {
   };
 
   const handleSendToSecondInterview = async (lead: AssignedLead) => {
+    // Validar que todos los campos requeridos estén completos
+    const validation = validateLeadForApproval(lead);
+    
+    if (!validation.isValid) {
+      const message = getValidationMessage(validation.missingFields);
+      toast({
+        title: "Información incompleta",
+        description: `No se puede enviar a segunda entrevista. ${message}. Por favor, edita el candidato y completa la información faltante.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const { error: approvalError } = await supabase
         .from('lead_approval_process')
@@ -146,6 +173,7 @@ export const useLeadApprovals = () => {
   };
 
   const handleReject = async (lead: AssignedLead) => {
+    // Para rechazar no se requiere validación de campos completos
     try {
       const { error: approvalError } = await supabase
         .from('lead_approval_process')

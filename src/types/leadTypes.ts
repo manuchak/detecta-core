@@ -10,4 +10,5 @@ export interface AssignedLead {
   phone_interview_completed: boolean;
   second_interview_required: boolean;
   final_decision: string | null;
+  notas?: string; // Campo para almacenar información adicional del candidato
 }
