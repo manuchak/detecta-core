@@ -2,7 +2,7 @@
 -- Función para obtener leads asignados al analista actual con información del proceso de aprobación
 CREATE OR REPLACE FUNCTION public.get_analyst_assigned_leads()
 RETURNS TABLE(
-  lead_id uuid,
+  lead_id text,
   lead_nombre text,
   lead_email text,
   lead_telefono text,
@@ -58,7 +58,7 @@ $$;
 
 -- Función para actualizar el proceso de aprobación
 CREATE OR REPLACE FUNCTION public.update_approval_process(
-  p_lead_id uuid,
+  p_lead_id text,
   p_stage text,
   p_interview_method text DEFAULT NULL,
   p_notes text DEFAULT NULL,
