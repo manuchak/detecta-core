@@ -5,10 +5,10 @@ import { MonthlyGmvData } from './useDashboardData';
 
 export const useGmvChartData = () => {
   const { data: gmvData = [], isLoading, error } = useQuery({
-    queryKey: ['gmv-chart-data-forensic-corrected'],
+    queryKey: ['gmv-chart-data-forensic-corrected-full'],
     queryFn: async () => {
       try {
-        console.log("🔄 GMV CHART: Iniciando análisis corregido...");
+        console.log("🔄 GMV CHART: Iniciando análisis corregido COMPLETO...");
         
         // Obtener datos RAW
         const { data: rawData, error: rawError } = await supabase.rpc('bypass_rls_get_servicios', {
@@ -27,23 +27,29 @@ export const useGmvChartData = () => {
           return [];
         }
 
-        // Filtrar datos de 2025
+        // Filtrar datos de 2025 con validación robusta
         const data2025 = rawData.filter(item => {
           if (!item.fecha_hora_cita) return false;
-          const fecha = new Date(item.fecha_hora_cita);
-          return fecha.getFullYear() === 2025;
+          try {
+            const fecha = new Date(item.fecha_hora_cita);
+            const year = fecha.getFullYear();
+            return year === 2025;
+          } catch (error) {
+            console.warn(`⚠️ Fecha inválida en gráfico: ${item.fecha_hora_cita}`);
+            return false;
+          }
         });
 
-        console.log(`📅 Registros de 2025: ${data2025.length}`);
+        console.log(`📅 Registros de 2025 para gráfico: ${data2025.length}`);
 
         // Aplicar filtros forenses: Finalizado + cobro válido + ID válido
         const serviciosValidosParaGMV = data2025.filter(item => {
           // 1. ID de servicio válido
           if (!item.id_servicio || item.id_servicio.trim() === '') return false;
           
-          // 2. Estado finalizado
+          // 2. Estado finalizado (con variaciones)
           const estado = (item.estado || '').trim().toLowerCase();
-          if (estado !== 'finalizado') return false;
+          if (estado !== 'finalizado' && estado !== 'completado' && estado !== 'finished') return false;
           
           // 3. Cobro válido (mayor a 0)
           const cobro = parseFloat(String(item.cobro_cliente)) || 0;
@@ -72,7 +78,7 @@ export const useGmvChartData = () => {
         });
         
         const serviciosUnicosArray = Array.from(serviciosUnicos.values());
-        console.log(`🎯 Servicios únicos: ${serviciosUnicosArray.length}`);
+        console.log(`🎯 Servicios únicos para gráfico: ${serviciosUnicosArray.length}`);
         
         // Procesar datos por mes
         const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -85,14 +91,18 @@ export const useGmvChartData = () => {
         
         // Agregar datos por mes
         serviciosUnicosArray.forEach(item => {
-          const fecha = new Date(item.fecha_hora_cita);
-          const month = fecha.getMonth(); // 0-11
-          const cobro = parseFloat(String(item.cobro_cliente)) || 0;
-          dataPorMes[month] += cobro;
+          try {
+            const fecha = new Date(item.fecha_hora_cita);
+            const month = fecha.getMonth(); // 0-11
+            const cobro = parseFloat(String(item.cobro_cliente)) || 0;
+            dataPorMes[month] += cobro;
+          } catch (error) {
+            console.warn(`⚠️ Error procesando fecha para gráfico: ${item.fecha_hora_cita}`);
+          }
         });
         
         // Log detallado por mes
-        console.log('📈 DESGLOSE MENSUAL CORREGIDO:');
+        console.log('📈 DESGLOSE MENSUAL GRÁFICO CORREGIDO:');
         for (let month = 0; month < 12; month++) {
           if (dataPorMes[month] > 0) {
             console.log(`  ${monthNames[month]} 2025: $${dataPorMes[month].toLocaleString()}`);
@@ -110,10 +120,9 @@ export const useGmvChartData = () => {
         const totalGrafico = result.reduce((sum, item) => sum + item.value, 0);
         console.log(`🎯 TOTAL GMV GRÁFICO: $${totalGrafico.toLocaleString()}`);
         
-        // Mostrar solo meses con datos
-        const mesesConDatos = result.filter(item => item.value > 0);
-        console.log(`📊 Meses con datos: ${mesesConDatos.length}`);
-        mesesConDatos.forEach(item => {
+        // Mostrar todos los meses (incluidos los que tienen 0)
+        console.log(`📊 Todos los meses del año:`);
+        result.forEach(item => {
           console.log(`  ${item.name}: $${item.value.toLocaleString()}`);
         });
         
@@ -125,7 +134,7 @@ export const useGmvChartData = () => {
       }
     },
     enabled: true,
-    staleTime: 5 * 60 * 1000, // 5 minutos
+    staleTime: 2 * 60 * 1000, // 2 minutos
     retry: 3,
     refetchOnWindowFocus: false,
     refetchOnMount: true
