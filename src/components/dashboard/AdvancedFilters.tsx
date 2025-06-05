@@ -65,8 +65,8 @@ export const AdvancedFilters = ({
   const timeframeOptions = [
     { value: "day", label: "Hoy" },
     { value: "week", label: "Últimos 7 días" },
-    { value: "month", label: "Último mes" },
     { value: "thisMonth", label: "Este mes" },
+    { value: "month", label: "Último mes" },
     { value: "quarter", label: "Último trimestre" },
     { value: "thisQuarter", label: "Este trimestre" },
     { value: "year", label: "Último año" },
@@ -91,7 +91,7 @@ export const AdvancedFilters = ({
 
   const clearAllFilters = () => {
     onFiltersChange({
-      timeframe: "month",
+      timeframe: "thisMonth",
       serviceType: "all"
     });
     setClientSearch("");

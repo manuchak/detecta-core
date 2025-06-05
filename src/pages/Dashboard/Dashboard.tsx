@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { 
   useDashboardDataCorrected as useDashboardData, 
@@ -16,7 +15,7 @@ import { AlertCircle, Loader2, BarChart3, TrendingUp, Activity, Database } from 
 import { Button } from "@/components/ui/button";
 
 export const Dashboard = () => {
-  const [timeframe, setTimeframe] = useState<TimeframeOption>("month");
+  const [timeframe, setTimeframe] = useState<TimeframeOption>("thisMonth");
   const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceTypeOption>("all");
   
   // Datos filtrados para gráficos
