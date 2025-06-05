@@ -5,30 +5,12 @@ import { MonthlyGmvData } from './useDashboardData';
 
 export const useGmvChartData = () => {
   const { data: gmvData = [], isLoading, error } = useQuery({
-    queryKey: ['gmv-chart-data-forensic-exact'],
+    queryKey: ['gmv-chart-data-forensic-corrected'],
     queryFn: async () => {
       try {
-        console.log("🔄 GMV CHART: Usando EXACTAMENTE la misma función forense...");
+        console.log("🔄 GMV CHART: Iniciando análisis corregido...");
         
-        // Usar EXACTAMENTE la misma función que el análisis forense
-        const { data: forensicResult, error: forensicError } = await supabase
-          .rpc('forensic_audit_servicios_enero_actual');
-
-        if (forensicError) {
-          console.error('❌ Error obteniendo auditoría forense:', forensicError);
-          throw forensicError;
-        }
-
-        console.log(`📋 Datos forenses exactos:`, forensicResult?.[0]);
-        
-        if (!forensicResult || forensicResult.length === 0) {
-          console.warn('⚠️ No se obtuvieron datos del análisis forense');
-          return [];
-        }
-
-        const forensicData = forensicResult[0];
-        
-        // OBTENER exactamente los mismos datos RAW que usa el análisis forense
+        // Obtener datos RAW
         const { data: rawData, error: rawError } = await supabase.rpc('bypass_rls_get_servicios', {
           max_records: 500000
         });
@@ -38,39 +20,41 @@ export const useGmvChartData = () => {
           throw rawError;
         }
 
-        console.log(`📋 Total registros RAW obtenidos: ${rawData?.length || 0}`);
+        console.log(`📋 Total registros RAW: ${rawData?.length || 0}`);
         
-        // APLICAR EXACTAMENTE los mismos filtros que el análisis forense
-        const currentDate = new Date();
-        const startOfYear = new Date(2025, 0, 1); // 1 enero 2025
-        const endOfCurrent = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 23, 59, 59); // Hasta hoy
-        
-        console.log(`📅 Rango de fechas: ${startOfYear.toISOString()} a ${endOfCurrent.toISOString()}`);
-        
-        const serviciosValidosParaGMV = rawData?.filter(item => {
-          // 1. Fecha válida dentro del rango enero 2025 hasta hoy
+        if (!rawData || rawData.length === 0) {
+          console.warn('⚠️ No hay datos disponibles');
+          return [];
+        }
+
+        // Filtrar datos de 2025
+        const data2025 = rawData.filter(item => {
           if (!item.fecha_hora_cita) return false;
-          
           const fecha = new Date(item.fecha_hora_cita);
-          if (fecha < startOfYear || fecha > endOfCurrent) return false;
-          
-          // 2. ID de servicio válido
+          return fecha.getFullYear() === 2025;
+        });
+
+        console.log(`📅 Registros de 2025: ${data2025.length}`);
+
+        // Aplicar filtros forenses: Finalizado + cobro válido + ID válido
+        const serviciosValidosParaGMV = data2025.filter(item => {
+          // 1. ID de servicio válido
           if (!item.id_servicio || item.id_servicio.trim() === '') return false;
           
-          // 3. Estado finalizado (EXACTAMENTE como en forensic audit)
+          // 2. Estado finalizado
           const estado = (item.estado || '').trim().toLowerCase();
           if (estado !== 'finalizado') return false;
           
-          // 4. Cobro válido (mayor a 0)
+          // 3. Cobro válido (mayor a 0)
           const cobro = parseFloat(String(item.cobro_cliente)) || 0;
           if (cobro <= 0) return false;
           
           return true;
-        }) || [];
+        });
         
         console.log(`✅ Servicios válidos para GMV: ${serviciosValidosParaGMV.length}`);
         
-        // ELIMINAR DUPLICADOS exactamente como en el análisis forense
+        // Eliminar duplicados por ID de servicio
         const serviciosUnicos = new Map();
         serviciosValidosParaGMV.forEach(item => {
           const id = item.id_servicio.trim();
@@ -88,27 +72,10 @@ export const useGmvChartData = () => {
         });
         
         const serviciosUnicosArray = Array.from(serviciosUnicos.values());
-        console.log(`🎯 Servicios únicos finales: ${serviciosUnicosArray.length}`);
+        console.log(`🎯 Servicios únicos: ${serviciosUnicosArray.length}`);
         
-        // CALCULAR el total GMV para verificar que coincida con forense
-        const totalGmvCalculado = serviciosUnicosArray.reduce((sum, item) => {
-          const cobro = parseFloat(String(item.cobro_cliente)) || 0;
-          return sum + cobro;
-        }, 0);
-        
-        console.log('💰 VERIFICACIÓN CON ANÁLISIS FORENSE:');
-        console.log(`📊 Total GMV calculado: $${totalGmvCalculado.toLocaleString()}`);
-        console.log(`📊 GMV forense (solo finalizados): $${forensicData.gmv_solo_finalizados?.toLocaleString() || 0}`);
-        console.log(`📊 Diferencia: $${Math.abs(totalGmvCalculado - (forensicData.gmv_solo_finalizados || 0)).toLocaleString()}`);
-        
-        // Si hay diferencia significativa, usar directamente el valor forense
-        const gmvToUse = Math.abs(totalGmvCalculado - (forensicData.gmv_solo_finalizados || 0)) > 1000 
-          ? forensicData.gmv_solo_finalizados || 0 
-          : totalGmvCalculado;
-        
-        console.log(`🎯 GMV a usar en gráfico: $${gmvToUse.toLocaleString()}`);
-        
-        // PROCESAR datos por mes para el gráfico
+        // Procesar datos por mes
+        const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
         const dataPorMes: { [month: number]: number } = {};
         
         // Inicializar todos los meses en 0
@@ -116,7 +83,7 @@ export const useGmvChartData = () => {
           dataPorMes[month] = 0;
         }
         
-        // AGREGAR datos por mes
+        // Agregar datos por mes
         serviciosUnicosArray.forEach(item => {
           const fecha = new Date(item.fecha_hora_cita);
           const month = fecha.getMonth(); // 0-11
@@ -124,33 +91,31 @@ export const useGmvChartData = () => {
           dataPorMes[month] += cobro;
         });
         
-        // LOG detallado por mes
-        console.log('📈 DESGLOSE MENSUAL DETALLADO:');
-        const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-        monthNames.forEach((monthName, index) => {
-          if (dataPorMes[index] > 0) {
-            console.log(`  ${monthName} 2025: $${dataPorMes[index].toLocaleString()}`);
+        // Log detallado por mes
+        console.log('📈 DESGLOSE MENSUAL CORREGIDO:');
+        for (let month = 0; month < 12; month++) {
+          if (dataPorMes[month] > 0) {
+            console.log(`  ${monthNames[month]} 2025: $${dataPorMes[month].toLocaleString()}`);
           }
-        });
+        }
         
-        // CONVERTIR a formato de gráfico (solo 2025, sin comparación con 2024 por ahora)
+        // Convertir a formato de gráfico
         const result: MonthlyGmvData[] = monthNames.map((monthName, index) => ({
           name: monthName,
           value: dataPorMes[index] || 0,
-          previousYear: 0 // 2024 data será 0 por ahora
+          previousYear: 0 // Por ahora sin datos de 2024
         }));
         
-        console.log('📈 RESULTADO FINAL PARA GRÁFICO:');
-        result.forEach(item => {
-          if (item.value > 0) {
-            console.log(`${item.name}: $${item.value.toLocaleString()}`);
-          }
-        });
-        
-        // Verificar total final
+        // Verificar total
         const totalGrafico = result.reduce((sum, item) => sum + item.value, 0);
-        console.log(`🎯 TOTAL GRÁFICO: $${totalGrafico.toLocaleString()}`);
-        console.log(`🎯 DEBE COINCIDIR CON FORENSE: $${forensicData.gmv_solo_finalizados?.toLocaleString() || 0}`);
+        console.log(`🎯 TOTAL GMV GRÁFICO: $${totalGrafico.toLocaleString()}`);
+        
+        // Mostrar solo meses con datos
+        const mesesConDatos = result.filter(item => item.value > 0);
+        console.log(`📊 Meses con datos: ${mesesConDatos.length}`);
+        mesesConDatos.forEach(item => {
+          console.log(`  ${item.name}: $${item.value.toLocaleString()}`);
+        });
         
         return result;
         
@@ -166,9 +131,9 @@ export const useGmvChartData = () => {
     refetchOnMount: true
   });
 
-  // Obtener lista de clientes únicos usando la misma metodología
+  // Obtener lista de clientes únicos
   const { data: clientsList = [] } = useQuery({
-    queryKey: ['clients-list-gmv-forensic'],
+    queryKey: ['clients-list-gmv-corrected'],
     queryFn: async () => {
       try {
         const { data, error } = await supabase.rpc('bypass_rls_get_servicios', {
@@ -177,16 +142,12 @@ export const useGmvChartData = () => {
 
         if (error) throw error;
 
-        const currentDate = new Date();
-        const startOfYear = new Date(2025, 0, 1);
-        const endOfCurrent = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 23, 59, 59);
-
-        // Aplicar EXACTAMENTE los mismos filtros que para los datos principales
+        // Filtrar datos de 2025 con mismos criterios
         const serviciosValidos = data?.filter(item => {
           if (!item.fecha_hora_cita || !item.id_servicio || item.id_servicio.trim() === '') return false;
           
           const fecha = new Date(item.fecha_hora_cita);
-          if (fecha < startOfYear || fecha > endOfCurrent) return false;
+          if (fecha.getFullYear() !== 2025) return false;
           
           const estado = (item.estado || '').trim().toLowerCase();
           if (estado !== 'finalizado') return false;
@@ -210,7 +171,7 @@ export const useGmvChartData = () => {
         return [];
       }
     },
-    staleTime: 10 * 60 * 1000, // 10 minutos
+    staleTime: 10 * 60 * 1000,
   });
 
   return {
