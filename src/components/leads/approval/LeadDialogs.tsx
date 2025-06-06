@@ -5,6 +5,7 @@ import { LeadEditDialog } from "@/components/leads/LeadEditDialog";
 import { VapiCallDialog } from "@/components/leads/VapiCallDialog";
 import { ManualInterviewDialog } from "@/components/leads/ManualInterviewDialog";
 import { CallHistoryDialog } from "@/components/leads/CallHistoryDialog";
+import { MissingInfoDialog } from "./MissingInfoDialog";
 
 interface LeadDialogsProps {
   selectedLead: AssignedLead | null;
@@ -12,11 +13,13 @@ interface LeadDialogsProps {
   showVapiDialog: boolean;
   showManualDialog: boolean;
   showCallHistory: boolean;
+  showMissingInfoDialog: boolean;
   callLogs: VapiCallLog[];
   onEditDialogChange: (open: boolean) => void;
   onVapiDialogChange: (open: boolean) => void;
   onManualDialogChange: (open: boolean) => void;
   onCallHistoryChange: (open: boolean) => void;
+  onMissingInfoDialogChange: (open: boolean) => void;
   onUpdate: () => void;
   onCallComplete: () => void;
 }
@@ -27,11 +30,13 @@ export const LeadDialogs = ({
   showVapiDialog,
   showManualDialog,
   showCallHistory,
+  showMissingInfoDialog,
   callLogs,
   onEditDialogChange,
   onVapiDialogChange,
   onManualDialogChange,
   onCallHistoryChange,
+  onMissingInfoDialogChange,
   onUpdate,
   onCallComplete
 }: LeadDialogsProps) => {
@@ -69,6 +74,13 @@ export const LeadDialogs = ({
         onOpenChange={onCallHistoryChange}
         lead={selectedLead}
         callLogs={getLeadCallLogs(selectedLead.lead_id)}
+      />
+
+      <MissingInfoDialog
+        open={showMissingInfoDialog}
+        onOpenChange={onMissingInfoDialogChange}
+        lead={selectedLead}
+        onUpdate={onUpdate}
       />
     </>
   );

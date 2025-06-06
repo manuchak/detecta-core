@@ -13,7 +13,8 @@ import {
   Mail, 
   ArrowRight,
   Calendar,
-  MoreHorizontal
+  MoreHorizontal,
+  AlertTriangle
 } from "lucide-react";
 import {
   Tooltip,
@@ -28,6 +29,7 @@ import {
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import { VapiCallLog } from "@/types/vapiTypes";
+import { validateLeadForApproval } from "@/utils/leadValidation";
 
 interface AssignedLead {
   lead_id: string;
@@ -40,6 +42,7 @@ interface AssignedLead {
   phone_interview_completed: boolean;
   second_interview_required: boolean;
   final_decision: string | null;
+  notas?: string;
 }
 
 interface LeadCardProps {
@@ -52,6 +55,7 @@ interface LeadCardProps {
   onApproveLead: (lead: AssignedLead) => void;
   onSendToSecondInterview: (lead: AssignedLead) => void;
   onReject: (lead: AssignedLead) => void;
+  onCompleteMissingInfo: (lead: AssignedLead) => void;
 }
 
 export const LeadCard = ({
@@ -63,8 +67,12 @@ export const LeadCard = ({
   onViewCallHistory,
   onApproveLead,
   onSendToSecondInterview,
-  onReject
+  onReject,
+  onCompleteMissingInfo
 }: LeadCardProps) => {
+  const validation = validateLeadForApproval(lead);
+  const hasMissingInfo = !validation.isValid;
+
   const getStatusBadge = (stage: string, decision: string | null) => {
     if (decision === 'approved') {
       return <Badge className="bg-green-100 text-green-800 border-green-200">Aprobado</Badge>;
@@ -94,12 +102,12 @@ export const LeadCard = ({
   };
 
   return (
-    <Card className="border-l-4 border-l-blue-500 hover:shadow-md transition-shadow">
+    <Card className={`border-l-4 ${hasMissingInfo ? 'border-l-orange-500' : 'border-l-blue-500'} hover:shadow-md transition-shadow`}>
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           {/* Información del candidato */}
           <div className="flex items-center gap-4 flex-1">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+            <div className={`w-12 h-12 bg-gradient-to-br ${hasMissingInfo ? 'from-orange-500 to-orange-600' : 'from-blue-500 to-blue-600'} rounded-full flex items-center justify-center text-white font-semibold`}>
               {lead.lead_nombre.charAt(0).toUpperCase()}
             </div>
             
@@ -107,12 +115,18 @@ export const LeadCard = ({
               <div className="flex items-center gap-3 mb-2">
                 <h3 className="font-semibold text-lg">{lead.lead_nombre}</h3>
                 {getStatusBadge(lead.approval_stage, lead.final_decision)}
+                {hasMissingInfo && (
+                  <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200">
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    Info incompleta
+                  </Badge>
+                )}
               </div>
               
               <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
                 <div className="flex items-center gap-1">
                   <Mail className="h-4 w-4" />
-                  {lead.lead_email}
+                  {lead.lead_email || 'Sin email'}
                 </div>
                 {lead.lead_telefono && (
                   <div className="flex items-center gap-1">
@@ -137,6 +151,25 @@ export const LeadCard = ({
 
           {/* Acciones con iconos y tooltips */}
           <div className="flex items-center gap-2">
+            {/* Completar información faltante - Acción prioritaria si falta info */}
+            {hasMissingInfo && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    onClick={() => onCompleteMissingInfo(lead)}
+                    className="h-9 px-4 bg-orange-600 hover:bg-orange-700 text-white"
+                  >
+                    <AlertTriangle className="h-4 w-4 mr-1" />
+                    Completar Info
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Completar información faltante</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+
             {/* Llamada VAPI - Acción principal */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -163,14 +196,15 @@ export const LeadCard = ({
                     <Button
                       size="sm"
                       onClick={() => onApproveLead(lead)}
-                      className="h-9 px-4 bg-green-600 hover:bg-green-700 text-white"
+                      disabled={hasMissingInfo}
+                      className="h-9 px-4 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
                     >
                       <CheckCircle className="h-4 w-4 mr-1" />
                       Aprobar
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Aprobar candidato directamente</p>
+                    <p>{hasMissingInfo ? 'Complete la información para aprobar' : 'Aprobar candidato directamente'}</p>
                   </TooltipContent>
                 </Tooltip>
 
@@ -181,14 +215,15 @@ export const LeadCard = ({
                       size="sm"
                       variant="outline"
                       onClick={() => onSendToSecondInterview(lead)}
-                      className="h-9 px-4 border-purple-200 text-purple-700 hover:bg-purple-50"
+                      disabled={hasMissingInfo}
+                      className="h-9 px-4 border-purple-200 text-purple-700 hover:bg-purple-50 disabled:opacity-50"
                     >
                       <ArrowRight className="h-4 w-4 mr-1" />
                       2da Entrevista
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Enviar a segunda entrevista</p>
+                    <p>{hasMissingInfo ? 'Complete la información para enviar a segunda entrevista' : 'Enviar a segunda entrevista'}</p>
                   </TooltipContent>
                 </Tooltip>
 
