@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -264,24 +265,31 @@ export const LeadsList = () => {
 
       {showForm && (
         <LeadForm 
-          onClose={() => setShowForm(false)} 
-          onSubmit={fetchLeads}
+          onSuccess={() => {
+            setShowForm(false);
+            fetchLeads();
+          }} 
+          onCancel={() => setShowForm(false)}
         />
       )}
 
       {showEditDialog && selectedLead && (
         <LeadEditDialog
           lead={selectedLead}
-          onClose={handleDialogClose}
+          open={showEditDialog}
+          onOpenChange={setShowEditDialog}
           onUpdate={fetchLeads}
         />
       )}
 
       {showAssignDialog && selectedLead && (
         <LeadAssignmentDialog
-          lead={selectedLead}
-          onClose={handleDialogClose}
-          onUpdate={fetchLeads}
+          open={showAssignDialog}
+          onOpenChange={setShowAssignDialog}
+          leadId={selectedLead.id}
+          leadName={selectedLead.nombre}
+          currentAssignee={selectedLead.asignado_a}
+          onAssignmentUpdate={fetchLeads}
         />
       )}
     </div>
