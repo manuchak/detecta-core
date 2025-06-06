@@ -1,3 +1,4 @@
+
 -- Create a new role
 CREATE OR REPLACE FUNCTION public.create_new_role(new_role TEXT)
 RETURNS VOID
@@ -209,6 +210,116 @@ BEGIN
     ad.total_gmv::numeric as total_gmv,
     ad.total_records::bigint as service_count
   FROM aggregated_data ad;
+END;
+$$;
+
+-- Función para verificar si un referido cumple los requisitos para bono
+CREATE OR REPLACE FUNCTION public.verificar_cumplimiento_referido(p_referido_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  v_referido RECORD;
+  v_config RECORD;
+  v_servicios_completados INTEGER;
+  v_dias_activo INTEGER;
+  v_fecha_activacion DATE;
+BEGIN
+  -- Obtener datos del referido
+  SELECT * INTO v_referido FROM public.referidos WHERE id = p_referido_id;
+  IF NOT FOUND THEN
+    RETURN FALSE;
+  END IF;
+
+  -- Obtener configuración activa
+  SELECT * INTO v_config 
+  FROM public.configuracion_bonos_referidos 
+  WHERE activo = true 
+  ORDER BY created_at DESC 
+  LIMIT 1;
+  
+  IF NOT FOUND THEN
+    RETURN FALSE;
+  END IF;
+
+  -- Si no está activado, no cumple
+  IF v_referido.estado_referido != 'activado' THEN
+    RETURN FALSE;
+  END IF;
+
+  -- Si ya tiene bono otorgado, no verificar de nuevo
+  IF v_referido.bono_otorgado THEN
+    RETURN TRUE;
+  END IF;
+
+  -- Calcular días desde activación
+  v_fecha_activacion := v_referido.fecha_activacion::date;
+  IF v_fecha_activacion IS NULL THEN
+    RETURN FALSE;
+  END IF;
+  
+  v_dias_activo := CURRENT_DATE - v_fecha_activacion;
+
+  -- Verificar días mínimos
+  IF v_dias_activo < v_config.dias_minimos_permanencia THEN
+    RETURN FALSE;
+  END IF;
+
+  -- Contar servicios completados del custodio referido
+  -- Buscar por nombre ya que el custodio_referente_id se usa como nombre
+  SELECT COUNT(*) INTO v_servicios_completados
+  FROM public.servicios_custodia sc
+  WHERE sc.nombre_custodio = v_referido.custodio_referente_id
+    AND LOWER(TRIM(COALESCE(sc.estado, ''))) IN ('finalizado', 'completado')
+    AND sc.fecha_hora_cita >= v_fecha_activacion::timestamp with time zone;
+
+  -- Verificar servicios mínimos
+  IF v_servicios_completados < v_config.servicios_minimos_requeridos THEN
+    RETURN FALSE;
+  END IF;
+
+  RETURN TRUE;
+END;
+$$;
+
+-- Función para procesar un bono de referido
+CREATE OR REPLACE FUNCTION public.procesar_bono_referido(p_referido_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  v_config RECORD;
+  v_referido RECORD;
+BEGIN
+  -- Verificar que cumple requisitos
+  IF NOT public.verificar_cumplimiento_referido(p_referido_id) THEN
+    RETURN FALSE;
+  END IF;
+
+  -- Obtener configuración y referido
+  SELECT * INTO v_config 
+  FROM public.configuracion_bonos_referidos 
+  WHERE activo = true 
+  ORDER BY created_at DESC 
+  LIMIT 1;
+  
+  SELECT * INTO v_referido FROM public.referidos WHERE id = p_referido_id;
+
+  -- Actualizar el referido con el bono
+  UPDATE public.referidos
+  SET 
+    bono_otorgado = true,
+    monto_bono = v_config.monto_bono,
+    fecha_pago_bono = now(),
+    fecha_cumplimiento_requisitos = now(),
+    updated_at = now()
+  WHERE id = p_referido_id;
+
+  RETURN TRUE;
 END;
 $$;
 
