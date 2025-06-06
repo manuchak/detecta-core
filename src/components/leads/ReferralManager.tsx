@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -91,35 +90,73 @@ export const ReferralManager = () => {
     try {
       setLoading(true);
       
-      // Consulta compleja para obtener datos de referidos con información de custodios y candidatos
-      const { data, error } = await supabase
+      // Primero obtener los referidos básicos
+      const { data: referidosData, error: referidosError } = await supabase
         .from('referidos')
-        .select(`
-          *,
-          custodio:profiles!referidos_custodio_referente_id_fkey(display_name, email),
-          candidato:leads!referidos_candidato_referido_id_fkey(nombre, email)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (referidosError) throw referidosError;
       
-      const mappedData: Referido[] = (data || []).map((item: any) => ({
-        id: item.id,
-        custodio_referente_id: item.custodio_referente_id,
-        candidato_referido_id: item.candidato_referido_id,
-        fecha_referencia: item.fecha_referencia,
-        estado_referido: item.estado_referido,
-        fecha_activacion: item.fecha_activacion,
-        fecha_cumplimiento_requisitos: item.fecha_cumplimiento_requisitos,
-        bono_otorgado: item.bono_otorgado,
-        monto_bono: item.monto_bono,
-        fecha_pago_bono: item.fecha_pago_bono,
-        notas: item.notas,
-        custodio_nombre: item.custodio?.display_name || 'N/A',
-        custodio_email: item.custodio?.email || 'N/A',
-        candidato_nombre: item.candidato?.nombre || 'N/A',
-        candidato_email: item.candidato?.email || 'N/A'
-      }));
+      if (!referidosData || referidosData.length === 0) {
+        setReferidos([]);
+        setFilteredReferidos([]);
+        return;
+      }
+
+      // Obtener custodios únicos
+      const custodioIds = [...new Set(referidosData.map(r => r.custodio_referente_id))];
+      const { data: custodiosData, error: custodiosError } = await supabase
+        .from('profiles')
+        .select('id, display_name, email')
+        .in('id', custodioIds);
+      
+      if (custodiosError) {
+        console.error('Error fetching custodios:', custodiosError);
+      }
+
+      // Obtener candidatos únicos
+      const candidatoIds = [...new Set(referidosData.map(r => r.candidato_referido_id))];
+      const { data: candidatosData, error: candidatosError } = await supabase
+        .from('leads')
+        .select('id, nombre, email')
+        .in('id', candidatoIds);
+      
+      if (candidatosError) {
+        console.error('Error fetching candidatos:', candidatosError);
+      }
+
+      // Crear mapas para lookup rápido
+      const custodiosMap = new Map(
+        (custodiosData || []).map(c => [c.id, c])
+      );
+      const candidatosMap = new Map(
+        (candidatosData || []).map(c => [c.id, c])
+      );
+
+      // Combinar datos
+      const mappedData: Referido[] = referidosData.map((item: any) => {
+        const custodio = custodiosMap.get(item.custodio_referente_id);
+        const candidato = candidatosMap.get(item.candidato_referido_id);
+        
+        return {
+          id: item.id,
+          custodio_referente_id: item.custodio_referente_id,
+          candidato_referido_id: item.candidato_referido_id,
+          fecha_referencia: item.fecha_referencia,
+          estado_referido: item.estado_referido,
+          fecha_activacion: item.fecha_activacion,
+          fecha_cumplimiento_requisitos: item.fecha_cumplimiento_requisitos,
+          bono_otorgado: item.bono_otorgado,
+          monto_bono: item.monto_bono,
+          fecha_pago_bono: item.fecha_pago_bono,
+          notas: item.notas,
+          custodio_nombre: custodio?.display_name || 'N/A',
+          custodio_email: custodio?.email || 'N/A',
+          candidato_nombre: candidato?.nombre || 'N/A',
+          candidato_email: candidato?.email || 'N/A'
+        };
+      });
       
       setReferidos(mappedData);
       setFilteredReferidos(mappedData);
