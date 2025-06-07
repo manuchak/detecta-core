@@ -1,0 +1,199 @@
+
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Shield, ClipboardCheck, Settings, Activity } from 'lucide-react';
+import { useServiciosMonitoreo } from '@/hooks/useServiciosMonitoreo';
+import { ServicioForm } from './components/ServicioForm';
+import { ServiciosTable } from './components/ServiciosTable';
+import { AnalisisRiesgoDialog } from './components/AnalisisRiesgoDialog';
+import { Badge } from '@/components/ui/badge';
+
+export const ServicesPage = () => {
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [selectedServicioId, setSelectedServicioId] = useState<string | null>(null);
+  const [showAnalisisDialog, setShowAnalisisDialog] = useState(false);
+  
+  const { servicios, isLoading } = useServiciosMonitoreo();
+
+  const estadosCount = servicios?.reduce((acc, servicio) => {
+    acc[servicio.estado_general] = (acc[servicio.estado_general] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>) || {};
+
+  const handleAnalisisRiesgo = (servicioId: string) => {
+    setSelectedServicioId(servicioId);
+    setShowAnalisisDialog(true);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Servicios de Monitoreo
+            </h1>
+            <p className="text-gray-600 mt-2">
+              Gestión integral de servicios de seguridad y monitoreo
+            </p>
+          </div>
+          <Button onClick={() => setShowCreateForm(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo Servicio
+          </Button>
+        </div>
+
+        {/* Estadísticas */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center">
+                <Shield className="h-8 w-8 text-blue-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">
+                    Pendientes Evaluación
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {estadosCount['pendiente_evaluacion'] || 0}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center">
+                <ClipboardCheck className="h-8 w-8 text-green-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">
+                    Servicios Activos
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {estadosCount['servicio_activo'] || 0}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center">
+                <Settings className="h-8 w-8 text-orange-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">
+                    En Instalación
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {(estadosCount['pendiente_instalacion'] || 0) + 
+                     (estadosCount['instalacion_programada'] || 0)}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center">
+                <Activity className="h-8 w-8 text-red-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Servicios
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {servicios?.length || 0}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Contenido principal */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Gestión de Servicios
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="servicios" className="w-full">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="servicios">Servicios</TabsTrigger>
+                <TabsTrigger value="evaluacion">Evaluación Riesgo</TabsTrigger>
+                <TabsTrigger value="instalaciones">Instalaciones</TabsTrigger>
+                <TabsTrigger value="configuracion">Configuración</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="servicios" className="mt-6">
+                <ServiciosTable 
+                  servicios={servicios || []}
+                  isLoading={isLoading}
+                  onAnalisisRiesgo={handleAnalisisRiesgo}
+                />
+              </TabsContent>
+              
+              <TabsContent value="evaluacion" className="mt-6">
+                <div className="text-center py-8">
+                  <Shield className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Evaluación de Riesgo
+                  </h3>
+                  <p className="text-gray-600">
+                    Selecciona un servicio de la lista para realizar el análisis de riesgo
+                  </p>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="instalaciones" className="mt-6">
+                <div className="text-center py-8">
+                  <Settings className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Instalaciones GPS
+                  </h3>
+                  <p className="text-gray-600">
+                    Gestión de instalaciones de dispositivos GPS
+                  </p>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="configuracion" className="mt-6">
+                <div className="text-center py-8">
+                  <Activity className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Configuración de Monitoreo
+                  </h3>
+                  <p className="text-gray-600">
+                    Configuración de parámetros de monitoreo y alertas
+                  </p>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+
+        {/* Dialogs */}
+        {showCreateForm && (
+          <ServicioForm
+            open={showCreateForm}
+            onOpenChange={setShowCreateForm}
+          />
+        )}
+
+        {showAnalisisDialog && selectedServicioId && (
+          <AnalisisRiesgoDialog
+            open={showAnalisisDialog}
+            onOpenChange={setShowAnalisisDialog}
+            servicioId={selectedServicioId}
+          />
+        )}
+      </div>
+    </div>
+  );
+};

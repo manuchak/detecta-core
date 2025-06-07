@@ -9,6 +9,246 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      activos_monitoreo: {
+        Row: {
+          año: number | null
+          color: string | null
+          created_at: string
+          descripcion: string
+          edad: number | null
+          fecha_instalacion_gps: string | null
+          fecha_integracion: string | null
+          gps_instalado: boolean | null
+          horarios_operacion: Json | null
+          id: string
+          integrado_sistema: boolean | null
+          marca: string | null
+          modelo: string | null
+          nombre_persona: string | null
+          numero_dispositivo: string | null
+          numero_motor: string | null
+          numero_serie: string | null
+          ocupacion: string | null
+          placas: string | null
+          requiere_gps: boolean | null
+          rutas_frecuentes: string[] | null
+          servicio_id: string
+          telefono_persona: string | null
+          tipo_activo: string
+          ubicacion_habitual: string | null
+          updated_at: string
+        }
+        Insert: {
+          año?: number | null
+          color?: string | null
+          created_at?: string
+          descripcion: string
+          edad?: number | null
+          fecha_instalacion_gps?: string | null
+          fecha_integracion?: string | null
+          gps_instalado?: boolean | null
+          horarios_operacion?: Json | null
+          id?: string
+          integrado_sistema?: boolean | null
+          marca?: string | null
+          modelo?: string | null
+          nombre_persona?: string | null
+          numero_dispositivo?: string | null
+          numero_motor?: string | null
+          numero_serie?: string | null
+          ocupacion?: string | null
+          placas?: string | null
+          requiere_gps?: boolean | null
+          rutas_frecuentes?: string[] | null
+          servicio_id: string
+          telefono_persona?: string | null
+          tipo_activo: string
+          ubicacion_habitual?: string | null
+          updated_at?: string
+        }
+        Update: {
+          año?: number | null
+          color?: string | null
+          created_at?: string
+          descripcion?: string
+          edad?: number | null
+          fecha_instalacion_gps?: string | null
+          fecha_integracion?: string | null
+          gps_instalado?: boolean | null
+          horarios_operacion?: Json | null
+          id?: string
+          integrado_sistema?: boolean | null
+          marca?: string | null
+          modelo?: string | null
+          nombre_persona?: string | null
+          numero_dispositivo?: string | null
+          numero_motor?: string | null
+          numero_serie?: string | null
+          ocupacion?: string | null
+          placas?: string | null
+          requiere_gps?: boolean | null
+          rutas_frecuentes?: string[] | null
+          servicio_id?: string
+          telefono_persona?: string | null
+          tipo_activo?: string
+          ubicacion_habitual?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activos_monitoreo_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_monitoreo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analisis_riesgo: {
+        Row: {
+          antecedentes_verificados: boolean | null
+          condiciones_especiales: string[] | null
+          created_at: string
+          detalles_riesgo: Json | null
+          evaluado_por: string | null
+          fecha_evaluacion: string | null
+          fecha_revision: string | null
+          id: string
+          incidencia_delictiva: Json | null
+          nivel_riesgo_cliente: string | null
+          nivel_riesgo_zona: string | null
+          recomendacion: string | null
+          referencias_comerciales: boolean | null
+          revisado_por: string | null
+          score_riesgo: number | null
+          servicio_id: string
+          situacion_financiera: string | null
+          updated_at: string
+          zona_operacion: string
+        }
+        Insert: {
+          antecedentes_verificados?: boolean | null
+          condiciones_especiales?: string[] | null
+          created_at?: string
+          detalles_riesgo?: Json | null
+          evaluado_por?: string | null
+          fecha_evaluacion?: string | null
+          fecha_revision?: string | null
+          id?: string
+          incidencia_delictiva?: Json | null
+          nivel_riesgo_cliente?: string | null
+          nivel_riesgo_zona?: string | null
+          recomendacion?: string | null
+          referencias_comerciales?: boolean | null
+          revisado_por?: string | null
+          score_riesgo?: number | null
+          servicio_id: string
+          situacion_financiera?: string | null
+          updated_at?: string
+          zona_operacion: string
+        }
+        Update: {
+          antecedentes_verificados?: boolean | null
+          condiciones_especiales?: string[] | null
+          created_at?: string
+          detalles_riesgo?: Json | null
+          evaluado_por?: string | null
+          fecha_evaluacion?: string | null
+          fecha_revision?: string | null
+          id?: string
+          incidencia_delictiva?: Json | null
+          nivel_riesgo_cliente?: string | null
+          nivel_riesgo_zona?: string | null
+          recomendacion?: string | null
+          referencias_comerciales?: boolean | null
+          revisado_por?: string | null
+          score_riesgo?: number | null
+          servicio_id?: string
+          situacion_financiera?: string | null
+          updated_at?: string
+          zona_operacion?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analisis_riesgo_evaluado_por_fkey"
+            columns: ["evaluado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analisis_riesgo_revisado_por_fkey"
+            columns: ["revisado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analisis_riesgo_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_monitoreo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      aprobaciones_servicio: {
+        Row: {
+          aprobado_por: string
+          condiciones: string[] | null
+          created_at: string
+          estado: string
+          fecha_aprobacion: string
+          id: string
+          observaciones: string | null
+          servicio_id: string
+          tipo_aprobacion: string
+          vigencia_desde: string | null
+          vigencia_hasta: string | null
+        }
+        Insert: {
+          aprobado_por: string
+          condiciones?: string[] | null
+          created_at?: string
+          estado?: string
+          fecha_aprobacion?: string
+          id?: string
+          observaciones?: string | null
+          servicio_id: string
+          tipo_aprobacion: string
+          vigencia_desde?: string | null
+          vigencia_hasta?: string | null
+        }
+        Update: {
+          aprobado_por?: string
+          condiciones?: string[] | null
+          created_at?: string
+          estado?: string
+          fecha_aprobacion?: string
+          id?: string
+          observaciones?: string | null
+          servicio_id?: string
+          tipo_aprobacion?: string
+          vigencia_desde?: string | null
+          vigencia_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aprobaciones_servicio_aprobado_por_fkey"
+            columns: ["aprobado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aprobaciones_servicio_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_monitoreo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       benefits: {
         Row: {
           created_at: string
@@ -107,6 +347,56 @@ export type Database = {
         }
         Relationships: []
       }
+      configuracion_monitoreo: {
+        Row: {
+          alertas_activadas: boolean | null
+          contactos_emergencia: Json
+          created_at: string
+          escalamiento_config: Json | null
+          frecuencia_reporte: number
+          geocercas: Json | null
+          horario_atencion: Json
+          id: string
+          servicio_24h: boolean | null
+          servicio_id: string
+          updated_at: string
+        }
+        Insert: {
+          alertas_activadas?: boolean | null
+          contactos_emergencia: Json
+          created_at?: string
+          escalamiento_config?: Json | null
+          frecuencia_reporte?: number
+          geocercas?: Json | null
+          horario_atencion: Json
+          id?: string
+          servicio_24h?: boolean | null
+          servicio_id: string
+          updated_at?: string
+        }
+        Update: {
+          alertas_activadas?: boolean | null
+          contactos_emergencia?: Json
+          created_at?: string
+          escalamiento_config?: Json | null
+          frecuencia_reporte?: number
+          geocercas?: Json | null
+          horario_atencion?: Json
+          id?: string
+          servicio_24h?: boolean | null
+          servicio_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "configuracion_monitoreo_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_monitoreo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custodio_points: {
         Row: {
           created_at: string
@@ -142,6 +432,87 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      documentacion_requerida: {
+        Row: {
+          acta_constitutiva: boolean | null
+          cedula_fiscal: boolean | null
+          comprobante_domicilio: boolean | null
+          created_at: string
+          curp: string | null
+          documentacion_completa: boolean | null
+          documentos_adicionales: Json | null
+          factura_vehiculo: boolean | null
+          fecha_validacion: string | null
+          id: string
+          identificacion_oficial: boolean | null
+          observaciones_documentacion: string | null
+          poder_notarial: boolean | null
+          poliza_seguro: boolean | null
+          rfc: string | null
+          servicio_id: string
+          tarjeta_circulacion: boolean | null
+          updated_at: string
+          validado_por: string | null
+        }
+        Insert: {
+          acta_constitutiva?: boolean | null
+          cedula_fiscal?: boolean | null
+          comprobante_domicilio?: boolean | null
+          created_at?: string
+          curp?: string | null
+          documentacion_completa?: boolean | null
+          documentos_adicionales?: Json | null
+          factura_vehiculo?: boolean | null
+          fecha_validacion?: string | null
+          id?: string
+          identificacion_oficial?: boolean | null
+          observaciones_documentacion?: string | null
+          poder_notarial?: boolean | null
+          poliza_seguro?: boolean | null
+          rfc?: string | null
+          servicio_id: string
+          tarjeta_circulacion?: boolean | null
+          updated_at?: string
+          validado_por?: string | null
+        }
+        Update: {
+          acta_constitutiva?: boolean | null
+          cedula_fiscal?: boolean | null
+          comprobante_domicilio?: boolean | null
+          created_at?: string
+          curp?: string | null
+          documentacion_completa?: boolean | null
+          documentos_adicionales?: Json | null
+          factura_vehiculo?: boolean | null
+          fecha_validacion?: string | null
+          id?: string
+          identificacion_oficial?: boolean | null
+          observaciones_documentacion?: string | null
+          poder_notarial?: boolean | null
+          poliza_seguro?: boolean | null
+          rfc?: string | null
+          servicio_id?: string
+          tarjeta_circulacion?: boolean | null
+          updated_at?: string
+          validado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documentacion_requerida_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_monitoreo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentacion_requerida_validado_por_fkey"
+            columns: ["validado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       estados: {
         Row: {
@@ -211,6 +582,82 @@ export type Database = {
           suggested_points?: number | null
         }
         Relationships: []
+      }
+      instalaciones_gps: {
+        Row: {
+          activo_id: string
+          created_at: string
+          dispositivo_instalado: string | null
+          estado: string
+          fecha_programada: string
+          fecha_realizacion: string | null
+          id: string
+          numero_serie_dispositivo: string | null
+          observaciones_instalacion: string | null
+          pruebas_realizadas: boolean | null
+          resultado_pruebas: string | null
+          servicio_id: string
+          tecnico_asignado: string | null
+          ubicacion_instalacion: string
+          updated_at: string
+        }
+        Insert: {
+          activo_id: string
+          created_at?: string
+          dispositivo_instalado?: string | null
+          estado?: string
+          fecha_programada: string
+          fecha_realizacion?: string | null
+          id?: string
+          numero_serie_dispositivo?: string | null
+          observaciones_instalacion?: string | null
+          pruebas_realizadas?: boolean | null
+          resultado_pruebas?: string | null
+          servicio_id: string
+          tecnico_asignado?: string | null
+          ubicacion_instalacion: string
+          updated_at?: string
+        }
+        Update: {
+          activo_id?: string
+          created_at?: string
+          dispositivo_instalado?: string | null
+          estado?: string
+          fecha_programada?: string
+          fecha_realizacion?: string | null
+          id?: string
+          numero_serie_dispositivo?: string | null
+          observaciones_instalacion?: string | null
+          pruebas_realizadas?: boolean | null
+          resultado_pruebas?: string | null
+          servicio_id?: string
+          tecnico_asignado?: string | null
+          ubicacion_instalacion?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instalaciones_gps_activo_id_fkey"
+            columns: ["activo_id"]
+            isOneToOne: false
+            referencedRelation: "activos_monitoreo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instalaciones_gps_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_monitoreo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instalaciones_gps_tecnico_asignado_fkey"
+            columns: ["tecnico_asignado"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lead_approval_process: {
         Row: {
@@ -751,6 +1198,57 @@ export type Database = {
         }
         Relationships: []
       }
+      seguimiento_servicio: {
+        Row: {
+          datos_adicionales: Json | null
+          descripcion: string
+          estado_anterior: string | null
+          estado_nuevo: string | null
+          fecha_evento: string
+          id: string
+          servicio_id: string
+          tipo_evento: string
+          usuario_id: string
+        }
+        Insert: {
+          datos_adicionales?: Json | null
+          descripcion: string
+          estado_anterior?: string | null
+          estado_nuevo?: string | null
+          fecha_evento?: string
+          id?: string
+          servicio_id: string
+          tipo_evento: string
+          usuario_id: string
+        }
+        Update: {
+          datos_adicionales?: Json | null
+          descripcion?: string
+          estado_anterior?: string | null
+          estado_nuevo?: string | null
+          fecha_evento?: string
+          id?: string
+          servicio_id?: string
+          tipo_evento?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seguimiento_servicio_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_monitoreo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seguimiento_servicio_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       servicios_custodia: {
         Row: {
           armado: string | null
@@ -942,6 +1440,94 @@ export type Database = {
           updated_time?: string | null
         }
         Relationships: []
+      }
+      servicios_monitoreo: {
+        Row: {
+          cliente_id: string | null
+          coordinador_operaciones_id: string | null
+          created_at: string
+          direccion_cliente: string
+          ejecutivo_ventas_id: string | null
+          email_contacto: string
+          empresa: string | null
+          estado_general: string
+          fecha_inicio_servicio: string | null
+          fecha_limite_respuesta: string | null
+          fecha_solicitud: string
+          id: string
+          nombre_cliente: string
+          numero_servicio: string
+          observaciones: string | null
+          prioridad: string
+          telefono_contacto: string
+          tipo_servicio: string
+          updated_at: string
+        }
+        Insert: {
+          cliente_id?: string | null
+          coordinador_operaciones_id?: string | null
+          created_at?: string
+          direccion_cliente: string
+          ejecutivo_ventas_id?: string | null
+          email_contacto: string
+          empresa?: string | null
+          estado_general?: string
+          fecha_inicio_servicio?: string | null
+          fecha_limite_respuesta?: string | null
+          fecha_solicitud?: string
+          id?: string
+          nombre_cliente: string
+          numero_servicio?: string
+          observaciones?: string | null
+          prioridad?: string
+          telefono_contacto: string
+          tipo_servicio: string
+          updated_at?: string
+        }
+        Update: {
+          cliente_id?: string | null
+          coordinador_operaciones_id?: string | null
+          created_at?: string
+          direccion_cliente?: string
+          ejecutivo_ventas_id?: string | null
+          email_contacto?: string
+          empresa?: string | null
+          estado_general?: string
+          fecha_inicio_servicio?: string | null
+          fecha_limite_respuesta?: string | null
+          fecha_solicitud?: string
+          id?: string
+          nombre_cliente?: string
+          numero_servicio?: string
+          observaciones?: string | null
+          prioridad?: string
+          telefono_contacto?: string
+          tipo_servicio?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "servicios_monitoreo_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "servicios_monitoreo_coordinador_operaciones_id_fkey"
+            columns: ["coordinador_operaciones_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "servicios_monitoreo_ejecutivo_ventas_id_fkey"
+            columns: ["ejecutivo_ventas_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       system_limits: {
         Row: {

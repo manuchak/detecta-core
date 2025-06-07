@@ -1,123 +1,72 @@
-
-import React, { useEffect, useState } from 'react';
-import { Routes, Route, BrowserRouter, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ThemeProvider } from "@/components/theme-provider"
-import { Toaster } from "@/components/ui/toaster"
-import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from '@/components/theme-provider';
+import { Toaster } from '@/components/ui/toaster';
+import { AuthProvider } from '@/contexts/AuthContext';
 
-import Landing from "./pages/Landing/Landing";
-import Login from "./pages/Auth/Login";
-import Register from "./pages/Auth/Register";
-import ForgotPassword from "./pages/Auth/ForgotPassword";
-import EmailConfirmation from "./pages/Auth/EmailConfirmation";
-import Dashboard from "./pages/Dashboard/Dashboard";
-import MonitoringPage from "./pages/Monitoring/MonitoringPage";
-import SupplyChainMonitoring from "./pages/Monitoring/SupplyChainMonitoring";
-import ForensicAuditPage from "./pages/Monitoring/ForensicAuditPage";
-import Settings from "./pages/Settings/Settings";
-import LeadsList from "./pages/Leads/LeadsList";
-import TicketsList from "./pages/Tickets/TicketsList";
-import LandingManager from "./pages/Admin/LandingManager";
-import AssignRole from "./pages/Admin/AssignRole";
-import AssignOwnerRole from "./pages/Admin/AssignOwnerRole";
-import InstallerPortal from "./pages/Installers/InstallerPortal";
-import NotFound from "./pages/NotFound";
-import AuthLayout from './layouts/AuthLayout';
-import DashboardLayout from './layouts/DashboardLayout';
-import { supabase } from './integrations/supabase/client';
-import { useToast } from "@/components/ui/use-toast"
-import { Skeleton } from "@/components/ui/skeleton"
+// Layout imports
+import DashboardLayout from '@/layouts/DashboardLayout';
 
-import LeadApprovals from "./pages/Leads/LeadApprovals";
+// Page imports
+import Index from '@/pages/Index';
+import Login from '@/pages/Auth/Login';
+import Register from '@/pages/Auth/Register';
+import ForgotPassword from '@/pages/Auth/ForgotPassword';
+import EmailConfirmation from '@/pages/Auth/EmailConfirmation';
+import Dashboard from '@/pages/Dashboard/Dashboard';
+import LeadsList from '@/pages/Leads/LeadsList';
+import LeadApprovals from '@/pages/Leads/LeadApprovals';
+import MonitoringPage from '@/pages/Monitoring/MonitoringPage';
+import SupplyChainMonitoring from '@/pages/Monitoring/SupplyChainMonitoring';
+import ForensicAuditPage from '@/pages/Monitoring/ForensicAuditPage';
+import { ServicesPage } from '@/pages/Services/ServicesPage';
+import Settings from '@/pages/Settings/Settings';
+import TicketsList from '@/pages/Tickets/TicketsList';
+import InstallerPortal from '@/pages/Installers/InstallerPortal';
+import LandingManager from '@/pages/Admin/LandingManager';
+import AssignRole from '@/pages/Admin/AssignRole';
+import AssignOwnerRole from '@/pages/Admin/AssignOwnerRole';
+import NotFound from '@/pages/NotFound';
 
-// Create a QueryClient instance
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      retry: 2,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+const queryClient = new QueryClient();
 
 function App() {
-  const [loading, setLoading] = useState(true);
-  const [session, setSession] = useState(null);
-  const { toast } = useToast()
-
-  useEffect(() => {
-    // Set loading to true on mount
-    setLoading(true);
-
-    supabase.auth.getSession()
-      .then(({ data: { session } }) => {
-        setSession(session);
-      })
-      .catch(error => {
-        console.error("Error getting session:", error);
-        toast({
-          title: "Error",
-          description: "Failed to retrieve session.",
-          variant: "destructive",
-        })
-      })
-      .finally(() => {
-        setLoading(false); // Set loading to false once the session is loaded or an error occurs
-      });
-
-    supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-  }, []);
-
-  // Conditionally render a loading indicator
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Skeleton className="w-[300px] h-[40px]" />
-      </div>
-    );
-  }
-
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <BrowserRouter>
+    <Router>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+          <Toaster />
+          <AuthProvider>
             <Routes>
-              {/* Landing page route */}
-              <Route path="/" element={<Landing />} />
+              <Route path="/" element={<Index />} />
+              <Route path="/auth/login" element={<Login />} />
+              <Route path="/auth/register" element={<Register />} />
+              <Route path="/auth/forgot-password" element={<ForgotPassword />} />
+              <Route path="/auth/email-confirmation" element={<EmailConfirmation />} />
               
-              {/* Auth routes */}
-              <Route path="/login" element={<AuthLayout><Login /></AuthLayout>} />
-              <Route path="/register" element={<AuthLayout><Register /></AuthLayout>} />
-              <Route path="/forgot-password" element={<AuthLayout><ForgotPassword /></AuthLayout>} />
-              <Route path="/confirm-email" element={<AuthLayout><EmailConfirmation /></AuthLayout>} />
-              
-              {/* Dashboard routes */}
-              <Route path="/dashboard" element={<DashboardLayout><Dashboard /></DashboardLayout>} />
-              <Route path="/monitoring" element={<DashboardLayout><MonitoringPage /></DashboardLayout>} />
-              <Route path="/monitoring/supply-chain" element={<DashboardLayout><SupplyChainMonitoring /></DashboardLayout>} />
-              <Route path="/monitoring/forensic-audit" element={<DashboardLayout><ForensicAuditPage /></DashboardLayout>} />
-              <Route path="/settings" element={<DashboardLayout><Settings /></DashboardLayout>} />
-              <Route path="/leads" element={<DashboardLayout><LeadsList /></DashboardLayout>} />
-              <Route path="/leads/approval" element={<DashboardLayout><LeadApprovals /></DashboardLayout>} />
-              <Route path="/tickets" element={<DashboardLayout><TicketsList /></DashboardLayout>} />
-              <Route path="/admin/landing" element={<DashboardLayout><LandingManager /></DashboardLayout>} />
-              <Route path="/admin/assign-role" element={<DashboardLayout><AssignRole /></DashboardLayout>} />
-              <Route path="/admin/assign-owner" element={<DashboardLayout><AssignOwnerRole /></DashboardLayout>} />
-              <Route path="/installers" element={<DashboardLayout><InstallerPortal /></DashboardLayout>} />
-              
-              {/* Catch all route */}
+              {/* Protected Routes */}
+              <Route element={<DashboardLayout />}>
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/leads" element={<LeadsList />} />
+                <Route path="/leads/approvals" element={<LeadApprovals />} />
+                <Route path="/monitoring" element={<MonitoringPage />} />
+                <Route path="/monitoring/supply-chain" element={<SupplyChainMonitoring />} />
+                <Route path="/monitoring/forensic-audit" element={<ForensicAuditPage />} />
+                <Route path="/services" element={<ServicesPage />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/tickets" element={<TicketsList />} />
+                <Route path="/installers" element={<InstallerPortal />} />
+                <Route path="/admin/landing" element={<LandingManager />} />
+                <Route path="/admin/assign-role" element={<AssignRole />} />
+                <Route path="/admin/assign-owner-role" element={<AssignOwnerRole />} />
+              </Route>
+
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </BrowserRouter>
-          <Toaster />
+          </AuthProvider>
         </ThemeProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+      </QueryClientProvider>
+    </Router>
   );
 }
 
