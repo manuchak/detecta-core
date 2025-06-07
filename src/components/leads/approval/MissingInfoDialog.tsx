@@ -30,6 +30,10 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { PersonalInfoForm } from "@/components/leads/forms/PersonalInfoForm";
+import { LocationForm } from "@/components/leads/forms/LocationForm";
+import { VehicleForm } from "@/components/leads/forms/VehicleForm";
+import { ExperienceForm } from "@/components/leads/forms/ExperienceForm";
 
 interface MissingInfoDialogProps {
   lead: AssignedLead | null;
@@ -404,7 +408,7 @@ export const MissingInfoDialog = ({
           </div>
 
           {/* Formulario en acordeón */}
-          <Accordion type="multiple" defaultValue={["basic", "personal", "type", "experience", "availability"]} className="w-full">
+          <Accordion type="multiple" defaultValue={["basic", "personal", "location", "type", "vehicle", "experience", "availability"]} className="w-full">
             
             {/* Información Básica */}
             <AccordionItem value="basic">
@@ -415,56 +419,16 @@ export const MissingInfoDialog = ({
                 </div>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="nombre" className="text-sm font-medium">
-                      Nombre completo *
-                      {missingFields.includes('Nombre completo') && (
-                        <span className="text-red-500 ml-1">Requerido</span>
-                      )}
-                    </Label>
-                    <Input
-                      id="nombre"
-                      value={formData.nombre}
-                      onChange={(e) => handleInputChange('nombre', e.target.value)}
-                      placeholder="Ingrese el nombre completo"
-                      className={missingFields.includes('Nombre completo') ? 'border-red-300 focus:border-red-500' : ''}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="text-sm font-medium">
-                      Email *
-                      {missingFields.includes('Email') && (
-                        <span className="text-red-500 ml-1">Requerido</span>
-                      )}
-                    </Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => handleInputChange('email', e.target.value)}
-                      placeholder="correo@ejemplo.com"
-                      className={missingFields.includes('Email') ? 'border-red-300 focus:border-red-500' : ''}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="telefono" className="text-sm font-medium">
-                      Teléfono *
-                      {missingFields.includes('Teléfono') && (
-                        <span className="text-red-500 ml-1">Requerido</span>
-                      )}
-                    </Label>
-                    <Input
-                      id="telefono"
-                      value={formData.telefono}
-                      onChange={(e) => handleInputChange('telefono', e.target.value)}
-                      placeholder="+52 55 1234 5678"
-                      className={missingFields.includes('Teléfono') ? 'border-red-300 focus:border-red-500' : ''}
-                    />
-                  </div>
-
+                <PersonalInfoForm
+                  formData={{
+                    nombre: formData.nombre,
+                    email: formData.email,
+                    telefono: formData.telefono,
+                    edad: formData.edad
+                  }}
+                  onInputChange={handleInputChange}
+                />
+                <div className="mt-4">
                   <div className="space-y-2">
                     <Label htmlFor="empresa" className="text-sm font-medium">
                       Empresa
@@ -480,96 +444,24 @@ export const MissingInfoDialog = ({
               </AccordionContent>
             </AccordionItem>
 
-            {/* Datos Personales */}
-            <AccordionItem value="personal">
+            {/* Ubicación */}
+            <AccordionItem value="location">
               <AccordionTrigger className="text-left">
                 <div className="flex items-center gap-2">
                   <User className="h-4 w-4" />
-                  Datos Personales
+                  Ubicación y Datos Personales
                 </div>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="edad" className="text-sm font-medium">
-                      Edad *
-                      {missingFields.includes('Edad') && (
-                        <span className="text-red-500 ml-1">Requerido</span>
-                      )}
-                    </Label>
-                    <Input
-                      id="edad"
-                      value={formData.edad}
-                      onChange={(e) => handleInputChange('edad', e.target.value)}
-                      placeholder="Ejemplo: 30"
-                      className={missingFields.includes('Edad') ? 'border-red-300 focus:border-red-500' : ''}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="direccion" className="text-sm font-medium">
-                      Dirección *
-                      {missingFields.includes('Dirección') && (
-                        <span className="text-red-500 ml-1">Requerido</span>
-                      )}
-                    </Label>
-                    <Input
-                      id="direccion"
-                      value={formData.direccion}
-                      onChange={(e) => handleInputChange('direccion', e.target.value)}
-                      placeholder="Dirección completa"
-                      className={missingFields.includes('Dirección') ? 'border-red-300 focus:border-red-500' : ''}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="estado" className="text-sm font-medium">
-                      Estado *
-                      {missingFields.includes('Estado') && (
-                        <span className="text-red-500 ml-1">Requerido</span>
-                      )}
-                    </Label>
-                    <Input
-                      id="estado"
-                      value={formData.estado}
-                      onChange={(e) => handleInputChange('estado', e.target.value)}
-                      placeholder="Estado de residencia"
-                      className={missingFields.includes('Estado') ? 'border-red-300 focus:border-red-500' : ''}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="ciudad" className="text-sm font-medium">
-                      Ciudad *
-                      {missingFields.includes('Ciudad') && (
-                        <span className="text-red-500 ml-1">Requerido</span>
-                      )}
-                    </Label>
-                    <Input
-                      id="ciudad"
-                      value={formData.ciudad}
-                      onChange={(e) => handleInputChange('ciudad', e.target.value)}
-                      placeholder="Ciudad de residencia"
-                      className={missingFields.includes('Ciudad') ? 'border-red-300 focus:border-red-500' : ''}
-                    />
-                  </div>
-
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="zona_trabajo" className="text-sm font-medium">
-                      Zona de trabajo *
-                      {missingFields.includes('Zona de trabajo') && (
-                        <span className="text-red-500 ml-1">Requerido</span>
-                      )}
-                    </Label>
-                    <Input
-                      id="zona_trabajo"
-                      value={formData.zona_trabajo}
-                      onChange={(e) => handleInputChange('zona_trabajo', e.target.value)}
-                      placeholder="Zona donde puede trabajar"
-                      className={missingFields.includes('Zona de trabajo') ? 'border-red-300 focus:border-red-500' : ''}
-                    />
-                  </div>
-                </div>
+                <LocationForm
+                  formData={{
+                    direccion: formData.direccion,
+                    estado: formData.estado,
+                    ciudad: formData.ciudad,
+                    zona_trabajo: formData.zona_trabajo
+                  }}
+                  onInputChange={handleInputChange}
+                />
               </AccordionContent>
             </AccordionItem>
 
@@ -604,99 +496,7 @@ export const MissingInfoDialog = ({
                     </Select>
                   </div>
 
-                  {/* Campos específicos según tipo de custodio */}
-                  {requiereVehiculo && (
-                    <div className="mt-6">
-                      <h4 className="font-medium mb-4 flex items-center gap-2">
-                        <Car className="h-4 w-4" />
-                        Información del Vehículo
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="vehiculo_marca" className="text-sm font-medium">
-                            Marca del vehículo *
-                            {missingFields.includes('Marca del vehículo') && (
-                              <span className="text-red-500 ml-1">Requerido</span>
-                            )}
-                          </Label>
-                          <Input
-                            id="vehiculo_marca"
-                            value={formData.vehiculo_marca}
-                            onChange={(e) => handleInputChange('vehiculo_marca', e.target.value)}
-                            placeholder="Marca del vehículo"
-                            className={missingFields.includes('Marca del vehículo') ? 'border-red-300 focus:border-red-500' : ''}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="vehiculo_modelo" className="text-sm font-medium">
-                            Modelo del vehículo *
-                            {missingFields.includes('Modelo del vehículo') && (
-                              <span className="text-red-500 ml-1">Requerido</span>
-                            )}
-                          </Label>
-                          <Input
-                            id="vehiculo_modelo"
-                            value={formData.vehiculo_modelo}
-                            onChange={(e) => handleInputChange('vehiculo_modelo', e.target.value)}
-                            placeholder="Modelo del vehículo"
-                            className={missingFields.includes('Modelo del vehículo') ? 'border-red-300 focus:border-red-500' : ''}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="vehiculo_año" className="text-sm font-medium">
-                            Año del vehículo *
-                            {missingFields.includes('Año del vehículo') && (
-                              <span className="text-red-500 ml-1">Requerido</span>
-                            )}
-                          </Label>
-                          <Input
-                            id="vehiculo_año"
-                            value={formData.vehiculo_año}
-                            onChange={(e) => handleInputChange('vehiculo_año', e.target.value)}
-                            placeholder="Año del vehículo"
-                            className={missingFields.includes('Año del vehículo') ? 'border-red-300 focus:border-red-500' : ''}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="vehiculo_placas" className="text-sm font-medium">
-                            Placas del vehículo *
-                            {missingFields.includes('Placas del vehículo') && (
-                              <span className="text-red-500 ml-1">Requerido</span>
-                            )}
-                          </Label>
-                          <Input
-                            id="vehiculo_placas"
-                            value={formData.vehiculo_placas}
-                            onChange={(e) => handleInputChange('vehiculo_placas', e.target.value)}
-                            placeholder="Placas del vehículo"
-                            className={missingFields.includes('Placas del vehículo') ? 'border-red-300 focus:border-red-500' : ''}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="seguro_vigente" className="text-sm font-medium">
-                            Seguro vigente *
-                            {missingFields.includes('Seguro vigente') && (
-                              <span className="text-red-500 ml-1">Requerido</span>
-                            )}
-                          </Label>
-                          <Select value={formData.seguro_vigente} onValueChange={(value) => handleInputChange('seguro_vigente', value)}>
-                            <SelectTrigger className={missingFields.includes('Seguro vigente') ? 'border-red-300 focus:border-red-500' : ''}>
-                              <SelectValue placeholder="¿Tiene seguro vigente?" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="si">Sí</SelectItem>
-                              <SelectItem value="no">No</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
+                  {/* Campos específicos para seguridad armada */}
                   {esArmado && (
                     <div className="mt-6">
                       <h4 className="font-medium mb-4 flex items-center gap-2">
@@ -726,6 +526,7 @@ export const MissingInfoDialog = ({
                     </div>
                   )}
 
+                  {/* Campos específicos para custodio abordo */}
                   {esAbordo && (
                     <div className="mt-6">
                       <h4 className="font-medium mb-4">Custodio Abordo</h4>
@@ -750,6 +551,32 @@ export const MissingInfoDialog = ({
               </AccordionContent>
             </AccordionItem>
 
+            {/* Información del Vehículo - Solo si requiere vehículo */}
+            {requiereVehiculo && (
+              <AccordionItem value="vehicle">
+                <AccordionTrigger className="text-left">
+                  <div className="flex items-center gap-2">
+                    <Car className="h-4 w-4" />
+                    Información del Vehículo
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <VehicleForm
+                    formData={{
+                      vehiculo_marca: formData.vehiculo_marca,
+                      vehiculo_modelo: formData.vehiculo_modelo,
+                      vehiculo_año: formData.vehiculo_año,
+                      vehiculo_placas: formData.vehiculo_placas,
+                      vehiculo_color: formData.vehiculo_color,
+                      vehiculo_tipo: formData.vehiculo_tipo,
+                      seguro_vigente: formData.seguro_vigente
+                    }}
+                    onInputChange={handleInputChange}
+                  />
+                </AccordionContent>
+              </AccordionItem>
+            )}
+
             {/* Experiencia */}
             <AccordionItem value="experience">
               <AccordionTrigger className="text-left">
@@ -759,77 +586,16 @@ export const MissingInfoDialog = ({
                 </div>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="experiencia_custodia" className="text-sm font-medium">
-                      Experiencia en custodia *
-                      {missingFields.includes('Experiencia en custodia') && (
-                        <span className="text-red-500 ml-1">Requerido</span>
-                      )}
-                    </Label>
-                    <Select value={formData.experiencia_custodia} onValueChange={(value) => handleInputChange('experiencia_custodia', value)}>
-                      <SelectTrigger className={missingFields.includes('Experiencia en custodia') ? 'border-red-300 focus:border-red-500' : ''}>
-                        <SelectValue placeholder="¿Tiene experiencia en custodia?" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="si">Sí</SelectItem>
-                        <SelectItem value="no">No</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="años_experiencia" className="text-sm font-medium">
-                      Años de experiencia *
-                      {missingFields.includes('Años de experiencia') && (
-                        <span className="text-red-500 ml-1">Requerido</span>
-                      )}
-                    </Label>
-                    <Input
-                      id="años_experiencia"
-                      value={formData.años_experiencia}
-                      onChange={(e) => handleInputChange('años_experiencia', e.target.value)}
-                      placeholder="Años de experiencia"
-                      className={missingFields.includes('Años de experiencia') ? 'border-red-300 focus:border-red-500' : ''}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="licencia_conducir" className="text-sm font-medium">
-                      Licencia de conducir *
-                      {missingFields.includes('Licencia de conducir') && (
-                        <span className="text-red-500 ml-1">Requerido</span>
-                      )}
-                    </Label>
-                    <Select value={formData.licencia_conducir} onValueChange={(value) => handleInputChange('licencia_conducir', value)}>
-                      <SelectTrigger className={missingFields.includes('Licencia de conducir') ? 'border-red-300 focus:border-red-500' : ''}>
-                        <SelectValue placeholder="¿Tiene licencia de conducir?" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="si">Sí</SelectItem>
-                        <SelectItem value="no">No</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="antecedentes_penales" className="text-sm font-medium">
-                      Antecedentes penales *
-                      {missingFields.includes('Antecedentes penales') && (
-                        <span className="text-red-500 ml-1">Requerido</span>
-                      )}
-                    </Label>
-                    <Select value={formData.antecedentes_penales} onValueChange={(value) => handleInputChange('antecedentes_penales', value)}>
-                      <SelectTrigger className={missingFields.includes('Antecedentes penales') ? 'border-red-300 focus:border-red-500' : ''}>
-                        <SelectValue placeholder="¿Tiene antecedentes penales?" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="no">No</SelectItem>
-                        <SelectItem value="si">Sí</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+                <ExperienceForm
+                  formData={{
+                    experiencia_custodia: formData.experiencia_custodia,
+                    años_experiencia: formData.años_experiencia,
+                    licencia_conducir: formData.licencia_conducir,
+                    tipo_licencia: formData.tipo_licencia,
+                    antecedentes_penales: formData.antecedentes_penales
+                  }}
+                  onInputChange={handleInputChange}
+                />
               </AccordionContent>
             </AccordionItem>
 
