@@ -15,10 +15,14 @@ import {
   Lock,
   X,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  Users,
+  Crown,
+  UserCheck
 } from 'lucide-react';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Badge } from '@/components/ui/badge';
 
 export const PermissionsManager = () => {
   // Get roles, permissions and related functions
@@ -86,7 +90,90 @@ export const PermissionsManager = () => {
     return result;
   }, [permissions]);
 
-  // Safely handle permission changes - fixed to handle string ID
+  // Get role description and icon
+  const getRoleInfo = (role: Role) => {
+    switch (role) {
+      case 'owner':
+        return { 
+          label: 'Propietario', 
+          icon: Crown, 
+          description: 'Acceso total al sistema',
+          color: 'bg-purple-100 text-purple-800'
+        };
+      case 'admin':
+        return { 
+          label: 'Administrador', 
+          icon: ShieldCheck, 
+          description: 'Gestión completa de usuarios y configuración',
+          color: 'bg-red-100 text-red-800'
+        };
+      case 'supply_admin':
+        return { 
+          label: 'Admin Suministros', 
+          icon: UserCheck, 
+          description: 'Gestión de cadena de suministros',
+          color: 'bg-amber-100 text-amber-800'
+        };
+      case 'bi':
+        return { 
+          label: 'Business Intelligence', 
+          icon: Users, 
+          description: 'Acceso a reportes y análisis',
+          color: 'bg-blue-100 text-blue-800'
+        };
+      case 'monitoring_supervisor':
+        return { 
+          label: 'Supervisor Monitoreo', 
+          icon: UserCheck, 
+          description: 'Supervisión de operaciones de monitoreo',
+          color: 'bg-amber-100 text-amber-800'
+        };
+      case 'monitoring':
+        return { 
+          label: 'Monitoreo', 
+          icon: Users, 
+          description: 'Operaciones de monitoreo básico',
+          color: 'bg-blue-100 text-blue-800'
+        };
+      case 'supply':
+        return { 
+          label: 'Suministros', 
+          icon: Users, 
+          description: 'Gestión básica de suministros',
+          color: 'bg-blue-100 text-blue-800'
+        };
+      case 'soporte':
+        return { 
+          label: 'Soporte', 
+          icon: Users, 
+          description: 'Asistencia técnica y atención al cliente',
+          color: 'bg-blue-100 text-blue-800'
+        };
+      case 'pending':
+        return { 
+          label: 'Pendiente', 
+          icon: Users, 
+          description: 'Usuario pendiente de asignación de rol',
+          color: 'bg-yellow-100 text-yellow-800'
+        };
+      case 'unverified':
+        return { 
+          label: 'No Verificado', 
+          icon: Users, 
+          description: 'Usuario sin verificar',
+          color: 'bg-gray-100 text-gray-800'
+        };
+      default:
+        return { 
+          label: role, 
+          icon: Users, 
+          description: 'Rol del sistema',
+          color: 'bg-gray-100 text-gray-800'
+        };
+    }
+  };
+
+  // Safely handle permission changes
   const handlePermissionChange = (id: string, allowed: boolean) => {
     if (updatePermission) {
       updatePermission.mutate({ id, allowed });
@@ -175,7 +262,7 @@ export const PermissionsManager = () => {
     setRetryCount(prev => prev + 1);
   };
 
-  // Create a fallback permissions structure when there's an error - Fixed type issue
+  // Create a fallback permissions structure when there's an error
   const fallbackPermissions = useMemo(() => {
     if (!error || !roles || roles.length === 0) return null;
     
@@ -212,7 +299,7 @@ export const PermissionsManager = () => {
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <div className="text-sm text-muted-foreground">
-            Cargando permisos...
+            Cargando permisos del sistema...
           </div>
         </div>
       </div>
@@ -224,15 +311,17 @@ export const PermissionsManager = () => {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center">
-                <ShieldCheck className="h-4.5 w-4.5 text-primary" />
+            <div className="flex items-center gap-3 mb-2">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                <ShieldCheck className="h-5 w-5 text-primary" />
               </div>
-              <h2 className="text-2xl font-bold text-foreground">Permisos del Sistema</h2>
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">Sistema de Permisos</h2>
+                <p className="text-sm text-muted-foreground">
+                  Gestión de accesos y roles del sistema
+                </p>
+              </div>
             </div>
-            <p className="text-muted-foreground">
-              Configure los permisos y accesos para cada rol del sistema
-            </p>
           </div>
           <Button 
             onClick={() => handleOpenAddPermission()}
@@ -260,51 +349,6 @@ export const PermissionsManager = () => {
             </div>
           </AlertDescription>
         </Alert>
-
-        {/* Display alternative content using fallback permissions */}
-        {roles && roles.length > 0 && fallbackPermissions && (
-          <Card className="border-border/40 shadow-sm overflow-hidden">
-            <CardHeader className="pb-3 border-b border-border/30 bg-muted/10">
-              <div className="flex items-center gap-2">
-                <Lock className="h-4 w-4 text-primary" />
-                <CardTitle className="text-lg">Gestión de Permisos (Modo Limitado)</CardTitle>
-              </div>
-              <CardDescription>
-                Algunas funcionalidades están limitadas mientras se resuelve el error
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div>
-                <RoleTabsList
-                  roles={roles}
-                  activeTab={activeTab}
-                  onTabChange={setActiveTab}
-                  getPermissionCount={getPermissionCount}
-                >
-                  {roles?.map((role) => (
-                    <div key={role} className="space-y-6">
-                      <div className="bg-muted/20 rounded-lg py-12 px-6 text-center">
-                        <h3 className="text-md font-medium mb-2">Modo de visualización limitado para el rol: {role}</h3>
-                        <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                          Los permisos no pueden mostrarse completamente debido a un error de acceso. 
-                          Añada permisos para definir lo que los usuarios con este rol pueden hacer.
-                        </p>
-                        <Button 
-                          variant="outline" 
-                          onClick={() => handleOpenAddPermission(role as Role)}
-                          className="flex items-center gap-2"
-                        >
-                          <PlusCircle className="h-4 w-4" />
-                          Añadir Permiso para {role}
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </RoleTabsList>
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
     );
   }
@@ -326,15 +370,17 @@ export const PermissionsManager = () => {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center">
-                <ShieldCheck className="h-4.5 w-4.5 text-primary" />
+            <div className="flex items-center gap-3 mb-2">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                <ShieldCheck className="h-5 w-5 text-primary" />
               </div>
-              <h2 className="text-2xl font-bold text-foreground">Permisos del Sistema</h2>
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">Sistema de Permisos</h2>
+                <p className="text-sm text-muted-foreground">
+                  Configure los permisos y accesos para cada rol del sistema
+                </p>
+              </div>
             </div>
-            <p className="text-muted-foreground">
-              Configure los permisos y accesos para cada rol del sistema
-            </p>
           </div>
           <Button 
             onClick={() => handleOpenAddPermission()}
@@ -360,11 +406,18 @@ export const PermissionsManager = () => {
         )}
         
         <Card className="border-border/40 shadow-sm overflow-hidden">
-          <CardHeader className="pb-3 border-b border-border/30 bg-muted/10">
+          <CardHeader className="pb-4 border-b border-border/30 bg-gradient-to-r from-muted/30 to-muted/10">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Lock className="h-4 w-4 text-primary" />
-                <CardTitle className="text-lg">Matriz de Permisos</CardTitle>
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center">
+                  <Lock className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Matriz de Permisos por Rol</CardTitle>
+                  <CardDescription>
+                    Defina los permisos específicos para cada rol en el sistema
+                  </CardDescription>
+                </div>
               </div>
               
               {!isLoading && allPermissionTypes.length > 0 && (
@@ -375,9 +428,6 @@ export const PermissionsManager = () => {
                 />
               )}
             </div>
-            <CardDescription>
-              Defina los permisos específicos para cada rol en el sistema
-            </CardDescription>
           </CardHeader>
           <CardContent className="p-6">
             {!displayPermissions || Object.keys(displayPermissions).length === 0 ? (
@@ -405,13 +455,41 @@ export const PermissionsManager = () => {
                   activeTab={activeTab}
                   onTabChange={setActiveTab}
                   getPermissionCount={getPermissionCount}
+                  getRoleInfo={getRoleInfo}
                 >
                   {roles?.map((role) => {
                     const rolePermissions = displayPermissions?.[role] || [];
                     const filteredPermissions = getFilteredPermissions(rolePermissions);
+                    const roleInfo = getRoleInfo(role);
                     
                     return (
                       <div key={role} className="space-y-6">
+                        {/* Role Information Header */}
+                        <div className="bg-gradient-to-r from-muted/30 to-muted/10 rounded-lg p-4 border border-border/30">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-lg bg-background border border-border/20 flex items-center justify-center">
+                              <roleInfo.icon className="h-5 w-5 text-primary" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-semibold text-lg">{roleInfo.label}</h3>
+                                <Badge variant="outline" className={`${roleInfo.color} font-medium`}>
+                                  {role}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground">{roleInfo.description}</p>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm font-medium">
+                                {rolePermissions.length} permiso{rolePermissions.length !== 1 ? 's' : ''}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {filteredPermissions.length} visible{filteredPermissions.length !== 1 ? 's' : ''}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
                         <RolePermissionsContent
                           role={role as Role}
                           permissions={rolePermissions}

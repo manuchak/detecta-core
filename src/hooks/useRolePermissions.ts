@@ -82,7 +82,7 @@ const fetchRolePermissions = async (): Promise<Permission[]> => {
     }
     
     return data.map((p: any) => ({
-      id: p.id, // Keep as UUID string
+      id: p.id,
       role: p.role as Role,
       permission_type: p.permission_type,
       permission_id: p.permission_id,
@@ -136,6 +136,7 @@ export const useRolePermissions = () => {
           });
         }
         
+        console.log('Permissions loaded by role:', permissionsByRole);
         return permissionsByRole;
       } catch (err) {
         console.error('Error in useRolePermissions:', err);
