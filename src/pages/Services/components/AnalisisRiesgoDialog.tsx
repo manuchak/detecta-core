@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import {
@@ -84,7 +83,14 @@ export const AnalisisRiesgoDialog = ({ open, onOpenChange, servicioId }: Analisi
   };
 
   const onSubmit = async (data: Partial<AnalisisRiesgo>) => {
-    await saveAnalisis.mutateAsync(data);
+    // Ensure required fields are present
+    const analisisData = {
+      ...data,
+      servicio_id: servicioId,
+      zona_operacion: data.zona_operacion || ''
+    };
+    
+    await saveAnalisis.mutateAsync(analisisData);
     onOpenChange(false);
   };
 
