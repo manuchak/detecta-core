@@ -1,3 +1,4 @@
+
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/components/theme-provider';
@@ -45,20 +46,20 @@ function App() {
               <Route path="/auth/email-confirmation" element={<EmailConfirmation />} />
               
               {/* Protected Routes */}
-              <Route element={<DashboardLayout />}>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/leads" element={<LeadsList />} />
-                <Route path="/leads/approvals" element={<LeadApprovals />} />
-                <Route path="/monitoring" element={<MonitoringPage />} />
-                <Route path="/monitoring/supply-chain" element={<SupplyChainMonitoring />} />
-                <Route path="/monitoring/forensic-audit" element={<ForensicAuditPage />} />
-                <Route path="/services" element={<ServicesPage />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/tickets" element={<TicketsList />} />
-                <Route path="/installers" element={<InstallerPortal />} />
-                <Route path="/admin/landing" element={<LandingManager />} />
-                <Route path="/admin/assign-role" element={<AssignRole />} />
-                <Route path="/admin/assign-owner-role" element={<AssignOwnerRole />} />
+              <Route path="/" element={<DashboardLayout />}>
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="leads" element={<LeadsList />} />
+                <Route path="leads/approvals" element={<LeadApprovals />} />
+                <Route path="monitoring" element={<MonitoringPage />} />
+                <Route path="monitoring/supply-chain" element={<SupplyChainMonitoring />} />
+                <Route path="monitoring/forensic-audit" element={<ForensicAuditPage />} />
+                <Route path="services" element={<ServicesPage />} />
+                <Route path="settings" element={<Settings />} />
+                <Route path="tickets" element={<TicketsList />} />
+                <Route path="installers" element={<InstallerPortal />} />
+                <Route path="admin/landing" element={<LandingManager />} />
+                <Route path="admin/assign-role" element={<AssignRole />} />
+                <Route path="admin/assign-owner-role" element={<AssignOwnerRole />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />

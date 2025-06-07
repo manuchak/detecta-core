@@ -112,13 +112,17 @@ export const useAnalisisRiesgo = (servicioId?: string) => {
   });
 
   const saveAnalisis = useMutation({
-    mutationFn: async (data: Partial<AnalisisRiesgo>) => {
+    mutationFn: async (data: Partial<AnalisisRiesgo> & { servicio_id: string; zona_operacion: string }) => {
+      const currentUser = await supabase.auth.getUser();
+      
+      const analisisData = {
+        ...data,
+        evaluado_por: currentUser.data.user?.id
+      };
+
       const { data: result, error } = await supabase
         .from('analisis_riesgo')
-        .upsert([{
-          ...data,
-          evaluado_por: (await supabase.auth.getUser()).data.user?.id
-        }])
+        .upsert(analisisData)
         .select()
         .single();
 
