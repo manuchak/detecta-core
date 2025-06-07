@@ -53,20 +53,20 @@ interface FormDataInterface {
   // Datos personales
   edad: string;
   direccion: string;
-  estado: string;
-  ciudad: string;
-  zona_trabajo: string;
+  estado_id: string;
+  ciudad_id: string;
+  zona_trabajo_id: string;
   
   // Tipo de custodio
   tipo_custodio: string;
   
   // Vehículo
-  vehiculo_marca: string;
-  vehiculo_modelo: string;
-  vehiculo_año: string;
-  vehiculo_placas: string;
-  vehiculo_color: string;
-  vehiculo_tipo: string;
+  marca_vehiculo: string;
+  modelo_vehiculo: string;
+  año_vehiculo: string;
+  placas: string;
+  color_vehiculo: string;
+  tipo_vehiculo: string;
   seguro_vigente: string;
   
   // Seguridad armada
@@ -75,14 +75,17 @@ interface FormDataInterface {
   años_experiencia_armada: string;
   
   // Custodio abordo
-  especialidad: string;
+  especialidad_abordo: string;
   
   // Experiencia
   experiencia_custodia: string;
   años_experiencia: string;
+  empresas_anteriores: string;
   licencia_conducir: string;
   tipo_licencia: string;
   antecedentes_penales: string;
+  referencias: string;
+  mensaje: string;
   
   // Disponibilidad
   horario: string;
@@ -106,20 +109,20 @@ export const MissingInfoDialog = ({
     // Datos personales
     edad: "",
     direccion: "",
-    estado: "",
-    ciudad: "",
-    zona_trabajo: "",
+    estado_id: "",
+    ciudad_id: "",
+    zona_trabajo_id: "",
     
     // Tipo de custodio
     tipo_custodio: "",
     
     // Vehículo
-    vehiculo_marca: "",
-    vehiculo_modelo: "",
-    vehiculo_año: "",
-    vehiculo_placas: "",
-    vehiculo_color: "",
-    vehiculo_tipo: "",
+    marca_vehiculo: "",
+    modelo_vehiculo: "",
+    año_vehiculo: "",
+    placas: "",
+    color_vehiculo: "",
+    tipo_vehiculo: "",
     seguro_vigente: "",
     
     // Seguridad armada
@@ -128,14 +131,17 @@ export const MissingInfoDialog = ({
     años_experiencia_armada: "",
     
     // Custodio abordo
-    especialidad: "",
+    especialidad_abordo: "",
     
     // Experiencia
     experiencia_custodia: "",
     años_experiencia: "",
+    empresas_anteriores: "",
     licencia_conducir: "",
     tipo_licencia: "",
     antecedentes_penales: "",
+    referencias: "",
+    mensaje: "",
     
     // Disponibilidad
     horario: "",
@@ -170,20 +176,20 @@ export const MissingInfoDialog = ({
         // Datos personales
         edad: notesData.datos_personales?.edad || "",
         direccion: notesData.datos_personales?.direccion || "",
-        estado: notesData.datos_personales?.estado || "",
-        ciudad: notesData.datos_personales?.ciudad || "",
-        zona_trabajo: notesData.datos_personales?.zona_trabajo || "",
+        estado_id: notesData.datos_personales?.estado_id || "",
+        ciudad_id: notesData.datos_personales?.ciudad_id || "",
+        zona_trabajo_id: notesData.datos_personales?.zona_trabajo_id || "",
         
         // Tipo de custodio
         tipo_custodio: notesData.tipo_custodio || "",
         
         // Vehículo
-        vehiculo_marca: notesData.vehiculo?.marca || "",
-        vehiculo_modelo: notesData.vehiculo?.modelo || "",
-        vehiculo_año: notesData.vehiculo?.año || "",
-        vehiculo_placas: notesData.vehiculo?.placas || "",
-        vehiculo_color: notesData.vehiculo?.color || "",
-        vehiculo_tipo: notesData.vehiculo?.tipo || "",
+        marca_vehiculo: notesData.vehiculo?.marca_vehiculo || "",
+        modelo_vehiculo: notesData.vehiculo?.modelo_vehiculo || "",
+        año_vehiculo: notesData.vehiculo?.año_vehiculo || "",
+        placas: notesData.vehiculo?.placas || "",
+        color_vehiculo: notesData.vehiculo?.color_vehiculo || "",
+        tipo_vehiculo: notesData.vehiculo?.tipo_vehiculo || "",
         seguro_vigente: notesData.vehiculo?.seguro_vigente || "",
         
         // Seguridad armada
@@ -192,14 +198,17 @@ export const MissingInfoDialog = ({
         años_experiencia_armada: notesData.seguridad_armada?.años_experiencia_armada || "",
         
         // Custodio abordo
-        especialidad: notesData.custodio_abordo?.especialidad || "",
+        especialidad_abordo: notesData.custodio_abordo?.especialidad_abordo || "",
         
         // Experiencia
         experiencia_custodia: notesData.experiencia?.experiencia_custodia || "",
         años_experiencia: notesData.experiencia?.años_experiencia || "",
+        empresas_anteriores: notesData.experiencia?.empresas_anteriores || "",
         licencia_conducir: notesData.experiencia?.licencia_conducir || "",
         tipo_licencia: notesData.experiencia?.tipo_licencia || "",
         antecedentes_penales: notesData.experiencia?.antecedentes_penales || "",
+        referencias: notesData.experiencia?.referencias || "",
+        mensaje: notesData.experiencia?.mensaje || "",
         
         // Disponibilidad
         horario: notesData.disponibilidad?.horario || "",
@@ -230,18 +239,18 @@ export const MissingInfoDialog = ({
       datos_personales: {
         edad: data.edad,
         direccion: data.direccion,
-        estado: data.estado,
-        ciudad: data.ciudad,
-        zona_trabajo: data.zona_trabajo
+        estado_id: data.estado_id,
+        ciudad_id: data.ciudad_id,
+        zona_trabajo_id: data.zona_trabajo_id
       },
       tipo_custodio: data.tipo_custodio,
       vehiculo: {
-        marca: data.vehiculo_marca,
-        modelo: data.vehiculo_modelo,
-        año: data.vehiculo_año,
-        placas: data.vehiculo_placas,
-        color: data.vehiculo_color,
-        tipo: data.vehiculo_tipo,
+        marca_vehiculo: data.marca_vehiculo,
+        modelo_vehiculo: data.modelo_vehiculo,
+        año_vehiculo: data.año_vehiculo,
+        placas: data.placas,
+        color_vehiculo: data.color_vehiculo,
+        tipo_vehiculo: data.tipo_vehiculo,
         seguro_vigente: data.seguro_vigente
       },
       seguridad_armada: {
@@ -250,14 +259,17 @@ export const MissingInfoDialog = ({
         años_experiencia_armada: data.años_experiencia_armada
       },
       custodio_abordo: {
-        especialidad: data.especialidad
+        especialidad_abordo: data.especialidad_abordo
       },
       experiencia: {
         experiencia_custodia: data.experiencia_custodia,
         años_experiencia: data.años_experiencia,
+        empresas_anteriores: data.empresas_anteriores,
         licencia_conducir: data.licencia_conducir,
         tipo_licencia: data.tipo_licencia,
-        antecedentes_penales: data.antecedentes_penales
+        antecedentes_penales: data.antecedentes_penales,
+        referencias: data.referencias,
+        mensaje: data.mensaje
       },
       disponibilidad: {
         horario: data.horario,
@@ -286,18 +298,18 @@ export const MissingInfoDialog = ({
         datos_personales: {
           edad: formData.edad,
           direccion: formData.direccion,
-          estado: formData.estado,
-          ciudad: formData.ciudad,
-          zona_trabajo: formData.zona_trabajo
+          estado_id: formData.estado_id,
+          ciudad_id: formData.ciudad_id,
+          zona_trabajo_id: formData.zona_trabajo_id
         },
         tipo_custodio: formData.tipo_custodio,
         vehiculo: {
-          marca: formData.vehiculo_marca,
-          modelo: formData.vehiculo_modelo,
-          año: formData.vehiculo_año,
-          placas: formData.vehiculo_placas,
-          color: formData.vehiculo_color,
-          tipo: formData.vehiculo_tipo,
+          marca_vehiculo: formData.marca_vehiculo,
+          modelo_vehiculo: formData.modelo_vehiculo,
+          año_vehiculo: formData.año_vehiculo,
+          placas: formData.placas,
+          color_vehiculo: formData.color_vehiculo,
+          tipo_vehiculo: formData.tipo_vehiculo,
           seguro_vigente: formData.seguro_vigente
         },
         seguridad_armada: {
@@ -306,14 +318,17 @@ export const MissingInfoDialog = ({
           años_experiencia_armada: formData.años_experiencia_armada
         },
         custodio_abordo: {
-          especialidad: formData.especialidad
+          especialidad_abordo: formData.especialidad_abordo
         },
         experiencia: {
           experiencia_custodia: formData.experiencia_custodia,
           años_experiencia: formData.años_experiencia,
+          empresas_anteriores: formData.empresas_anteriores,
           licencia_conducir: formData.licencia_conducir,
           tipo_licencia: formData.tipo_licencia,
-          antecedentes_penales: formData.antecedentes_penales
+          antecedentes_penales: formData.antecedentes_penales,
+          referencias: formData.referencias,
+          mensaje: formData.mensaje
         },
         disponibilidad: {
           horario: formData.horario,
@@ -456,126 +471,30 @@ export const MissingInfoDialog = ({
                 <LocationForm
                   formData={{
                     direccion: formData.direccion,
-                    estado: formData.estado,
-                    ciudad: formData.ciudad,
-                    zona_trabajo: formData.zona_trabajo
+                    estado_id: formData.estado_id,
+                    ciudad_id: formData.ciudad_id,
+                    zona_trabajo_id: formData.zona_trabajo_id
                   }}
                   onInputChange={handleInputChange}
                 />
               </AccordionContent>
             </AccordionItem>
 
-            {/* Tipo de Custodio */}
-            <AccordionItem value="type">
+            {/* Vehículo y Tipo de Custodio */}
+            <AccordionItem value="vehicle">
               <AccordionTrigger className="text-left">
                 <div className="flex items-center gap-2">
-                  <Shield className="h-4 w-4" />
-                  Tipo de Custodio
+                  <Car className="h-4 w-4" />
+                  Tipo de Custodio y Vehículo
                 </div>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="tipo_custodio" className="text-sm font-medium">
-                      Tipo de custodio *
-                      {missingFields.includes('Tipo de custodio') && (
-                        <span className="text-red-500 ml-1">Requerido</span>
-                      )}
-                    </Label>
-                    <Select value={formData.tipo_custodio} onValueChange={(value) => handleInputChange('tipo_custodio', value)}>
-                      <SelectTrigger className={missingFields.includes('Tipo de custodio') ? 'border-red-300 focus:border-red-500' : ''}>
-                        <SelectValue placeholder="Seleccione el tipo de custodio" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="custodio">Custodio</SelectItem>
-                        <SelectItem value="custodio_vehiculo">Custodio con vehículo</SelectItem>
-                        <SelectItem value="armado">Seguridad armada</SelectItem>
-                        <SelectItem value="armado_vehiculo">Seguridad armada con vehículo</SelectItem>
-                        <SelectItem value="abordo">Custodio abordo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Campos específicos para seguridad armada */}
-                  {esArmado && (
-                    <div className="mt-6">
-                      <h4 className="font-medium mb-4 flex items-center gap-2">
-                        <Shield className="h-4 w-4" />
-                        Seguridad Armada
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="licencia_armas" className="text-sm font-medium">
-                            Licencia de armas *
-                            {missingFields.includes('Licencia de armas') && (
-                              <span className="text-red-500 ml-1">Requerido</span>
-                            )}
-                          </Label>
-                          <Select value={formData.licencia_armas} onValueChange={(value) => handleInputChange('licencia_armas', value)}>
-                            <SelectTrigger className={missingFields.includes('Licencia de armas') ? 'border-red-300 focus:border-red-500' : ''}>
-                              <SelectValue placeholder="¿Tiene licencia de armas?" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="si">Sí</SelectItem>
-                              <SelectItem value="no">No</SelectItem>
-                              <SelectItem value="en_tramite">En trámite</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Campos específicos para custodio abordo */}
-                  {esAbordo && (
-                    <div className="mt-6">
-                      <h4 className="font-medium mb-4">Custodio Abordo</h4>
-                      <div className="space-y-2">
-                        <Label htmlFor="especialidad" className="text-sm font-medium">
-                          Especialidad abordo *
-                          {missingFields.includes('Especialidad abordo') && (
-                            <span className="text-red-500 ml-1">Requerido</span>
-                          )}
-                        </Label>
-                        <Input
-                          id="especialidad"
-                          value={formData.especialidad}
-                          onChange={(e) => handleInputChange('especialidad', e.target.value)}
-                          placeholder="Especialidad para custodio abordo"
-                          className={missingFields.includes('Especialidad abordo') ? 'border-red-300 focus:border-red-500' : ''}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <VehicleForm
+                  formData={formData}
+                  onInputChange={handleInputChange}
+                />
               </AccordionContent>
             </AccordionItem>
-
-            {/* Información del Vehículo - Solo si requiere vehículo */}
-            {requiereVehiculo && (
-              <AccordionItem value="vehicle">
-                <AccordionTrigger className="text-left">
-                  <div className="flex items-center gap-2">
-                    <Car className="h-4 w-4" />
-                    Información del Vehículo
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <VehicleForm
-                    formData={{
-                      vehiculo_marca: formData.vehiculo_marca,
-                      vehiculo_modelo: formData.vehiculo_modelo,
-                      vehiculo_año: formData.vehiculo_año,
-                      vehiculo_placas: formData.vehiculo_placas,
-                      vehiculo_color: formData.vehiculo_color,
-                      vehiculo_tipo: formData.vehiculo_tipo,
-                      seguro_vigente: formData.seguro_vigente
-                    }}
-                    onInputChange={handleInputChange}
-                  />
-                </AccordionContent>
-              </AccordionItem>
-            )}
 
             {/* Experiencia */}
             <AccordionItem value="experience">
@@ -590,9 +509,12 @@ export const MissingInfoDialog = ({
                   formData={{
                     experiencia_custodia: formData.experiencia_custodia,
                     años_experiencia: formData.años_experiencia,
+                    empresas_anteriores: formData.empresas_anteriores,
                     licencia_conducir: formData.licencia_conducir,
                     tipo_licencia: formData.tipo_licencia,
-                    antecedentes_penales: formData.antecedentes_penales
+                    antecedentes_penales: formData.antecedentes_penales,
+                    referencias: formData.referencias,
+                    mensaje: formData.mensaje
                   }}
                   onInputChange={handleInputChange}
                 />
