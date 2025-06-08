@@ -24,7 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { ServicioMonitoreo } from '@/types/serviciosMonitoreo';
+import type { ServicioMonitoreo, AnalisisRiesgo } from '@/types/serviciosMonitoreo';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { RiskIndicator } from '@/components/ui/risk-indicator';
@@ -47,7 +47,15 @@ export const ServiciosTable = ({ servicios, isLoading, onAnalisisRiesgo }: Servi
         .select('*');
       
       if (error) throw error;
-      return data;
+      
+      // Cast the data to properly typed AnalisisRiesgo objects
+      return data?.map(item => ({
+        ...item,
+        nivel_riesgo_cliente: item.nivel_riesgo_cliente as AnalisisRiesgo['nivel_riesgo_cliente'],
+        nivel_riesgo_zona: item.nivel_riesgo_zona as AnalisisRiesgo['nivel_riesgo_zona'],
+        situacion_financiera: item.situacion_financiera as AnalisisRiesgo['situacion_financiera'],
+        recomendacion: item.recomendacion as AnalisisRiesgo['recomendacion']
+      } as AnalisisRiesgo)) || [];
     }
   });
 

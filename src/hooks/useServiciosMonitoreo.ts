@@ -1,7 +1,8 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import type { ServicioMonitoreo, CreateServicioData, AnalisisRiesgo, DocumentacionRequerida, ActivoMonitoreo } from '@/types/serviciosMonitoreo';
+import type { ServicioMonitoreo, CreateServicioData } from '@/types/serviciosMonitoreo';
 
 export const useServiciosMonitoreo = () => {
   const { toast } = useToast();
@@ -88,61 +89,5 @@ export const useServiciosMonitoreo = () => {
   };
 };
 
-// Hook específico para análisis de riesgo
-export const useAnalisisRiesgo = (servicioId?: string) => {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  const { data: analisis, isLoading } = useQuery({
-    queryKey: ['analisis-riesgo', servicioId],
-    queryFn: async () => {
-      if (!servicioId) return null;
-      
-      const { data, error } = await supabase
-        .from('analisis_riesgo')
-        .select('*')
-        .eq('servicio_id', servicioId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') throw error;
-      return data as AnalisisRiesgo | null;
-    },
-    enabled: !!servicioId
-  });
-
-  const saveAnalisis = useMutation({
-    mutationFn: async (data: Partial<AnalisisRiesgo> & { servicio_id: string; zona_operacion: string }) => {
-      const currentUser = await supabase.auth.getUser();
-      
-      const analisisData = {
-        ...data,
-        evaluado_por: currentUser.data.user?.id
-      };
-
-      const { data: result, error } = await supabase
-        .from('analisis_riesgo')
-        .upsert(analisisData)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return result;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['analisis-riesgo'] });
-      toast({
-        title: "Análisis guardado",
-        description: "El análisis de riesgo ha sido guardado exitosamente.",
-      });
-    }
-  });
-
-  return {
-    analisis,
-    isLoading,
-    saveAnalisis
-  };
-};
-
-// Exportar también el nuevo hook de análisis de riesgo
+// Export the separate hook
 export { useAnalisisRiesgo } from './useAnalisisRiesgo';
