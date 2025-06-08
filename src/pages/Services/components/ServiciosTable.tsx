@@ -1,4 +1,3 @@
-
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,6 +27,9 @@ import {
 import type { ServicioMonitoreo } from '@/types/serviciosMonitoreo';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { RiskIndicator } from '@/components/ui/risk-indicator';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ServiciosTableProps {
   servicios: ServicioMonitoreo[];
@@ -36,6 +38,24 @@ interface ServiciosTableProps {
 }
 
 export const ServiciosTable = ({ servicios, isLoading, onAnalisisRiesgo }: ServiciosTableProps) => {
+  // Query para obtener todos los análisis de riesgo
+  const { data: analisisRiesgos } = useQuery({
+    queryKey: ['analisis-riesgos-all'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('analisis_riesgo')
+        .select('*');
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Función para obtener el análisis de riesgo de un servicio específico
+  const getAnalisisForServicio = (servicioId: string) => {
+    return analisisRiesgos?.find(analisis => analisis.servicio_id === servicioId) || null;
+  };
+
   const getEstadoBadge = (estado: string) => {
     const config = {
       'pendiente_evaluacion': { 
@@ -140,67 +160,75 @@ export const ServiciosTable = ({ servicios, isLoading, onAnalisisRiesgo }: Servi
             <TableHead>Tipo</TableHead>
             <TableHead>Prioridad</TableHead>
             <TableHead>Estado</TableHead>
+            <TableHead>Análisis de Riesgo</TableHead>
             <TableHead>Fecha Solicitud</TableHead>
             <TableHead>Ejecutivo</TableHead>
             <TableHead className="text-right">Acciones</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {servicios.map((servicio) => (
-            <TableRow key={servicio.id}>
-              <TableCell className="font-medium">
-                {servicio.numero_servicio}
-              </TableCell>
-              <TableCell>
-                <div>
-                  <div className="font-medium">{servicio.nombre_cliente}</div>
-                  {servicio.empresa && (
-                    <div className="text-sm text-gray-500">{servicio.empresa}</div>
-                  )}
-                </div>
-              </TableCell>
-              <TableCell>
-                <Badge variant="outline">
-                  {servicio.tipo_servicio === 'personal' && 'Personal'}
-                  {servicio.tipo_servicio === 'vehicular' && 'Vehicular'}
-                  {servicio.tipo_servicio === 'flotilla' && 'Flotilla'}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                {getPrioridadBadge(servicio.prioridad)}
-              </TableCell>
-              <TableCell>
-                {getEstadoBadge(servicio.estado_general)}
-              </TableCell>
-              <TableCell>
-                {format(new Date(servicio.fecha_solicitud), 'dd MMM yyyy', { locale: es })}
-              </TableCell>
-              <TableCell>
-                <div className="text-sm">
-                  {(servicio as any).ejecutivo?.display_name || 'No asignado'}
-                </div>
-              </TableCell>
-              <TableCell className="text-right">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-8 w-8 p-0">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => {}}>
-                      <Eye className="mr-2 h-4 w-4" />
-                      Ver Detalles
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onAnalisisRiesgo(servicio.id)}>
-                      <FileSearch className="mr-2 h-4 w-4" />
-                      Análisis de Riesgo
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-            </TableRow>
-          ))}
+          {servicios.map((servicio) => {
+            const analisisRiesgo = getAnalisisForServicio(servicio.id);
+            
+            return (
+              <TableRow key={servicio.id}>
+                <TableCell className="font-medium">
+                  {servicio.numero_servicio}
+                </TableCell>
+                <TableCell>
+                  <div>
+                    <div className="font-medium">{servicio.nombre_cliente}</div>
+                    {servicio.empresa && (
+                      <div className="text-sm text-gray-500">{servicio.empresa}</div>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline">
+                    {servicio.tipo_servicio === 'personal' && 'Personal'}
+                    {servicio.tipo_servicio === 'vehicular' && 'Vehicular'}
+                    {servicio.tipo_servicio === 'flotilla' && 'Flotilla'}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  {getPrioridadBadge(servicio.prioridad)}
+                </TableCell>
+                <TableCell>
+                  {getEstadoBadge(servicio.estado_general)}
+                </TableCell>
+                <TableCell>
+                  <RiskIndicator analisis={analisisRiesgo} size="sm" />
+                </TableCell>
+                <TableCell>
+                  {format(new Date(servicio.fecha_solicitud), 'dd MMM yyyy', { locale: es })}
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm">
+                    {(servicio as any).ejecutivo?.display_name || 'No asignado'}
+                  </div>
+                </TableCell>
+                <TableCell className="text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-8 w-8 p-0">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => {}}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        Ver Detalles
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onAnalisisRiesgo(servicio.id)}>
+                        <FileSearch className="mr-2 h-4 w-4" />
+                        {analisisRiesgo ? 'Editar Análisis' : 'Análisis de Riesgo'}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>

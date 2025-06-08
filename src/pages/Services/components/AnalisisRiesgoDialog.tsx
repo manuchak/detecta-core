@@ -1,4 +1,5 @@
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import {
   Dialog,
@@ -26,8 +27,8 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
+import { Progress } from '@/components/ui/progress';
 import { 
   Shield, 
   AlertTriangle, 
@@ -36,9 +37,11 @@ import {
   Building,
   User,
   FileText,
-  Loader2
+  Loader2,
+  TrendingUp,
+  Calculator
 } from 'lucide-react';
-import { useAnalisisRiesgo } from '@/hooks/useServiciosMonitoreo';
+import { useAnalisisRiesgo } from '@/hooks/useAnalisisRiesgo';
 import type { AnalisisRiesgo, NivelRiesgo, SituacionFinanciera, Recomendacion } from '@/types/serviciosMonitoreo';
 
 interface AnalisisRiesgoDialogProps {
@@ -49,7 +52,7 @@ interface AnalisisRiesgoDialogProps {
 
 export const AnalisisRiesgoDialog = ({ open, onOpenChange, servicioId }: AnalisisRiesgoDialogProps) => {
   const [currentSection, setCurrentSection] = useState('cliente');
-  const { analisis, isLoading, saveAnalisis } = useAnalisisRiesgo(servicioId);
+  const { analisis, isLoading, saveAnalisis, calculateRiskScore, getAutoRecommendation } = useAnalisisRiesgo(servicioId);
 
   const form = useForm<Partial<AnalisisRiesgo>>({
     defaultValues: {
@@ -66,28 +69,67 @@ export const AnalisisRiesgoDialog = ({ open, onOpenChange, servicioId }: Analisi
     }
   });
 
-  const scoreRiesgo = form.watch('score_riesgo') || 50;
+  // Cargar datos existentes si hay análisis previo
+  useEffect(() => {
+    if (analisis) {
+      form.reset(analisis);
+    }
+  }, [analisis, form]);
+
+  // Calcular score en tiempo real cuando cambian los valores
+  const watchedValues = form.watch();
+  const [realTimeScore, setRealTimeScore] = useState(50);
+  const [autoRecommendation, setAutoRecommendation] = useState<Recomendacion>('requiere_revision');
+
+  useEffect(() => {
+    const score = calculateRiskScore(watchedValues);
+    const recommendation = getAutoRecommendation(score);
+    setRealTimeScore(score);
+    setAutoRecommendation(recommendation);
+    form.setValue('score_riesgo', score);
+    form.setValue('recomendacion', recommendation);
+  }, [watchedValues, calculateRiskScore, getAutoRecommendation, form]);
 
   const getScoreColor = (score: number) => {
     if (score <= 25) return 'text-green-600';
-    if (score <= 50) return 'text-yellow-600';
-    if (score <= 75) return 'text-orange-600';
+    if (score <= 45) return 'text-yellow-600';
+    if (score <= 70) return 'text-orange-600';
     return 'text-red-600';
   };
 
   const getScoreLabel = (score: number) => {
     if (score <= 25) return 'Riesgo Bajo';
-    if (score <= 50) return 'Riesgo Medio';
-    if (score <= 75) return 'Riesgo Alto';
+    if (score <= 45) return 'Riesgo Medio';
+    if (score <= 70) return 'Riesgo Alto';
     return 'Riesgo Muy Alto';
   };
 
+  const getRecommendationBadge = (recommendation: Recomendacion) => {
+    const config = {
+      'aprobar': { color: 'bg-green-100 text-green-800', icon: CheckCircle, label: 'Aprobar' },
+      'aprobar_con_condiciones': { color: 'bg-yellow-100 text-yellow-800', icon: AlertTriangle, label: 'Aprobar con Condiciones' },
+      'requiere_revision': { color: 'bg-blue-100 text-blue-800', icon: FileText, label: 'Requiere Revisión' },
+      'rechazar': { color: 'bg-red-100 text-red-800', icon: AlertTriangle, label: 'Rechazar' }
+    };
+
+    const item = config[recommendation];
+    const Icon = item.icon;
+
+    return (
+      <Badge className={`${item.color} flex items-center gap-1`}>
+        <Icon className="h-3 w-3" />
+        {item.label}
+      </Badge>
+    );
+  };
+
   const onSubmit = async (data: Partial<AnalisisRiesgo>) => {
-    // Ensure required fields are present
     const analisisData = {
       ...data,
       servicio_id: servicioId,
-      zona_operacion: data.zona_operacion || ''
+      zona_operacion: data.zona_operacion || '',
+      score_riesgo: realTimeScore,
+      recomendacion: autoRecommendation
     };
     
     await saveAnalisis.mutateAsync(analisisData);
@@ -106,6 +148,26 @@ export const AnalisisRiesgoDialog = ({ open, onOpenChange, servicioId }: Analisi
       case 'cliente':
         return (
           <div className="space-y-6">
+            {/* Score en tiempo real */}
+            <Card className="border-2 border-blue-200 bg-blue-50">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Calculator className="h-5 w-5 text-blue-600" />
+                    <span className="font-semibold text-blue-900">Score de Riesgo Calculado</span>
+                  </div>
+                  <Badge className={`${getScoreColor(realTimeScore)} font-bold`}>
+                    {realTimeScore.toFixed(0)}% - {getScoreLabel(realTimeScore)}
+                  </Badge>
+                </div>
+                <Progress value={realTimeScore} className="mb-3" />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-blue-700">Recomendación Automática:</span>
+                  {getRecommendationBadge(autoRecommendation)}
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -119,8 +181,8 @@ export const AnalisisRiesgoDialog = ({ open, onOpenChange, servicioId }: Analisi
                   name="nivel_riesgo_cliente"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nivel de Riesgo del Cliente</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormLabel>Nivel de Riesgo del Cliente (30% del score)</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue />
@@ -130,25 +192,25 @@ export const AnalisisRiesgoDialog = ({ open, onOpenChange, servicioId }: Analisi
                           <SelectItem value="bajo">
                             <div className="flex items-center gap-2">
                               <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                              Bajo - Cliente confiable
+                              Bajo - Cliente confiable (0 puntos)
                             </div>
                           </SelectItem>
                           <SelectItem value="medio">
                             <div className="flex items-center gap-2">
                               <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                              Medio - Requiere verificación
+                              Medio - Requiere verificación (15 puntos)
                             </div>
                           </SelectItem>
                           <SelectItem value="alto">
                             <div className="flex items-center gap-2">
                               <div className="w-3 h-3 rounded-full bg-orange-500"></div>
-                              Alto - Antecedentes cuestionables
+                              Alto - Antecedentes cuestionables (25 puntos)
                             </div>
                           </SelectItem>
                           <SelectItem value="muy_alto">
                             <div className="flex items-center gap-2">
                               <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                              Muy Alto - Cliente de alto riesgo
+                              Muy Alto - Cliente de alto riesgo (30 puntos)
                             </div>
                           </SelectItem>
                         </SelectContent>
@@ -163,18 +225,18 @@ export const AnalisisRiesgoDialog = ({ open, onOpenChange, servicioId }: Analisi
                   name="situacion_financiera"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Situación Financiera</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormLabel>Situación Financiera (20% del score)</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="estable">Estable</SelectItem>
-                          <SelectItem value="regular">Regular</SelectItem>
-                          <SelectItem value="inestable">Inestable</SelectItem>
-                          <SelectItem value="desconocida">Desconocida</SelectItem>
+                          <SelectItem value="estable">Estable (0 puntos)</SelectItem>
+                          <SelectItem value="regular">Regular (5 puntos)</SelectItem>
+                          <SelectItem value="inestable">Inestable (15 puntos)</SelectItem>
+                          <SelectItem value="desconocida">Desconocida (20 puntos)</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -182,7 +244,7 @@ export const AnalisisRiesgoDialog = ({ open, onOpenChange, servicioId }: Analisi
                   )}
                 />
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="antecedentes_verificados"
@@ -193,7 +255,7 @@ export const AnalisisRiesgoDialog = ({ open, onOpenChange, servicioId }: Analisi
                             Antecedentes Verificados
                           </FormLabel>
                           <div className="text-sm text-muted-foreground">
-                            Se verificaron antecedentes penales y comerciales
+                            Reduce 12.5 puntos del score
                           </div>
                         </div>
                         <FormControl>
@@ -216,7 +278,7 @@ export const AnalisisRiesgoDialog = ({ open, onOpenChange, servicioId }: Analisi
                             Referencias Comerciales
                           </FormLabel>
                           <div className="text-sm text-muted-foreground">
-                            Se validaron referencias comerciales
+                            Reduce 12.5 puntos del score
                           </div>
                         </div>
                         <FormControl>
@@ -250,7 +312,7 @@ export const AnalisisRiesgoDialog = ({ open, onOpenChange, servicioId }: Analisi
                   name="zona_operacion"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Zona de Operación</FormLabel>
+                      <FormLabel>Zona de Operación *</FormLabel>
                       <FormControl>
                         <Textarea 
                           {...field}
@@ -268,8 +330,8 @@ export const AnalisisRiesgoDialog = ({ open, onOpenChange, servicioId }: Analisi
                   name="nivel_riesgo_zona"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nivel de Riesgo de la Zona</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormLabel>Nivel de Riesgo de la Zona (25% del score)</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue />
@@ -279,25 +341,25 @@ export const AnalisisRiesgoDialog = ({ open, onOpenChange, servicioId }: Analisi
                           <SelectItem value="bajo">
                             <div className="flex items-center gap-2">
                               <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                              Bajo - Zona segura
+                              Bajo - Zona segura (0 puntos)
                             </div>
                           </SelectItem>
                           <SelectItem value="medio">
                             <div className="flex items-center gap-2">
                               <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                              Medio - Zona con precauciones
+                              Medio - Zona con precauciones (10 puntos)
                             </div>
                           </SelectItem>
                           <SelectItem value="alto">
                             <div className="flex items-center gap-2">
                               <div className="w-3 h-3 rounded-full bg-orange-500"></div>
-                              Alto - Zona de riesgo
+                              Alto - Zona de riesgo (20 puntos)
                             </div>
                           </SelectItem>
                           <SelectItem value="muy_alto">
                             <div className="flex items-center gap-2">
                               <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                              Muy Alto - Zona de alto riesgo
+                              Muy Alto - Zona de alto riesgo (25 puntos)
                             </div>
                           </SelectItem>
                         </SelectContent>
@@ -306,19 +368,6 @@ export const AnalisisRiesgoDialog = ({ open, onOpenChange, servicioId }: Analisi
                     </FormItem>
                   )}
                 />
-
-                <div className="bg-yellow-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-yellow-900 mb-2">
-                    Factores de Riesgo Zonal
-                  </h4>
-                  <ul className="text-sm text-yellow-800 space-y-1">
-                    <li>• Índice de criminalidad de la zona</li>
-                    <li>• Presencia de grupos delictivos</li>
-                    <li>• Calidad de infraestructura vial</li>
-                    <li>• Cobertura de seguridad pública</li>
-                    <li>• Historial de incidentes en la zona</li>
-                  </ul>
-                </div>
               </CardContent>
             </Card>
           </div>
@@ -330,71 +379,57 @@ export const AnalisisRiesgoDialog = ({ open, onOpenChange, servicioId }: Analisi
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
-                  Evaluación de Riesgo General
+                  <TrendingUp className="h-5 w-5" />
+                  Resumen del Análisis de Riesgo
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="score_riesgo"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center justify-between">
-                        <span>Score de Riesgo</span>
-                        <Badge className={getScoreColor(scoreRiesgo)}>
-                          {scoreRiesgo}% - {getScoreLabel(scoreRiesgo)}
-                        </Badge>
-                      </FormLabel>
-                      <FormControl>
-                        <div className="px-2">
-                          <Slider
-                            value={[field.value || 50]}
-                            onValueChange={(value) => field.onChange(value[0])}
-                            max={100}
-                            min={0}
-                            step={5}
-                            className="w-full"
-                          />
-                          <div className="flex justify-between text-xs text-gray-500 mt-1">
-                            <span>0% - Sin Riesgo</span>
-                            <span>100% - Riesgo Máximo</span>
-                          </div>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-red-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-red-900 mb-2 flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4" />
-                      Factores de Riesgo Alto
-                    </h4>
-                    <ul className="text-sm text-red-800 space-y-1">
-                      <li>• Antecedentes penales del cliente</li>
-                      <li>• Zona de alta criminalidad</li>
-                      <li>• Falta de documentación</li>
-                      <li>• Referencias comerciales negativas</li>
-                      <li>• Actividad económica irregular</li>
-                    </ul>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-medium mb-3">Desglose del Score de Riesgo:</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Riesgo del Cliente (30%):</span>
+                      <span className="font-medium">
+                        {watchedValues.nivel_riesgo_cliente === 'bajo' ? '0' :
+                         watchedValues.nivel_riesgo_cliente === 'medio' ? '15' :
+                         watchedValues.nivel_riesgo_cliente === 'alto' ? '25' : '30'} puntos
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Riesgo de Zona (25%):</span>
+                      <span className="font-medium">
+                        {watchedValues.nivel_riesgo_zona === 'bajo' ? '0' :
+                         watchedValues.nivel_riesgo_zona === 'medio' ? '10' :
+                         watchedValues.nivel_riesgo_zona === 'alto' ? '20' : '25'} puntos
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Situación Financiera (20%):</span>
+                      <span className="font-medium">
+                        {watchedValues.situacion_financiera === 'estable' ? '0' :
+                         watchedValues.situacion_financiera === 'regular' ? '5' :
+                         watchedValues.situacion_financiera === 'inestable' ? '15' : '20'} puntos
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Verificaciones (25%):</span>
+                      <span className="font-medium">
+                        {25 - (watchedValues.antecedentes_verificados ? 12.5 : 0) - (watchedValues.referencias_comerciales ? 12.5 : 0)} puntos
+                      </span>
+                    </div>
+                    <div className="border-t pt-2 flex justify-between font-bold">
+                      <span>Score Total:</span>
+                      <span className={getScoreColor(realTimeScore)}>{realTimeScore.toFixed(0)} puntos</span>
+                    </div>
                   </div>
+                </div>
 
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-green-900 mb-2 flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4" />
-                      Factores de Protección
-                    </h4>
-                    <ul className="text-sm text-green-800 space-y-1">
-                      <li>• Documentación completa y válida</li>
-                      <li>• Referencias comerciales positivas</li>
-                      <li>• Estabilidad financiera comprobada</li>
-                      <li>• Zona de baja criminalidad</li>
-                      <li>• Historial comercial limpio</li>
-                    </ul>
-                  </div>
+                <Progress value={realTimeScore} className="h-3" />
+                
+                <div className="flex items-center justify-center">
+                  <Badge className={`${getScoreColor(realTimeScore)} text-lg py-2 px-4`}>
+                    {getScoreLabel(realTimeScore)}
+                  </Badge>
                 </div>
               </CardContent>
             </Card>
@@ -408,17 +443,34 @@ export const AnalisisRiesgoDialog = ({ open, onOpenChange, servicioId }: Analisi
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <FileText className="h-5 w-5" />
-                  Recomendación Final
+                  Recomendación Automática
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="text-center py-6">
+                  <div className="mb-4">
+                    {getRecommendationBadge(autoRecommendation)}
+                  </div>
+                  <p className="text-gray-600 mb-4">
+                    Basado en el análisis realizado, la recomendación automática es:
+                  </p>
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <p className="font-medium text-blue-900">
+                      {autoRecommendation === 'aprobar' && 'Se recomienda APROBAR este servicio. El cliente presenta un riesgo bajo.'}
+                      {autoRecommendation === 'aprobar_con_condiciones' && 'Se recomienda APROBAR CON CONDICIONES. El cliente presenta un riesgo medio que puede ser mitigado.'}
+                      {autoRecommendation === 'requiere_revision' && 'REQUIERE REVISIÓN ADICIONAL. El cliente presenta factores de riesgo que deben ser evaluados por un supervisor.'}
+                      {autoRecommendation === 'rechazar' && 'Se recomienda RECHAZAR este servicio. El cliente presenta un riesgo muy alto.'}
+                    </p>
+                  </div>
+                </div>
+
                 <FormField
                   control={form.control}
                   name="recomendacion"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Recomendación</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormLabel>Confirmar Recomendación (Opcional - Anular recomendación automática)</FormLabel>
+                      <Select onValueChange={field.onChange} value={autoRecommendation}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue />
@@ -455,19 +507,6 @@ export const AnalisisRiesgoDialog = ({ open, onOpenChange, servicioId }: Analisi
                     </FormItem>
                   )}
                 />
-
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-blue-900 mb-2">
-                    Criterios de Evaluación ISO 31000
-                  </h4>
-                  <ul className="text-sm text-blue-800 space-y-1">
-                    <li>• Identificación de riesgos</li>
-                    <li>• Análisis de probabilidad e impacto</li>
-                    <li>• Evaluación de controles existentes</li>
-                    <li>• Determinación del riesgo residual</li>
-                    <li>• Recomendaciones de tratamiento</li>
-                  </ul>
-                </div>
               </CardContent>
             </Card>
           </div>
@@ -480,14 +519,14 @@ export const AnalisisRiesgoDialog = ({ open, onOpenChange, servicioId }: Analisi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5" />
             Análisis de Riesgo de Seguridad
           </DialogTitle>
           <DialogDescription>
-            Evaluación completa basada en estándares ISO 31000 y BASC
+            Evaluación automática basada en estándares ISO 31000 y BASC
           </DialogDescription>
         </DialogHeader>
 
