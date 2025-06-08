@@ -20,6 +20,8 @@ export type NivelRiesgo = 'bajo' | 'medio' | 'alto' | 'muy_alto';
 export type SituacionFinanciera = 'estable' | 'regular' | 'inestable' | 'desconocida';
 export type Recomendacion = 'aprobar' | 'aprobar_con_condiciones' | 'rechazar' | 'requiere_revision';
 export type TipoActivo = 'vehiculo' | 'persona' | 'inmueble' | 'carga';
+export type TipoCliente = 'nuevo' | 'recurrente' | 'referido';
+export type MetodoEvaluacion = 'automatico' | 'manual' | 'mixto';
 
 export interface ServicioMonitoreo {
   id: string;
@@ -43,6 +45,27 @@ export interface ServicioMonitoreo {
   updated_at: string;
 }
 
+export interface CriterioEvaluacionFinanciera {
+  id: string;
+  nombre: string;
+  descripcion?: string;
+  peso_score: number;
+  categoria: 'ingresos' | 'estabilidad' | 'historial_crediticio' | 'referencias';
+  activo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RespuestaAnalisisRiesgo {
+  id: string;
+  analisis_id: string;
+  criterio_id: string;
+  respuesta: string;
+  valor_numerico?: number;
+  observaciones?: string;
+  created_at: string;
+}
+
 export interface AnalisisRiesgo {
   id: string;
   servicio_id: string;
@@ -61,6 +84,14 @@ export interface AnalisisRiesgo {
   fecha_evaluacion?: string;
   revisado_por?: string;
   fecha_revision?: string;
+  metodo_evaluacion?: MetodoEvaluacion;
+  documentos_revisados?: string[];
+  referencias_verificadas?: any;
+  historial_crediticio?: string;
+  ingresos_declarados?: number;
+  comprobantes_ingresos?: boolean;
+  tiempo_en_actividad?: number;
+  tipo_cliente?: TipoCliente;
   created_at: string;
   updated_at: string;
 }

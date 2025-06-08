@@ -107,64 +107,88 @@ export type Database = {
       analisis_riesgo: {
         Row: {
           antecedentes_verificados: boolean | null
+          comprobantes_ingresos: boolean | null
           condiciones_especiales: string[] | null
           created_at: string
           detalles_riesgo: Json | null
+          documentos_revisados: string[] | null
           evaluado_por: string | null
           fecha_evaluacion: string | null
           fecha_revision: string | null
+          historial_crediticio: string | null
           id: string
           incidencia_delictiva: Json | null
+          ingresos_declarados: number | null
+          metodo_evaluacion: string | null
           nivel_riesgo_cliente: string | null
           nivel_riesgo_zona: string | null
           recomendacion: string | null
           referencias_comerciales: boolean | null
+          referencias_verificadas: Json | null
           revisado_por: string | null
           score_riesgo: number | null
           servicio_id: string
           situacion_financiera: string | null
+          tiempo_en_actividad: number | null
+          tipo_cliente: string | null
           updated_at: string
           zona_operacion: string
         }
         Insert: {
           antecedentes_verificados?: boolean | null
+          comprobantes_ingresos?: boolean | null
           condiciones_especiales?: string[] | null
           created_at?: string
           detalles_riesgo?: Json | null
+          documentos_revisados?: string[] | null
           evaluado_por?: string | null
           fecha_evaluacion?: string | null
           fecha_revision?: string | null
+          historial_crediticio?: string | null
           id?: string
           incidencia_delictiva?: Json | null
+          ingresos_declarados?: number | null
+          metodo_evaluacion?: string | null
           nivel_riesgo_cliente?: string | null
           nivel_riesgo_zona?: string | null
           recomendacion?: string | null
           referencias_comerciales?: boolean | null
+          referencias_verificadas?: Json | null
           revisado_por?: string | null
           score_riesgo?: number | null
           servicio_id: string
           situacion_financiera?: string | null
+          tiempo_en_actividad?: number | null
+          tipo_cliente?: string | null
           updated_at?: string
           zona_operacion: string
         }
         Update: {
           antecedentes_verificados?: boolean | null
+          comprobantes_ingresos?: boolean | null
           condiciones_especiales?: string[] | null
           created_at?: string
           detalles_riesgo?: Json | null
+          documentos_revisados?: string[] | null
           evaluado_por?: string | null
           fecha_evaluacion?: string | null
           fecha_revision?: string | null
+          historial_crediticio?: string | null
           id?: string
           incidencia_delictiva?: Json | null
+          ingresos_declarados?: number | null
+          metodo_evaluacion?: string | null
           nivel_riesgo_cliente?: string | null
           nivel_riesgo_zona?: string | null
           recomendacion?: string | null
           referencias_comerciales?: boolean | null
+          referencias_verificadas?: Json | null
           revisado_por?: string | null
           score_riesgo?: number | null
           servicio_id?: string
           situacion_financiera?: string | null
+          tiempo_en_actividad?: number | null
+          tipo_cliente?: string | null
           updated_at?: string
           zona_operacion?: string
         }
@@ -396,6 +420,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      criterios_evaluacion_financiera: {
+        Row: {
+          activo: boolean | null
+          categoria: string
+          created_at: string | null
+          descripcion: string | null
+          id: string
+          nombre: string
+          peso_score: number
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          categoria: string
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre: string
+          peso_score?: number
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          categoria?: string
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+          peso_score?: number
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       custodio_points: {
         Row: {
@@ -1072,6 +1129,51 @@ export type Database = {
             columns: ["candidato_referido_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      respuestas_analisis_riesgo: {
+        Row: {
+          analisis_id: string | null
+          created_at: string | null
+          criterio_id: string | null
+          id: string
+          observaciones: string | null
+          respuesta: string
+          valor_numerico: number | null
+        }
+        Insert: {
+          analisis_id?: string | null
+          created_at?: string | null
+          criterio_id?: string | null
+          id?: string
+          observaciones?: string | null
+          respuesta: string
+          valor_numerico?: number | null
+        }
+        Update: {
+          analisis_id?: string | null
+          created_at?: string | null
+          criterio_id?: string | null
+          id?: string
+          observaciones?: string | null
+          respuesta?: string
+          valor_numerico?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "respuestas_analisis_riesgo_analisis_id_fkey"
+            columns: ["analisis_id"]
+            isOneToOne: false
+            referencedRelation: "analisis_riesgo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "respuestas_analisis_riesgo_criterio_id_fkey"
+            columns: ["criterio_id"]
+            isOneToOne: false
+            referencedRelation: "criterios_evaluacion_financiera"
             referencedColumns: ["id"]
           },
         ]
@@ -2973,6 +3075,9 @@ export type Database = {
         | "pending"
         | "unverified"
         | "custodio"
+        | "ejecutivo_ventas"
+        | "coordinador_operaciones"
+        | "tecnico_instalador"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3100,6 +3205,9 @@ export const Constants = {
         "pending",
         "unverified",
         "custodio",
+        "ejecutivo_ventas",
+        "coordinador_operaciones",
+        "tecnico_instalador",
       ],
     },
   },
