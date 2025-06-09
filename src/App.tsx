@@ -64,178 +64,36 @@ const App = () => (
             <Route path="/auth/email-confirmation" element={<AuthLayout><EmailConfirmation /></AuthLayout>} />
 
             {/* Protected routes */}
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Index />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <Dashboard />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><Dashboard /></DashboardLayout></ProtectedRoute>} />
 
             {/* Leads routes */}
-            <Route
-              path="/leads"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <LeadsList />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/leads/approvals"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <LeadApprovals />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/leads" element={<ProtectedRoute><DashboardLayout><LeadsList /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/leads/approvals" element={<ProtectedRoute><DashboardLayout><LeadApprovals /></DashboardLayout></ProtectedRoute>} />
 
             {/* Services routes */}
-            <Route
-              path="/services"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <ServicesPage />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/services" element={<ProtectedRoute><DashboardLayout><ServicesPage /></DashboardLayout></ProtectedRoute>} />
 
             {/* Monitoring routes */}
-            <Route
-              path="/monitoring"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <MonitoringPage />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/monitoring/supply-chain"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <SupplyChainMonitoring />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/monitoring/forensic-audit"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <ForensicAuditPage />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/monitoring" element={<ProtectedRoute><DashboardLayout><MonitoringPage /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/monitoring/supply-chain" element={<ProtectedRoute><DashboardLayout><SupplyChainMonitoring /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/monitoring/forensic-audit" element={<ProtectedRoute><DashboardLayout><ForensicAuditPage /></DashboardLayout></ProtectedRoute>} />
 
             {/* Installer routes */}
-            <Route
-              path="/installers"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <InstallerPortal />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/installers/schedule"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <InstallationSchedule />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/installers/management"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <InstallerManagement />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/installers" element={<ProtectedRoute><DashboardLayout><InstallerPortal /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/installers/schedule" element={<ProtectedRoute><DashboardLayout><InstallationSchedule /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/installers/management" element={<ProtectedRoute><DashboardLayout><InstallerManagement /></DashboardLayout></ProtectedRoute>} />
 
             {/* Tickets routes */}
-            <Route
-              path="/tickets"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <TicketsList />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/tickets" element={<ProtectedRoute><DashboardLayout><TicketsList /></DashboardLayout></ProtectedRoute>} />
 
             {/* Settings routes */}
-            <Route
-              path="/settings"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <Settings />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/settings" element={<ProtectedRoute><DashboardLayout><Settings /></DashboardLayout></ProtectedRoute>} />
 
             {/* Admin routes */}
-            <Route
-              path="/admin/landing"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <LandingManager />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/assign-role"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <AssignRole />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/assign-owner"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <AssignOwnerRole />
-                  </DashboardLayout>
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/admin/landing" element={<ProtectedRoute><DashboardLayout><LandingManager /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/admin/assign-role" element={<ProtectedRoute><DashboardLayout><AssignRole /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/admin/assign-owner" element={<ProtectedRoute><DashboardLayout><AssignOwnerRole /></DashboardLayout></ProtectedRoute>} />
 
             {/* 404 route */}
             <Route path="*" element={<NotFound />} />

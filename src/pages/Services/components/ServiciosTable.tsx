@@ -1,3 +1,4 @@
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,13 +17,16 @@ import {
   AlertTriangle, 
   XCircle,
   MoreHorizontal,
-  Eye
+  Eye,
+  Calendar,
+  Wrench
 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import type { ServicioMonitoreo, AnalisisRiesgo } from '@/types/serviciosMonitoreo';
 import { format } from 'date-fns';
@@ -35,9 +39,10 @@ interface ServiciosTableProps {
   servicios: ServicioMonitoreo[];
   isLoading: boolean;
   onAnalisisRiesgo: (servicioId: string) => void;
+  onProgramarInstalacion?: (servicioId: string) => void;
 }
 
-export const ServiciosTable = ({ servicios, isLoading, onAnalisisRiesgo }: ServiciosTableProps) => {
+export const ServiciosTable = ({ servicios, isLoading, onAnalisisRiesgo, onProgramarInstalacion }: ServiciosTableProps) => {
   // Query para obtener todos los análisis de riesgo
   const { data: analisisRiesgos } = useQuery({
     queryKey: ['analisis-riesgos-all'],
@@ -59,9 +64,33 @@ export const ServiciosTable = ({ servicios, isLoading, onAnalisisRiesgo }: Servi
     }
   });
 
+  // Query para obtener instalaciones por servicio
+  const { data: instalaciones } = useQuery({
+    queryKey: ['programacion-instalaciones-servicios'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('programacion_instalaciones')
+        .select('servicio_id, estado');
+      
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
   // Función para obtener el análisis de riesgo de un servicio específico
   const getAnalisisForServicio = (servicioId: string) => {
     return analisisRiesgos?.find(analisis => analisis.servicio_id === servicioId) || null;
+  };
+
+  // Función para verificar si un servicio tiene instalación programada
+  const hasInstalacionProgramada = (servicioId: string) => {
+    return instalaciones?.some(inst => inst.servicio_id === servicioId) || false;
+  };
+
+  // Función para verificar si un servicio necesita instalación GPS
+  const needsGpsInstallation = (servicio: ServicioMonitoreo) => {
+    return ['vehicular', 'flotilla'].includes(servicio.tipo_servicio) && 
+           ['aprobado', 'pendiente_instalacion', 'instalacion_programada'].includes(servicio.estado_general);
   };
 
   const getEstadoBadge = (estado: string) => {
@@ -90,6 +119,16 @@ export const ServiciosTable = ({ servicios, isLoading, onAnalisisRiesgo }: Servi
         color: 'bg-green-100 text-green-800', 
         icon: CheckCircle,
         label: 'Aprobado' 
+      },
+      'pendiente_instalacion': { 
+        color: 'bg-blue-100 text-blue-800', 
+        icon: Wrench,
+        label: 'Pendiente Instalación' 
+      },
+      'instalacion_programada': { 
+        color: 'bg-purple-100 text-purple-800', 
+        icon: Calendar,
+        label: 'Instalación Programada' 
       },
       'rechazado': { 
         color: 'bg-red-100 text-red-800', 
@@ -169,14 +208,16 @@ export const ServiciosTable = ({ servicios, isLoading, onAnalisisRiesgo }: Servi
             <TableHead>Prioridad</TableHead>
             <TableHead>Estado</TableHead>
             <TableHead>Análisis de Riesgo</TableHead>
+            <TableHead>Instalación GPS</TableHead>
             <TableHead>Fecha Solicitud</TableHead>
-            <TableHead>Ejecutivo</TableHead>
             <TableHead className="text-right">Acciones</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {servicios.map((servicio) => {
             const analisisRiesgo = getAnalisisForServicio(servicio.id);
+            const tieneInstalacion = hasInstalacionProgramada(servicio.id);
+            const necesitaGps = needsGpsInstallation(servicio);
             
             return (
               <TableRow key={servicio.id}>
@@ -208,12 +249,26 @@ export const ServiciosTable = ({ servicios, isLoading, onAnalisisRiesgo }: Servi
                   <RiskIndicator analisis={analisisRiesgo} size="sm" />
                 </TableCell>
                 <TableCell>
-                  {format(new Date(servicio.fecha_solicitud), 'dd MMM yyyy', { locale: es })}
+                  {necesitaGps ? (
+                    tieneInstalacion ? (
+                      <Badge className="bg-green-100 text-green-800">
+                        <Calendar className="h-3 w-3 mr-1" />
+                        Programada
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-orange-100 text-orange-800">
+                        <Wrench className="h-3 w-3 mr-1" />
+                        Pendiente
+                      </Badge>
+                    )
+                  ) : (
+                    <Badge variant="outline" className="text-gray-500">
+                      No requiere
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell>
-                  <div className="text-sm">
-                    {(servicio as any).ejecutivo?.display_name || 'No asignado'}
-                  </div>
+                  {format(new Date(servicio.fecha_solicitud), 'dd MMM yyyy', { locale: es })}
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
@@ -231,6 +286,16 @@ export const ServiciosTable = ({ servicios, isLoading, onAnalisisRiesgo }: Servi
                         <FileSearch className="mr-2 h-4 w-4" />
                         {analisisRiesgo ? 'Editar Análisis' : 'Análisis de Riesgo'}
                       </DropdownMenuItem>
+                      
+                      {necesitaGps && onProgramarInstalacion && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => onProgramarInstalacion(servicio.id)}>
+                            <Calendar className="mr-2 h-4 w-4" />
+                            {tieneInstalacion ? 'Gestionar Instalación' : 'Programar Instalación GPS'}
+                          </DropdownMenuItem>
+                        </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>

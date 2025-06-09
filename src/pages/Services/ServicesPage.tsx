@@ -3,28 +3,42 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Shield, ClipboardCheck, Settings, Activity } from 'lucide-react';
+import { Plus, Shield, ClipboardCheck, Settings, Activity, Calendar, Wrench } from 'lucide-react';
 import { useServiciosMonitoreo } from '@/hooks/useServiciosMonitoreo';
+import { useProgramacionInstalaciones } from '@/hooks/useProgramacionInstalaciones';
 import { ServicioForm } from './components/ServicioForm';
 import { ServiciosTable } from './components/ServiciosTable';
 import { AnalisisRiesgoDialog } from './components/AnalisisRiesgoDialog';
+import { ProgramarInstalacionDialog } from '@/pages/Installers/components/ProgramarInstalacionDialog';
 import { Badge } from '@/components/ui/badge';
 
 export const ServicesPage = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedServicioId, setSelectedServicioId] = useState<string | null>(null);
   const [showAnalisisDialog, setShowAnalisisDialog] = useState(false);
+  const [showProgramarInstalacion, setShowProgramarInstalacion] = useState(false);
   
   const { servicios, isLoading } = useServiciosMonitoreo();
+  const { programaciones, isLoading: loadingProgramaciones } = useProgramacionInstalaciones();
 
   const estadosCount = servicios?.reduce((acc, servicio) => {
     acc[servicio.estado_general] = (acc[servicio.estado_general] || 0) + 1;
     return acc;
   }, {} as Record<string, number>) || {};
 
+  const instalacionesCount = programaciones?.reduce((acc, programacion) => {
+    acc[programacion.estado] = (acc[programacion.estado] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>) || {};
+
   const handleAnalisisRiesgo = (servicioId: string) => {
     setSelectedServicioId(servicioId);
     setShowAnalisisDialog(true);
+  };
+
+  const handleProgramarInstalacion = (servicioId: string) => {
+    setSelectedServicioId(servicioId);
+    setShowProgramarInstalacion(true);
   };
 
   return (
@@ -83,14 +97,14 @@ export const ServicesPage = () => {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center">
-                <Settings className="h-8 w-8 text-orange-600" />
+                <Wrench className="h-8 w-8 text-orange-600" />
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">
-                    En Instalación
+                    Instalaciones Pendientes
                   </p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {(estadosCount['pendiente_instalacion'] || 0) + 
-                     (estadosCount['instalacion_programada'] || 0)}
+                    {(instalacionesCount['programada'] || 0) + 
+                     (instalacionesCount['confirmada'] || 0)}
                   </p>
                 </div>
               </div>
@@ -127,7 +141,7 @@ export const ServicesPage = () => {
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="servicios">Servicios</TabsTrigger>
                 <TabsTrigger value="evaluacion">Evaluación Riesgo</TabsTrigger>
-                <TabsTrigger value="instalaciones">Instalaciones</TabsTrigger>
+                <TabsTrigger value="instalaciones">Instalaciones GPS</TabsTrigger>
                 <TabsTrigger value="configuracion">Configuración</TabsTrigger>
               </TabsList>
               
@@ -136,6 +150,7 @@ export const ServicesPage = () => {
                   servicios={servicios || []}
                   isLoading={isLoading}
                   onAnalisisRiesgo={handleAnalisisRiesgo}
+                  onProgramarInstalacion={handleProgramarInstalacion}
                 />
               </TabsContent>
               
@@ -152,20 +167,89 @@ export const ServicesPage = () => {
               </TabsContent>
               
               <TabsContent value="instalaciones" className="mt-6">
-                <div className="text-center py-8">
-                  <Settings className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    Instalaciones GPS
-                  </h3>
-                  <p className="text-gray-600">
-                    Gestión de instalaciones de dispositivos GPS
-                  </p>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-medium text-gray-900">
+                      Instalaciones GPS Programadas
+                    </h3>
+                    <Button 
+                      onClick={() => setShowProgramarInstalacion(true)}
+                      variant="outline"
+                    >
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Nueva Instalación
+                    </Button>
+                  </div>
+
+                  {loadingProgramaciones ? (
+                    <div className="space-y-3">
+                      {[...Array(3)].map((_, i) => (
+                        <div key={i} className="h-16 bg-gray-100 rounded animate-pulse" />
+                      ))}
+                    </div>
+                  ) : programaciones && programaciones.length > 0 ? (
+                    <div className="grid gap-4">
+                      {programaciones.slice(0, 5).map((programacion) => (
+                        <Card key={programacion.id} className="border border-gray-200">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Badge variant="outline">
+                                    {programacion.tipo_instalacion}
+                                  </Badge>
+                                  <Badge 
+                                    className={
+                                      programacion.estado === 'completada' 
+                                        ? 'bg-green-100 text-green-800'
+                                        : programacion.estado === 'en_proceso'
+                                        ? 'bg-blue-100 text-blue-800'
+                                        : 'bg-yellow-100 text-yellow-800'
+                                    }
+                                  >
+                                    {programacion.estado}
+                                  </Badge>
+                                </div>
+                                <p className="font-medium text-gray-900">
+                                  {programacion.contacto_cliente}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  {programacion.direccion_instalacion}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                  {new Date(programacion.fecha_programada).toLocaleDateString('es-ES')}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm text-gray-600">
+                                  Instalador: {programacion.instalador?.nombre_completo || 'No asignado'}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                  Tiempo est: {programacion.tiempo_estimado}min
+                                </p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Wrench className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">
+                        No hay instalaciones programadas
+                      </h3>
+                      <p className="text-gray-600">
+                        Programa tu primera instalación GPS
+                      </p>
+                    </div>
+                  )}
                 </div>
               </TabsContent>
               
               <TabsContent value="configuracion" className="mt-6">
                 <div className="text-center py-8">
-                  <Activity className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <Settings className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
                     Configuración de Monitoreo
                   </h3>
@@ -190,6 +274,14 @@ export const ServicesPage = () => {
           <AnalisisRiesgoDialog
             open={showAnalisisDialog}
             onOpenChange={setShowAnalisisDialog}
+            servicioId={selectedServicioId}
+          />
+        )}
+
+        {showProgramarInstalacion && (
+          <ProgramarInstalacionDialog
+            open={showProgramarInstalacion}
+            onOpenChange={setShowProgramarInstalacion}
             servicioId={selectedServicioId}
           />
         )}
