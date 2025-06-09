@@ -595,6 +595,69 @@ export type Database = {
         }
         Relationships: []
       }
+      evaluaciones_instaladores: {
+        Row: {
+          calificacion_comunicacion: number
+          calificacion_general: number
+          calificacion_puntualidad: number
+          calificacion_tecnica: number
+          comentarios: string | null
+          created_at: string | null
+          evaluado_por: string
+          fortalezas_destacadas: string[] | null
+          id: string
+          instalacion_id: string
+          instalador_id: string
+          problemas_reportados: string[] | null
+          recomendado: boolean | null
+        }
+        Insert: {
+          calificacion_comunicacion: number
+          calificacion_general: number
+          calificacion_puntualidad: number
+          calificacion_tecnica: number
+          comentarios?: string | null
+          created_at?: string | null
+          evaluado_por: string
+          fortalezas_destacadas?: string[] | null
+          id?: string
+          instalacion_id: string
+          instalador_id: string
+          problemas_reportados?: string[] | null
+          recomendado?: boolean | null
+        }
+        Update: {
+          calificacion_comunicacion?: number
+          calificacion_general?: number
+          calificacion_puntualidad?: number
+          calificacion_tecnica?: number
+          comentarios?: string | null
+          created_at?: string | null
+          evaluado_por?: string
+          fortalezas_destacadas?: string[] | null
+          id?: string
+          instalacion_id?: string
+          instalador_id?: string
+          problemas_reportados?: string[] | null
+          recomendado?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evaluaciones_instaladores_instalacion_id_fkey"
+            columns: ["instalacion_id"]
+            isOneToOne: false
+            referencedRelation: "programacion_instalaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluaciones_instaladores_instalador_id_fkey"
+            columns: ["instalador_id"]
+            isOneToOne: false
+            referencedRelation: "instaladores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       flagged_services: {
         Row: {
           admin_notes: string | null
@@ -712,6 +775,153 @@ export type Database = {
             columns: ["tecnico_asignado"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      instaladores: {
+        Row: {
+          banco_datos: Json | null
+          calificacion_promedio: number | null
+          cedula_profesional: string | null
+          certificaciones: string[] | null
+          created_at: string | null
+          datos_vehiculo: Json | null
+          disponibilidad_horaria: Json | null
+          documentacion_completa: boolean | null
+          email: string
+          especialidades: string[] | null
+          estado_afiliacion: string | null
+          fecha_afiliacion: string | null
+          id: string
+          nombre_completo: string
+          servicios_completados: number | null
+          telefono: string
+          updated_at: string | null
+          user_id: string | null
+          vehiculo_propio: boolean | null
+          zona_cobertura: Json | null
+        }
+        Insert: {
+          banco_datos?: Json | null
+          calificacion_promedio?: number | null
+          cedula_profesional?: string | null
+          certificaciones?: string[] | null
+          created_at?: string | null
+          datos_vehiculo?: Json | null
+          disponibilidad_horaria?: Json | null
+          documentacion_completa?: boolean | null
+          email: string
+          especialidades?: string[] | null
+          estado_afiliacion?: string | null
+          fecha_afiliacion?: string | null
+          id?: string
+          nombre_completo: string
+          servicios_completados?: number | null
+          telefono: string
+          updated_at?: string | null
+          user_id?: string | null
+          vehiculo_propio?: boolean | null
+          zona_cobertura?: Json | null
+        }
+        Update: {
+          banco_datos?: Json | null
+          calificacion_promedio?: number | null
+          cedula_profesional?: string | null
+          certificaciones?: string[] | null
+          created_at?: string | null
+          datos_vehiculo?: Json | null
+          disponibilidad_horaria?: Json | null
+          documentacion_completa?: boolean | null
+          email?: string
+          especialidades?: string[] | null
+          estado_afiliacion?: string | null
+          fecha_afiliacion?: string | null
+          id?: string
+          nombre_completo?: string
+          servicios_completados?: number | null
+          telefono?: string
+          updated_at?: string | null
+          user_id?: string | null
+          vehiculo_propio?: boolean | null
+          zona_cobertura?: Json | null
+        }
+        Relationships: []
+      }
+      inventario_gps: {
+        Row: {
+          bateria_estado: number | null
+          created_at: string | null
+          estado: string | null
+          fecha_asignacion: string | null
+          fecha_instalacion: string | null
+          firmware_version: string | null
+          id: string
+          instalador_asignado: string | null
+          marca: string
+          modelo: string
+          numero_serie: string
+          observaciones: string | null
+          servicio_asignado: string | null
+          signal_quality: number | null
+          tipo_dispositivo: string
+          ubicacion_actual: string | null
+          ultimo_reporte: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          bateria_estado?: number | null
+          created_at?: string | null
+          estado?: string | null
+          fecha_asignacion?: string | null
+          fecha_instalacion?: string | null
+          firmware_version?: string | null
+          id?: string
+          instalador_asignado?: string | null
+          marca: string
+          modelo: string
+          numero_serie: string
+          observaciones?: string | null
+          servicio_asignado?: string | null
+          signal_quality?: number | null
+          tipo_dispositivo: string
+          ubicacion_actual?: string | null
+          ultimo_reporte?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          bateria_estado?: number | null
+          created_at?: string | null
+          estado?: string | null
+          fecha_asignacion?: string | null
+          fecha_instalacion?: string | null
+          firmware_version?: string | null
+          id?: string
+          instalador_asignado?: string | null
+          marca?: string
+          modelo?: string
+          numero_serie?: string
+          observaciones?: string | null
+          servicio_asignado?: string | null
+          signal_quality?: number | null
+          tipo_dispositivo?: string
+          ubicacion_actual?: string | null
+          ultimo_reporte?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventario_gps_instalador_asignado_fkey"
+            columns: ["instalador_asignado"]
+            isOneToOne: false
+            referencedRelation: "instaladores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventario_gps_servicio_asignado_fkey"
+            columns: ["servicio_asignado"]
+            isOneToOne: false
+            referencedRelation: "servicios_monitoreo"
             referencedColumns: ["id"]
           },
         ]
@@ -1030,6 +1240,103 @@ export type Database = {
         }
         Relationships: []
       }
+      programacion_instalaciones: {
+        Row: {
+          acceso_restringido: boolean | null
+          activo_id: string | null
+          contacto_cliente: string
+          coordenadas_instalacion: Json | null
+          created_at: string | null
+          direccion_instalacion: string
+          equipos_requeridos: Json | null
+          estado: string | null
+          fecha_estimada_fin: string | null
+          fecha_programada: string
+          herramientas_especiales: string[] | null
+          id: string
+          instalador_id: string | null
+          instrucciones_especiales: string | null
+          observaciones_cliente: string | null
+          prioridad: string | null
+          requiere_vehiculo_elevado: boolean | null
+          servicio_id: string
+          telefono_contacto: string
+          tiempo_estimado: number | null
+          tipo_instalacion: string
+          updated_at: string | null
+        }
+        Insert: {
+          acceso_restringido?: boolean | null
+          activo_id?: string | null
+          contacto_cliente: string
+          coordenadas_instalacion?: Json | null
+          created_at?: string | null
+          direccion_instalacion: string
+          equipos_requeridos?: Json | null
+          estado?: string | null
+          fecha_estimada_fin?: string | null
+          fecha_programada: string
+          herramientas_especiales?: string[] | null
+          id?: string
+          instalador_id?: string | null
+          instrucciones_especiales?: string | null
+          observaciones_cliente?: string | null
+          prioridad?: string | null
+          requiere_vehiculo_elevado?: boolean | null
+          servicio_id: string
+          telefono_contacto: string
+          tiempo_estimado?: number | null
+          tipo_instalacion: string
+          updated_at?: string | null
+        }
+        Update: {
+          acceso_restringido?: boolean | null
+          activo_id?: string | null
+          contacto_cliente?: string
+          coordenadas_instalacion?: Json | null
+          created_at?: string | null
+          direccion_instalacion?: string
+          equipos_requeridos?: Json | null
+          estado?: string | null
+          fecha_estimada_fin?: string | null
+          fecha_programada?: string
+          herramientas_especiales?: string[] | null
+          id?: string
+          instalador_id?: string | null
+          instrucciones_especiales?: string | null
+          observaciones_cliente?: string | null
+          prioridad?: string | null
+          requiere_vehiculo_elevado?: boolean | null
+          servicio_id?: string
+          telefono_contacto?: string
+          tiempo_estimado?: number | null
+          tipo_instalacion?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "programacion_instalaciones_activo_id_fkey"
+            columns: ["activo_id"]
+            isOneToOne: false
+            referencedRelation: "activos_monitoreo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programacion_instalaciones_instalador_id_fkey"
+            columns: ["instalador_id"]
+            isOneToOne: false
+            referencedRelation: "instaladores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programacion_instalaciones_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_monitoreo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       redemptions: {
         Row: {
           admin_notes: string | null
@@ -1299,6 +1606,81 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      seguimiento_instalaciones: {
+        Row: {
+          calificacion_cliente: number | null
+          comentarios_cliente: string | null
+          created_at: string | null
+          equipos_utilizados: Json | null
+          estado_anterior: string | null
+          estado_nuevo: string
+          evidencia_fotografica: string[] | null
+          fecha_fin: string | null
+          fecha_inicio: string | null
+          firma_cliente: string | null
+          id: string
+          instalacion_id: string
+          instalador_id: string
+          observaciones: string | null
+          problemas_encontrados: string[] | null
+          solucion_aplicada: string | null
+          ubicacion_gps: Json | null
+        }
+        Insert: {
+          calificacion_cliente?: number | null
+          comentarios_cliente?: string | null
+          created_at?: string | null
+          equipos_utilizados?: Json | null
+          estado_anterior?: string | null
+          estado_nuevo: string
+          evidencia_fotografica?: string[] | null
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
+          firma_cliente?: string | null
+          id?: string
+          instalacion_id: string
+          instalador_id: string
+          observaciones?: string | null
+          problemas_encontrados?: string[] | null
+          solucion_aplicada?: string | null
+          ubicacion_gps?: Json | null
+        }
+        Update: {
+          calificacion_cliente?: number | null
+          comentarios_cliente?: string | null
+          created_at?: string | null
+          equipos_utilizados?: Json | null
+          estado_anterior?: string | null
+          estado_nuevo?: string
+          evidencia_fotografica?: string[] | null
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
+          firma_cliente?: string | null
+          id?: string
+          instalacion_id?: string
+          instalador_id?: string
+          observaciones?: string | null
+          problemas_encontrados?: string[] | null
+          solucion_aplicada?: string | null
+          ubicacion_gps?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seguimiento_instalaciones_instalacion_id_fkey"
+            columns: ["instalacion_id"]
+            isOneToOne: false
+            referencedRelation: "programacion_instalaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seguimiento_instalaciones_instalador_id_fkey"
+            columns: ["instalador_id"]
+            isOneToOne: false
+            referencedRelation: "instaladores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       seguimiento_servicio: {
         Row: {
@@ -2489,6 +2871,18 @@ export type Database = {
           tipo_unidad: string | null
           tipo_unidad_adicional: string | null
           updated_time: string | null
+        }[]
+      }
+      get_instaladores_disponibles: {
+        Args: { p_fecha: string; p_zona?: Json; p_tipo_instalacion?: string }
+        Returns: {
+          id: string
+          nombre_completo: string
+          telefono: string
+          calificacion_promedio: number
+          servicios_completados: number
+          especialidades: string[]
+          disponible: boolean
         }[]
       }
       get_marcas_vehiculos_safe: {
