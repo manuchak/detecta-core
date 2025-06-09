@@ -25,7 +25,7 @@ import NotFound from "@/pages/NotFound";
 // Feature pages
 import LeadsList from "@/pages/Leads/LeadsList";
 import LeadApprovals from "@/pages/Leads/LeadApprovals";
-import ServicesPage from "@/pages/Services/ServicesPage";
+import { ServicesPage } from "@/pages/Services/ServicesPage";
 import TicketsList from "@/pages/Tickets/TicketsList";
 import Settings from "@/pages/Settings/Settings";
 
