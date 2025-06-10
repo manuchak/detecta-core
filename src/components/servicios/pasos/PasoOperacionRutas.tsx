@@ -16,7 +16,7 @@ interface PasoOperacionRutasProps {
 export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
   const { fields: rutasFields, append: appendRuta, remove: removeRuta } = useFieldArray({
     control: form.control,
-    name: "rutas_habituales" as const
+    name: "rutas_habituales"
   });
 
   const diasSemana = [
@@ -120,10 +120,19 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
         <CardContent className="space-y-4">
           {rutasFields.map((field, index) => (
             <div key={field.id} className="flex gap-2">
-              <Input
-                {...form.register(`rutas_habituales.${index}` as const)}
-                placeholder={`Ruta ${index + 1}: Ej. Casa - Oficina - Cliente ABC`}
-                className="flex-1"
+              <FormField
+                control={form.control}
+                name={`rutas_habituales.${index}` as const}
+                render={({ field }) => (
+                  <FormItem className="flex-1">
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder={`Ruta ${index + 1}: Ej. Casa - Oficina - Cliente ABC`}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
               />
               <Button
                 type="button"
@@ -139,7 +148,7 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
           <Button
             type="button"
             variant="outline"
-            onClick={() => appendRuta('')}
+            onClick={() => appendRuta("")}
             className="w-full"
           >
             <Plus className="h-4 w-4 mr-2" />
