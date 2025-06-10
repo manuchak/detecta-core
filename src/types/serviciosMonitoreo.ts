@@ -1,4 +1,3 @@
-
 export type TipoServicio = 'personal' | 'vehicular' | 'flotilla';
 export type Prioridad = 'baja' | 'media' | 'alta' | 'critica';
 export type EstadoGeneral = 
@@ -40,6 +39,24 @@ export interface ServicioMonitoreo {
   fecha_inicio_servicio?: string;
   ejecutivo_ventas_id?: string;
   coordinador_operaciones_id?: string;
+  
+  // Nuevos campos añadidos
+  cantidad_vehiculos?: number;
+  modelo_vehiculo?: string;
+  tipo_vehiculo?: string;
+  horarios_operacion?: any;
+  rutas_habituales?: string[];
+  zonas_riesgo_identificadas?: boolean;
+  detalles_zonas_riesgo?: string;
+  cuenta_gps_instalado?: boolean;
+  detalles_gps_actual?: string;
+  cuenta_boton_panico?: boolean;
+  tipo_gps_preferido?: string;
+  marca_gps_preferida?: string;
+  modelo_gps_preferido?: string;
+  requiere_paro_motor?: boolean;
+  condiciones_paro_motor?: string;
+  
   observaciones?: string;
   created_at: string;
   updated_at: string;

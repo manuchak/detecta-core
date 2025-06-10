@@ -421,6 +421,165 @@ export type Database = {
           },
         ]
       }
+      configuracion_reportes: {
+        Row: {
+          created_at: string | null
+          frecuencia_reportes: string
+          id: string
+          limitantes_protocolos: string | null
+          medio_contacto_preferido: string
+          observaciones_adicionales: string | null
+          servicio_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          frecuencia_reportes: string
+          id?: string
+          limitantes_protocolos?: string | null
+          medio_contacto_preferido: string
+          observaciones_adicionales?: string | null
+          servicio_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          frecuencia_reportes?: string
+          id?: string
+          limitantes_protocolos?: string | null
+          medio_contacto_preferido?: string
+          observaciones_adicionales?: string | null
+          servicio_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "configuracion_reportes_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_monitoreo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      configuracion_sensores: {
+        Row: {
+          alerta_desconexion_electrica: boolean | null
+          bateria_interna_respaldo: boolean | null
+          bluetooth_wifi: boolean | null
+          boton_panico: boolean | null
+          compatibilidad_sensores_rs232: boolean | null
+          corte_ignicion_paro_motor: boolean | null
+          created_at: string | null
+          deteccion_jamming: boolean | null
+          geocercas_dinamicas: boolean | null
+          id: string
+          lectura_obdii_can_bus: boolean | null
+          monitoreo_voltaje: boolean | null
+          sensor_carga_peso: boolean | null
+          sensor_combustible: boolean | null
+          sensor_ignicion: boolean | null
+          sensor_presencia_vibracion: boolean | null
+          sensor_puerta: boolean | null
+          sensor_temperatura: boolean | null
+          servicio_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          alerta_desconexion_electrica?: boolean | null
+          bateria_interna_respaldo?: boolean | null
+          bluetooth_wifi?: boolean | null
+          boton_panico?: boolean | null
+          compatibilidad_sensores_rs232?: boolean | null
+          corte_ignicion_paro_motor?: boolean | null
+          created_at?: string | null
+          deteccion_jamming?: boolean | null
+          geocercas_dinamicas?: boolean | null
+          id?: string
+          lectura_obdii_can_bus?: boolean | null
+          monitoreo_voltaje?: boolean | null
+          sensor_carga_peso?: boolean | null
+          sensor_combustible?: boolean | null
+          sensor_ignicion?: boolean | null
+          sensor_presencia_vibracion?: boolean | null
+          sensor_puerta?: boolean | null
+          sensor_temperatura?: boolean | null
+          servicio_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          alerta_desconexion_electrica?: boolean | null
+          bateria_interna_respaldo?: boolean | null
+          bluetooth_wifi?: boolean | null
+          boton_panico?: boolean | null
+          compatibilidad_sensores_rs232?: boolean | null
+          corte_ignicion_paro_motor?: boolean | null
+          created_at?: string | null
+          deteccion_jamming?: boolean | null
+          geocercas_dinamicas?: boolean | null
+          id?: string
+          lectura_obdii_can_bus?: boolean | null
+          monitoreo_voltaje?: boolean | null
+          sensor_carga_peso?: boolean | null
+          sensor_combustible?: boolean | null
+          sensor_ignicion?: boolean | null
+          sensor_presencia_vibracion?: boolean | null
+          sensor_puerta?: boolean | null
+          sensor_temperatura?: boolean | null
+          servicio_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "configuracion_sensores_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_monitoreo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contactos_emergencia_servicio: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string
+          nombre: string
+          orden_prioridad: number | null
+          servicio_id: string | null
+          telefono: string
+          tipo_contacto: string
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          nombre: string
+          orden_prioridad?: number | null
+          servicio_id?: string | null
+          telefono: string
+          tipo_contacto: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          nombre?: string
+          orden_prioridad?: number | null
+          servicio_id?: string | null
+          telefono?: string
+          tipo_contacto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contactos_emergencia_servicio_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_monitoreo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       criterios_evaluacion_financiera: {
         Row: {
           activo: boolean | null
@@ -1049,6 +1208,27 @@ export type Database = {
         }
         Relationships: []
       }
+      marcas_gps: {
+        Row: {
+          activo: boolean | null
+          created_at: string | null
+          id: string
+          nombre: string
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string | null
+          id?: string
+          nombre: string
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string | null
+          id?: string
+          nombre?: string
+        }
+        Relationships: []
+      }
       marcas_vehiculos: {
         Row: {
           activo: boolean
@@ -1072,6 +1252,41 @@ export type Database = {
           pais_origen?: string | null
         }
         Relationships: []
+      }
+      modelos_gps: {
+        Row: {
+          activo: boolean | null
+          caracteristicas: Json | null
+          created_at: string | null
+          id: string
+          marca_id: string | null
+          nombre: string
+        }
+        Insert: {
+          activo?: boolean | null
+          caracteristicas?: Json | null
+          created_at?: string | null
+          id?: string
+          marca_id?: string | null
+          nombre: string
+        }
+        Update: {
+          activo?: boolean | null
+          caracteristicas?: Json | null
+          created_at?: string | null
+          id?: string
+          marca_id?: string | null
+          nombre?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "modelos_gps_marca_id_fkey"
+            columns: ["marca_id"]
+            isOneToOne: false
+            referencedRelation: "marcas_gps"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       modelos_vehiculos: {
         Row: {
@@ -1927,9 +2142,15 @@ export type Database = {
       }
       servicios_monitoreo: {
         Row: {
+          cantidad_vehiculos: number | null
           cliente_id: string | null
+          condiciones_paro_motor: string | null
           coordinador_operaciones_id: string | null
           created_at: string
+          cuenta_boton_panico: boolean | null
+          cuenta_gps_instalado: boolean | null
+          detalles_gps_actual: string | null
+          detalles_zonas_riesgo: string | null
           direccion_cliente: string
           ejecutivo_ventas_id: string | null
           email_contacto: string
@@ -1938,19 +2159,34 @@ export type Database = {
           fecha_inicio_servicio: string | null
           fecha_limite_respuesta: string | null
           fecha_solicitud: string
+          horarios_operacion: Json | null
           id: string
+          marca_gps_preferida: string | null
+          modelo_gps_preferido: string | null
+          modelo_vehiculo: string | null
           nombre_cliente: string
           numero_servicio: string
           observaciones: string | null
           prioridad: string
+          requiere_paro_motor: boolean | null
+          rutas_habituales: string[] | null
           telefono_contacto: string
+          tipo_gps_preferido: string | null
           tipo_servicio: string
+          tipo_vehiculo: string | null
           updated_at: string
+          zonas_riesgo_identificadas: boolean | null
         }
         Insert: {
+          cantidad_vehiculos?: number | null
           cliente_id?: string | null
+          condiciones_paro_motor?: string | null
           coordinador_operaciones_id?: string | null
           created_at?: string
+          cuenta_boton_panico?: boolean | null
+          cuenta_gps_instalado?: boolean | null
+          detalles_gps_actual?: string | null
+          detalles_zonas_riesgo?: string | null
           direccion_cliente: string
           ejecutivo_ventas_id?: string | null
           email_contacto: string
@@ -1959,19 +2195,34 @@ export type Database = {
           fecha_inicio_servicio?: string | null
           fecha_limite_respuesta?: string | null
           fecha_solicitud?: string
+          horarios_operacion?: Json | null
           id?: string
+          marca_gps_preferida?: string | null
+          modelo_gps_preferido?: string | null
+          modelo_vehiculo?: string | null
           nombre_cliente: string
           numero_servicio?: string
           observaciones?: string | null
           prioridad?: string
+          requiere_paro_motor?: boolean | null
+          rutas_habituales?: string[] | null
           telefono_contacto: string
+          tipo_gps_preferido?: string | null
           tipo_servicio: string
+          tipo_vehiculo?: string | null
           updated_at?: string
+          zonas_riesgo_identificadas?: boolean | null
         }
         Update: {
+          cantidad_vehiculos?: number | null
           cliente_id?: string | null
+          condiciones_paro_motor?: string | null
           coordinador_operaciones_id?: string | null
           created_at?: string
+          cuenta_boton_panico?: boolean | null
+          cuenta_gps_instalado?: boolean | null
+          detalles_gps_actual?: string | null
+          detalles_zonas_riesgo?: string | null
           direccion_cliente?: string
           ejecutivo_ventas_id?: string | null
           email_contacto?: string
@@ -1980,14 +2231,23 @@ export type Database = {
           fecha_inicio_servicio?: string | null
           fecha_limite_respuesta?: string | null
           fecha_solicitud?: string
+          horarios_operacion?: Json | null
           id?: string
+          marca_gps_preferida?: string | null
+          modelo_gps_preferido?: string | null
+          modelo_vehiculo?: string | null
           nombre_cliente?: string
           numero_servicio?: string
           observaciones?: string | null
           prioridad?: string
+          requiere_paro_motor?: boolean | null
+          rutas_habituales?: string[] | null
           telefono_contacto?: string
+          tipo_gps_preferido?: string | null
           tipo_servicio?: string
+          tipo_vehiculo?: string | null
           updated_at?: string
+          zonas_riesgo_identificadas?: boolean | null
         }
         Relationships: [
           {
@@ -2037,6 +2297,30 @@ export type Database = {
           name?: string
           updated_at?: string | null
           value?: number
+        }
+        Relationships: []
+      }
+      tipos_monitoreo: {
+        Row: {
+          activo: boolean | null
+          created_at: string | null
+          descripcion: string | null
+          id: string
+          nombre: string
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre: string
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre?: string
         }
         Relationships: []
       }
@@ -3092,6 +3376,10 @@ export type Database = {
           client_name: string
           km_travelled: number
         }[]
+      }
+      get_servicio_completo_secure: {
+        Args: { servicio_uuid: string }
+        Returns: Json
       }
       get_user_confirmation_status: {
         Args: Record<PropertyKey, never>
