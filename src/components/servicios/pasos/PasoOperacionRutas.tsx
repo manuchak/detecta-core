@@ -1,4 +1,3 @@
-
 import { UseFormReturn, useFieldArray } from 'react-hook-form';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -16,7 +15,7 @@ interface PasoOperacionRutasProps {
 export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
   const { fields: rutasFields, append: appendRuta, remove: removeRuta } = useFieldArray({
     control: form.control,
-    name: "rutas_habituales"
+    name: "rutas_habituales" as const
   });
 
   const diasSemana = [
