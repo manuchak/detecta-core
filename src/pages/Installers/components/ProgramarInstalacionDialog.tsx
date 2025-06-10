@@ -61,13 +61,23 @@ export const ProgramarInstalacionDialog = ({
     
     if (!fecha || !tipoInstalacion || !direccion || !contacto) return;
 
+    // Map the form values to the correct TipoInstalacion enum values
+    const mapTipoInstalacion = (tipo: string) => {
+      switch (tipo) {
+        case 'vehicular': return 'gps_vehicular';
+        case 'flotilla': return 'gps_vehicular'; // Flotilla uses the same GPS type
+        case 'personal': return 'gps_personal';
+        default: return 'gps_vehicular';
+      }
+    };
+
     const programacionData = {
       servicio_id: servicioId || undefined,
       fecha_programada: fecha.toISOString(),
-      tipo_instalacion: tipoInstalacion as 'vehicular' | 'flotilla' | 'personal',
+      tipo_instalacion: mapTipoInstalacion(tipoInstalacion),
       direccion_instalacion: direccion,
       contacto_cliente: contacto,
-      telefono_contacto: telefono, // Fixed: using telefono_contacto instead of telefono_cliente
+      telefono_contacto: telefono,
       observaciones_cliente: observaciones,
       tiempo_estimado: parseInt(tiempoEstimado),
       estado: 'programada' as const
