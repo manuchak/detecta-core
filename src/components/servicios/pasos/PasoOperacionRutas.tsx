@@ -16,7 +16,7 @@ interface PasoOperacionRutasProps {
 export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
   const { fields: rutasFields, append: appendRuta, remove: removeRuta } = useFieldArray({
     control: form.control,
-    name: "rutas_habituales"
+    name: "rutas_habituales" as const
   });
 
   const diasSemana = [
