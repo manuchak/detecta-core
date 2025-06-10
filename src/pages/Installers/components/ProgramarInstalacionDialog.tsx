@@ -16,6 +16,7 @@ import { useProgramacionInstalaciones } from '@/hooks/useProgramacionInstalacion
 import { useInstaladores } from '@/hooks/useInstaladores';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { TipoInstalacion } from '@/types/instaladores';
 
 export interface ProgramarInstalacionDialogProps {
   open: boolean;
@@ -62,7 +63,7 @@ export const ProgramarInstalacionDialog = ({
     if (!fecha || !tipoInstalacion || !direccion || !contacto) return;
 
     // Map the form values to the correct TipoInstalacion enum values
-    const mapTipoInstalacion = (tipo: string) => {
+    const mapTipoInstalacion = (tipo: string): TipoInstalacion => {
       switch (tipo) {
         case 'vehicular': return 'gps_vehicular';
         case 'flotilla': return 'gps_vehicular'; // Flotilla uses the same GPS type
