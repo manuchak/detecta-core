@@ -67,7 +67,7 @@ export const ProgramarInstalacionDialog = ({
       tipo_instalacion: tipoInstalacion as 'vehicular' | 'flotilla' | 'personal',
       direccion_instalacion: direccion,
       contacto_cliente: contacto,
-      telefono_cliente: telefono,
+      telefono_contacto: telefono, // Fixed: using telefono_contacto instead of telefono_cliente
       observaciones_cliente: observaciones,
       tiempo_estimado: parseInt(tiempoEstimado),
       estado: 'programada' as const

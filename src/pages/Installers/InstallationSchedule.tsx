@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,6 +17,7 @@ const InstallationSchedule = () => {
   const { instaladoresActivos } = useInstaladores();
   const [filtroEstado, setFiltroEstado] = useState<string>('todas');
   const [filtroPrioridad, setFiltroPrioridad] = useState<string>('todas');
+  const [showProgramarDialog, setShowProgramarDialog] = useState(false);
 
   const programacionesFiltradas = programaciones?.filter(prog => {
     if (filtroEstado !== 'todas' && prog.estado !== filtroEstado) return false;
@@ -74,12 +74,10 @@ const InstallationSchedule = () => {
           <p className="text-gray-600 mt-1">Gestiona las instalaciones de GPS programadas</p>
         </div>
         <div className="flex gap-2">
-          <ProgramarInstalacionDialog>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Nueva Instalación
-            </Button>
-          </ProgramarInstalacionDialog>
+          <Button onClick={() => setShowProgramarDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nueva Instalación
+          </Button>
         </div>
       </div>
 
@@ -222,6 +220,12 @@ const InstallationSchedule = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Dialog */}
+      <ProgramarInstalacionDialog
+        open={showProgramarDialog}
+        onOpenChange={setShowProgramarDialog}
+      />
     </div>
   );
 };
