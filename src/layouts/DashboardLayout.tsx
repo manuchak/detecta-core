@@ -1,11 +1,15 @@
 
 import React, { useState } from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { useAuth } from '@/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const DashboardLayout: React.FC = () => {
+interface DashboardLayoutProps {
+  children: React.ReactNode;
+}
+
+const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { user, loading } = useAuth();
 
@@ -31,7 +35,7 @@ const DashboardLayout: React.FC = () => {
     <div className="min-h-screen bg-gray-100 flex">
       <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
       <main className="flex-1 p-6 overflow-auto">
-        <Outlet />
+        {children}
       </main>
     </div>
   );
