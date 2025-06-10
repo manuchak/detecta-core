@@ -1,4 +1,6 @@
 
+import type { TipoServicio, Prioridad } from './serviciosMonitoreo';
+
 export interface CreateServicioMonitoreoCompleto {
   // Información básica del cliente
   nombre_cliente: string;
@@ -45,6 +47,7 @@ export interface CreateServicioMonitoreoCompleto {
 }
 
 export interface HorarioOperacion {
+  [key: string]: { inicio: string; fin: string; activo: boolean } | boolean | undefined;
   lunes?: { inicio: string; fin: string; activo: boolean };
   martes?: { inicio: string; fin: string; activo: boolean };
   miercoles?: { inicio: string; fin: string; activo: boolean };

@@ -69,32 +69,32 @@ export const useServiciosMonitoreoCompleto = () => {
       // 1. Crear el servicio principal
       const { data: servicio, error: servicioError } = await supabase
         .from('servicios_monitoreo')
-        .insert([{
+        .insert({
           nombre_cliente: data.nombre_cliente,
-          empresa: data.empresa,
+          empresa: data.empresa || null,
           telefono_contacto: data.telefono_contacto,
           email_contacto: data.email_contacto,
           direccion_cliente: data.direccion_cliente,
           tipo_servicio: data.tipo_servicio,
           prioridad: data.prioridad,
           cantidad_vehiculos: data.cantidad_vehiculos,
-          modelo_vehiculo: data.modelo_vehiculo,
-          tipo_vehiculo: data.tipo_vehiculo,
-          horarios_operacion: data.horarios_operacion,
-          rutas_habituales: data.rutas_habituales,
+          modelo_vehiculo: data.modelo_vehiculo || null,
+          tipo_vehiculo: data.tipo_vehiculo || null,
+          horarios_operacion: data.horarios_operacion ? JSON.parse(JSON.stringify(data.horarios_operacion)) : null,
+          rutas_habituales: data.rutas_habituales || null,
           zonas_riesgo_identificadas: data.zonas_riesgo_identificadas,
-          detalles_zonas_riesgo: data.detalles_zonas_riesgo,
+          detalles_zonas_riesgo: data.detalles_zonas_riesgo || null,
           cuenta_gps_instalado: data.cuenta_gps_instalado,
-          detalles_gps_actual: data.detalles_gps_actual,
+          detalles_gps_actual: data.detalles_gps_actual || null,
           cuenta_boton_panico: data.cuenta_boton_panico,
-          tipo_gps_preferido: data.tipo_gps_preferido,
-          marca_gps_preferida: data.marca_gps_preferida,
-          modelo_gps_preferido: data.modelo_gps_preferido,
+          tipo_gps_preferido: data.tipo_gps_preferido || null,
+          marca_gps_preferida: data.marca_gps_preferida || null,
+          modelo_gps_preferido: data.modelo_gps_preferido || null,
           requiere_paro_motor: data.requiere_paro_motor,
-          condiciones_paro_motor: data.condiciones_paro_motor,
+          condiciones_paro_motor: data.condiciones_paro_motor || null,
           ejecutivo_ventas_id: user.id,
-          observaciones: data.observaciones
-        }])
+          observaciones: data.observaciones || null
+        })
         .select()
         .single();
 
@@ -103,10 +103,10 @@ export const useServiciosMonitoreoCompleto = () => {
       // 2. Crear configuración de sensores
       const { error: sensoresError } = await supabase
         .from('configuracion_sensores')
-        .insert([{
+        .insert({
           servicio_id: servicio.id,
           ...data.configuracion_sensores
-        }]);
+        });
 
       if (sensoresError) throw sensoresError;
 
@@ -127,10 +127,10 @@ export const useServiciosMonitoreoCompleto = () => {
       // 4. Crear configuración de reportes
       const { error: reportesError } = await supabase
         .from('configuracion_reportes')
-        .insert([{
+        .insert({
           servicio_id: servicio.id,
           ...data.configuracion_reportes
-        }]);
+        });
 
       if (reportesError) throw reportesError;
 
