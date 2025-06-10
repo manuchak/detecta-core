@@ -61,7 +61,7 @@ const App = () => (
             <Route path="/auth/login" element={<AuthLayout><Login /></AuthLayout>} />
             <Route path="/auth/register" element={<AuthLayout><Register /></AuthLayout>} />
             <Route path="/auth/forgot-password" element={<AuthLayout><ForgotPassword /></AuthLayout>} />
-            <Route path="/auth/email-confirmation" element={<AuthLayout><EmailConfirmation /></AuthLayout>} />
+            <Route path="/auth/email-confirmation" element={<AuthLayout><EmailConfirmation /></EmailConfirmation>} />
 
             {/* Protected routes */}
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
