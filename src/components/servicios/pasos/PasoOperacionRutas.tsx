@@ -1,3 +1,4 @@
+
 import { UseFormReturn, useFieldArray } from 'react-hook-form';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -122,11 +123,11 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
               <FormField
                 control={form.control}
                 name={`rutas_habituales.${index}` as const}
-                render={({ field }) => (
+                render={({ field: inputField }) => (
                   <FormItem className="flex-1">
                     <FormControl>
                       <Input
-                        {...field}
+                        {...inputField}
                         placeholder={`Ruta ${index + 1}: Ej. Casa - Oficina - Cliente ABC`}
                       />
                     </FormControl>
