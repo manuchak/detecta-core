@@ -13,14 +13,25 @@ interface PasoOperacionRutasProps {
   form: UseFormReturn<CreateServicioMonitoreoCompleto>;
 }
 
+/**
+ * Componente para gestionar horarios de operación y rutas habituales
+ * Este paso del formulario maneja:
+ * 1. Horarios de operación (24h o por días específicos)
+ * 2. Rutas habituales (array de strings)
+ * 3. Zonas de riesgo identificadas
+ */
 export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
-  // Manejo de rutas habituales con tipo explícito para string array
-  const { fields: rutasFields, append: appendRuta, remove: removeRuta } = useFieldArray({
+  // Configuración explícita para el manejo de rutas habituales como array de strings
+  const { 
+    fields: rutasFields, 
+    append: appendRuta, 
+    remove: removeRuta 
+  } = useFieldArray<CreateServicioMonitoreoCompleto, 'rutas_habituales'>({
     control: form.control,
-    name: "rutas_habituales",
-    keyName: "fieldId" // Evitar conflictos con el id por defecto
+    name: 'rutas_habituales'
   });
 
+  // Definición de días de la semana para los horarios
   const diasSemana = [
     { key: 'lunes', label: 'Lunes' },
     { key: 'martes', label: 'Martes' },
@@ -31,19 +42,24 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
     { key: 'domingo', label: 'Domingo' }
   ];
 
-  // Función para agregar nueva ruta
-  const agregarRuta = () => {
-    appendRuta(""); // Agregar string vacío
+  /**
+   * Agrega una nueva ruta vacía al array de rutas habituales
+   */
+  const handleAgregarRuta = () => {
+    appendRuta('');
   };
 
-  // Función para eliminar ruta
-  const eliminarRuta = (index: number) => {
+  /**
+   * Elimina una ruta específica del array
+   * @param index - Índice de la ruta a eliminar
+   */
+  const handleEliminarRuta = (index: number) => {
     removeRuta(index);
   };
 
   return (
     <div className="space-y-6">
-      {/* Horarios de Operación */}
+      {/* Sección: Horarios de Operación */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -52,6 +68,7 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Switch para operación 24 horas */}
           <FormField
             control={form.control}
             name="horarios_operacion.es_24_horas"
@@ -68,46 +85,49 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
             )}
           />
 
+          {/* Horarios específicos por día (solo si no es 24 horas) */}
           {!form.watch('horarios_operacion.es_24_horas') && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {diasSemana.map((dia) => (
                 <div key={dia.key} className="border rounded-lg p-3">
+                  {/* Header del día con switch de activación */}
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-medium">{dia.label}</span>
                     <FormField
                       control={form.control}
-                      name={`horarios_operacion.${dia.key}.activo` as any}
+                      name={`horarios_operacion.${dia.key}.activo` as keyof CreateServicioMonitoreoCompleto}
                       render={({ field }) => (
                         <Switch 
-                          checked={field.value} 
+                          checked={field.value as boolean} 
                           onCheckedChange={field.onChange}
                         />
                       )}
                     />
                   </div>
                   
-                  {form.watch(`horarios_operacion.${dia.key}.activo` as any) && (
+                  {/* Inputs de hora de inicio y fin (solo si el día está activo) */}
+                  {form.watch(`horarios_operacion.${dia.key}.activo` as keyof CreateServicioMonitoreoCompleto) && (
                     <div className="grid grid-cols-2 gap-2">
                       <FormField
                         control={form.control}
-                        name={`horarios_operacion.${dia.key}.inicio` as any}
+                        name={`horarios_operacion.${dia.key}.inicio` as keyof CreateServicioMonitoreoCompleto}
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-xs">Inicio</FormLabel>
                             <FormControl>
-                              <Input {...field} type="time" />
+                              <Input {...field} type="time" value={field.value as string} />
                             </FormControl>
                           </FormItem>
                         )}
                       />
                       <FormField
                         control={form.control}
-                        name={`horarios_operacion.${dia.key}.fin` as any}
+                        name={`horarios_operacion.${dia.key}.fin` as keyof CreateServicioMonitoreoCompleto}
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-xs">Fin</FormLabel>
                             <FormControl>
-                              <Input {...field} type="time" />
+                              <Input {...field} type="time" value={field.value as string} />
                             </FormControl>
                           </FormItem>
                         )}
@@ -121,26 +141,28 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
         </CardContent>
       </Card>
 
-      {/* Rutas Habituales */}
+      {/* Sección: Rutas Habituales */}
       <Card>
         <CardHeader>
           <CardTitle>Rutas Habituales</CardTitle>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             Describe las rutas que el vehículo recorre frecuentemente
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Lista de rutas existentes */}
           {rutasFields.map((field, index) => (
-            <div key={field.fieldId} className="flex gap-2">
+            <div key={field.id} className="flex gap-2">
               <FormField
                 control={form.control}
-                name={`rutas_habituales.${index}` as const}
+                name={`rutas_habituales.${index}`}
                 render={({ field: inputField }) => (
                   <FormItem className="flex-1">
                     <FormControl>
                       <Input
                         {...inputField}
                         placeholder={`Ruta ${index + 1}: Ej. Casa - Oficina - Cliente ABC`}
+                        value={inputField.value || ''}
                       />
                     </FormControl>
                   </FormItem>
@@ -150,17 +172,19 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
                 type="button"
                 variant="outline"
                 size="icon"
-                onClick={() => eliminarRuta(index)}
+                onClick={() => handleEliminarRuta(index)}
+                disabled={rutasFields.length <= 1}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
           ))}
           
+          {/* Botón para agregar nueva ruta */}
           <Button
             type="button"
             variant="outline"
-            onClick={agregarRuta}
+            onClick={handleAgregarRuta}
             className="w-full"
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -169,12 +193,13 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
         </CardContent>
       </Card>
 
-      {/* Zonas de Riesgo */}
+      {/* Sección: Zonas de Riesgo */}
       <Card>
         <CardHeader>
           <CardTitle>Zonas de Riesgo</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Switch para identificación de zonas de riesgo */}
           <FormField
             control={form.control}
             name="zonas_riesgo_identificadas"
@@ -191,6 +216,7 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
             )}
           />
 
+          {/* Textarea para detalles de zonas de riesgo (solo si están identificadas) */}
           {form.watch('zonas_riesgo_identificadas') && (
             <FormField
               control={form.control}
@@ -203,6 +229,7 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
                       {...field} 
                       placeholder="Describe las zonas de riesgo identificadas, horarios problemáticos, tipos de incidentes, etc."
                       rows={4}
+                      value={field.value || ''}
                     />
                   </FormControl>
                   <FormMessage />
