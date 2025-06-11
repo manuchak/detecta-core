@@ -21,12 +21,12 @@ interface PasoOperacionRutasProps {
  * 3. Zonas de riesgo identificadas
  */
 export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
-  // Configuración explícita para el manejo de rutas habituales como array de strings
+  // Configuración para el manejo de rutas habituales - sin restricciones de tipo genérico
   const { 
     fields: rutasFields, 
     append: appendRuta, 
     remove: removeRuta 
-  } = useFieldArray<CreateServicioMonitoreoCompleto, 'rutas_habituales'>({
+  } = useFieldArray({
     control: form.control,
     name: 'rutas_habituales'
   });
