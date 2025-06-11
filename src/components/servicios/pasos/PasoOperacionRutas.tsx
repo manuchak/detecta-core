@@ -85,7 +85,7 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
                 <FormLabel>¿Opera las 24 horas?</FormLabel>
                 <FormControl>
                   <Switch 
-                    checked={field.value} 
+                    checked={field.value || false} 
                     onCheckedChange={field.onChange}
                   />
                 </FormControl>
@@ -103,10 +103,10 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
                     <span className="font-medium">{dia.label}</span>
                     <FormField
                       control={form.control}
-                      name={`horarios_operacion.${dia.key}.activo` as keyof CreateServicioMonitoreoCompleto}
+                      name={`horarios_operacion.${dia.key}.activo`}
                       render={({ field }) => (
                         <Switch 
-                          checked={field.value as boolean} 
+                          checked={field.value || false} 
                           onCheckedChange={field.onChange}
                         />
                       )}
@@ -114,28 +114,28 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
                   </div>
                   
                   {/* Inputs de hora de inicio y fin (solo si el día está activo) */}
-                  {form.watch(`horarios_operacion.${dia.key}.activo` as keyof CreateServicioMonitoreoCompleto) && (
+                  {form.watch(`horarios_operacion.${dia.key}.activo`) && (
                     <div className="grid grid-cols-2 gap-2">
                       <FormField
                         control={form.control}
-                        name={`horarios_operacion.${dia.key}.inicio` as keyof CreateServicioMonitoreoCompleto}
+                        name={`horarios_operacion.${dia.key}.inicio`}
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-xs">Inicio</FormLabel>
                             <FormControl>
-                              <Input {...field} type="time" value={field.value as string} />
+                              <Input {...field} type="time" value={field.value || ''} />
                             </FormControl>
                           </FormItem>
                         )}
                       />
                       <FormField
                         control={form.control}
-                        name={`horarios_operacion.${dia.key}.fin` as keyof CreateServicioMonitoreoCompleto}
+                        name={`horarios_operacion.${dia.key}.fin`}
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-xs">Fin</FormLabel>
                             <FormControl>
-                              <Input {...field} type="time" value={field.value as string} />
+                              <Input {...field} type="time" value={field.value || ''} />
                             </FormControl>
                           </FormItem>
                         )}
@@ -208,7 +208,7 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
                 <FormLabel>¿Ha identificado zonas de riesgo en sus rutas?</FormLabel>
                 <FormControl>
                   <Switch 
-                    checked={field.value} 
+                    checked={field.value || false} 
                     onCheckedChange={field.onChange}
                   />
                 </FormControl>
