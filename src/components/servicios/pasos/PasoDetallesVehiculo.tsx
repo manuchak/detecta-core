@@ -28,7 +28,7 @@ export const PasoDetallesVehiculo = ({ form }: PasoDetallesVehiculoProps) => {
 
   const cantidadVehiculos = form.watch('cantidad_vehiculos') || 1;
 
-  // Sincronizar vehiculos con cantidad
+  // Fix infinite loop by removing vehiculos.length from dependencies
   useEffect(() => {
     const nuevaCantidad = cantidadVehiculos;
     if (nuevaCantidad !== vehiculos.length) {
@@ -44,7 +44,7 @@ export const PasoDetallesVehiculo = ({ form }: PasoDetallesVehiculoProps) => {
         setVehiculos(vehiculos.slice(0, nuevaCantidad));
       }
     }
-  }, [cantidadVehiculos, vehiculos.length]);
+  }, [cantidadVehiculos]); // Remove vehiculos.length from dependencies
 
   const handleMarcaChange = async (marcaNombre: string, index: number) => {
     const nuevosVehiculos = [...vehiculos];
