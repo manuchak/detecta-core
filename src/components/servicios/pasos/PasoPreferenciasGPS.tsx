@@ -2,11 +2,10 @@
 import { UseFormReturn } from 'react-hook-form';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Settings, Shield, MapPin, Clock, AlertTriangle, Car } from 'lucide-react';
+import { Settings, Target, MapPin, DollarSign, AlertTriangle } from 'lucide-react';
 import type { CreateServicioMonitoreoCompleto } from '@/types/serviciosMonitoreoCompleto';
 
 interface PasoPreferenciasGPSProps {
@@ -14,32 +13,82 @@ interface PasoPreferenciasGPSProps {
 }
 
 export const PasoPreferenciasGPS = ({ form }: PasoPreferenciasGPSProps) => {
-  const funcionalidadesBasicas = [
-    { id: 'ubicacion_tiempo_real', label: 'Ubicación en tiempo real', descripcion: 'Ver dónde está el vehículo en cualquier momento' },
-    { id: 'historial_rutas', label: 'Historial de rutas', descripcion: 'Revisar recorridos anteriores' },
-    { id: 'alertas_velocidad', label: 'Alertas de velocidad', descripcion: 'Notificaciones cuando se excede el límite' },
-    { id: 'geocercas', label: 'Geocercas (zonas virtuales)', descripcion: 'Alertas al entrar/salir de áreas definidas' }
-  ];
-
-  const funcionalidadesSeguridad = [
-    { id: 'boton_panico', label: 'Botón de pánico', descripcion: 'Botón de emergencia para situaciones de riesgo' },
-    { id: 'paro_motor', label: 'Paro de motor remoto', descripcion: 'Detener el vehículo a distancia en caso de robo' },
-    { id: 'alerta_jamming', label: 'Detección de inhibidores', descripcion: 'Detectar intentos de bloquear la señal GPS' },
-    { id: 'sensor_vibracion', label: 'Sensor de movimiento/vibración', descripcion: 'Alertas cuando el vehículo se mueve sin autorización' }
-  ];
-
-  const funcionalidadesAvanzadas = [
-    { id: 'sensor_combustible', label: 'Monitor de combustible', descripcion: 'Controlar nivel y consumo de gasolina' },
-    { id: 'diagnosticos_vehiculo', label: 'Diagnósticos del vehículo', descripcion: 'Estado del motor, batería y otros sistemas' },
-    { id: 'sensor_puertas', label: 'Sensores de puertas', descripcion: 'Saber cuándo se abren/cierran las puertas' },
-    { id: 'camara_foto', label: 'Cámara para fotos', descripcion: 'Tomar fotos del conductor o entorno' }
-  ];
-
   const prioridades = [
-    { value: 'seguridad', label: 'Seguridad', color: 'bg-red-100 text-red-800', descripcion: 'Prevenir robos y proteger al conductor' },
-    { value: 'monitoreo', label: 'Monitoreo', color: 'bg-blue-100 text-blue-800', descripcion: 'Supervisar ubicación y rutas' },
-    { value: 'eficiencia', label: 'Eficiencia', color: 'bg-green-100 text-green-800', descripcion: 'Optimizar combustible y mantenimiento' },
-    { value: 'control_flota', label: 'Control de Flota', color: 'bg-purple-100 text-purple-800', descripcion: 'Gestionar múltiples vehículos' }
+    { 
+      value: 'seguridad', 
+      label: 'Seguridad', 
+      color: 'bg-red-100 text-red-800', 
+      descripcion: 'Prevenir robos y proteger al conductor',
+      icono: '🛡️'
+    },
+    { 
+      value: 'monitoreo', 
+      label: 'Monitoreo', 
+      color: 'bg-blue-100 text-blue-800', 
+      descripcion: 'Supervisar ubicación y rutas en tiempo real',
+      icono: '📍'
+    },
+    { 
+      value: 'eficiencia', 
+      label: 'Eficiencia', 
+      color: 'bg-green-100 text-green-800', 
+      descripcion: 'Optimizar combustible y mantenimiento',
+      icono: '⚡'
+    },
+    { 
+      value: 'control_flota', 
+      label: 'Control de Flota', 
+      color: 'bg-purple-100 text-purple-800', 
+      descripcion: 'Gestionar múltiples vehículos de manera centralizada',
+      icono: '🚚'
+    },
+    { 
+      value: 'mixto', 
+      label: 'Mixto', 
+      color: 'bg-orange-100 text-orange-800', 
+      descripcion: 'Combinación de monitoreo y seguridad',
+      icono: '🔄'
+    }
+  ];
+
+  const necesidadesEspeciales = [
+    { 
+      id: 'zona_rural', 
+      label: 'Operación en zonas rurales', 
+      descripcion: 'Vehículo opera frecuentemente en áreas con poca cobertura celular' 
+    },
+    { 
+      id: 'conductor_mayor', 
+      label: 'Conductor de edad avanzada', 
+      descripcion: 'Necesita interfaz simple y alertas claras' 
+    },
+    { 
+      id: 'trabajo_nocturno', 
+      label: 'Trabajo nocturno frecuente', 
+      descripcion: 'Requiere monitoreo especial en horarios nocturnos' 
+    },
+    { 
+      id: 'transporte_carga', 
+      label: 'Transporte de carga valiosa', 
+      descripcion: 'Necesita seguridad adicional para proteger mercancías' 
+    },
+    { 
+      id: 'multiples_conductores', 
+      label: 'Múltiples conductores', 
+      descripcion: 'Diferentes personas usan el mismo vehículo' 
+    },
+    { 
+      id: 'empresa_familiar', 
+      label: 'Empresa familiar', 
+      descripcion: 'Monitoreo discreto para familiares que usan el vehículo' 
+    }
+  ];
+
+  const rangosPresupuesto = [
+    { value: 'basico', label: 'Básico (Menos de $500/mes)', descripcion: 'Funcionalidades esenciales' },
+    { value: 'intermedio', label: 'Intermedio ($500-$1000/mes)', descripcion: 'Balance funcionalidad-precio' },
+    { value: 'premium', label: 'Premium ($1000+/mes)', descripcion: 'Todas las funcionalidades disponibles' },
+    { value: 'por_definir', label: 'Por definir', descripcion: 'Prefiero ver opciones antes de decidir' }
   ];
 
   return (
@@ -48,11 +97,11 @@ export const PasoPreferenciasGPS = ({ form }: PasoPreferenciasGPSProps) => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5" />
-            ¿Cuál es su prioridad principal?
+            <Target className="h-5 w-5" />
+            ¿Cuál es su objetivo principal con el sistema GPS?
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Esto nos ayudará a recomendar el equipamiento más adecuado
+            Esto nos ayudará a recomendar el equipamiento más adecuado para sus necesidades
           </p>
         </CardHeader>
         <CardContent>
@@ -67,13 +116,16 @@ export const PasoPreferenciasGPS = ({ form }: PasoPreferenciasGPSProps) => {
                       key={prioridad.value}
                       className={`border rounded-lg p-4 cursor-pointer transition-all ${
                         field.value === prioridad.value 
-                          ? 'border-blue-500 bg-blue-50' 
-                          : 'border-gray-200 hover:border-gray-300'
+                          ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' 
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                       }`}
                       onClick={() => field.onChange(prioridad.value)}
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <Badge className={prioridad.color}>{prioridad.label}</Badge>
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">{prioridad.icono}</span>
+                          <Badge className={prioridad.color}>{prioridad.label}</Badge>
+                        </div>
                         <input
                           type="radio"
                           checked={field.value === prioridad.value}
@@ -92,155 +144,112 @@ export const PasoPreferenciasGPS = ({ form }: PasoPreferenciasGPSProps) => {
         </CardContent>
       </Card>
 
-      {/* Funcionalidades Básicas */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MapPin className="h-5 w-5" />
-            Funcionalidades Básicas
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Seleccione las funciones que considera esenciales
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {funcionalidadesBasicas.map((func) => (
-            <FormField
-              key={func.id}
-              control={form.control}
-              name={`funcionalidades_deseadas.${func.id}` as any}
-              render={({ field }) => (
-                <FormItem className="flex items-start space-x-3 space-y-0">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value || false}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="flex-1">
-                    <FormLabel className="font-medium">{func.label}</FormLabel>
-                    <p className="text-sm text-gray-600">{func.descripcion}</p>
-                  </div>
-                </FormItem>
-              )}
-            />
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Funcionalidades de Seguridad */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            Funcionalidades de Seguridad
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Funciones especializadas para protección del vehículo y conductor
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {funcionalidadesSeguridad.map((func) => (
-            <FormField
-              key={func.id}
-              control={form.control}
-              name={`funcionalidades_deseadas.${func.id}` as any}
-              render={({ field }) => (
-                <FormItem className="flex items-start space-x-3 space-y-0">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value || false}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="flex-1">
-                    <FormLabel className="font-medium">{func.label}</FormLabel>
-                    <p className="text-sm text-gray-600">{func.descripcion}</p>
-                  </div>
-                </FormItem>
-              )}
-            />
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Funcionalidades Avanzadas */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Car className="h-5 w-5" />
-            Funcionalidades Avanzadas
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Funciones adicionales para un control más detallado
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {funcionalidadesAvanzadas.map((func) => (
-            <FormField
-              key={func.id}
-              control={form.control}
-              name={`funcionalidades_deseadas.${func.id}` as any}
-              render={({ field }) => (
-                <FormItem className="flex items-start space-x-3 space-y-0">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value || false}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="flex-1">
-                    <FormLabel className="font-medium">{func.label}</FormLabel>
-                    <p className="text-sm text-gray-600">{func.descripcion}</p>
-                  </div>
-                </FormItem>
-              )}
-            />
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Condiciones Especiales */}
+      {/* Necesidades Especiales */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5" />
-            Condiciones Especiales de Uso
+            Condiciones Especiales de Operación
           </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Seleccione las situaciones que aplican a su caso (puede seleccionar varias)
+          </p>
         </CardHeader>
         <CardContent className="space-y-4">
+          {necesidadesEspeciales.map((necesidad) => (
+            <FormField
+              key={necesidad.id}
+              control={form.control}
+              name={`funcionalidades_deseadas.${necesidad.id}` as any}
+              render={({ field }) => (
+                <FormItem className="flex items-start space-x-3 space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value || false}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="flex-1">
+                    <FormLabel className="font-medium">{necesidad.label}</FormLabel>
+                    <p className="text-sm text-gray-600">{necesidad.descripcion}</p>
+                  </div>
+                </FormItem>
+              )}
+            />
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* Rango de Presupuesto */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5" />
+            Rango de Presupuesto Mensual
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Esto nos ayuda a enfocar las recomendaciones en opciones que se ajusten a sus posibilidades
+          </p>
+        </CardHeader>
+        <CardContent>
+          <FormField
+            control={form.control}
+            name="presupuesto_estimado"
+            render={({ field }) => (
+              <FormItem>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {rangosPresupuesto.map((rango) => (
+                    <div
+                      key={rango.value}
+                      className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                        field.value === rango.value 
+                          ? 'border-green-500 bg-green-50 ring-2 ring-green-200' 
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
+                      onClick={() => field.onChange(rango.value)}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-sm">{rango.label}</span>
+                        <input
+                          type="radio"
+                          checked={field.value === rango.value}
+                          onChange={() => field.onChange(rango.value)}
+                          className="h-4 w-4"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-600">{rango.descripcion}</p>
+                    </div>
+                  ))}
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Comentarios Adicionales */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="h-5 w-5" />
+            Comentarios Adicionales
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           <FormField
             control={form.control}
             name="condiciones_especiales_uso"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>
-                  Describa cualquier condición especial de uso o necesidad específica
+                  Describa cualquier necesidad específica o situación particular
                 </FormLabel>
                 <FormControl>
                   <Textarea 
                     {...field} 
-                    placeholder="Ej: El vehículo opera en zonas rurales sin buena cobertura celular, necesito alertas por WhatsApp, el conductor es de edad avanzada y necesita interfaz simple, etc."
+                    placeholder="Ej: Necesito alertas por WhatsApp porque no reviso emails frecuentemente, el vehículo se usa para delivery y necesito control de tiempos, tengo problemas de robo en la zona donde trabajo, etc."
                     rows={4}
-                    value={field.value || ''}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="presupuesto_estimado"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Presupuesto estimado (opcional)</FormLabel>
-                <FormControl>
-                  <Textarea 
-                    {...field} 
-                    placeholder="Ej: Tengo un presupuesto de $X pesos mensuales, busco la opción más económica, calidad-precio balanceado, etc."
-                    rows={2}
                     value={field.value || ''}
                   />
                 </FormControl>
@@ -252,11 +261,11 @@ export const PasoPreferenciasGPS = ({ form }: PasoPreferenciasGPSProps) => {
       </Card>
 
       <div className="bg-blue-50 p-4 rounded-lg">
-        <h4 className="font-medium text-blue-900 mb-2">💡 Recomendación Personalizada</h4>
+        <h4 className="font-medium text-blue-900 mb-2">💡 Siguiente Paso</h4>
         <p className="text-sm text-blue-800">
-          Basándonos en sus selecciones, nuestro equipo técnico le recomendará el equipamiento 
-          GPS más adecuado para sus necesidades. No se preocupe por las especificaciones técnicas 
-          - nosotros nos encargamos de encontrar la solución perfecta para usted.
+          En el siguiente paso podrá seleccionar las funcionalidades técnicas específicas 
+          basándose en las prioridades que ha definido aquí. Nuestro sistema le sugerirá 
+          las opciones más relevantes según sus necesidades.
         </p>
       </div>
     </div>

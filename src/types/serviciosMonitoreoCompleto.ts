@@ -1,4 +1,3 @@
-
 import type { TipoServicio, Prioridad } from './serviciosMonitoreo';
 
 export interface CreateServicioMonitoreoCompleto {
@@ -27,7 +26,26 @@ export interface CreateServicioMonitoreoCompleto {
   detalles_gps_actual?: string;
   cuenta_boton_panico: boolean;
   
-  // Preferencias GPS
+  // Preferencias GPS - campos nuevos agregados
+  prioridad_funcional?: string;
+  funcionalidades_deseadas?: {
+    ubicacion_tiempo_real?: boolean;
+    historial_rutas?: boolean;
+    alertas_velocidad?: boolean;
+    geocercas?: boolean;
+    boton_panico?: boolean;
+    paro_motor?: boolean;
+    alerta_jamming?: boolean;
+    sensor_vibracion?: boolean;
+    sensor_combustible?: boolean;
+    diagnosticos_vehiculo?: boolean;
+    sensor_puertas?: boolean;
+    camara_foto?: boolean;
+  };
+  condiciones_especiales_uso?: string;
+  presupuesto_estimado?: string;
+  
+  // GPS preferencias (campos existentes)
   tipo_gps_preferido?: string;
   marca_gps_preferida?: string;
   modelo_gps_preferido?: string;
