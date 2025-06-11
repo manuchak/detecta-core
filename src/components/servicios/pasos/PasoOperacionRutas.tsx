@@ -1,5 +1,5 @@
 
-import { UseFormReturn, useFieldArray, FieldPath } from 'react-hook-form';
+import { UseFormReturn } from 'react-hook-form';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,16 +21,6 @@ interface PasoOperacionRutasProps {
  * 3. Zonas de riesgo identificadas
  */
 export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
-  // Configuración explícita para el manejo de rutas habituales como array de strings
-  const { 
-    fields: rutasFields, 
-    append: appendRuta, 
-    remove: removeRuta 
-  } = useFieldArray({
-    control: form.control,
-    name: 'rutas_habituales' as FieldPath<CreateServicioMonitoreoCompleto>
-  });
-
   // Definición de días de la semana para los horarios
   const diasSemana = [
     { key: 'lunes', label: 'Lunes' },
@@ -42,11 +32,15 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
     { key: 'domingo', label: 'Domingo' }
   ];
 
+  // Manejo manual de rutas habituales (sin useFieldArray para arrays de strings)
+  const rutasHabituales = form.watch('rutas_habituales') || [''];
+
   /**
    * Agrega una nueva ruta vacía al array de rutas habituales
    */
   const handleAgregarRuta = () => {
-    appendRuta('');
+    const currentRutas = form.getValues('rutas_habituales') || [];
+    form.setValue('rutas_habituales', [...currentRutas, '']);
   };
 
   /**
@@ -54,7 +48,21 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
    * @param index - Índice de la ruta a eliminar
    */
   const handleEliminarRuta = (index: number) => {
-    removeRuta(index);
+    const currentRutas = form.getValues('rutas_habituales') || [];
+    const newRutas = currentRutas.filter((_, i) => i !== index);
+    form.setValue('rutas_habituales', newRutas);
+  };
+
+  /**
+   * Actualiza una ruta específica en el array
+   * @param index - Índice de la ruta a actualizar
+   * @param value - Nuevo valor de la ruta
+   */
+  const handleUpdateRuta = (index: number, value: string) => {
+    const currentRutas = form.getValues('rutas_habituales') || [];
+    const newRutas = [...currentRutas];
+    newRutas[index] = value;
+    form.setValue('rutas_habituales', newRutas);
   };
 
   return (
@@ -151,29 +159,21 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Lista de rutas existentes */}
-          {rutasFields.map((field, index) => (
-            <div key={field.id} className="flex gap-2">
-              <FormField
-                control={form.control}
-                name={`rutas_habituales.${index}` as FieldPath<CreateServicioMonitoreoCompleto>}
-                render={({ field: inputField }) => (
-                  <FormItem className="flex-1">
-                    <FormControl>
-                      <Input
-                        {...inputField}
-                        placeholder={`Ruta ${index + 1}: Ej. Casa - Oficina - Cliente ABC`}
-                        value={inputField.value || ''}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+          {rutasHabituales.map((ruta, index) => (
+            <div key={index} className="flex gap-2">
+              <div className="flex-1">
+                <Input
+                  value={ruta}
+                  onChange={(e) => handleUpdateRuta(index, e.target.value)}
+                  placeholder={`Ruta ${index + 1}: Ej. Casa - Oficina - Cliente ABC`}
+                />
+              </div>
               <Button
                 type="button"
                 variant="outline"
                 size="icon"
                 onClick={() => handleEliminarRuta(index)}
-                disabled={rutasFields.length <= 1}
+                disabled={rutasHabituales.length <= 1}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
