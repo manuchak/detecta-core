@@ -14,9 +14,11 @@ interface PasoOperacionRutasProps {
 }
 
 export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
+  // Manejo de rutas habituales con tipo explícito para string array
   const { fields: rutasFields, append: appendRuta, remove: removeRuta } = useFieldArray({
     control: form.control,
-    name: "rutas_habituales"
+    name: "rutas_habituales",
+    keyName: "fieldId" // Evitar conflictos con el id por defecto
   });
 
   const diasSemana = [
@@ -28,6 +30,16 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
     { key: 'sabado', label: 'Sábado' },
     { key: 'domingo', label: 'Domingo' }
   ];
+
+  // Función para agregar nueva ruta
+  const agregarRuta = () => {
+    appendRuta(""); // Agregar string vacío
+  };
+
+  // Función para eliminar ruta
+  const eliminarRuta = (index: number) => {
+    removeRuta(index);
+  };
 
   return (
     <div className="space-y-6">
@@ -119,7 +131,7 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
         </CardHeader>
         <CardContent className="space-y-4">
           {rutasFields.map((field, index) => (
-            <div key={field.id} className="flex gap-2">
+            <div key={field.fieldId} className="flex gap-2">
               <FormField
                 control={form.control}
                 name={`rutas_habituales.${index}` as const}
@@ -138,7 +150,7 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
                 type="button"
                 variant="outline"
                 size="icon"
-                onClick={() => removeRuta(index)}
+                onClick={() => eliminarRuta(index)}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -148,7 +160,7 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
           <Button
             type="button"
             variant="outline"
-            onClick={() => appendRuta("")}
+            onClick={agregarRuta}
             className="w-full"
           >
             <Plus className="h-4 w-4 mr-2" />
