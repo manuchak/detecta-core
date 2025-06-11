@@ -1,4 +1,5 @@
 
+import { useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -6,15 +7,26 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Trash2, Clock } from 'lucide-react';
-import { useCallback } from 'react';
+import { Plus, Trash2, Clock, MapPin, Route } from 'lucide-react';
 import type { CreateServicioMonitoreoCompleto } from '@/types/serviciosMonitoreoCompleto';
 
 interface PasoOperacionRutasProps {
   form: UseFormReturn<CreateServicioMonitoreoCompleto>;
 }
 
+interface RutaEstructurada {
+  nombre: string;
+  origen: string;
+  destino: string;
+  puntos_intermedios: string;
+  frecuencia: string;
+}
+
 export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
+  const [rutasEstructuradas, setRutasEstructuradas] = useState<RutaEstructurada[]>([
+    { nombre: '', origen: '', destino: '', puntos_intermedios: '', frecuencia: 'diaria' }
+  ]);
+
   const diasSemana = [
     { key: 'lunes', label: 'Lunes' },
     { key: 'martes', label: 'Martes' },
@@ -25,20 +37,31 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
     { key: 'domingo', label: 'Domingo' }
   ];
 
-  // Use useCallback to prevent function recreation on every render
-  const handleAgregarRuta = useCallback(() => {
-    const currentRutas = form.getValues('rutas_habituales') || [];
-    form.setValue('rutas_habituales', [...currentRutas, ''], { shouldValidate: false });
-  }, [form]);
+  const handleAgregarRuta = () => {
+    setRutasEstructuradas([...rutasEstructuradas, 
+      { nombre: '', origen: '', destino: '', puntos_intermedios: '', frecuencia: 'diaria' }
+    ]);
+  };
 
-  const handleEliminarRuta = useCallback((index: number) => {
-    const currentRutas = form.getValues('rutas_habituales') || [];
-    const newRutas = currentRutas.filter((_, i) => i !== index);
-    form.setValue('rutas_habituales', newRutas, { shouldValidate: false });
-  }, [form]);
+  const handleEliminarRuta = (index: number) => {
+    if (rutasEstructuradas.length > 1) {
+      setRutasEstructuradas(rutasEstructuradas.filter((_, i) => i !== index));
+    }
+  };
 
-  // Get current rutas without watching to prevent re-renders
-  const rutasHabituales = form.getValues('rutas_habituales') || [''];
+  const handleRutaChange = (index: number, field: keyof RutaEstructurada, value: string) => {
+    const nuevasRutas = [...rutasEstructuradas];
+    nuevasRutas[index] = { ...nuevasRutas[index], [field]: value };
+    setRutasEstructuradas(nuevasRutas);
+    
+    // Actualizar form con las rutas estructuradas convertidas a strings
+    const rutasParaForm = nuevasRutas.map(ruta => 
+      `${ruta.nombre}: ${ruta.origen} → ${ruta.destino}${ruta.puntos_intermedios ? ` (vía ${ruta.puntos_intermedios})` : ''} - ${ruta.frecuencia}`
+    );
+    form.setValue('rutas_habituales', rutasParaForm);
+  };
+
+  const esOperacion24Horas = form.watch('horarios_operacion.es_24_horas');
 
   return (
     <div className="space-y-6">
@@ -67,7 +90,7 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
             )}
           />
 
-          {!form.watch('horarios_operacion.es_24_horas') && (
+          {!esOperacion24Horas && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {diasSemana.map((dia) => (
                 <div key={dia.key} className="border rounded-lg p-3">
@@ -120,43 +143,92 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
         </CardContent>
       </Card>
 
-      {/* Sección: Rutas Habituales */}
+      {/* Sección: Rutas Habituales Estructuradas */}
       <Card>
         <CardHeader>
-          <CardTitle>Rutas Habituales</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Route className="h-5 w-5" />
+            Rutas Habituales
+          </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Describe las rutas que el vehículo recorre frecuentemente
+            Define las rutas con puntos específicos de origen y destino para mayor precisión
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          {rutasHabituales.map((_, index) => (
-            <div key={index} className="flex gap-2">
-              <div className="flex-1">
-                <FormField
-                  control={form.control}
-                  name={`rutas_habituales.${index}` as any}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          value={field.value || ''}
-                          placeholder={`Ruta ${index + 1}: Ej. Casa - Oficina - Cliente ABC`}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
+          {rutasEstructuradas.map((ruta, index) => (
+            <div key={index} className="border rounded-lg p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium">Ruta {index + 1}</h4>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleEliminarRuta(index)}
+                  disabled={rutasEstructuradas.length <= 1}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <FormLabel>Nombre de la Ruta</FormLabel>
+                  <Input
+                    value={ruta.nombre}
+                    onChange={(e) => handleRutaChange(index, 'nombre', e.target.value)}
+                    placeholder="Ej: Ruta Casa-Oficina"
+                  />
+                </div>
+
+                <div>
+                  <FormLabel>Frecuencia</FormLabel>
+                  <select
+                    value={ruta.frecuencia}
+                    onChange={(e) => handleRutaChange(index, 'frecuencia', e.target.value)}
+                    className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="diaria">Diaria</option>
+                    <option value="semanal">Semanal</option>
+                    <option value="ocasional">Ocasional</option>
+                    <option value="urgente">Solo emergencias</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <FormLabel className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-green-600" />
+                    Punto de Origen *
+                  </FormLabel>
+                  <Input
+                    value={ruta.origen}
+                    onChange={(e) => handleRutaChange(index, 'origen', e.target.value)}
+                    placeholder="Dirección completa de origen"
+                  />
+                </div>
+
+                <div>
+                  <FormLabel className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-red-600" />
+                    Punto de Destino *
+                  </FormLabel>
+                  <Input
+                    value={ruta.destino}
+                    onChange={(e) => handleRutaChange(index, 'destino', e.target.value)}
+                    placeholder="Dirección completa de destino"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <FormLabel>Puntos Intermedios (Opcional)</FormLabel>
+                <Input
+                  value={ruta.puntos_intermedios}
+                  onChange={(e) => handleRutaChange(index, 'puntos_intermedios', e.target.value)}
+                  placeholder="Ej: Centro Comercial Plaza Norte, Gasolinera Shell"
                 />
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => handleEliminarRuta(index)}
-                disabled={rutasHabituales.length <= 1}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
             </div>
           ))}
           
@@ -167,7 +239,7 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
             className="w-full"
           >
             <Plus className="h-4 w-4 mr-2" />
-            Agregar Ruta
+            Agregar Nueva Ruta
           </Button>
         </CardContent>
       </Card>
@@ -216,6 +288,16 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
           )}
         </CardContent>
       </Card>
+
+      <div className="bg-amber-50 p-4 rounded-lg">
+        <h4 className="font-medium text-amber-900 mb-2">💡 Consejos para definir rutas</h4>
+        <ul className="text-sm text-amber-800 space-y-1">
+          <li>• Usa direcciones específicas y completas para mejor precisión del GPS</li>
+          <li>• Incluye referencias conocidas en los puntos intermedios</li>
+          <li>• Especifica la frecuencia para priorizar el monitoreo</li>
+          <li>• Las rutas urgentes tendrán mayor prioridad en alertas</li>
+        </ul>
+      </div>
     </div>
   );
 };
