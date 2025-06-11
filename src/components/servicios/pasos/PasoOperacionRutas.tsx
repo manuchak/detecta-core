@@ -1,5 +1,5 @@
 
-import { UseFormReturn, useFieldArray } from 'react-hook-form';
+import { UseFormReturn, useFieldArray, FieldPath } from 'react-hook-form';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,14 +21,14 @@ interface PasoOperacionRutasProps {
  * 3. Zonas de riesgo identificadas
  */
 export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
-  // Configuración para el manejo de rutas habituales - sin restricciones de tipo genérico
+  // Configuración explícita para el manejo de rutas habituales como array de strings
   const { 
     fields: rutasFields, 
     append: appendRuta, 
     remove: removeRuta 
   } = useFieldArray({
     control: form.control,
-    name: 'rutas_habituales'
+    name: 'rutas_habituales' as FieldPath<CreateServicioMonitoreoCompleto>
   });
 
   // Definición de días de la semana para los horarios
@@ -155,7 +155,7 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
             <div key={field.id} className="flex gap-2">
               <FormField
                 control={form.control}
-                name={`rutas_habituales.${index}`}
+                name={`rutas_habituales.${index}` as FieldPath<CreateServicioMonitoreoCompleto>}
                 render={({ field: inputField }) => (
                   <FormItem className="flex-1">
                     <FormControl>
