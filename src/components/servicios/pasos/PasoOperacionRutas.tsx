@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Trash2, Clock, MapPin, Route } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { CreateServicioMonitoreoCompleto } from '@/types/serviciosMonitoreoCompleto';
 
 interface PasoOperacionRutasProps {
@@ -182,16 +183,20 @@ export const PasoOperacionRutas = ({ form }: PasoOperacionRutasProps) => {
 
                 <div>
                   <FormLabel>Frecuencia</FormLabel>
-                  <select
+                  <Select
                     value={ruta.frecuencia}
-                    onChange={(e) => handleRutaChange(index, 'frecuencia', e.target.value)}
-                    className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                    onValueChange={(value) => handleRutaChange(index, 'frecuencia', value)}
                   >
-                    <option value="diaria">Diaria</option>
-                    <option value="semanal">Semanal</option>
-                    <option value="ocasional">Ocasional</option>
-                    <option value="urgente">Solo emergencias</option>
-                  </select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar frecuencia" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="diaria">Diaria</SelectItem>
+                      <SelectItem value="semanal">Semanal</SelectItem>
+                      <SelectItem value="ocasional">Ocasional</SelectItem>
+                      <SelectItem value="urgente">Solo emergencias</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 

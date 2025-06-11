@@ -143,7 +143,7 @@ export const PasoDetallesVehiculo = ({ form }: PasoDetallesVehiculoProps) => {
                     </SelectTrigger>
                     <SelectContent>
                       {loadingMarcas ? (
-                        <SelectItem value="" disabled>Cargando marcas...</SelectItem>
+                        <SelectItem value="loading" disabled>Cargando marcas...</SelectItem>
                       ) : (
                         marcas.map((marca) => (
                           <SelectItem key={marca.id} value={marca.nombre}>
@@ -174,10 +174,10 @@ export const PasoDetallesVehiculo = ({ form }: PasoDetallesVehiculoProps) => {
                             </SelectItem>
                           ))
                         ) : (
-                          <SelectItem value="" disabled>No hay modelos disponibles</SelectItem>
+                          <SelectItem value="no-models" disabled>No hay modelos disponibles</SelectItem>
                         )
                       ) : (
-                        <SelectItem value="" disabled>Selecciona una marca primero</SelectItem>
+                        <SelectItem value="select-brand" disabled>Selecciona una marca primero</SelectItem>
                       )}
                     </SelectContent>
                   </Select>
