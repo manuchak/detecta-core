@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Save, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Form } from '@/components/ui/form';
 import { useServiciosMonitoreoCompleto } from '@/hooks/useServiciosMonitoreoCompleto';
 import type { CreateServicioMonitoreoCompleto } from '@/types/serviciosMonitoreoCompleto';
 
@@ -158,61 +159,63 @@ export const FormularioServicioCompleto = ({ open, onOpenChange }: FormularioSer
           </div>
         </div>
 
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg">
-                {PASOS[pasoActual].titulo}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {renderPasoActual()}
-            </CardContent>
-          </Card>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">
+                  {PASOS[pasoActual].titulo}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {renderPasoActual()}
+              </CardContent>
+            </Card>
 
-          {/* Navegación */}
-          <div className="flex justify-between items-center mt-6 pt-4 border-t">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={pasoAnterior}
-              disabled={pasoActual === 0}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Anterior
-            </Button>
-
-            <div className="flex gap-2">
-              {PASOS.map((_, index) => (
-                <div
-                  key={index}
-                  className={`w-3 h-3 rounded-full ${
-                    index <= pasoActual ? 'bg-blue-600' : 'bg-gray-200'
-                  }`}
-                />
-              ))}
-            </div>
-
-            {pasoActual < PASOS.length - 1 ? (
-              <Button type="button" onClick={siguientePaso}>
-                Siguiente
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
-            ) : (
-              <Button 
-                type="submit" 
-                disabled={createServicioCompleto.isPending}
-                className="bg-green-600 hover:bg-green-700"
+            {/* Navegación */}
+            <div className="flex justify-between items-center mt-6 pt-4 border-t">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={pasoAnterior}
+                disabled={pasoActual === 0}
               >
-                {createServicioCompleto.isPending && (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                )}
-                <Save className="h-4 w-4 mr-2" />
-                Crear Servicio
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Anterior
               </Button>
-            )}
-          </div>
-        </form>
+
+              <div className="flex gap-2">
+                {PASOS.map((_, index) => (
+                  <div
+                    key={index}
+                    className={`w-3 h-3 rounded-full ${
+                      index <= pasoActual ? 'bg-blue-600' : 'bg-gray-200'
+                    }`}
+                  />
+                ))}
+              </div>
+
+              {pasoActual < PASOS.length - 1 ? (
+                <Button type="button" onClick={siguientePaso}>
+                  Siguiente
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              ) : (
+                <Button 
+                  type="submit" 
+                  disabled={createServicioCompleto.isPending}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {createServicioCompleto.isPending && (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  )}
+                  <Save className="h-4 w-4 mr-2" />
+                  Crear Servicio
+                </Button>
+              )}
+            </div>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
