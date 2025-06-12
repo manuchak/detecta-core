@@ -67,6 +67,7 @@ export const useAprobacionesWorkflow = () => {
         observaciones: data.observaciones || null
       };
 
+      // Insert approval record
       const { data: result, error } = await supabase
         .from('aprobacion_coordinador')
         .insert(insertData)
@@ -74,20 +75,46 @@ export const useAprobacionesWorkflow = () => {
         .single();
 
       if (error) throw error;
+
+      // Update service status based on approval result
+      let nuevoEstado = 'pendiente_evaluacion';
+      if (data.estado_aprobacion === 'aprobado') {
+        nuevoEstado = 'pendiente_analisis_riesgo';
+      } else if (data.estado_aprobacion === 'rechazado') {
+        nuevoEstado = 'rechazado';
+      } else if (data.estado_aprobacion === 'requiere_aclaracion') {
+        nuevoEstado = 'requiere_aclaracion';
+      }
+
+      const { error: updateError } = await supabase
+        .from('servicios_monitoreo')
+        .update({ estado_general: nuevoEstado })
+        .eq('id', data.servicio_id);
+
+      if (updateError) throw updateError;
+
       return result;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['servicios-pendientes-coordinador'] });
+      queryClient.invalidateQueries({ queryKey: ['servicios-pendientes-riesgo'] });
       queryClient.invalidateQueries({ queryKey: ['servicios-monitoreo'] });
+      
+      const mensaje = variables.estado_aprobacion === 'aprobado' 
+        ? "Servicio aprobado y enviado a análisis de riesgo"
+        : variables.estado_aprobacion === 'rechazado'
+        ? "Servicio rechazado"
+        : "Servicio marcado como requiere aclaración";
+
       toast({
-        title: "Aprobación registrada",
-        description: "La respuesta del coordinador ha sido registrada exitosamente.",
+        title: "Evaluación registrada",
+        description: mensaje,
       });
     },
     onError: (error) => {
       toast({
         title: "Error",
-        description: "No se pudo registrar la aprobación del coordinador.",
+        description: "No se pudo registrar la evaluación del coordinador.",
         variant: "destructive",
       });
       console.error('Error creating coordinator approval:', error);
@@ -124,6 +151,7 @@ export const useAprobacionesWorkflow = () => {
         observaciones: data.observaciones || null
       };
 
+      // Insert risk analysis record
       const { data: result, error } = await supabase
         .from('analisis_riesgo_seguridad')
         .insert(insertData)
@@ -131,14 +159,30 @@ export const useAprobacionesWorkflow = () => {
         .single();
 
       if (error) throw error;
+
+      // Update service status based on security approval
+      const nuevoEstado = data.aprobado_seguridad ? 'aprobado' : 'rechazado';
+
+      const { error: updateError } = await supabase
+        .from('servicios_monitoreo')
+        .update({ estado_general: nuevoEstado })
+        .eq('id', data.servicio_id);
+
+      if (updateError) throw updateError;
+
       return result;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['servicios-pendientes-riesgo'] });
       queryClient.invalidateQueries({ queryKey: ['servicios-monitoreo'] });
+      
+      const mensaje = variables.aprobado_seguridad 
+        ? "Servicio aprobado por seguridad y listo para instalación"
+        : "Servicio rechazado por análisis de riesgo";
+
       toast({
-        title: "Análisis de riesgo registrado",
-        description: "El análisis de riesgo ha sido completado exitosamente.",
+        title: "Análisis completado",
+        description: mensaje,
       });
     },
     onError: (error) => {

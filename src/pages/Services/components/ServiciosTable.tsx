@@ -11,10 +11,24 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Eye, Calendar, AlertCircle } from 'lucide-react';
+import { Plus, Eye, Calendar, AlertCircle, Trash2, AlertTriangle } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { FormularioServicioCompleto } from '@/components/servicios/FormularioServicioCompleto';
 import { ProgramarInstalacionDialog } from '@/pages/Installers/components/ProgramarInstalacionDialog';
 import { AnalisisRiesgoDialog } from './AnalisisRiesgoDialog';
+import { useServiciosMonitoreo } from '@/hooks/useServiciosMonitoreo';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { ServicioMonitoreo } from '@/types/serviciosMonitoreo';
@@ -31,11 +45,15 @@ export const ServiciosTable = ({ servicios, isLoading, onAnalisisRiesgo, onProgr
   const [showProgramarInstalacion, setShowProgramarInstalacion] = useState(false);
   const [showAnalisisRiesgo, setShowAnalisisRiesgo] = useState(false);
   const [selectedServicioId, setSelectedServicioId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  
+  const { toast } = useToast();
 
   const getEstadoBadge = (estado: string) => {
     const estadoConfig = {
-      pendiente_evaluacion: { variant: 'secondary' as const, label: 'Pendiente Evaluación' },
-      en_evaluacion_riesgo: { variant: 'default' as const, label: 'En Evaluación' },
+      pendiente_evaluacion: { variant: 'destructive' as const, label: 'Requiere Evaluación', urgent: true },
+      pendiente_analisis_riesgo: { variant: 'destructive' as const, label: 'Requiere Análisis', urgent: true },
+      en_evaluacion_riesgo: { variant: 'secondary' as const, label: 'En Evaluación' },
       evaluacion_completada: { variant: 'outline' as const, label: 'Evaluación Completada' },
       pendiente_aprobacion: { variant: 'secondary' as const, label: 'Pendiente Aprobación' },
       aprobado: { variant: 'default' as const, label: 'Aprobado' },
@@ -50,7 +68,12 @@ export const ServiciosTable = ({ servicios, isLoading, onAnalisisRiesgo, onProgr
     };
 
     const config = estadoConfig[estado as keyof typeof estadoConfig] || estadoConfig.pendiente_evaluacion;
-    return <Badge variant={config.variant}>{config.label}</Badge>;
+    return (
+      <div className="flex items-center gap-2">
+        <Badge variant={config.variant}>{config.label}</Badge>
+        {config.urgent && <AlertTriangle className="h-4 w-4 text-red-500" />}
+      </div>
+    );
   };
 
   const getPrioridadBadge = (prioridad: string) => {
@@ -63,6 +86,35 @@ export const ServiciosTable = ({ servicios, isLoading, onAnalisisRiesgo, onProgr
 
     const config = prioridadConfig[prioridad as keyof typeof prioridadConfig] || prioridadConfig.media;
     return <Badge variant={config.variant}>{config.label}</Badge>;
+  };
+
+  const handleDeleteServicio = async (servicioId: string) => {
+    setDeletingId(servicioId);
+    try {
+      const { error } = await supabase
+        .from('servicios_monitoreo')
+        .delete()
+        .eq('id', servicioId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Servicio eliminado",
+        description: "El servicio ha sido eliminado exitosamente.",
+      });
+
+      // Refresh the services list
+      window.location.reload();
+    } catch (error) {
+      console.error('Error deleting service:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el servicio.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const handleProgramarInstalacion = (servicioId: string) => {
@@ -178,6 +230,36 @@ export const ServiciosTable = ({ servicios, isLoading, onAnalisisRiesgo, onProgr
                             <Calendar className="h-4 w-4" />
                           </Button>
                         )}
+
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              disabled={deletingId === servicio.id}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Eliminar servicio?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta acción no se puede deshacer. Se eliminará permanentemente el servicio 
+                                <strong> {servicio.numero_servicio}</strong> de <strong>{servicio.nombre_cliente}</strong>.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteServicio(servicio.id)}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                Eliminar
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </TableCell>
                   </TableRow>

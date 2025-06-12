@@ -3,13 +3,16 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Shield, ClipboardCheck, Settings, Activity, Calendar, Wrench } from 'lucide-react';
+import { Plus, Shield, ClipboardCheck, Settings, Activity, Calendar, Wrench, UserCheck, AlertTriangle } from 'lucide-react';
 import { useServiciosMonitoreo } from '@/hooks/useServiciosMonitoreo';
 import { useProgramacionInstalaciones } from '@/hooks/useProgramacionInstalaciones';
+import { useAprobacionesWorkflow } from '@/hooks/useAprobacionesWorkflow';
 import { ServicioForm } from './components/ServicioForm';
 import { ServiciosTable } from './components/ServiciosTable';
 import { AnalisisRiesgoDialog } from './components/AnalisisRiesgoDialog';
 import { ProgramarInstalacionDialog } from '@/pages/Installers/components/ProgramarInstalacionDialog';
+import { PanelAprobacionCoordinador } from '@/components/servicios/PanelAprobacionCoordinador';
+import { PanelAnalisisRiesgo } from '@/components/servicios/PanelAnalisisRiesgo';
 import { Badge } from '@/components/ui/badge';
 
 export const ServicesPage = () => {
@@ -20,6 +23,7 @@ export const ServicesPage = () => {
   
   const { servicios, isLoading } = useServiciosMonitoreo();
   const { programaciones, isLoading: loadingProgramaciones } = useProgramacionInstalaciones();
+  const { serviciosPendientesCoordinador, serviciosPendientesRiesgo } = useAprobacionesWorkflow();
 
   const estadosCount = servicios?.reduce((acc, servicio) => {
     acc[servicio.estado_general] = (acc[servicio.estado_general] || 0) + 1;
@@ -65,13 +69,13 @@ export const ServicesPage = () => {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center">
-                <Shield className="h-8 w-8 text-blue-600" />
+                <AlertTriangle className="h-8 w-8 text-red-600" />
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">
-                    Pendientes Evaluación
+                    Requieren Evaluación
                   </p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {estadosCount['pendiente_evaluacion'] || 0}
+                  <p className="text-2xl font-bold text-red-600">
+                    {(estadosCount['pendiente_evaluacion'] || 0) + (estadosCount['pendiente_analisis_riesgo'] || 0)}
                   </p>
                 </div>
               </div>
@@ -114,7 +118,7 @@ export const ServicesPage = () => {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center">
-                <Activity className="h-8 w-8 text-red-600" />
+                <Activity className="h-8 w-8 text-blue-600" />
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">
                     Total Servicios
@@ -138,9 +142,26 @@ export const ServicesPage = () => {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="servicios" className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="servicios">Servicios</TabsTrigger>
-                <TabsTrigger value="evaluacion">Evaluación Riesgo</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-5">
+                <TabsTrigger value="servicios">
+                  Todos los Servicios
+                </TabsTrigger>
+                <TabsTrigger value="coordinador" className="relative">
+                  Evaluación Ops
+                  {serviciosPendientesCoordinador && serviciosPendientesCoordinador.length > 0 && (
+                    <Badge className="ml-2 bg-red-500 text-white text-xs px-1 py-0">
+                      {serviciosPendientesCoordinador.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="seguridad" className="relative">
+                  Análisis Seguridad
+                  {serviciosPendientesRiesgo && serviciosPendientesRiesgo.length > 0 && (
+                    <Badge className="ml-2 bg-orange-500 text-white text-xs px-1 py-0">
+                      {serviciosPendientesRiesgo.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
                 <TabsTrigger value="instalaciones">Instalaciones GPS</TabsTrigger>
                 <TabsTrigger value="configuracion">Configuración</TabsTrigger>
               </TabsList>
@@ -154,16 +175,12 @@ export const ServicesPage = () => {
                 />
               </TabsContent>
               
-              <TabsContent value="evaluacion" className="mt-6">
-                <div className="text-center py-8">
-                  <Shield className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    Evaluación de Riesgo
-                  </h3>
-                  <p className="text-gray-600">
-                    Selecciona un servicio de la lista para realizar el análisis de riesgo
-                  </p>
-                </div>
+              <TabsContent value="coordinador" className="mt-6">
+                <PanelAprobacionCoordinador />
+              </TabsContent>
+
+              <TabsContent value="seguridad" className="mt-6">
+                <PanelAnalisisRiesgo />
               </TabsContent>
               
               <TabsContent value="instalaciones" className="mt-6">
