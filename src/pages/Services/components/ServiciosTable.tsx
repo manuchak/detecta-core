@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import {
   Table,
@@ -53,18 +52,18 @@ export const ServiciosTable = ({ servicios, isLoading, onAnalisisRiesgo, onProgr
     const estadoConfig = {
       pendiente_evaluacion: { variant: 'destructive' as const, label: 'Requiere Evaluación', urgent: true },
       pendiente_analisis_riesgo: { variant: 'destructive' as const, label: 'Requiere Análisis', urgent: true },
-      en_evaluacion_riesgo: { variant: 'secondary' as const, label: 'En Evaluación' },
-      evaluacion_completada: { variant: 'outline' as const, label: 'Evaluación Completada' },
-      pendiente_aprobacion: { variant: 'secondary' as const, label: 'Pendiente Aprobación' },
-      aprobado: { variant: 'default' as const, label: 'Aprobado' },
-      rechazado: { variant: 'destructive' as const, label: 'Rechazado' },
-      pendiente_instalacion: { variant: 'secondary' as const, label: 'Pendiente Instalación' },
-      instalacion_programada: { variant: 'outline' as const, label: 'Instalación Programada' },
-      instalacion_completada: { variant: 'default' as const, label: 'Instalación Completada' },
-      integracion_sistema: { variant: 'secondary' as const, label: 'Integración Sistema' },
-      servicio_activo: { variant: 'default' as const, label: 'Servicio Activo' },
-      suspendido: { variant: 'destructive' as const, label: 'Suspendido' },
-      cancelado: { variant: 'destructive' as const, label: 'Cancelado' }
+      en_evaluacion_riesgo: { variant: 'secondary' as const, label: 'En Evaluación', urgent: false },
+      evaluacion_completada: { variant: 'outline' as const, label: 'Evaluación Completada', urgent: false },
+      pendiente_aprobacion: { variant: 'secondary' as const, label: 'Pendiente Aprobación', urgent: false },
+      aprobado: { variant: 'default' as const, label: 'Aprobado', urgent: false },
+      rechazado: { variant: 'destructive' as const, label: 'Rechazado', urgent: false },
+      pendiente_instalacion: { variant: 'secondary' as const, label: 'Pendiente Instalación', urgent: false },
+      instalacion_programada: { variant: 'outline' as const, label: 'Instalación Programada', urgent: false },
+      instalacion_completada: { variant: 'default' as const, label: 'Instalación Completada', urgent: false },
+      integracion_sistema: { variant: 'secondary' as const, label: 'Integración Sistema', urgent: false },
+      servicio_activo: { variant: 'default' as const, label: 'Servicio Activo', urgent: false },
+      suspendido: { variant: 'destructive' as const, label: 'Suspendido', urgent: false },
+      cancelado: { variant: 'destructive' as const, label: 'Cancelado', urgent: false }
     };
 
     const config = estadoConfig[estado as keyof typeof estadoConfig] || estadoConfig.pendiente_evaluacion;
