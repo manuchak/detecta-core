@@ -107,6 +107,24 @@ export const LeadsList = () => {
     fetchLeads();
   };
 
+  const handleNewLeadClick = () => {
+    console.log('🚀 Botón Nuevo Lead clickeado');
+    console.log('📊 Estado actual showForm:', showForm);
+    setShowForm(true);
+    console.log('✅ showForm actualizado a true');
+  };
+
+  const handleFormSuccess = () => {
+    console.log('✅ Formulario enviado exitosamente');
+    setShowForm(false);
+    fetchLeads();
+  };
+
+  const handleFormCancel = () => {
+    console.log('❌ Formulario cancelado');
+    setShowForm(false);
+  };
+
   // Filter logic
   useEffect(() => {
     let result = leads;
@@ -136,6 +154,8 @@ export const LeadsList = () => {
     });
   };
 
+  console.log('🔍 Renderizando LeadsList - showForm:', showForm);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -143,6 +163,19 @@ export const LeadsList = () => {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p>Cargando leads...</p>
         </div>
+      </div>
+    );
+  }
+
+  // Si showForm es true, mostrar solo el formulario
+  if (showForm) {
+    console.log('📝 Mostrando formulario LeadForm');
+    return (
+      <div className="space-y-6 p-6">
+        <LeadForm 
+          onSuccess={handleFormSuccess}
+          onCancel={handleFormCancel}
+        />
       </div>
     );
   }
@@ -156,7 +189,7 @@ export const LeadsList = () => {
             Administra los candidatos y el sistema de referidos.
           </p>
         </div>
-        <Button onClick={() => setShowForm(true)}>
+        <Button onClick={handleNewLeadClick}>
           <Plus className="h-4 w-4 mr-2" />
           Nuevo Lead
         </Button>
@@ -262,16 +295,6 @@ export const LeadsList = () => {
           <BonusConfigManager />
         </TabsContent>
       </Tabs>
-
-      {showForm && (
-        <LeadForm 
-          onSuccess={() => {
-            setShowForm(false);
-            fetchLeads();
-          }} 
-          onCancel={() => setShowForm(false)}
-        />
-      )}
 
       {showEditDialog && selectedLead && (
         <LeadEditDialog
