@@ -48,17 +48,28 @@ export const useAprobacionesWorkflow = () => {
 
   // Crear aprobación de coordinador
   const crearAprobacionCoordinador = useMutation({
-    mutationFn: async (data: Partial<AprobacionCoordinador>) => {
+    mutationFn: async (data: Partial<AprobacionCoordinador> & { estado_aprobacion: 'aprobado' | 'rechazado' | 'requiere_aclaracion'; servicio_id: string }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuario no autenticado');
 
+      const insertData = {
+        servicio_id: data.servicio_id,
+        coordinador_id: user.id,
+        estado_aprobacion: data.estado_aprobacion,
+        fecha_respuesta: new Date().toISOString(),
+        modelo_vehiculo_compatible: data.modelo_vehiculo_compatible || null,
+        cobertura_celular_verificada: data.cobertura_celular_verificada || null,
+        requiere_instalacion_fisica: data.requiere_instalacion_fisica || null,
+        acceso_instalacion_disponible: data.acceso_instalacion_disponible || null,
+        restricciones_tecnicas_sla: data.restricciones_tecnicas_sla || null,
+        contactos_emergencia_validados: data.contactos_emergencia_validados || null,
+        elementos_aclarar_cliente: data.elementos_aclarar_cliente || null,
+        observaciones: data.observaciones || null
+      };
+
       const { data: result, error } = await supabase
         .from('aprobacion_coordinador')
-        .insert({
-          ...data,
-          coordinador_id: user.id,
-          fecha_respuesta: new Date().toISOString()
-        })
+        .insert(insertData)
         .select()
         .single();
 
@@ -85,16 +96,37 @@ export const useAprobacionesWorkflow = () => {
 
   // Crear análisis de riesgo
   const crearAnalisisRiesgo = useMutation({
-    mutationFn: async (data: Partial<AnalisisRiesgoSeguridad>) => {
+    mutationFn: async (data: Partial<AnalisisRiesgoSeguridad> & { estado_analisis: 'completado'; servicio_id: string; aprobado_seguridad: boolean }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuario no autenticado');
 
+      const insertData = {
+        servicio_id: data.servicio_id,
+        analista_id: user.id,
+        estado_analisis: data.estado_analisis,
+        aprobado_seguridad: data.aprobado_seguridad,
+        tipo_monitoreo_requerido: data.tipo_monitoreo_requerido || null,
+        tipo_activo_proteger: data.tipo_activo_proteger || null,
+        perfil_usuario: data.perfil_usuario || null,
+        zonas_operacion: data.zonas_operacion || null,
+        historial_incidentes: data.historial_incidentes || null,
+        frecuencia_uso_rutas: data.frecuencia_uso_rutas || null,
+        tipo_riesgo_principal: data.tipo_riesgo_principal || null,
+        nivel_exposicion: data.nivel_exposicion || null,
+        controles_actuales_existentes: data.controles_actuales_existentes || null,
+        dispositivos_seguridad_requeridos: data.dispositivos_seguridad_requeridos || null,
+        medios_comunicacion_cliente: data.medios_comunicacion_cliente || null,
+        puntos_criticos_identificados: data.puntos_criticos_identificados || null,
+        apoyo_externo_autoridades: data.apoyo_externo_autoridades || null,
+        calificacion_riesgo: data.calificacion_riesgo || null,
+        recomendaciones: data.recomendaciones || null,
+        equipamiento_recomendado: data.equipamiento_recomendado || null,
+        observaciones: data.observaciones || null
+      };
+
       const { data: result, error } = await supabase
         .from('analisis_riesgo_seguridad')
-        .insert({
-          ...data,
-          analista_id: user.id
-        })
+        .insert(insertData)
         .select()
         .single();
 
