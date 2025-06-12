@@ -27,7 +27,7 @@ export interface CreateServicioMonitoreoCompleto {
   cuenta_boton_panico: boolean;
   
   // Preferencias GPS - campos nuevos agregados
-  prioridad_funcional?: string;
+  objetivos_principales?: string[]; // Changed from prioridad_funcional to support multiple
   funcionalidades_deseadas?: {
     ubicacion_tiempo_real?: boolean;
     historial_rutas?: boolean;
@@ -138,4 +138,56 @@ export interface TipoMonitoreo {
   nombre: string;
   descripcion?: string;
   activo: boolean;
+}
+
+// New interfaces for approval workflow
+export interface AprobacionCoordinador {
+  id: string;
+  servicio_id: string;
+  coordinador_id: string;
+  fecha_revision: string;
+  estado_aprobacion: 'pendiente' | 'aprobado' | 'rechazado' | 'requiere_aclaracion';
+  
+  // Validation questionnaire
+  modelo_vehiculo_compatible?: boolean;
+  cobertura_celular_verificada?: boolean;
+  requiere_instalacion_fisica?: boolean;
+  acceso_instalacion_disponible?: boolean;
+  restricciones_tecnicas_sla?: boolean;
+  contactos_emergencia_validados?: boolean;
+  elementos_aclarar_cliente?: string;
+  
+  observaciones?: string;
+  fecha_respuesta?: string;
+}
+
+export interface AnalisisRiesgoSeguridad {
+  id: string;
+  servicio_id: string;
+  analista_id: string;
+  fecha_analisis: string;
+  estado_analisis: 'pendiente' | 'completado' | 'requiere_informacion';
+  
+  // Risk analysis questionnaire
+  tipo_monitoreo_requerido?: string;
+  tipo_activo_proteger?: string;
+  perfil_usuario?: string;
+  zonas_operacion?: string[];
+  historial_incidentes?: string;
+  frecuencia_uso_rutas?: string;
+  tipo_riesgo_principal?: string[];
+  nivel_exposicion?: 'alto' | 'medio' | 'bajo';
+  controles_actuales_existentes?: string[];
+  dispositivos_seguridad_requeridos?: string[];
+  medios_comunicacion_cliente?: string[];
+  puntos_criticos_identificados?: string;
+  apoyo_externo_autoridades?: string;
+  
+  // Analysis results
+  calificacion_riesgo?: 'bajo' | 'medio' | 'alto' | 'critico';
+  recomendaciones?: string;
+  equipamiento_recomendado?: any;
+  aprobado_seguridad?: boolean;
+  
+  observaciones?: string;
 }

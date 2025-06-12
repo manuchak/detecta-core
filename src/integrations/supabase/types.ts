@@ -216,6 +216,177 @@ export type Database = {
           },
         ]
       }
+      analisis_riesgo_seguridad: {
+        Row: {
+          analista_id: string
+          apoyo_externo_autoridades: string | null
+          aprobado_seguridad: boolean | null
+          calificacion_riesgo: string | null
+          controles_actuales_existentes: string[] | null
+          created_at: string | null
+          dispositivos_seguridad_requeridos: string[] | null
+          equipamiento_recomendado: Json | null
+          estado_analisis: string
+          fecha_analisis: string | null
+          frecuencia_uso_rutas: string | null
+          historial_incidentes: string | null
+          id: string
+          medios_comunicacion_cliente: string[] | null
+          nivel_exposicion: string | null
+          observaciones: string | null
+          perfil_usuario: string | null
+          puntos_criticos_identificados: string | null
+          recomendaciones: string | null
+          servicio_id: string
+          tipo_activo_proteger: string | null
+          tipo_monitoreo_requerido: string | null
+          tipo_riesgo_principal: string[] | null
+          updated_at: string | null
+          zonas_operacion: string[] | null
+        }
+        Insert: {
+          analista_id: string
+          apoyo_externo_autoridades?: string | null
+          aprobado_seguridad?: boolean | null
+          calificacion_riesgo?: string | null
+          controles_actuales_existentes?: string[] | null
+          created_at?: string | null
+          dispositivos_seguridad_requeridos?: string[] | null
+          equipamiento_recomendado?: Json | null
+          estado_analisis: string
+          fecha_analisis?: string | null
+          frecuencia_uso_rutas?: string | null
+          historial_incidentes?: string | null
+          id?: string
+          medios_comunicacion_cliente?: string[] | null
+          nivel_exposicion?: string | null
+          observaciones?: string | null
+          perfil_usuario?: string | null
+          puntos_criticos_identificados?: string | null
+          recomendaciones?: string | null
+          servicio_id: string
+          tipo_activo_proteger?: string | null
+          tipo_monitoreo_requerido?: string | null
+          tipo_riesgo_principal?: string[] | null
+          updated_at?: string | null
+          zonas_operacion?: string[] | null
+        }
+        Update: {
+          analista_id?: string
+          apoyo_externo_autoridades?: string | null
+          aprobado_seguridad?: boolean | null
+          calificacion_riesgo?: string | null
+          controles_actuales_existentes?: string[] | null
+          created_at?: string | null
+          dispositivos_seguridad_requeridos?: string[] | null
+          equipamiento_recomendado?: Json | null
+          estado_analisis?: string
+          fecha_analisis?: string | null
+          frecuencia_uso_rutas?: string | null
+          historial_incidentes?: string | null
+          id?: string
+          medios_comunicacion_cliente?: string[] | null
+          nivel_exposicion?: string | null
+          observaciones?: string | null
+          perfil_usuario?: string | null
+          puntos_criticos_identificados?: string | null
+          recomendaciones?: string | null
+          servicio_id?: string
+          tipo_activo_proteger?: string | null
+          tipo_monitoreo_requerido?: string | null
+          tipo_riesgo_principal?: string[] | null
+          updated_at?: string | null
+          zonas_operacion?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analisis_riesgo_seguridad_analista_id_fkey"
+            columns: ["analista_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analisis_riesgo_seguridad_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_monitoreo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      aprobacion_coordinador: {
+        Row: {
+          acceso_instalacion_disponible: boolean | null
+          cobertura_celular_verificada: boolean | null
+          contactos_emergencia_validados: boolean | null
+          coordinador_id: string
+          created_at: string | null
+          elementos_aclarar_cliente: string | null
+          estado_aprobacion: string
+          fecha_respuesta: string | null
+          fecha_revision: string | null
+          id: string
+          modelo_vehiculo_compatible: boolean | null
+          observaciones: string | null
+          requiere_instalacion_fisica: boolean | null
+          restricciones_tecnicas_sla: boolean | null
+          servicio_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          acceso_instalacion_disponible?: boolean | null
+          cobertura_celular_verificada?: boolean | null
+          contactos_emergencia_validados?: boolean | null
+          coordinador_id: string
+          created_at?: string | null
+          elementos_aclarar_cliente?: string | null
+          estado_aprobacion: string
+          fecha_respuesta?: string | null
+          fecha_revision?: string | null
+          id?: string
+          modelo_vehiculo_compatible?: boolean | null
+          observaciones?: string | null
+          requiere_instalacion_fisica?: boolean | null
+          restricciones_tecnicas_sla?: boolean | null
+          servicio_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          acceso_instalacion_disponible?: boolean | null
+          cobertura_celular_verificada?: boolean | null
+          contactos_emergencia_validados?: boolean | null
+          coordinador_id?: string
+          created_at?: string | null
+          elementos_aclarar_cliente?: string | null
+          estado_aprobacion?: string
+          fecha_respuesta?: string | null
+          fecha_revision?: string | null
+          id?: string
+          modelo_vehiculo_compatible?: boolean | null
+          observaciones?: string | null
+          requiere_instalacion_fisica?: boolean | null
+          restricciones_tecnicas_sla?: boolean | null
+          servicio_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aprobacion_coordinador_coordinador_id_fkey"
+            columns: ["coordinador_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aprobacion_coordinador_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_monitoreo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       aprobaciones_servicio: {
         Row: {
           aprobado_por: string

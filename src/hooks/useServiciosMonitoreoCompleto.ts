@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -60,13 +59,13 @@ export const useServiciosMonitoreoCompleto = () => {
     enabled: !!marcaId
   });
 
-  // Crear servicio completo
+  // Crear servicio completo - updated to trigger workflow
   const createServicioCompleto = useMutation({
     mutationFn: async (data: CreateServicioMonitoreoCompleto) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuario no autenticado');
 
-      // 1. Crear el servicio principal
+      // 1. Crear el servicio principal with new workflow state
       const { data: servicio, error: servicioError } = await supabase
         .from('servicios_monitoreo')
         .insert({
@@ -93,7 +92,8 @@ export const useServiciosMonitoreoCompleto = () => {
           requiere_paro_motor: data.requiere_paro_motor,
           condiciones_paro_motor: data.condiciones_paro_motor || null,
           ejecutivo_ventas_id: user.id,
-          observaciones: data.observaciones || null
+          observaciones: data.observaciones || null,
+          estado_general: 'pendiente_evaluacion' // Set initial workflow state
         })
         .select()
         .single();
@@ -140,7 +140,7 @@ export const useServiciosMonitoreoCompleto = () => {
       queryClient.invalidateQueries({ queryKey: ['servicios-monitoreo'] });
       toast({
         title: "Servicio creado exitosamente",
-        description: "El servicio de monitoreo ha sido registrado y está pendiente de evaluación.",
+        description: "El servicio está ahora pendiente de evaluación por el coordinador de operaciones.",
       });
     },
     onError: (error) => {

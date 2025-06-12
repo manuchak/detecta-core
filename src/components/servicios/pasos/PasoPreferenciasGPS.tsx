@@ -13,7 +13,7 @@ interface PasoPreferenciasGPSProps {
 }
 
 export const PasoPreferenciasGPS = ({ form }: PasoPreferenciasGPSProps) => {
-  const prioridades = [
+  const objetivos = [
     { 
       value: 'seguridad', 
       label: 'Seguridad', 
@@ -41,17 +41,10 @@ export const PasoPreferenciasGPS = ({ form }: PasoPreferenciasGPSProps) => {
       color: 'bg-purple-100 text-purple-800', 
       descripcion: 'Gestionar múltiples vehículos de manera centralizada',
       icono: '🚚'
-    },
-    { 
-      value: 'mixto', 
-      label: 'Mixto', 
-      color: 'bg-orange-100 text-orange-800', 
-      descripcion: 'Combinación de monitoreo y seguridad',
-      icono: '🔄'
     }
   ];
 
-  const necesidadesEspeciales = [
+  const condicionesEspeciales = [
     { 
       id: 'zona_rural', 
       label: 'Operación en zonas rurales', 
@@ -91,60 +84,62 @@ export const PasoPreferenciasGPS = ({ form }: PasoPreferenciasGPSProps) => {
     { value: 'por_definir', label: 'Por definir', descripcion: 'Prefiero ver opciones antes de decidir' }
   ];
 
+  const selectedObjetivos = form.watch('objetivos_principales') || [];
+
+  const handleObjetivoToggle = (objetivo: string) => {
+    const current = selectedObjetivos;
+    const updated = current.includes(objetivo)
+      ? current.filter(o => o !== objetivo)
+      : [...current, objetivo];
+    form.setValue('objetivos_principales', updated);
+  };
+
   return (
     <div className="space-y-6">
-      {/* Prioridad Principal */}
+      {/* Objetivos Principales - Multiple Selection */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Target className="h-5 w-5" />
-            ¿Cuál es su objetivo principal con el sistema GPS?
+            ¿Cuáles son sus objetivos principales? (Puede seleccionar varios)
           </CardTitle>
           <p className="text-sm text-muted-foreground">
             Esto nos ayudará a recomendar el equipamiento más adecuado para sus necesidades
           </p>
         </CardHeader>
         <CardContent>
-          <FormField
-            control={form.control}
-            name="prioridad_funcional"
-            render={({ field }) => (
-              <FormItem>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {prioridades.map((prioridad) => (
-                    <div
-                      key={prioridad.value}
-                      className={`border rounded-lg p-4 cursor-pointer transition-all ${
-                        field.value === prioridad.value 
-                          ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' 
-                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                      }`}
-                      onClick={() => field.onChange(prioridad.value)}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">{prioridad.icono}</span>
-                          <Badge className={prioridad.color}>{prioridad.label}</Badge>
-                        </div>
-                        <input
-                          type="radio"
-                          checked={field.value === prioridad.value}
-                          onChange={() => field.onChange(prioridad.value)}
-                          className="h-4 w-4"
-                        />
-                      </div>
-                      <p className="text-sm text-gray-600">{prioridad.descripcion}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {objetivos.map((objetivo) => {
+              const isSelected = selectedObjetivos.includes(objetivo.value);
+              return (
+                <div
+                  key={objetivo.value}
+                  className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                    isSelected 
+                      ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' 
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                  onClick={() => handleObjetivoToggle(objetivo.value)}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{objetivo.icono}</span>
+                      <Badge className={objetivo.color}>{objetivo.label}</Badge>
                     </div>
-                  ))}
+                    <Checkbox
+                      checked={isSelected}
+                      onChange={() => handleObjetivoToggle(objetivo.value)}
+                    />
+                  </div>
+                  <p className="text-sm text-gray-600">{objetivo.descripcion}</p>
                 </div>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+              );
+            })}
+          </div>
         </CardContent>
       </Card>
 
-      {/* Necesidades Especiales */}
+      {/* Condiciones Especiales */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -156,11 +151,11 @@ export const PasoPreferenciasGPS = ({ form }: PasoPreferenciasGPSProps) => {
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          {necesidadesEspeciales.map((necesidad) => (
+          {condicionesEspeciales.map((condicion) => (
             <FormField
-              key={necesidad.id}
+              key={condicion.id}
               control={form.control}
-              name={`funcionalidades_deseadas.${necesidad.id}` as any}
+              name={`funcionalidades_deseadas.${condicion.id}` as any}
               render={({ field }) => (
                 <FormItem className="flex items-start space-x-3 space-y-0">
                   <FormControl>
@@ -170,8 +165,8 @@ export const PasoPreferenciasGPS = ({ form }: PasoPreferenciasGPSProps) => {
                     />
                   </FormControl>
                   <div className="flex-1">
-                    <FormLabel className="font-medium">{necesidad.label}</FormLabel>
-                    <p className="text-sm text-gray-600">{necesidad.descripcion}</p>
+                    <FormLabel className="font-medium">{condicion.label}</FormLabel>
+                    <p className="text-sm text-gray-600">{condicion.descripcion}</p>
                   </div>
                 </FormItem>
               )}
