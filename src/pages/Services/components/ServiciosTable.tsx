@@ -25,6 +25,7 @@ import {
 import { FormularioServicioCompleto } from '@/components/servicios/FormularioServicioCompleto';
 import { ProgramarInstalacionDialog } from '@/pages/Installers/components/ProgramarInstalacionDialog';
 import { AnalisisRiesgoDialog } from './AnalisisRiesgoDialog';
+import { DetalleServicioDialog } from '@/components/servicios/DetalleServicioDialog';
 import { useServiciosMonitoreo } from '@/hooks/useServiciosMonitoreo';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -204,9 +205,11 @@ export const ServiciosTable = ({ servicios, isLoading, onAnalisisRiesgo, onProgr
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <DetalleServicioDialog servicioId={servicio.id}>
+                          <Button variant="outline" size="sm">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </DetalleServicioDialog>
                         
                         {(servicio.estado_general === 'pendiente_evaluacion' || 
                           servicio.estado_general === 'en_evaluacion_riesgo') && (
