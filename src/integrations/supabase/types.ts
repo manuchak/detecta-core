@@ -3729,7 +3729,15 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      is_coordinator_or_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       is_current_user_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_security_analyst_or_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
