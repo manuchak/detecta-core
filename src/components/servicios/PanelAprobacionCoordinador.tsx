@@ -8,25 +8,33 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { CheckCircle, XCircle, AlertCircle, Eye, Calendar, User, Phone, Mail } from 'lucide-react';
 import { useAprobacionesWorkflow } from '@/hooks/useAprobacionesWorkflow';
+import { DetalleServicioDialog } from '@/components/servicios/DetalleServicioDialog';
 import type { AprobacionCoordinador } from '@/types/serviciosMonitoreoCompleto';
 
 export const PanelAprobacionCoordinador = () => {
   const { serviciosPendientesCoordinador, loadingCoordinador, crearAprobacionCoordinador } = useAprobacionesWorkflow();
   const [servicioSeleccionado, setServicioSeleccionado] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<AprobacionCoordinador>>({});
-  const [viendoDetalle, setViendoDetalle] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAprobacion = async (estado: 'aprobado' | 'rechazado' | 'requiere_aclaracion') => {
     if (!servicioSeleccionado) return;
+    
+    setIsSubmitting(true);
+    try {
+      await crearAprobacionCoordinador.mutateAsync({
+        ...formData,
+        servicio_id: servicioSeleccionado,
+        estado_aprobacion: estado
+      });
 
-    await crearAprobacionCoordinador.mutateAsync({
-      ...formData,
-      servicio_id: servicioSeleccionado,
-      estado_aprobacion: estado
-    });
-
-    setServicioSeleccionado(null);
-    setFormData({});
+      setServicioSeleccionado(null);
+      setFormData({});
+    } catch (error) {
+      console.error('Error al guardar la evaluación:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const criteriosValidacion = [
@@ -61,7 +69,7 @@ export const PanelAprobacionCoordinador = () => {
             {serviciosPendientesCoordinador?.map((servicio) => (
               <div
                 key={servicio.id}
-                className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                className={`border rounded-lg p-4 transition-all ${
                   servicioSeleccionado === servicio.id 
                     ? 'border-blue-500 bg-blue-50' 
                     : 'border-gray-200 hover:border-gray-300'
@@ -73,18 +81,20 @@ export const PanelAprobacionCoordinador = () => {
                     <Badge variant="outline">{servicio.tipo_servicio}</Badge>
                   </div>
                   <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setViendoDetalle(servicio.id)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                    <DetalleServicioDialog servicioId={servicio.id}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </DetalleServicioDialog>
                     <Button
                       size="sm"
                       onClick={() => setServicioSeleccionado(servicio.id)}
+                      variant={servicioSeleccionado === servicio.id ? "default" : "outline"}
                     >
-                      Evaluar
+                      {servicioSeleccionado === servicio.id ? 'Evaluando...' : 'Evaluar'}
                     </Button>
                   </div>
                 </div>
@@ -93,6 +103,7 @@ export const PanelAprobacionCoordinador = () => {
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4" />
                     <span>{servicio.nombre_cliente}</span>
+                    {servicio.empresa && <span className="text-gray-500">({servicio.empresa})</span>}
                   </div>
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
@@ -102,6 +113,12 @@ export const PanelAprobacionCoordinador = () => {
                     <Phone className="h-4 w-4" />
                     <span>{servicio.telefono_contacto}</span>
                   </div>
+                  {servicio.email_contacto && (
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4" />
+                      <span>{servicio.email_contacto}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -174,16 +191,16 @@ export const PanelAprobacionCoordinador = () => {
                 <Button
                   onClick={() => handleAprobacion('aprobado')}
                   className="flex-1 bg-green-600 hover:bg-green-700"
-                  disabled={crearAprobacionCoordinador.isPending}
+                  disabled={isSubmitting}
                 >
                   <CheckCircle className="h-4 w-4 mr-2" />
-                  Aprobar
+                  {isSubmitting ? 'Guardando...' : 'Aprobar'}
                 </Button>
                 <Button
                   onClick={() => handleAprobacion('requiere_aclaracion')}
                   variant="outline"
                   className="flex-1"
-                  disabled={crearAprobacionCoordinador.isPending}
+                  disabled={isSubmitting}
                 >
                   <AlertCircle className="h-4 w-4 mr-2" />
                   Requiere Aclaración
@@ -192,12 +209,27 @@ export const PanelAprobacionCoordinador = () => {
                   onClick={() => handleAprobacion('rechazado')}
                   variant="destructive"
                   className="flex-1"
-                  disabled={crearAprobacionCoordinador.isPending}
+                  disabled={isSubmitting}
                 >
                   <XCircle className="h-4 w-4 mr-2" />
                   Rechazar
                 </Button>
               </div>
+
+              {servicioSeleccionado && (
+                <div className="mt-4">
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => {
+                      setServicioSeleccionado(null);
+                      setFormData({});
+                    }}
+                    className="w-full"
+                  >
+                    Cancelar Evaluación
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
