@@ -126,7 +126,7 @@ export const useAprobacionesWorkflow = () => {
           throw error;
         }
 
-        // Update service status based on approval result
+        // Update service status based on approval result using valid states
         let nuevoEstado = 'pendiente_evaluacion';
         if (data.estado_aprobacion === 'aprobado') {
           nuevoEstado = 'pendiente_analisis_riesgo';
@@ -135,6 +135,8 @@ export const useAprobacionesWorkflow = () => {
         } else if (data.estado_aprobacion === 'requiere_aclaracion') {
           nuevoEstado = 'requiere_aclaracion';
         }
+
+        console.log('Actualizando estado del servicio a:', nuevoEstado);
 
         const { error: updateError } = await supabase
           .from('servicios_monitoreo')
@@ -180,6 +182,8 @@ export const useAprobacionesWorkflow = () => {
         errorMessage = "Datos incompletos. Verifique que todos los campos estén correctos.";
       } else if (error?.code === '23505') {
         errorMessage = "Ya existe una evaluación para este servicio.";
+      } else if (error?.message?.includes('check constraint')) {
+        errorMessage = "Error en validación de estado del servicio. Por favor, contacte al administrador.";
       }
 
       toast({
@@ -196,7 +200,7 @@ export const useAprobacionesWorkflow = () => {
       try {
         const user = await checkAuth();
 
-        if (!data.servicio_id || !data.aprobado_seguridad === undefined) {
+        if (!data.servicio_id || data.aprobado_seguridad === undefined) {
           throw new Error('Datos incompletos para crear el análisis');
         }
 
@@ -236,7 +240,7 @@ export const useAprobacionesWorkflow = () => {
           throw error;
         }
 
-        // Update service status based on security approval
+        // Update service status based on security approval using valid states
         const nuevoEstado = data.aprobado_seguridad ? 'aprobado' : 'rechazado';
 
         const { error: updateError } = await supabase
