@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -112,12 +113,13 @@ export const useAprobacionesWorkflow = () => {
     }
   });
 
-  // Crear aprobación de coordinador usando función segura
+  // Crear aprobación de coordinador usando inserción directa con RLS
   const crearAprobacionCoordinador = useMutation({
     mutationFn: async (data: Partial<AprobacionCoordinador> & { estado_aprobacion: 'aprobado' | 'rechazado' | 'requiere_aclaracion'; servicio_id: string }) => {
       try {
-        // Verificar autenticación
-        await checkAuth();
+        // Verificar autenticación y permisos
+        const user = await checkAuth();
+        await checkUserRole();
 
         // Validar datos requeridos
         if (!data.servicio_id || !data.estado_aprobacion) {
@@ -126,27 +128,66 @@ export const useAprobacionesWorkflow = () => {
 
         console.log('Creando aprobación con datos:', data);
 
-        // Usar la función segura de Supabase
-        const { data: result, error } = await supabase.rpc('crear_aprobacion_coordinador_segura', {
-          p_servicio_id: data.servicio_id,
-          p_estado_aprobacion: data.estado_aprobacion,
-          p_modelo_vehiculo_compatible: data.modelo_vehiculo_compatible || false,
-          p_cobertura_celular_verificada: data.cobertura_celular_verificada || false,
-          p_requiere_instalacion_fisica: data.requiere_instalacion_fisica || false,
-          p_acceso_instalacion_disponible: data.acceso_instalacion_disponible || false,
-          p_restricciones_tecnicas_sla: data.restricciones_tecnicas_sla || false,
-          p_contactos_emergencia_validados: data.contactos_emergencia_validados || false,
-          p_elementos_aclarar_cliente: data.elementos_aclarar_cliente || null,
-          p_observaciones: data.observaciones || null
-        });
+        // Preparar datos para inserción
+        const insertData = {
+          servicio_id: data.servicio_id,
+          coordinador_id: user.id,
+          estado_aprobacion: data.estado_aprobacion,
+          fecha_respuesta: new Date().toISOString(),
+          modelo_vehiculo_compatible: data.modelo_vehiculo_compatible || false,
+          cobertura_celular_verificada: data.cobertura_celular_verificada || false,
+          requiere_instalacion_fisica: data.requiere_instalacion_fisica || false,
+          acceso_instalacion_disponible: data.acceso_instalacion_disponible || false,
+          restricciones_tecnicas_sla: data.restricciones_tecnicas_sla || false,
+          contactos_emergencia_validados: data.contactos_emergencia_validados || false,
+          elementos_aclarar_cliente: data.elementos_aclarar_cliente || null,
+          observaciones: data.observaciones || null
+        };
 
-        if (error) {
-          console.error('Error creando aprobación:', error);
-          throw error;
+        // Insertar la aprobación
+        const { data: result, error: insertError } = await supabase
+          .from('aprobacion_coordinador')
+          .insert(insertData)
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('Error insertando aprobación:', insertError);
+          throw insertError;
         }
 
-        console.log('Aprobación creada exitosamente:', result);
-        return { id: result };
+        console.log('Aprobación insertada exitosamente:', result);
+
+        // Determinar el nuevo estado del servicio basado en la aprobación
+        let nuevoEstado: string;
+        switch (data.estado_aprobacion) {
+          case 'aprobado':
+            nuevoEstado = 'pendiente_analisis_riesgo';
+            break;
+          case 'rechazado':
+            nuevoEstado = 'rechazado';
+            break;
+          case 'requiere_aclaracion':
+            nuevoEstado = 'requiere_aclaracion';
+            break;
+          default:
+            nuevoEstado = 'pendiente_evaluacion';
+        }
+
+        // Actualizar el estado del servicio
+        const { error: updateError } = await supabase
+          .from('servicios_monitoreo')
+          .update({ estado_general: nuevoEstado })
+          .eq('id', data.servicio_id);
+
+        if (updateError) {
+          console.error('Error actualizando estado del servicio:', updateError);
+          throw updateError;
+        }
+
+        console.log('Estado del servicio actualizado a:', nuevoEstado);
+
+        return result;
       } catch (error) {
         console.error('Error in crearAprobacionCoordinador:', error);
         throw error;
@@ -180,10 +221,10 @@ export const useAprobacionesWorkflow = () => {
         errorMessage = "Datos incompletos. Verifique que todos los campos estén correctos.";
       } else if (error?.message?.includes('permisos')) {
         errorMessage = "No tiene permisos para realizar esta acción. Contacte al administrador.";
-      } else if (error?.message?.includes('no existe')) {
-        errorMessage = "El servicio especificado no existe o fue eliminado.";
       } else if (error?.code === '23505') {
         errorMessage = "Ya existe una evaluación para este servicio.";
+      } else if (error?.code === '42501' || error?.message?.includes('row-level security')) {
+        errorMessage = "Error de permisos. Verifique que tenga los permisos adecuados para esta operación.";
       }
 
       toast({
@@ -240,7 +281,7 @@ export const useAprobacionesWorkflow = () => {
           throw error;
         }
 
-        // Update service status based on security approval using valid states
+        // Update service status based on security approval
         const nuevoEstado = data.aprobado_seguridad ? 'aprobado' : 'rechazado';
 
         const { error: updateError } = await supabase
