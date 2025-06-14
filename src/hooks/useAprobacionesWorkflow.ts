@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -15,6 +14,33 @@ export const useAprobacionesWorkflow = () => {
       throw new Error('Usuario no autenticado. Por favor, inicie sesión nuevamente.');
     }
     return user;
+  };
+
+  // Verificar rol del usuario
+  const checkUserRole = async () => {
+    try {
+      const user = await checkAuth();
+      console.log('Usuario actual:', user.id, user.email);
+      
+      // Verificar rol usando la función segura
+      const { data: hasRole, error } = await supabase.rpc('is_coordinator_or_admin');
+      
+      if (error) {
+        console.error('Error verificando rol:', error);
+        throw new Error('Error verificando permisos del usuario');
+      }
+      
+      console.log('¿Usuario tiene permisos de coordinador/admin?:', hasRole);
+      
+      if (!hasRole) {
+        throw new Error('Usuario no tiene permisos de coordinador u administrador');
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error en checkUserRole:', error);
+      throw error;
+    }
   };
 
   // Obtener servicios pendientes de aprobación por coordinador
@@ -90,7 +116,9 @@ export const useAprobacionesWorkflow = () => {
   const crearAprobacionCoordinador = useMutation({
     mutationFn: async (data: Partial<AprobacionCoordinador> & { estado_aprobacion: 'aprobado' | 'rechazado' | 'requiere_aclaracion'; servicio_id: string }) => {
       try {
+        // Verificar autenticación y permisos
         const user = await checkAuth();
+        await checkUserRole();
 
         // Validar datos requeridos
         if (!data.servicio_id || !data.estado_aprobacion) {
@@ -114,6 +142,20 @@ export const useAprobacionesWorkflow = () => {
 
         console.log('Enviando datos de aprobación:', insertData);
 
+        // Verificar que el servicio existe antes de insertar
+        const { data: servicioExiste, error: servicioError } = await supabase
+          .from('servicios_monitoreo')
+          .select('id, estado_general')
+          .eq('id', data.servicio_id)
+          .single();
+
+        if (servicioError || !servicioExiste) {
+          console.error('Error verificando servicio:', servicioError);
+          throw new Error('El servicio especificado no existe');
+        }
+
+        console.log('Servicio encontrado:', servicioExiste);
+
         // Insert approval record
         const { data: result, error } = await supabase
           .from('aprobacion_coordinador')
@@ -125,6 +167,8 @@ export const useAprobacionesWorkflow = () => {
           console.error('Error inserting approval:', error);
           throw error;
         }
+
+        console.log('Aprobación creada exitosamente:', result);
 
         // Update service status based on approval result using valid states
         let nuevoEstado = 'pendiente_evaluacion';
@@ -180,10 +224,14 @@ export const useAprobacionesWorkflow = () => {
         errorMessage = "Sesión expirada. Por favor, inicie sesión nuevamente.";
       } else if (error?.message?.includes('incompletos')) {
         errorMessage = "Datos incompletos. Verifique que todos los campos estén correctos.";
+      } else if (error?.message?.includes('permisos')) {
+        errorMessage = "No tiene permisos para realizar esta acción. Contacte al administrador.";
       } else if (error?.code === '23505') {
         errorMessage = "Ya existe una evaluación para este servicio.";
       } else if (error?.message?.includes('check constraint')) {
         errorMessage = "Error en validación de estado del servicio. Por favor, contacte al administrador.";
+      } else if (error?.message?.includes('row-level security')) {
+        errorMessage = "Error de permisos de base de datos. Verifique que tiene el rol adecuado.";
       }
 
       toast({
