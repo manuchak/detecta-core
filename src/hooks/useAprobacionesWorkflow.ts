@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -190,11 +189,11 @@ export const useAprobacionesWorkflow = () => {
 
         if (updateError) {
           console.error('Error actualizando estado del servicio:', updateError);
-          console.warn('La aprobación se creó pero no se pudo actualizar el estado del servicio');
-        } else {
-          console.log('Estado del servicio actualizado exitosamente');
+          // Lanzar un error para que la mutación falle y se active el onError
+          throw new Error(`La evaluación se guardó, pero el estado del servicio no se pudo actualizar. Razón: ${updateError.message}`);
         }
 
+        console.log('Estado del servicio actualizado exitosamente');
         return result;
       } catch (error) {
         console.error('Error completo en crearAprobacionCoordinador:', error);
@@ -235,6 +234,8 @@ export const useAprobacionesWorkflow = () => {
         errorMessage = "El servicio especificado no existe.";
       } else if (error?.message?.includes('row-level security') || error?.code === '42501') {
         errorMessage = "No tiene permisos para realizar esta acción. Contacte al administrador.";
+      } else if (error?.message?.includes('estado del servicio no se pudo actualizar')) {
+        errorMessage = "La evaluación se guardó, pero el estado del servicio no avanzó. Por favor, contacte a soporte.";
       }
 
       toast({
