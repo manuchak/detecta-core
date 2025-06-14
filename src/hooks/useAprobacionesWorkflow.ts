@@ -170,10 +170,10 @@ export const useAprobacionesWorkflow = () => {
             nuevoEstado = 'pendiente_analisis_riesgo';
             break;
           case 'rechazado':
-            nuevoEstado = 'rechazado';
+            nuevoEstado = 'rechazado_coordinador';
             break;
           case 'requiere_aclaracion':
-            nuevoEstado = 'requiere_aclaracion';
+            nuevoEstado = 'requiere_aclaracion_cliente';
             break;
           default:
             nuevoEstado = 'pendiente_evaluacion';
@@ -293,7 +293,7 @@ export const useAprobacionesWorkflow = () => {
         }
 
         // Update service status based on security approval
-        const nuevoEstado = data.aprobado_seguridad ? 'aprobado' : 'rechazado';
+        const nuevoEstado = data.aprobado_seguridad ? 'aprobado' : 'rechazado_seguridad';
 
         const { error: updateError } = await supabase
           .from('servicios_monitoreo')
