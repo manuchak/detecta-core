@@ -112,87 +112,41 @@ export const useAprobacionesWorkflow = () => {
     }
   });
 
-  // Crear aprobación de coordinador
+  // Crear aprobación de coordinador usando función segura
   const crearAprobacionCoordinador = useMutation({
     mutationFn: async (data: Partial<AprobacionCoordinador> & { estado_aprobacion: 'aprobado' | 'rechazado' | 'requiere_aclaracion'; servicio_id: string }) => {
       try {
-        // Verificar autenticación y permisos
-        const user = await checkAuth();
-        await checkUserRole();
+        // Verificar autenticación
+        await checkAuth();
 
         // Validar datos requeridos
         if (!data.servicio_id || !data.estado_aprobacion) {
           throw new Error('Datos incompletos para crear la aprobación');
         }
 
-        const insertData = {
-          servicio_id: data.servicio_id,
-          coordinador_id: user.id,
-          estado_aprobacion: data.estado_aprobacion,
-          fecha_respuesta: new Date().toISOString(),
-          modelo_vehiculo_compatible: data.modelo_vehiculo_compatible || false,
-          cobertura_celular_verificada: data.cobertura_celular_verificada || false,
-          requiere_instalacion_fisica: data.requiere_instalacion_fisica || false,
-          acceso_instalacion_disponible: data.acceso_instalacion_disponible || false,
-          restricciones_tecnicas_sla: data.restricciones_tecnicas_sla || false,
-          contactos_emergencia_validados: data.contactos_emergencia_validados || false,
-          elementos_aclarar_cliente: data.elementos_aclarar_cliente || null,
-          observaciones: data.observaciones || null
-        };
+        console.log('Creando aprobación con datos:', data);
 
-        console.log('Enviando datos de aprobación:', insertData);
-
-        // Verificar que el servicio existe antes de insertar
-        const { data: servicioExiste, error: servicioError } = await supabase
-          .from('servicios_monitoreo')
-          .select('id, estado_general')
-          .eq('id', data.servicio_id)
-          .single();
-
-        if (servicioError || !servicioExiste) {
-          console.error('Error verificando servicio:', servicioError);
-          throw new Error('El servicio especificado no existe');
-        }
-
-        console.log('Servicio encontrado:', servicioExiste);
-
-        // Insert approval record
-        const { data: result, error } = await supabase
-          .from('aprobacion_coordinador')
-          .insert(insertData)
-          .select()
-          .single();
+        // Usar la función segura de Supabase
+        const { data: result, error } = await supabase.rpc('crear_aprobacion_coordinador_segura', {
+          p_servicio_id: data.servicio_id,
+          p_estado_aprobacion: data.estado_aprobacion,
+          p_modelo_vehiculo_compatible: data.modelo_vehiculo_compatible || false,
+          p_cobertura_celular_verificada: data.cobertura_celular_verificada || false,
+          p_requiere_instalacion_fisica: data.requiere_instalacion_fisica || false,
+          p_acceso_instalacion_disponible: data.acceso_instalacion_disponible || false,
+          p_restricciones_tecnicas_sla: data.restricciones_tecnicas_sla || false,
+          p_contactos_emergencia_validados: data.contactos_emergencia_validados || false,
+          p_elementos_aclarar_cliente: data.elementos_aclarar_cliente || null,
+          p_observaciones: data.observaciones || null
+        });
 
         if (error) {
-          console.error('Error inserting approval:', error);
+          console.error('Error creando aprobación:', error);
           throw error;
         }
 
         console.log('Aprobación creada exitosamente:', result);
-
-        // Update service status based on approval result using valid states
-        let nuevoEstado = 'pendiente_evaluacion';
-        if (data.estado_aprobacion === 'aprobado') {
-          nuevoEstado = 'pendiente_analisis_riesgo';
-        } else if (data.estado_aprobacion === 'rechazado') {
-          nuevoEstado = 'rechazado';
-        } else if (data.estado_aprobacion === 'requiere_aclaracion') {
-          nuevoEstado = 'requiere_aclaracion';
-        }
-
-        console.log('Actualizando estado del servicio a:', nuevoEstado);
-
-        const { error: updateError } = await supabase
-          .from('servicios_monitoreo')
-          .update({ estado_general: nuevoEstado })
-          .eq('id', data.servicio_id);
-
-        if (updateError) {
-          console.error('Error updating service status:', updateError);
-          throw updateError;
-        }
-
-        return result;
+        return { id: result };
       } catch (error) {
         console.error('Error in crearAprobacionCoordinador:', error);
         throw error;
@@ -226,12 +180,10 @@ export const useAprobacionesWorkflow = () => {
         errorMessage = "Datos incompletos. Verifique que todos los campos estén correctos.";
       } else if (error?.message?.includes('permisos')) {
         errorMessage = "No tiene permisos para realizar esta acción. Contacte al administrador.";
+      } else if (error?.message?.includes('no existe')) {
+        errorMessage = "El servicio especificado no existe o fue eliminado.";
       } else if (error?.code === '23505') {
         errorMessage = "Ya existe una evaluación para este servicio.";
-      } else if (error?.message?.includes('check constraint')) {
-        errorMessage = "Error en validación de estado del servicio. Por favor, contacte al administrador.";
-      } else if (error?.message?.includes('row-level security')) {
-        errorMessage = "Error de permisos de base de datos. Verifique que tiene el rol adecuado.";
       }
 
       toast({
