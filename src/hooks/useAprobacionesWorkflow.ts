@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -14,33 +15,6 @@ export const useAprobacionesWorkflow = () => {
       throw new Error('Usuario no autenticado. Por favor, inicie sesión nuevamente.');
     }
     return user;
-  };
-
-  // Verificar rol del usuario
-  const checkUserRole = async () => {
-    try {
-      const user = await checkAuth();
-      console.log('Usuario actual:', user.id, user.email);
-      
-      // Verificar rol usando la función segura
-      const { data: hasRole, error } = await supabase.rpc('is_coordinator_or_admin');
-      
-      if (error) {
-        console.error('Error verificando rol:', error);
-        throw new Error('Error verificando permisos del usuario');
-      }
-      
-      console.log('¿Usuario tiene permisos de coordinador/admin?:', hasRole);
-      
-      if (!hasRole) {
-        throw new Error('Usuario no tiene permisos de coordinador u administrador');
-      }
-      
-      return true;
-    } catch (error) {
-      console.error('Error en checkUserRole:', error);
-      throw error;
-    }
   };
 
   // Obtener servicios pendientes de aprobación por coordinador
@@ -72,7 +46,6 @@ export const useAprobacionesWorkflow = () => {
       }
     },
     retry: (failureCount, error) => {
-      // No reintentar si es un error de autenticación
       if (error?.message?.includes('autenticado')) return false;
       return failureCount < 2;
     }
@@ -112,17 +85,14 @@ export const useAprobacionesWorkflow = () => {
     }
   });
 
-  // Crear aprobación de coordinador usando inserción directa
+  // Crear aprobación de coordinador
   const crearAprobacionCoordinador = useMutation({
     mutationFn: async (data: Partial<AprobacionCoordinador> & { estado_aprobacion: 'aprobado' | 'rechazado' | 'requiere_aclaracion'; servicio_id: string }) => {
       try {
-        // Verificar autenticación y permisos
+        // Verificar autenticación
         const user = await checkAuth();
         console.log('Iniciando proceso de aprobación para servicio:', data.servicio_id);
         console.log('Usuario que aprueba:', user.id, user.email);
-
-        // Verificar permisos específicos
-        await checkUserRole();
 
         // Validar datos requeridos
         if (!data.servicio_id || !data.estado_aprobacion) {
@@ -180,7 +150,7 @@ export const useAprobacionesWorkflow = () => {
 
         console.log('Datos a insertar:', insertData);
 
-        // Insertar la aprobación
+        // Insertar la aprobación directamente (las políticas RLS ya están configuradas)
         const { data: result, error: insertError } = await supabase
           .from('aprobacion_coordinador')
           .insert(insertData)
@@ -189,13 +159,7 @@ export const useAprobacionesWorkflow = () => {
 
         if (insertError) {
           console.error('Error insertando aprobación:', insertError);
-          
-          // Manejar errores específicos de RLS
-          if (insertError.code === '42501' || insertError.message?.includes('row-level security')) {
-            throw new Error('Sin permisos para crear la aprobación. Verifique que tiene rol de coordinador u administrador.');
-          }
-          
-          throw insertError;
+          throw new Error(`Error al insertar aprobación: ${insertError.message}`);
         }
 
         console.log('Aprobación insertada exitosamente:', result);
@@ -226,7 +190,6 @@ export const useAprobacionesWorkflow = () => {
 
         if (updateError) {
           console.error('Error actualizando estado del servicio:', updateError);
-          // No lanzar error aquí, ya que la aprobación se creó exitosamente
           console.warn('La aprobación se creó pero no se pudo actualizar el estado del servicio');
         } else {
           console.log('Estado del servicio actualizado exitosamente');
@@ -264,14 +227,14 @@ export const useAprobacionesWorkflow = () => {
         errorMessage = "Sesión expirada. Por favor, inicie sesión nuevamente.";
       } else if (error?.message?.includes('incompletos')) {
         errorMessage = "Datos incompletos. Verifique que todos los campos estén correctos.";
-      } else if (error?.message?.includes('permisos') || error?.message?.includes('Sin permisos')) {
-        errorMessage = "No tiene permisos para realizar esta acción. Contacte al administrador.";
-      } else if (error?.code === '23505' || error?.message?.includes('Ya existe')) {
+      } else if (error?.message?.includes('Ya existe')) {
         errorMessage = "Ya existe una evaluación para este servicio.";
       } else if (error?.message?.includes('no está en estado')) {
         errorMessage = "El servicio no está en estado válido para ser evaluado.";
       } else if (error?.message?.includes('no existe')) {
         errorMessage = "El servicio especificado no existe.";
+      } else if (error?.message?.includes('row-level security') || error?.code === '42501') {
+        errorMessage = "No tiene permisos para realizar esta acción. Contacte al administrador.";
       }
 
       toast({

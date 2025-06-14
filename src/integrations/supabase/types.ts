@@ -2895,6 +2895,10 @@ export type Database = {
         }
         Returns: string
       }
+      current_user_is_coordinator_or_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       delete_reward_bypass_rls: {
         Args: { reward_id: string }
         Returns: boolean
