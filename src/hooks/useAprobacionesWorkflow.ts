@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -113,12 +112,16 @@ export const useAprobacionesWorkflow = () => {
     }
   });
 
-  // Crear aprobación de coordinador usando inserción directa con RLS
+  // Crear aprobación de coordinador usando inserción directa
   const crearAprobacionCoordinador = useMutation({
     mutationFn: async (data: Partial<AprobacionCoordinador> & { estado_aprobacion: 'aprobado' | 'rechazado' | 'requiere_aclaracion'; servicio_id: string }) => {
       try {
         // Verificar autenticación y permisos
         const user = await checkAuth();
+        console.log('Iniciando proceso de aprobación para servicio:', data.servicio_id);
+        console.log('Usuario que aprueba:', user.id, user.email);
+
+        // Verificar permisos específicos
         await checkUserRole();
 
         // Validar datos requeridos
@@ -126,7 +129,38 @@ export const useAprobacionesWorkflow = () => {
           throw new Error('Datos incompletos para crear la aprobación');
         }
 
-        console.log('Creando aprobación con datos:', data);
+        // Verificar que el servicio existe y está en estado correcto
+        const { data: servicio, error: servicioError } = await supabase
+          .from('servicios_monitoreo')
+          .select('id, estado_general')
+          .eq('id', data.servicio_id)
+          .single();
+
+        if (servicioError) {
+          console.error('Error verificando servicio:', servicioError);
+          throw new Error('El servicio especificado no existe');
+        }
+
+        if (servicio.estado_general !== 'pendiente_evaluacion') {
+          throw new Error('El servicio no está en estado pendiente de evaluación');
+        }
+
+        console.log('Servicio verificado:', servicio);
+
+        // Verificar si ya existe una aprobación para este servicio
+        const { data: existingApproval, error: checkError } = await supabase
+          .from('aprobacion_coordinador')
+          .select('id')
+          .eq('servicio_id', data.servicio_id)
+          .maybeSingle();
+
+        if (checkError) {
+          console.error('Error verificando aprobación existente:', checkError);
+        }
+
+        if (existingApproval) {
+          throw new Error('Ya existe una evaluación para este servicio');
+        }
 
         // Preparar datos para inserción
         const insertData = {
@@ -134,15 +168,17 @@ export const useAprobacionesWorkflow = () => {
           coordinador_id: user.id,
           estado_aprobacion: data.estado_aprobacion,
           fecha_respuesta: new Date().toISOString(),
-          modelo_vehiculo_compatible: data.modelo_vehiculo_compatible || false,
-          cobertura_celular_verificada: data.cobertura_celular_verificada || false,
-          requiere_instalacion_fisica: data.requiere_instalacion_fisica || false,
-          acceso_instalacion_disponible: data.acceso_instalacion_disponible || false,
-          restricciones_tecnicas_sla: data.restricciones_tecnicas_sla || false,
-          contactos_emergencia_validados: data.contactos_emergencia_validados || false,
+          modelo_vehiculo_compatible: data.modelo_vehiculo_compatible ?? false,
+          cobertura_celular_verificada: data.cobertura_celular_verificada ?? false,
+          requiere_instalacion_fisica: data.requiere_instalacion_fisica ?? false,
+          acceso_instalacion_disponible: data.acceso_instalacion_disponible ?? false,
+          restricciones_tecnicas_sla: data.restricciones_tecnicas_sla ?? false,
+          contactos_emergencia_validados: data.contactos_emergencia_validados ?? false,
           elementos_aclarar_cliente: data.elementos_aclarar_cliente || null,
           observaciones: data.observaciones || null
         };
+
+        console.log('Datos a insertar:', insertData);
 
         // Insertar la aprobación
         const { data: result, error: insertError } = await supabase
@@ -153,12 +189,18 @@ export const useAprobacionesWorkflow = () => {
 
         if (insertError) {
           console.error('Error insertando aprobación:', insertError);
+          
+          // Manejar errores específicos de RLS
+          if (insertError.code === '42501' || insertError.message?.includes('row-level security')) {
+            throw new Error('Sin permisos para crear la aprobación. Verifique que tiene rol de coordinador u administrador.');
+          }
+          
           throw insertError;
         }
 
         console.log('Aprobación insertada exitosamente:', result);
 
-        // Determinar el nuevo estado del servicio basado en la aprobación
+        // Determinar el nuevo estado del servicio
         let nuevoEstado: string;
         switch (data.estado_aprobacion) {
           case 'aprobado':
@@ -174,6 +216,8 @@ export const useAprobacionesWorkflow = () => {
             nuevoEstado = 'pendiente_evaluacion';
         }
 
+        console.log('Actualizando estado del servicio a:', nuevoEstado);
+
         // Actualizar el estado del servicio
         const { error: updateError } = await supabase
           .from('servicios_monitoreo')
@@ -182,14 +226,15 @@ export const useAprobacionesWorkflow = () => {
 
         if (updateError) {
           console.error('Error actualizando estado del servicio:', updateError);
-          throw updateError;
+          // No lanzar error aquí, ya que la aprobación se creó exitosamente
+          console.warn('La aprobación se creó pero no se pudo actualizar el estado del servicio');
+        } else {
+          console.log('Estado del servicio actualizado exitosamente');
         }
-
-        console.log('Estado del servicio actualizado a:', nuevoEstado);
 
         return result;
       } catch (error) {
-        console.error('Error in crearAprobacionCoordinador:', error);
+        console.error('Error completo en crearAprobacionCoordinador:', error);
         throw error;
       }
     },
@@ -219,12 +264,14 @@ export const useAprobacionesWorkflow = () => {
         errorMessage = "Sesión expirada. Por favor, inicie sesión nuevamente.";
       } else if (error?.message?.includes('incompletos')) {
         errorMessage = "Datos incompletos. Verifique que todos los campos estén correctos.";
-      } else if (error?.message?.includes('permisos')) {
+      } else if (error?.message?.includes('permisos') || error?.message?.includes('Sin permisos')) {
         errorMessage = "No tiene permisos para realizar esta acción. Contacte al administrador.";
-      } else if (error?.code === '23505') {
+      } else if (error?.code === '23505' || error?.message?.includes('Ya existe')) {
         errorMessage = "Ya existe una evaluación para este servicio.";
-      } else if (error?.code === '42501' || error?.message?.includes('row-level security')) {
-        errorMessage = "Error de permisos. Verifique que tenga los permisos adecuados para esta operación.";
+      } else if (error?.message?.includes('no está en estado')) {
+        errorMessage = "El servicio no está en estado válido para ser evaluado.";
+      } else if (error?.message?.includes('no existe')) {
+        errorMessage = "El servicio especificado no existe.";
       }
 
       toast({
