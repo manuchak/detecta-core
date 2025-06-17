@@ -147,45 +147,34 @@ export const useAprobacionesWorkflow = () => {
 
         console.log('Datos a insertar:', insertData);
 
-        // Usar una transacción para asegurar consistencia
-        const { data: result, error: insertError } = await supabase.rpc('transaction_crear_aprobacion_coordinador', {
-          p_servicio_id: data.servicio_id,
-          p_coordinador_id: user.id,
-          p_estado_aprobacion: data.estado_aprobacion,
-          p_aprobacion_data: insertData
-        });
+        // Insertar la aprobación
+        const { data: result, error: insertError } = await supabase
+          .from('aprobacion_coordinador')
+          .insert(insertData)
+          .select()
+          .single();
 
         if (insertError) {
           console.error('Error insertando aprobación:', insertError);
-          // Intentar inserción directa como fallback
-          const { data: directResult, error: directError } = await supabase
-            .from('aprobacion_coordinador')
-            .insert(insertData)
-            .select()
-            .single();
+          throw new Error(`Error al crear aprobación: ${insertError.message}`);
+        }
 
-          if (directError) {
-            throw new Error(`Error al crear aprobación: ${directError.message}`);
-          }
+        // Determinar el nuevo estado basado en la aprobación
+        const nuevoEstado = data.estado_aprobacion === 'aprobado' 
+          ? 'pendiente_analisis_riesgo'
+          : data.estado_aprobacion === 'rechazado'
+          ? 'rechazado_coordinador'
+          : 'requiere_aclaracion_cliente';
 
-          // Actualizar el estado del servicio manualmente
-          const nuevoEstado = data.estado_aprobacion === 'aprobado' 
-            ? 'pendiente_analisis_riesgo'
-            : data.estado_aprobacion === 'rechazado'
-            ? 'rechazado_coordinador'
-            : 'requiere_aclaracion_cliente';
+        // Actualizar el estado del servicio
+        const { error: updateError } = await supabase
+          .from('servicios_monitoreo')
+          .update({ estado_general: nuevoEstado })
+          .eq('id', data.servicio_id);
 
-          const { error: updateError } = await supabase
-            .from('servicios_monitoreo')
-            .update({ estado_general: nuevoEstado })
-            .eq('id', data.servicio_id);
-
-          if (updateError) {
-            console.error('Error actualizando estado:', updateError);
-            throw new Error(`La evaluación se guardó, pero el estado del servicio no se actualizó: ${updateError.message}`);
-          }
-
-          return directResult;
+        if (updateError) {
+          console.error('Error actualizando estado:', updateError);
+          throw new Error(`La evaluación se guardó, pero el estado del servicio no se actualizó: ${updateError.message}`);
         }
 
         console.log('Aprobación creada exitosamente');
