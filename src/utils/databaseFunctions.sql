@@ -1,4 +1,3 @@
-
 -- Create a new role
 CREATE OR REPLACE FUNCTION public.create_new_role(new_role TEXT)
 RETURNS VOID
@@ -407,5 +406,88 @@ BEGIN
     AND NOT r.bono_otorgado
     AND public.verificar_cumplimiento_referido(r.id) = true
   GROUP BY r.custodio_referente_id, p.email;
+END;
+$$;
+
+-- Función transaccional para crear aprobación de coordinador
+CREATE OR REPLACE FUNCTION public.transaction_crear_aprobacion_coordinador(
+  p_servicio_id UUID,
+  p_coordinador_id UUID,
+  p_estado_aprobacion TEXT,
+  p_aprobacion_data JSONB
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  v_nuevo_estado TEXT;
+  v_aprobacion_id UUID;
+BEGIN
+  -- Verificar que el servicio existe y está en estado correcto
+  IF NOT EXISTS (
+    SELECT 1 FROM public.servicios_monitoreo 
+    WHERE id = p_servicio_id AND estado_general = 'pendiente_evaluacion'
+  ) THEN
+    RAISE EXCEPTION 'El servicio no existe o no está en estado pendiente de evaluación';
+  END IF;
+
+  -- Verificar que no existe ya una aprobación
+  IF EXISTS (
+    SELECT 1 FROM public.aprobacion_coordinador 
+    WHERE servicio_id = p_servicio_id
+  ) THEN
+    RAISE EXCEPTION 'Ya existe una evaluación para este servicio';
+  END IF;
+
+  -- Determinar el nuevo estado basado en la aprobación
+  CASE p_estado_aprobacion
+    WHEN 'aprobado' THEN v_nuevo_estado := 'pendiente_analisis_riesgo';
+    WHEN 'rechazado' THEN v_nuevo_estado := 'rechazado_coordinador';
+    WHEN 'requiere_aclaracion' THEN v_nuevo_estado := 'requiere_aclaracion_cliente';
+    ELSE RAISE EXCEPTION 'Estado de aprobación inválido: %', p_estado_aprobacion;
+  END CASE;
+
+  -- Insertar la aprobación
+  INSERT INTO public.aprobacion_coordinador (
+    servicio_id,
+    coordinador_id,
+    estado_aprobacion,
+    fecha_respuesta,
+    modelo_vehiculo_compatible,
+    cobertura_celular_verificada,
+    requiere_instalacion_fisica,
+    acceso_instalacion_disponible,
+    restricciones_tecnicas_sla,
+    contactos_emergencia_validados,
+    elementos_aclarar_cliente,
+    observaciones
+  ) VALUES (
+    p_servicio_id,
+    p_coordinador_id,
+    p_estado_aprobacion,
+    now(),
+    COALESCE((p_aprobacion_data->>'modelo_vehiculo_compatible')::boolean, false),
+    COALESCE((p_aprobacion_data->>'cobertura_celular_verificada')::boolean, false),
+    COALESCE((p_aprobacion_data->>'requiere_instalacion_fisica')::boolean, false),
+    COALESCE((p_aprobacion_data->>'acceso_instalacion_disponible')::boolean, false),
+    COALESCE((p_aprobacion_data->>'restricciones_tecnicas_sla')::boolean, false),
+    COALESCE((p_aprobacion_data->>'contactos_emergencia_validados')::boolean, false),
+    p_aprobacion_data->>'elementos_aclarar_cliente',
+    p_aprobacion_data->>'observaciones'
+  ) RETURNING id INTO v_aprobacion_id;
+
+  -- Actualizar el estado del servicio
+  UPDATE public.servicios_monitoreo
+  SET estado_general = v_nuevo_estado
+  WHERE id = p_servicio_id;
+
+  -- Verificar que se actualizó
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'No se pudo actualizar el estado del servicio';
+  END IF;
+
+  RETURN v_aprobacion_id;
 END;
 $$;

@@ -88,10 +88,8 @@ export const useAprobacionesWorkflow = () => {
   const crearAprobacionCoordinador = useMutation({
     mutationFn: async (data: Partial<AprobacionCoordinador> & { estado_aprobacion: 'aprobado' | 'rechazado' | 'requiere_aclaracion'; servicio_id: string }) => {
       try {
-        // Verificar autenticación
         const user = await checkAuth();
         console.log('Iniciando proceso de aprobación para servicio:', data.servicio_id);
-        console.log('Usuario que aprueba:', user.id, user.email);
 
         // Validar datos requeridos
         if (!data.servicio_id || !data.estado_aprobacion) {
@@ -101,7 +99,7 @@ export const useAprobacionesWorkflow = () => {
         // Verificar que el servicio existe y está en estado correcto
         const { data: servicio, error: servicioError } = await supabase
           .from('servicios_monitoreo')
-          .select('id, estado_general')
+          .select('id, estado_general, numero_servicio')
           .eq('id', data.servicio_id)
           .single();
 
@@ -111,7 +109,7 @@ export const useAprobacionesWorkflow = () => {
         }
 
         if (servicio.estado_general !== 'pendiente_evaluacion') {
-          throw new Error('El servicio no está en estado pendiente de evaluación');
+          throw new Error(`El servicio ${servicio.numero_servicio} no está en estado pendiente de evaluación (estado actual: ${servicio.estado_general})`);
         }
 
         console.log('Servicio verificado:', servicio);
@@ -128,7 +126,7 @@ export const useAprobacionesWorkflow = () => {
         }
 
         if (existingApproval) {
-          throw new Error('Ya existe una evaluación para este servicio');
+          throw new Error(`Ya existe una evaluación para el servicio ${servicio.numero_servicio}`);
         }
 
         // Preparar datos para inserción
@@ -149,51 +147,48 @@ export const useAprobacionesWorkflow = () => {
 
         console.log('Datos a insertar:', insertData);
 
-        // Insertar la aprobación directamente (las políticas RLS ya están configuradas)
-        const { data: result, error: insertError } = await supabase
-          .from('aprobacion_coordinador')
-          .insert(insertData)
-          .select()
-          .single();
+        // Usar una transacción para asegurar consistencia
+        const { data: result, error: insertError } = await supabase.rpc('transaction_crear_aprobacion_coordinador', {
+          p_servicio_id: data.servicio_id,
+          p_coordinador_id: user.id,
+          p_estado_aprobacion: data.estado_aprobacion,
+          p_aprobacion_data: insertData
+        });
 
         if (insertError) {
           console.error('Error insertando aprobación:', insertError);
-          throw new Error(`Error al insertar aprobación: ${insertError.message}`);
+          // Intentar inserción directa como fallback
+          const { data: directResult, error: directError } = await supabase
+            .from('aprobacion_coordinador')
+            .insert(insertData)
+            .select()
+            .single();
+
+          if (directError) {
+            throw new Error(`Error al crear aprobación: ${directError.message}`);
+          }
+
+          // Actualizar el estado del servicio manualmente
+          const nuevoEstado = data.estado_aprobacion === 'aprobado' 
+            ? 'pendiente_analisis_riesgo'
+            : data.estado_aprobacion === 'rechazado'
+            ? 'rechazado_coordinador'
+            : 'requiere_aclaracion_cliente';
+
+          const { error: updateError } = await supabase
+            .from('servicios_monitoreo')
+            .update({ estado_general: nuevoEstado })
+            .eq('id', data.servicio_id);
+
+          if (updateError) {
+            console.error('Error actualizando estado:', updateError);
+            throw new Error(`La evaluación se guardó, pero el estado del servicio no se actualizó: ${updateError.message}`);
+          }
+
+          return directResult;
         }
 
-        console.log('Aprobación insertada exitosamente:', result);
-
-        // Determinar el nuevo estado del servicio
-        let nuevoEstado: string;
-        switch (data.estado_aprobacion) {
-          case 'aprobado':
-            nuevoEstado = 'pendiente_analisis_riesgo';
-            break;
-          case 'rechazado':
-            nuevoEstado = 'rechazado_coordinador';
-            break;
-          case 'requiere_aclaracion':
-            nuevoEstado = 'requiere_aclaracion_cliente';
-            break;
-          default:
-            nuevoEstado = 'pendiente_evaluacion';
-        }
-
-        console.log('Actualizando estado del servicio a:', nuevoEstado);
-
-        // Actualizar el estado del servicio
-        const { error: updateError } = await supabase
-          .from('servicios_monitoreo')
-          .update({ estado_general: nuevoEstado })
-          .eq('id', data.servicio_id);
-
-        if (updateError) {
-          console.error('Error actualizando estado del servicio:', updateError);
-          // Lanzar un error para que la mutación falle y se active el onError
-          throw new Error(`La evaluación se guardó, pero el estado del servicio no se pudo actualizar. Razón: ${updateError.message}`);
-        }
-
-        console.log('Estado del servicio actualizado exitosamente');
+        console.log('Aprobación creada exitosamente');
         return result;
       } catch (error) {
         console.error('Error completo en crearAprobacionCoordinador:', error);
@@ -227,15 +222,15 @@ export const useAprobacionesWorkflow = () => {
       } else if (error?.message?.includes('incompletos')) {
         errorMessage = "Datos incompletos. Verifique que todos los campos estén correctos.";
       } else if (error?.message?.includes('Ya existe')) {
-        errorMessage = "Ya existe una evaluación para este servicio.";
+        errorMessage = error.message;
       } else if (error?.message?.includes('no está en estado')) {
-        errorMessage = "El servicio no está en estado válido para ser evaluado.";
+        errorMessage = error.message;
       } else if (error?.message?.includes('no existe')) {
         errorMessage = "El servicio especificado no existe.";
       } else if (error?.message?.includes('row-level security') || error?.code === '42501') {
         errorMessage = "No tiene permisos para realizar esta acción. Contacte al administrador.";
-      } else if (error?.message?.includes('estado del servicio no se pudo actualizar')) {
-        errorMessage = "La evaluación se guardó, pero el estado del servicio no avanzó. Por favor, contacte a soporte.";
+      } else if (error?.message?.includes('estado del servicio no se actualizó')) {
+        errorMessage = error.message;
       }
 
       toast({
