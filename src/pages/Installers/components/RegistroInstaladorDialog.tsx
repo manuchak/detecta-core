@@ -1,226 +1,217 @@
 
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { X } from 'lucide-react';
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { useInstaladores } from '@/hooks/useInstaladores';
-import type { CreateInstaladorData } from '@/types/instaladores';
+
+const schema = z.object({
+  nombre_completo: z.string().min(1, 'Nombre completo es requerido'),
+  telefono: z.string().min(10, 'Teléfono debe tener al menos 10 dígitos'),
+  email: z.string().email('Email inválido'),
+  cedula_profesional: z.string().optional(),
+  especialidades: z.string().min(1, 'Debe especificar al menos una especialidad'),
+  vehiculo_propio: z.boolean().optional(),
+  banco: z.string().optional(),
+  cuenta: z.string().optional(),
+  clabe: z.string().optional(),
+  titular: z.string().optional()
+});
+
+type FormData = z.infer<typeof schema>;
 
 interface RegistroInstaladorDialogProps {
-  children: React.ReactNode;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export const RegistroInstaladorDialog: React.FC<RegistroInstaladorDialogProps> = ({ children }) => {
-  const [open, setOpen] = React.useState(false);
-  const [especialidades, setEspecialidades] = React.useState<string[]>([]);
-  const [certificaciones, setCertificaciones] = React.useState<string[]>([]);
-  const [nuevaEspecialidad, setNuevaEspecialidad] = React.useState('');
-  const [nuevaCertificacion, setNuevaCertificacion] = React.useState('');
-  
+export const RegistroInstaladorDialog: React.FC<RegistroInstaladorDialogProps> = ({
+  open,
+  onOpenChange
+}) => {
   const { createInstalador } = useInstaladores();
-  const { register, handleSubmit, reset, setValue, watch } = useForm<CreateInstaladorData>();
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    reset,
+    setValue,
+    watch
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      vehiculo_propio: false
+    }
+  });
 
   const vehiculoPropio = watch('vehiculo_propio');
 
-  const especialidadesDisponibles = [
-    'gps_vehicular',
-    'gps_personal', 
-    'camara',
-    'alarma',
-    'combo'
-  ];
+  const onSubmit = async (data: FormData) => {
+    try {
+      const especialidadesArray = data.especialidades.split(',').map(esp => esp.trim());
+      
+      const bancoData = data.banco ? {
+        banco: data.banco,
+        cuenta: data.cuenta,
+        clabe: data.clabe,
+        titular: data.titular
+      } : undefined;
 
-  const agregarEspecialidad = (especialidad: string) => {
-    if (especialidad && !especialidades.includes(especialidad)) {
-      const nuevasEsp = [...especialidades, especialidad];
-      setEspecialidades(nuevasEsp);
-      setValue('especialidades', nuevasEsp);
-      setNuevaEspecialidad('');
+      await createInstalador.mutateAsync({
+        ...data,
+        especialidades: especialidadesArray,
+        banco_datos: bancoData
+      });
+      
+      reset();
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error creating installer:', error);
     }
-  };
-
-  const quitarEspecialidad = (especialidad: string) => {
-    const nuevasEsp = especialidades.filter(e => e !== especialidad);
-    setEspecialidades(nuevasEsp);
-    setValue('especialidades', nuevasEsp);
-  };
-
-  const agregarCertificacion = () => {
-    if (nuevaCertificacion && !certificaciones.includes(nuevaCertificacion)) {
-      const nuevasCert = [...certificaciones, nuevaCertificacion];
-      setCertificaciones(nuevasCert);
-      setValue('certificaciones', nuevasCert);
-      setNuevaCertificacion('');
-    }
-  };
-
-  const quitarCertificacion = (certificacion: string) => {
-    const nuevasCert = certificaciones.filter(c => c !== certificacion);
-    setCertificaciones(nuevasCert);
-    setValue('certificaciones', nuevasCert);
-  };
-
-  const onSubmit = (data: CreateInstaladorData) => {
-    createInstalador.mutate({
-      ...data,
-      especialidades,
-      certificaciones
-    }, {
-      onSuccess: () => {
-        setOpen(false);
-        reset();
-        setEspecialidades([]);
-        setCertificaciones([]);
-      }
-    });
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {children}
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Registrar Nuevo Instalador</DialogTitle>
+          <DialogDescription>
+            Complete la información para registrar un nuevo instalador certificado
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Información básica */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="nombre_completo">Nombre Completo *</Label>
-              <Input
-                {...register('nombre_completo', { required: true })}
-                placeholder="Nombre completo del instalador"
-              />
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Información Personal</h3>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="nombre_completo">Nombre Completo *</Label>
+                <Input
+                  {...register('nombre_completo')}
+                  placeholder="Nombre completo del instalador"
+                />
+                {errors.nombre_completo && (
+                  <p className="text-sm text-red-500">{errors.nombre_completo.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cedula_profesional">Cédula Profesional</Label>
+                <Input
+                  {...register('cedula_profesional')}
+                  placeholder="Número de cédula profesional"
+                />
+              </div>
             </div>
 
-            <div>
-              <Label htmlFor="telefono">Teléfono *</Label>
-              <Input
-                {...register('telefono', { required: true })}
-                placeholder="Número de teléfono"
-              />
-            </div>
-          </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="telefono">Teléfono *</Label>
+                <Input
+                  {...register('telefono')}
+                  placeholder="Número de teléfono"
+                />
+                {errors.telefono && (
+                  <p className="text-sm text-red-500">{errors.telefono.message}</p>
+                )}
+              </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="email">Email *</Label>
-              <Input
-                type="email"
-                {...register('email', { required: true })}
-                placeholder="correo@ejemplo.com"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="cedula_profesional">Cédula Profesional</Label>
-              <Input
-                {...register('cedula_profesional')}
-                placeholder="Número de cédula (opcional)"
-              />
+              <div className="space-y-2">
+                <Label htmlFor="email">Email *</Label>
+                <Input
+                  {...register('email')}
+                  type="email"
+                  placeholder="Correo electrónico"
+                />
+                {errors.email && (
+                  <p className="text-sm text-red-500">{errors.email.message}</p>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Especialidades */}
-          <div>
-            <Label>Especialidades</Label>
-            <div className="flex gap-2 mb-2">
-              {especialidadesDisponibles.map((esp) => (
-                <Button
-                  key={esp}
-                  type="button"
-                  size="sm"
-                  variant={especialidades.includes(esp) ? "default" : "outline"}
-                  onClick={() => especialidades.includes(esp) ? quitarEspecialidad(esp) : agregarEspecialidad(esp)}
-                >
-                  {esp.replace('_', ' ')}
-                </Button>
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {especialidades.map((esp) => (
-                <Badge key={esp} className="flex items-center gap-1">
-                  {esp.replace('_', ' ')}
-                  <X className="h-3 w-3 cursor-pointer" onClick={() => quitarEspecialidad(esp)} />
-                </Badge>
-              ))}
-            </div>
-          </div>
-
-          {/* Certificaciones */}
-          <div>
-            <Label>Certificaciones</Label>
-            <div className="flex gap-2 mb-2">
-              <Input
-                value={nuevaCertificacion}
-                onChange={(e) => setNuevaCertificacion(e.target.value)}
-                placeholder="Nombre de la certificación"
-                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), agregarCertificacion())}
-              />
-              <Button type="button" onClick={agregarCertificacion}>
-                Agregar
-              </Button>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {certificaciones.map((cert) => (
-                <Badge key={cert} variant="outline" className="flex items-center gap-1">
-                  {cert}
-                  <X className="h-3 w-3 cursor-pointer" onClick={() => quitarCertificacion(cert)} />
-                </Badge>
-              ))}
-            </div>
-          </div>
-
-          {/* Vehículo propio */}
-          <div className="flex items-center justify-between">
-            <Label htmlFor="vehiculo_propio">¿Tiene vehículo propio?</Label>
-            <Switch
-              onCheckedChange={(checked) => setValue('vehiculo_propio', checked)}
+          <div className="space-y-2">
+            <Label htmlFor="especialidades">Especialidades *</Label>
+            <Textarea
+              {...register('especialidades')}
+              placeholder="GPS Vehicular, GPS Personal, Alarmas, Cámaras (separadas por comas)"
             />
+            {errors.especialidades && (
+              <p className="text-sm text-red-500">{errors.especialidades.message}</p>
+            )}
+            <p className="text-xs text-gray-500">
+              Ingrese las especialidades separadas por comas
+            </p>
           </div>
 
-          {/* Datos del vehículo (si tiene) */}
-          {vehiculoPropio && (
-            <div className="grid grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
-              <div>
-                <Label htmlFor="marca_vehiculo">Marca</Label>
+          {/* Vehículo */}
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="vehiculo_propio"
+                onCheckedChange={(checked) => setValue('vehiculo_propio', checked)}
+              />
+              <Label htmlFor="vehiculo_propio">Cuenta con vehículo propio</Label>
+            </div>
+          </div>
+
+          {/* Datos bancarios */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Datos Bancarios (Opcional)</h3>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="banco">Banco</Label>
                 <Input
-                  {...register('datos_vehiculo.marca')}
-                  placeholder="Marca del vehículo"
+                  {...register('banco')}
+                  placeholder="Nombre del banco"
                 />
               </div>
-              <div>
-                <Label htmlFor="modelo_vehiculo">Modelo</Label>
+
+              <div className="space-y-2">
+                <Label htmlFor="cuenta">Número de Cuenta</Label>
                 <Input
-                  {...register('datos_vehiculo.modelo')}
-                  placeholder="Modelo del vehículo"
-                />
-              </div>
-              <div>
-                <Label htmlFor="placas_vehiculo">Placas</Label>
-                <Input
-                  {...register('datos_vehiculo.placas')}
-                  placeholder="Placas del vehículo"
+                  {...register('cuenta')}
+                  placeholder="Número de cuenta"
                 />
               </div>
             </div>
-          )}
 
-          {/* Botones */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="clabe">CLABE</Label>
+                <Input
+                  {...register('clabe')}
+                  placeholder="CLABE interbancaria"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="titular">Titular</Label>
+                <Input
+                  {...register('titular')}
+                  placeholder="Nombre del titular"
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={createInstalador.isPending}>
-              {createInstalador.isPending ? 'Registrando...' : 'Registrar Instalador'}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Registrando...' : 'Registrar Instalador'}
             </Button>
           </div>
         </form>

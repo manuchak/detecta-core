@@ -277,7 +277,8 @@ export const useAprobacionesWorkflow = () => {
         }
 
         // Update service status based on security approval
-        const nuevoEstado = data.aprobado_seguridad ? 'aprobado' : 'rechazado_seguridad';
+        // Si es aprobado por seguridad, va a programación de instalación
+        const nuevoEstado = data.aprobado_seguridad ? 'programacion_instalacion' : 'rechazado_seguridad';
 
         const { error: updateError } = await supabase
           .from('servicios_monitoreo')
@@ -300,7 +301,7 @@ export const useAprobacionesWorkflow = () => {
       queryClient.invalidateQueries({ queryKey: ['servicios-monitoreo'] });
       
       const mensaje = variables.aprobado_seguridad 
-        ? "Servicio aprobado por seguridad y listo para instalación"
+        ? "Servicio aprobado por seguridad y listo para programar instalación"
         : "Servicio rechazado por análisis de riesgo";
 
       toast({

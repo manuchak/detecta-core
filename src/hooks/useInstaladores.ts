@@ -9,7 +9,7 @@ export const useInstaladores = () => {
   const queryClient = useQueryClient();
 
   // Obtener todos los instaladores
-  const { data: instaladores, isLoading } = useQuery({
+  const { data: instaladores, isLoading: isLoadingInstaladores } = useQuery({
     queryKey: ['instaladores'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -52,6 +52,7 @@ export const useInstaladores = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['instaladores'] });
+      queryClient.invalidateQueries({ queryKey: ['instaladores-activos'] });
       toast({
         title: "Instalador registrado",
         description: "El instalador ha sido registrado exitosamente.",
@@ -67,8 +68,31 @@ export const useInstaladores = () => {
     }
   });
 
-  // Actualizar estado de afiliación
-  const updateEstadoAfiliacion = useMutation({
+  // Actualizar instalador
+  const updateInstalador = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Instalador> }) => {
+      const { data: result, error } = await supabase
+        .from('instaladores')
+        .update(data)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['instaladores'] });
+      queryClient.invalidateQueries({ queryKey: ['instaladores-activos'] });
+      toast({
+        title: "Instalador actualizado",
+        description: "Los datos del instalador han sido actualizados.",
+      });
+    }
+  });
+
+  // Cambiar estado de afiliación
+  const cambiarEstadoAfiliacion = useMutation({
     mutationFn: async ({ id, estado }: { id: string; estado: string }) => {
       const { data, error } = await supabase
         .from('instaladores')
@@ -82,6 +106,7 @@ export const useInstaladores = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['instaladores'] });
+      queryClient.invalidateQueries({ queryKey: ['instaladores-activos'] });
       toast({
         title: "Estado actualizado",
         description: "El estado del instalador ha sido actualizado.",
@@ -89,23 +114,12 @@ export const useInstaladores = () => {
     }
   });
 
-  // Obtener instaladores disponibles
-  const getInstalladoresDisponibles = async (fecha: string, tipoInstalacion?: string) => {
-    const { data, error } = await supabase.rpc('get_instaladores_disponibles', {
-      p_fecha: fecha,
-      p_tipo_instalacion: tipoInstalacion
-    });
-
-    if (error) throw error;
-    return data;
-  };
-
   return {
     instaladores,
     instaladoresActivos,
-    isLoading,
+    isLoadingInstaladores,
     createInstalador,
-    updateEstadoAfiliacion,
-    getInstalladoresDisponibles
+    updateInstalador,
+    cambiarEstadoAfiliacion
   };
 };

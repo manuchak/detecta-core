@@ -1,240 +1,253 @@
 
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import React from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Loader2 } from 'lucide-react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { useProgramacionInstalaciones } from '@/hooks/useProgramacionInstalaciones';
-import { useInstaladores } from '@/hooks/useInstaladores';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import type { TipoInstalacion } from '@/types/instaladores';
+import { useServiciosMonitoreo } from '@/hooks/useServiciosMonitoreo';
 
-export interface ProgramarInstalacionDialogProps {
+const schema = z.object({
+  servicio_id: z.string().min(1, 'Debe seleccionar un servicio'),
+  tipo_instalacion: z.string().min(1, 'Debe seleccionar el tipo de instalación'),
+  fecha_programada: z.string().min(1, 'Debe especificar la fecha'),
+  direccion_instalacion: z.string().min(1, 'Debe especificar la dirección'),
+  contacto_cliente: z.string().min(1, 'Debe especificar el contacto'),
+  telefono_contacto: z.string().min(1, 'Debe especificar el teléfono'),
+  prioridad: z.string().optional(),
+  tiempo_estimado: z.number().min(30).max(480),
+  observaciones_cliente: z.string().optional(),
+  instrucciones_especiales: z.string().optional(),
+  requiere_vehiculo_elevado: z.boolean().optional(),
+  acceso_restringido: z.boolean().optional()
+});
+
+type FormData = z.infer<typeof schema>;
+
+interface ProgramarInstalacionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  servicioId?: string | null;
 }
 
-export const ProgramarInstalacionDialog = ({ 
-  open, 
-  onOpenChange, 
-  servicioId 
-}: ProgramarInstalacionDialogProps) => {
-  const [fecha, setFecha] = useState<Date>();
-  const [tipoInstalacion, setTipoInstalacion] = useState('');
-  const [direccion, setDireccion] = useState('');
-  const [contacto, setContacto] = useState('');
-  const [telefono, setTelefono] = useState('');
-  const [observaciones, setObservaciones] = useState('');
-  const [tiempoEstimado, setTiempoEstimado] = useState('60');
-
+export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProps> = ({
+  open,
+  onOpenChange
+}) => {
   const { createProgramacion } = useProgramacionInstalaciones();
-  const { instaladoresActivos } = useInstaladores();
+  const { servicios } = useServiciosMonitoreo();
 
-  // Obtener datos del servicio si se proporciona servicioId
-  const { data: servicio } = useQuery({
-    queryKey: ['servicio', servicioId],
-    queryFn: async () => {
-      if (!servicioId) return null;
-      const { data, error } = await supabase
-        .from('servicios_monitoreo')
-        .select('*')
-        .eq('id', servicioId)
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!servicioId
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    reset,
+    setValue,
+    watch
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      prioridad: 'normal',
+      tiempo_estimado: 120,
+      requiere_vehiculo_elevado: false,
+      acceso_restringido: false
+    }
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!fecha || !tipoInstalacion || !direccion || !contacto) return;
+  // Filtrar servicios aprobados que necesitan instalación
+  const serviciosAprobados = servicios?.filter(s => 
+    s.estado_general === 'aprobado' || s.estado_general === 'programacion_instalacion'
+  ) || [];
 
-    // Map the form values to the correct TipoInstalacion enum values
-    const mapTipoInstalacion = (tipo: string): TipoInstalacion => {
-      switch (tipo) {
-        case 'vehicular': return 'gps_vehicular';
-        case 'flotilla': return 'gps_vehicular'; // Flotilla uses the same GPS type
-        case 'personal': return 'gps_personal';
-        default: return 'gps_vehicular';
-      }
-    };
-
-    const programacionData = {
-      servicio_id: servicioId || undefined,
-      fecha_programada: fecha.toISOString(),
-      tipo_instalacion: mapTipoInstalacion(tipoInstalacion),
-      direccion_instalacion: direccion,
-      contacto_cliente: contacto,
-      telefono_contacto: telefono,
-      observaciones_cliente: observaciones,
-      tiempo_estimado: parseInt(tiempoEstimado),
-      estado: 'programada' as const
-    };
-
-    createProgramacion.mutate(programacionData, {
-      onSuccess: () => {
-        onOpenChange(false);
-        // Reset form
-        setFecha(undefined);
-        setTipoInstalacion('');
-        setDireccion('');
-        setContacto('');
-        setTelefono('');
-        setObservaciones('');
-        setTiempoEstimado('60');
-      }
-    });
+  const onSubmit = async (data: FormData) => {
+    try {
+      await createProgramacion.mutateAsync({
+        ...data,
+        herramientas_especiales: []
+      });
+      reset();
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error creating installation:', error);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {servicioId ? 'Programar Instalación GPS' : 'Nueva Programación de Instalación'}
-          </DialogTitle>
+          <DialogTitle>Programar Nueva Instalación</DialogTitle>
+          <DialogDescription>
+            Complete los detalles para programar una nueva instalación de GPS
+          </DialogDescription>
         </DialogHeader>
 
-        {servicio && (
-          <div className="bg-blue-50 p-4 rounded-lg mb-4">
-            <h4 className="font-medium text-blue-900">Servicio: {servicio.numero_servicio}</h4>
-            <p className="text-blue-700">Cliente: {servicio.nombre_cliente}</p>
-            <p className="text-blue-700">Tipo: {servicio.tipo_servicio}</p>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="fecha">Fecha de Instalación</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !fecha && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {fecha ? format(fecha, "PPP", { locale: es }) : "Seleccionar fecha"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={fecha}
-                    onSelect={setFecha}
-                    disabled={(date) => date < new Date()}
-                    initialFocus
-                    className="p-3 pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
+              <Label htmlFor="servicio_id">Servicio</Label>
+              <Select onValueChange={(value) => setValue('servicio_id', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar servicio" />
+                </SelectTrigger>
+                <SelectContent>
+                  {serviciosAprobados.map((servicio) => (
+                    <SelectItem key={servicio.id} value={servicio.id}>
+                      {servicio.numero_servicio} - {servicio.nombre_cliente}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.servicio_id && (
+                <p className="text-sm text-red-500">{errors.servicio_id.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="tipo">Tipo de Instalación</Label>
-              <Select value={tipoInstalacion} onValueChange={setTipoInstalacion}>
+              <Label htmlFor="tipo_instalacion">Tipo de Instalación</Label>
+              <Select onValueChange={(value) => setValue('tipo_instalacion', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="vehicular">Vehicular</SelectItem>
-                  <SelectItem value="flotilla">Flotilla</SelectItem>
-                  <SelectItem value="personal">Personal</SelectItem>
+                  <SelectItem value="gps_vehicular">GPS Vehicular</SelectItem>
+                  <SelectItem value="gps_personal">GPS Personal</SelectItem>
+                  <SelectItem value="camara">Cámara</SelectItem>
+                  <SelectItem value="alarma">Alarma</SelectItem>
+                  <SelectItem value="combo">Combo</SelectItem>
                 </SelectContent>
               </Select>
+              {errors.tipo_instalacion && (
+                <p className="text-sm text-red-500">{errors.tipo_instalacion.message}</p>
+              )}
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="direccion">Dirección de Instalación</Label>
-            <Textarea
-              id="direccion"
-              value={direccion}
-              onChange={(e) => setDireccion(e.target.value)}
-              placeholder="Dirección completa donde se realizará la instalación"
-              required
-            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="contacto">Contacto Cliente</Label>
+              <Label htmlFor="fecha_programada">Fecha y Hora</Label>
               <Input
-                id="contacto"
-                value={contacto}
-                onChange={(e) => setContacto(e.target.value)}
-                placeholder="Nombre del contacto"
-                required
+                {...register('fecha_programada')}
+                type="datetime-local"
+                min={new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString().slice(0, 16)}
               />
+              {errors.fecha_programada && (
+                <p className="text-sm text-red-500">{errors.fecha_programada.message}</p>
+              )}
+              <p className="text-xs text-gray-500">
+                Mínimo 72 horas de anticipación, no fines de semana
+              </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="telefono">Teléfono</Label>
+              <Label htmlFor="tiempo_estimado">Tiempo Estimado (minutos)</Label>
               <Input
-                id="telefono"
-                value={telefono}
-                onChange={(e) => setTelefono(e.target.value)}
-                placeholder="Número de teléfono"
+                {...register('tiempo_estimado', { valueAsNumber: true })}
+                type="number"
+                min={30}
+                max={480}
               />
+              {errors.tiempo_estimado && (
+                <p className="text-sm text-red-500">{errors.tiempo_estimado.message}</p>
+              )}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="tiempo">Tiempo Estimado (minutos)</Label>
-            <Select value={tiempoEstimado} onValueChange={setTiempoEstimado}>
+            <Label htmlFor="direccion_instalacion">Dirección de Instalación</Label>
+            <Textarea
+              {...register('direccion_instalacion')}
+              placeholder="Dirección completa donde se realizará la instalación"
+            />
+            {errors.direccion_instalacion && (
+              <p className="text-sm text-red-500">{errors.direccion_instalacion.message}</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="contacto_cliente">Contacto del Cliente</Label>
+              <Input
+                {...register('contacto_cliente')}
+                placeholder="Nombre del contacto"
+              />
+              {errors.contacto_cliente && (
+                <p className="text-sm text-red-500">{errors.contacto_cliente.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="telefono_contacto">Teléfono de Contacto</Label>
+              <Input
+                {...register('telefono_contacto')}
+                placeholder="Teléfono del contacto"
+              />
+              {errors.telefono_contacto && (
+                <p className="text-sm text-red-500">{errors.telefono_contacto.message}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="prioridad">Prioridad</Label>
+            <Select onValueChange={(value) => setValue('prioridad', value)} defaultValue="normal">
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="30">30 minutos</SelectItem>
-                <SelectItem value="60">1 hora</SelectItem>
-                <SelectItem value="90">1.5 horas</SelectItem>
-                <SelectItem value="120">2 horas</SelectItem>
-                <SelectItem value="180">3 horas</SelectItem>
+                <SelectItem value="baja">Baja</SelectItem>
+                <SelectItem value="normal">Normal</SelectItem>
+                <SelectItem value="alta">Alta</SelectItem>
+                <SelectItem value="urgente">Urgente</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="requiere_vehiculo_elevado"
+                onCheckedChange={(checked) => setValue('requiere_vehiculo_elevado', checked)}
+              />
+              <Label htmlFor="requiere_vehiculo_elevado">Requiere vehículo elevado</Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="acceso_restringido"
+                onCheckedChange={(checked) => setValue('acceso_restringido', checked)}
+              />
+              <Label htmlFor="acceso_restringido">Acceso restringido</Label>
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label htmlFor="observaciones">Observaciones</Label>
+            <Label htmlFor="observaciones_cliente">Observaciones del Cliente</Label>
             <Textarea
-              id="observaciones"
-              value={observaciones}
-              onChange={(e) => setObservaciones(e.target.value)}
-              placeholder="Observaciones adicionales sobre la instalación"
+              {...register('observaciones_cliente')}
+              placeholder="Observaciones especiales del cliente"
             />
           </div>
 
-          <div className="flex justify-end space-x-2">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => onOpenChange(false)}
-            >
+          <div className="space-y-2">
+            <Label htmlFor="instrucciones_especiales">Instrucciones Especiales</Label>
+            <Textarea
+              {...register('instrucciones_especiales')}
+              placeholder="Instrucciones especiales para el instalador"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button 
-              type="submit" 
-              disabled={createProgramacion.isPending || !fecha || !tipoInstalacion || !direccion || !contacto}
-            >
-              {createProgramacion.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Programar Instalación
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Programando...' : 'Programar Instalación'}
             </Button>
           </div>
         </form>

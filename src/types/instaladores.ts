@@ -1,4 +1,5 @@
 
+
 export type EstadoAfiliacion = 'pendiente' | 'activo' | 'suspendido' | 'inactivo';
 export type TipoInstalacion = 'gps_vehicular' | 'gps_personal' | 'camara' | 'alarma' | 'combo';
 export type EstadoInstalacion = 'programada' | 'confirmada' | 'en_proceso' | 'completada' | 'cancelada' | 'reprogramada';
@@ -145,3 +146,4 @@ export interface CreateProgramacionData {
   requiere_vehiculo_elevado?: boolean;
   acceso_restringido?: boolean;
 }
+

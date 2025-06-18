@@ -3888,6 +3888,10 @@ export type Database = {
         Args: { user_uuid: string; required_role: string }
         Returns: boolean
       }
+      validar_horario_instalacion: {
+        Args: { fecha_programada: string }
+        Returns: boolean
+      }
       validate_image_url: {
         Args: { url: string }
         Returns: boolean
