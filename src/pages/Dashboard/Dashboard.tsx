@@ -10,14 +10,26 @@ import WorkflowBanner from "@/components/dashboard/WorkflowBanner";
 import { useDashboardData } from "@/hooks/useDashboardData";
 
 const Dashboard = () => {
-  const { data: dashboardData, isLoading } = useDashboardData();
+  const { 
+    dashboardData, 
+    serviceStatusData, 
+    dailyServiceData, 
+    serviceTypesData, 
+    topClientsData, 
+    isLoading 
+  } = useDashboardData();
 
   // Provide default data structure to prevent component errors
   const defaultMetrics = {
-    totalRevenue: 0,
     totalServices: 0,
-    activeMonitoring: 0,
-    pendingInstallations: 0
+    totalGMV: 0,
+    activeClients: 0,
+    averageServiceValue: 0,
+    yearlyGrowth: 0,
+    completedServices: 0,
+    ongoingServices: 0,
+    cancelledServices: 0,
+    pendingServices: 0
   };
 
   const defaultServiceStatusData = [
@@ -26,12 +38,6 @@ const Dashboard = () => {
     { name: 'Instalando', value: 0, color: '#3b82f6' },
     { name: 'Suspendidos', value: 0, color: '#ef4444' }
   ];
-
-  const defaultChartData = {
-    dailyServiceData: [],
-    serviceTypesData: [],
-    topClientsData: []
-  };
 
   return (
     <div className="space-y-6">
@@ -45,7 +51,7 @@ const Dashboard = () => {
 
       {/* Métricas principales */}
       <MetricsCards 
-        metrics={dashboardData?.metrics || defaultMetrics} 
+        metrics={dashboardData || defaultMetrics} 
         isLoading={isLoading} 
       />
 
@@ -53,8 +59,8 @@ const Dashboard = () => {
       <div className="grid gap-6 lg:grid-cols-2">
         <GmvChart />
         <ServiceStatusChart 
-          data={dashboardData?.serviceStatusData || defaultServiceStatusData}
-          metrics={dashboardData?.metrics || defaultMetrics}
+          data={serviceStatusData || defaultServiceStatusData}
+          metrics={dashboardData || defaultMetrics}
         />
       </div>
 
@@ -65,9 +71,9 @@ const Dashboard = () => {
         </div>
         <div className="space-y-6">
           <SecondaryCharts 
-            dailyServiceData={dashboardData?.dailyServiceData || defaultChartData.dailyServiceData}
-            serviceTypesData={dashboardData?.serviceTypesData || defaultChartData.serviceTypesData}
-            topClientsData={dashboardData?.topClientsData || defaultChartData.topClientsData}
+            dailyServiceData={dailyServiceData || []}
+            serviceTypesData={serviceTypesData || []}
+            topClientsData={topClientsData || []}
           />
         </div>
       </div>
