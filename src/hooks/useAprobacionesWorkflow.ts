@@ -45,6 +45,129 @@ export const useAprobacionesWorkflow = () => {
     }
   });
 
+  // Obtener servicios pendientes por coordinador
+  const { data: serviciosPendientesCoordinador, isLoading: loadingCoordinador } = useQuery({
+    queryKey: ['servicios-pendientes-coordinador'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('servicios_monitoreo')
+        .select('*')
+        .eq('estado_general', 'pendiente_evaluacion')
+        .order('fecha_solicitud', { ascending: true });
+
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Obtener servicios pendientes de análisis de riesgo
+  const { data: serviciosPendientesRiesgo, isLoading: loadingRiesgo } = useQuery({
+    queryKey: ['servicios-pendientes-riesgo'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('servicios_monitoreo')
+        .select('*')
+        .eq('estado_general', 'pendiente_analisis_riesgo')
+        .order('fecha_solicitud', { ascending: true });
+
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Obtener detalle de servicio específico
+  const obtenerDetalleServicio = (servicioId: string) => {
+    return useQuery({
+      queryKey: ['detalle-servicio', servicioId],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from('servicios_monitoreo')
+          .select(`
+            *,
+            analisis_riesgo_seguridad(*),
+            aprobacion_coordinador(*),
+            contactos_emergencia_servicio(*)
+          `)
+          .eq('id', servicioId)
+          .single();
+
+        if (error) throw error;
+        return data;
+      },
+      enabled: !!servicioId
+    });
+  };
+
+  // Crear aprobación de coordinador
+  const crearAprobacionCoordinador = useMutation({
+    mutationFn: async (data: any) => {
+      const { data: result, error } = await supabase
+        .from('aprobacion_coordinador')
+        .insert([data])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Actualizar estado del servicio según la aprobación
+      let nuevoEstado = 'pendiente_analisis_riesgo';
+      if (data.estado_aprobacion === 'rechazado') {
+        nuevoEstado = 'rechazado_coordinador';
+      } else if (data.estado_aprobacion === 'requiere_aclaracion') {
+        nuevoEstado = 'requiere_aclaracion_cliente';
+      }
+
+      await supabase
+        .from('servicios_monitoreo')
+        .update({ estado_general: nuevoEstado })
+        .eq('id', data.servicio_id);
+
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['servicios-workflow'] });
+      queryClient.invalidateQueries({ queryKey: ['servicios-pendientes-coordinador'] });
+      toast({
+        title: "Evaluación guardada",
+        description: "La evaluación del coordinador ha sido guardada.",
+      });
+    }
+  });
+
+  // Crear análisis de riesgo
+  const crearAnalisisRiesgo = useMutation({
+    mutationFn: async (data: any) => {
+      const { data: result, error } = await supabase
+        .from('analisis_riesgo_seguridad')
+        .insert([data])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Actualizar estado del servicio según el análisis
+      let nuevoEstado = 'programacion_instalacion';
+      if (!data.aprobado_seguridad) {
+        nuevoEstado = 'rechazado_seguridad';
+      }
+
+      await supabase
+        .from('servicios_monitoreo')
+        .update({ estado_general: nuevoEstado })
+        .eq('id', data.servicio_id);
+
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['servicios-workflow'] });
+      queryClient.invalidateQueries({ queryKey: ['servicios-pendientes-riesgo'] });
+      toast({
+        title: "Análisis completado",
+        description: "El análisis de riesgo ha sido completado.",
+      });
+    }
+  });
+
   // Aprobar servicio (mover a siguiente etapa)
   const aprobarServicio = useMutation({
     mutationFn: async ({ servicioId, nuevoEstado, observaciones }: { 
@@ -175,6 +298,13 @@ export const useAprobacionesWorkflow = () => {
   return {
     serviciosPorEtapa,
     isLoading,
+    serviciosPendientesCoordinador,
+    loadingCoordinador,
+    serviciosPendientesRiesgo,
+    loadingRiesgo,
+    obtenerDetalleServicio,
+    crearAprobacionCoordinador,
+    crearAnalisisRiesgo,
     aprobarServicio,
     rechazarServicio,
     programarInstalacion
