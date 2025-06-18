@@ -12,6 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useProgramacionInstalaciones } from '@/hooks/useProgramacionInstalaciones';
 import { useServiciosMonitoreo } from '@/hooks/useServiciosMonitoreo';
+import type { TipoInstalacion, PrioridadInstalacion } from '@/types/instaladores';
 
 const schema = z.object({
   servicio_id: z.string().min(1, 'Debe seleccionar un servicio'),
@@ -77,16 +78,15 @@ export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProp
 
   const onSubmit = async (data: FormData) => {
     try {
-      // Ensure all required fields are present
       const formData = getValues();
       await createProgramacion.mutateAsync({
         servicio_id: formData.servicio_id,
-        tipo_instalacion: formData.tipo_instalacion,
+        tipo_instalacion: formData.tipo_instalacion as TipoInstalacion,
         fecha_programada: formData.fecha_programada,
         direccion_instalacion: formData.direccion_instalacion,
         contacto_cliente: formData.contacto_cliente,
         telefono_contacto: formData.telefono_contacto,
-        prioridad: formData.prioridad || 'normal',
+        prioridad: (formData.prioridad || 'normal') as PrioridadInstalacion,
         tiempo_estimado: formData.tiempo_estimado || 120,
         observaciones_cliente: formData.observaciones_cliente,
         instrucciones_especiales: formData.instrucciones_especiales,
