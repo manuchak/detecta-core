@@ -280,7 +280,7 @@ export const ServiciosTable = ({ servicios, isLoading, onAnalisisRiesgo, onProgr
       <ProgramarInstalacionDialog
         open={showProgramarInstalacion}
         onOpenChange={setShowProgramarInstalacion}
-        servicioId={selectedServicioId}
+        servicioId={selectedServicioId || undefined}
       />
 
       <AnalisisRiesgoDialog

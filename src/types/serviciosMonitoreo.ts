@@ -2,12 +2,14 @@ export type TipoServicio = 'personal' | 'vehicular' | 'flotilla';
 export type Prioridad = 'baja' | 'media' | 'alta' | 'critica';
 export type EstadoGeneral = 
   | 'pendiente_evaluacion' 
+  | 'pendiente_analisis_riesgo' 
   | 'en_evaluacion_riesgo' 
   | 'evaluacion_completada'
   | 'pendiente_aprobacion' 
   | 'aprobado' 
   | 'rechazado'
   | 'pendiente_instalacion' 
+  | 'programacion_instalacion' 
   | 'instalacion_programada' 
   | 'instalacion_completada'
   | 'integracion_sistema' 

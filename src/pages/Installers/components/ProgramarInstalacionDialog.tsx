@@ -33,11 +33,13 @@ type FormData = z.infer<typeof schema>;
 interface ProgramarInstalacionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  servicioId?: string;
 }
 
 export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProps> = ({
   open,
-  onOpenChange
+  onOpenChange,
+  servicioId
 }) => {
   const { createProgramacion } = useProgramacionInstalaciones();
   const { servicios } = useServiciosMonitoreo();
@@ -48,16 +50,25 @@ export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProp
     formState: { errors, isSubmitting },
     reset,
     setValue,
-    watch
+    watch,
+    getValues
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
+      servicio_id: servicioId || '',
       prioridad: 'normal',
       tiempo_estimado: 120,
       requiere_vehiculo_elevado: false,
       acceso_restringido: false
     }
   });
+
+  // Set servicioId when prop changes
+  React.useEffect(() => {
+    if (servicioId) {
+      setValue('servicio_id', servicioId);
+    }
+  }, [servicioId, setValue]);
 
   // Filtrar servicios aprobados que necesitan instalación
   const serviciosAprobados = servicios?.filter(s => 
@@ -66,8 +77,21 @@ export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProp
 
   const onSubmit = async (data: FormData) => {
     try {
+      // Ensure all required fields are present
+      const formData = getValues();
       await createProgramacion.mutateAsync({
-        ...data,
+        servicio_id: formData.servicio_id,
+        tipo_instalacion: formData.tipo_instalacion,
+        fecha_programada: formData.fecha_programada,
+        direccion_instalacion: formData.direccion_instalacion,
+        contacto_cliente: formData.contacto_cliente,
+        telefono_contacto: formData.telefono_contacto,
+        prioridad: formData.prioridad || 'normal',
+        tiempo_estimado: formData.tiempo_estimado || 120,
+        observaciones_cliente: formData.observaciones_cliente,
+        instrucciones_especiales: formData.instrucciones_especiales,
+        requiere_vehiculo_elevado: formData.requiere_vehiculo_elevado || false,
+        acceso_restringido: formData.acceso_restringido || false,
         herramientas_especiales: []
       });
       reset();
@@ -91,7 +115,11 @@ export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProp
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="servicio_id">Servicio</Label>
-              <Select onValueChange={(value) => setValue('servicio_id', value)}>
+              <Select 
+                onValueChange={(value) => setValue('servicio_id', value)}
+                value={watch('servicio_id')}
+                disabled={!!servicioId}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar servicio" />
                 </SelectTrigger>

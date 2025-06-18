@@ -43,7 +43,8 @@ export const RegistroInstaladorDialog: React.FC<RegistroInstaladorDialogProps> =
     formState: { errors, isSubmitting },
     reset,
     setValue,
-    watch
+    watch,
+    getValues
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -55,18 +56,23 @@ export const RegistroInstaladorDialog: React.FC<RegistroInstaladorDialogProps> =
 
   const onSubmit = async (data: FormData) => {
     try {
-      const especialidadesArray = data.especialidades.split(',').map(esp => esp.trim());
+      const formData = getValues();
+      const especialidadesArray = formData.especialidades.split(',').map(esp => esp.trim());
       
-      const bancoData = data.banco ? {
-        banco: data.banco,
-        cuenta: data.cuenta,
-        clabe: data.clabe,
-        titular: data.titular
+      const bancoData = formData.banco ? {
+        banco: formData.banco,
+        cuenta: formData.cuenta,
+        clabe: formData.clabe,
+        titular: formData.titular
       } : undefined;
 
       await createInstalador.mutateAsync({
-        ...data,
+        nombre_completo: formData.nombre_completo,
+        telefono: formData.telefono,
+        email: formData.email,
+        cedula_profesional: formData.cedula_profesional,
         especialidades: especialidadesArray,
+        vehiculo_propio: formData.vehiculo_propio,
         banco_datos: bancoData
       });
       
