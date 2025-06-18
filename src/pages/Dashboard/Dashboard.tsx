@@ -48,41 +48,49 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-1">Vista general del sistema de monitoreo GPS</p>
-      </div>
-
-      {/* Banner de Workflow */}
-      <WorkflowBanner />
-
-      {/* Métricas principales */}
-      <MetricsCards 
-        metrics={dashboardData || defaultMetrics} 
-        isLoading={isLoading} 
-      />
-
-      {/* Gráficos principales */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <GmvChart />
-        <ServiceStatusChart 
-          data={serviceStatusData || defaultServiceStatusData}
-          metrics={dashboardData || defaultMetrics}
-        />
-      </div>
-
-      {/* Calendario y gráficos secundarios */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <ServicesCalendar />
+    <div className="min-h-screen w-full bg-gray-50">
+      <div className="max-w-[1600px] mx-auto p-6 space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600 mt-1">Vista general del sistema de monitoreo GPS</p>
         </div>
-        <div className="space-y-6">
-          <SecondaryCharts 
-            dailyServiceData={dailyServiceData || []}
-            serviceTypesData={serviceTypesData || []}
-            topClientsData={topClientsData || []}
+
+        {/* Banner de Workflow */}
+        <WorkflowBanner />
+
+        {/* Métricas principales - Grid expandido para mejor visualización */}
+        <div className="w-full">
+          <MetricsCards 
+            metrics={dashboardData || defaultMetrics} 
+            isLoading={isLoading} 
           />
+        </div>
+
+        {/* Gráficos principales - Layout mejorado */}
+        <div className="grid gap-8 xl:grid-cols-2">
+          <div className="w-full">
+            <GmvChart />
+          </div>
+          <div className="w-full">
+            <ServiceStatusChart 
+              data={serviceStatusData || defaultServiceStatusData}
+              metrics={dashboardData || defaultMetrics}
+            />
+          </div>
+        </div>
+
+        {/* Calendario y gráficos secundarios - Layout optimizado */}
+        <div className="grid gap-8 xl:grid-cols-3">
+          <div className="xl:col-span-2 w-full">
+            <ServicesCalendar />
+          </div>
+          <div className="w-full">
+            <SecondaryCharts 
+              dailyServiceData={dailyServiceData || []}
+              serviceTypesData={serviceTypesData || []}
+              topClientsData={topClientsData || []}
+            />
+          </div>
         </div>
       </div>
     </div>

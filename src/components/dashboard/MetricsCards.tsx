@@ -102,40 +102,42 @@ export const MetricsCards = ({ metrics, isLoading }: MetricsCardsProps) => {
   ];
   
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-      {cards.map((card, index) => {
-        const Icon = card.icon;
-        return (
-          <Card key={index} className="relative overflow-hidden bg-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-            <div className={`absolute top-0 left-0 w-full h-1 ${card.color}`}></div>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-sm font-medium text-slate-600 leading-tight">
-                {card.title}
-              </CardTitle>
-              <div className={`p-2 rounded-lg ${card.color} bg-opacity-10`}>
-                <Icon className={`h-5 w-5 text-white ${card.color.replace('bg-', 'text-')}`} />
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="text-2xl font-bold text-slate-900">
-                {isLoading ? (
-                  <div className="h-8 w-16 bg-slate-200 animate-pulse rounded"></div>
-                ) : (
-                  card.value
-                )}
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-slate-500 leading-tight">
-                  {card.description}
-                </p>
-                <p className="text-xs font-medium text-slate-700">
-                  {card.trend}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
+    <div className="w-full">
+      <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-4">
+        {cards.map((card, index) => {
+          const Icon = card.icon;
+          return (
+            <Card key={index} className="relative overflow-hidden bg-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 min-h-[140px]">
+              <div className={`absolute top-0 left-0 w-full h-1 ${card.color}`}></div>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 px-4 pt-4">
+                <CardTitle className="text-sm font-medium text-slate-600 leading-tight line-clamp-2">
+                  {card.title}
+                </CardTitle>
+                <div className={`p-2 rounded-lg ${card.color} bg-opacity-10 flex-shrink-0`}>
+                  <Icon className={`h-5 w-5 text-white ${card.color.replace('bg-', 'text-')}`} />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3 px-4 pb-4">
+                <div className="text-2xl font-bold text-slate-900">
+                  {isLoading ? (
+                    <div className="h-8 w-16 bg-slate-200 animate-pulse rounded"></div>
+                  ) : (
+                    <div className="truncate">{card.value}</div>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-slate-500 leading-tight line-clamp-2">
+                    {card.description}
+                  </p>
+                  <p className="text-xs font-medium text-slate-700 truncate">
+                    {card.trend}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 };
