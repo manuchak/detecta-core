@@ -1,382 +1,182 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import type { AprobacionCoordinador, AnalisisRiesgoSeguridad } from '@/types/serviciosMonitoreoCompleto';
 
 export const useAprobacionesWorkflow = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Verificar autenticación del usuario
-  const checkAuth = async () => {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user) {
-      throw new Error('Usuario no autenticado. Por favor, inicie sesión nuevamente.');
-    }
-    return user;
-  };
-
-  // Obtener servicios pendientes de aprobación por coordinador
-  const { data: serviciosPendientesCoordinador, isLoading: loadingCoordinador, error: errorCoordinador } = useQuery({
-    queryKey: ['servicios-pendientes-coordinador'],
+  // Obtener servicios pendientes por etapa
+  const { data: serviciosPorEtapa, isLoading } = useQuery({
+    queryKey: ['servicios-workflow'],
     queryFn: async () => {
-      try {
-        await checkAuth();
-        
-        const { data, error } = await supabase
-          .from('servicios_monitoreo')
-          .select(`
-            *,
-            ejecutivo:profiles!ejecutivo_ventas_id(display_name),
-            aprobacion_coordinador(*)
-          `)
-          .eq('estado_general', 'pendiente_evaluacion')
-          .order('created_at', { ascending: false });
+      const { data, error } = await supabase
+        .from('servicios_monitoreo')
+        .select(`
+          *,
+          analisis_riesgo(*),
+          documentacion_requerida(*),
+          aprobacion_coordinador(*),
+          programacion_instalaciones(*)
+        `)
+        .order('fecha_solicitud', { ascending: false });
 
-        if (error) {
-          console.error('Error fetching coordinator services:', error);
-          throw error;
-        }
-        
-        return data || [];
-      } catch (error) {
-        console.error('Error in servicios-pendientes-coordinador query:', error);
-        throw error;
-      }
-    },
-    retry: (failureCount, error) => {
-      if (error?.message?.includes('autenticado')) return false;
-      return failureCount < 2;
+      if (error) throw error;
+
+      // Agrupar por estado
+      const etapas = {
+        pendiente_evaluacion: data?.filter(s => s.estado_general === 'pendiente_evaluacion') || [],
+        pendiente_analisis_riesgo: data?.filter(s => s.estado_general === 'pendiente_analisis_riesgo') || [],
+        en_evaluacion_riesgo: data?.filter(s => s.estado_general === 'en_evaluacion_riesgo') || [],
+        evaluacion_completada: data?.filter(s => s.estado_general === 'evaluacion_completada') || [],
+        pendiente_aprobacion: data?.filter(s => s.estado_general === 'pendiente_aprobacion') || [],
+        aprobado: data?.filter(s => s.estado_general === 'aprobado') || [],
+        programacion_instalacion: data?.filter(s => s.estado_general === 'programacion_instalacion') || [],
+        instalacion_programada: data?.filter(s => s.estado_general === 'instalacion_programada') || [],
+        instalacion_completada: data?.filter(s => s.estado_general === 'instalacion_completada') || [],
+        servicio_activo: data?.filter(s => s.estado_general === 'servicio_activo') || [],
+        rechazado: data?.filter(s => s.estado_general === 'rechazado') || [],
+        cancelado: data?.filter(s => s.estado_general === 'cancelado') || [],
+        suspendido: data?.filter(s => s.estado_general === 'suspendido') || []
+      };
+
+      return etapas;
     }
   });
 
-  // Obtener servicios pendientes de análisis de riesgo
-  const { data: serviciosPendientesRiesgo, isLoading: loadingRiesgo, error: errorRiesgo } = useQuery({
-    queryKey: ['servicios-pendientes-riesgo'],
-    queryFn: async () => {
-      try {
-        await checkAuth();
-        
-        const { data, error } = await supabase
-          .from('servicios_monitoreo')
-          .select(`
-            *,
-            ejecutivo:profiles!ejecutivo_ventas_id(display_name),
-            analisis_riesgo_seguridad(*)
-          `)
-          .eq('estado_general', 'pendiente_analisis_riesgo')
-          .order('created_at', { ascending: false });
+  // Aprobar servicio (mover a siguiente etapa)
+  const aprobarServicio = useMutation({
+    mutationFn: async ({ servicioId, nuevoEstado, observaciones }: { 
+      servicioId: string; 
+      nuevoEstado: string; 
+      observaciones?: string 
+    }) => {
+      const { data, error } = await supabase
+        .from('servicios_monitoreo')
+        .update({ 
+          estado_general: nuevoEstado,
+          ...(observaciones && { observaciones: observaciones })
+        })
+        .eq('id', servicioId)
+        .select()
+        .single();
 
-        if (error) {
-          console.error('Error fetching risk analysis services:', error);
-          throw error;
-        }
-        
-        return data || [];
-      } catch (error) {
-        console.error('Error in servicios-pendientes-riesgo query:', error);
-        throw error;
-      }
-    },
-    retry: (failureCount, error) => {
-      if (error?.message?.includes('autenticado')) return false;
-      return failureCount < 2;
-    }
-  });
+      if (error) throw error;
 
-  // Crear aprobación de coordinador
-  const crearAprobacionCoordinador = useMutation({
-    mutationFn: async (data: Partial<AprobacionCoordinador> & { estado_aprobacion: 'aprobado' | 'rechazado' | 'requiere_aclaracion'; servicio_id: string }) => {
-      try {
-        const user = await checkAuth();
-        console.log('Iniciando proceso de aprobación para servicio:', data.servicio_id);
+      // Registrar el seguimiento
+      await supabase
+        .from('seguimiento_servicio')
+        .insert({
+          servicio_id: servicioId,
+          tipo_evento: 'cambio_estado',
+          descripcion: `Servicio aprobado y movido a: ${nuevoEstado}`,
+          estado_nuevo: nuevoEstado,
+          usuario_id: (await supabase.auth.getUser()).data.user?.id,
+          datos_adicionales: observaciones ? { observaciones } : null
+        });
 
-        // Validar datos requeridos
-        if (!data.servicio_id || !data.estado_aprobacion) {
-          throw new Error('Datos incompletos para crear la aprobación');
-        }
-
-        // Verificar que el servicio existe y está en estado correcto
-        const { data: servicio, error: servicioError } = await supabase
-          .from('servicios_monitoreo')
-          .select('id, estado_general, numero_servicio')
-          .eq('id', data.servicio_id)
-          .single();
-
-        if (servicioError) {
-          console.error('Error verificando servicio:', servicioError);
-          throw new Error('El servicio especificado no existe');
-        }
-
-        if (servicio.estado_general !== 'pendiente_evaluacion') {
-          throw new Error(`El servicio ${servicio.numero_servicio} no está en estado pendiente de evaluación (estado actual: ${servicio.estado_general})`);
-        }
-
-        console.log('Servicio verificado:', servicio);
-
-        // Verificar si ya existe una aprobación para este servicio
-        const { data: existingApproval, error: checkError } = await supabase
-          .from('aprobacion_coordinador')
-          .select('id')
-          .eq('servicio_id', data.servicio_id)
-          .maybeSingle();
-
-        if (checkError) {
-          console.error('Error verificando aprobación existente:', checkError);
-        }
-
-        if (existingApproval) {
-          throw new Error(`Ya existe una evaluación para el servicio ${servicio.numero_servicio}`);
-        }
-
-        // Preparar datos para inserción
-        const insertData = {
-          servicio_id: data.servicio_id,
-          coordinador_id: user.id,
-          estado_aprobacion: data.estado_aprobacion,
-          fecha_respuesta: new Date().toISOString(),
-          modelo_vehiculo_compatible: data.modelo_vehiculo_compatible ?? false,
-          cobertura_celular_verificada: data.cobertura_celular_verificada ?? false,
-          requiere_instalacion_fisica: data.requiere_instalacion_fisica ?? false,
-          acceso_instalacion_disponible: data.acceso_instalacion_disponible ?? false,
-          restricciones_tecnicas_sla: data.restricciones_tecnicas_sla ?? false,
-          contactos_emergencia_validados: data.contactos_emergencia_validados ?? false,
-          elementos_aclarar_cliente: data.elementos_aclarar_cliente || null,
-          observaciones: data.observaciones || null
-        };
-
-        console.log('Datos a insertar:', insertData);
-
-        // Insertar la aprobación
-        const { data: result, error: insertError } = await supabase
-          .from('aprobacion_coordinador')
-          .insert(insertData)
-          .select()
-          .single();
-
-        if (insertError) {
-          console.error('Error insertando aprobación:', insertError);
-          throw new Error(`Error al crear aprobación: ${insertError.message}`);
-        }
-
-        // Determinar el nuevo estado basado en la aprobación
-        const nuevoEstado = data.estado_aprobacion === 'aprobado' 
-          ? 'pendiente_analisis_riesgo'
-          : data.estado_aprobacion === 'rechazado'
-          ? 'rechazado_coordinador'
-          : 'requiere_aclaracion_cliente';
-
-        // Actualizar el estado del servicio
-        const { error: updateError } = await supabase
-          .from('servicios_monitoreo')
-          .update({ estado_general: nuevoEstado })
-          .eq('id', data.servicio_id);
-
-        if (updateError) {
-          console.error('Error actualizando estado:', updateError);
-          throw new Error(`La evaluación se guardó, pero el estado del servicio no se actualizó: ${updateError.message}`);
-        }
-
-        console.log('Aprobación creada exitosamente');
-        return result;
-      } catch (error) {
-        console.error('Error completo en crearAprobacionCoordinador:', error);
-        throw error;
-      }
+      return data;
     },
     onSuccess: (_, variables) => {
-      // Invalidar queries relacionadas
-      queryClient.invalidateQueries({ queryKey: ['servicios-pendientes-coordinador'] });
-      queryClient.invalidateQueries({ queryKey: ['servicios-pendientes-riesgo'] });
+      queryClient.invalidateQueries({ queryKey: ['servicios-workflow'] });
       queryClient.invalidateQueries({ queryKey: ['servicios-monitoreo'] });
-      
-      const mensaje = variables.estado_aprobacion === 'aprobado' 
-        ? "Servicio aprobado y enviado a análisis de riesgo"
-        : variables.estado_aprobacion === 'rechazado'
-        ? "Servicio rechazado"
-        : "Servicio marcado como requiere aclaración";
-
       toast({
-        title: "Evaluación registrada",
-        description: mensaje,
+        title: "Servicio aprobado",
+        description: `El servicio ha sido movido a: ${variables.nuevoEstado}`,
       });
     },
-    onError: (error: any) => {
-      console.error('Error creating coordinator approval:', error);
-      
-      let errorMessage = "No se pudo registrar la evaluación del coordinador.";
-      
-      if (error?.message?.includes('autenticado')) {
-        errorMessage = "Sesión expirada. Por favor, inicie sesión nuevamente.";
-      } else if (error?.message?.includes('incompletos')) {
-        errorMessage = "Datos incompletos. Verifique que todos los campos estén correctos.";
-      } else if (error?.message?.includes('Ya existe')) {
-        errorMessage = error.message;
-      } else if (error?.message?.includes('no está en estado')) {
-        errorMessage = error.message;
-      } else if (error?.message?.includes('no existe')) {
-        errorMessage = "El servicio especificado no existe.";
-      } else if (error?.message?.includes('row-level security') || error?.code === '42501') {
-        errorMessage = "No tiene permisos para realizar esta acción. Contacte al administrador.";
-      } else if (error?.message?.includes('estado del servicio no se actualizó')) {
-        errorMessage = error.message;
-      }
-
+    onError: (error) => {
       toast({
         title: "Error",
-        description: errorMessage,
+        description: "No se pudo aprobar el servicio.",
         variant: "destructive",
+      });
+      console.error('Error approving service:', error);
+    }
+  });
+
+  // Rechazar servicio
+  const rechazarServicio = useMutation({
+    mutationFn: async ({ servicioId, motivo }: { servicioId: string; motivo: string }) => {
+      const { data, error } = await supabase
+        .from('servicios_monitoreo')
+        .update({ 
+          estado_general: 'rechazado',
+          observaciones: motivo
+        })
+        .eq('id', servicioId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Registrar el seguimiento
+      await supabase
+        .from('seguimiento_servicio')
+        .insert({
+          servicio_id: servicioId,
+          tipo_evento: 'rechazo',
+          descripcion: `Servicio rechazado: ${motivo}`,
+          estado_nuevo: 'rechazado',
+          usuario_id: (await supabase.auth.getUser()).data.user?.id,
+          datos_adicionales: { motivo }
+        });
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['servicios-workflow'] });
+      queryClient.invalidateQueries({ queryKey: ['servicios-monitoreo'] });
+      toast({
+        title: "Servicio rechazado",
+        description: "El servicio ha sido rechazado.",
       });
     }
   });
 
-  // Crear análisis de riesgo
-  const crearAnalisisRiesgo = useMutation({
-    mutationFn: async (data: Partial<AnalisisRiesgoSeguridad> & { estado_analisis: 'completado'; servicio_id: string; aprobado_seguridad: boolean }) => {
-      try {
-        const user = await checkAuth();
+  // Programar instalación (cuando se aprueba y va a instalación)
+  const programarInstalacion = useMutation({
+    mutationFn: async ({ servicioId }: { servicioId: string }) => {
+      const { data, error } = await supabase
+        .from('servicios_monitoreo')
+        .update({ 
+          estado_general: 'programacion_instalacion'
+        })
+        .eq('id', servicioId)
+        .select()
+        .single();
 
-        if (!data.servicio_id || data.aprobado_seguridad === undefined) {
-          throw new Error('Datos incompletos para crear el análisis');
-        }
+      if (error) throw error;
 
-        const insertData = {
-          servicio_id: data.servicio_id,
-          analista_id: user.id,
-          estado_analisis: data.estado_analisis,
-          aprobado_seguridad: data.aprobado_seguridad,
-          tipo_monitoreo_requerido: data.tipo_monitoreo_requerido || null,
-          tipo_activo_proteger: data.tipo_activo_proteger || null,
-          perfil_usuario: data.perfil_usuario || null,
-          zonas_operacion: data.zonas_operacion || null,
-          historial_incidentes: data.historial_incidentes || null,
-          frecuencia_uso_rutas: data.frecuencia_uso_rutas || null,
-          tipo_riesgo_principal: data.tipo_riesgo_principal || null,
-          nivel_exposicion: data.nivel_exposicion || null,
-          controles_actuales_existentes: data.controles_actuales_existentes || null,
-          dispositivos_seguridad_requeridos: data.dispositivos_seguridad_requeridos || null,
-          medios_comunicacion_cliente: data.medios_comunicacion_cliente || null,
-          puntos_criticos_identificados: data.puntos_criticos_identificados || null,
-          apoyo_externo_autoridades: data.apoyo_externo_autoridades || null,
-          calificacion_riesgo: data.calificacion_riesgo || null,
-          recomendaciones: data.recomendaciones || null,
-          equipamiento_recomendado: data.equipamiento_recomendado || null,
-          observaciones: data.observaciones || null
-        };
+      // Registrar el seguimiento
+      await supabase
+        .from('seguimiento_servicio')
+        .insert({
+          servicio_id: servicioId,
+          tipo_evento: 'aprobacion_final',
+          descripcion: 'Servicio aprobado, listo para programar instalación',
+          estado_nuevo: 'programacion_instalacion',
+          usuario_id: (await supabase.auth.getUser()).data.user?.id
+        });
 
-        // Insert risk analysis record
-        const { data: result, error } = await supabase
-          .from('analisis_riesgo_seguridad')
-          .insert(insertData)
-          .select()
-          .single();
-
-        if (error) {
-          console.error('Error inserting risk analysis:', error);
-          throw error;
-        }
-
-        // Update service status based on security approval
-        // Si es aprobado por seguridad, va a programación de instalación
-        const nuevoEstado = data.aprobado_seguridad ? 'programacion_instalacion' : 'rechazado_seguridad';
-
-        const { error: updateError } = await supabase
-          .from('servicios_monitoreo')
-          .update({ estado_general: nuevoEstado })
-          .eq('id', data.servicio_id);
-
-        if (updateError) {
-          console.error('Error updating service status:', updateError);
-          throw updateError;
-        }
-
-        return result;
-      } catch (error) {
-        console.error('Error in crearAnalisisRiesgo:', error);
-        throw error;
-      }
+      return data;
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['servicios-pendientes-riesgo'] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['servicios-workflow'] });
       queryClient.invalidateQueries({ queryKey: ['servicios-monitoreo'] });
-      
-      const mensaje = variables.aprobado_seguridad 
-        ? "Servicio aprobado por seguridad y listo para programar instalación"
-        : "Servicio rechazado por análisis de riesgo";
-
       toast({
-        title: "Análisis completado",
-        description: mensaje,
+        title: "Listo para instalación",
+        description: "El servicio está listo para programar instalación.",
       });
-    },
-    onError: (error: any) => {
-      console.error('Error creating risk analysis:', error);
-      
-      let errorMessage = "No se pudo registrar el análisis de riesgo.";
-      
-      if (error?.message?.includes('autenticado')) {
-        errorMessage = "Sesión expirada. Por favor, inicie sesión nuevamente.";
-      } else if (error?.message?.includes('incompletos')) {
-        errorMessage = "Datos incompletos. Verifique que todos los campos estén correctos.";
-      }
-
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    }
-  });
-
-  // Obtener detalle completo de un servicio
-  const obtenerDetalleServicio = (servicioId: string) => useQuery({
-    queryKey: ['servicio-detalle', servicioId],
-    queryFn: async () => {
-      try {
-        await checkAuth();
-        
-        const { data, error } = await supabase
-          .from('servicios_monitoreo')
-          .select(`
-            *,
-            ejecutivo:profiles!ejecutivo_ventas_id(display_name, email),
-            coordinador:profiles!coordinador_operaciones_id(display_name, email),
-            configuracion_sensores(*),
-            contactos_emergencia_servicio(*),
-            configuracion_reportes(*),
-            aprobacion_coordinador(*),
-            analisis_riesgo_seguridad(*)
-          `)
-          .eq('id', servicioId)
-          .single();
-
-        if (error) {
-          console.error('Error fetching service detail:', error);
-          throw error;
-        }
-        
-        return data;
-      } catch (error) {
-        console.error('Error in obtenerDetalleServicio:', error);
-        throw error;
-      }
-    },
-    enabled: !!servicioId,
-    retry: (failureCount, error) => {
-      if (error?.message?.includes('autenticado')) return false;
-      return failureCount < 2;
     }
   });
 
   return {
-    serviciosPendientesCoordinador,
-    serviciosPendientesRiesgo,
-    loadingCoordinador,
-    loadingRiesgo,
-    errorCoordinador,
-    errorRiesgo,
-    crearAprobacionCoordinador,
-    crearAnalisisRiesgo,
-    obtenerDetalleServicio
+    serviciosPorEtapa,
+    isLoading,
+    aprobarServicio,
+    rechazarServicio,
+    programarInstalacion
   };
 };

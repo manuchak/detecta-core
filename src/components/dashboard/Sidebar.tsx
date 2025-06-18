@@ -1,3 +1,4 @@
+
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,9 @@ import {
   User,
   LogOut,
   LogIn,
+  Calendar,
+  Users,
+  Wrench,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -89,8 +93,8 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         },
         {
           title: "Aprobación de Leads",
-          href: "/leads/approval",
-          isActive: pathname === "/leads/approval",
+          href: "/leads/approvals",
+          isActive: pathname === "/leads/approvals",
         },
       ],
     },
@@ -114,19 +118,29 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     },
     {
       title: "Instalaciones GPS",
-      href: "/installations",
+      href: "/installers",
       icon: MonitorIcon,
-      isActive: pathname.startsWith("/installations"),
+      isActive: pathname.startsWith("/installers"),
       submenu: [
         {
-          title: "Calendario",
-          href: "/installations",
-          isActive: pathname === "/installations",
+          title: "Portal Instaladores",
+          href: "/installers",
+          isActive: pathname === "/installers",
         },
         {
-          title: "Instaladores",
-          href: "/installations/installers",
-          isActive: pathname === "/installations/installers",
+          title: "Calendario",
+          href: "/installers/calendar",
+          isActive: pathname === "/installers/calendar",
+        },
+        {
+          title: "Programación",
+          href: "/installers/schedule",
+          isActive: pathname === "/installers/schedule",
+        },
+        {
+          title: "Gestión Instaladores",
+          href: "/installers/management",
+          isActive: pathname === "/installers/management",
         },
       ],
     },
@@ -135,6 +149,23 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       href: "/monitoring",
       icon: BarChartBig,
       isActive: pathname.startsWith("/monitoring"),
+      submenu: [
+        {
+          title: "Monitoreo General",
+          href: "/monitoring",
+          isActive: pathname === "/monitoring",
+        },
+        {
+          title: "Supply Chain",
+          href: "/monitoring/supply-chain",
+          isActive: pathname === "/monitoring/supply-chain",
+        },
+        {
+          title: "Auditoría Forense",
+          href: "/monitoring/forensic-audit",
+          isActive: pathname === "/monitoring/forensic-audit",
+        },
+      ],
     },
     {
       title: "Tickets",
@@ -228,7 +259,6 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     </div>
   );
 
-  // Non-authenticated user section
   const NonAuthenticatedUserSection = () => (
     <div className="border-t p-4">
       <div className="space-y-2">
@@ -250,7 +280,6 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     </div>
   );
 
-  // Mobile sidebar with sheet
   if (isMobile) {
     return (
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -265,7 +294,6 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             <ScrollArea className="flex-1 px-2 py-4">
               <div className="flex flex-col gap-1">
                 {sidebarLinks.map((link) => {
-                  // No submenu case
                   if (!link.submenu) {
                     return (
                       <Link
@@ -282,7 +310,6 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                     );
                   }
                   
-                  // With submenu case - using Accordion for mobile
                   return (
                     <Accordion type="single" collapsible key={link.href}>
                       <AccordionItem value={link.title} className="border-none">
@@ -326,7 +353,6 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     );
   }
 
-  // Desktop sidebar
   return (
     <div
       className={cn(
@@ -347,7 +373,6 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       <ScrollArea className="flex-1">
         <div className="flex flex-col gap-1 p-2">
           {sidebarLinks.map((link) => {
-            // No submenu case
             if (!link.submenu) {
               return (
                 <Link
@@ -364,7 +389,6 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
               );
             }
             
-            // With submenu case - only show accordion when sidebar is open
             if (isOpen) {
               return (
                 <Accordion type="single" collapsible key={link.href}>
@@ -401,7 +425,6 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
               );
             }
             
-            // When sidebar is collapsed, just show the main link with icon
             return (
               <Link
                 key={link.href}

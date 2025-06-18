@@ -38,6 +38,7 @@ import ForensicAuditPage from "@/pages/Monitoring/ForensicAuditPage";
 import InstallerPortal from "@/pages/Installers/InstallerPortal";
 import InstallationSchedule from "@/pages/Installers/InstallationSchedule";
 import InstallerManagement from "@/pages/Installers/InstallerManagement";
+import InstallationCalendar from "@/pages/Installers/InstallationCalendar";
 
 // Admin pages
 import LandingManager from "@/pages/Admin/LandingManager";
@@ -81,6 +82,7 @@ const App = () => (
 
             {/* Installer routes */}
             <Route path="/installers" element={<ProtectedRoute><DashboardLayout><InstallerPortal /></DashboardLayout></ProtectedRoute>} />
+            <Route path="/installers/calendar" element={<ProtectedRoute><DashboardLayout><InstallationCalendar /></DashboardLayout></ProtectedRoute>} />
             <Route path="/installers/schedule" element={<ProtectedRoute><DashboardLayout><InstallationSchedule /></DashboardLayout></ProtectedRoute>} />
             <Route path="/installers/management" element={<ProtectedRoute><DashboardLayout><InstallerManagement /></DashboardLayout></ProtectedRoute>} />
 
