@@ -7,7 +7,7 @@ import { ServicesCalendar } from "@/components/dashboard/ServicesCalendar";
 import { ServiceStatusChart } from "@/components/dashboard/ServiceStatusChart";
 import { SecondaryCharts } from "@/components/dashboard/SecondaryCharts";
 import WorkflowBanner from "@/components/dashboard/WorkflowBanner";
-import { useDashboardData } from "@/hooks/useDashboardData";
+import { useDashboardDataCorrected } from "@/hooks/useDashboardDataCorrected";
 
 const Dashboard = () => {
   const { 
@@ -17,7 +17,7 @@ const Dashboard = () => {
     serviceTypesData, 
     topClientsData, 
     isLoading 
-  } = useDashboardData();
+  } = useDashboardDataCorrected();
 
   // Provide default data structure to prevent component errors
   const defaultMetrics = {
@@ -29,7 +29,15 @@ const Dashboard = () => {
     completedServices: 0,
     ongoingServices: 0,
     cancelledServices: 0,
-    pendingServices: 0
+    pendingServices: 0,
+    totalServicesGrowth: 0,
+    totalGMVGrowth: 0,
+    activeClientsGrowth: 0,
+    averageServiceValueGrowth: 0,
+    completedServicesPercentage: 0,
+    ongoingServicesPercentage: 0,
+    cancelledServicesPercentage: 0,
+    pendingServicesPercentage: 0
   };
 
   const defaultServiceStatusData = [
