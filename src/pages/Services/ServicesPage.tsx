@@ -1,12 +1,12 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Shield, ClipboardCheck, Settings, Activity, Calendar, Wrench, UserCheck, AlertTriangle } from 'lucide-react';
+import { Shield, ClipboardCheck, Settings, Activity, Calendar, Wrench, AlertTriangle } from 'lucide-react';
 import { useServiciosMonitoreo } from '@/hooks/useServiciosMonitoreo';
 import { useProgramacionInstalaciones } from '@/hooks/useProgramacionInstalaciones';
 import { useAprobacionesWorkflow } from '@/hooks/useAprobacionesWorkflow';
-import { ServicioForm } from './components/ServicioForm';
 import { ServiciosTable } from './components/ServiciosTable';
 import { AnalisisRiesgoDialog } from './components/AnalisisRiesgoDialog';
 import { ProgramarInstalacionDialog } from '@/pages/Installers/components/ProgramarInstalacionDialog';
@@ -15,7 +15,6 @@ import { PanelAnalisisRiesgo } from '@/components/servicios/PanelAnalisisRiesgo'
 import { Badge } from '@/components/ui/badge';
 
 export const ServicesPage = () => {
-  const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedServicioId, setSelectedServicioId] = useState<string | null>(null);
   const [showAnalisisDialog, setShowAnalisisDialog] = useState(false);
   const [showProgramarInstalacion, setShowProgramarInstalacion] = useState(false);
@@ -46,10 +45,6 @@ export const ServicesPage = () => {
             Gestión integral de servicios de seguridad y monitoreo
           </p>
         </div>
-        <Button onClick={() => setShowCreateForm(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo Servicio
-        </Button>
       </div>
 
       {/* Estadísticas */}
@@ -274,13 +269,6 @@ export const ServicesPage = () => {
       </Card>
 
       {/* Dialogs */}
-      {showCreateForm && (
-        <ServicioForm
-          open={showCreateForm}
-          onOpenChange={setShowCreateForm}
-        />
-      )}
-
       {showAnalisisDialog && selectedServicioId && (
         <AnalisisRiesgoDialog
           open={showAnalisisDialog}
