@@ -84,20 +84,29 @@ export const PasoPreferenciasGPS = ({ form }: PasoPreferenciasGPSProps) => {
     { value: 'por_definir', label: 'Por definir', descripcion: 'Prefiero ver opciones antes de decidir' }
   ];
 
-  // Arreglar el manejo de objetivos seleccionados
+  // Corregido: Manejo seguro del estado de objetivos seleccionados
   const selectedObjetivos = form.watch('objetivos_principales') || [];
 
+  // Corregido: Función para manejar la selección de objetivos
   const handleObjetivoToggle = (objetivo: string) => {
-    const current = [...selectedObjetivos];
-    const index = current.indexOf(objetivo);
+    console.log('Toggling objetivo:', objetivo);
+    console.log('Current selected:', selectedObjetivos);
     
+    // Crear una nueva copia del array para evitar mutación directa
+    const currentSelection = Array.isArray(selectedObjetivos) ? [...selectedObjetivos] : [];
+    const index = currentSelection.indexOf(objetivo);
+    
+    let newSelection;
     if (index > -1) {
-      current.splice(index, 1);
+      // Remover el objetivo si ya está seleccionado
+      newSelection = currentSelection.filter(item => item !== objetivo);
     } else {
-      current.push(objetivo);
+      // Agregar el objetivo si no está seleccionado
+      newSelection = [...currentSelection, objetivo];
     }
     
-    form.setValue('objetivos_principales', current);
+    console.log('New selection:', newSelection);
+    form.setValue('objetivos_principales', newSelection, { shouldValidate: true });
   };
 
   return (
@@ -116,7 +125,9 @@ export const PasoPreferenciasGPS = ({ form }: PasoPreferenciasGPSProps) => {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {objetivos.map((objetivo) => {
-              const isSelected = selectedObjetivos.includes(objetivo.value);
+              const isSelected = Array.isArray(selectedObjetivos) && selectedObjetivos.includes(objetivo.value);
+              console.log(`Objetivo ${objetivo.value} is selected:`, isSelected);
+              
               return (
                 <div
                   key={objetivo.value}
@@ -150,7 +161,7 @@ export const PasoPreferenciasGPS = ({ form }: PasoPreferenciasGPSProps) => {
         </CardContent>
       </Card>
 
-      {/* Condiciones Especiales - Mejorado el UI y corregido alineación */}
+      {/* Condiciones Especiales */}
       <Card className="border-l-4 border-l-orange-500">
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -191,7 +202,7 @@ export const PasoPreferenciasGPS = ({ form }: PasoPreferenciasGPSProps) => {
         </CardContent>
       </Card>
 
-      {/* Rango de Presupuesto - Mejorado el UI */}
+      {/* Rango de Presupuesto */}
       <Card className="border-l-4 border-l-green-500">
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-2 text-lg">
