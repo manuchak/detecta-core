@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -53,8 +52,8 @@ interface FormularioAnalisisRiesgo {
   
   // Resultado del análisis - Fixed types to match expected schema
   score_calculado: number;
-  nivel_riesgo_final: 'bajo' | 'medio' | 'alto' | 'critico' | '';
-  decision_final: 'aprobado_sin_observaciones' | 'aprobado_con_recomendaciones' | 'no_autorizado' | '';
+  nivel_riesgo_final: 'bajo' | 'medio' | 'alto' | 'critico';
+  decision_final: 'aprobado_sin_observaciones' | 'aprobado_con_recomendaciones' | 'no_autorizado';
 }
 
 export const PanelAnalisisRiesgoRobusto = () => {
@@ -89,8 +88,8 @@ export const PanelAnalisisRiesgoRobusto = () => {
     boton_panico_recomendado: false,
     observaciones_generales: '',
     score_calculado: 0,
-    nivel_riesgo_final: '',
-    decision_final: ''
+    nivel_riesgo_final: 'bajo',
+    decision_final: 'aprobado_sin_observaciones'
   });
 
   // Función de cálculo de score basada en metodologías de riesgo logístico
@@ -161,7 +160,7 @@ export const PanelAnalisisRiesgoRobusto = () => {
     return 'critico'; // Changed from 'no_viable' to 'critico'
   };
 
-  const sugerirDecision = (nivel: string, data: FormularioAnalisisRiesgo): string => {
+  const sugerirDecision = (nivel: string, data: FormularioAnalisisRiesgo): 'aprobado_sin_observaciones' | 'aprobado_con_recomendaciones' | 'no_autorizado' => {
     // Factores que automáticamente requieren rechazo
     if (nivel === 'critico' || 
         (data.robos_ultimos_12_meses && data.sin_centro_monitoreo_24h) ||
@@ -185,7 +184,7 @@ export const PanelAnalisisRiesgoRobusto = () => {
       ...newData,
       score_calculado: score,
       nivel_riesgo_final: nivel,
-      decision_final: decision as any
+      decision_final: decision
     });
   };
 
@@ -215,6 +214,20 @@ export const PanelAnalisisRiesgoRobusto = () => {
 
     await crearAnalisisRiesgo.mutateAsync(analisisData);
     setServicioSeleccionado(null);
+    resetForm();
+  };
+
+  const getRiesgoColor = (nivel: string) => {
+    switch (nivel) {
+      case 'bajo': return 'bg-green-100 text-green-800';
+      case 'medio': return 'bg-yellow-100 text-yellow-800';
+      case 'alto': return 'bg-orange-100 text-orange-800';
+      case 'critico': return 'bg-red-100 text-red-800'; // Updated from 'no_viable' to 'critico'
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const resetForm = () => {
     setFormData({
       tipo_monitoreo_requerido: '',
       tipo_activo_proteger: '',
@@ -244,19 +257,9 @@ export const PanelAnalisisRiesgoRobusto = () => {
       boton_panico_recomendado: false,
       observaciones_generales: '',
       score_calculado: 0,
-      nivel_riesgo_final: '',
-      decision_final: ''
+      nivel_riesgo_final: 'bajo',
+      decision_final: 'aprobado_sin_observaciones'
     });
-  };
-
-  const getRiesgoColor = (nivel: string) => {
-    switch (nivel) {
-      case 'bajo': return 'bg-green-100 text-green-800';
-      case 'medio': return 'bg-yellow-100 text-yellow-800';
-      case 'alto': return 'bg-orange-100 text-orange-800';
-      case 'critico': return 'bg-red-100 text-red-800'; // Updated from 'no_viable' to 'critico'
-      default: return 'bg-gray-100 text-gray-800';
-    }
   };
 
   if (loadingRiesgo) {
@@ -593,38 +596,7 @@ export const PanelAnalisisRiesgoRobusto = () => {
                   <Button
                     onClick={() => {
                       setServicioSeleccionado(null);
-                      setFormData({
-                        tipo_monitoreo_requerido: '',
-                        tipo_activo_proteger: '',
-                        perfil_usuario: '',
-                        carga_alto_valor: false,
-                        carga_regulada: false,
-                        robos_ultimos_12_meses: false,
-                        rutas_alto_riesgo: false,
-                        sin_politicas_seguridad: false,
-                        sin_responsable_seguridad: false,
-                        vehiculos_sin_blindaje: false,
-                        conductores_sin_protocolos: false,
-                        gps_no_homologado: false,
-                        sin_boton_panico: false,
-                        sin_centro_monitoreo_24h: false,
-                        sin_bitacora_trazabilidad: false,
-                        identidad_legal_validada: false,
-                        antecedentes_revisados: false,
-                        politica_seguridad_escrita: false,
-                        procedimientos_siniestros: false,
-                        terceriza_operacion: false,
-                        manual_rutas_seguras: false,
-                        zona_operacion: '',
-                        experiencia_cliente: '',
-                        volumen_operacion: '',
-                        capacitacion_requerida: false,
-                        boton_panico_recomendado: false,
-                        observaciones_generales: '',
-                        score_calculado: 0,
-                        nivel_riesgo_final: '',
-                        decision_final: ''
-                      });
+                      resetForm();
                     }}
                     variant="outline"
                   >
