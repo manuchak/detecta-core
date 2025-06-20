@@ -84,34 +84,9 @@ export const PasoPreferenciasGPS = ({ form }: PasoPreferenciasGPSProps) => {
     { value: 'por_definir', label: 'Por definir', descripcion: 'Prefiero ver opciones antes de decidir' }
   ];
 
-  // Corregido: Manejo seguro del estado de objetivos seleccionados
-  const selectedObjetivos = form.watch('objetivos_principales') || [];
-
-  // Corregido: Función para manejar la selección de objetivos
-  const handleObjetivoToggle = (objetivo: string) => {
-    console.log('Toggling objetivo:', objetivo);
-    console.log('Current selected:', selectedObjetivos);
-    
-    // Crear una nueva copia del array para evitar mutación directa
-    const currentSelection = Array.isArray(selectedObjetivos) ? [...selectedObjetivos] : [];
-    const index = currentSelection.indexOf(objetivo);
-    
-    let newSelection;
-    if (index > -1) {
-      // Remover el objetivo si ya está seleccionado
-      newSelection = currentSelection.filter(item => item !== objetivo);
-    } else {
-      // Agregar el objetivo si no está seleccionado
-      newSelection = [...currentSelection, objetivo];
-    }
-    
-    console.log('New selection:', newSelection);
-    form.setValue('objetivos_principales', newSelection, { shouldValidate: true });
-  };
-
   return (
     <div className="space-y-8">
-      {/* Objetivos Principales - Corregido el bug de selección */}
+      {/* Objetivos Principales - FormField para manejar correctamente el estado */}
       <Card className="border-l-4 border-l-blue-500">
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -123,41 +98,80 @@ export const PasoPreferenciasGPS = ({ form }: PasoPreferenciasGPSProps) => {
           </p>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {objetivos.map((objetivo) => {
-              const isSelected = Array.isArray(selectedObjetivos) && selectedObjetivos.includes(objetivo.value);
-              console.log(`Objetivo ${objetivo.value} is selected:`, isSelected);
-              
-              return (
-                <div
-                  key={objetivo.value}
-                  className={`relative border-2 rounded-lg p-4 cursor-pointer transition-all duration-200 hover:shadow-md ${
-                    isSelected 
-                      ? 'border-blue-500 bg-blue-50 shadow-sm' 
-                      : 'border-gray-200 hover:border-gray-300 bg-white'
-                  }`}
-                  onClick={() => handleObjetivoToggle(objetivo.value)}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl">{objetivo.icono}</span>
-                      <Badge className={`${objetivo.color} border`}>
-                        {objetivo.label}
-                      </Badge>
-                    </div>
-                    <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={() => handleObjetivoToggle(objetivo.value)}
-                      className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-                    />
-                  </div>
-                  <p className="text-sm text-gray-600 leading-relaxed">
-                    {objetivo.descripcion}
-                  </p>
+          <FormField
+            control={form.control}
+            name="objetivos_principales"
+            render={({ field }) => (
+              <FormItem>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {objetivos.map((objetivo) => {
+                    // Ensure field.value is always an array
+                    const currentValues = Array.isArray(field.value) ? field.value : [];
+                    const isSelected = currentValues.includes(objetivo.value);
+                    
+                    const handleToggle = (event: React.MouseEvent) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      
+                      console.log('Toggling objetivo:', objetivo.value);
+                      console.log('Current values:', currentValues);
+                      
+                      let newValues;
+                      if (isSelected) {
+                        // Remove the objective
+                        newValues = currentValues.filter(item => item !== objetivo.value);
+                      } else {
+                        // Add the objective
+                        newValues = [...currentValues, objetivo.value];
+                      }
+                      
+                      console.log('New values:', newValues);
+                      field.onChange(newValues);
+                    };
+                    
+                    return (
+                      <div
+                        key={objetivo.value}
+                        className={`relative border-2 rounded-lg p-4 transition-all duration-200 hover:shadow-md ${
+                          isSelected 
+                            ? 'border-blue-500 bg-blue-50 shadow-sm' 
+                            : 'border-gray-200 hover:border-gray-300 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xl">{objetivo.icono}</span>
+                            <Badge className={`${objetivo.color} border`}>
+                              {objetivo.label}
+                            </Badge>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleToggle}
+                            className="flex items-center justify-center w-5 h-5 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            {isSelected && (
+                              <div className="w-3 h-3 bg-blue-600 rounded-sm"></div>
+                            )}
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleToggle}
+                          className="w-full text-left"
+                        >
+                          <p className="text-sm text-gray-600 leading-relaxed">
+                            {objetivo.descripcion}
+                          </p>
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </CardContent>
       </Card>
 
@@ -221,9 +235,10 @@ export const PasoPreferenciasGPS = ({ form }: PasoPreferenciasGPSProps) => {
               <FormItem>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {rangosPresupuesto.map((rango) => (
-                    <div
+                    <button
                       key={rango.value}
-                      className={`border-2 rounded-lg p-4 cursor-pointer transition-all duration-200 hover:shadow-md ${
+                      type="button"
+                      className={`border-2 rounded-lg p-4 transition-all duration-200 hover:shadow-md text-left ${
                         field.value === rango.value 
                           ? 'border-green-500 bg-green-50 shadow-sm' 
                           : 'border-gray-200 hover:border-gray-300 bg-white'
@@ -232,15 +247,18 @@ export const PasoPreferenciasGPS = ({ form }: PasoPreferenciasGPSProps) => {
                     >
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-medium text-sm">{rango.label}</span>
-                        <input
-                          type="radio"
-                          checked={field.value === rango.value}
-                          onChange={() => field.onChange(rango.value)}
-                          className="h-4 w-4 text-green-600 border-gray-300 focus:ring-green-500"
-                        />
+                        <div className={`w-4 h-4 rounded-full border-2 ${
+                          field.value === rango.value
+                            ? 'border-green-500 bg-green-500'
+                            : 'border-gray-300'
+                        }`}>
+                          {field.value === rango.value && (
+                            <div className="w-2 h-2 bg-white rounded-full m-0.5"></div>
+                          )}
+                        </div>
                       </div>
                       <p className="text-xs text-gray-600">{rango.descripcion}</p>
-                    </div>
+                    </button>
                   ))}
                 </div>
                 <FormMessage />
