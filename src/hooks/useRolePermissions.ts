@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
@@ -116,13 +115,19 @@ export const useRolePermissions = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Query to get all permissions by role
+  // Query to get all permissions by role using secure function
   const { data: permissions, isLoading, error, refetch } = useQuery({
     queryKey: ['role-permissions'],
     queryFn: async () => {
       try {
-        // Get all permissions using helper functions
-        const rolePermissions = await fetchRolePermissions();
+        // Use the secure function to get permissions
+        const { data: rolePermissions, error: permissionsError } = await supabase
+          .rpc('get_role_permissions_secure');
+        
+        if (permissionsError) {
+          console.error('Error fetching permissions:', permissionsError);
+          throw permissionsError;
+        }
         
         // Get all available roles
         const allRoles = await fetchAvailableRoles();
@@ -137,7 +142,7 @@ export const useRolePermissions = () => {
         
         // Populate with fetched permissions
         if (rolePermissions && Array.isArray(rolePermissions)) {
-          rolePermissions.forEach(permission => {
+          rolePermissions.forEach((permission: any) => {
             const typedRole = permission.role as Role;
             
             if (!permissionsByRole[typedRole]) {
@@ -165,28 +170,32 @@ export const useRolePermissions = () => {
     retry: 1,
   });
 
-  // Mutation to update an existing permission
+  // Mutation to update an existing permission using secure function
   const updatePermission = useMutation({
     mutationFn: async ({ id, allowed }: { id: string, allowed: boolean }) => {
       try {
-        const { data, error } = await supabase
-          .from('role_permissions')
-          .update({ allowed })
-          .eq('id', id)
-          .select('id, allowed')
-          .single();
+        console.log(`Attempting to update permission ${id} to ${allowed}`);
+        
+        // Use the secure function to update permission
+        const { data, error } = await supabase.rpc('update_role_permission_secure', {
+          p_permission_id: id,
+          p_allowed: allowed
+        });
         
         if (error) {
-          throw new Error(`Error updating permission: ${error.message}`);
+          console.error('Error updating permission:', error);
+          throw new Error(`Error actualizando permiso: ${error.message}`);
         }
         
+        console.log('Permission updated successfully');
         return { id, allowed };
       } catch (error) {
-        console.error('Error in updatePermission:', error);
+        console.error('Error in updatePermission mutation:', error);
         throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Permission update mutation successful:', data);
       queryClient.invalidateQueries({ queryKey: ['role-permissions'] });
       toast({
         title: "Permiso actualizado",
@@ -194,9 +203,11 @@ export const useRolePermissions = () => {
       });
     },
     onError: (error) => {
+      console.error('Permission update mutation failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Error al actualizar el permiso",
+        title: "Error al actualizar permiso",
+        description: `Detalles: ${errorMessage}`,
         variant: "destructive",
       });
     }
