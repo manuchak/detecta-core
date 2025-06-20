@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +10,7 @@ import { ServiciosTable } from './components/ServiciosTable';
 import { ProgramarInstalacionMejorada } from '@/components/instalaciones/ProgramarInstalacionMejorada';
 import { FormularioServicioCompleto } from '@/components/servicios/FormularioServicioCompleto';
 import { PanelAprobacionCoordinador } from '@/components/servicios/PanelAprobacionCoordinador';
-import { PanelAnalisisRiesgo } from '@/components/servicios/PanelAnalisisRiesgo';
+import { PanelAnalisisRiesgoRobusto } from '@/components/servicios/PanelAnalisisRiesgoRobusto';
 import { Badge } from '@/components/ui/badge';
 
 export const ServicesPage = () => {
@@ -171,7 +170,7 @@ export const ServicesPage = () => {
             </TabsContent>
 
             <TabsContent value="seguridad" className="mt-6">
-              <PanelAnalisisRiesgo />
+              <PanelAnalisisRiesgoRobusto />
             </TabsContent>
             
             <TabsContent value="instalaciones" className="mt-6">
