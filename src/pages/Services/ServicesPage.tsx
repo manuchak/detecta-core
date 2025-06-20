@@ -8,7 +8,6 @@ import { useServiciosMonitoreo } from '@/hooks/useServiciosMonitoreo';
 import { useProgramacionInstalaciones } from '@/hooks/useProgramacionInstalaciones';
 import { useAprobacionesWorkflow } from '@/hooks/useAprobacionesWorkflow';
 import { ServiciosTable } from './components/ServiciosTable';
-import { AnalisisRiesgoDialog } from './components/AnalisisRiesgoDialog';
 import { ProgramarInstalacionDialog } from '@/pages/Installers/components/ProgramarInstalacionDialog';
 import { PanelAprobacionCoordinador } from '@/components/servicios/PanelAprobacionCoordinador';
 import { PanelAnalisisRiesgo } from '@/components/servicios/PanelAnalisisRiesgo';
@@ -16,7 +15,6 @@ import { Badge } from '@/components/ui/badge';
 
 export const ServicesPage = () => {
   const [selectedServicioId, setSelectedServicioId] = useState<string | null>(null);
-  const [showAnalisisDialog, setShowAnalisisDialog] = useState(false);
   const [showProgramarInstalacion, setShowProgramarInstalacion] = useState(false);
   
   const { servicios, isLoading } = useServiciosMonitoreo();
@@ -125,7 +123,7 @@ export const ServicesPage = () => {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="servicios" className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="servicios">
                 Todos los Servicios
               </TabsTrigger>
@@ -146,17 +144,12 @@ export const ServicesPage = () => {
                 )}
               </TabsTrigger>
               <TabsTrigger value="instalaciones">Instalaciones GPS</TabsTrigger>
-              <TabsTrigger value="configuracion">Configuración</TabsTrigger>
             </TabsList>
             
             <TabsContent value="servicios" className="mt-6">
               <ServiciosTable 
                 servicios={servicios || []} 
                 isLoading={isLoading}
-                onAnalisisRiesgo={(servicioId) => {
-                  setSelectedServicioId(servicioId);
-                  setShowAnalisisDialog(true);
-                }}
                 onProgramarInstalacion={(servicioId) => {
                   setSelectedServicioId(servicioId);
                   setShowProgramarInstalacion(true);
@@ -252,31 +245,11 @@ export const ServicesPage = () => {
                 )}
               </div>
             </TabsContent>
-            
-            <TabsContent value="configuracion" className="mt-6">
-              <div className="text-center py-8">
-                <Settings className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Configuración de Monitoreo
-                </h3>
-                <p className="text-gray-600">
-                  Configuración de parámetros de monitoreo y alertas
-                </p>
-              </div>
-            </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
 
       {/* Dialogs */}
-      {showAnalisisDialog && selectedServicioId && (
-        <AnalisisRiesgoDialog
-          open={showAnalisisDialog}
-          onOpenChange={setShowAnalisisDialog}
-          servicioId={selectedServicioId}
-        />
-      )}
-
       {showProgramarInstalacion && (
         <ProgramarInstalacionDialog
           open={showProgramarInstalacion}
