@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, CheckCircle, Map, Timer, XCircle, Clock, MapPin, Phone } from "lucide-react";
+import { Calendar, CheckCircle, Map, Timer, XCircle, Clock, MapPin, Phone, User } from "lucide-react";
 import { useProgramacionInstalaciones } from "@/hooks/useProgramacionInstalaciones";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -42,6 +42,14 @@ export const InstallerPortal = () => {
     : 0;
 
   const dispositivosInstalados = instalacionesCompletadas.length;
+
+  const handleConfirmarInstalacion = (instalacionId: string) => {
+    updateEstadoInstalacion.mutate({ 
+      id: instalacionId, 
+      estado: 'confirmada',
+      observaciones: 'Servicio confirmado por el instalador'
+    });
+  };
 
   const handleIniciarInstalacion = (instalacionId: string) => {
     updateEstadoInstalacion.mutate({ 
@@ -163,6 +171,7 @@ export const InstallerPortal = () => {
                   <TableHead>Fecha</TableHead>
                   <TableHead className="hidden lg:table-cell">Tiempo Est.</TableHead>
                   <TableHead className="hidden md:table-cell">Tipo</TableHead>
+                  <TableHead>Instalador</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead className="w-[120px]">Acción</TableHead>
                 </TableRow>
@@ -209,10 +218,35 @@ export const InstallerPortal = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
+                      {instalacion.instalador ? (
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-gray-400" />
+                          <div className="text-sm">
+                            <p className="font-medium">{instalacion.instalador.nombre_completo}</p>
+                            <p className="text-xs text-gray-500">{instalacion.instalador.telefono}</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-orange-600">
+                          <User className="h-4 w-4" />
+                          <span className="text-sm">Sin asignar</span>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
                       {getEstadoBadge(instalacion.estado)}
                     </TableCell>
                     <TableCell>
-                      {instalacion.estado === 'programada' || instalacion.estado === 'confirmada' ? (
+                      {instalacion.estado === 'programada' ? (
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleConfirmarInstalacion(instalacion.id)}
+                          disabled={updateEstadoInstalacion.isPending}
+                        >
+                          Confirmar
+                        </Button>
+                      ) : instalacion.estado === 'confirmada' ? (
                         <Button 
                           size="sm" 
                           variant="outline"
