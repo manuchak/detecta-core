@@ -1,11 +1,10 @@
-
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Calendar, MapPin, Shield, Eye, Filter, Search, Clock } from 'lucide-react';
+import { Calendar, MapPin, Shield, Eye, Filter, Search, Clock, CheckCircle, AlertTriangle, Settings } from 'lucide-react';
 import { DetalleServicioDialog } from '@/components/servicios/DetalleServicioDialog';
 
 // Using a generic type since ServicioMonitoreo is not exported
@@ -42,23 +41,36 @@ export const ServiciosTable = ({
 
   const getEstadoBadge = (estado: string) => {
     const config = {
-      'pendiente_evaluacion': { color: 'bg-yellow-100 text-yellow-800', label: 'Pendiente Evaluación' },
-      'pendiente_analisis_riesgo': { color: 'bg-orange-100 text-orange-800', label: 'Pendiente Análisis' },
-      'en_evaluacion_riesgo': { color: 'bg-blue-100 text-blue-800', label: 'En Evaluación' },
-      'evaluacion_completada': { color: 'bg-green-100 text-green-800', label: 'Evaluación Completada' },
-      'pendiente_aprobacion': { color: 'bg-purple-100 text-purple-800', label: 'Pendiente Aprobación' },
-      'aprobado': { color: 'bg-green-100 text-green-800', label: 'Aprobado' },
-      'programacion_instalacion': { color: 'bg-blue-100 text-blue-800', label: 'Programando Instalación' },
-      'instalacion_programada': { color: 'bg-indigo-100 text-indigo-800', label: 'Pendiente Instalación GPS' },
-      'instalacion_completada': { color: 'bg-green-100 text-green-800', label: 'Instalación Completada' },
-      'servicio_activo': { color: 'bg-green-100 text-green-800', label: 'Servicio Activo' },
-      'rechazado': { color: 'bg-red-100 text-red-800', label: 'Rechazado' },
-      'cancelado': { color: 'bg-gray-100 text-gray-800', label: 'Cancelado' },
-      'suspendido': { color: 'bg-red-100 text-red-800', label: 'Suspendido' }
+      'pendiente_evaluacion': { color: 'bg-yellow-100 text-yellow-800', label: 'Pendiente Evaluación', icon: Clock },
+      'pendiente_analisis_riesgo': { color: 'bg-orange-100 text-orange-800', label: 'Pendiente Análisis', icon: AlertTriangle },
+      'en_evaluacion_riesgo': { color: 'bg-blue-100 text-blue-800', label: 'En Evaluación', icon: Settings },
+      'evaluacion_completada': { color: 'bg-green-100 text-green-800', label: 'Evaluación Completada', icon: CheckCircle },
+      'pendiente_aprobacion': { color: 'bg-purple-100 text-purple-800', label: 'Pendiente Aprobación', icon: Clock },
+      'aprobado': { color: 'bg-green-100 text-green-800', label: 'Aprobado', icon: CheckCircle },
+      'programacion_instalacion': { color: 'bg-blue-100 text-blue-800', label: 'Programando Instalación', icon: Calendar },
+      'instalacion_programada': { color: 'bg-indigo-100 text-indigo-800', label: 'Instalación Programada', icon: Calendar },
+      'instalacion_en_proceso': { color: 'bg-orange-100 text-orange-800', label: 'Instalación en Proceso', icon: Settings },
+      'instalacion_completada': { color: 'bg-green-100 text-green-800', label: 'Instalación Completada', icon: CheckCircle },
+      'servicio_activo': { color: 'bg-green-100 text-green-800', label: 'Servicio Activo', icon: CheckCircle },
+      'rechazado': { color: 'bg-red-100 text-red-800', label: 'Rechazado', icon: AlertTriangle },
+      'cancelado': { color: 'bg-gray-100 text-gray-800', label: 'Cancelado', icon: AlertTriangle },
+      'suspendido': { color: 'bg-red-100 text-red-800', label: 'Suspendido', icon: AlertTriangle }
     };
 
-    const item = config[estado as keyof typeof config] || { color: 'bg-gray-100 text-gray-800', label: estado };
-    return <Badge className={item.color}>{item.label}</Badge>;
+    const item = config[estado as keyof typeof config] || { 
+      color: 'bg-gray-100 text-gray-800', 
+      label: estado.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      icon: Clock
+    };
+    
+    const IconComponent = item.icon;
+    
+    return (
+      <Badge className={`${item.color} flex items-center gap-1`}>
+        <IconComponent className="h-3 w-3" />
+        {item.label}
+      </Badge>
+    );
   };
 
   const getPrioridadBadge = (prioridad: string) => {
@@ -80,6 +92,11 @@ export const ServiciosTable = ({
   // Check if GPS programming button should be shown
   const shouldShowGPSButton = (estado: string) => {
     return estado === 'aprobado' || estado === 'programacion_instalacion';
+  };
+
+  // Check if service is in installation process
+  const isInInstallationProcess = (estado: string) => {
+    return ['instalacion_programada', 'instalacion_en_proceso', 'instalacion_completada'].includes(estado);
   };
 
   // Filter services based on all criteria
@@ -250,11 +267,27 @@ export const ServiciosTable = ({
                     </Button>
                   )}
 
-                  {servicio.estado_general === 'instalacion_programada' && (
-                    <Badge variant="outline" className="text-blue-600 border-blue-600 justify-center">
-                      <Clock className="h-3 w-3 mr-1" />
-                      GPS Programado
-                    </Badge>
+                  {isInInstallationProcess(servicio.estado_general) && (
+                    <div className="flex flex-col gap-1">
+                      {servicio.estado_general === 'instalacion_programada' && (
+                        <Badge variant="outline" className="text-blue-600 border-blue-600 justify-center">
+                          <Clock className="h-3 w-3 mr-1" />
+                          GPS Programado
+                        </Badge>
+                      )}
+                      {servicio.estado_general === 'instalacion_en_proceso' && (
+                        <Badge variant="outline" className="text-orange-600 border-orange-600 justify-center">
+                          <Settings className="h-3 w-3 mr-1" />
+                          Instalando...
+                        </Badge>
+                      )}
+                      {servicio.estado_general === 'instalacion_completada' && (
+                        <Badge variant="outline" className="text-green-600 border-green-600 justify-center">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Instalado
+                        </Badge>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

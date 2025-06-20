@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -38,6 +39,18 @@ export const useProgramacionInstalaciones = () => {
       return data as ProgramacionInstalacion[];
     }
   });
+
+  // Mapeo de estados de instalación a estados de servicio
+  const getServicioEstadoFromInstalacion = (estadoInstalacion: string) => {
+    const estadoMap = {
+      'programada': 'instalacion_programada',
+      'confirmada': 'instalacion_programada', 
+      'en_proceso': 'instalacion_en_proceso',
+      'completada': 'instalacion_completada',
+      'cancelada': 'programacion_instalacion' // Vuelve a programación si se cancela
+    };
+    return estadoMap[estadoInstalacion as keyof typeof estadoMap] || 'programacion_instalacion';
+  };
 
   // Crear nueva programación
   const createProgramacion = useMutation({
@@ -83,6 +96,7 @@ export const useProgramacionInstalaciones = () => {
 
       console.log('Insert data:', insertData);
 
+      // Crear la programación
       const { data: result, error } = await supabase
         .from('programacion_instalaciones')
         .insert(insertData)
@@ -94,12 +108,24 @@ export const useProgramacionInstalaciones = () => {
         throw new Error(`Error al crear la programación: ${error.message}`);
       }
 
+      // Actualizar el estado del servicio a 'instalacion_programada'
+      const { error: servicioError } = await supabase
+        .from('servicios_monitoreo')
+        .update({ estado_general: 'instalacion_programada' })
+        .eq('id', data.servicio_id);
+
+      if (servicioError) {
+        console.error('Error updating service status:', servicioError);
+        // No lanzamos error aquí para no fallar la creación de la programación
+      }
+
       console.log('Programacion created successfully:', result);
       return result;
     },
     onSuccess: (data) => {
       console.log('Programacion creation successful:', data);
       queryClient.invalidateQueries({ queryKey: ['programacion-instalaciones'] });
+      queryClient.invalidateQueries({ queryKey: ['servicios-monitoreo'] });
       toast({
         title: "Instalación programada",
         description: "La instalación ha sido programada exitosamente.",
@@ -115,13 +141,28 @@ export const useProgramacionInstalaciones = () => {
     }
   });
 
-  // Actualizar estado de instalación
+  // Actualizar estado de instalación y servicio automáticamente
   const updateEstadoInstalacion = useMutation({
     mutationFn: async ({ id, estado, observaciones }: { 
       id: string; 
       estado: string; 
       observaciones?: string; 
     }) => {
+      console.log(`Updating installation ${id} to state: ${estado}`);
+      
+      // Primero obtener la programación para conocer el servicio_id
+      const { data: programacion, error: fetchError } = await supabase
+        .from('programacion_instalaciones')
+        .select('servicio_id')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching programacion:', fetchError);
+        throw fetchError;
+      }
+
+      // Actualizar el estado de la instalación
       const { data, error } = await supabase
         .from('programacion_instalaciones')
         .update({ 
@@ -133,11 +174,35 @@ export const useProgramacionInstalaciones = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating installation:', error);
+        throw error;
+      }
+
+      // Actualizar automáticamente el estado del servicio
+      const nuevoEstadoServicio = getServicioEstadoFromInstalacion(estado);
+      console.log(`Updating service ${programacion.servicio_id} to state: ${nuevoEstadoServicio}`);
+      
+      const { error: servicioError } = await supabase
+        .from('servicios_monitoreo')
+        .update({ 
+          estado_general: nuevoEstadoServicio,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', programacion.servicio_id);
+
+      if (servicioError) {
+        console.error('Error updating service status:', servicioError);
+        // No lanzamos error para no fallar la actualización de la instalación
+      } else {
+        console.log(`Service ${programacion.servicio_id} updated to ${nuevoEstadoServicio}`);
+      }
+
       return data;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['programacion-instalaciones'] });
+      queryClient.invalidateQueries({ queryKey: ['servicios-monitoreo'] });
       
       const mensajes = {
         'confirmada': 'Instalación confirmada correctamente',
@@ -149,6 +214,14 @@ export const useProgramacionInstalaciones = () => {
       toast({
         title: "Estado actualizado",
         description: mensajes[variables.estado as keyof typeof mensajes] || 'Estado actualizado',
+      });
+    },
+    onError: (error) => {
+      console.error('Error updating installation status:', error);
+      toast({
+        title: "Error al actualizar estado",
+        description: "No se pudo actualizar el estado de la instalación",
+        variant: "destructive",
       });
     }
   });
@@ -197,6 +270,7 @@ export const useProgramacionInstalaciones = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['programacion-instalaciones'] });
+      queryClient.invalidateQueries({ queryKey: ['servicios-monitoreo'] });
     }
   });
 
