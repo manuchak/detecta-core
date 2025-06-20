@@ -15,7 +15,7 @@ interface ServicioMonitoreo {
   nombre_cliente: string;
   empresa?: string;
   direccion_cliente: string;
-  cantidad_vehiculos: number;
+  cantidad_vehiculos?: number; // Made optional to match database schema
   prioridad: string;
   fecha_solicitud: string;
   fecha_limite_respuesta?: string;
@@ -93,7 +93,7 @@ export const ServiciosTable = ({
                       <span>{servicio.direccion_cliente}</span>
                     </div>
                     <div className="text-sm text-gray-600">
-                      <p>Vehículos: {servicio.cantidad_vehiculos}</p>
+                      <p>Vehículos: {servicio.cantidad_vehiculos || 1}</p>
                       <p>Prioridad: <span className="capitalize">{servicio.prioridad}</span></p>
                     </div>
                   </div>
