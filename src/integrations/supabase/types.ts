@@ -474,6 +474,44 @@ export type Database = {
         }
         Relationships: []
       }
+      categorias_productos: {
+        Row: {
+          activo: boolean | null
+          codigo: string | null
+          created_at: string | null
+          descripcion: string | null
+          id: string
+          nombre: string
+          parent_id: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          codigo?: string | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre: string
+          parent_id?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          codigo?: string | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+          parent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categorias_productos_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "categorias_productos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ciudades: {
         Row: {
           activo: boolean
@@ -710,6 +748,44 @@ export type Database = {
           },
         ]
       }
+      configuraciones_producto: {
+        Row: {
+          created_at: string | null
+          descripcion: string | null
+          id: string
+          parametro: string
+          producto_id: string
+          requerido: boolean | null
+          valor: string
+        }
+        Insert: {
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          parametro: string
+          producto_id: string
+          requerido?: boolean | null
+          valor: string
+        }
+        Update: {
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          parametro?: string
+          producto_id?: string
+          requerido?: boolean | null
+          valor?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "configuraciones_producto_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "productos_inventario"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contactos_emergencia_servicio: {
         Row: {
           created_at: string | null
@@ -819,6 +895,108 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      detalles_orden_compra: {
+        Row: {
+          cantidad_recibida: number | null
+          cantidad_solicitada: number
+          created_at: string | null
+          descuento_porcentaje: number | null
+          id: string
+          notas: string | null
+          orden_id: string | null
+          precio_unitario: number
+          producto_id: string
+          subtotal: number | null
+        }
+        Insert: {
+          cantidad_recibida?: number | null
+          cantidad_solicitada: number
+          created_at?: string | null
+          descuento_porcentaje?: number | null
+          id?: string
+          notas?: string | null
+          orden_id?: string | null
+          precio_unitario: number
+          producto_id: string
+          subtotal?: number | null
+        }
+        Update: {
+          cantidad_recibida?: number | null
+          cantidad_solicitada?: number
+          created_at?: string | null
+          descuento_porcentaje?: number | null
+          id?: string
+          notas?: string | null
+          orden_id?: string | null
+          precio_unitario?: number
+          producto_id?: string
+          subtotal?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "detalles_orden_compra_orden_id_fkey"
+            columns: ["orden_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_compra"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "detalles_orden_compra_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "productos_inventario"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      detalles_recepcion: {
+        Row: {
+          cantidad_esperada: number
+          cantidad_recibida: number
+          diferencia: number | null
+          estado_producto: string | null
+          id: string
+          notas: string | null
+          producto_id: string | null
+          recepcion_id: string | null
+        }
+        Insert: {
+          cantidad_esperada: number
+          cantidad_recibida: number
+          diferencia?: number | null
+          estado_producto?: string | null
+          id?: string
+          notas?: string | null
+          producto_id?: string | null
+          recepcion_id?: string | null
+        }
+        Update: {
+          cantidad_esperada?: number
+          cantidad_recibida?: number
+          diferencia?: number | null
+          estado_producto?: string | null
+          id?: string
+          notas?: string | null
+          producto_id?: string | null
+          recepcion_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "detalles_recepcion_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "productos_inventario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "detalles_recepcion_recepcion_id_fkey"
+            columns: ["recepcion_id"]
+            isOneToOne: false
+            referencedRelation: "recepciones_mercancia"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       documentacion_requerida: {
         Row: {
@@ -1644,6 +1822,157 @@ export type Database = {
           },
         ]
       }
+      movimientos_inventario: {
+        Row: {
+          cantidad: number
+          cantidad_anterior: number
+          cantidad_nueva: number
+          costo_unitario: number | null
+          fecha_movimiento: string | null
+          id: string
+          motivo: string | null
+          notas: string | null
+          producto_id: string
+          referencia_id: string | null
+          referencia_tipo: string | null
+          tipo_movimiento: string
+          usuario_id: string | null
+          valor_total: number | null
+        }
+        Insert: {
+          cantidad: number
+          cantidad_anterior: number
+          cantidad_nueva: number
+          costo_unitario?: number | null
+          fecha_movimiento?: string | null
+          id?: string
+          motivo?: string | null
+          notas?: string | null
+          producto_id: string
+          referencia_id?: string | null
+          referencia_tipo?: string | null
+          tipo_movimiento: string
+          usuario_id?: string | null
+          valor_total?: number | null
+        }
+        Update: {
+          cantidad?: number
+          cantidad_anterior?: number
+          cantidad_nueva?: number
+          costo_unitario?: number | null
+          fecha_movimiento?: string | null
+          id?: string
+          motivo?: string | null
+          notas?: string | null
+          producto_id?: string
+          referencia_id?: string | null
+          referencia_tipo?: string | null
+          tipo_movimiento?: string
+          usuario_id?: string | null
+          valor_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimientos_inventario_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "productos_inventario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_inventario_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ordenes_compra: {
+        Row: {
+          aprobado_por: string | null
+          creado_por: string | null
+          created_at: string | null
+          estado: string | null
+          fecha_aprobacion: string | null
+          fecha_entrega_esperada: string | null
+          fecha_entrega_real: string | null
+          fecha_orden: string | null
+          id: string
+          impuestos: number | null
+          moneda: string | null
+          notas: string | null
+          numero_orden: string
+          proveedor_id: string
+          subtotal: number | null
+          terminos_pago: string | null
+          total: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          aprobado_por?: string | null
+          creado_por?: string | null
+          created_at?: string | null
+          estado?: string | null
+          fecha_aprobacion?: string | null
+          fecha_entrega_esperada?: string | null
+          fecha_entrega_real?: string | null
+          fecha_orden?: string | null
+          id?: string
+          impuestos?: number | null
+          moneda?: string | null
+          notas?: string | null
+          numero_orden: string
+          proveedor_id: string
+          subtotal?: number | null
+          terminos_pago?: string | null
+          total?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          aprobado_por?: string | null
+          creado_por?: string | null
+          created_at?: string | null
+          estado?: string | null
+          fecha_aprobacion?: string | null
+          fecha_entrega_esperada?: string | null
+          fecha_entrega_real?: string | null
+          fecha_orden?: string | null
+          id?: string
+          impuestos?: number | null
+          moneda?: string | null
+          notas?: string | null
+          numero_orden?: string
+          proveedor_id?: string
+          subtotal?: number | null
+          terminos_pago?: string | null
+          total?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ordenes_compra_aprobado_por_fkey"
+            columns: ["aprobado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordenes_compra_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordenes_compra_proveedor_id_fkey"
+            columns: ["proveedor_id"]
+            isOneToOne: false
+            referencedRelation: "proveedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       point_rules: {
         Row: {
           category: string
@@ -1733,6 +2062,172 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: []
+      }
+      productos_inventario: {
+        Row: {
+          activo: boolean | null
+          categoria_id: string | null
+          codigo_producto: string
+          created_at: string | null
+          descripcion: string | null
+          es_serializado: boolean | null
+          especificaciones: Json | null
+          foto_url: string | null
+          garantia_meses: number | null
+          id: string
+          marca: string | null
+          modelo: string | null
+          nombre: string
+          precio_compra_promedio: number | null
+          precio_venta_sugerido: number | null
+          requiere_configuracion: boolean | null
+          stock_maximo: number | null
+          stock_minimo: number | null
+          ubicacion_almacen: string | null
+          unidad_medida: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          categoria_id?: string | null
+          codigo_producto: string
+          created_at?: string | null
+          descripcion?: string | null
+          es_serializado?: boolean | null
+          especificaciones?: Json | null
+          foto_url?: string | null
+          garantia_meses?: number | null
+          id?: string
+          marca?: string | null
+          modelo?: string | null
+          nombre: string
+          precio_compra_promedio?: number | null
+          precio_venta_sugerido?: number | null
+          requiere_configuracion?: boolean | null
+          stock_maximo?: number | null
+          stock_minimo?: number | null
+          ubicacion_almacen?: string | null
+          unidad_medida?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          categoria_id?: string | null
+          codigo_producto?: string
+          created_at?: string | null
+          descripcion?: string | null
+          es_serializado?: boolean | null
+          especificaciones?: Json | null
+          foto_url?: string | null
+          garantia_meses?: number | null
+          id?: string
+          marca?: string | null
+          modelo?: string | null
+          nombre?: string
+          precio_compra_promedio?: number | null
+          precio_venta_sugerido?: number | null
+          requiere_configuracion?: boolean | null
+          stock_maximo?: number | null
+          stock_minimo?: number | null
+          ubicacion_almacen?: string | null
+          unidad_medida?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "productos_inventario_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias_productos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      productos_serie: {
+        Row: {
+          costo_adquisicion: number | null
+          created_at: string | null
+          estado: string | null
+          fecha_ingreso: string | null
+          fecha_vencimiento: string | null
+          id: string
+          imei: string | null
+          instalacion_asignada: string | null
+          mac_address: string | null
+          notas: string | null
+          numero_serie: string
+          orden_compra_id: string | null
+          producto_id: string
+          servicio_asignado: string | null
+          ubicacion_fisica: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          costo_adquisicion?: number | null
+          created_at?: string | null
+          estado?: string | null
+          fecha_ingreso?: string | null
+          fecha_vencimiento?: string | null
+          id?: string
+          imei?: string | null
+          instalacion_asignada?: string | null
+          mac_address?: string | null
+          notas?: string | null
+          numero_serie: string
+          orden_compra_id?: string | null
+          producto_id: string
+          servicio_asignado?: string | null
+          ubicacion_fisica?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          costo_adquisicion?: number | null
+          created_at?: string | null
+          estado?: string | null
+          fecha_ingreso?: string | null
+          fecha_vencimiento?: string | null
+          id?: string
+          imei?: string | null
+          instalacion_asignada?: string | null
+          mac_address?: string | null
+          notas?: string | null
+          numero_serie?: string
+          orden_compra_id?: string | null
+          producto_id?: string
+          servicio_asignado?: string | null
+          ubicacion_fisica?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "productos_serie_instalacion_asignada_fkey"
+            columns: ["instalacion_asignada"]
+            isOneToOne: false
+            referencedRelation: "programacion_instalaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "productos_serie_orden_compra_id_fkey"
+            columns: ["orden_compra_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_compra"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "productos_serie_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "productos_inventario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "productos_serie_servicio_asignado_fkey"
+            columns: ["servicio_asignado"]
+            isOneToOne: false
+            referencedRelation: "servicios_monitoreo"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -1863,6 +2358,114 @@ export type Database = {
             columns: ["servicio_id"]
             isOneToOne: false
             referencedRelation: "servicios_monitoreo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proveedores: {
+        Row: {
+          activo: boolean | null
+          calificacion: number | null
+          condiciones_pago: string | null
+          contacto_principal: string | null
+          created_at: string | null
+          descuento_por_volumen: number | null
+          direccion: string | null
+          email: string | null
+          email_contacto: string | null
+          id: string
+          nombre: string
+          notas: string | null
+          razon_social: string | null
+          rfc: string | null
+          telefono: string | null
+          telefono_contacto: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          calificacion?: number | null
+          condiciones_pago?: string | null
+          contacto_principal?: string | null
+          created_at?: string | null
+          descuento_por_volumen?: number | null
+          direccion?: string | null
+          email?: string | null
+          email_contacto?: string | null
+          id?: string
+          nombre: string
+          notas?: string | null
+          razon_social?: string | null
+          rfc?: string | null
+          telefono?: string | null
+          telefono_contacto?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          calificacion?: number | null
+          condiciones_pago?: string | null
+          contacto_principal?: string | null
+          created_at?: string | null
+          descuento_por_volumen?: number | null
+          direccion?: string | null
+          email?: string | null
+          email_contacto?: string | null
+          id?: string
+          nombre?: string
+          notas?: string | null
+          razon_social?: string | null
+          rfc?: string | null
+          telefono?: string | null
+          telefono_contacto?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      recepciones_mercancia: {
+        Row: {
+          created_at: string | null
+          estado: string | null
+          fecha_recepcion: string | null
+          id: string
+          notas_recepcion: string | null
+          numero_recepcion: string
+          orden_compra_id: string | null
+          recibido_por: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          estado?: string | null
+          fecha_recepcion?: string | null
+          id?: string
+          notas_recepcion?: string | null
+          numero_recepcion: string
+          orden_compra_id?: string | null
+          recibido_por?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          estado?: string | null
+          fecha_recepcion?: string | null
+          id?: string
+          notas_recepcion?: string | null
+          numero_recepcion?: string
+          orden_compra_id?: string | null
+          recibido_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recepciones_mercancia_orden_compra_id_fkey"
+            columns: ["orden_compra_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_compra"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recepciones_mercancia_recibido_por_fkey"
+            columns: ["recibido_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2584,6 +3187,44 @@ export type Database = {
             columns: ["ejecutivo_ventas_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_productos: {
+        Row: {
+          cantidad_disponible: number | null
+          cantidad_reservada: number | null
+          cantidad_transito: number | null
+          id: string
+          producto_id: string
+          ultima_actualizacion: string | null
+          valor_inventario: number | null
+        }
+        Insert: {
+          cantidad_disponible?: number | null
+          cantidad_reservada?: number | null
+          cantidad_transito?: number | null
+          id?: string
+          producto_id: string
+          ultima_actualizacion?: string | null
+          valor_inventario?: number | null
+        }
+        Update: {
+          cantidad_disponible?: number | null
+          cantidad_reservada?: number | null
+          cantidad_transito?: number | null
+          id?: string
+          producto_id?: string
+          ultima_actualizacion?: string | null
+          valor_inventario?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_productos_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: true
+            referencedRelation: "productos_inventario"
             referencedColumns: ["id"]
           },
         ]

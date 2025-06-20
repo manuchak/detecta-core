@@ -1,4 +1,3 @@
-
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
@@ -34,6 +33,7 @@ import InstallationCalendar from '@/pages/Installers/InstallationCalendar';
 import InstallationSchedule from '@/pages/Installers/InstallationSchedule';
 import InstallerPortal from '@/pages/Installers/InstallerPortal';
 import Landing from '@/pages/Landing/Landing';
+import WMSPage from '@/pages/WMS/WMSPage';
 
 // Components
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -53,39 +53,220 @@ function App() {
       <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
         <AuthProvider>
           <Router>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/landing" element={<Landing />} />
-              
-              {/* Auth routes */}
-              <Route path="/auth/login" element={<AuthLayout><Login /></AuthLayout>} />
-              <Route path="/auth/register" element={<AuthLayout><Register /></AuthLayout>} />
-              <Route path="/auth/forgot-password" element={<AuthLayout><ForgotPassword /></AuthLayout>} />
-              <Route path="/auth/email-confirmation" element={<AuthLayout><EmailConfirmation /></AuthLayout>} />
-
-              {/* Protected routes */}
-              <Route path="/" element={<ProtectedRoute><DashboardLayout><Index /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><Dashboard /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/settings" element={<ProtectedRoute><DashboardLayout><Settings /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/leads" element={<ProtectedRoute><DashboardLayout><LeadsList /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/leads/approvals" element={<ProtectedRoute><DashboardLayout><LeadApprovals /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/admin/assign-owner" element={<ProtectedRoute><DashboardLayout><AssignOwnerRole /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/admin/assign-role" element={<ProtectedRoute><DashboardLayout><AssignRole /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/admin/landing" element={<ProtectedRoute><DashboardLayout><LandingManager /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/monitoring" element={<ProtectedRoute><DashboardLayout><MonitoringPage /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/monitoring/supply-chain" element={<ProtectedRoute><DashboardLayout><SupplyChainMonitoring /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/monitoring/forensic-audit" element={<ProtectedRoute><DashboardLayout><ForensicAuditPage /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/tickets" element={<ProtectedRoute><DashboardLayout><TicketsList /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/services" element={<ProtectedRoute><DashboardLayout><ServicesPage /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/services/rendimiento" element={<ProtectedRoute><DashboardLayout><RendimientoPage /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/installers" element={<ProtectedRoute><DashboardLayout><InstallerManagement /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/installers/calendar" element={<ProtectedRoute><DashboardLayout><InstallationCalendar /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/installers/schedule" element={<ProtectedRoute><DashboardLayout><InstallationSchedule /></DashboardLayout></ProtectedRoute>} />
-              <Route path="/installers/portal" element={<ProtectedRoute><DashboardLayout><InstallerPortal /></DashboardLayout></ProtectedRoute>} />
-
-              {/* 404 route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <div className="min-h-screen bg-background">
+              <Routes>
+                {/* Public routes */}
+                <Route path="/landing" element={<Landing />} />
+                
+                {/* Auth routes */}
+                <Route path="/auth/login" element={<AuthLayout><Login /></AuthLayout>} />
+                <Route path="/auth/register" element={<AuthLayout><Register /></AuthLayout>} />
+                <Route path="/auth/forgot-password" element={<AuthLayout><ForgotPassword /></AuthLayout>} />
+                <Route path="/auth/email-confirmation" element={<AuthLayout><EmailConfirmation /></AuthLayout>} />
+                
+                {/* Protected routes */}
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout>
+                        <Dashboard />
+                      </DashboardLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/services"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout>
+                        <ServicesPage />
+                      </DashboardLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/services/rendimiento"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout>
+                        <RendimientoPage />
+                      </DashboardLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/leads"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout>
+                        <LeadsList />
+                      </DashboardLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/leads/approvals"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout>
+                        <LeadApprovals />
+                      </DashboardLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/monitoring"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout>
+                        <MonitoringPage />
+                      </DashboardLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/monitoring/supply-chain"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout>
+                        <SupplyChainMonitoring />
+                      </DashboardLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/monitoring/forensic-audit"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout>
+                        <ForensicAuditPage />
+                      </DashboardLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/installers"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout>
+                        <InstallerManagement />
+                      </DashboardLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/installers/schedule"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout>
+                        <InstallationSchedule />
+                      </DashboardLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/installers/calendar"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout>
+                        <InstallationCalendar />
+                      </DashboardLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/installers/portal"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout>
+                        <InstallerPortal />
+                      </DashboardLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/wms"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout>
+                        <WMSPage />
+                      </DashboardLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/tickets"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout>
+                        <TicketsList />
+                      </DashboardLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/settings"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout>
+                        <Settings />
+                      </DashboardLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/admin/assign-role"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout>
+                        <AssignRole />
+                      </DashboardLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/admin/assign-owner-role"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout>
+                        <AssignOwnerRole />
+                      </DashboardLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/admin/landing-manager"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout>
+                        <LandingManager />
+                      </DashboardLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                {/* 404 route */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </div>
           </Router>
           <Toaster />
         </AuthProvider>

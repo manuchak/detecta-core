@@ -1,0 +1,81 @@
+
+import { useState } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Package, ShoppingCart, Users, BarChart3, Truck, Settings } from 'lucide-react';
+import { InventarioTab } from './components/InventarioTab';
+import { ComprasTab } from './components/ComprasTab';
+import { ProveedoresTab } from './components/ProveedoresTab';
+import { StockTab } from './components/StockTab';
+import { RecepcionTab } from './components/RecepcionTab';
+import { ConfiguracionTab } from './components/ConfiguracionTab';
+
+export const WMSPage = () => {
+  const [activeTab, setActiveTab] = useState('inventario');
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Sistema WMS - GPS</h1>
+        <p className="text-muted-foreground">
+          Gestión integral de inventario, compras y almacén para dispositivos GPS
+        </p>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-6 h-12">
+          <TabsTrigger value="inventario" className="flex items-center gap-2">
+            <Package className="h-4 w-4" />
+            Inventario
+          </TabsTrigger>
+          <TabsTrigger value="compras" className="flex items-center gap-2">
+            <ShoppingCart className="h-4 w-4" />
+            Compras
+          </TabsTrigger>
+          <TabsTrigger value="proveedores" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Proveedores
+          </TabsTrigger>
+          <TabsTrigger value="stock" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Stock
+          </TabsTrigger>
+          <TabsTrigger value="recepcion" className="flex items-center gap-2">
+            <Truck className="h-4 w-4" />
+            Recepción
+          </TabsTrigger>
+          <TabsTrigger value="configuracion" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Config
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="inventario">
+          <InventarioTab />
+        </TabsContent>
+
+        <TabsContent value="compras">
+          <ComprasTab />
+        </TabsContent>
+
+        <TabsContent value="proveedores">
+          <ProveedoresTab />
+        </TabsContent>
+
+        <TabsContent value="stock">
+          <StockTab />
+        </TabsContent>
+
+        <TabsContent value="recepcion">
+          <RecepcionTab />
+        </TabsContent>
+
+        <TabsContent value="configuracion">
+          <ConfiguracionTab />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+export default WMSPage;
