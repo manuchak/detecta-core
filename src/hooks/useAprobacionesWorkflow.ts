@@ -251,9 +251,21 @@ export const useAprobacionesWorkflow = () => {
     mutationFn: async (data: any) => {
       console.log('Mutation: Creando análisis de riesgo con datos:', data);
       
+      // Obtener el usuario actual
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData.user) {
+        throw new Error('Usuario no autenticado');
+      }
+
+      // Preparar los datos del análisis incluyendo el analista_id
+      const analisisData = {
+        ...data,
+        analista_id: userData.user.id // Agregar el analista_id requerido
+      };
+
       const { data: result, error } = await supabase
         .from('analisis_riesgo_seguridad')
-        .insert([data])
+        .insert([analisisData])
         .select()
         .single();
 
@@ -290,7 +302,7 @@ export const useAprobacionesWorkflow = () => {
           tipo_evento: 'analisis_riesgo_completado',
           descripcion: `Análisis de riesgo completado. Estado: ${data.aprobado_seguridad ? 'Aprobado' : 'Rechazado'}`,
           estado_nuevo: nuevoEstado,
-          usuario_id: (await supabase.auth.getUser()).data.user?.id,
+          usuario_id: userData.user.id,
           datos_adicionales: {
             calificacion_riesgo: data.calificacion_riesgo,
             aprobado_seguridad: data.aprobado_seguridad,
