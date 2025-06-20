@@ -10,7 +10,6 @@ interface DashboardLayoutProps {
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const { user, loading } = useAuth();
 
   // Show loading skeleton while checking authentication
@@ -33,7 +32,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
-      <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
+      <div className="w-64 bg-white shadow-lg">
+        <Sidebar />
+      </div>
       <main className="flex-1 p-6 overflow-auto">
         {children}
       </main>
