@@ -1,3 +1,4 @@
+
 export interface Proveedor {
   id: string;
   nombre: string;
@@ -48,6 +49,8 @@ export interface ProductoInventario {
   garantia_meses?: number;
   activo?: boolean;
   foto_url?: string;
+  marca_gps_id?: string;
+  modelo_gps_id?: string;
   created_at?: string;
   updated_at?: string;
   categoria?: CategoriaProducto;
