@@ -12,6 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useProgramacionInstalaciones } from '@/hooks/useProgramacionInstalaciones';
 import { useServiciosMonitoreo } from '@/hooks/useServiciosMonitoreo';
+import { useToast } from '@/hooks/use-toast';
 import type { TipoInstalacion, PrioridadInstalacion } from '@/types/instaladores';
 
 const schema = z.object({
@@ -44,16 +45,9 @@ export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProp
 }) => {
   const { createProgramacion } = useProgramacionInstalaciones();
   const { servicios } = useServiciosMonitoreo();
+  const { toast } = useToast();
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-    reset,
-    setValue,
-    watch,
-    getValues
-  } = useForm<FormData>({
+  const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       servicio_id: servicioId || '',
@@ -63,6 +57,8 @@ export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProp
       acceso_restringido: false
     }
   });
+
+  const { register, handleSubmit, formState: { errors, isSubmitting }, reset, setValue, watch } = form;
 
   // Set servicioId when prop changes
   React.useEffect(() => {
@@ -78,31 +74,66 @@ export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProp
 
   const onSubmit = async (data: FormData) => {
     try {
-      const formData = getValues();
-      await createProgramacion.mutateAsync({
-        servicio_id: formData.servicio_id,
-        tipo_instalacion: formData.tipo_instalacion as TipoInstalacion,
-        fecha_programada: formData.fecha_programada,
-        direccion_instalacion: formData.direccion_instalacion,
-        contacto_cliente: formData.contacto_cliente,
-        telefono_contacto: formData.telefono_contacto,
-        prioridad: (formData.prioridad || 'normal') as PrioridadInstalacion,
-        tiempo_estimado: formData.tiempo_estimado || 120,
-        observaciones_cliente: formData.observaciones_cliente,
-        instrucciones_especiales: formData.instrucciones_especiales,
-        requiere_vehiculo_elevado: formData.requiere_vehiculo_elevado || false,
-        acceso_restringido: formData.acceso_restringido || false,
+      console.log('Datos del formulario:', data);
+      
+      // Validar fecha mínima
+      const fechaSeleccionada = new Date(data.fecha_programada);
+      const fechaMinima = new Date(Date.now() + 72 * 60 * 60 * 1000);
+      
+      if (fechaSeleccionada < fechaMinima) {
+        toast({
+          title: "Error de validación",
+          description: "La fecha debe ser al menos 72 horas en el futuro",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Construir payload
+      const payload = {
+        servicio_id: data.servicio_id,
+        tipo_instalacion: data.tipo_instalacion as TipoInstalacion,
+        fecha_programada: data.fecha_programada,
+        direccion_instalacion: data.direccion_instalacion,
+        contacto_cliente: data.contacto_cliente,
+        telefono_contacto: data.telefono_contacto,
+        prioridad: (data.prioridad || 'normal') as PrioridadInstalacion,
+        tiempo_estimado: data.tiempo_estimado || 120,
+        observaciones_cliente: data.observaciones_cliente || '',
+        instrucciones_especiales: data.instrucciones_especiales || '',
+        requiere_vehiculo_elevado: data.requiere_vehiculo_elevado || false,
+        acceso_restringido: data.acceso_restringido || false,
         herramientas_especiales: []
-      });
+      };
+
+      console.log('Payload a enviar:', payload);
+
+      await createProgramacion.mutateAsync(payload);
+      
       reset();
       onOpenChange(false);
+      
+      toast({
+        title: "Instalación programada",
+        description: "La instalación ha sido programada exitosamente.",
+      });
     } catch (error) {
       console.error('Error creating installation:', error);
+      toast({
+        title: "Error al programar instalación",
+        description: error instanceof Error ? error.message : "Error desconocido al programar la instalación",
+        variant: "destructive",
+      });
     }
   };
 
+  const handleClose = () => {
+    reset();
+    onOpenChange(false);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Programar Nueva Instalación</DialogTitle>
@@ -168,7 +199,7 @@ export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProp
                 <p className="text-sm text-red-500">{errors.fecha_programada.message}</p>
               )}
               <p className="text-xs text-gray-500">
-                Mínimo 72 horas de anticipación, no fines de semana
+                Mínimo 72 horas de anticipación
               </p>
             </div>
 
@@ -179,6 +210,7 @@ export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProp
                 type="number"
                 min={30}
                 max={480}
+                defaultValue={120}
               />
               {errors.tiempo_estimado && (
                 <p className="text-sm text-red-500">{errors.tiempo_estimado.message}</p>
@@ -271,7 +303,7 @@ export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProp
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={handleClose}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isSubmitting}>
