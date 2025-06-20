@@ -100,14 +100,21 @@ export const ProductoDialog = ({ open, onOpenChange, producto, onClose }: Produc
       return;
     }
 
-    const mutation = producto ? updateProducto : createProducto;
-    
-    mutation.mutate(producto ? { ...data, id: producto.id } : data, {
-      onSuccess: () => {
-        onClose();
-        setIsEditing(false);
-      }
-    });
+    if (producto) {
+      updateProducto.mutate({ ...data, id: producto.id }, {
+        onSuccess: () => {
+          onClose();
+          setIsEditing(false);
+        }
+      });
+    } else {
+      createProducto.mutate(data, {
+        onSuccess: () => {
+          onClose();
+          setIsEditing(false);
+        }
+      });
+    }
   };
 
   const modelosDisponibles = selectedMarcaGPS && modelosPorMarca ? 
