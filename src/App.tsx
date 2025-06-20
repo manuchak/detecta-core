@@ -9,34 +9,34 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import AuthLayout from '@/layouts/AuthLayout';
 
-// Page imports
-import { Index } from '@/pages/Index';
-import { Dashboard } from '@/pages/Dashboard/Dashboard';
-import { Login } from '@/pages/Auth/Login';
-import { Register } from '@/pages/Auth/Register';
-import { ForgotPassword } from '@/pages/Auth/ForgotPassword';
-import { EmailConfirmation } from '@/pages/Auth/EmailConfirmation';
-import { Settings } from '@/pages/Settings/Settings';
-import { NotFound } from '@/pages/NotFound';
-import { LeadsList } from '@/pages/Leads/LeadsList';
-import { LeadApprovals } from '@/pages/Leads/LeadApprovals';
-import { AssignOwnerRole } from '@/pages/Admin/AssignOwnerRole';
-import { AssignRole } from '@/pages/Admin/AssignRole';
-import { LandingManager } from '@/pages/Admin/LandingManager';
-import { MonitoringPage } from '@/pages/Monitoring/MonitoringPage';
-import { SupplyChainMonitoring } from '@/pages/Monitoring/SupplyChainMonitoring';
-import { ForensicAuditPage } from '@/pages/Monitoring/ForensicAuditPage';
-import { TicketsList } from '@/pages/Tickets/TicketsList';
-import { ServicesPage } from '@/pages/Services/ServicesPage';
+// Page imports - Fixed to use default imports
+import Index from '@/pages/Index';
+import Dashboard from '@/pages/Dashboard/Dashboard';
+import Login from '@/pages/Auth/Login';
+import Register from '@/pages/Auth/Register';
+import ForgotPassword from '@/pages/Auth/ForgotPassword';
+import EmailConfirmation from '@/pages/Auth/EmailConfirmation';
+import Settings from '@/pages/Settings/Settings';
+import NotFound from '@/pages/NotFound';
+import LeadsList from '@/pages/Leads/LeadsList';
+import LeadApprovals from '@/pages/Leads/LeadApprovals';
+import AssignOwnerRole from '@/pages/Admin/AssignOwnerRole';
+import AssignRole from '@/pages/Admin/AssignRole';
+import LandingManager from '@/pages/Admin/LandingManager';
+import MonitoringPage from '@/pages/Monitoring/MonitoringPage';
+import SupplyChainMonitoring from '@/pages/Monitoring/SupplyChainMonitoring';
+import ForensicAuditPage from '@/pages/Monitoring/ForensicAuditPage';
+import TicketsList from '@/pages/Tickets/TicketsList';
+import ServicesPage from '@/pages/Services/ServicesPage';
 import RendimientoPage from '@/pages/Services/RendimientoPage';
-import { InstallerManagement } from '@/pages/Installers/InstallerManagement';
-import { InstallationCalendar } from '@/pages/Installers/InstallationCalendar';
-import { InstallationSchedule } from '@/pages/Installers/InstallationSchedule';
-import { InstallerPortal } from '@/pages/Installers/InstallerPortal';
-import { Landing } from '@/pages/Landing/Landing';
+import InstallerManagement from '@/pages/Installers/InstallerManagement';
+import InstallationCalendar from '@/pages/Installers/InstallationCalendar';
+import InstallationSchedule from '@/pages/Installers/InstallationSchedule';
+import InstallerPortal from '@/pages/Installers/InstallerPortal';
+import Landing from '@/pages/Landing/Landing';
 
 // Components
-import { ProtectedRoute } from '@/components/ProtectedRoute';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -58,18 +58,13 @@ function App() {
               <Route path="/landing" element={<Landing />} />
               
               {/* Auth routes */}
-              <Route element={<AuthLayout />}>
-                <Route path="/auth/login" element={<Login />} />
-                <Route path="/auth/register" element={<Register />} />
-                <Route path="/auth/forgot-password" element={<ForgotPassword />} />
-                <Route path="/auth/email-confirmation" element={<EmailConfirmation />} />
-              </Route>
+              <Route path="/auth/login" element={<AuthLayout><Login /></AuthLayout>} />
+              <Route path="/auth/register" element={<AuthLayout><Register /></AuthLayout>} />
+              <Route path="/auth/forgot-password" element={<AuthLayout><ForgotPassword /></AuthLayout>} />
+              <Route path="/auth/email-confirmation" element={<AuthLayout><EmailConfirmation /></AuthLayout>} />
 
               {/* Protected routes */}
-              <Route element={<ProtectedRoute><DashboardLayout><Index /></DashboardLayout></ProtectedRoute>}>
-                <Route path="/" element={<></>} />
-              </Route>
-              
+              <Route path="/" element={<ProtectedRoute><DashboardLayout><Index /></DashboardLayout></ProtectedRoute>} />
               <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><Dashboard /></DashboardLayout></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><DashboardLayout><Settings /></DashboardLayout></ProtectedRoute>} />
               <Route path="/leads" element={<ProtectedRoute><DashboardLayout><LeadsList /></DashboardLayout></ProtectedRoute>} />
