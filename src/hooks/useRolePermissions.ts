@@ -143,24 +143,17 @@ export const useRolePermissions = () => {
     retry: 1,
   });
 
-  // Mutation to update an existing permission using direct table access with admin verification
+  // Mutation to update an existing permission using the secure function
   const updatePermission = useMutation({
     mutationFn: async ({ id, allowed }: { id: string, allowed: boolean }) => {
       try {
         console.log(`Attempting to update permission ${id} to ${allowed}`);
         
-        // First verify admin access
-        const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_bypass_rls');
-        
-        if (adminError || !isAdminData) {
-          throw new Error('Sin permisos para actualizar permisos');
-        }
-        
-        // Update permission directly in table
-        const { error } = await supabase
-          .from('role_permissions')
-          .update({ allowed: allowed, updated_at: new Date().toISOString() })
-          .eq('id', id);
+        // Use the secure function to update permission
+        const { data, error } = await supabase.rpc('update_role_permission_secure', {
+          p_permission_id: id,
+          p_allowed: allowed
+        });
         
         if (error) {
           console.error('Error updating permission:', error);

@@ -4029,6 +4029,10 @@ export type Database = {
         }
         Returns: string
       }
+      update_role_permission_secure: {
+        Args: { p_permission_id: string; p_allowed: boolean }
+        Returns: boolean
+      }
       upsert_user_profile: {
         Args: {
           user_id: string
