@@ -51,9 +51,9 @@ interface FormularioAnalisisRiesgo {
   boton_panico_recomendado: boolean;
   observaciones_generales: string;
   
-  // Resultado del análisis
+  // Resultado del análisis - Fixed types to match expected schema
   score_calculado: number;
-  nivel_riesgo_final: 'bajo' | 'medio' | 'alto' | 'no_viable' | '';
+  nivel_riesgo_final: 'bajo' | 'medio' | 'alto' | 'critico' | '';
   decision_final: 'aprobado_sin_observaciones' | 'aprobado_con_recomendaciones' | 'no_autorizado' | '';
 }
 
@@ -153,16 +153,17 @@ export const PanelAnalisisRiesgoRobusto = () => {
     return Math.max(0, Math.min(100, score)); // Normalizar entre 0-100
   };
 
-  const determinarNivelRiesgo = (score: number): 'bajo' | 'medio' | 'alto' | 'no_viable' => {
+  // Updated to match expected risk levels: bajo, medio, alto, critico
+  const determinarNivelRiesgo = (score: number): 'bajo' | 'medio' | 'alto' | 'critico' => {
     if (score <= 20) return 'bajo';
     if (score <= 40) return 'medio';
     if (score <= 70) return 'alto';
-    return 'no_viable';
+    return 'critico'; // Changed from 'no_viable' to 'critico'
   };
 
   const sugerirDecision = (nivel: string, data: FormularioAnalisisRiesgo): string => {
     // Factores que automáticamente requieren rechazo
-    if (nivel === 'no_viable' || 
+    if (nivel === 'critico' || 
         (data.robos_ultimos_12_meses && data.sin_centro_monitoreo_24h) ||
         (data.carga_regulada && data.sin_politicas_seguridad)) {
       return 'no_autorizado';
@@ -253,7 +254,7 @@ export const PanelAnalisisRiesgoRobusto = () => {
       case 'bajo': return 'bg-green-100 text-green-800';
       case 'medio': return 'bg-yellow-100 text-yellow-800';
       case 'alto': return 'bg-orange-100 text-orange-800';
-      case 'no_viable': return 'bg-red-100 text-red-800';
+      case 'critico': return 'bg-red-100 text-red-800'; // Updated from 'no_viable' to 'critico'
       default: return 'bg-gray-100 text-gray-800';
     }
   };
