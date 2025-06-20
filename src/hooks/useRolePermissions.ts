@@ -7,43 +7,50 @@ import { Permission, PermissionsByRole, RolePermissionInput, Role } from '@/type
 // Helper function to fetch roles safely
 const fetchAvailableRoles = async (): Promise<Role[]> => {
   try {
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('role')
-      .order('created_at');
+    const { data, error } = await supabase.rpc('get_available_roles_secure');
     
     if (error) {
       console.error('Error fetching roles:', error);
-      // Return default roles as fallback
+      // Return default roles as fallback including new roles
       return [
         'owner',
         'admin',
         'supply_admin',
-        'supply',
-        'soporte',
+        'coordinador_operaciones',
+        'jefe_seguridad',
+        'analista_seguridad',
+        'supply_lead',
         'bi',
         'monitoring_supervisor',
         'monitoring',
+        'supply',
+        'instalador',
+        'soporte',
         'pending',
         'unverified'
       ];
     }
     
     // Get unique roles and sort them by hierarchy
-    const uniqueRoles = [...new Set(data.map(item => item.role as Role))];
+    const uniqueRoles = (data || []).map((item: { role: string }) => item.role as Role);
     
     return uniqueRoles.sort((a, b) => {
       const sortOrder = {
         'owner': 1,
         'admin': 2,
         'supply_admin': 3,
-        'bi': 4,
-        'monitoring_supervisor': 5,
-        'monitoring': 6,
-        'supply': 7,
-        'soporte': 8,
-        'pending': 9,
-        'unverified': 10
+        'coordinador_operaciones': 4,
+        'jefe_seguridad': 5,
+        'analista_seguridad': 6,
+        'supply_lead': 7,
+        'bi': 8,
+        'monitoring_supervisor': 9,
+        'monitoring': 10,
+        'supply': 11,
+        'instalador': 12,
+        'soporte': 13,
+        'pending': 14,
+        'unverified': 15
       };
       const orderA = sortOrder[a as keyof typeof sortOrder] || 100;
       const orderB = sortOrder[b as keyof typeof sortOrder] || 100;
@@ -51,16 +58,21 @@ const fetchAvailableRoles = async (): Promise<Role[]> => {
     });
   } catch (err) {
     console.error('Error in fetchAvailableRoles:', err);
-    // Return default roles as fallback
+    // Return default roles as fallback including new roles
     return [
       'owner',
       'admin',
       'supply_admin',
-      'supply',
-      'soporte',
+      'coordinador_operaciones',
+      'jefe_seguridad',
+      'analista_seguridad',
+      'supply_lead',
       'bi',
       'monitoring_supervisor',
       'monitoring',
+      'supply',
+      'instalador',
+      'soporte',
       'pending',
       'unverified'
     ];

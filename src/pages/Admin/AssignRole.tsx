@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from '@/integrations/supabase/client';
@@ -28,9 +29,32 @@ const AssignRole = () => {
   const [userId, setUserId] = useState('');
   const [selectedRole, setSelectedRole] = useState('owner');
   const [availableRoles, setAvailableRoles] = useState<string[]>([
-    'owner', 'admin', 'supply_admin', 'bi', 'monitoring_supervisor',
-    'monitoring', 'supply', 'soporte', 'pending', 'unverified'
+    'owner', 'admin', 'supply_admin', 'coordinador_operaciones', 
+    'jefe_seguridad', 'analista_seguridad', 'supply_lead', 'bi', 
+    'monitoring_supervisor', 'monitoring', 'supply', 'instalador', 
+    'soporte', 'pending', 'unverified'
   ]);
+
+  const getRoleDisplayName = (role: string) => {
+    const roleNames: Record<string, string> = {
+      'owner': 'Propietario',
+      'admin': 'Administrador',
+      'supply_admin': 'Admin Suministros',
+      'coordinador_operaciones': 'Coordinador Operaciones',
+      'jefe_seguridad': 'Jefe de Seguridad',
+      'analista_seguridad': 'Analista de Seguridad',
+      'supply_lead': 'Lead de Supply',
+      'bi': 'Business Intelligence',
+      'monitoring_supervisor': 'Supervisor Monitoreo',
+      'monitoring': 'Monitoreo',
+      'supply': 'Suministros',
+      'instalador': 'Instalador',
+      'soporte': 'Soporte',
+      'pending': 'Pendiente',
+      'unverified': 'No Verificado'
+    };
+    return roleNames[role] || role;
+  };
 
   useEffect(() => {
     // If user is logged in, pre-fill the user ID
@@ -132,7 +156,9 @@ const AssignRole = () => {
               </SelectTrigger>
               <SelectContent>
                 {availableRoles.map((role) => (
-                  <SelectItem key={role} value={role}>{role}</SelectItem>
+                  <SelectItem key={role} value={role}>
+                    {getRoleDisplayName(role)}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>

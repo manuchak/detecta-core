@@ -3881,7 +3881,15 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      is_coordinator_or_security: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       is_current_user_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_installer_or_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
@@ -3894,6 +3902,10 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_supply_manager: {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }

@@ -54,11 +54,17 @@ export const UserRoleManager = () => {
         return 'bg-red-500 hover:bg-red-600';
       case 'supply_admin':
       case 'monitoring_supervisor':
+      case 'coordinador_operaciones':
+      case 'jefe_seguridad':
         return 'bg-amber-500 hover:bg-amber-600';
+      case 'analista_seguridad':
+      case 'supply_lead':
+        return 'bg-orange-500 hover:bg-orange-600';
       case 'supply':
       case 'soporte':
       case 'bi':
       case 'monitoring':
+      case 'instalador':
         return 'bg-blue-500 hover:bg-blue-600';
       case 'pending':
         return 'bg-yellow-500 hover:bg-yellow-600';
@@ -66,6 +72,27 @@ export const UserRoleManager = () => {
       default:
         return 'bg-gray-500 hover:bg-gray-600';
     }
+  };
+
+  const getRoleDisplayName = (role: string) => {
+    const roleNames: Record<string, string> = {
+      'owner': 'Propietario',
+      'admin': 'Administrador',
+      'supply_admin': 'Admin Suministros',
+      'coordinador_operaciones': 'Coordinador Ops',
+      'jefe_seguridad': 'Jefe de Seguridad',
+      'analista_seguridad': 'Analista Seguridad',
+      'supply_lead': 'Lead Supply',
+      'bi': 'Business Intelligence',
+      'monitoring_supervisor': 'Supervisor Monitoreo',
+      'monitoring': 'Monitoreo',
+      'supply': 'Suministros',
+      'instalador': 'Instalador',
+      'soporte': 'Soporte',
+      'pending': 'Pendiente',
+      'unverified': 'No Verificado'
+    };
+    return roleNames[role] || role;
   };
 
   if (isLoading) {
@@ -125,7 +152,9 @@ export const UserRoleManager = () => {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Badge className={getRoleBadgeColor(user.role)}>{user.role}</Badge>
+                        <Badge className={getRoleBadgeColor(user.role)}>
+                          {getRoleDisplayName(user.role)}
+                        </Badge>
                         <Select
                           defaultValue={user.role}
                           onValueChange={(value) => handleRoleChange(user.id, value as Role)}
@@ -135,7 +164,9 @@ export const UserRoleManager = () => {
                           </SelectTrigger>
                           <SelectContent>
                             {Array.isArray(roles) && roles.map((role) => (
-                              <SelectItem key={role} value={role}>{role}</SelectItem>
+                              <SelectItem key={role} value={role}>
+                                {getRoleDisplayName(role)}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>

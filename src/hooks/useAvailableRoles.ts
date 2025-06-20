@@ -12,20 +12,25 @@ export const useAvailableRoles = () => {
     queryKey: ['available-roles'],
     queryFn: async () => {
       try {
-        // Use the new secure function that doesn't cause recursion
+        // Use the updated secure function that includes new roles
         const { data, error } = await supabase.rpc('get_available_roles_secure');
         
         if (error) {
           console.error('Error fetching available roles:', error);
-          // Return default roles as fallback
+          // Return default roles as fallback including new roles
           return [
             'owner',
             'admin', 
             'supply_admin',
+            'coordinador_operaciones',
+            'jefe_seguridad',
+            'analista_seguridad',
+            'supply_lead',
             'bi',
             'monitoring_supervisor',
             'monitoring',
             'supply',
+            'instalador',
             'soporte',
             'pending',
             'unverified'
@@ -36,15 +41,20 @@ export const useAvailableRoles = () => {
         return (data || []).map((item: { role: string }) => item.role as Role);
       } catch (err) {
         console.error('Error in fetchAvailableRoles:', err);
-        // Return default roles as fallback
+        // Return default roles as fallback including new roles
         return [
           'owner',
           'admin',
-          'supply_admin', 
+          'supply_admin',
+          'coordinador_operaciones',
+          'jefe_seguridad',
+          'analista_seguridad',
+          'supply_lead',
           'bi',
           'monitoring_supervisor',
           'monitoring',
           'supply',
+          'instalador',
           'soporte',
           'pending',
           'unverified'

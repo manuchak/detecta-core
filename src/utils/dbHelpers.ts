@@ -12,16 +12,21 @@ export const fetchUserRoles = async (): Promise<Role[]> => {
     
     if (error) {
       console.error('Error fetching user roles:', error);
-      // Return default roles as fallback
+      // Return default roles as fallback including new roles
       return [
         'owner',
         'admin',
         'supply_admin',
-        'supply',
-        'soporte',
+        'coordinador_operaciones',
+        'jefe_seguridad',
+        'analista_seguridad',
+        'supply_lead',
         'bi',
         'monitoring_supervisor',
         'monitoring',
+        'supply',
+        'instalador',
+        'soporte',
         'pending',
         'unverified'
       ];
@@ -31,16 +36,21 @@ export const fetchUserRoles = async (): Promise<Role[]> => {
     return (data || []).map((item: { role: string }) => item.role as Role);
   } catch (err) {
     console.error('Error in fetchUserRoles:', err);
-    // Return default roles as fallback
+    // Return default roles as fallback including new roles
     return [
       'owner',
       'admin',
       'supply_admin',
-      'supply',
-      'soporte',
+      'coordinador_operaciones',
+      'jefe_seguridad',
+      'analista_seguridad',
+      'supply_lead',
       'bi',
       'monitoring_supervisor',
       'monitoring',
+      'supply',
+      'instalador',
+      'soporte',
       'pending',
       'unverified'
     ];
