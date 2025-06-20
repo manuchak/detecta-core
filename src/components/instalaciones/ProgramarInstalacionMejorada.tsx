@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -73,12 +72,13 @@ export const ProgramarInstalacionMejorada = ({
   // Pre-populate data from service when dialog opens
   useEffect(() => {
     if (open && servicioData) {
+      console.log('Pre-populating form with service data:', servicioData);
       setFormData(prev => ({
         ...prev,
         servicio_id: servicioId || '',
         marca_vehiculo: servicioData.marca_vehiculo || '',
         modelo_vehiculo: servicioData.modelo_vehiculo || '',
-        año_vehiculo: servicioData.año_vehiculo || '',
+        año_vehiculo: servicioData.año_vehiculo?.toString() || '',
         tipo_combustible: servicioData.tipo_combustible || 'gasolina',
         es_electrico: servicioData.es_electrico || false,
         contacto_cliente: servicioData.nombre_cliente || '',
@@ -202,16 +202,43 @@ export const ProgramarInstalacionMejorada = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('Starting installation confirmation...');
+    console.log('Form data before validation:', formData);
+    
     if (!validateCurrentStep()) {
+      console.error('Validation failed for current step:', currentStep);
       alert('Por favor complete todos los campos requeridos');
       return;
     }
 
+    // Additional validation
+    if (!formData.servicio_id) {
+      console.error('Service ID is missing');
+      alert('Error: ID del servicio no encontrado');
+      return;
+    }
+
+    if (!formData.fecha_programada) {
+      console.error('Scheduled date is missing');
+      alert('Error: Fecha programada no seleccionada');
+      return;
+    }
+
     try {
+      console.log('Preparing installation data...');
+      
+      // Map installation types to expected values
+      const tipoInstalacionMap: Record<string, 'gps_vehicular' | 'gps_personal' | 'camara'> = {
+        'gps_basico': 'gps_vehicular',
+        'gps_premium': 'gps_vehicular',
+        'sistema_completo': 'gps_vehicular',
+        'flotilla_comercial': 'gps_vehicular'
+      };
+
       const programacionData = {
         servicio_id: formData.servicio_id,
-        tipo_instalacion: formData.tipo_instalacion as 'gps_vehicular' | 'gps_personal' | 'camara',
-        fecha_programada: formData.fecha_programada?.toISOString(),
+        tipo_instalacion: tipoInstalacionMap[formData.tipo_instalacion] || 'gps_vehicular',
+        fecha_programada: formData.fecha_programada.toISOString(),
         hora_programada: formData.hora_inicio,
         direccion_instalacion: formData.direccion_instalacion,
         contacto_cliente: formData.contacto_cliente,
@@ -229,7 +256,11 @@ export const ProgramarInstalacionMejorada = ({
         acceso_restringido: formData.requiere_herramientas_especiales
       };
 
+      console.log('Final installation data to send:', programacionData);
+
       await createProgramacion.mutateAsync(programacionData);
+      
+      console.log('Installation scheduled successfully');
       onOpenChange(false);
       
       // Reset form
@@ -243,7 +274,13 @@ export const ProgramarInstalacionMejorada = ({
       }));
       
     } catch (error) {
-      console.error('Error programando instalación:', error);
+      console.error('Error scheduling installation:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        formData: formData
+      });
+      alert('Error al programar la instalación. Por favor intente nuevamente.');
     }
   };
 
@@ -481,103 +518,109 @@ export const ProgramarInstalacionMejorada = ({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Date and Time Selection */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* Date Selection */}
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label className="text-base font-medium">Fecha de Instalación *</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal h-12",
-                              !formData.fecha_programada && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {formData.fecha_programada ? (
-                              format(formData.fecha_programada, "PPP", { locale: es })
-                            ) : (
-                              <span>Seleccionar fecha</span>
-                            )}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={formData.fecha_programada}
-                            onSelect={(date) => setFormData(prev => ({ ...prev, fecha_programada: date }))}
-                            disabled={isDateDisabled}
-                            initialFocus
-                            className={cn("p-3 pointer-events-auto")}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <p className="text-xs text-gray-500">
-                        * Mínimo 72 horas hábiles de anticipación
+                {/* Date Selection Section */}
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    <Label className="text-base font-medium">Fecha de Instalación *</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal h-12 text-base",
+                            !formData.fecha_programada && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-3 h-5 w-5" />
+                          {formData.fecha_programada ? (
+                            format(formData.fecha_programada, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: es })
+                          ) : (
+                            <span>Seleccionar fecha de instalación</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={formData.fecha_programada}
+                          onSelect={(date) => setFormData(prev => ({ ...prev, fecha_programada: date }))}
+                          disabled={isDateDisabled}
+                          initialFocus
+                          className="rounded-md border"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                      <p className="text-sm text-blue-700">
+                        <strong>Políticas de programación:</strong>
                       </p>
-                      <p className="text-xs text-gray-500">
-                        * No se programan instalaciones en fines de semana
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Time and Installer Selection */}
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label className="text-base font-medium">Hora de Inicio *</Label>
-                      <Select value={formData.hora_inicio} onValueChange={(value) => setFormData(prev => ({ ...prev, hora_inicio: value }))}>
-                        <SelectTrigger className="h-12">
-                          <SelectValue placeholder="Seleccionar hora" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {horasDisponibles.map(hora => (
-                            <SelectItem key={hora} value={hora}>
-                              {hora}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-gray-500">
-                        * Horario de servicio: 9:00 AM - 5:00 PM
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-base font-medium">Instalador Asignado *</Label>
-                      <Select value={formData.instalador_asignado} onValueChange={(value) => setFormData(prev => ({ ...prev, instalador_asignado: value }))}>
-                        <SelectTrigger className="h-12">
-                          <SelectValue placeholder="Asignar instalador" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="instalador_1">Juan Pérez - Zona Norte</SelectItem>
-                          <SelectItem value="instalador_2">María García - Zona Sur</SelectItem>
-                          <SelectItem value="instalador_3">Carlos López - Zona Centro</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <ul className="text-xs text-blue-600 mt-1 space-y-1">
+                        <li>• Mínimo 72 horas hábiles de anticipación</li>
+                        <li>• No se realizan instalaciones en fines de semana</li>
+                        <li>• Horario de servicio: 9:00 AM - 5:00 PM</li>
+                      </ul>
                     </div>
                   </div>
                 </div>
 
-                {/* Installation Details */}
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Clock className="h-4 w-4 text-blue-600" />
-                    <Label className="text-blue-800 font-medium">Detalles de la Instalación</Label>
+                {/* Time and Installer Selection */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <Label className="text-base font-medium">Hora de Inicio *</Label>
+                    <Select value={formData.hora_inicio} onValueChange={(value) => setFormData(prev => ({ ...prev, hora_inicio: value }))}>
+                      <SelectTrigger className="h-12 text-base">
+                        <SelectValue placeholder="Seleccionar hora de inicio" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {horasDisponibles.map(hora => (
+                          <SelectItem key={hora} value={hora} className="text-base">
+                            {hora}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+
+                  <div className="space-y-3">
+                    <Label className="text-base font-medium">Instalador Asignado *</Label>
+                    <Select value={formData.instalador_asignado} onValueChange={(value) => setFormData(prev => ({ ...prev, instalador_asignado: value }))}>
+                      <SelectTrigger className="h-12 text-base">
+                        <SelectValue placeholder="Asignar instalador" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="instalador_1">Juan Pérez - Zona Norte</SelectItem>
+                        <SelectItem value="instalador_2">María García - Zona Sur</SelectItem>
+                        <SelectItem value="instalador_3">Carlos López - Zona Centro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Installation Details Summary */}
+                <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Clock className="h-5 w-5 text-green-600" />
+                    <Label className="text-green-800 font-medium text-base">Detalles de la Cita</Label>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <span className="font-medium text-blue-700">Tipo:</span>
-                      <p className="text-blue-600">
+                      <span className="font-medium text-green-700">Tipo de Instalación:</span>
+                      <p className="text-green-600">
                         {tiposInstalacion.find(t => t.value === formData.tipo_instalacion)?.label}
                       </p>
                     </div>
                     <div>
-                      <span className="font-medium text-blue-700">Tiempo Estimado:</span>
-                      <p className="text-blue-600">{formData.tiempo_estimado} minutos</p>
+                      <span className="font-medium text-green-700">Tiempo Estimado:</span>
+                      <p className="text-green-600">{formData.tiempo_estimado} minutos</p>
                     </div>
+                    {formData.fecha_programada && formData.hora_inicio && (
+                      <div className="md:col-span-2">
+                        <span className="font-medium text-green-700">Cita Programada:</span>
+                        <p className="text-green-600">
+                          {format(formData.fecha_programada, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: es })} a las {formData.hora_inicio}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>

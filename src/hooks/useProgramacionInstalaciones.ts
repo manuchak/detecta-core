@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -133,16 +132,53 @@ export const useProgramacionInstalaciones = () => {
 
   const createProgramacion = useMutation({
     mutationFn: async (data: CreateProgramacionData) => {
+      console.log('createProgramacion mutationFn called with data:', data);
+      
+      // Validate required fields
+      if (!data.servicio_id) {
+        throw new Error('servicio_id is required');
+      }
+      
+      if (!data.fecha_programada) {
+        throw new Error('fecha_programada is required');
+      }
+      
+      if (!data.contacto_cliente) {
+        throw new Error('contacto_cliente is required');
+      }
+      
+      if (!data.telefono_contacto) {
+        throw new Error('telefono_contacto is required');
+      }
+      
+      if (!data.direccion_instalacion) {
+        throw new Error('direccion_instalacion is required');
+      }
+
+      console.log('All required fields validated, proceeding with database insert...');
+
       const { data: result, error } = await supabase
         .from('programacion_instalaciones')
         .insert([data])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error during insert:', error);
+        console.error('Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        throw error;
+      }
+      
+      console.log('Installation scheduled successfully:', result);
       return result;
     },
     onSuccess: () => {
+      console.log('createProgramacion onSuccess called');
       queryClient.invalidateQueries({ queryKey: ['programacion-instalaciones'] });
       toast({
         title: "Instalación programada",
@@ -150,6 +186,7 @@ export const useProgramacionInstalaciones = () => {
       });
     },
     onError: (error) => {
+      console.error('createProgramacion onError called:', error);
       toast({
         title: "Error",
         description: "No se pudo programar la instalación.",
