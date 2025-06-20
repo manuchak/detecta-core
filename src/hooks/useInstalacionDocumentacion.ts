@@ -119,13 +119,30 @@ export const useInstalacionDocumentacion = (programacionId: string) => {
 
   // Crear o actualizar documentación
   const guardarDocumentacion = useMutation({
-    mutationFn: async (data: Partial<InstalacionDocumentacion>) => {
+    mutationFn: async (data: {
+      id?: string;
+      paso_instalacion: string;
+      foto_url?: string;
+      descripcion?: string;
+      orden: number;
+      completado?: boolean;
+      coordenadas_latitud?: number;
+      coordenadas_longitud?: number;
+    }) => {
+      const insertData = {
+        programacion_id: programacionId,
+        paso_instalacion: data.paso_instalacion,
+        orden: data.orden,
+        foto_url: data.foto_url,
+        descripcion: data.descripcion,
+        completado: data.completado || false,
+        coordenadas_latitud: data.coordenadas_latitud,
+        coordenadas_longitud: data.coordenadas_longitud,
+      };
+
       const { data: result, error } = await supabase
         .from('instalacion_documentacion')
-        .upsert({
-          ...data,
-          programacion_id: programacionId
-        })
+        .upsert(insertData)
         .select()
         .single();
 
@@ -143,13 +160,24 @@ export const useInstalacionDocumentacion = (programacionId: string) => {
 
   // Guardar validación
   const guardarValidacion = useMutation({
-    mutationFn: async (data: Partial<InstalacionValidacion>) => {
+    mutationFn: async (data: {
+      id?: string;
+      tipo_validacion: string;
+      validado: boolean;
+      comentarios?: string;
+      puntuacion?: number;
+    }) => {
+      const insertData = {
+        programacion_id: programacionId,
+        tipo_validacion: data.tipo_validacion,
+        validado: data.validado,
+        comentarios: data.comentarios,
+        puntuacion: data.puntuacion,
+      };
+
       const { data: result, error } = await supabase
         .from('instalacion_validaciones')
-        .upsert({
-          ...data,
-          programacion_id: programacionId
-        })
+        .upsert(insertData)
         .select()
         .single();
 
@@ -164,12 +192,21 @@ export const useInstalacionDocumentacion = (programacionId: string) => {
   // Guardar reporte final
   const guardarReporteFinal = useMutation({
     mutationFn: async (data: Partial<InstalacionReporteFinal>) => {
+      const insertData = {
+        programacion_id: programacionId,
+        comentarios_instalador: data.comentarios_instalador,
+        comentarios_cliente: data.comentarios_cliente,
+        tiempo_total_minutos: data.tiempo_total_minutos,
+        dificultades_encontradas: data.dificultades_encontradas,
+        materiales_adicionales_usados: data.materiales_adicionales_usados,
+        recomendaciones: data.recomendaciones,
+        calificacion_servicio: data.calificacion_servicio,
+        firma_cliente_url: data.firma_cliente_url,
+      };
+
       const { data: result, error } = await supabase
         .from('instalacion_reporte_final')
-        .upsert({
-          ...data,
-          programacion_id: programacionId
-        })
+        .upsert(insertData)
         .select()
         .single();
 
