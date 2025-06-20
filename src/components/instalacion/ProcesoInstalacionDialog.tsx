@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle, FileText, Shield, ClipboardCheck, Camera } from 'lucide-react';
+import { CheckCircle, FileText, Shield, ClipboardCheck, Camera, AlertTriangle } from 'lucide-react';
 import { useInstalacionDocumentacion } from '@/hooks/useInstalacionDocumentacion';
 import { EnhancedPasoInstalacion } from './EnhancedPasoInstalacion';
 import { SimpleValidation } from './SimpleValidation';
@@ -22,6 +22,7 @@ interface ProcesoInstalacionDialogProps {
   onOpenChange: (open: boolean) => void;
   programacionId: string;
   onCerrar: () => void;
+  onInstalacionCompleta?: () => void;
 }
 
 const PASOS_INSTALACION = [
@@ -114,7 +115,8 @@ export const ProcesoInstalacionDialog: React.FC<ProcesoInstalacionDialogProps> =
   open,
   onOpenChange,
   programacionId,
-  onCerrar
+  onCerrar,
+  onInstalacionCompleta
 }) => {
   const [tabActiva, setTabActiva] = useState('documentacion');
   const [showReporteFinal, setShowReporteFinal] = useState(false);
@@ -193,6 +195,22 @@ export const ProcesoInstalacionDialog: React.FC<ProcesoInstalacionDialogProps> =
     return todosLosPasosCompletados && todasLasValidacionesRealizadas;
   };
 
+  const instalacionCompleta = () => {
+    return puedeFinalizarInstalacion() && reporteFinal;
+  };
+
+  const handleGuardarReporteFinal = async (data: any) => {
+    try {
+      await guardarReporteFinal.mutateAsync(data);
+      // Notificar al componente padre que la instalación está completa
+      if (onInstalacionCompleta) {
+        onInstalacionCompleta();
+      }
+    } catch (error) {
+      console.error('Error al guardar reporte final:', error);
+    }
+  };
+
   if (isLoading) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -228,12 +246,23 @@ export const ProcesoInstalacionDialog: React.FC<ProcesoInstalacionDialogProps> =
                 <span className="text-base font-semibold">Progreso general</span>
                 <div className="flex items-center gap-2">
                   <span className="text-2xl font-bold text-blue-600">{calcularProgreso()}%</span>
-                  <Badge variant={calcularProgreso() === 100 ? "default" : "secondary"}>
-                    {calcularProgreso() === 100 ? "Completo" : "En progreso"}
+                  <Badge variant={instalacionCompleta() ? "default" : calcularProgreso() === 100 ? "secondary" : "outline"}>
+                    {instalacionCompleta() ? "Instalación Completa" : calcularProgreso() === 100 ? "Documentación Completa" : "En progreso"}
                   </Badge>
                 </div>
               </div>
               <Progress value={calcularProgreso()} className="w-full h-3" />
+              
+              {calcularProgreso() === 100 && !reporteFinal && (
+                <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-amber-800">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span className="text-sm font-medium">
+                      Complete el reporte final para finalizar la instalación
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </SheetHeader>
 
@@ -242,18 +271,32 @@ export const ProcesoInstalacionDialog: React.FC<ProcesoInstalacionDialogProps> =
               <TabsTrigger value="documentacion" className="flex items-center gap-2 text-base py-3">
                 <Camera className="h-5 w-5" />
                 Documentación
+                <Badge variant={documentacion?.filter(doc => doc.completado).length === PASOS_INSTALACION.length ? "default" : "secondary"} className="ml-1">
+                  {documentacion?.filter(doc => doc.completado).length || 0}/{PASOS_INSTALACION.length}
+                </Badge>
               </TabsTrigger>
               <TabsTrigger value="validaciones" className="flex items-center gap-2 text-base py-3">
                 <Shield className="h-5 w-5" />
                 Validaciones
+                <Badge variant={validaciones?.filter(val => val.validado !== null).length === VALIDACIONES_TECNICAS.length ? "default" : "secondary"} className="ml-1">
+                  {validaciones?.filter(val => val.validado !== null).length || 0}/{VALIDACIONES_TECNICAS.length}
+                </Badge>
               </TabsTrigger>
-              <TabsTrigger value="reporte" className="flex items-center gap-2 text-base py-3">
+              <TabsTrigger value="reporte" className="flex items-center gap-2 text-base py-3" disabled={!puedeFinalizarInstalacion()}>
                 <ClipboardCheck className="h-5 w-5" />
                 Reporte Final
+                {reporteFinal && <CheckCircle className="h-4 w-4 text-green-600" />}
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="documentacion" className="space-y-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <h3 className="font-medium text-blue-900 mb-2">Documentación de Instalación</h3>
+                <p className="text-sm text-blue-700">
+                  Complete todos los pasos de documentación tomando fotos y agregando descripciones detalladas.
+                </p>
+              </div>
+              
               <div className="space-y-6">
                 {PASOS_INSTALACION.map((paso) => {
                   const docPaso = documentacion?.find(doc => doc.paso_instalacion === paso.id);
@@ -307,23 +350,22 @@ export const ProcesoInstalacionDialog: React.FC<ProcesoInstalacionDialogProps> =
                 </div>
                 <h3 className="text-2xl font-bold mb-3">Reporte Final de Instalación</h3>
                 <p className="text-gray-600 mb-8 max-w-md mx-auto">
-                  {puedeFinalizarInstalacion() 
-                    ? 'Todos los pasos han sido completados. Genera el reporte final para cerrar la instalación.'
-                    : 'Complete todos los pasos de documentación y validaciones para generar el reporte final.'
-                  }
+                  Complete el reporte final para cerrar oficialmente la instalación.
                 </p>
                 
                 {reporteFinal ? (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-6 max-w-md mx-auto">
-                    <div className="flex items-center gap-3 text-green-700 justify-center">
+                    <div className="flex items-center gap-3 text-green-700 justify-center mb-3">
                       <CheckCircle className="h-6 w-6" />
                       <span className="text-lg font-semibold">Reporte final completado</span>
                     </div>
+                    <p className="text-sm text-green-600">
+                      La instalación está lista para ser marcada como completada.
+                    </p>
                   </div>
                 ) : (
                   <Button 
                     onClick={() => setShowReporteFinal(true)}
-                    disabled={!puedeFinalizarInstalacion()}
                     size="lg"
                     className="px-8 py-3 text-base"
                   >
@@ -345,7 +387,7 @@ export const ProcesoInstalacionDialog: React.FC<ProcesoInstalacionDialogProps> =
       <ReporteFinalDialog
         open={showReporteFinal}
         onOpenChange={setShowReporteFinal}
-        onGuardarReporte={guardarReporteFinal.mutateAsync}
+        onGuardarReporte={handleGuardarReporteFinal}
         isLoading={guardarReporteFinal.isPending}
       />
     </>

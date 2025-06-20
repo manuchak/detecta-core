@@ -76,12 +76,20 @@ export const InstallerPortal = () => {
     setShowProcesoDialog(true);
   };
 
-  const handleCompletarInstalacion = (instalacionId: string) => {
-    updateEstadoInstalacion.mutate({ 
-      id: instalacionId, 
-      estado: 'completada',
-      observaciones: 'Instalación completada exitosamente'
-    });
+  const handleInstalacionCompleta = () => {
+    if (instalacionSeleccionada) {
+      updateEstadoInstalacion.mutate({ 
+        id: instalacionSeleccionada, 
+        estado: 'completada',
+        observaciones: 'Instalación completada exitosamente con documentación completa'
+      });
+      toast({
+        title: "Instalación completada",
+        description: "La instalación ha sido marcada como completada exitosamente.",
+      });
+      setShowProcesoDialog(false);
+      setInstalacionSeleccionada(null);
+    }
   };
 
   const handleDesasignarme = async (instalacionId: string) => {
@@ -183,14 +191,6 @@ export const InstallerPortal = () => {
           >
             <FileText className="h-4 w-4 mr-1" />
             Continuar
-          </Button>
-          <Button 
-            size="sm" 
-            variant="outline"
-            onClick={() => handleCompletarInstalacion(instalacion.id)}
-            disabled={updateEstadoInstalacion.isPending}
-          >
-            Completar
           </Button>
         </div>
       );
@@ -388,6 +388,7 @@ export const InstallerPortal = () => {
           onOpenChange={setShowProcesoDialog}
           programacionId={instalacionSeleccionada}
           onCerrar={handleCerrarProceso}
+          onInstalacionCompleta={handleInstalacionCompleta}
         />
       )}
     </>
