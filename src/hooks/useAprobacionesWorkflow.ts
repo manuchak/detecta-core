@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -33,6 +34,7 @@ export const useAprobacionesWorkflow = () => {
         aprobado: data?.filter(s => s.estado_general === 'aprobado') || [],
         programacion_instalacion: data?.filter(s => s.estado_general === 'programacion_instalacion') || [],
         instalacion_programada: data?.filter(s => s.estado_general === 'instalacion_programada') || [],
+        en_instalacion: data?.filter(s => s.estado_general === 'en_instalacion') || [],
         instalacion_completada: data?.filter(s => s.estado_general === 'instalacion_completada') || [],
         servicio_activo: data?.filter(s => s.estado_general === 'servicio_activo') || [],
         rechazado: data?.filter(s => s.estado_general === 'rechazado') || [],
@@ -260,7 +262,7 @@ export const useAprobacionesWorkflow = () => {
       // Preparar los datos del análisis incluyendo el analista_id
       const analisisData = {
         ...data,
-        analista_id: userData.user.id // Agregar el analista_id requerido
+        analista_id: userData.user.id
       };
 
       const { data: result, error } = await supabase
@@ -277,7 +279,7 @@ export const useAprobacionesWorkflow = () => {
       console.log('Análisis de riesgo creado:', result);
 
       // Actualizar estado del servicio según el análisis
-      let nuevoEstado = 'programacion_instalacion'; // Aprobado -> va a instalación GPS
+      let nuevoEstado = 'programacion_instalacion'; // Aprobado -> va a programación de instalación GPS
       if (!data.aprobado_seguridad) {
         nuevoEstado = 'rechazado_seguridad';
       }
@@ -312,7 +314,6 @@ export const useAprobacionesWorkflow = () => {
 
       if (seguimientoError) {
         console.warn('Error al registrar seguimiento:', seguimientoError);
-        // No lanzamos error aquí porque el seguimiento es opcional
       }
 
       console.log('Análisis de riesgo completado exitosamente');

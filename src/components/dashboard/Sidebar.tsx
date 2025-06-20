@@ -1,460 +1,256 @@
 
-import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Link, useLocation } from "react-router-dom";
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  BarChartBig,
-  ChevronLeft,
-  ChevronRight,
-  FileBarChart2,
-  HelpCircle,
-  HomeIcon,
-  LifeBuoy,
-  ListChecks,
-  MonitorIcon,
-  Settings,
-  UsersRound,
-  User,
-  LogOut,
-  LogIn,
-  Calendar,
+  Home,
+  BarChart3,
   Users,
+  Settings,
+  Shield,
+  Ticket,
+  FileText,
+  MapPin,
+  Calendar,
   Wrench,
-} from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+  ChevronDown,
+  ChevronRight,
+  TrendingUp,
+  Activity
+} from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { useState } from 'react';
 
 interface SidebarProps {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
 }
 
-export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
-  const { pathname } = useLocation();
-  const isMobile = useIsMobile();
-  const { user, userRole, signOut, isAuthenticated } = useAuth();
-  
-  const isAdmin = userRole === 'admin' || userRole === 'owner';
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
+  const location = useLocation();
+  const { user, signOut } = useAuth();
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    servicios: false,
+    installers: false,
+    monitoring: false
+  });
 
-  const getUserInitials = (email: string | undefined) => {
-    if (!email) return 'U';
-    return email.charAt(0).toUpperCase();
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
   };
 
-  const getUserDisplayName = () => {
-    if (user?.user_metadata?.display_name) {
-      return user.user_metadata.display_name;
-    }
-    return user?.email?.split('@')[0] || 'Usuario';
-  };
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
-
-  const sidebarLinks = [
+  const navigationItems = [
     {
-      title: "Dashboard",
-      href: "/dashboard",
-      icon: HomeIcon,
-      isActive: pathname === "/dashboard",
+      title: 'Dashboard',
+      href: '/dashboard',
+      icon: Home,
     },
     {
-      title: "Leads",
-      href: "/leads",
-      icon: UsersRound,
-      isActive: pathname.startsWith("/leads"),
-      submenu: [
+      title: 'Servicios',
+      icon: FileText,
+      children: [
         {
-          title: "Lista de Leads",
-          href: "/leads",
-          isActive: pathname === "/leads",
+          title: 'Gestión de Servicios',
+          href: '/services',
+          icon: FileText,
         },
         {
-          title: "Aprobación de Leads",
-          href: "/leads/approvals",
-          isActive: pathname === "/leads/approvals",
-        },
-      ],
+          title: 'Rendimiento',
+          href: '/services/rendimiento',
+          icon: TrendingUp,
+        }
+      ]
     },
     {
-      title: "Servicios",
-      href: "/services",
-      icon: FileBarChart2,
-      isActive: pathname.startsWith("/services"),
-      submenu: [
+      title: 'Instaladores',
+      icon: Wrench,
+      children: [
         {
-          title: "Lista de Servicios",
-          href: "/services",
-          isActive: pathname === "/services",
+          title: 'Gestión',
+          href: '/installers',
+          icon: Users,
         },
         {
-          title: "Rendimiento",
-          href: "/services/performance",
-          isActive: pathname === "/services/performance",
+          title: 'Calendario',
+          href: '/installers/calendar',
+          icon: Calendar,
         },
-      ],
+        {
+          title: 'Programación',
+          href: '/installers/schedule',
+          icon: MapPin,
+        },
+        {
+          title: 'Portal Instalador',
+          href: '/installers/portal',
+          icon: Activity,
+        }
+      ]
     },
     {
-      title: "Instalaciones GPS",
-      href: "/installers",
-      icon: MonitorIcon,
-      isActive: pathname.startsWith("/installers"),
-      submenu: [
+      title: 'Monitoreo',
+      icon: Shield,
+      children: [
         {
-          title: "Portal Instaladores",
-          href: "/installers",
-          isActive: pathname === "/installers",
+          title: 'Centro de Control',
+          href: '/monitoring',
+          icon: Shield,
         },
         {
-          title: "Calendario",
-          href: "/installers/calendar",
-          isActive: pathname === "/installers/calendar",
+          title: 'Cadena de Suministro',
+          href: '/monitoring/supply-chain',
+          icon: BarChart3,
         },
         {
-          title: "Programación",
-          href: "/installers/schedule",
-          isActive: pathname === "/installers/schedule",
-        },
-        {
-          title: "Gestión Instaladores",
-          href: "/installers/management",
-          isActive: pathname === "/installers/management",
-        },
-      ],
+          title: 'Auditoría Forense',
+          href: '/monitoring/forensic-audit',
+          icon: Shield,
+        }
+      ]
     },
     {
-      title: "Monitoreo",
-      href: "/monitoring",
-      icon: BarChartBig,
-      isActive: pathname.startsWith("/monitoring"),
-      submenu: [
-        {
-          title: "Monitoreo General",
-          href: "/monitoring",
-          isActive: pathname === "/monitoring",
-        },
-        {
-          title: "Supply Chain",
-          href: "/monitoring/supply-chain",
-          isActive: pathname === "/monitoring/supply-chain",
-        },
-        {
-          title: "Auditoría Forense",
-          href: "/monitoring/forensic-audit",
-          isActive: pathname === "/monitoring/forensic-audit",
-        },
-      ],
+      title: 'Leads',
+      href: '/leads',
+      icon: Users,
     },
     {
-      title: "Tickets",
-      href: "/tickets",
-      icon: LifeBuoy,
-      isActive: pathname.startsWith("/tickets"),
-      submenu: [
-        {
-          title: "Lista de Tickets",
-          href: "/tickets",
-          isActive: pathname === "/tickets",
-        },
-        {
-          title: "Crear Ticket",
-          href: "/tickets/new",
-          isActive: pathname === "/tickets/new",
-        },
-      ],
+      title: 'Tickets',
+      href: '/tickets',
+      icon: Ticket,
     },
-    ...(isAdmin ? [
-      {
-        title: "Configuración",
-        href: "/settings",
-        icon: Settings,
-        isActive: pathname.startsWith("/settings"),
-      },
-    ] : []),
+    {
+      title: 'Configuración',
+      href: '/settings',
+      icon: Settings,
+    },
   ];
 
-  // Authenticated user section
-  const AuthenticatedUserSection = () => (
-    <div className="border-t p-4">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="w-full justify-start p-2 h-auto hover:bg-accent">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={user?.user_metadata?.avatar_url} />
-                <AvatarFallback className="bg-primary text-primary-foreground">
-                  {getUserInitials(user?.email)}
-                </AvatarFallback>
-              </Avatar>
-              {isOpen && (
-                <div className="flex flex-col min-w-0 flex-1 text-left">
-                  <span className="text-sm font-medium truncate">
-                    {getUserDisplayName()}
-                  </span>
-                  <span className="text-xs text-muted-foreground truncate">
-                    {user?.email}
-                  </span>
-                  {userRole && (
-                    <span className="text-xs text-green-600 capitalize font-medium">
-                      {userRole}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56 bg-background border shadow-lg">
-          <DropdownMenuLabel className="font-normal">
-            <div className="flex flex-col space-y-1">
-              <p className="text-sm font-medium leading-none">{getUserDisplayName()}</p>
-              <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
-            </div>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem asChild>
-            <Link to="/settings" className="flex items-center gap-2 cursor-pointer">
-              <User className="h-4 w-4" />
-              Mi Perfil
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link to="/settings" className="flex items-center gap-2 cursor-pointer">
-              <Settings className="h-4 w-4" />
-              Configuración
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem 
-            onClick={handleSignOut} 
-            className="flex items-center gap-2 text-red-600 cursor-pointer focus:text-red-600"
-          >
-            <LogOut className="h-4 w-4" />
-            Cerrar Sesión
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  );
+  const isActiveRoute = (href: string) => {
+    return location.pathname === href;
+  };
 
-  const NonAuthenticatedUserSection = () => (
-    <div className="border-t p-4">
-      <div className="space-y-2">
-        <Button asChild variant="default" className="w-full justify-start">
-          <Link to="/login" className="flex items-center gap-2">
-            <LogIn className="h-4 w-4" />
-            {isOpen && "Iniciar Sesión"}
-          </Link>
-        </Button>
-        {isOpen && (
-          <Button asChild variant="outline" className="w-full justify-start">
-            <Link to="/register" className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Registrarse
-            </Link>
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-
-  if (isMobile) {
-    return (
-      <Sheet open={isOpen} onOpenChange={setIsOpen}>
-        <SheetContent side="left" className="p-0">
-          <div className="flex h-full flex-col gap-0">
-            <div className="flex h-14 items-center border-b px-4">
-              <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
-                <MonitorIcon className="h-6 w-6" />
-                <span>Lead Flow Navigator</span>
-              </Link>
-            </div>
-            <ScrollArea className="flex-1 px-2 py-4">
-              <div className="flex flex-col gap-1">
-                {sidebarLinks.map((link) => {
-                  if (!link.submenu) {
-                    return (
-                      <Link
-                        key={link.href}
-                        to={link.href}
-                        className={cn(
-                          "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground",
-                          link.isActive && "bg-accent text-accent-foreground"
-                        )}
-                      >
-                        <link.icon className="h-4 w-4" />
-                        <span>{link.title}</span>
-                      </Link>
-                    );
-                  }
-                  
-                  return (
-                    <Accordion type="single" collapsible key={link.href}>
-                      <AccordionItem value={link.title} className="border-none">
-                        <AccordionTrigger 
-                          className={cn(
-                            "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground",
-                            (link.submenu.some(item => item.isActive)) && "text-accent-foreground"
-                          )}
-                        >
-                          <div className="flex items-center gap-3">
-                            <link.icon className="h-4 w-4" />
-                            <span>{link.title}</span>
-                          </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="pt-1 pb-0">
-                          <div className="pl-6 space-y-1">
-                            {link.submenu.map((sublink) => (
-                              <Link
-                                key={sublink.href}
-                                to={sublink.href}
-                                className={cn(
-                                  "flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-all hover:text-foreground",
-                                  sublink.isActive && "bg-muted text-foreground"
-                                )}
-                              >
-                                <span>{sublink.title}</span>
-                              </Link>
-                            ))}
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    </Accordion>
-                  );
-                })}
-              </div>
-            </ScrollArea>
-            {isAuthenticated ? <AuthenticatedUserSection /> : <NonAuthenticatedUserSection />}
-          </div>
-        </SheetContent>
-      </Sheet>
-    );
-  }
+  const hasActiveChild = (children: any[]) => {
+    return children?.some(child => isActiveRoute(child.href));
+  };
 
   return (
     <div
       className={cn(
-        "flex h-screen flex-col border-r bg-background transition-all duration-300",
-        isOpen ? "w-64" : "w-14"
+        'bg-white border-r border-gray-200 h-screen transition-all duration-300 flex flex-col',
+        isOpen ? 'w-64' : 'w-16'
       )}
     >
-      <div className="flex h-14 items-center border-b px-4">
-        {isOpen ? (
-          <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
-            <MonitorIcon className="h-6 w-6" />
-            <span>Lead Flow Navigator</span>
-          </Link>
-        ) : (
-          <MonitorIcon className="h-6 w-6 mx-auto" />
-        )}
+      <div className="p-6 border-b border-gray-200">
+        <Link to="/dashboard" className="flex items-center space-x-2">
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+            <span className="text-white font-bold text-sm">MS</span>
+          </div>
+          {isOpen && (
+            <span className="font-semibold text-xl text-gray-900">
+              MonitorSys
+            </span>
+          )}
+        </Link>
       </div>
-      <ScrollArea className="flex-1">
-        <div className="flex flex-col gap-1 p-2">
-          {sidebarLinks.map((link) => {
-            if (!link.submenu) {
+
+      <ScrollArea className="flex-1 px-3 py-6">
+        <nav className="space-y-2">
+          {navigationItems.map((item) => {
+            if (item.children) {
+              const sectionKey = item.title.toLowerCase().replace(' ', '');
+              const isExpanded = expandedSections[sectionKey];
+              const hasActiveChildren = hasActiveChild(item.children);
+
               return (
-                <Link
-                  key={link.href}
-                  to={link.href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground",
-                    link.isActive && "bg-accent text-accent-foreground"
-                  )}
-                >
-                  <link.icon className="h-4 w-4" />
-                  {isOpen && <span>{link.title}</span>}
-                </Link>
-              );
-            }
-            
-            if (isOpen) {
-              return (
-                <Accordion type="single" collapsible key={link.href}>
-                  <AccordionItem value={link.title} className="border-none">
-                    <AccordionTrigger 
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground",
-                        (link.submenu.some(item => item.isActive)) && "text-accent-foreground"
-                      )}
-                    >
-                      <div className="flex items-center gap-3">
-                        <link.icon className="h-4 w-4" />
-                        <span>{link.title}</span>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="pt-1 pb-0">
-                      <div className="pl-6 space-y-1">
-                        {link.submenu.map((sublink) => (
-                          <Link
-                            key={sublink.href}
-                            to={sublink.href}
-                            className={cn(
-                              "flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-all hover:text-foreground",
-                              sublink.isActive && "bg-muted text-foreground"
-                            )}
-                          >
-                            <span>{sublink.title}</span>
+                <div key={item.title}>
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      'w-full justify-start text-left font-medium',
+                      hasActiveChildren ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+                    )}
+                    onClick={() => toggleSection(sectionKey)}
+                  >
+                    <item.icon className="mr-3 h-4 w-4" />
+                    {isOpen && (
+                      <>
+                        <span className="flex-1">{item.title}</span>
+                        {isExpanded ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </>
+                    )}
+                  </Button>
+                  
+                  {isOpen && isExpanded && (
+                    <div className="ml-4 mt-2 space-y-1">
+                      {item.children.map((child) => (
+                        <Button
+                          key={child.href}
+                          variant="ghost"
+                          size="sm"
+                          className={cn(
+                            'w-full justify-start text-left',
+                            isActiveRoute(child.href)
+                              ? 'bg-blue-100 text-blue-700 font-medium'
+                              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                          )}
+                          asChild
+                        >
+                          <Link to={child.href}>
+                            <child.icon className="mr-3 h-4 w-4" />
+                            {child.title}
                           </Link>
-                        ))}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               );
             }
-            
+
             return (
-              <Link
-                key={link.href}
-                to={link.href}
+              <Button
+                key={item.title}
+                variant="ghost"
                 className={cn(
-                  "flex items-center justify-center rounded-lg p-2 text-muted-foreground transition-all hover:text-foreground",
-                  (link.isActive || link.submenu.some(item => item.isActive)) && "bg-accent text-accent-foreground"
+                  'w-full justify-start text-left font-medium',
+                  isActiveRoute(item.href!)
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
                 )}
+                asChild
               >
-                <link.icon className="h-4 w-4" />
-              </Link>
+                <Link to={item.href!}>
+                  <item.icon className="mr-3 h-4 w-4" />
+                  {isOpen && item.title}
+                </Link>
+              </Button>
             );
           })}
-        </div>
+        </nav>
       </ScrollArea>
-      <div className="p-2 border-t">
+
+      <Separator />
+      
+      <div className="p-4">
         <Button
           variant="ghost"
-          size="icon"
-          onClick={() => setIsOpen(!isOpen)}
-          className="w-full flex justify-center"
+          className="w-full justify-start text-left text-red-600 hover:text-red-700 hover:bg-red-50"
+          onClick={signOut}
         >
-          {isOpen ? (
-            <ChevronLeft className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          )}
+          <Settings className="mr-3 h-4 w-4" />
+          {isOpen && 'Cerrar Sesión'}
         </Button>
       </div>
-      {isAuthenticated ? <AuthenticatedUserSection /> : <NonAuthenticatedUserSection />}
     </div>
   );
-}
+};
