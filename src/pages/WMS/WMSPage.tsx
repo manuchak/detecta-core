@@ -1,14 +1,14 @@
 
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, ShoppingCart, Users, BarChart3, Truck, Settings } from 'lucide-react';
+import { Package, ShoppingCart, Users, BarChart3, Truck, Settings, Smartphone } from 'lucide-react';
 import { InventarioTab } from './components/InventarioTab';
 import { ComprasTab } from './components/ComprasTab';
 import { ProveedoresTab } from './components/ProveedoresTab';
 import { StockTab } from './components/StockTab';
 import { RecepcionTab } from './components/RecepcionTab';
 import { ConfiguracionTab } from './components/ConfiguracionTab';
+import { CatalogoGPSTab } from './components/CatalogoGPSTab';
 
 export const WMSPage = () => {
   const [activeTab, setActiveTab] = useState('inventario');
@@ -23,7 +23,7 @@ export const WMSPage = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6 h-12">
+        <TabsList className="grid w-full grid-cols-7 h-12">
           <TabsTrigger value="inventario" className="flex items-center gap-2">
             <Package className="h-4 w-4" />
             Inventario
@@ -43,6 +43,10 @@ export const WMSPage = () => {
           <TabsTrigger value="recepcion" className="flex items-center gap-2">
             <Truck className="h-4 w-4" />
             Recepción
+          </TabsTrigger>
+          <TabsTrigger value="catalogo-gps" className="flex items-center gap-2">
+            <Smartphone className="h-4 w-4" />
+            Catálogo GPS
           </TabsTrigger>
           <TabsTrigger value="configuracion" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
@@ -68,6 +72,10 @@ export const WMSPage = () => {
 
         <TabsContent value="recepcion">
           <RecepcionTab />
+        </TabsContent>
+
+        <TabsContent value="catalogo-gps">
+          <CatalogoGPSTab />
         </TabsContent>
 
         <TabsContent value="configuracion">

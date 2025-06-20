@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
 import {
   Dialog,
   DialogContent,
@@ -11,10 +12,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 import { useProductosInventario } from '@/hooks/useProductosInventario';
 import { useCategorias } from '@/hooks/useCategorias';
+import { useMarcasGPS } from '@/hooks/useMarcasGPS';
+import { useModelosGPS } from '@/hooks/useModelosGPS';
 import type { ProductoInventario } from '@/types/wms';
 
 interface ProductoDialogProps {
@@ -25,50 +37,32 @@ interface ProductoDialogProps {
 }
 
 export const ProductoDialog = ({ open, onOpenChange, producto, onClose }: ProductoDialogProps) => {
+  const [isEditing, setIsEditing] = useState(!producto);
+  const [selectedMarcaGPS, setSelectedMarcaGPS] = useState<string>('');
+  
   const { createProducto, updateProducto } = useProductosInventario();
   const { categorias } = useCategorias();
-  const [formData, setFormData] = useState({
-    codigo_producto: '',
-    nombre: '',
-    descripcion: '',
-    categoria_id: '',
-    marca: '',
-    modelo: '',
-    unidad_medida: 'pieza',
-    precio_compra_promedio: 0,
-    precio_venta_sugerido: 0,
-    stock_minimo: 5,
-    stock_maximo: 100,
-    ubicacion_almacen: '',
-    es_serializado: false,
-    requiere_configuracion: false,
-    garantia_meses: 12,
-    activo: true
-  });
+  const { marcas: marcasGPS } = useMarcasGPS();
+  const { modelos: modelosGPS, modelosPorMarca } = useModelosGPS();
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors }
+  } = useForm<ProductoInventario>();
+
+  const watchedMarcaGPS = watch('marca_gps_id');
 
   useEffect(() => {
     if (producto) {
-      setFormData({
-        codigo_producto: producto.codigo_producto || '',
-        nombre: producto.nombre || '',
-        descripcion: producto.descripcion || '',
-        categoria_id: producto.categoria_id || '',
-        marca: producto.marca || '',
-        modelo: producto.modelo || '',
-        unidad_medida: producto.unidad_medida || 'pieza',
-        precio_compra_promedio: producto.precio_compra_promedio || 0,
-        precio_venta_sugerido: producto.precio_venta_sugerido || 0,
-        stock_minimo: producto.stock_minimo || 5,
-        stock_maximo: producto.stock_maximo || 100,
-        ubicacion_almacen: producto.ubicacion_almacen || '',
-        es_serializado: producto.es_serializado || false,
-        requiere_configuracion: producto.requiere_configuracion || false,
-        garantia_meses: producto.garantia_meses || 12,
-        activo: producto.activo !== false
-      });
+      reset(producto);
+      setSelectedMarcaGPS(producto.marca_gps_id || '');
+      setIsEditing(false);
     } else {
-      // Reset para nuevo producto
-      setFormData({
+      reset({
         codigo_producto: '',
         nombre: '',
         descripcion: '',
@@ -80,190 +74,370 @@ export const ProductoDialog = ({ open, onOpenChange, producto, onClose }: Produc
         precio_venta_sugerido: 0,
         stock_minimo: 5,
         stock_maximo: 100,
-        ubicacion_almacen: '',
         es_serializado: false,
         requiere_configuracion: false,
         garantia_meses: 12,
-        activo: true
+        activo: true,
+        marca_gps_id: '',
+        modelo_gps_id: ''
       });
+      setSelectedMarcaGPS('');
+      setIsEditing(true);
     }
-  }, [producto, open]);
+  }, [producto, reset]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      if (producto) {
-        await updateProducto.mutateAsync({ id: producto.id, ...formData });
-      } else {
-        await createProducto.mutateAsync(formData);
-      }
-      onClose();
-    } catch (error) {
-      console.error('Error saving producto:', error);
+  useEffect(() => {
+    if (watchedMarcaGPS !== selectedMarcaGPS) {
+      setSelectedMarcaGPS(watchedMarcaGPS || '');
+      // Reset modelo cuando cambia la marca
+      setValue('modelo_gps_id', '');
     }
+  }, [watchedMarcaGPS, selectedMarcaGPS, setValue]);
+
+  const onSubmit = (data: ProductoInventario) => {
+    if (producto && !isEditing) {
+      setIsEditing(true);
+      return;
+    }
+
+    const mutation = producto ? updateProducto : createProducto;
+    
+    mutation.mutate(producto ? { ...data, id: producto.id } : data, {
+      onSuccess: () => {
+        onClose();
+        setIsEditing(false);
+      }
+    });
   };
+
+  const modelosDisponibles = selectedMarcaGPS && modelosPorMarca ? 
+    modelosPorMarca[selectedMarcaGPS] || [] : [];
+
+  const selectedModelo = modelosGPS?.find(m => m.id === watch('modelo_gps_id'));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {producto ? 'Editar Producto' : 'Nuevo Producto'}
+            {producto ? (isEditing ? 'Editar Producto' : 'Detalles del Producto') : 'Nuevo Producto'}
           </DialogTitle>
           <DialogDescription>
-            {producto ? 'Modifica la información del producto' : 'Agrega un nuevo producto al inventario'}
+            {isEditing ? 'Complete la información del producto de inventario' : 'Información detallada del producto'}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="codigo">Código *</Label>
-              <Input
-                id="codigo"
-                value={formData.codigo_producto}
-                onChange={(e) => setFormData(prev => ({ ...prev, codigo_producto: e.target.value }))}
-                placeholder="GPS-001"
-                required
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="categoria">Categoría</Label>
-              <Select 
-                value={formData.categoria_id} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, categoria_id: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar categoría" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categorias?.map((categoria) => (
-                    <SelectItem key={categoria.id} value={categoria.id}>
-                      {categoria.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <Tabs defaultValue="general" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="general">General</TabsTrigger>
+              <TabsTrigger value="gps">GPS</TabsTrigger>
+              <TabsTrigger value="precios">Precios</TabsTrigger>
+              <TabsTrigger value="configuracion">Configuración</TabsTrigger>
+            </TabsList>
 
-          <div className="space-y-2">
-            <Label htmlFor="nombre">Nombre del Producto *</Label>
-            <Input
-              id="nombre"
-              value={formData.nombre}
-              onChange={(e) => setFormData(prev => ({ ...prev, nombre: e.target.value }))}
-              placeholder="GPS Tracker Profesional"
-              required
-            />
-          </div>
+            <TabsContent value="general" className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="codigo_producto">Código del Producto *</Label>
+                  <Input
+                    id="codigo_producto"
+                    {...register('codigo_producto', { required: 'Código requerido' })}
+                    disabled={!isEditing}
+                  />
+                  {errors.codigo_producto && (
+                    <span className="text-sm text-red-500">{errors.codigo_producto.message}</span>
+                  )}
+                </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="descripcion">Descripción</Label>
-            <Textarea
-              id="descripcion"
-              value={formData.descripcion}
-              onChange={(e) => setFormData(prev => ({ ...prev, descripcion: e.target.value }))}
-              placeholder="Descripción detallada del producto..."
-            />
-          </div>
+                <div>
+                  <Label htmlFor="categoria_id">Categoría</Label>
+                  <Select
+                    value={watch('categoria_id') || ''}
+                    onValueChange={(value) => setValue('categoria_id', value)}
+                    disabled={!isEditing}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar categoría" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categorias?.map((categoria) => (
+                        <SelectItem key={categoria.id} value={categoria.id}>
+                          {categoria.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="marca">Marca</Label>
-              <Input
-                id="marca"
-                value={formData.marca}
-                onChange={(e) => setFormData(prev => ({ ...prev, marca: e.target.value }))}
-                placeholder="Teltonika"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="modelo">Modelo</Label>
-              <Input
-                id="modelo"
-                value={formData.modelo}
-                onChange={(e) => setFormData(prev => ({ ...prev, modelo: e.target.value }))}
-                placeholder="FMC001"
-              />
-            </div>
-          </div>
+              <div>
+                <Label htmlFor="nombre">Nombre del Producto *</Label>
+                <Input
+                  id="nombre"
+                  {...register('nombre', { required: 'Nombre requerido' })}
+                  disabled={!isEditing}
+                />
+                {errors.nombre && (
+                  <span className="text-sm text-red-500">{errors.nombre.message}</span>
+                )}
+              </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="precio_compra">Precio Compra</Label>
-              <Input
-                id="precio_compra"
-                type="number"
-                step="0.01"
-                value={formData.precio_compra_promedio}
-                onChange={(e) => setFormData(prev => ({ ...prev, precio_compra_promedio: parseFloat(e.target.value) || 0 }))}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="stock_min">Stock Mínimo</Label>
-              <Input
-                id="stock_min"
-                type="number"
-                value={formData.stock_minimo}
-                onChange={(e) => setFormData(prev => ({ ...prev, stock_minimo: parseInt(e.target.value) || 0 }))}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="stock_max">Stock Máximo</Label>
-              <Input
-                id="stock_max"
-                type="number"
-                value={formData.stock_maximo}
-                onChange={(e) => setFormData(prev => ({ ...prev, stock_maximo: parseInt(e.target.value) || 0 }))}
-              />
-            </div>
-          </div>
+              <div>
+                <Label htmlFor="descripcion">Descripción</Label>
+                <Textarea
+                  id="descripcion"
+                  {...register('descripcion')}
+                  disabled={!isEditing}
+                  rows={3}
+                />
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="ubicacion">Ubicación en Almacén</Label>
-            <Input
-              id="ubicacion"
-              value={formData.ubicacion_almacen}
-              onChange={(e) => setFormData(prev => ({ ...prev, ubicacion_almacen: e.target.value }))}
-              placeholder="Estante A-1-2"
-            />
-          </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="marca">Marca</Label>
+                  <Input
+                    id="marca"
+                    {...register('marca')}
+                    disabled={!isEditing}
+                  />
+                </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="serializado"
-                checked={formData.es_serializado}
-                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, es_serializado: checked }))}
-              />
-              <Label htmlFor="serializado">Requiere número de serie</Label>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="configuracion"
-                checked={formData.requiere_configuracion}
-                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, requiere_configuracion: checked }))}
-              />
-              <Label htmlFor="configuracion">Requiere configuración</Label>
-            </div>
-          </div>
+                <div>
+                  <Label htmlFor="modelo">Modelo</Label>
+                  <Input
+                    id="modelo"
+                    {...register('modelo')}
+                    disabled={!isEditing}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="unidad_medida">Unidad de Medida</Label>
+                  <Select
+                    value={watch('unidad_medida') || 'pieza'}
+                    onValueChange={(value) => setValue('unidad_medida', value)}
+                    disabled={!isEditing}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pieza">Pieza</SelectItem>
+                      <SelectItem value="kit">Kit</SelectItem>
+                      <SelectItem value="caja">Caja</SelectItem>
+                      <SelectItem value="metro">Metro</SelectItem>
+                      <SelectItem value="rollo">Rollo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="gps" className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="marca_gps_id">Marca GPS</Label>
+                  <Select
+                    value={watch('marca_gps_id') || ''}
+                    onValueChange={(value) => setValue('marca_gps_id', value)}
+                    disabled={!isEditing}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar marca GPS" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {marcasGPS?.map((marca) => (
+                        <SelectItem key={marca.id} value={marca.id}>
+                          {marca.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="modelo_gps_id">Modelo GPS</Label>
+                  <Select
+                    value={watch('modelo_gps_id') || ''}
+                    onValueChange={(value) => setValue('modelo_gps_id', value)}
+                    disabled={!isEditing || !selectedMarcaGPS}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar modelo GPS" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {modelosDisponibles.map((modelo) => (
+                        <SelectItem key={modelo.id} value={modelo.id}>
+                          {modelo.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {selectedModelo && (
+                <div className="p-4 bg-gray-50 rounded-lg space-y-3">
+                  <h4 className="font-medium">Especificaciones del Modelo GPS</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium">Tipo:</span> {selectedModelo.tipo_dispositivo}
+                    </div>
+                    <div>
+                      <span className="font-medium">Precisión GPS:</span> {selectedModelo.gps_precision}
+                    </div>
+                    <div>
+                      <span className="font-medium">Conectividad:</span>
+                      <div className="flex gap-1 mt-1">
+                        {selectedModelo.conectividad?.map((conn, idx) => (
+                          <Badge key={idx} variant="outline" className="text-xs">{conn}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="font-medium">Alimentación:</span> {selectedModelo.alimentacion_externa}
+                    </div>
+                    <div>
+                      <span className="font-medium">Dimensiones:</span> {selectedModelo.dimensiones}
+                    </div>
+                    <div>
+                      <span className="font-medium">Peso:</span> {selectedModelo.peso_gramos}g
+                    </div>
+                    <div>
+                      <span className="font-medium">Resistencia:</span> {selectedModelo.resistencia_agua}
+                    </div>
+                    <div>
+                      <span className="font-medium">Precio Ref. USD:</span> ${selectedModelo.precio_referencia_usd}
+                    </div>
+                  </div>
+                  
+                  {selectedModelo.sensores_soportados && selectedModelo.sensores_soportados.length > 0 && (
+                    <div>
+                      <span className="font-medium">Sensores:</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {selectedModelo.sensores_soportados.map((sensor, idx) => (
+                          <Badge key={idx} variant="secondary" className="text-xs">{sensor}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="precios" className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="precio_compra_promedio">Precio de Compra Promedio</Label>
+                  <Input
+                    id="precio_compra_promedio"
+                    type="number"
+                    step="0.01"
+                    {...register('precio_compra_promedio', { valueAsNumber: true })}
+                    disabled={!isEditing}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="precio_venta_sugerido">Precio de Venta Sugerido</Label>
+                  <Input
+                    id="precio_venta_sugerido"
+                    type="number"
+                    step="0.01"
+                    {...register('precio_venta_sugerido', { valueAsNumber: true })}
+                    disabled={!isEditing}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="stock_minimo">Stock Mínimo</Label>
+                  <Input
+                    id="stock_minimo"
+                    type="number"
+                    {...register('stock_minimo', { valueAsNumber: true })}
+                    disabled={!isEditing}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="stock_maximo">Stock Máximo</Label>
+                  <Input
+                    id="stock_maximo"
+                    type="number"
+                    {...register('stock_maximo', { valueAsNumber: true })}
+                    disabled={!isEditing}
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="configuracion" className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="ubicacion_almacen">Ubicación en Almacén</Label>
+                  <Input
+                    id="ubicacion_almacen"
+                    {...register('ubicacion_almacen')}
+                    disabled={!isEditing}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="garantia_meses">Garantía (meses)</Label>
+                  <Input
+                    id="garantia_meses"
+                    type="number"
+                    {...register('garantia_meses', { valueAsNumber: true })}
+                    disabled={!isEditing}
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="es_serializado"
+                    checked={watch('es_serializado')}
+                    onCheckedChange={(checked) => setValue('es_serializado', checked)}
+                    disabled={!isEditing}
+                  />
+                  <Label htmlFor="es_serializado">Producto Serializado</Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="requiere_configuracion"
+                    checked={watch('requiere_configuracion')}
+                    onCheckedChange={(checked) => setValue('requiere_configuracion', checked)}
+                    disabled={!isEditing}
+                  />
+                  <Label htmlFor="requiere_configuracion">Requiere Configuración</Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="activo"
+                    checked={watch('activo')}
+                    onCheckedChange={(checked) => setValue('activo', checked)}
+                    disabled={!isEditing}
+                  />
+                  <Label htmlFor="activo">Producto Activo</Label>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
 
           <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
-            <Button 
-              type="submit" 
-              disabled={createProducto.isPending || updateProducto.isPending}
-            >
-              {producto ? 'Guardar Cambios' : 'Crear Producto'}
+            <Button type="submit">
+              {producto ? (isEditing ? 'Guardar Cambios' : 'Editar') : 'Crear Producto'}
             </Button>
           </div>
         </form>

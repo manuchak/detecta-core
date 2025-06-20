@@ -1,4 +1,3 @@
-
 export interface Proveedor {
   id: string;
   nombre: string;
@@ -164,4 +163,42 @@ export interface DetalleRecepcion {
   estado_producto: 'bueno' | 'dañado' | 'defectuoso';
   notas?: string;
   producto?: ProductoInventario;
+}
+
+export interface MarcaGPS {
+  id: string;
+  nombre: string;
+  pais_origen?: string;
+  sitio_web?: string;
+  soporte_wialon?: boolean;
+  activo?: boolean;
+  created_at?: string;
+}
+
+export interface ModeloGPS {
+  id: string;
+  marca_id: string;
+  nombre: string;
+  tipo_dispositivo?: string; // 'tracker', 'obd', 'beacon', 'smartphone'
+  protocolo_comunicacion?: string[];
+  conectividad?: string[]; // '2G', '3G', '4G', 'WiFi', 'Bluetooth'
+  gps_precision?: string;
+  bateria_interna?: boolean;
+  alimentacion_externa?: string; // '12V', '24V', '9-75V'
+  entradas_digitales?: number;
+  salidas_digitales?: number;
+  entradas_analogicas?: number;
+  sensores_soportados?: string[];
+  temperatura_operacion?: string;
+  certificaciones?: string[];
+  dimensiones?: string;
+  peso_gramos?: number;
+  resistencia_agua?: string; // 'IP65', 'IP67', etc
+  precio_referencia_usd?: number;
+  disponible_mexico?: boolean;
+  observaciones?: string;
+  especificaciones_json?: any;
+  activo?: boolean;
+  created_at?: string;
+  marca?: MarcaGPS;
 }
