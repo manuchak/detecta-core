@@ -219,8 +219,7 @@ export const ProgramarInstalacionMejorada = ({
       { field: 'contacto_cliente', value: formData.contacto_cliente, name: 'Contacto del cliente' },
       { field: 'telefono_contacto', value: formData.telefono_contacto, name: 'Teléfono de contacto' },
       { field: 'direccion_instalacion', value: formData.direccion_instalacion, name: 'Dirección de instalación' },
-      { field: 'hora_inicio', value: formData.hora_inicio, name: 'Hora de inicio' },
-      { field: 'instalador_asignado', value: formData.instalador_asignado, name: 'Instalador asignado' }
+      { field: 'hora_inicio', value: formData.hora_inicio, name: 'Hora de inicio' }
     ];
 
     const missingFields = requiredFields.filter(({ value }) => !value);
@@ -248,13 +247,6 @@ export const ProgramarInstalacionMejorada = ({
       const fechaISO = formData.fecha_programada!.toISOString();
       console.log('📅 Date converted to ISO:', fechaISO);
 
-      // Map instalador selection to actual UUIDs
-      const instaladorIdMap: Record<string, string> = {
-        'instalador_1': 'f47ac10b-58cc-4372-a567-0e02b2c3d479', // Example UUID for Juan Pérez
-        'instalador_2': 'f47ac10b-58cc-4372-a567-0e02b2c3d480', // Example UUID for María García  
-        'instalador_3': 'f47ac10b-58cc-4372-a567-0e02b2c3d481'  // Example UUID for Carlos López
-      };
-
       const programacionData = {
         servicio_id: formData.servicio_id,
         tipo_instalacion: tipoInstalacionMap[formData.tipo_instalacion] || 'gps_vehicular',
@@ -263,14 +255,19 @@ export const ProgramarInstalacionMejorada = ({
         direccion_instalacion: formData.direccion_instalacion.trim(),
         contacto_cliente: formData.contacto_cliente.trim(),
         telefono_contacto: formData.telefono_contacto.trim(),
-        instalador_id: instaladorIdMap[formData.instalador_asignado] || undefined, // Use proper UUID mapping
+        // Remove instalador_id completely for now - let it be null
         tiempo_estimado: formData.tiempo_estimado,
         prioridad: 'normal' as const,
         estado: 'programada' as const,
         observaciones_cliente: [
           formData.observaciones_vehiculo,
           formData.observaciones_instalacion,
-          formData.sensores_adicionales.length > 0 ? `Sensores: ${formData.sensores_adicionales.join(', ')}` : ''
+          formData.sensores_adicionales.length > 0 ? `Sensores: ${formData.sensores_adicionales.join(', ')}` : '',
+          formData.instalador_asignado ? `Instalador preferido: ${
+            formData.instalador_asignado === 'instalador_1' ? 'Juan Pérez' :
+            formData.instalador_asignado === 'instalador_2' ? 'María García' :
+            formData.instalador_asignado === 'instalador_3' ? 'Carlos López' : formData.instalador_asignado
+          }` : ''
         ].filter(Boolean).join('\n'),
         requiere_vehiculo_elevado: formData.requiere_elevador,
         acceso_restringido: formData.requiere_herramientas_especiales
@@ -283,7 +280,6 @@ export const ProgramarInstalacionMejorada = ({
       console.log('  - contacto_cliente:', programacionData.contacto_cliente);
       console.log('  - telefono_contacto:', programacionData.telefono_contacto);
       console.log('  - direccion_instalacion:', programacionData.direccion_instalacion);
-      console.log('  - instalador_id (UUID):', programacionData.instalador_id);
 
       await createProgramacion.mutateAsync(programacionData);
       
@@ -683,9 +679,10 @@ export const ProgramarInstalacionMejorada = ({
                       <div>
                         <span className="font-medium text-green-700">Instalador:</span>
                         <p className="text-green-600">
-                          {formData.instalador_asignado === 'instalador_1' && 'Juan Pérez'}
-                          {formData.instalador_asignado === 'instalador_2' && 'María García'}
-                          {formData.instalador_asignado === 'instalador_3' && 'Carlos López'}
+                          {formData.instalador_asignado === 'instalador_1' && 'Juan Pérez - Zona Norte'}
+                          {formData.instalador_asignado === 'instalador_2' && 'María García - Zona Sur'}
+                          {formData.instalador_asignado === 'instalador_3' && 'Carlos López - Zona Centro'}
+                          {!formData.instalador_asignado && 'No asignado'}
                         </p>
                       </div>
                     </div>
