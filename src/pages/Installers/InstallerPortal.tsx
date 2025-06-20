@@ -1,3 +1,4 @@
+
 import {
   Card,
   CardContent,
@@ -15,21 +16,27 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, CheckCircle, Map, Timer, XCircle, Clock, MapPin, Phone, User } from "lucide-react";
+import { Calendar, CheckCircle, Map, Timer, XCircle, Clock, MapPin, Phone, User, AlertTriangle, FileText } from "lucide-react";
 import { useProgramacionInstalaciones } from "@/hooks/useProgramacionInstalaciones";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useState } from "react";
 import { ProcesoInstalacionDialog } from "@/components/instalacion/ProcesoInstalacionDialog";
+import { useToast } from "@/hooks/use-toast";
 
 export const InstallerPortal = () => {
-  const { programaciones, isLoading, updateEstadoInstalacion } = useProgramacionInstalaciones();
+  const { programaciones, isLoading, updateEstadoInstalacion, desasignarInstalador } = useProgramacionInstalaciones();
   const [instalacionSeleccionada, setInstalacionSeleccionada] = useState<string | null>(null);
   const [showProcesoDialog, setShowProcesoDialog] = useState(false);
+  const { toast } = useToast();
 
   // Filter installations assigned to current user or show all if admin
   const instalacionesPendientes = programaciones?.filter(p => 
     p.estado === 'programada' || p.estado === 'confirmada'
+  ) || [];
+
+  const instalacionesEnProceso = programaciones?.filter(p => 
+    p.estado === 'en_proceso'
   ) || [];
 
   const instalacionesCompletadas = programaciones?.filter(p => 
@@ -64,12 +71,33 @@ export const InstallerPortal = () => {
     });
   };
 
+  const handleContinuarInstalacion = (instalacionId: string) => {
+    setInstalacionSeleccionada(instalacionId);
+    setShowProcesoDialog(true);
+  };
+
   const handleCompletarInstalacion = (instalacionId: string) => {
     updateEstadoInstalacion.mutate({ 
       id: instalacionId, 
       estado: 'completada',
       observaciones: 'Instalación completada exitosamente'
     });
+  };
+
+  const handleDesasignarme = async (instalacionId: string) => {
+    try {
+      await desasignarInstalador.mutateAsync(instalacionId);
+      toast({
+        title: "Desasignación exitosa",
+        description: "Te has desasignado de esta instalación correctamente.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo desasignar la instalación. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getEstadoBadge = (estado: string) => {
@@ -97,6 +125,91 @@ export const InstallerPortal = () => {
   const handleCerrarProceso = () => {
     setShowProcesoDialog(false);
     setInstalacionSeleccionada(null);
+  };
+
+  const renderAccionButton = (instalacion: any) => {
+    if (instalacion.estado === 'programada') {
+      return (
+        <div className="flex gap-1">
+          <Button 
+            size="sm" 
+            variant="outline"
+            onClick={() => handleConfirmarInstalacion(instalacion.id)}
+            disabled={updateEstadoInstalacion.isPending}
+          >
+            Confirmar
+          </Button>
+          <Button 
+            size="sm" 
+            variant="ghost"
+            onClick={() => handleDesasignarme(instalacion.id)}
+            disabled={desasignarInstalador.isPending}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+          >
+            <XCircle className="h-4 w-4" />
+          </Button>
+        </div>
+      );
+    } else if (instalacion.estado === 'confirmada') {
+      return (
+        <div className="flex gap-1">
+          <Button 
+            size="sm" 
+            variant="outline"
+            onClick={() => handleIniciarInstalacion(instalacion.id)}
+            disabled={updateEstadoInstalacion.isPending}
+          >
+            Iniciar
+          </Button>
+          <Button 
+            size="sm" 
+            variant="ghost"
+            onClick={() => handleDesasignarme(instalacion.id)}
+            disabled={desasignarInstalador.isPending}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+          >
+            <XCircle className="h-4 w-4" />
+          </Button>
+        </div>
+      );
+    } else if (instalacion.estado === 'en_proceso') {
+      return (
+        <div className="flex gap-1">
+          <Button 
+            size="sm" 
+            variant="default"
+            onClick={() => handleContinuarInstalacion(instalacion.id)}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <FileText className="h-4 w-4 mr-1" />
+            Continuar
+          </Button>
+          <Button 
+            size="sm" 
+            variant="outline"
+            onClick={() => handleCompletarInstalacion(instalacion.id)}
+            disabled={updateEstadoInstalacion.isPending}
+          >
+            Completar
+          </Button>
+        </div>
+      );
+    } else if (instalacion.estado === 'completada') {
+      return (
+        <div className="flex items-center text-green-600 text-sm">
+          <CheckCircle className="h-4 w-4 mr-1" /> 
+          Finalizado
+        </div>
+      );
+    } else if (instalacion.estado === 'cancelada') {
+      return (
+        <div className="flex items-center text-red-600 text-sm">
+          <XCircle className="h-4 w-4 mr-1" /> 
+          Cancelado
+        </div>
+      );
+    }
+    return null;
   };
 
   if (isLoading) {
@@ -136,6 +249,16 @@ export const InstallerPortal = () => {
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">En proceso</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{instalacionesEnProceso.length}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Completadas esta semana</CardTitle>
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -151,16 +274,6 @@ export const InstallerPortal = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{tiempoPromedio}h</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Dispositivos instalados</CardTitle>
-              <Map className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{dispositivosInstalados}</div>
             </CardContent>
           </Card>
         </div>
@@ -184,7 +297,7 @@ export const InstallerPortal = () => {
                     <TableHead className="hidden md:table-cell">Tipo</TableHead>
                     <TableHead>Instalador</TableHead>
                     <TableHead>Estado</TableHead>
-                    <TableHead className="w-[120px]">Acción</TableHead>
+                    <TableHead className="w-[160px]">Acción</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -248,44 +361,7 @@ export const InstallerPortal = () => {
                         {getEstadoBadge(instalacion.estado)}
                       </TableCell>
                       <TableCell>
-                        {instalacion.estado === 'programada' ? (
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => handleConfirmarInstalacion(instalacion.id)}
-                            disabled={updateEstadoInstalacion.isPending}
-                          >
-                            Confirmar
-                          </Button>
-                        ) : instalacion.estado === 'confirmada' ? (
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => handleIniciarInstalacion(instalacion.id)}
-                            disabled={updateEstadoInstalacion.isPending}
-                          >
-                            Iniciar
-                          </Button>
-                        ) : instalacion.estado === 'en_proceso' ? (
-                          <Button 
-                            size="sm" 
-                            variant="default"
-                            onClick={() => handleCompletarInstalacion(instalacion.id)}
-                            disabled={updateEstadoInstalacion.isPending}
-                          >
-                            Completar
-                          </Button>
-                        ) : instalacion.estado === 'completada' ? (
-                          <div className="flex items-center text-green-600 text-sm">
-                            <CheckCircle className="h-4 w-4 mr-1" /> 
-                            Finalizado
-                          </div>
-                        ) : instalacion.estado === 'cancelada' ? (
-                          <div className="flex items-center text-red-600 text-sm">
-                            <XCircle className="h-4 w-4 mr-1" /> 
-                            Cancelado
-                          </div>
-                        ) : null}
+                        {renderAccionButton(instalacion)}
                       </TableCell>
                     </TableRow>
                   ))}
