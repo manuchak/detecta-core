@@ -105,7 +105,7 @@ const VALIDACIONES_TECNICAS = [
   {
     id: 'calidad_instalacion',
     titulo: 'Calidad de la instalación',
-    descripción: 'Evaluar la calidad general de la instalación realizada',
+    descripcion: 'Evaluar la calidad general de la instalación realizada',
     tipo: 'calidad_instalacion'
   }
 ];
@@ -326,7 +326,6 @@ export const ProcesoInstalacionDialog: React.FC<ProcesoInstalacionDialogProps> =
       <ReporteFinalDialog
         open={showReporteFinal}
         onOpenChange={setShowReporteFinal}
-        programacionId={programacionId}
         onGuardarReporte={guardarReporteFinal.mutateAsync}
         isLoading={guardarReporteFinal.isPending}
       />
