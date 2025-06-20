@@ -1,4 +1,5 @@
 
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,12 +10,23 @@ import { useAprobacionesWorkflow } from '@/hooks/useAprobacionesWorkflow';
 
 interface DetalleServicioDialogProps {
   servicioId: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   children?: React.ReactNode;
 }
 
-export const DetalleServicioDialog = ({ servicioId, children }: DetalleServicioDialogProps) => {
+export const DetalleServicioDialog = ({ 
+  servicioId, 
+  open, 
+  onOpenChange, 
+  children 
+}: DetalleServicioDialogProps) => {
+  const [internalOpen, setInternalOpen] = useState(false);
   const { obtenerDetalleServicio } = useAprobacionesWorkflow();
   const { data: servicio, isLoading } = obtenerDetalleServicio(servicioId);
+
+  const isOpen = open !== undefined ? open : internalOpen;
+  const setIsOpen = onOpenChange || setInternalOpen;
 
   const getEstadoBadge = (estado: string) => {
     const estadoColors = {
@@ -30,7 +42,7 @@ export const DetalleServicioDialog = ({ servicioId, children }: DetalleServicioD
   };
 
   return (
-    <Dialog>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         {children || (
           <Button size="sm" variant="outline">

@@ -5,7 +5,21 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, MapPin, Shield, Eye } from 'lucide-react';
 import { DetalleServicioDialog } from '@/components/servicios/DetalleServicioDialog';
-import type { ServicioMonitoreo } from '@/types/serviciosMonitoreoCompleto';
+
+// Using a generic type since ServicioMonitoreo is not exported
+interface ServicioMonitoreo {
+  id: string;
+  numero_servicio: string;
+  estado_general: string;
+  tipo_servicio: string;
+  nombre_cliente: string;
+  empresa?: string;
+  direccion_cliente: string;
+  cantidad_vehiculos: number;
+  prioridad: string;
+  fecha_solicitud: string;
+  fecha_limite_respuesta?: string;
+}
 
 interface ServiciosTableProps {
   servicios: ServicioMonitoreo[];
@@ -19,7 +33,6 @@ export const ServiciosTable = ({
   onProgramarInstalacion 
 }: ServiciosTableProps) => {
   const [servicioSeleccionado, setServicioSeleccionado] = useState<string | null>(null);
-  const [showDetalle, setShowDetalle] = useState(false);
 
   const getEstadoBadge = (estado: string) => {
     const config = {
@@ -94,17 +107,12 @@ export const ServiciosTable = ({
                 </div>
                 
                 <div className="flex flex-col gap-2 ml-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setServicioSeleccionado(servicio.id);
-                      setShowDetalle(true);
-                    }}
-                  >
-                    <Eye className="h-4 w-4 mr-1" />
-                    Ver Detalle
-                  </Button>
+                  <DetalleServicioDialog servicioId={servicio.id}>
+                    <Button variant="outline" size="sm">
+                      <Eye className="h-4 w-4 mr-1" />
+                      Ver Detalle
+                    </Button>
+                  </DetalleServicioDialog>
                   
                   {(servicio.estado_general === 'aprobado' || 
                     servicio.estado_general === 'programacion_instalacion') && (
@@ -135,14 +143,6 @@ export const ServiciosTable = ({
           </div>
         )}
       </div>
-
-      {showDetalle && servicioSeleccionado && (
-        <DetalleServicioDialog
-          open={showDetalle}
-          onOpenChange={setShowDetalle}
-          servicioId={servicioSeleccionado}
-        />
-      )}
     </>
   );
 };
