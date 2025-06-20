@@ -102,26 +102,74 @@ export const useAprobacionesWorkflow = () => {
     mutationFn: async (data: any) => {
       console.log('Creando aprobación de coordinador:', data);
       
-      // Usar la función segura que evita problemas de RLS
-      const { data: result, error } = await supabase.rpc('crear_aprobacion_coordinador_segura', {
-        p_servicio_id: data.servicio_id,
-        p_estado_aprobacion: data.estado_aprobacion,
-        p_modelo_vehiculo_compatible: data.modelo_vehiculo_compatible || false,
-        p_cobertura_celular_verificada: data.cobertura_celular_verificada || false,
-        p_requiere_instalacion_fisica: data.requiere_instalacion_fisica || false,
-        p_acceso_instalacion_disponible: data.acceso_instalacion_disponible || false,
-        p_restricciones_tecnicas_sla: data.restricciones_tecnicas_sla || false,
-        p_contactos_emergencia_validados: data.contactos_emergencia_validados || false,
-        p_elementos_aclarar_cliente: data.elementos_aclarar_cliente || null,
-        p_observaciones: data.observaciones || null
-      });
-
-      if (error) {
-        console.error('Error al crear aprobación:', error);
-        throw error;
+      // Obtener el usuario actual
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData.user) {
+        throw new Error('Usuario no autenticado');
       }
 
-      console.log('Aprobación creada exitosamente:', result);
+      // Verificar que el servicio existe y obtener datos
+      const { data: servicio, error: servicioError } = await supabase
+        .from('servicios_monitoreo')
+        .select('*')
+        .eq('id', data.servicio_id)
+        .single();
+
+      if (servicioError || !servicio) {
+        throw new Error('Servicio no encontrado');
+      }
+
+      // Crear la aprobación directamente
+      const { data: aprobacion, error: aprobacionError } = await supabase
+        .from('aprobacion_coordinador')
+        .insert({
+          servicio_id: data.servicio_id,
+          coordinador_id: userData.user.id,
+          estado_aprobacion: data.estado_aprobacion,
+          fecha_respuesta: new Date().toISOString(),
+          modelo_vehiculo_compatible: data.modelo_vehiculo_compatible || false,
+          cobertura_celular_verificada: data.cobertura_celular_verificada || false,
+          requiere_instalacion_fisica: data.requiere_instalacion_fisica || false,
+          acceso_instalacion_disponible: data.acceso_instalacion_disponible || false,
+          restricciones_tecnicas_sla: data.restricciones_tecnicas_sla || false,
+          contactos_emergencia_validados: data.contactos_emergencia_validados || false,
+          elementos_aclarar_cliente: data.elementos_aclarar_cliente || null,
+          observaciones: data.observaciones || null
+        })
+        .select()
+        .single();
+
+      if (aprobacionError) {
+        console.error('Error al crear aprobación:', aprobacionError);
+        throw aprobacionError;
+      }
+
+      // Determinar el nuevo estado del servicio
+      let nuevoEstado = 'pendiente_evaluacion'; // Default
+      switch (data.estado_aprobacion) {
+        case 'aprobado':
+          nuevoEstado = 'pendiente_analisis_riesgo';
+          break;
+        case 'rechazado':
+          nuevoEstado = 'rechazado';
+          break;
+        case 'requiere_aclaracion':
+          nuevoEstado = 'requiere_aclaracion';
+          break;
+      }
+
+      // Actualizar el estado del servicio
+      const { error: updateError } = await supabase
+        .from('servicios_monitoreo')
+        .update({ estado_general: nuevoEstado })
+        .eq('id', data.servicio_id);
+
+      if (updateError) {
+        console.error('Error al actualizar estado del servicio:', updateError);
+        throw updateError;
+      }
+
+      console.log('Aprobación creada exitosamente:', aprobacion);
       
       // Registrar el seguimiento del cambio de estado
       let descripcionEvento = '';
@@ -143,7 +191,7 @@ export const useAprobacionesWorkflow = () => {
           servicio_id: data.servicio_id,
           tipo_evento: 'aprobacion_coordinador',
           descripcion: descripcionEvento,
-          usuario_id: (await supabase.auth.getUser()).data.user?.id,
+          usuario_id: userData.user.id,
           datos_adicionales: {
             estado_aprobacion: data.estado_aprobacion,
             criterios_validados: {
@@ -161,7 +209,7 @@ export const useAprobacionesWorkflow = () => {
         console.warn('Error al registrar seguimiento:', seguimientoError);
       }
 
-      return result;
+      return aprobacion;
     },
     onSuccess: (data, variables) => {
       // Invalidar todas las consultas relacionadas
