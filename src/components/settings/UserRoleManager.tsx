@@ -83,6 +83,8 @@ export const UserRoleManager = () => {
       'jefe_seguridad': 'Jefe de Seguridad',
       'analista_seguridad': 'Analista Seguridad',
       'supply_lead': 'Lead Supply',
+      'ejecutivo_ventas': 'Ejecutivo Ventas',
+      'custodio': 'Custodio',
       'bi': 'Business Intelligence',
       'monitoring_supervisor': 'Supervisor Monitoreo',
       'monitoring': 'Monitoreo',

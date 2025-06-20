@@ -7,6 +7,8 @@ export type Role =
   | 'jefe_seguridad'
   | 'analista_seguridad'
   | 'supply_lead'
+  | 'ejecutivo_ventas'
+  | 'custodio'
   | 'bi'
   | 'monitoring_supervisor'
   | 'monitoring'

@@ -30,9 +30,9 @@ const AssignRole = () => {
   const [selectedRole, setSelectedRole] = useState('owner');
   const [availableRoles, setAvailableRoles] = useState<string[]>([
     'owner', 'admin', 'supply_admin', 'coordinador_operaciones', 
-    'jefe_seguridad', 'analista_seguridad', 'supply_lead', 'bi', 
-    'monitoring_supervisor', 'monitoring', 'supply', 'instalador', 
-    'soporte', 'pending', 'unverified'
+    'jefe_seguridad', 'analista_seguridad', 'supply_lead', 'ejecutivo_ventas',
+    'custodio', 'bi', 'monitoring_supervisor', 'monitoring', 'supply', 
+    'instalador', 'soporte', 'pending', 'unverified'
   ]);
 
   const getRoleDisplayName = (role: string) => {
@@ -44,6 +44,8 @@ const AssignRole = () => {
       'jefe_seguridad': 'Jefe de Seguridad',
       'analista_seguridad': 'Analista de Seguridad',
       'supply_lead': 'Lead de Supply',
+      'ejecutivo_ventas': 'Ejecutivo de Ventas',
+      'custodio': 'Custodio',
       'bi': 'Business Intelligence',
       'monitoring_supervisor': 'Supervisor Monitoreo',
       'monitoring': 'Monitoreo',

@@ -17,7 +17,7 @@ export const useAvailableRoles = () => {
         
         if (error) {
           console.error('Error fetching available roles:', error);
-          // Return default roles as fallback including new roles
+          // Return default roles as fallback including all new roles
           return [
             'owner',
             'admin', 
@@ -26,6 +26,8 @@ export const useAvailableRoles = () => {
             'jefe_seguridad',
             'analista_seguridad',
             'supply_lead',
+            'ejecutivo_ventas',
+            'custodio',
             'bi',
             'monitoring_supervisor',
             'monitoring',
@@ -41,7 +43,7 @@ export const useAvailableRoles = () => {
         return (data || []).map((item: { role: string }) => item.role as Role);
       } catch (err) {
         console.error('Error in fetchAvailableRoles:', err);
-        // Return default roles as fallback including new roles
+        // Return default roles as fallback including all new roles
         return [
           'owner',
           'admin',
@@ -50,6 +52,8 @@ export const useAvailableRoles = () => {
           'jefe_seguridad',
           'analista_seguridad',
           'supply_lead',
+          'ejecutivo_ventas',
+          'custodio',
           'bi',
           'monitoring_supervisor',
           'monitoring',

@@ -2974,6 +2974,10 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: number
       }
+      can_access_custodio_portal: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       check_admin_for_rewards: {
         Args: Record<PropertyKey, never>
         Returns: boolean
@@ -3889,7 +3893,15 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      is_custodio: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       is_installer_or_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_sales_executive_or_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }

@@ -11,7 +11,7 @@ const fetchAvailableRoles = async (): Promise<Role[]> => {
     
     if (error) {
       console.error('Error fetching roles:', error);
-      // Return default roles as fallback including new roles
+      // Return default roles as fallback including all new roles
       return [
         'owner',
         'admin',
@@ -20,6 +20,8 @@ const fetchAvailableRoles = async (): Promise<Role[]> => {
         'jefe_seguridad',
         'analista_seguridad',
         'supply_lead',
+        'ejecutivo_ventas',
+        'custodio',
         'bi',
         'monitoring_supervisor',
         'monitoring',
@@ -43,14 +45,16 @@ const fetchAvailableRoles = async (): Promise<Role[]> => {
         'jefe_seguridad': 5,
         'analista_seguridad': 6,
         'supply_lead': 7,
-        'bi': 8,
-        'monitoring_supervisor': 9,
-        'monitoring': 10,
-        'supply': 11,
-        'instalador': 12,
-        'soporte': 13,
-        'pending': 14,
-        'unverified': 15
+        'ejecutivo_ventas': 8,
+        'custodio': 9,
+        'bi': 10,
+        'monitoring_supervisor': 11,
+        'monitoring': 12,
+        'supply': 13,
+        'instalador': 14,
+        'soporte': 15,
+        'pending': 16,
+        'unverified': 17
       };
       const orderA = sortOrder[a as keyof typeof sortOrder] || 100;
       const orderB = sortOrder[b as keyof typeof sortOrder] || 100;
@@ -58,7 +62,7 @@ const fetchAvailableRoles = async (): Promise<Role[]> => {
     });
   } catch (err) {
     console.error('Error in fetchAvailableRoles:', err);
-    // Return default roles as fallback including new roles
+    // Return default roles as fallback including all new roles
     return [
       'owner',
       'admin',
@@ -67,6 +71,8 @@ const fetchAvailableRoles = async (): Promise<Role[]> => {
       'jefe_seguridad',
       'analista_seguridad',
       'supply_lead',
+      'ejecutivo_ventas',
+      'custodio',
       'bi',
       'monitoring_supervisor',
       'monitoring',

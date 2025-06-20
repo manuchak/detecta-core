@@ -141,6 +141,20 @@ export const PermissionsManager = () => {
           description: 'Gestión de leads y suministros',
           color: 'bg-green-100 text-green-800'
         };
+      case 'ejecutivo_ventas':
+        return { 
+          label: 'Ejecutivo de Ventas', 
+          icon: UserCheck, 
+          description: 'Creación y gestión de servicios y leads',
+          color: 'bg-indigo-100 text-indigo-800'
+        };
+      case 'custodio':
+        return { 
+          label: 'Custodio', 
+          icon: Users, 
+          description: 'Portal de evaluaciones e información personal',
+          color: 'bg-teal-100 text-teal-800'
+        };
       case 'instalador':
         return { 
           label: 'Instalador', 
@@ -300,7 +314,7 @@ export const PermissionsManager = () => {
   const fallbackPermissions = useMemo(() => {
     if (!error || !roles || roles.length === 0) return null;
     
-    // Create empty structure with all required roles including new ones
+    // Create empty structure with all required roles including all new ones
     const fallback: Record<Role, Permission[]> = {
       owner: [],
       admin: [],
@@ -309,6 +323,8 @@ export const PermissionsManager = () => {
       jefe_seguridad: [],
       analista_seguridad: [],
       supply_lead: [],
+      ejecutivo_ventas: [],
+      custodio: [],
       instalador: [],
       bi: [],
       monitoring_supervisor: [],
