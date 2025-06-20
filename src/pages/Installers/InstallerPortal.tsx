@@ -1,5 +1,4 @@
 
-
 import {
   Card,
   CardContent,
@@ -17,23 +16,91 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, CheckCircle, Map, Timer, XCircle } from "lucide-react";
-
-// Mock data
-const mockAssignments = [
-  { id: 1, cliente: "Transportes MX", direccion: "Av. Insurgentes 2500, CDMX", fecha: "2023-05-10", hora: "09:00 - 11:00", dispositivos: 3, estado: "pendiente" },
-  { id: 2, cliente: "Logística Internacional", direccion: "Blvd. Kukulcán 55, Cancún", fecha: "2023-05-11", hora: "10:00 - 12:00", dispositivos: 1, estado: "pendiente" },
-  { id: 3, cliente: "Cargas Expresas", direccion: "Av. Constitución 1050, Monterrey", fecha: "2023-05-09", hora: "14:00 - 16:00", dispositivos: 2, estado: "completado" },
-  { id: 4, cliente: "Fletes Rápidos", direccion: "Paseo de la Reforma 222, CDMX", fecha: "2023-05-08", hora: "11:00 - 13:00", dispositivos: 4, estado: "cancelado" },
-];
+import { Calendar, CheckCircle, Map, Timer, XCircle, Clock, MapPin, Phone } from "lucide-react";
+import { useProgramacionInstalaciones } from "@/hooks/useProgramacionInstalaciones";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 export const InstallerPortal = () => {
+  const { programaciones, isLoading, updateEstadoInstalacion } = useProgramacionInstalaciones();
+
+  // Filter installations assigned to current user or show all if admin
+  const instalacionesPendientes = programaciones?.filter(p => 
+    p.estado === 'programada' || p.estado === 'confirmada'
+  ) || [];
+
+  const instalacionesCompletadas = programaciones?.filter(p => 
+    p.estado === 'completada'
+  ) || [];
+
+  const instalacionesCanceladas = programaciones?.filter(p => 
+    p.estado === 'cancelada'
+  ) || [];
+
+  const tiempoPromedio = programaciones?.length > 0 
+    ? Math.round(programaciones.reduce((acc, p) => acc + (p.tiempo_estimado || 60), 0) / programaciones.length / 60 * 10) / 10
+    : 0;
+
+  const dispositivosInstalados = instalacionesCompletadas.length;
+
+  const handleIniciarInstalacion = (instalacionId: string) => {
+    updateEstadoInstalacion.mutate({ 
+      id: instalacionId, 
+      estado: 'en_proceso',
+      observaciones: 'Instalación iniciada por el técnico'
+    });
+  };
+
+  const handleCompletarInstalacion = (instalacionId: string) => {
+    updateEstadoInstalacion.mutate({ 
+      id: instalacionId, 
+      estado: 'completada',
+      observaciones: 'Instalación completada exitosamente'
+    });
+  };
+
+  const getEstadoBadge = (estado: string) => {
+    const config = {
+      'programada': { color: 'bg-yellow-100 text-yellow-800', label: 'Pendiente' },
+      'confirmada': { color: 'bg-blue-100 text-blue-800', label: 'Confirmada' },
+      'en_proceso': { color: 'bg-orange-100 text-orange-800', label: 'En Proceso' },
+      'completada': { color: 'bg-green-100 text-green-800', label: 'Completado' },
+      'cancelada': { color: 'bg-red-100 text-red-800', label: 'Cancelado' }
+    };
+
+    const item = config[estado as keyof typeof config] || { color: 'bg-gray-100 text-gray-800', label: estado };
+    return <Badge className={item.color}>{item.label}</Badge>;
+  };
+
+  const getPrioridadColor = (prioridad: string) => {
+    switch (prioridad) {
+      case 'urgente': return 'text-red-600 font-semibold';
+      case 'alta': return 'text-orange-600 font-medium';
+      case 'normal': return 'text-gray-600';
+      default: return 'text-gray-600';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-24 bg-gray-200 rounded animate-pulse"></div>
+          ))}
+        </div>
+        <div className="h-64 bg-gray-200 rounded animate-pulse"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Portal de Instalador</h1>
         <p className="text-muted-foreground">
-          Gestiona tus instalaciones asignadas.
+          Gestiona tus instalaciones GPS asignadas.
         </p>
       </div>
       
@@ -44,7 +111,7 @@ export const InstallerPortal = () => {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2</div>
+            <div className="text-2xl font-bold">{instalacionesPendientes.length}</div>
           </CardContent>
         </Card>
         
@@ -54,7 +121,7 @@ export const InstallerPortal = () => {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1</div>
+            <div className="text-2xl font-bold">{instalacionesCompletadas.length}</div>
           </CardContent>
         </Card>
         
@@ -64,7 +131,7 @@ export const InstallerPortal = () => {
             <Timer className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1.5h</div>
+            <div className="text-2xl font-bold">{tiempoPromedio}h</div>
           </CardContent>
         </Card>
         
@@ -74,7 +141,7 @@ export const InstallerPortal = () => {
             <Map className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">10</div>
+            <div className="text-2xl font-bold">{dispositivosInstalados}</div>
           </CardContent>
         </Card>
       </div>
@@ -83,67 +150,113 @@ export const InstallerPortal = () => {
         <CardHeader>
           <CardTitle>Instalaciones asignadas</CardTitle>
           <CardDescription>
-            Gestiona tus instalaciones programadas.
+            Gestiona tus instalaciones GPS programadas desde el sistema de servicios.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Cliente</TableHead>
-                <TableHead className="hidden md:table-cell">Dirección</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead className="hidden lg:table-cell">Hora</TableHead>
-                <TableHead className="hidden md:table-cell">Dispositivos</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="w-[100px]">Acción</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {mockAssignments.map((assignment) => (
-                <TableRow key={assignment.id}>
-                  <TableCell className="font-medium">{assignment.cliente}</TableCell>
-                  <TableCell className="hidden md:table-cell">{assignment.direccion}</TableCell>
-                  <TableCell>{assignment.fecha}</TableCell>
-                  <TableCell className="hidden lg:table-cell">{assignment.hora}</TableCell>
-                  <TableCell className="hidden md:table-cell">{assignment.dispositivos}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={
-                        assignment.estado === "pendiente"
-                          ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"
-                          : assignment.estado === "completado"
-                          ? "bg-green-100 text-green-800 hover:bg-green-100"
-                          : "bg-red-100 text-red-800 hover:bg-red-100"
-                      }
-                    >
-                      {assignment.estado.charAt(0).toUpperCase() + assignment.estado.slice(1)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {assignment.estado === "pendiente" && (
-                      <div className="flex space-x-2">
-                        <Button size="sm" variant="outline">
+          {programaciones && programaciones.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead className="hidden md:table-cell">Dirección</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead className="hidden lg:table-cell">Tiempo Est.</TableHead>
+                  <TableHead className="hidden md:table-cell">Tipo</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="w-[120px]">Acción</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {programaciones.map((instalacion) => (
+                  <TableRow key={instalacion.id} className="hover:bg-gray-50">
+                    <TableCell>
+                      <div className="space-y-1">
+                        <p className="font-medium">{instalacion.contacto_cliente}</p>
+                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                          <Phone className="h-3 w-3" />
+                          {instalacion.telefono_contacto}
+                        </div>
+                        {instalacion.prioridad !== 'normal' && (
+                          <div className={`text-xs font-medium ${getPrioridadColor(instalacion.prioridad)}`}>
+                            {instalacion.prioridad.toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      <div className="flex items-start gap-1 text-sm">
+                        <MapPin className="h-3 w-3 mt-0.5 text-gray-400 flex-shrink-0" />
+                        <span className="text-gray-600 text-xs leading-tight">
+                          {instalacion.direccion_instalacion}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        {format(new Date(instalacion.fecha_programada), 'dd/MM/yyyy', { locale: es })}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {format(new Date(instalacion.fecha_programada), 'HH:mm')}
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell text-sm">
+                      {instalacion.tiempo_estimado || 60}min
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      <Badge variant="outline" className="text-xs">
+                        {instalacion.tipo_instalacion?.replace('_', ' ').toUpperCase()}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {getEstadoBadge(instalacion.estado)}
+                    </TableCell>
+                    <TableCell>
+                      {instalacion.estado === 'programada' || instalacion.estado === 'confirmada' ? (
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleIniciarInstalacion(instalacion.id)}
+                          disabled={updateEstadoInstalacion.isPending}
+                        >
                           Iniciar
                         </Button>
-                      </div>
-                    )}
-                    {assignment.estado === "completado" && (
-                      <div className="flex items-center">
-                        <CheckCircle className="h-4 w-4 text-green-500 mr-1" /> Finalizado
-                      </div>
-                    )}
-                    {assignment.estado === "cancelado" && (
-                      <div className="flex items-center">
-                        <XCircle className="h-4 w-4 text-red-500 mr-1" /> Cancelado
-                      </div>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                      ) : instalacion.estado === 'en_proceso' ? (
+                        <Button 
+                          size="sm" 
+                          variant="default"
+                          onClick={() => handleCompletarInstalacion(instalacion.id)}
+                          disabled={updateEstadoInstalacion.isPending}
+                        >
+                          Completar
+                        </Button>
+                      ) : instalacion.estado === 'completada' ? (
+                        <div className="flex items-center text-green-600 text-sm">
+                          <CheckCircle className="h-4 w-4 mr-1" /> 
+                          Finalizado
+                        </div>
+                      ) : instalacion.estado === 'cancelada' ? (
+                        <div className="flex items-center text-red-600 text-sm">
+                          <XCircle className="h-4 w-4 mr-1" /> 
+                          Cancelado
+                        </div>
+                      ) : null}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-12">
+              <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No hay instalaciones programadas
+              </h3>
+              <p className="text-gray-600">
+                Las instalaciones aparecerán aquí cuando sean asignadas desde el sistema de servicios.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -151,4 +264,3 @@ export const InstallerPortal = () => {
 };
 
 export default InstallerPortal;
-
