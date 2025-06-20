@@ -11,10 +11,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle, FileText, Shield, ClipboardCheck } from 'lucide-react';
+import { CheckCircle, FileText, Shield, ClipboardCheck, Camera } from 'lucide-react';
 import { useInstalacionDocumentacion } from '@/hooks/useInstalacionDocumentacion';
-import { PasoInstalacion } from './PasoInstalacion';
-import { ValidacionTecnica } from './ValidacionTecnica';
+import { EnhancedPasoInstalacion } from './EnhancedPasoInstalacion';
+import { SimpleValidation } from './SimpleValidation';
 import { ReporteFinalDialog } from './ReporteFinalDialog';
 
 interface ProcesoInstalacionDialogProps {
@@ -132,21 +132,23 @@ export const ProcesoInstalacionDialog: React.FC<ProcesoInstalacionDialogProps> =
 
   const handleCompletarPaso = async (pasoId: string, data: any) => {
     try {
-      // Subir foto si existe
-      let fotoUrl = undefined;
-      if (data.foto) {
-        const urlFoto = await subirFoto.mutateAsync({
-          file: data.foto,
-          pasoInstalacion: pasoId
-        });
-        fotoUrl = urlFoto;
+      // Handle multiple photos
+      let fotosUrls: string[] = [];
+      if (data.fotos && data.fotos.length > 0) {
+        for (const foto of data.fotos) {
+          const urlFoto = await subirFoto.mutateAsync({
+            file: foto,
+            pasoInstalacion: pasoId
+          });
+          fotosUrls.push(urlFoto);
+        }
       }
 
-      // Guardar documentación
+      // Guardar documentación con la primera foto como principal
       await guardarDocumentacion.mutateAsync({
         paso_instalacion: pasoId,
         orden: PASOS_INSTALACION.find(p => p.id === pasoId)?.orden || 1,
-        foto_url: fotoUrl,
+        foto_url: fotosUrls[0] || undefined,
         descripcion: data.descripcion,
         completado: true,
         coordenadas_latitud: data.coordenadas?.lat,
@@ -194,7 +196,7 @@ export const ProcesoInstalacionDialog: React.FC<ProcesoInstalacionDialogProps> =
   if (isLoading) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-full sm:max-w-4xl overflow-y-auto">
+        <SheetContent side="right" className="w-full sm:max-w-5xl overflow-y-auto">
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
@@ -209,47 +211,54 @@ export const ProcesoInstalacionDialog: React.FC<ProcesoInstalacionDialogProps> =
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-full sm:max-w-4xl overflow-y-auto">
-          <SheetHeader className="mb-6">
-            <SheetTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
+        <SheetContent side="right" className="w-full sm:max-w-6xl overflow-y-auto">
+          <SheetHeader className="mb-6 border-b pb-4">
+            <SheetTitle className="flex items-center gap-3 text-xl">
+              <div className="bg-blue-100 p-2 rounded-lg">
+                <FileText className="h-6 w-6 text-blue-600" />
+              </div>
               Proceso de Instalación GPS
             </SheetTitle>
-            <SheetDescription>
+            <SheetDescription className="text-base">
               Documenta cada paso de la instalación y realiza las validaciones técnicas necesarias.
             </SheetDescription>
             
-            <div className="mt-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">Progreso general</span>
-                <span className="text-sm text-gray-600">{calcularProgreso()}%</span>
+            <div className="mt-6">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-base font-semibold">Progreso general</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-bold text-blue-600">{calcularProgreso()}%</span>
+                  <Badge variant={calcularProgreso() === 100 ? "default" : "secondary"}>
+                    {calcularProgreso() === 100 ? "Completo" : "En progreso"}
+                  </Badge>
+                </div>
               </div>
-              <Progress value={calcularProgreso()} className="w-full" />
+              <Progress value={calcularProgreso()} className="w-full h-3" />
             </div>
           </SheetHeader>
 
           <Tabs value={tabActiva} onValueChange={setTabActiva} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="documentacion" className="flex items-center gap-2">
-                <FileText className="h-4 w-4" />
+            <TabsList className="grid w-full grid-cols-3 h-12">
+              <TabsTrigger value="documentacion" className="flex items-center gap-2 text-base py-3">
+                <Camera className="h-5 w-5" />
                 Documentación
               </TabsTrigger>
-              <TabsTrigger value="validaciones" className="flex items-center gap-2">
-                <Shield className="h-4 w-4" />
+              <TabsTrigger value="validaciones" className="flex items-center gap-2 text-base py-3">
+                <Shield className="h-5 w-5" />
                 Validaciones
               </TabsTrigger>
-              <TabsTrigger value="reporte" className="flex items-center gap-2">
-                <ClipboardCheck className="h-4 w-4" />
+              <TabsTrigger value="reporte" className="flex items-center gap-2 text-base py-3">
+                <ClipboardCheck className="h-5 w-5" />
                 Reporte Final
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="documentacion" className="space-y-4">
-              <div className="space-y-4">
+            <TabsContent value="documentacion" className="space-y-6">
+              <div className="space-y-6">
                 {PASOS_INSTALACION.map((paso) => {
                   const docPaso = documentacion?.find(doc => doc.paso_instalacion === paso.id);
                   return (
-                    <PasoInstalacion
+                    <EnhancedPasoInstalacion
                       key={paso.id}
                       paso={{
                         ...paso,
@@ -263,12 +272,19 @@ export const ProcesoInstalacionDialog: React.FC<ProcesoInstalacionDialogProps> =
               </div>
             </TabsContent>
 
-            <TabsContent value="validaciones" className="space-y-4">
-              <div className="space-y-4">
+            <TabsContent value="validaciones" className="space-y-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <h3 className="font-medium text-blue-900 mb-2">Validaciones Técnicas</h3>
+                <p className="text-sm text-blue-700">
+                  Evalúa el funcionamiento de cada componente del sistema GPS instalado.
+                </p>
+              </div>
+              
+              <div className="space-y-6">
                 {VALIDACIONES_TECNICAS.map((validacion) => {
                   const valExistente = validaciones?.find(val => val.tipo_validacion === validacion.tipo);
                   return (
-                    <ValidacionTecnica
+                    <SimpleValidation
                       key={validacion.id}
                       validacion={{
                         ...validacion,
@@ -285,21 +301,23 @@ export const ProcesoInstalacionDialog: React.FC<ProcesoInstalacionDialogProps> =
             </TabsContent>
 
             <TabsContent value="reporte" className="space-y-4">
-              <div className="text-center py-8">
-                <ClipboardCheck className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Reporte Final de Instalación</h3>
-                <p className="text-gray-600 mb-6">
+              <div className="text-center py-12">
+                <div className="bg-blue-100 rounded-full p-4 w-20 h-20 mx-auto mb-6">
+                  <ClipboardCheck className="h-12 w-12 text-blue-600" />
+                </div>
+                <h3 className="text-2xl font-bold mb-3">Reporte Final de Instalación</h3>
+                <p className="text-gray-600 mb-8 max-w-md mx-auto">
                   {puedeFinalizarInstalacion() 
-                    ? 'Todos los pasos han sido completados. Genera el reporte final.'
+                    ? 'Todos los pasos han sido completados. Genera el reporte final para cerrar la instalación.'
                     : 'Complete todos los pasos de documentación y validaciones para generar el reporte final.'
                   }
                 </p>
                 
                 {reporteFinal ? (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                    <div className="flex items-center gap-2 text-green-700">
-                      <CheckCircle className="h-5 w-5" />
-                      <span className="font-medium">Reporte final completado</span>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-6 max-w-md mx-auto">
+                    <div className="flex items-center gap-3 text-green-700 justify-center">
+                      <CheckCircle className="h-6 w-6" />
+                      <span className="text-lg font-semibold">Reporte final completado</span>
                     </div>
                   </div>
                 ) : (
@@ -307,16 +325,17 @@ export const ProcesoInstalacionDialog: React.FC<ProcesoInstalacionDialogProps> =
                     onClick={() => setShowReporteFinal(true)}
                     disabled={!puedeFinalizarInstalacion()}
                     size="lg"
+                    className="px-8 py-3 text-base"
                   >
-                    Generar Reporte Final
+                    📋 Generar Reporte Final
                   </Button>
                 )}
               </div>
             </TabsContent>
           </Tabs>
 
-          <div className="flex justify-end gap-2 mt-6 pt-6 border-t">
-            <Button variant="outline" onClick={onCerrar}>
+          <div className="flex justify-end gap-3 mt-8 pt-6 border-t">
+            <Button variant="outline" onClick={onCerrar} size="lg">
               Cerrar
             </Button>
           </div>
