@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +9,7 @@ import { useProgramacionInstalaciones } from '@/hooks/useProgramacionInstalacion
 import { useAprobacionesWorkflow } from '@/hooks/useAprobacionesWorkflow';
 import { ServiciosTable } from './components/ServiciosTable';
 import { ProgramarInstalacionMejorada } from '@/components/instalaciones/ProgramarInstalacionMejorada';
-import { NuevoServicioDialog } from '@/components/servicios/NuevoServicioDialog';
+import { FormularioServicioCompleto } from '@/components/servicios/FormularioServicioCompleto';
 import { PanelAprobacionCoordinador } from '@/components/servicios/PanelAprobacionCoordinador';
 import { PanelAnalisisRiesgo } from '@/components/servicios/PanelAnalisisRiesgo';
 import { Badge } from '@/components/ui/badge';
@@ -267,7 +268,7 @@ export const ServicesPage = () => {
       )}
 
       {showNuevoServicio && (
-        <NuevoServicioDialog
+        <FormularioServicioCompleto
           open={showNuevoServicio}
           onOpenChange={setShowNuevoServicio}
         />
