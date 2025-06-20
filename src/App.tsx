@@ -27,7 +27,7 @@ import MonitoringPage from '@/pages/Monitoring/MonitoringPage';
 import SupplyChainMonitoring from '@/pages/Monitoring/SupplyChainMonitoring';
 import ForensicAuditPage from '@/pages/Monitoring/ForensicAuditPage';
 import TicketsList from '@/pages/Tickets/TicketsList';
-import ServicesPage from '@/pages/Services/ServicesPage';
+import { ServicesPage } from '@/pages/Services/ServicesPage';
 import RendimientoPage from '@/pages/Services/RendimientoPage';
 import InstallerManagement from '@/pages/Installers/InstallerManagement';
 import InstallationCalendar from '@/pages/Installers/InstallationCalendar';
