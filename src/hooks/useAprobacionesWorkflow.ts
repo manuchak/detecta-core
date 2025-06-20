@@ -100,35 +100,100 @@ export const useAprobacionesWorkflow = () => {
   // Crear aprobación de coordinador
   const crearAprobacionCoordinador = useMutation({
     mutationFn: async (data: any) => {
-      const { data: result, error } = await supabase
-        .from('aprobacion_coordinador')
-        .insert([data])
-        .select()
-        .single();
+      console.log('Creando aprobación de coordinador:', data);
+      
+      // Usar la función segura que evita problemas de RLS
+      const { data: result, error } = await supabase.rpc('crear_aprobacion_coordinador_segura', {
+        p_servicio_id: data.servicio_id,
+        p_estado_aprobacion: data.estado_aprobacion,
+        p_modelo_vehiculo_compatible: data.modelo_vehiculo_compatible || false,
+        p_cobertura_celular_verificada: data.cobertura_celular_verificada || false,
+        p_requiere_instalacion_fisica: data.requiere_instalacion_fisica || false,
+        p_acceso_instalacion_disponible: data.acceso_instalacion_disponible || false,
+        p_restricciones_tecnicas_sla: data.restricciones_tecnicas_sla || false,
+        p_contactos_emergencia_validados: data.contactos_emergencia_validados || false,
+        p_elementos_aclarar_cliente: data.elementos_aclarar_cliente || null,
+        p_observaciones: data.observaciones || null
+      });
 
-      if (error) throw error;
-
-      // Actualizar estado del servicio según la aprobación
-      let nuevoEstado = 'pendiente_analisis_riesgo';
-      if (data.estado_aprobacion === 'rechazado') {
-        nuevoEstado = 'rechazado_coordinador';
-      } else if (data.estado_aprobacion === 'requiere_aclaracion') {
-        nuevoEstado = 'requiere_aclaracion_cliente';
+      if (error) {
+        console.error('Error al crear aprobación:', error);
+        throw error;
       }
 
-      await supabase
-        .from('servicios_monitoreo')
-        .update({ estado_general: nuevoEstado })
-        .eq('id', data.servicio_id);
+      console.log('Aprobación creada exitosamente:', result);
+      
+      // Registrar el seguimiento del cambio de estado
+      let descripcionEvento = '';
+      switch (data.estado_aprobacion) {
+        case 'aprobado':
+          descripcionEvento = 'Servicio aprobado por coordinador - pasando a análisis de riesgo';
+          break;
+        case 'rechazado':
+          descripcionEvento = 'Servicio rechazado por coordinador';
+          break;
+        case 'requiere_aclaracion':
+          descripcionEvento = 'Servicio requiere aclaración con el cliente';
+          break;
+      }
+
+      const { error: seguimientoError } = await supabase
+        .from('seguimiento_servicio')
+        .insert({
+          servicio_id: data.servicio_id,
+          tipo_evento: 'aprobacion_coordinador',
+          descripcion: descripcionEvento,
+          usuario_id: (await supabase.auth.getUser()).data.user?.id,
+          datos_adicionales: {
+            estado_aprobacion: data.estado_aprobacion,
+            criterios_validados: {
+              modelo_vehiculo_compatible: data.modelo_vehiculo_compatible,
+              cobertura_celular_verificada: data.cobertura_celular_verificada,
+              requiere_instalacion_fisica: data.requiere_instalacion_fisica,
+              acceso_instalacion_disponible: data.acceso_instalacion_disponible,
+              restricciones_tecnicas_sla: data.restricciones_tecnicas_sla,
+              contactos_emergencia_validados: data.contactos_emergencia_validados
+            }
+          }
+        });
+
+      if (seguimientoError) {
+        console.warn('Error al registrar seguimiento:', seguimientoError);
+      }
 
       return result;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      // Invalidar todas las consultas relacionadas
       queryClient.invalidateQueries({ queryKey: ['servicios-workflow'] });
       queryClient.invalidateQueries({ queryKey: ['servicios-pendientes-coordinador'] });
+      queryClient.invalidateQueries({ queryKey: ['servicios-pendientes-riesgo'] });
+      queryClient.invalidateQueries({ queryKey: ['servicios-monitoreo'] });
+      
+      let mensaje = '';
+      switch (variables.estado_aprobacion) {
+        case 'aprobado':
+          mensaje = "Servicio aprobado exitosamente. Ahora pasará a análisis de riesgo de seguridad.";
+          break;
+        case 'rechazado':
+          mensaje = "Servicio rechazado por el coordinador de operaciones.";
+          break;
+        case 'requiere_aclaracion':
+          mensaje = "Servicio marcado como requiere aclaración con el cliente.";
+          break;
+      }
+      
       toast({
-        title: "Evaluación guardada",
-        description: "La evaluación del coordinador ha sido guardada.",
+        title: "Evaluación completada",
+        description: mensaje,
+      });
+    },
+    onError: (error) => {
+      console.error('Error en mutation crearAprobacionCoordinador:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo completar la evaluación del coordinador. Verifique los datos e intente nuevamente.",
+        variant: "destructive",
       });
     }
   });
