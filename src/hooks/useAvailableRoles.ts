@@ -17,10 +17,10 @@ export const useAvailableRoles = () => {
         
         if (error) {
           console.error('Error fetching available roles:', error);
-          // Return default roles as fallback including all new roles
+          // Return default roles as fallback
           return [
             'owner',
-            'admin', 
+            'admin',
             'supply_admin',
             'coordinador_operaciones',
             'jefe_seguridad',
@@ -43,7 +43,7 @@ export const useAvailableRoles = () => {
         return (data || []).map((item: { role: string }) => item.role as Role);
       } catch (err) {
         console.error('Error in fetchAvailableRoles:', err);
-        // Return default roles as fallback including all new roles
+        // Return default roles as fallback
         return [
           'owner',
           'admin',
@@ -69,6 +69,13 @@ export const useAvailableRoles = () => {
 
   const createRole = useMutation({
     mutationFn: async (input: CreateRoleInput) => {
+      // First verify admin access
+      const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_bypass_rls');
+      
+      if (adminError || !isAdminData) {
+        throw new Error('Sin permisos para crear roles');
+      }
+
       // Insert directly into user_roles table for new role creation
       const { data, error } = await supabase
         .from('user_roles')
@@ -101,6 +108,13 @@ export const useAvailableRoles = () => {
 
   const updateRole = useMutation({
     mutationFn: async (input: UpdateRoleInput) => {
+      // First verify admin access
+      const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_bypass_rls');
+      
+      if (adminError || !isAdminData) {
+        throw new Error('Sin permisos para actualizar roles');
+      }
+
       // Update all instances of the old role to the new role
       const { data, error } = await supabase
         .from('user_roles')
@@ -132,6 +146,13 @@ export const useAvailableRoles = () => {
 
   const deleteRole = useMutation({
     mutationFn: async (input: DeleteRoleInput) => {
+      // First verify admin access
+      const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_bypass_rls');
+      
+      if (adminError || !isAdminData) {
+        throw new Error('Sin permisos para eliminar roles');
+      }
+
       // Delete all instances of the role
       const { data, error } = await supabase
         .from('user_roles')

@@ -12,7 +12,7 @@ export const useUserRoles = () => {
     queryKey: ['users-with-roles'],
     queryFn: async () => {
       try {
-        // Use the new secure function that bypasses RLS
+        // Use the new secure function that bypasses RLS and includes admin checks
         const { data, error } = await supabase.rpc('get_users_with_roles_secure');
         
         if (error) {
@@ -39,6 +39,13 @@ export const useUserRoles = () => {
   const updateUserRole = useMutation({
     mutationFn: async ({ userId, role }: { userId: string, role: Role }) => {
       try {
+        // First verify admin access
+        const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_bypass_rls');
+        
+        if (adminError || !isAdminData) {
+          throw new Error('Sin permisos para actualizar roles de usuario');
+        }
+
         // First delete any existing role
         const { error: deleteError } = await supabase
           .from('user_roles')
@@ -68,6 +75,7 @@ export const useUserRoles = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users-with-roles'] });
+      queryClient.invalidateQueries({ queryKey: ['user-role'] });
       toast({
         title: "Rol actualizado",
         description: "El rol del usuario ha sido actualizado correctamente",
@@ -85,14 +93,21 @@ export const useUserRoles = () => {
   const verifyUserEmail = useMutation({
     mutationFn: async ({ userId }: { userId: string }) => {
       try {
-        // Directly update the auth.users table with the service role
-        const { data, error } = await supabase.auth.admin.updateUserById(
-          userId,
-          { email_confirm: true }
-        );
+        // First verify admin access  
+        const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_bypass_rls');
         
-        if (error) {
-          throw new Error(`Error verifying email: ${error.message}`);
+        if (adminError || !isAdminData) {
+          throw new Error('Sin permisos para verificar emails de usuario');
+        }
+
+        // Update user profile to mark as verified
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ is_verified: true })
+          .eq('id', userId);
+        
+        if (profileError) {
+          console.error('Error updating profile verification:', profileError);
         }
         
         // Update user role from unverified to pending if needed

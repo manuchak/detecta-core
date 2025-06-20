@@ -28,13 +28,13 @@ export const useAuth = () => {
 
         if (error) {
           console.error('Error getting user role:', error);
-          return 'pending';
+          return 'unverified';
         }
 
-        return data || 'pending';
+        return data || 'unverified';
       } catch (err) {
         console.error('Unexpected error getting role:', err);
-        return 'pending';
+        return 'unverified';
       }
     },
     enabled: !!context.user?.id,
@@ -64,6 +64,13 @@ export const useAuth = () => {
   // Assign role to user (admin/owner only)
   const assignRole = async (userId: string, role: string) => {
     try {
+      // First verify admin access
+      const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_bypass_rls');
+      
+      if (adminError || !isAdminData) {
+        throw new Error('Sin permisos para asignar roles');
+      }
+
       const { error } = await supabase
         .from('user_roles')
         .insert({ user_id: userId, role })

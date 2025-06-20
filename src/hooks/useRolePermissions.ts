@@ -4,14 +4,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { Permission, PermissionsByRole, RolePermissionInput, Role } from '@/types/roleTypes';
 
-// Helper function to fetch roles safely
+// Helper function to fetch roles safely using the new secure function
 const fetchAvailableRoles = async (): Promise<Role[]> => {
   try {
     const { data, error } = await supabase.rpc('get_available_roles_secure');
     
     if (error) {
       console.error('Error fetching roles:', error);
-      // Return default roles as fallback including all new roles
+      // Return default roles as fallback
       return [
         'owner',
         'admin',
@@ -33,36 +33,9 @@ const fetchAvailableRoles = async (): Promise<Role[]> => {
       ];
     }
     
-    // Get unique roles and sort them by hierarchy
-    const uniqueRoles = (data || []).map((item: { role: string }) => item.role as Role);
-    
-    return uniqueRoles.sort((a, b) => {
-      const sortOrder = {
-        'owner': 1,
-        'admin': 2,
-        'supply_admin': 3,
-        'coordinador_operaciones': 4,
-        'jefe_seguridad': 5,
-        'analista_seguridad': 6,
-        'supply_lead': 7,
-        'ejecutivo_ventas': 8,
-        'custodio': 9,
-        'bi': 10,
-        'monitoring_supervisor': 11,
-        'monitoring': 12,
-        'supply': 13,
-        'instalador': 14,
-        'soporte': 15,
-        'pending': 16,
-        'unverified': 17
-      };
-      const orderA = sortOrder[a as keyof typeof sortOrder] || 100;
-      const orderB = sortOrder[b as keyof typeof sortOrder] || 100;
-      return orderA - orderB;
-    });
+    return (data || []).map((item: { role: string }) => item.role as Role);
   } catch (err) {
     console.error('Error in fetchAvailableRoles:', err);
-    // Return default roles as fallback including all new roles
     return [
       'owner',
       'admin',
@@ -70,7 +43,7 @@ const fetchAvailableRoles = async (): Promise<Role[]> => {
       'coordinador_operaciones',
       'jefe_seguridad',
       'analista_seguridad',
-      'supply_lead',
+      'supply_lead', 
       'ejecutivo_ventas',
       'custodio',
       'bi',
@@ -85,30 +58,25 @@ const fetchAvailableRoles = async (): Promise<Role[]> => {
   }
 };
 
-// Helper function to fetch permissions safely using direct table access
+// Helper function to fetch permissions safely using direct table access with admin validation
 const fetchRolePermissions = async (): Promise<Permission[]> => {
   try {
-    // First verify admin access
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) throw new Error('Usuario no autenticado');
+    // First verify admin access using the secure function
+    const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_bypass_rls');
+    
+    if (adminError) {
+      console.error('Error checking admin status:', adminError);
+      throw new Error('No se pudo verificar los permisos de administrador');
+    }
 
-    // Check if user is admin through direct query
-    const { data: roleCheck } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userData.user.id)
-      .in('role', ['admin', 'owner']);
-
-    const isAdmin = roleCheck && roleCheck.length > 0;
-    const isSpecialAdmin = userData.user.email === 'admin@admin.com';
-
-    if (!isAdmin && !isSpecialAdmin) {
+    if (!isAdminData) {
       throw new Error('Sin permisos para acceder a esta información');
     }
 
+    // Now fetch permissions directly from table
     const { data, error } = await supabase
       .from('role_permissions')
-      .select('id, role, permission_type, permission_id, allowed')
+      .select('id, role, permission_type, permission_id, allowed, created_at, updated_at')
       .order('role', { ascending: true })
       .order('permission_type', { ascending: true });
       
@@ -139,7 +107,7 @@ export const useRolePermissions = () => {
     queryKey: ['role-permissions'],
     queryFn: async () => {
       try {
-        // Get role permissions using direct table access
+        // Get role permissions using direct table access with admin verification
         const rolePermissions = await fetchRolePermissions();
         
         // Get all available roles
@@ -175,47 +143,21 @@ export const useRolePermissions = () => {
     retry: 1,
   });
 
-  // Mutation to update an existing permission using direct table access
+  // Mutation to update an existing permission using the secure function from databaseFunctions.sql
   const updatePermission = useMutation({
     mutationFn: async ({ id, allowed }: { id: string, allowed: boolean }) => {
       try {
         console.log(`Attempting to update permission ${id} to ${allowed}`);
         
-        // Verify admin access first
-        const { data: userData } = await supabase.auth.getUser();
-        if (!userData.user) throw new Error('Usuario no autenticado');
-
-        // Check admin privileges
-        const { data: roleCheck } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', userData.user.id)
-          .in('role', ['admin', 'owner']);
-
-        const isAdmin = roleCheck && roleCheck.length > 0;
-        const isSpecialAdmin = userData.user.email === 'admin@admin.com';
-
-        if (!isAdmin && !isSpecialAdmin) {
-          throw new Error('Sin permisos para actualizar permisos');
-        }
-
-        // Update permission directly
-        const { data, error } = await supabase
-          .from('role_permissions')
-          .update({ 
-            allowed: allowed,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', id)
-          .select();
+        // Use the secure function from databaseFunctions.sql to update permission
+        const { data, error } = await supabase.rpc('update_role_permission_secure', {
+          p_permission_id: id,
+          p_allowed: allowed
+        });
         
         if (error) {
           console.error('Error updating permission:', error);
           throw new Error(`Error actualizando permiso: ${error.message}`);
-        }
-        
-        if (!data || data.length === 0) {
-          throw new Error('Permiso no encontrado');
         }
         
         console.log('Permission updated successfully');
@@ -244,12 +186,20 @@ export const useRolePermissions = () => {
     }
   });
 
-  // Mutation to add a new permission
+  // Mutation to add a new permission with admin verification
   const addPermission = useMutation({
     mutationFn: async ({ role, permissionType, permissionId, allowed }: RolePermissionInput) => {
       try {
         console.log(`Adding permission: ${role}.${permissionType}.${permissionId}=${allowed}`);
         
+        // First verify admin access
+        const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_bypass_rls');
+        
+        if (adminError || !isAdminData) {
+          throw new Error('Sin permisos para añadir permisos');
+        }
+        
+        // Add the permission directly to the table
         const { data, error } = await supabase
           .from('role_permissions')
           .insert([{
