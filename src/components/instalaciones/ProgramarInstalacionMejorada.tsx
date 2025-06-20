@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -249,17 +248,22 @@ export const ProgramarInstalacionMejorada = ({
       const fechaISO = formData.fecha_programada!.toISOString();
       console.log('📅 Date converted to ISO:', fechaISO);
 
+      // Map instalador selection to actual UUIDs
+      const instaladorIdMap: Record<string, string> = {
+        'instalador_1': 'f47ac10b-58cc-4372-a567-0e02b2c3d479', // Example UUID for Juan Pérez
+        'instalador_2': 'f47ac10b-58cc-4372-a567-0e02b2c3d480', // Example UUID for María García  
+        'instalador_3': 'f47ac10b-58cc-4372-a567-0e02b2c3d481'  // Example UUID for Carlos López
+      };
+
       const programacionData = {
         servicio_id: formData.servicio_id,
         tipo_instalacion: tipoInstalacionMap[formData.tipo_instalacion] || 'gps_vehicular',
         fecha_programada: fechaISO,
-        hora_programada: formData.hora_inicio,
+        hora_programada: formData.hora_inicio,  
         direccion_instalacion: formData.direccion_instalacion.trim(),
         contacto_cliente: formData.contacto_cliente.trim(),
         telefono_contacto: formData.telefono_contacto.trim(),
-        instalador_id: formData.instalador_asignado === 'instalador_1' ? '1' : 
-                      formData.instalador_asignado === 'instalador_2' ? '2' : 
-                      formData.instalador_asignado === 'instalador_3' ? '3' : undefined,
+        instalador_id: instaladorIdMap[formData.instalador_asignado] || undefined, // Use proper UUID mapping
         tiempo_estimado: formData.tiempo_estimado,
         prioridad: 'normal' as const,
         estado: 'programada' as const,
@@ -279,6 +283,7 @@ export const ProgramarInstalacionMejorada = ({
       console.log('  - contacto_cliente:', programacionData.contacto_cliente);
       console.log('  - telefono_contacto:', programacionData.telefono_contacto);
       console.log('  - direccion_instalacion:', programacionData.direccion_instalacion);
+      console.log('  - instalador_id (UUID):', programacionData.instalador_id);
 
       await createProgramacion.mutateAsync(programacionData);
       
