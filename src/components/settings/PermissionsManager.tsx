@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useRoles } from '@/hooks/useRoles';
 import { Role, Permission } from '@/types/roleTypes';
@@ -113,6 +112,41 @@ export const PermissionsManager = () => {
           icon: UserCheck, 
           description: 'Gestión de cadena de suministros',
           color: 'bg-amber-100 text-amber-800'
+        };
+      case 'coordinador_operaciones':
+        return { 
+          label: 'Coordinador Operaciones', 
+          icon: UserCheck, 
+          description: 'Coordinación de operaciones y servicios',
+          color: 'bg-orange-100 text-orange-800'
+        };
+      case 'jefe_seguridad':
+        return { 
+          label: 'Jefe de Seguridad', 
+          icon: ShieldCheck, 
+          description: 'Supervisión completa de seguridad',
+          color: 'bg-red-100 text-red-800'
+        };
+      case 'analista_seguridad':
+        return { 
+          label: 'Analista de Seguridad', 
+          icon: UserCheck, 
+          description: 'Análisis y aprobaciones de seguridad',
+          color: 'bg-yellow-100 text-yellow-800'
+        };
+      case 'supply_lead':
+        return { 
+          label: 'Lead de Supply', 
+          icon: UserCheck, 
+          description: 'Gestión de leads y suministros',
+          color: 'bg-green-100 text-green-800'
+        };
+      case 'instalador':
+        return { 
+          label: 'Instalador', 
+          icon: Users, 
+          description: 'Control y registro de instalaciones',
+          color: 'bg-cyan-100 text-cyan-800'
         };
       case 'bi':
         return { 
@@ -266,11 +300,16 @@ export const PermissionsManager = () => {
   const fallbackPermissions = useMemo(() => {
     if (!error || !roles || roles.length === 0) return null;
     
-    // Create empty structure with all required roles
+    // Create empty structure with all required roles including new ones
     const fallback: Record<Role, Permission[]> = {
       owner: [],
       admin: [],
       supply_admin: [],
+      coordinador_operaciones: [],
+      jefe_seguridad: [],
+      analista_seguridad: [],
+      supply_lead: [],
+      instalador: [],
       bi: [],
       monitoring_supervisor: [],
       monitoring: [],
