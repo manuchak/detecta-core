@@ -3,7 +3,9 @@ import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, MapPin, Shield, Eye } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Calendar, MapPin, Shield, Eye, Filter, Search, Clock } from 'lucide-react';
 import { DetalleServicioDialog } from '@/components/servicios/DetalleServicioDialog';
 
 // Using a generic type since ServicioMonitoreo is not exported
@@ -15,7 +17,7 @@ interface ServicioMonitoreo {
   nombre_cliente: string;
   empresa?: string;
   direccion_cliente: string;
-  cantidad_vehiculos?: number; // Made optional to match database schema
+  cantidad_vehiculos?: number;
   prioridad: string;
   fecha_solicitud: string;
   fecha_limite_respuesta?: string;
@@ -33,6 +35,10 @@ export const ServiciosTable = ({
   onProgramarInstalacion 
 }: ServiciosTableProps) => {
   const [servicioSeleccionado, setServicioSeleccionado] = useState<string | null>(null);
+  const [filtroEstado, setFiltroEstado] = useState<string>('todos');
+  const [filtroPrioridad, setFiltroPrioridad] = useState<string>('todos');
+  const [filtroTipo, setFiltroTipo] = useState<string>('todos');
+  const [busqueda, setBusqueda] = useState('');
 
   const getEstadoBadge = (estado: string) => {
     const config = {
@@ -43,7 +49,7 @@ export const ServiciosTable = ({
       'pendiente_aprobacion': { color: 'bg-purple-100 text-purple-800', label: 'Pendiente Aprobación' },
       'aprobado': { color: 'bg-green-100 text-green-800', label: 'Aprobado' },
       'programacion_instalacion': { color: 'bg-blue-100 text-blue-800', label: 'Programando Instalación' },
-      'instalacion_programada': { color: 'bg-indigo-100 text-indigo-800', label: 'Instalación Programada' },
+      'instalacion_programada': { color: 'bg-indigo-100 text-indigo-800', label: 'Pendiente Instalación GPS' },
       'instalacion_completada': { color: 'bg-green-100 text-green-800', label: 'Instalación Completada' },
       'servicio_activo': { color: 'bg-green-100 text-green-800', label: 'Servicio Activo' },
       'rechazado': { color: 'bg-red-100 text-red-800', label: 'Rechazado' },
@@ -54,6 +60,44 @@ export const ServiciosTable = ({
     const item = config[estado as keyof typeof config] || { color: 'bg-gray-100 text-gray-800', label: estado };
     return <Badge className={item.color}>{item.label}</Badge>;
   };
+
+  const getPrioridadBadge = (prioridad: string) => {
+    // Only show priority badge if it's not 'media' (standard)
+    if (prioridad === 'media') return null;
+    
+    const config = {
+      'alta': { color: 'bg-red-100 text-red-800 border-red-300', label: 'Alta' },
+      'baja': { color: 'bg-gray-100 text-gray-600 border-gray-300', label: 'Baja' },
+      'urgente': { color: 'bg-red-500 text-white', label: 'Urgente' }
+    };
+
+    const item = config[prioridad as keyof typeof config];
+    if (!item) return null;
+    
+    return <Badge variant="outline" className={item.color}>{item.label}</Badge>;
+  };
+
+  // Check if GPS programming button should be shown
+  const shouldShowGPSButton = (estado: string) => {
+    return estado === 'aprobado' || estado === 'programacion_instalacion';
+  };
+
+  // Filter services based on all criteria
+  const serviciosFiltrados = servicios.filter(servicio => {
+    const matchesBusqueda = servicio.numero_servicio.toLowerCase().includes(busqueda.toLowerCase()) ||
+                           servicio.nombre_cliente.toLowerCase().includes(busqueda.toLowerCase()) ||
+                           (servicio.empresa && servicio.empresa.toLowerCase().includes(busqueda.toLowerCase()));
+    
+    const matchesEstado = filtroEstado === 'todos' || servicio.estado_general === filtroEstado;
+    const matchesPrioridad = filtroPrioridad === 'todos' || servicio.prioridad === filtroPrioridad;
+    const matchesTipo = filtroTipo === 'todos' || servicio.tipo_servicio === filtroTipo;
+    
+    return matchesBusqueda && matchesEstado && matchesPrioridad && matchesTipo;
+  });
+
+  // Get unique values for filter options
+  const estadosUnicos = [...new Set(servicios.map(s => s.estado_general))];
+  const tiposUnicos = [...new Set(servicios.map(s => s.tipo_servicio))];
 
   if (isLoading) {
     return (
@@ -67,13 +111,88 @@ export const ServiciosTable = ({
 
   return (
     <>
+      {/* Filters Section */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Filter className="h-5 w-5" />
+            Filtros y Búsqueda
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Buscar por servicio, cliente..."
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+
+            {/* Status Filter */}
+            <Select value={filtroEstado} onValueChange={setFiltroEstado}>
+              <SelectTrigger>
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos los estados</SelectItem>
+                {estadosUnicos.map(estado => (
+                  <SelectItem key={estado} value={estado}>
+                    {estado.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Priority Filter */}
+            <Select value={filtroPrioridad} onValueChange={setFiltroPrioridad}>
+              <SelectTrigger>
+                <SelectValue placeholder="Prioridad" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todas las prioridades</SelectItem>
+                <SelectItem value="urgente">Urgente</SelectItem>
+                <SelectItem value="alta">Alta</SelectItem>
+                <SelectItem value="media">Media</SelectItem>
+                <SelectItem value="baja">Baja</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Type Filter */}
+            <Select value={filtroTipo} onValueChange={setFiltroTipo}>
+              <SelectTrigger>
+                <SelectValue placeholder="Tipo de servicio" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos los tipos</SelectItem>
+                {tiposUnicos.map(tipo => (
+                  <SelectItem key={tipo} value={tipo}>
+                    {tipo}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Results counter */}
+            <div className="flex items-center text-sm text-gray-600">
+              <span className="font-medium">{serviciosFiltrados.length}</span>
+              <span className="ml-1">de {servicios.length} servicios</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Services List */}
       <div className="space-y-4">
-        {servicios.map((servicio) => (
+        {serviciosFiltrados.map((servicio) => (
           <Card key={servicio.id} className="border border-gray-200 hover:shadow-md transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center gap-3 mb-2 flex-wrap">
                     <span className="font-semibold text-lg text-gray-900">
                       {servicio.numero_servicio}
                     </span>
@@ -81,6 +200,7 @@ export const ServiciosTable = ({
                     <Badge variant="outline" className="text-blue-600">
                       {servicio.tipo_servicio}
                     </Badge>
+                    {getPrioridadBadge(servicio.prioridad)}
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
@@ -94,12 +214,17 @@ export const ServiciosTable = ({
                     </div>
                     <div className="text-sm text-gray-600">
                       <p>Vehículos: {servicio.cantidad_vehiculos || 1}</p>
-                      <p>Prioridad: <span className="capitalize">{servicio.prioridad}</span></p>
+                      {servicio.prioridad !== 'media' && (
+                        <p>Prioridad: <span className="capitalize font-medium">{servicio.prioridad}</span></p>
+                      )}
                     </div>
                   </div>
                   
                   <div className="flex items-center gap-4 text-xs text-gray-500">
-                    <span>Solicitud: {new Date(servicio.fecha_solicitud).toLocaleDateString('es-ES')}</span>
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      Solicitud: {new Date(servicio.fecha_solicitud).toLocaleDateString('es-ES')}
+                    </span>
                     {servicio.fecha_limite_respuesta && (
                       <span>Límite: {new Date(servicio.fecha_limite_respuesta).toLocaleDateString('es-ES')}</span>
                     )}
@@ -114,8 +239,7 @@ export const ServiciosTable = ({
                     </Button>
                   </DetalleServicioDialog>
                   
-                  {(servicio.estado_general === 'aprobado' || 
-                    servicio.estado_general === 'programacion_instalacion') && (
+                  {shouldShowGPSButton(servicio.estado_general) && (
                     <Button
                       variant="default"
                       size="sm"
@@ -125,11 +249,30 @@ export const ServiciosTable = ({
                       Programar GPS
                     </Button>
                   )}
+
+                  {servicio.estado_general === 'instalacion_programada' && (
+                    <Badge variant="outline" className="text-blue-600 border-blue-600 justify-center">
+                      <Clock className="h-3 w-3 mr-1" />
+                      GPS Programado
+                    </Badge>
+                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
         ))}
+
+        {serviciosFiltrados.length === 0 && servicios.length > 0 && (
+          <div className="text-center py-12">
+            <Filter className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No se encontraron servicios
+            </h3>
+            <p className="text-gray-600">
+              Intenta ajustar los filtros de búsqueda
+            </p>
+          </div>
+        )}
 
         {servicios.length === 0 && (
           <div className="text-center py-12">
