@@ -15,12 +15,13 @@ import { format, addDays, isWeekend } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useProgramacionInstalaciones } from '@/hooks/useProgramacionInstalaciones';
+import { useVehicleData } from '@/hooks/useVehicleData';
 
 interface ProgramarInstalacionMejoradaProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   servicioId?: string;
-  servicioData?: any; // Service data to pre-populate fields
+  servicioData?: any;
 }
 
 export const ProgramarInstalacionMejorada = ({ 
@@ -31,6 +32,9 @@ export const ProgramarInstalacionMejorada = ({
 }: ProgramarInstalacionMejoradaProps) => {
   const [currentStep, setCurrentStep] = useState(1);
   const { createProgramacion } = useProgramacionInstalaciones();
+  const { marcas, loadingMarcas, fetchModelosPorMarca } = useVehicleData();
+  const [modelos, setModelos] = useState<any[]>([]);
+  const [loadingModelos, setLoadingModelos] = useState(false);
   
   const [formData, setFormData] = useState({
     // Información del servicio y vehículo
@@ -72,7 +76,7 @@ export const ProgramarInstalacionMejorada = ({
       setFormData(prev => ({
         ...prev,
         servicio_id: servicioId || '',
-        marca_vehiculo: servicioData.modelo_vehiculo?.split(' ')[0] || '',
+        marca_vehiculo: servicioData.marca_vehiculo || '',
         modelo_vehiculo: servicioData.modelo_vehiculo || '',
         año_vehiculo: servicioData.año_vehiculo || '',
         tipo_combustible: servicioData.tipo_combustible || 'gasolina',
@@ -84,6 +88,30 @@ export const ProgramarInstalacionMejorada = ({
       }));
     }
   }, [open, servicioData, servicioId]);
+
+  // Fetch models when brand changes
+  const handleMarcaChange = async (marcaNombre: string) => {
+    setFormData(prev => ({ 
+      ...prev, 
+      marca_vehiculo: marcaNombre,
+      modelo_vehiculo: '' // Reset model when brand changes
+    }));
+    
+    if (marcaNombre) {
+      setLoadingModelos(true);
+      try {
+        const modelosData = await fetchModelosPorMarca(marcaNombre);
+        setModelos(modelosData);
+      } catch (error) {
+        console.error('Error fetching models:', error);
+        setModelos([]);
+      } finally {
+        setLoadingModelos(false);
+      }
+    } else {
+      setModelos([]);
+    }
+  };
 
   const sensoresDisponibles = [
     'Sensor de combustible',
@@ -117,7 +145,7 @@ export const ProgramarInstalacionMejorada = ({
     while (businessHours < 72) {
       date = addDays(date, 1);
       if (!isWeekend(date)) {
-        businessHours += 8; // 8 business hours per day
+        businessHours += 8;
       }
     }
     
@@ -241,23 +269,45 @@ export const ProgramarInstalacionMejorada = ({
                   Información del Vehículo
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>Marca del Vehículo *</Label>
-                    <Input
-                      value={formData.marca_vehiculo}
-                      onChange={(e) => setFormData(prev => ({ ...prev, marca_vehiculo: e.target.value }))}
-                      placeholder="Ej: Toyota, Chevrolet, Nissan"
-                    />
+                    <Select 
+                      value={formData.marca_vehiculo} 
+                      onValueChange={handleMarcaChange}
+                      disabled={loadingMarcas}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={loadingMarcas ? "Cargando..." : "Seleccionar marca"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {marcas.map(marca => (
+                          <SelectItem key={marca.id} value={marca.nombre}>
+                            {marca.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label>Modelo *</Label>
-                    <Input
-                      value={formData.modelo_vehiculo}
-                      onChange={(e) => setFormData(prev => ({ ...prev, modelo_vehiculo: e.target.value }))}
-                      placeholder="Ej: Corolla, Aveo, Sentra"
-                    />
+                    <Select 
+                      value={formData.modelo_vehiculo} 
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, modelo_vehiculo: value }))}
+                      disabled={!formData.marca_vehiculo || loadingModelos}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={loadingModelos ? "Cargando..." : "Seleccionar modelo"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {modelos.map(modelo => (
+                          <SelectItem key={modelo.id} value={modelo.nombre}>
+                            {modelo.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label>Año *</Label>
@@ -266,6 +316,8 @@ export const ProgramarInstalacionMejorada = ({
                       value={formData.año_vehiculo}
                       onChange={(e) => setFormData(prev => ({ ...prev, año_vehiculo: e.target.value }))}
                       placeholder="2020"
+                      min="1990"
+                      max={new Date().getFullYear() + 1}
                     />
                   </div>
                 </div>
@@ -327,7 +379,7 @@ export const ProgramarInstalacionMejorada = ({
                   Configuración de Instalación
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 <div className="space-y-2">
                   <Label>Tipo de Instalación *</Label>
                   <Select value={formData.tipo_instalacion} onValueChange={(value) => {
@@ -351,9 +403,9 @@ export const ProgramarInstalacionMejorada = ({
                   </Select>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <Label>Sensores/Gadgets Solicitados</Label>
+                    <Label>Sensores/Gadgets Adicionales</Label>
                     <Button type="button" onClick={addCustomSensor} variant="outline" size="sm">
                       <Plus className="h-4 w-4 mr-1" />
                       Agregar Personalizado
@@ -380,7 +432,7 @@ export const ProgramarInstalacionMejorada = ({
 
                   {/* Available sensors to add */}
                   <div className="space-y-2">
-                    <Label className="text-sm text-gray-600">Agregar Sensores Adicionales:</Label>
+                    <Label className="text-sm text-gray-600">Sensores Disponibles:</Label>
                     <div className="grid grid-cols-2 gap-3">
                       {sensoresDisponibles.map(sensor => (
                         <div key={sensor} className="flex items-center space-x-2">
@@ -424,89 +476,108 @@ export const ProgramarInstalacionMejorada = ({
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
+                  <CalendarIcon className="h-5 w-5" />
                   Programación de Cita
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label>Fecha de Instalación *</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !formData.fecha_programada && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {formData.fecha_programada ? (
-                            format(formData.fecha_programada, "PPP", { locale: es })
-                          ) : (
-                            <span>Seleccionar fecha</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={formData.fecha_programada}
-                          onSelect={(date) => setFormData(prev => ({ ...prev, fecha_programada: date }))}
-                          disabled={isDateDisabled}
-                          initialFocus
-                          className={cn("p-3 pointer-events-auto")}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <p className="text-xs text-gray-500">
-                      * Mínimo 72 horas hábiles de anticipación. No se programan instalaciones en fines de semana.
-                    </p>
+                {/* Date and Time Selection */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Date Selection */}
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-base font-medium">Fecha de Instalación *</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal h-12",
+                              !formData.fecha_programada && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {formData.fecha_programada ? (
+                              format(formData.fecha_programada, "PPP", { locale: es })
+                            ) : (
+                              <span>Seleccionar fecha</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={formData.fecha_programada}
+                            onSelect={(date) => setFormData(prev => ({ ...prev, fecha_programada: date }))}
+                            disabled={isDateDisabled}
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <p className="text-xs text-gray-500">
+                        * Mínimo 72 horas hábiles de anticipación
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        * No se programan instalaciones en fines de semana
+                      </p>
+                    </div>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Hora de Inicio *</Label>
-                    <Select value={formData.hora_inicio} onValueChange={(value) => setFormData(prev => ({ ...prev, hora_inicio: value }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar hora" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {horasDisponibles.map(hora => (
-                          <SelectItem key={hora} value={hora}>
-                            {hora}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-gray-500">
-                      * Horario de servicio: 9:00 AM - 5:00 PM
-                    </p>
+
+                  {/* Time and Installer Selection */}
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-base font-medium">Hora de Inicio *</Label>
+                      <Select value={formData.hora_inicio} onValueChange={(value) => setFormData(prev => ({ ...prev, hora_inicio: value }))}>
+                        <SelectTrigger className="h-12">
+                          <SelectValue placeholder="Seleccionar hora" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {horasDisponibles.map(hora => (
+                            <SelectItem key={hora} value={hora}>
+                              {hora}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-gray-500">
+                        * Horario de servicio: 9:00 AM - 5:00 PM
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-base font-medium">Instalador Asignado *</Label>
+                      <Select value={formData.instalador_asignado} onValueChange={(value) => setFormData(prev => ({ ...prev, instalador_asignado: value }))}>
+                        <SelectTrigger className="h-12">
+                          <SelectValue placeholder="Asignar instalador" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="instalador_1">Juan Pérez - Zona Norte</SelectItem>
+                          <SelectItem value="instalador_2">María García - Zona Sur</SelectItem>
+                          <SelectItem value="instalador_3">Carlos López - Zona Centro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Tiempo Estimado</Label>
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-gray-500" />
-                      <Badge variant="outline" className="text-sm">
-                        {formData.tiempo_estimado} minutos
-                      </Badge>
-                    </div>
+                {/* Installation Details */}
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Clock className="h-4 w-4 text-blue-600" />
+                    <Label className="text-blue-800 font-medium">Detalles de la Instalación</Label>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Instalador Asignado *</Label>
-                    <Select value={formData.instalador_asignado} onValueChange={(value) => setFormData(prev => ({ ...prev, instalador_asignado: value }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Asignar instalador" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="instalador_1">Juan Pérez - Zona Norte</SelectItem>
-                        <SelectItem value="instalador_2">María García - Zona Sur</SelectItem>
-                        <SelectItem value="instalador_3">Carlos López - Zona Centro</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium text-blue-700">Tipo:</span>
+                      <p className="text-blue-600">
+                        {tiposInstalacion.find(t => t.value === formData.tipo_instalacion)?.label}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-blue-700">Tiempo Estimado:</span>
+                      <p className="text-blue-600">{formData.tiempo_estimado} minutos</p>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -524,7 +595,14 @@ export const ProgramarInstalacionMejorada = ({
                   Información de Contacto y Logística
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
+                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Nota:</strong> Esta información proviene de la captura del servicio. 
+                    Verifique que sea correcta o actualícela si es necesario.
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Contacto del Cliente *</Label>
@@ -612,6 +690,7 @@ export const ProgramarInstalacionMejorada = ({
                     <p><strong>Fecha:</strong> {formData.fecha_programada ? format(formData.fecha_programada, "PPP", { locale: es }) : 'No seleccionada'} a las {formData.hora_inicio || 'No seleccionada'}</p>
                     <p><strong>Duración:</strong> {formData.tiempo_estimado} minutos</p>
                     <p><strong>Sensores:</strong> {formData.sensores_adicionales.length > 0 ? formData.sensores_adicionales.join(', ') : 'Ninguno adicional'}</p>
+                    <p><strong>Instalador:</strong> {formData.instalador_asignado ? formData.instalador_asignado.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'No asignado'}</p>
                   </CardContent>
                 </Card>
               </CardContent>
@@ -626,7 +705,7 @@ export const ProgramarInstalacionMejorada = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wrench className="h-5 w-5" />
@@ -650,7 +729,7 @@ export const ProgramarInstalacionMejorada = ({
           {renderStepContent()}
 
           {/* Navigation buttons */}
-          <div className="flex justify-between mt-6">
+          <div className="flex justify-between mt-8 pt-4 border-t">
             <Button
               type="button"
               variant="outline"
@@ -674,13 +753,14 @@ export const ProgramarInstalacionMejorada = ({
                   type="button" 
                   onClick={nextStep}
                   disabled={!validateCurrentStep()}
+                  className="bg-blue-600 hover:bg-blue-700"
                 >
                   Siguiente
                 </Button>
               ) : (
                 <Button 
                   type="submit" 
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-green-600 hover:bg-green-700"
                   disabled={!validateCurrentStep() || createProgramacion.isPending}
                 >
                   {createProgramacion.isPending ? 'Programando...' : 'Confirmar Instalación'}
