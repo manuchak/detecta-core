@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,20 +8,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Car, Settings, Zap, Wrench, MapPin, Clock, User } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarIcon, Car, Settings, Zap, Wrench, MapPin, Clock, User, Plus, X } from 'lucide-react';
+import { format, addDays, isWeekend } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+import { useProgramacionInstalaciones } from '@/hooks/useProgramacionInstalaciones';
 
 interface ProgramarInstalacionMejoradaProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   servicioId?: string;
+  servicioData?: any; // Service data to pre-populate fields
 }
 
 export const ProgramarInstalacionMejorada = ({ 
   open, 
   onOpenChange, 
-  servicioId 
+  servicioId,
+  servicioData 
 }: ProgramarInstalacionMejoradaProps) => {
   const [currentStep, setCurrentStep] = useState(1);
+  const { createProgramacion } = useProgramacionInstalaciones();
+  
   const [formData, setFormData] = useState({
     // Información del servicio y vehículo
     servicio_id: servicioId || '',
@@ -39,7 +49,7 @@ export const ProgramarInstalacionMejorada = ({
     observaciones_vehiculo: '',
     
     // Programación
-    fecha_programada: '',
+    fecha_programada: null as Date | null,
     hora_inicio: '',
     tiempo_estimado: 60,
     instalador_asignado: '',
@@ -55,6 +65,25 @@ export const ProgramarInstalacionMejorada = ({
     requiere_herramientas_especiales: false,
     observaciones_instalacion: ''
   });
+
+  // Pre-populate data from service when dialog opens
+  useEffect(() => {
+    if (open && servicioData) {
+      setFormData(prev => ({
+        ...prev,
+        servicio_id: servicioId || '',
+        marca_vehiculo: servicioData.modelo_vehiculo?.split(' ')[0] || '',
+        modelo_vehiculo: servicioData.modelo_vehiculo || '',
+        año_vehiculo: servicioData.año_vehiculo || '',
+        tipo_combustible: servicioData.tipo_combustible || 'gasolina',
+        es_electrico: servicioData.es_electrico || false,
+        contacto_cliente: servicioData.nombre_cliente || '',
+        telefono_contacto: servicioData.telefono_contacto || '',
+        direccion_instalacion: servicioData.direccion_cliente || '',
+        sensores_adicionales: servicioData.sensores_solicitados || []
+      }));
+    }
+  }, [open, servicioData, servicioId]);
 
   const sensoresDisponibles = [
     'Sensor de combustible',
@@ -74,6 +103,33 @@ export const ProgramarInstalacionMejorada = ({
     { value: 'flotilla_comercial', label: 'Flotilla Comercial', tiempo: 90 }
   ];
 
+  const horasDisponibles = [
+    '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+    '12:00', '12:30', '13:00', '13:30', '14:00', '14:30',
+    '15:00', '15:30', '16:00', '16:30', '17:00'
+  ];
+
+  // Calculate minimum date (72 business hours from now)
+  const getMinimumDate = () => {
+    let date = new Date();
+    let businessHours = 0;
+    
+    while (businessHours < 72) {
+      date = addDays(date, 1);
+      if (!isWeekend(date)) {
+        businessHours += 8; // 8 business hours per day
+      }
+    }
+    
+    return date;
+  };
+
+  // Check if date is valid for installation (no weekends)
+  const isDateDisabled = (date: Date) => {
+    const minDate = getMinimumDate();
+    return date < minDate || isWeekend(date);
+  };
+
   const handleSensorChange = (sensor: string, checked: boolean) => {
     setFormData(prev => ({
       ...prev,
@@ -83,13 +139,94 @@ export const ProgramarInstalacionMejorada = ({
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Programar instalación:', formData);
-    onOpenChange(false);
+  const addCustomSensor = () => {
+    const sensorName = prompt('Ingrese el nombre del sensor personalizado:');
+    if (sensorName && sensorName.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        sensores_adicionales: [...prev.sensores_adicionales, sensorName.trim()]
+      }));
+    }
   };
 
-  const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 4));
+  const removeSensor = (sensor: string) => {
+    setFormData(prev => ({
+      ...prev,
+      sensores_adicionales: prev.sensores_adicionales.filter(s => s !== sensor)
+    }));
+  };
+
+  const validateCurrentStep = () => {
+    switch (currentStep) {
+      case 1:
+        return formData.marca_vehiculo && formData.modelo_vehiculo && formData.año_vehiculo;
+      case 2:
+        return formData.tipo_instalacion && formData.ubicacion_instalacion;
+      case 3:
+        return formData.fecha_programada && formData.hora_inicio && formData.instalador_asignado;
+      case 4:
+        return formData.contacto_cliente && formData.telefono_contacto && formData.direccion_instalacion;
+      default:
+        return false;
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateCurrentStep()) {
+      alert('Por favor complete todos los campos requeridos');
+      return;
+    }
+
+    try {
+      const programacionData = {
+        servicio_id: formData.servicio_id,
+        tipo_instalacion: formData.tipo_instalacion as 'gps_vehicular' | 'gps_personal' | 'camara',
+        fecha_programada: formData.fecha_programada?.toISOString(),
+        hora_programada: formData.hora_inicio,
+        direccion_instalacion: formData.direccion_instalacion,
+        contacto_cliente: formData.contacto_cliente,
+        telefono_contacto: formData.telefono_contacto,
+        instalador_id: formData.instalador_asignado || undefined,
+        tiempo_estimado: formData.tiempo_estimado,
+        prioridad: 'normal' as const,
+        estado: 'programada' as const,
+        observaciones_cliente: [
+          formData.observaciones_vehiculo,
+          formData.observaciones_instalacion,
+          `Sensores: ${formData.sensores_adicionales.join(', ')}`
+        ].filter(Boolean).join('\n'),
+        requiere_vehiculo_elevado: formData.requiere_elevador,
+        acceso_restringido: formData.requiere_herramientas_especiales
+      };
+
+      await createProgramacion.mutateAsync(programacionData);
+      onOpenChange(false);
+      
+      // Reset form
+      setCurrentStep(1);
+      setFormData(prev => ({
+        ...prev,
+        fecha_programada: null,
+        hora_inicio: '',
+        instalador_asignado: '',
+        observaciones_instalacion: ''
+      }));
+      
+    } catch (error) {
+      console.error('Error programando instalación:', error);
+    }
+  };
+
+  const nextStep = () => {
+    if (!validateCurrentStep()) {
+      alert('Por favor complete todos los campos requeridos antes de continuar');
+      return;
+    }
+    setCurrentStep(prev => Math.min(prev + 1, 4));
+  };
+  
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
 
   const renderStepContent = () => {
@@ -105,20 +242,7 @@ export const ProgramarInstalacionMejorada = ({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Vehículo a Instalar *</Label>
-                    <Select value={formData.vehiculo_seleccionado} onValueChange={(value) => setFormData(prev => ({ ...prev, vehiculo_seleccionado: value }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar vehículo del servicio" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="vehiculo_1">Vehículo 1 - Chevrolet Aveo 2020</SelectItem>
-                        <SelectItem value="vehiculo_2">Vehículo 2 - Nissan Sentra 2021</SelectItem>
-                        <SelectItem value="vehiculo_3">Vehículo 3 - Toyota Corolla 2019</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>Marca del Vehículo *</Label>
                     <Input
@@ -149,7 +273,14 @@ export const ProgramarInstalacionMejorada = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Tipo de Combustible *</Label>
-                    <Select value={formData.tipo_combustible} onValueChange={(value) => setFormData(prev => ({ ...prev, tipo_combustible: value }))}>
+                    <Select value={formData.tipo_combustible} onValueChange={(value) => {
+                      const isElectric = value === 'electrico' || value === 'hibrido';
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        tipo_combustible: value,
+                        es_electrico: isElectric
+                      }));
+                    }}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -162,19 +293,14 @@ export const ProgramarInstalacionMejorada = ({
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex items-center space-x-2 mt-6">
-                    <input
-                      type="checkbox"
-                      id="es_electrico"
-                      checked={formData.es_electrico}
-                      onChange={(e) => setFormData(prev => ({ ...prev, es_electrico: e.target.checked }))}
-                      className="h-4 w-4"
-                    />
-                    <Label htmlFor="es_electrico" className="flex items-center gap-2">
+                  {formData.es_electrico && (
+                    <div className="flex items-center space-x-2 mt-6">
                       <Zap className="h-4 w-4 text-green-600" />
-                      Vehículo Eléctrico/Híbrido
-                    </Label>
-                  </div>
+                      <Badge variant="outline" className="text-green-600 border-green-600">
+                        Vehículo Eco-Amigable
+                      </Badge>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -226,25 +352,54 @@ export const ProgramarInstalacionMejorada = ({
                 </div>
 
                 <div className="space-y-3">
-                  <Label>Sensores Adicionales Solicitados</Label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {sensoresDisponibles.map(sensor => (
-                      <div key={sensor} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id={sensor}
-                          checked={formData.sensores_adicionales.includes(sensor)}
-                          onChange={(e) => handleSensorChange(sensor, e.target.checked)}
-                          className="h-4 w-4"
-                        />
-                        <Label htmlFor={sensor} className="text-sm">{sensor}</Label>
+                  <div className="flex items-center justify-between">
+                    <Label>Sensores/Gadgets Solicitados</Label>
+                    <Button type="button" onClick={addCustomSensor} variant="outline" size="sm">
+                      <Plus className="h-4 w-4 mr-1" />
+                      Agregar Personalizado
+                    </Button>
+                  </div>
+                  
+                  {/* Current selected sensors */}
+                  {formData.sensores_adicionales.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-sm text-gray-600">Sensores Seleccionados:</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {formData.sensores_adicionales.map(sensor => (
+                          <Badge key={sensor} variant="secondary" className="flex items-center gap-1">
+                            {sensor}
+                            <X 
+                              className="h-3 w-3 cursor-pointer hover:text-red-500" 
+                              onClick={() => removeSensor(sensor)}
+                            />
+                          </Badge>
+                        ))}
                       </div>
-                    ))}
+                    </div>
+                  )}
+
+                  {/* Available sensors to add */}
+                  <div className="space-y-2">
+                    <Label className="text-sm text-gray-600">Agregar Sensores Adicionales:</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {sensoresDisponibles.map(sensor => (
+                        <div key={sensor} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id={sensor}
+                            checked={formData.sensores_adicionales.includes(sensor)}
+                            onChange={(e) => handleSensorChange(sensor, e.target.checked)}
+                            className="h-4 w-4"
+                          />
+                          <Label htmlFor={sensor} className="text-sm">{sensor}</Label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Ubicación Preferida de Instalación</Label>
+                  <Label>Ubicación Preferida de Instalación *</Label>
                   <Select value={formData.ubicacion_instalacion} onValueChange={(value) => setFormData(prev => ({ ...prev, ubicacion_instalacion: value }))}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar ubicación" />
@@ -273,36 +428,75 @@ export const ProgramarInstalacionMejorada = ({
                   Programación de Cita
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label>Fecha de Instalación *</Label>
-                    <Input
-                      type="date"
-                      value={formData.fecha_programada}
-                      onChange={(e) => setFormData(prev => ({ ...prev, fecha_programada: e.target.value }))}
-                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !formData.fecha_programada && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {formData.fecha_programada ? (
+                            format(formData.fecha_programada, "PPP", { locale: es })
+                          ) : (
+                            <span>Seleccionar fecha</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={formData.fecha_programada}
+                          onSelect={(date) => setFormData(prev => ({ ...prev, fecha_programada: date }))}
+                          disabled={isDateDisabled}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <p className="text-xs text-gray-500">
+                      * Mínimo 72 horas hábiles de anticipación. No se programan instalaciones en fines de semana.
+                    </p>
                   </div>
+                  
                   <div className="space-y-2">
                     <Label>Hora de Inicio *</Label>
-                    <Input
-                      type="time"
-                      value={formData.hora_inicio}
-                      onChange={(e) => setFormData(prev => ({ ...prev, hora_inicio: e.target.value }))}
-                    />
+                    <Select value={formData.hora_inicio} onValueChange={(value) => setFormData(prev => ({ ...prev, hora_inicio: value }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar hora" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {horasDisponibles.map(hora => (
+                          <SelectItem key={hora} value={hora}>
+                            {hora}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500">
+                      * Horario de servicio: 9:00 AM - 5:00 PM
+                    </p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Tiempo Estimado (minutos)</Label>
+                    <Label>Tiempo Estimado</Label>
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-gray-500" />
-                      <Badge variant="outline">{formData.tiempo_estimado} minutos</Badge>
+                      <Badge variant="outline" className="text-sm">
+                        {formData.tiempo_estimado} minutos
+                      </Badge>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>Instalador Asignado</Label>
+                    <Label>Instalador Asignado *</Label>
                     <Select value={formData.instalador_asignado} onValueChange={(value) => setFormData(prev => ({ ...prev, instalador_asignado: value }))}>
                       <SelectTrigger>
                         <SelectValue placeholder="Asignar instalador" />
@@ -406,6 +600,20 @@ export const ProgramarInstalacionMejorada = ({
                     rows={3}
                   />
                 </div>
+
+                {/* Summary Card */}
+                <Card className="bg-blue-50 border-blue-200">
+                  <CardHeader>
+                    <CardTitle className="text-blue-800 text-lg">Resumen de la Instalación</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm">
+                    <p><strong>Vehículo:</strong> {formData.marca_vehiculo} {formData.modelo_vehiculo} {formData.año_vehiculo}</p>
+                    <p><strong>Tipo:</strong> {tiposInstalacion.find(t => t.value === formData.tipo_instalacion)?.label}</p>
+                    <p><strong>Fecha:</strong> {formData.fecha_programada ? format(formData.fecha_programada, "PPP", { locale: es }) : 'No seleccionada'} a las {formData.hora_inicio || 'No seleccionada'}</p>
+                    <p><strong>Duración:</strong> {formData.tiempo_estimado} minutos</p>
+                    <p><strong>Sensores:</strong> {formData.sensores_adicionales.length > 0 ? formData.sensores_adicionales.join(', ') : 'Ninguno adicional'}</p>
+                  </CardContent>
+                </Card>
               </CardContent>
             </Card>
           </div>
@@ -462,12 +670,20 @@ export const ProgramarInstalacionMejorada = ({
               </Button>
               
               {currentStep < 4 ? (
-                <Button type="button" onClick={nextStep}>
+                <Button 
+                  type="button" 
+                  onClick={nextStep}
+                  disabled={!validateCurrentStep()}
+                >
                   Siguiente
                 </Button>
               ) : (
-                <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-                  Programar Instalación
+                <Button 
+                  type="submit" 
+                  className="bg-blue-600 hover:bg-blue-700"
+                  disabled={!validateCurrentStep() || createProgramacion.isPending}
+                >
+                  {createProgramacion.isPending ? 'Programando...' : 'Confirmar Instalación'}
                 </Button>
               )}
             </div>
