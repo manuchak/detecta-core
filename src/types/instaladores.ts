@@ -1,5 +1,3 @@
-
-
 export type EstadoAfiliacion = 'pendiente' | 'activo' | 'suspendido' | 'inactivo';
 export type TipoInstalacion = 'gps_vehicular' | 'gps_personal' | 'camara' | 'alarma' | 'combo';
 export type EstadoInstalacion = 'programada' | 'confirmada' | 'en_proceso' | 'completada' | 'cancelada' | 'reprogramada';
@@ -131,12 +129,14 @@ export interface CreateInstaladorData {
 
 export interface CreateProgramacionData {
   servicio_id: string;
+  instalador_id?: string;
   activo_id?: string;
   tipo_instalacion: TipoInstalacion;
   fecha_programada: string;
   direccion_instalacion: string;
   contacto_cliente: string;
   telefono_contacto: string;
+  estado?: EstadoInstalacion;
   prioridad?: PrioridadInstalacion;
   equipos_requeridos?: any;
   herramientas_especiales?: string[];
@@ -146,4 +146,3 @@ export interface CreateProgramacionData {
   requiere_vehiculo_elevado?: boolean;
   acceso_restringido?: boolean;
 }
-
