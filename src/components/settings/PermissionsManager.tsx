@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useRoles } from '@/hooks/useRoles';
 import { Role } from '@/types/roleTypes';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { RoleSelector } from './permissions/RoleSelector';
 import { PermissionsPanel } from './permissions/PermissionsPanel';
 import { ImprovedAddPermissionDialog } from './permissions/ImprovedAddPermissionDialog';
@@ -15,9 +15,11 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 export const PermissionsManager = () => {
   const { roles, permissions, isLoading, error, updatePermission, addPermission } = useRoles();
+  const { toast } = useToast();
   
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [isAddPermissionOpen, setIsAddPermissionOpen] = useState(false);
@@ -33,22 +35,55 @@ export const PermissionsManager = () => {
     return permissions[selectedRole] || [];
   }, [selectedRole, permissions]);
 
-  // Handle permission toggle
-  const handlePermissionToggle = (id: string, allowed: boolean) => {
-    if (updatePermission) {
-      updatePermission.mutate({ id, allowed });
+  // Handle permission toggle with better error handling
+  const handlePermissionToggle = async (id: string, allowed: boolean) => {
+    if (!updatePermission) {
+      toast({
+        title: "Error",
+        description: "No se puede actualizar el permiso en este momento",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await updatePermission.mutateAsync({ id, allowed });
+    } catch (error) {
+      console.error('Error updating permission:', error);
+      toast({
+        title: "Error al actualizar permiso",
+        description: "Intente nuevamente o contacte al administrador",
+        variant: "destructive",
+      });
     }
   };
 
-  // Handle add permission
-  const handleAddPermission = (permissionData: {
+  // Handle add permission with better error handling
+  const handleAddPermission = async (permissionData: {
     role: Role;
     permissionType: string;
     permissionId: string;
     allowed: boolean;
   }) => {
-    if (addPermission) {
-      addPermission.mutate(permissionData);
+    if (!addPermission) {
+      toast({
+        title: "Error",
+        description: "No se puede añadir el permiso en este momento",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await addPermission.mutateAsync(permissionData);
+      setIsAddPermissionOpen(false);
+    } catch (error) {
+      console.error('Error adding permission:', error);
+      toast({
+        title: "Error al añadir permiso",
+        description: "Verifique que no exista un permiso duplicado",
+        variant: "destructive",
+      });
     }
   };
 
@@ -65,7 +100,7 @@ export const PermissionsManager = () => {
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <div className="text-sm text-muted-foreground">
-            Cargando sistema de permisos...
+            Cargando permisos...
           </div>
         </div>
       </div>
@@ -121,23 +156,21 @@ export const PermissionsManager = () => {
 
   return (
     <TooltipProvider>
-      <div className="space-y-8">
-        {/* Header */}
+      <div className="space-y-6">
+        {/* Header simplificado */}
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-            <ShieldCheck className="h-5 w-5 text-primary" />
-          </div>
+          <ShieldCheck className="h-6 w-6 text-primary" />
           <div>
-            <h2 className="text-2xl font-bold text-foreground">Sistema de Permisos</h2>
-            <p className="text-sm text-muted-foreground">
-              Configure los permisos y accesos para cada rol del sistema
+            <h2 className="text-xl font-bold">Sistema de Permisos</h2>
+            <p className="text-sm text-gray-600">
+              Gestiona los permisos de acceso para cada rol
             </p>
           </div>
         </div>
         
-        {/* Role Selector */}
-        <Card className="border-border/40 shadow-sm">
-          <CardContent className="p-6">
+        {/* Role Selector - más limpio */}
+        <Card className="border-gray-200">
+          <CardContent className="p-4">
             <RoleSelector
               roles={roles}
               selectedRole={selectedRole}
@@ -147,10 +180,10 @@ export const PermissionsManager = () => {
           </CardContent>
         </Card>
 
-        {/* Permissions Panel */}
+        {/* Permissions Panel - diseño más lean */}
         {selectedRole && (
-          <Card className="border-border/40 shadow-sm">
-            <CardContent className="p-6">
+          <Card className="border-gray-200">
+            <CardContent className="p-4">
               <PermissionsPanel
                 selectedRole={selectedRole}
                 permissions={selectedRolePermissions}
