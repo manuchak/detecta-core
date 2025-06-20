@@ -1033,6 +1033,150 @@ export type Database = {
         }
         Relationships: []
       }
+      instalacion_documentacion: {
+        Row: {
+          completado: boolean | null
+          coordenadas_latitud: number | null
+          coordenadas_longitud: number | null
+          created_at: string | null
+          created_by: string | null
+          descripcion: string | null
+          foto_url: string | null
+          id: string
+          orden: number
+          paso_instalacion: string
+          programacion_id: string | null
+        }
+        Insert: {
+          completado?: boolean | null
+          coordenadas_latitud?: number | null
+          coordenadas_longitud?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          descripcion?: string | null
+          foto_url?: string | null
+          id?: string
+          orden: number
+          paso_instalacion: string
+          programacion_id?: string | null
+        }
+        Update: {
+          completado?: boolean | null
+          coordenadas_latitud?: number | null
+          coordenadas_longitud?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          descripcion?: string | null
+          foto_url?: string | null
+          id?: string
+          orden?: number
+          paso_instalacion?: string
+          programacion_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instalacion_documentacion_programacion_id_fkey"
+            columns: ["programacion_id"]
+            isOneToOne: false
+            referencedRelation: "programacion_instalaciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      instalacion_reporte_final: {
+        Row: {
+          calificacion_servicio: number | null
+          comentarios_cliente: string | null
+          comentarios_instalador: string | null
+          created_at: string | null
+          created_by: string | null
+          dificultades_encontradas: string[] | null
+          firma_cliente_url: string | null
+          id: string
+          materiales_adicionales_usados: string[] | null
+          programacion_id: string | null
+          recomendaciones: string | null
+          tiempo_total_minutos: number | null
+        }
+        Insert: {
+          calificacion_servicio?: number | null
+          comentarios_cliente?: string | null
+          comentarios_instalador?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          dificultades_encontradas?: string[] | null
+          firma_cliente_url?: string | null
+          id?: string
+          materiales_adicionales_usados?: string[] | null
+          programacion_id?: string | null
+          recomendaciones?: string | null
+          tiempo_total_minutos?: number | null
+        }
+        Update: {
+          calificacion_servicio?: number | null
+          comentarios_cliente?: string | null
+          comentarios_instalador?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          dificultades_encontradas?: string[] | null
+          firma_cliente_url?: string | null
+          id?: string
+          materiales_adicionales_usados?: string[] | null
+          programacion_id?: string | null
+          recomendaciones?: string | null
+          tiempo_total_minutos?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instalacion_reporte_final_programacion_id_fkey"
+            columns: ["programacion_id"]
+            isOneToOne: false
+            referencedRelation: "programacion_instalaciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      instalacion_validaciones: {
+        Row: {
+          comentarios: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          programacion_id: string | null
+          puntuacion: number | null
+          tipo_validacion: string
+          validado: boolean
+        }
+        Insert: {
+          comentarios?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          programacion_id?: string | null
+          puntuacion?: number | null
+          tipo_validacion: string
+          validado?: boolean
+        }
+        Update: {
+          comentarios?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          programacion_id?: string | null
+          puntuacion?: number | null
+          tipo_validacion?: string
+          validado?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instalacion_validaciones_programacion_id_fkey"
+            columns: ["programacion_id"]
+            isOneToOne: false
+            referencedRelation: "programacion_instalaciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       instalaciones_gps: {
         Row: {
           activo_id: string
