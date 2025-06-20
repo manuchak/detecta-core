@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -137,33 +136,83 @@ export const useAprobacionesWorkflow = () => {
   // Crear análisis de riesgo
   const crearAnalisisRiesgo = useMutation({
     mutationFn: async (data: any) => {
+      console.log('Mutation: Creando análisis de riesgo con datos:', data);
+      
       const { data: result, error } = await supabase
         .from('analisis_riesgo_seguridad')
         .insert([data])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error al insertar análisis de riesgo:', error);
+        throw error;
+      }
+
+      console.log('Análisis de riesgo creado:', result);
 
       // Actualizar estado del servicio según el análisis
-      let nuevoEstado = 'programacion_instalacion';
+      let nuevoEstado = 'programacion_instalacion'; // Aprobado -> va a instalación GPS
       if (!data.aprobado_seguridad) {
         nuevoEstado = 'rechazado_seguridad';
       }
 
-      await supabase
+      console.log('Actualizando estado del servicio a:', nuevoEstado);
+
+      const { error: updateError } = await supabase
         .from('servicios_monitoreo')
         .update({ estado_general: nuevoEstado })
         .eq('id', data.servicio_id);
 
+      if (updateError) {
+        console.error('Error al actualizar estado del servicio:', updateError);
+        throw updateError;
+      }
+
+      // Registrar el seguimiento del cambio de estado
+      const { error: seguimientoError } = await supabase
+        .from('seguimiento_servicio')
+        .insert({
+          servicio_id: data.servicio_id,
+          tipo_evento: 'analisis_riesgo_completado',
+          descripcion: `Análisis de riesgo completado. Estado: ${data.aprobado_seguridad ? 'Aprobado' : 'Rechazado'}`,
+          estado_nuevo: nuevoEstado,
+          usuario_id: (await supabase.auth.getUser()).data.user?.id,
+          datos_adicionales: {
+            calificacion_riesgo: data.calificacion_riesgo,
+            aprobado_seguridad: data.aprobado_seguridad,
+            recomendaciones: data.recomendaciones
+          }
+        });
+
+      if (seguimientoError) {
+        console.warn('Error al registrar seguimiento:', seguimientoError);
+        // No lanzamos error aquí porque el seguimiento es opcional
+      }
+
+      console.log('Análisis de riesgo completado exitosamente');
       return result;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['servicios-workflow'] });
       queryClient.invalidateQueries({ queryKey: ['servicios-pendientes-riesgo'] });
+      queryClient.invalidateQueries({ queryKey: ['servicios-monitoreo'] });
+      
+      const mensaje = variables.aprobado_seguridad 
+        ? "El análisis de riesgo ha sido aprobado. El servicio pasará a programación de instalación GPS."
+        : "El análisis de riesgo ha sido rechazado por seguridad.";
+        
       toast({
         title: "Análisis completado",
-        description: "El análisis de riesgo ha sido completado.",
+        description: mensaje,
+      });
+    },
+    onError: (error) => {
+      console.error('Error en mutation crearAnalisisRiesgo:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo completar el análisis de riesgo. Verifique los datos e intente nuevamente.",
+        variant: "destructive",
       });
     }
   });

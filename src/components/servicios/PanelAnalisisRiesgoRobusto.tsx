@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Shield, AlertTriangle, CheckCircle, XCircle, FileText, Calculator } from 'lucide-react';
 import { useAprobacionesWorkflow } from '@/hooks/useAprobacionesWorkflow';
+import { useToast } from '@/hooks/use-toast';
 import type { AnalisisRiesgoSeguridad } from '@/types/serviciosMonitoreoCompleto';
 
 interface FormularioAnalisisRiesgo {
@@ -58,6 +59,7 @@ interface FormularioAnalisisRiesgo {
 
 export const PanelAnalisisRiesgoRobusto = () => {
   const { serviciosPendientesRiesgo, loadingRiesgo, crearAnalisisRiesgo } = useAprobacionesWorkflow();
+  const { toast } = useToast();
   const [servicioSeleccionado, setServicioSeleccionado] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormularioAnalisisRiesgo>({
     tipo_monitoreo_requerido: '',
@@ -199,22 +201,61 @@ export const PanelAnalisisRiesgoRobusto = () => {
   };
 
   const handleCompletarAnalisis = async () => {
-    if (!servicioSeleccionado) return;
+    if (!servicioSeleccionado) {
+      toast({
+        title: "Error",
+        description: "Debe seleccionar un servicio para analizar.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    const analisisData: Partial<AnalisisRiesgoSeguridad> = {
-      servicio_id: servicioSeleccionado,
-      tipo_monitoreo_requerido: formData.tipo_monitoreo_requerido,
-      tipo_activo_proteger: formData.tipo_activo_proteger,
-      perfil_usuario: formData.perfil_usuario,
-      calificacion_riesgo: formData.nivel_riesgo_final,
-      recomendaciones: formData.observaciones_generales,
-      aprobado_seguridad: formData.decision_final !== 'no_autorizado',
-      estado_analisis: 'completado'
-    };
+    // Validar campos requeridos
+    if (!formData.tipo_monitoreo_requerido || !formData.tipo_activo_proteger || !formData.perfil_usuario) {
+      toast({
+        title: "Campos requeridos",
+        description: "Debe completar la información básica del servicio.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    await crearAnalisisRiesgo.mutateAsync(analisisData);
-    setServicioSeleccionado(null);
-    resetForm();
+    try {
+      console.log('Iniciando análisis de riesgo para servicio:', servicioSeleccionado);
+      console.log('Datos del formulario:', formData);
+
+      const analisisData: Partial<AnalisisRiesgoSeguridad> = {
+        servicio_id: servicioSeleccionado,
+        tipo_monitoreo_requerido: formData.tipo_monitoreo_requerido,
+        tipo_activo_proteger: formData.tipo_activo_proteger,
+        perfil_usuario: formData.perfil_usuario,
+        calificacion_riesgo: formData.nivel_riesgo_final,
+        recomendaciones: formData.observaciones_generales,
+        aprobado_seguridad: formData.decision_final !== 'no_autorizado',
+        estado_analisis: 'completado'
+      };
+
+      console.log('Enviando análisis de riesgo:', analisisData);
+
+      await crearAnalisisRiesgo.mutateAsync(analisisData);
+      
+      toast({
+        title: "Análisis completado",
+        description: `El análisis de riesgo ha sido ${formData.decision_final === 'no_autorizado' ? 'rechazado' : 'aprobado'}.`,
+      });
+
+      // Limpiar formulario y selección
+      setServicioSeleccionado(null);
+      resetForm();
+
+    } catch (error) {
+      console.error('Error al completar análisis:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo completar el análisis. Intente nuevamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getRiesgoColor = (nivel: string) => {
@@ -588,10 +629,10 @@ export const PanelAnalisisRiesgoRobusto = () => {
                   <Button
                     onClick={handleCompletarAnalisis}
                     className="flex-1 bg-green-600 hover:bg-green-700"
-                    disabled={crearAnalisisRiesgo.isPending || !formData.decision_final}
+                    disabled={crearAnalisisRiesgo.isPending || !formData.tipo_monitoreo_requerido || !formData.tipo_activo_proteger}
                   >
                     <CheckCircle className="h-4 w-4 mr-2" />
-                    Completar Análisis
+                    {crearAnalisisRiesgo.isPending ? 'Procesando...' : 'Completar Análisis'}
                   </Button>
                   <Button
                     onClick={() => {
