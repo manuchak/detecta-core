@@ -1,14 +1,14 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, ClipboardCheck, Settings, Activity, Calendar, Wrench, AlertTriangle } from 'lucide-react';
+import { Shield, ClipboardCheck, Settings, Activity, Calendar, Wrench, AlertTriangle, Plus } from 'lucide-react';
 import { useServiciosMonitoreo } from '@/hooks/useServiciosMonitoreo';
 import { useProgramacionInstalaciones } from '@/hooks/useProgramacionInstalaciones';
 import { useAprobacionesWorkflow } from '@/hooks/useAprobacionesWorkflow';
 import { ServiciosTable } from './components/ServiciosTable';
-import { ProgramarInstalacionDialog } from '@/pages/Installers/components/ProgramarInstalacionDialog';
+import { ProgramarInstalacionMejorada } from '@/components/instalaciones/ProgramarInstalacionMejorada';
+import { NuevoServicioDialog } from '@/components/servicios/NuevoServicioDialog';
 import { PanelAprobacionCoordinador } from '@/components/servicios/PanelAprobacionCoordinador';
 import { PanelAnalisisRiesgo } from '@/components/servicios/PanelAnalisisRiesgo';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 export const ServicesPage = () => {
   const [selectedServicioId, setSelectedServicioId] = useState<string | null>(null);
   const [showProgramarInstalacion, setShowProgramarInstalacion] = useState(false);
+  const [showNuevoServicio, setShowNuevoServicio] = useState(false);
   
   const { servicios, isLoading } = useServiciosMonitoreo();
   const { programaciones, isLoading: loadingProgramaciones } = useProgramacionInstalaciones();
@@ -43,6 +44,13 @@ export const ServicesPage = () => {
             Gestión integral de servicios de seguridad y monitoreo
           </p>
         </div>
+        <Button 
+          onClick={() => setShowNuevoServicio(true)}
+          className="bg-blue-600 hover:bg-blue-700"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Nuevo Servicio
+        </Button>
       </div>
 
       {/* Estadísticas */}
@@ -251,10 +259,17 @@ export const ServicesPage = () => {
 
       {/* Dialogs */}
       {showProgramarInstalacion && (
-        <ProgramarInstalacionDialog
+        <ProgramarInstalacionMejorada
           open={showProgramarInstalacion}
           onOpenChange={setShowProgramarInstalacion}
           servicioId={selectedServicioId || undefined}
+        />
+      )}
+
+      {showNuevoServicio && (
+        <NuevoServicioDialog
+          open={showNuevoServicio}
+          onOpenChange={setShowNuevoServicio}
         />
       )}
     </div>
