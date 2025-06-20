@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -132,67 +133,105 @@ export const useProgramacionInstalaciones = () => {
 
   const createProgramacion = useMutation({
     mutationFn: async (data: CreateProgramacionData) => {
-      console.log('createProgramacion mutationFn called with data:', data);
+      console.log('🔥 createProgramacion mutationFn called with data:', data);
       
-      // Validate required fields
-      if (!data.servicio_id) {
-        throw new Error('servicio_id is required');
-      }
-      
-      if (!data.fecha_programada) {
-        throw new Error('fecha_programada is required');
-      }
-      
-      if (!data.contacto_cliente) {
-        throw new Error('contacto_cliente is required');
-      }
-      
-      if (!data.telefono_contacto) {
-        throw new Error('telefono_contacto is required');
-      }
-      
-      if (!data.direccion_instalacion) {
-        throw new Error('direccion_instalacion is required');
+      // Enhanced validation with detailed logging
+      const requiredFields = [
+        { key: 'servicio_id', value: data.servicio_id, name: 'ID del servicio' },
+        { key: 'fecha_programada', value: data.fecha_programada, name: 'Fecha programada' },
+        { key: 'contacto_cliente', value: data.contacto_cliente, name: 'Contacto del cliente' },
+        { key: 'telefono_contacto', value: data.telefono_contacto, name: 'Teléfono de contacto' },
+        { key: 'direccion_instalacion', value: data.direccion_instalacion, name: 'Dirección de instalación' },
+      ];
+
+      console.log('🔍 Validating required fields:');
+      for (const field of requiredFields) {
+        console.log(`  - ${field.name} (${field.key}):`, field.value);
+        if (!field.value) {
+          const errorMsg = `${field.name} is required but was: ${field.value}`;
+          console.error('❌', errorMsg);
+          throw new Error(errorMsg);
+        }
       }
 
-      console.log('All required fields validated, proceeding with database insert...');
+      console.log('✅ All required fields validated successfully');
+
+      // Validate date format
+      try {
+        const testDate = new Date(data.fecha_programada);
+        if (isNaN(testDate.getTime())) {
+          throw new Error('Invalid date format');
+        }
+        console.log('✅ Date format validated:', testDate.toISOString());
+      } catch (dateError) {
+        console.error('❌ Date validation failed:', dateError);
+        throw new Error(`Invalid date format: ${data.fecha_programada}`);
+      }
+
+      // Prepare final data object with explicit field mapping
+      const finalData = {
+        servicio_id: data.servicio_id.toString(),
+        tipo_instalacion: data.tipo_instalacion,
+        fecha_programada: data.fecha_programada,
+        direccion_instalacion: data.direccion_instalacion.trim(),
+        contacto_cliente: data.contacto_cliente.trim(),
+        telefono_contacto: data.telefono_contacto.trim(),
+        estado: data.estado || 'programada',
+        prioridad: data.prioridad || 'normal',
+        tiempo_estimado: data.tiempo_estimado || 60,
+        observaciones_cliente: data.observaciones_cliente || null,
+        requiere_vehiculo_elevado: data.requiere_vehiculo_elevado || false,
+        acceso_restringido: data.acceso_restringido || false,
+        instalador_id: data.instalador_id || null,
+        herramientas_especiales: data.herramientas_especiales || [],
+        equipos_requeridos: data.equipos_requeridos || null,
+        instrucciones_especiales: data.instrucciones_especiales || null
+      };
+
+      console.log('📤 Sending to database:', finalData);
 
       const { data: result, error } = await supabase
         .from('programacion_instalaciones')
-        .insert([data])
+        .insert([finalData])
         .select()
         .single();
 
       if (error) {
-        console.error('Database error during insert:', error);
-        console.error('Error details:', {
+        console.error('💥 Database error during insert:', error);
+        console.error('📊 Error breakdown:', {
           code: error.code,
           message: error.message,
           details: error.details,
-          hint: error.hint
+          hint: error.hint,
+          sentData: finalData
         });
-        throw error;
+        throw new Error(`Database error: ${error.message}`);
       }
       
-      console.log('Installation scheduled successfully:', result);
+      console.log('✅ Installation scheduled successfully in database:', result);
       return result;
     },
-    onSuccess: () => {
-      console.log('createProgramacion onSuccess called');
+    onSuccess: (data) => {
+      console.log('🎉 createProgramacion onSuccess called with:', data);
       queryClient.invalidateQueries({ queryKey: ['programacion-instalaciones'] });
       toast({
-        title: "Instalación programada",
+        title: "✅ Instalación programada",
         description: "La instalación ha sido programada exitosamente.",
       });
     },
     onError: (error) => {
-      console.error('createProgramacion onError called:', error);
+      console.error('💥 createProgramacion onError called:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
       toast({
-        title: "Error",
-        description: "No se pudo programar la instalación.",
+        title: "❌ Error",
+        description: `No se pudo programar la instalación: ${errorMessage}`,
         variant: "destructive",
       });
-      console.error('Error creating installation schedule:', error);
+      console.error('📊 Full error context:', {
+        error,
+        timestamp: new Date().toISOString(),
+        stack: error instanceof Error ? error.stack : undefined
+      });
     }
   });
 

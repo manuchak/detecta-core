@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarIcon, Car, Settings, Zap, Wrench, MapPin, Clock, User, Plus, X } from 'lucide-react';
+import { Calendar as CalendarIcon, Car, Settings, Zap, Wrench, MapPin, Clock, User, Plus, X, CheckCircle, AlertCircle } from 'lucide-react';
 import { format, addDays, isWeekend } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -86,21 +87,28 @@ export const ProgramarInstalacionMejorada = ({
         direccion_instalacion: servicioData.direccion_cliente || '',
         sensores_adicionales: servicioData.sensores_solicitados || []
       }));
+
+      // Auto-fetch models if brand is available
+      if (servicioData.marca_vehiculo) {
+        handleMarcaChange(servicioData.marca_vehiculo);
+      }
     }
   }, [open, servicioData, servicioId]);
 
   // Fetch models when brand changes
   const handleMarcaChange = async (marcaNombre: string) => {
+    console.log('Fetching models for brand:', marcaNombre);
     setFormData(prev => ({ 
       ...prev, 
       marca_vehiculo: marcaNombre,
-      modelo_vehiculo: '' // Reset model when brand changes
+      modelo_vehiculo: servicioData?.modelo_vehiculo || '' // Keep existing model if pre-populated
     }));
     
     if (marcaNombre) {
       setLoadingModelos(true);
       try {
         const modelosData = await fetchModelosPorMarca(marcaNombre);
+        console.log('Models fetched:', modelosData);
         setModelos(modelosData);
       } catch (error) {
         console.error('Error fetching models:', error);
@@ -202,30 +210,32 @@ export const ProgramarInstalacionMejorada = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('Starting installation confirmation...');
-    console.log('Form data before validation:', formData);
+    console.log('🔥 Starting installation confirmation...');
+    console.log('📋 Form data before validation:', formData);
     
-    if (!validateCurrentStep()) {
-      console.error('Validation failed for current step:', currentStep);
-      alert('Por favor complete todos los campos requeridos');
+    // Comprehensive validation
+    const requiredFields = [
+      { field: 'servicio_id', value: formData.servicio_id, name: 'ID del servicio' },
+      { field: 'fecha_programada', value: formData.fecha_programada, name: 'Fecha programada' },
+      { field: 'contacto_cliente', value: formData.contacto_cliente, name: 'Contacto del cliente' },
+      { field: 'telefono_contacto', value: formData.telefono_contacto, name: 'Teléfono de contacto' },
+      { field: 'direccion_instalacion', value: formData.direccion_instalacion, name: 'Dirección de instalación' },
+      { field: 'hora_inicio', value: formData.hora_inicio, name: 'Hora de inicio' },
+      { field: 'instalador_asignado', value: formData.instalador_asignado, name: 'Instalador asignado' }
+    ];
+
+    const missingFields = requiredFields.filter(({ value }) => !value);
+    
+    if (missingFields.length > 0) {
+      console.error('❌ Missing required fields:', missingFields.map(f => f.name));
+      alert(`Por favor complete los siguientes campos:\n${missingFields.map(f => `• ${f.name}`).join('\n')}`);
       return;
     }
 
-    // Additional validation
-    if (!formData.servicio_id) {
-      console.error('Service ID is missing');
-      alert('Error: ID del servicio no encontrado');
-      return;
-    }
-
-    if (!formData.fecha_programada) {
-      console.error('Scheduled date is missing');
-      alert('Error: Fecha programada no seleccionada');
-      return;
-    }
+    console.log('✅ All required fields validated');
 
     try {
-      console.log('Preparing installation data...');
+      console.log('🚀 Preparing installation data...');
       
       // Map installation types to expected values
       const tipoInstalacionMap: Record<string, 'gps_vehicular' | 'gps_personal' | 'camara'> = {
@@ -235,32 +245,44 @@ export const ProgramarInstalacionMejorada = ({
         'flotilla_comercial': 'gps_vehicular'
       };
 
+      // Create ISO date string properly
+      const fechaISO = formData.fecha_programada!.toISOString();
+      console.log('📅 Date converted to ISO:', fechaISO);
+
       const programacionData = {
         servicio_id: formData.servicio_id,
         tipo_instalacion: tipoInstalacionMap[formData.tipo_instalacion] || 'gps_vehicular',
-        fecha_programada: formData.fecha_programada.toISOString(),
+        fecha_programada: fechaISO,
         hora_programada: formData.hora_inicio,
-        direccion_instalacion: formData.direccion_instalacion,
-        contacto_cliente: formData.contacto_cliente,
-        telefono_contacto: formData.telefono_contacto,
-        instalador_id: formData.instalador_asignado || undefined,
+        direccion_instalacion: formData.direccion_instalacion.trim(),
+        contacto_cliente: formData.contacto_cliente.trim(),
+        telefono_contacto: formData.telefono_contacto.trim(),
+        instalador_id: formData.instalador_asignado === 'instalador_1' ? '1' : 
+                      formData.instalador_asignado === 'instalador_2' ? '2' : 
+                      formData.instalador_asignado === 'instalador_3' ? '3' : undefined,
         tiempo_estimado: formData.tiempo_estimado,
         prioridad: 'normal' as const,
         estado: 'programada' as const,
         observaciones_cliente: [
           formData.observaciones_vehiculo,
           formData.observaciones_instalacion,
-          `Sensores: ${formData.sensores_adicionales.join(', ')}`
+          formData.sensores_adicionales.length > 0 ? `Sensores: ${formData.sensores_adicionales.join(', ')}` : ''
         ].filter(Boolean).join('\n'),
         requiere_vehiculo_elevado: formData.requiere_elevador,
         acceso_restringido: formData.requiere_herramientas_especiales
       };
 
-      console.log('Final installation data to send:', programacionData);
+      console.log('📤 Final installation data to send:', programacionData);
+      console.log('🔍 Data validation check:');
+      console.log('  - servicio_id:', programacionData.servicio_id);
+      console.log('  - fecha_programada:', programacionData.fecha_programada);
+      console.log('  - contacto_cliente:', programacionData.contacto_cliente);
+      console.log('  - telefono_contacto:', programacionData.telefono_contacto);
+      console.log('  - direccion_instalacion:', programacionData.direccion_instalacion);
 
       await createProgramacion.mutateAsync(programacionData);
       
-      console.log('Installation scheduled successfully');
+      console.log('✅ Installation scheduled successfully');
       onOpenChange(false);
       
       // Reset form
@@ -274,13 +296,17 @@ export const ProgramarInstalacionMejorada = ({
       }));
       
     } catch (error) {
-      console.error('Error scheduling installation:', error);
-      console.error('Error details:', {
+      console.error('💥 Error scheduling installation:', error);
+      console.error('📊 Error details:', {
         message: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined,
-        formData: formData
+        formData: formData,
+        timestamp: new Date().toISOString()
       });
-      alert('Error al programar la instalación. Por favor intente nuevamente.');
+      
+      // More specific error message
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      alert(`Error al programar la instalación:\n${errorMessage}\n\nPor favor revise los datos e intente nuevamente.`);
     }
   };
 
@@ -517,112 +543,149 @@ export const ProgramarInstalacionMejorada = ({
                   Programación de Cita
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Date Selection Section */}
+              <CardContent className="space-y-8">
+                {/* Business Rules Info */}
+                <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                  <h4 className="font-medium text-blue-900 flex items-center gap-2 mb-2">
+                    <AlertCircle className="h-4 w-4" />
+                    Políticas de Programación
+                  </h4>
+                  <ul className="text-sm text-blue-700 space-y-1">
+                    <li>• Mínimo 72 horas hábiles de anticipación</li>
+                    <li>• No se realizan instalaciones en fines de semana</li>
+                    <li>• Horario de servicio: 9:00 AM - 5:00 PM</li>
+                  </ul>
+                </div>
+
+                {/* Date Selection */}
                 <div className="space-y-4">
-                  <div className="space-y-3">
-                    <Label className="text-base font-medium">Fecha de Instalación *</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal h-12 text-base",
-                            !formData.fecha_programada && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-3 h-5 w-5" />
-                          {formData.fecha_programada ? (
-                            format(formData.fecha_programada, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: es })
-                          ) : (
-                            <span>Seleccionar fecha de instalación</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={formData.fecha_programada}
-                          onSelect={(date) => setFormData(prev => ({ ...prev, fecha_programada: date }))}
-                          disabled={isDateDisabled}
-                          initialFocus
-                          className="rounded-md border"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <div className="bg-blue-50 p-3 rounded-lg">
-                      <p className="text-sm text-blue-700">
-                        <strong>Políticas de programación:</strong>
-                      </p>
-                      <ul className="text-xs text-blue-600 mt-1 space-y-1">
-                        <li>• Mínimo 72 horas hábiles de anticipación</li>
-                        <li>• No se realizan instalaciones en fines de semana</li>
-                        <li>• Horario de servicio: 9:00 AM - 5:00 PM</li>
-                      </ul>
+                  <Label className="text-lg font-semibold">Selecciona la Fecha de Instalación *</Label>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Calendar */}
+                    <div className="space-y-3">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal h-14 text-base",
+                              !formData.fecha_programada && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-3 h-5 w-5" />
+                            {formData.fecha_programada ? (
+                              <div>
+                                <div className="font-medium">
+                                  {format(formData.fecha_programada, "EEEE", { locale: es })}
+                                </div>
+                                <div className="text-sm text-gray-600">
+                                  {format(formData.fecha_programada, "dd 'de' MMMM 'de' yyyy", { locale: es })}
+                                </div>
+                              </div>
+                            ) : (
+                              <span>Seleccionar fecha</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={formData.fecha_programada}
+                            onSelect={(date) => setFormData(prev => ({ ...prev, fecha_programada: date }))}
+                            disabled={isDateDisabled}
+                            initialFocus
+                            className="rounded-md border"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    {/* Time and Installer Selection */}
+                    <div className="space-y-4">
+                      <div className="space-y-3">
+                        <Label className="font-medium">Hora de Inicio *</Label>
+                        <Select value={formData.hora_inicio} onValueChange={(value) => setFormData(prev => ({ ...prev, hora_inicio: value }))}>
+                          <SelectTrigger className="h-12 text-base">
+                            <SelectValue placeholder="Seleccionar hora" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {horasDisponibles.map(hora => (
+                              <SelectItem key={hora} value={hora} className="text-base">
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-4 w-4" />
+                                  {hora}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-3">
+                        <Label className="font-medium">Instalador Asignado *</Label>
+                        <Select value={formData.instalador_asignado} onValueChange={(value) => setFormData(prev => ({ ...prev, instalador_asignado: value }))}>
+                          <SelectTrigger className="h-12 text-base">
+                            <SelectValue placeholder="Asignar instalador" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="instalador_1">
+                              <div className="flex flex-col">
+                                <span className="font-medium">Juan Pérez</span>
+                                <span className="text-sm text-gray-500">Zona Norte</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="instalador_2">
+                              <div className="flex flex-col">
+                                <span className="font-medium">María García</span>
+                                <span className="text-sm text-gray-500">Zona Sur</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="instalador_3">
+                              <div className="flex flex-col">
+                                <span className="font-medium">Carlos López</span>
+                                <span className="text-sm text-gray-500">Zona Centro</span>
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Time and Installer Selection */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <Label className="text-base font-medium">Hora de Inicio *</Label>
-                    <Select value={formData.hora_inicio} onValueChange={(value) => setFormData(prev => ({ ...prev, hora_inicio: value }))}>
-                      <SelectTrigger className="h-12 text-base">
-                        <SelectValue placeholder="Seleccionar hora de inicio" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {horasDisponibles.map(hora => (
-                          <SelectItem key={hora} value={hora} className="text-base">
-                            {hora}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-3">
-                    <Label className="text-base font-medium">Instalador Asignado *</Label>
-                    <Select value={formData.instalador_asignado} onValueChange={(value) => setFormData(prev => ({ ...prev, instalador_asignado: value }))}>
-                      <SelectTrigger className="h-12 text-base">
-                        <SelectValue placeholder="Asignar instalador" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="instalador_1">Juan Pérez - Zona Norte</SelectItem>
-                        <SelectItem value="instalador_2">María García - Zona Sur</SelectItem>
-                        <SelectItem value="instalador_3">Carlos López - Zona Centro</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Installation Details Summary */}
-                <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Clock className="h-5 w-5 text-green-600" />
-                    <Label className="text-green-800 font-medium text-base">Detalles de la Cita</Label>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <span className="font-medium text-green-700">Tipo de Instalación:</span>
-                      <p className="text-green-600">
-                        {tiposInstalacion.find(t => t.value === formData.tipo_instalacion)?.label}
-                      </p>
+                {/* Installation Summary */}
+                {formData.fecha_programada && formData.hora_inicio && (
+                  <div className="bg-green-50 border border-green-200 p-6 rounded-lg">
+                    <div className="flex items-center gap-2 mb-4">
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                      <h4 className="font-semibold text-green-800">Cita Programada</h4>
                     </div>
-                    <div>
-                      <span className="font-medium text-green-700">Tiempo Estimado:</span>
-                      <p className="text-green-600">{formData.tiempo_estimado} minutos</p>
-                    </div>
-                    {formData.fecha_programada && formData.hora_inicio && (
-                      <div className="md:col-span-2">
-                        <span className="font-medium text-green-700">Cita Programada:</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="font-medium text-green-700">Fecha:</span>
                         <p className="text-green-600">
-                          {format(formData.fecha_programada, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: es })} a las {formData.hora_inicio}
+                          {format(formData.fecha_programada, "EEEE, dd 'de' MMMM", { locale: es })}
                         </p>
                       </div>
-                    )}
+                      <div>
+                        <span className="font-medium text-green-700">Hora:</span>
+                        <p className="text-green-600">{formData.hora_inicio}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-green-700">Duración estimada:</span>
+                        <p className="text-green-600">{formData.tiempo_estimado} minutos</p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-green-700">Instalador:</span>
+                        <p className="text-green-600">
+                          {formData.instalador_asignado === 'instalador_1' && 'Juan Pérez'}
+                          {formData.instalador_asignado === 'instalador_2' && 'María García'}
+                          {formData.instalador_asignado === 'instalador_3' && 'Carlos López'}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -639,10 +702,10 @@ export const ProgramarInstalacionMejorada = ({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                  <p className="text-sm text-yellow-800">
-                    <strong>Nota:</strong> Esta información proviene de la captura del servicio. 
-                    Verifique que sea correcta o actualícela si es necesario.
+                <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
+                  <p className="text-sm text-amber-800">
+                    <strong>Información del Servicio:</strong> Los siguientes datos provienen de la captura del servicio. 
+                    Verifique que sean correctos antes de confirmar.
                   </p>
                 </div>
 
@@ -653,6 +716,7 @@ export const ProgramarInstalacionMejorada = ({
                       value={formData.contacto_cliente}
                       onChange={(e) => setFormData(prev => ({ ...prev, contacto_cliente: e.target.value }))}
                       placeholder="Nombre completo"
+                      className="bg-gray-50"
                     />
                   </div>
                   <div className="space-y-2">
@@ -662,6 +726,7 @@ export const ProgramarInstalacionMejorada = ({
                       value={formData.telefono_contacto}
                       onChange={(e) => setFormData(prev => ({ ...prev, telefono_contacto: e.target.value }))}
                       placeholder="555-123-4567"
+                      className="bg-gray-50"
                     />
                   </div>
                 </div>
@@ -673,6 +738,7 @@ export const ProgramarInstalacionMejorada = ({
                     onChange={(e) => setFormData(prev => ({ ...prev, direccion_instalacion: e.target.value }))}
                     placeholder="Dirección completa donde se realizará la instalación"
                     rows={2}
+                    className="bg-gray-50"
                   />
                 </div>
 
@@ -722,18 +788,62 @@ export const ProgramarInstalacionMejorada = ({
                   />
                 </div>
 
-                {/* Summary Card */}
-                <Card className="bg-blue-50 border-blue-200">
-                  <CardHeader>
-                    <CardTitle className="text-blue-800 text-lg">Resumen de la Instalación</CardTitle>
+                {/* Enhanced Summary Card */}
+                <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-blue-900 text-xl flex items-center gap-2">
+                      <CheckCircle className="h-6 w-6" />
+                      Resumen de la Instalación
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2 text-sm">
-                    <p><strong>Vehículo:</strong> {formData.marca_vehiculo} {formData.modelo_vehiculo} {formData.año_vehiculo}</p>
-                    <p><strong>Tipo:</strong> {tiposInstalacion.find(t => t.value === formData.tipo_instalacion)?.label}</p>
-                    <p><strong>Fecha:</strong> {formData.fecha_programada ? format(formData.fecha_programada, "PPP", { locale: es }) : 'No seleccionada'} a las {formData.hora_inicio || 'No seleccionada'}</p>
-                    <p><strong>Duración:</strong> {formData.tiempo_estimado} minutos</p>
-                    <p><strong>Sensores:</strong> {formData.sensores_adicionales.length > 0 ? formData.sensores_adicionales.join(', ') : 'Ninguno adicional'}</p>
-                    <p><strong>Instalador:</strong> {formData.instalador_asignado ? formData.instalador_asignado.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'No asignado'}</p>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-3">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-blue-700">Vehículo</span>
+                          <span className="text-blue-900 font-semibold">
+                            {formData.marca_vehiculo} {formData.modelo_vehiculo} {formData.año_vehiculo}
+                          </span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-blue-700">Tipo de Instalación</span>
+                          <span className="text-blue-900">
+                            {tiposInstalacion.find(t => t.value === formData.tipo_instalacion)?.label}
+                          </span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-blue-700">Fecha y Hora</span>
+                          <span className="text-blue-900">
+                            {formData.fecha_programada ? format(formData.fecha_programada, "PPP", { locale: es }) : 'No seleccionada'} 
+                            {formData.hora_inicio && ` a las ${formData.hora_inicio}`}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-blue-700">Duración Estimada</span>
+                          <span className="text-blue-900">{formData.tiempo_estimado} minutos</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-blue-700">Instalador</span>
+                          <span className="text-blue-900">
+                            {formData.instalador_asignado === 'instalador_1' && 'Juan Pérez - Zona Norte'}
+                            {formData.instalador_asignado === 'instalador_2' && 'María García - Zona Sur'}
+                            {formData.instalador_asignado === 'instalador_3' && 'Carlos López - Zona Centro'}
+                            {!formData.instalador_asignado && 'No asignado'}
+                          </span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-blue-700">Sensores Adicionales</span>
+                          <span className="text-blue-900">
+                            {formData.sensores_adicionales.length > 0 
+                              ? formData.sensores_adicionales.join(', ') 
+                              : 'Ninguno adicional'
+                            }
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               </CardContent>
@@ -748,41 +858,44 @@ export const ProgramarInstalacionMejorada = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Wrench className="h-5 w-5" />
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <Wrench className="h-6 w-6" />
             Programar Instalación GPS - Paso {currentStep} de 4
           </DialogTitle>
         </DialogHeader>
 
-        {/* Progress indicator */}
+        {/* Enhanced Progress indicator */}
         <div className="flex items-center gap-2 mb-6">
           {[1, 2, 3, 4].map((step) => (
-            <div
-              key={step}
-              className={`flex-1 h-2 rounded ${
-                step <= currentStep ? 'bg-blue-600' : 'bg-gray-200'
-              }`}
-            />
+            <div key={step} className="flex-1 flex items-center">
+              <div
+                className={`flex-1 h-3 rounded-full ${
+                  step <= currentStep ? 'bg-gradient-to-r from-blue-500 to-blue-600' : 'bg-gray-200'
+                }`}
+              />
+              {step < 4 && <div className="w-2" />}
+            </div>
           ))}
         </div>
 
         <form onSubmit={handleSubmit}>
           {renderStepContent()}
 
-          {/* Navigation buttons */}
-          <div className="flex justify-between mt-8 pt-4 border-t">
+          {/* Enhanced Navigation buttons */}
+          <div className="flex justify-between items-center mt-8 pt-6 border-t bg-gray-50 -mx-6 px-6 -mb-6 pb-6">
             <Button
               type="button"
               variant="outline"
               onClick={prevStep}
               disabled={currentStep === 1}
+              className="flex items-center gap-2"
             >
-              Anterior
+              ← Anterior
             </Button>
             
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <Button
                 type="button"
                 variant="outline"
@@ -796,16 +909,17 @@ export const ProgramarInstalacionMejorada = ({
                   type="button" 
                   onClick={nextStep}
                   disabled={!validateCurrentStep()}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
                 >
-                  Siguiente
+                  Siguiente →
                 </Button>
               ) : (
                 <Button 
                   type="submit" 
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-green-600 hover:bg-green-700 text-white font-semibold px-8 flex items-center gap-2"
                   disabled={!validateCurrentStep() || createProgramacion.isPending}
                 >
+                  <CheckCircle className="h-4 w-4" />
                   {createProgramacion.isPending ? 'Programando...' : 'Confirmar Instalación'}
                 </Button>
               )}
