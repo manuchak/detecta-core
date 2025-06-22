@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Search, Plus, Users, Settings } from "lucide-react";
 import { LeadForm } from "@/components/leads/LeadForm";
 import { LeadEditDialog } from "@/components/leads/LeadEditDialog";
@@ -82,6 +82,7 @@ export const LeadsList = () => {
       
       if (error) throw error;
       
+      console.log('Leads fetched:', data?.length || 0);
       setLeads(data || []);
       setFilteredLeads(data || []);
     } catch (error) {
@@ -250,31 +251,48 @@ export const LeadsList = () => {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredLeads.map((lead) => (
-                      <tr key={lead.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{lead.nombre}</td>
+                      <tr key={lead.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">{lead.nombre}</div>
+                          {lead.asignado_a && (
+                            <div className="text-xs text-gray-500">Asignado</div>
+                          )}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{lead.email}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{lead.telefono}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{lead.empresa}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <Badge className={getStatusBadgeStyle(lead.estado)}>{lead.estado}</Badge>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {lead.fecha_contacto ? formatDate(lead.fecha_contacto) : 'N/A'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                          <Button variant="outline" size="sm" onClick={() => handleEditLead(lead)}>
-                            Editar
-                          </Button>
-                          <Button variant="secondary" size="sm" onClick={() => handleAssignLead(lead)}>
-                            Asignar
-                          </Button>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex justify-end space-x-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleEditLead(lead)}
+                            >
+                              Editar
+                            </Button>
+                            <Button 
+                              variant="secondary" 
+                              size="sm" 
+                              onClick={() => handleAssignLead(lead)}
+                            >
+                              Asignar
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
                     {filteredLeads.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
-                          No se encontraron leads
+                        <td colSpan={7} className="px-6 py-8 text-center">
+                          <div className="text-gray-500">
+                            {searchTerm ? 'No se encontraron leads que coincidan con la búsqueda' : 'No hay leads registrados'}
+                          </div>
                         </td>
                       </tr>
                     )}
