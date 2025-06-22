@@ -1,3 +1,4 @@
+
 import React from "react";
 import {
   Home,
@@ -36,8 +37,8 @@ export function Sidebar({ className, ...props }: React.HTMLAttributes<HTMLDivEle
     {
       title: "Servicios",
       icon: Car,
-      path: "/services",
       subItems: [
+        { title: "Gestión de Servicios", path: "/services" },
         { title: "Rendimiento", path: "/services/rendimiento" },
       ]
     },
