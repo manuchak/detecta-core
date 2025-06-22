@@ -15,6 +15,12 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -109,9 +115,7 @@ export const LeadsList = () => {
 
   const handleNewLeadClick = () => {
     console.log('🚀 Botón Nuevo Lead clickeado');
-    console.log('📊 Estado actual showForm:', showForm);
     setShowForm(true);
-    console.log('✅ showForm actualizado a true');
   };
 
   const handleFormSuccess = () => {
@@ -154,8 +158,6 @@ export const LeadsList = () => {
     });
   };
 
-  console.log('🔍 Renderizando LeadsList - showForm:', showForm);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -163,19 +165,6 @@ export const LeadsList = () => {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p>Cargando leads...</p>
         </div>
-      </div>
-    );
-  }
-
-  // Si showForm es true, mostrar solo el formulario
-  if (showForm) {
-    console.log('📝 Mostrando formulario LeadForm');
-    return (
-      <div className="space-y-6 p-6">
-        <LeadForm 
-          onSuccess={handleFormSuccess}
-          onCancel={handleFormCancel}
-        />
       </div>
     );
   }
@@ -269,8 +258,10 @@ export const LeadsList = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <Badge className={getStatusBadgeStyle(lead.estado)}>{lead.estado}</Badge>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(lead.fecha_contacto)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {lead.fecha_contacto ? formatDate(lead.fecha_contacto) : 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                           <Button variant="outline" size="sm" onClick={() => handleEditLead(lead)}>
                             Editar
                           </Button>
@@ -280,6 +271,13 @@ export const LeadsList = () => {
                         </td>
                       </tr>
                     ))}
+                    {filteredLeads.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
+                          No se encontraron leads
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -295,6 +293,19 @@ export const LeadsList = () => {
           <BonusConfigManager />
         </TabsContent>
       </Tabs>
+
+      {/* Diálogo para crear nuevo lead */}
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Crear Nuevo Lead</DialogTitle>
+          </DialogHeader>
+          <LeadForm 
+            onSuccess={handleFormSuccess}
+            onCancel={handleFormCancel}
+          />
+        </DialogContent>
+      </Dialog>
 
       {showEditDialog && selectedLead && (
         <LeadEditDialog

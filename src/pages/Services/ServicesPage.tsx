@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,9 +19,16 @@ export const ServicesPage = () => {
   const [showProgramarInstalacion, setShowProgramarInstalacion] = useState(false);
   const [showNuevoServicio, setShowNuevoServicio] = useState(false);
   
-  const { servicios, isLoading } = useServiciosMonitoreo();
+  const { servicios, isLoading, error } = useServiciosMonitoreo();
   const { programaciones, isLoading: loadingProgramaciones } = useProgramacionInstalaciones();
   const { serviciosPendientesCoordinador, serviciosPendientesRiesgo } = useAprobacionesWorkflow();
+
+  console.log('ServicesPage - Estado de carga:', { isLoading, error, servicios: servicios?.length });
+
+  // Manejar estado de error
+  if (error) {
+    console.error('Error en ServicesPage:', error);
+  }
 
   const estadosCount = servicios?.reduce((acc, servicio) => {
     acc[servicio.estado_general] = (acc[servicio.estado_general] || 0) + 1;
@@ -31,6 +39,32 @@ export const ServicesPage = () => {
     acc[programacion.estado] = (acc[programacion.estado] || 0) + 1;
     return acc;
   }, {} as Record<string, number>) || {};
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Cargando servicios...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error al cargar servicios</h2>
+          <p className="text-gray-600 mb-4">Ha ocurrido un error al cargar los datos de servicios.</p>
+          <Button onClick={() => window.location.reload()}>
+            Reintentar
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -155,14 +189,30 @@ export const ServicesPage = () => {
             </TabsList>
             
             <TabsContent value="servicios" className="mt-6">
-              <ServiciosTable 
-                servicios={servicios || []} 
-                isLoading={isLoading}
-                onProgramarInstalacion={(servicioId) => {
-                  setSelectedServicioId(servicioId);
-                  setShowProgramarInstalacion(true);
-                }}
-              />
+              {servicios && servicios.length > 0 ? (
+                <ServiciosTable 
+                  servicios={servicios} 
+                  isLoading={false}
+                  onProgramarInstalacion={(servicioId) => {
+                    setSelectedServicioId(servicioId);
+                    setShowProgramarInstalacion(true);
+                  }}
+                />
+              ) : (
+                <div className="text-center py-12">
+                  <Shield className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    No hay servicios registrados
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    Comienza creando tu primer servicio de monitoreo
+                  </p>
+                  <Button onClick={() => setShowNuevoServicio(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Crear Primer Servicio
+                  </Button>
+                </div>
+              )}
             </TabsContent>
             
             <TabsContent value="coordinador" className="mt-6">
