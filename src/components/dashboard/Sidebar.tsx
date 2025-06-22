@@ -1,4 +1,5 @@
 
+
 import React from "react";
 import {
   Home,
@@ -45,8 +46,8 @@ export function Sidebar({ className, ...props }: React.HTMLAttributes<HTMLDivEle
     {
       title: "Leads",
       icon: Users,
-      path: "/leads",
       subItems: [
+        { title: "Gestión de Leads", path: "/leads" },
         { title: "Aprobaciones", path: "/leads/approvals" },
       ]
     },
@@ -152,3 +153,4 @@ export function Sidebar({ className, ...props }: React.HTMLAttributes<HTMLDivEle
     </div>
   );
 }
+
