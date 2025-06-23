@@ -2,8 +2,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFormatters } from "@/hooks/useFormatters";
 import { useForecastData } from "@/hooks/useForecastData";
-import { TrendingUp, TrendingDown, BarChart3, DollarSign, Calendar, Target, Info, Database, Loader2, AlertTriangle } from "lucide-react";
+import { TrendingUp, TrendingDown, BarChart3, DollarSign, Calendar, Target, Info, Database, Loader2, AlertTriangle, Activity, Zap } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 
 interface ForecastCardProps {
   totalServices: number;
@@ -21,10 +23,10 @@ export const ForecastCard = ({ totalServices, totalGMV, isLoading = false, error
   // Si hay error en los datos del forecast
   if (error) {
     return (
-      <Card className="bg-gradient-to-br from-red-50 via-red-50 to-red-100 border-0 shadow-lg">
+      <Card className="bg-gradient-to-br from-red-50 via-red-50 to-red-100 border-red-200 shadow-lg">
         <CardHeader className="pb-4">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-red-600 rounded-lg">
+            <div className="p-2 bg-red-600 rounded-xl">
               <AlertTriangle className="h-6 w-6 text-white" />
             </div>
             <div>
@@ -52,10 +54,10 @@ export const ForecastCard = ({ totalServices, totalGMV, isLoading = false, error
   // Si está cargando
   if (isLoading) {
     return (
-      <Card className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border-0 shadow-lg">
+      <Card className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border-0 shadow-xl">
         <CardHeader className="pb-4">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg">
+            <div className="p-3 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-lg">
               <Loader2 className="h-6 w-6 text-white animate-spin" />
             </div>
             <div>
@@ -63,16 +65,16 @@ export const ForecastCard = ({ totalServices, totalGMV, isLoading = false, error
                 Cargando Forecast...
               </CardTitle>
               <p className="text-sm text-slate-600">
-                Obteniendo datos de auditoría forense
+                Procesando datos de auditoría forense
               </p>
             </div>
           </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-white/70 rounded-lg p-4 animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-white/70 rounded-xl p-4 animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-3"></div>
                 <div className="h-6 bg-gray-300 rounded w-1/2"></div>
               </div>
             ))}
@@ -82,31 +84,33 @@ export const ForecastCard = ({ totalServices, totalGMV, isLoading = false, error
     );
   }
   
-  // Componente para mostrar varianza con colores
-  const VarianceIndicator = ({ variance, isPositive = true }: { variance: number; isPositive?: boolean }) => {
+  // Componente para mostrar varianza con mejores visuales
+  const VarianceIndicator = ({ variance, label, isPositive = true }: { variance: number; label: string; isPositive?: boolean }) => {
     const isGood = isPositive ? variance > 0 : variance < 0;
-    const color = isGood ? 'text-green-600' : 'text-red-600';
+    const colorClass = isGood ? 'text-emerald-600 bg-emerald-50' : 'text-red-600 bg-red-50';
     const Icon = variance > 0 ? TrendingUp : TrendingDown;
     
     return (
-      <div className={`flex items-center gap-1 ${color}`}>
-        <Icon className="h-3 w-3" />
-        <span className="text-xs font-medium">
-          {Math.abs(variance).toFixed(1)}%
-        </span>
+      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${colorClass} border border-current/20`}>
+        <Icon className="h-4 w-4" />
+        <div className="text-sm">
+          <span className="font-bold">{Math.abs(variance).toFixed(1)}%</span>
+          <span className="ml-1 opacity-75">{label}</span>
+        </div>
       </div>
     );
   };
   
-  // Componente para métricas de forecast
-  const ForecastMetricBox = ({ 
+  // Componente mejorado para métricas de forecast
+  const ForecastMetricCard = ({ 
     title, 
     actual, 
     forecast, 
     variance, 
     icon: Icon, 
     isGMV = false,
-    period
+    period,
+    progress
   }: { 
     title: string; 
     actual: number; 
@@ -115,101 +119,121 @@ export const ForecastCard = ({ totalServices, totalGMV, isLoading = false, error
     icon: any; 
     isGMV?: boolean;
     period: 'monthly' | 'annual';
+    progress?: number;
   }) => (
-    <div className="bg-white rounded-lg border border-gray-100 p-4 space-y-3">
+    <div className="bg-white rounded-xl border border-gray-100 p-6 space-y-4 shadow-sm hover:shadow-md transition-shadow">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-blue-50 rounded-lg">
-            <Icon className="h-4 w-4 text-blue-600" />
+        <div className="flex items-center gap-3">
+          <div className={`p-2.5 rounded-xl ${isGMV ? 'bg-green-50' : 'bg-blue-50'}`}>
+            <Icon className={`h-5 w-5 ${isGMV ? 'text-green-600' : 'text-blue-600'}`} />
           </div>
-          <h4 className="text-sm font-medium text-gray-700">{title}</h4>
+          <div>
+            <h4 className="font-semibold text-gray-900">{title}</h4>
+            <p className="text-sm text-gray-500">
+              {period === 'monthly' ? `Junio ${currentYear}` : `Año ${currentYear}`}
+            </p>
+          </div>
         </div>
-        <VarianceIndicator variance={variance} />
+        <VarianceIndicator 
+          variance={variance} 
+          label={period === 'monthly' ? "vs promedio" : "proyectado"}
+        />
       </div>
       
-      <div className="space-y-2">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600">
-            {period === 'monthly' ? `Forecast (${forecastData.forecastMonth}):` : 'Forecast Anual:'}
+      {/* Values */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-600">
+            Forecast:
           </span>
-          <span className="font-bold text-blue-600">
+          <span className={`font-bold text-lg ${isGMV ? 'text-green-600' : 'text-blue-600'}`}>
             {isGMV ? formatCurrency(forecast) : forecast.toLocaleString()}
           </span>
         </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600">
-            Real (Ene-May 2025):
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-600">
+            Real (Ene-May):
           </span>
           <span className="font-semibold text-gray-900">
             {isGMV ? formatCurrency(actual) : actual.toLocaleString()}
           </span>
         </div>
+        
+        {/* Progress bar for visual representation */}
+        {progress && (
+          <div className="pt-2">
+            <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <span>Progreso del año</span>
+              <span>{progress.toFixed(1)}%</span>
+            </div>
+            <Progress value={progress} className="h-2" />
+          </div>
+        )}
       </div>
-      
-      {period === 'monthly' && (
-        <div className="space-y-1">
-          <div className="flex justify-between text-xs text-gray-500">
-            <span>vs Promedio Mensual</span>
-            <span>{variance > 0 ? '+' : ''}{variance.toFixed(1)}%</span>
-          </div>
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-            <div 
-              className={`h-full transition-all duration-500 ${
-                variance > 0 ? 'bg-gradient-to-r from-green-500 to-green-600' : 'bg-gradient-to-r from-orange-500 to-orange-600'
-              }`}
-              style={{ width: `${Math.min(Math.abs(variance) * 2, 100)}%` }}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
+
+  // Calculate progress percentages
+  const monthlyServicesProgress = (forecastData.monthlyServicesActual / forecastData.annualServicesForecast) * 100;
+  const monthlyGMVProgress = (forecastData.monthlyGmvActual / forecastData.annualGmvForecast) * 100;
   
   return (
-    <Card className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border-0 shadow-lg">
-      <CardHeader className="pb-4">
+    <Card className="bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 border-0 shadow-xl">
+      <CardHeader className="pb-6">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg">
-              <Target className="h-6 w-6 text-white" />
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-lg">
+              <Target className="h-7 w-7 text-white" />
             </div>
             <div>
-              <CardTitle className="text-xl font-bold text-slate-900">
+              <CardTitle className="text-2xl font-bold text-slate-900">
                 Forecast de Servicios y GMV
               </CardTitle>
-              <p className="text-sm text-slate-600 flex items-center gap-1">
-                <Database className="h-3 w-3" />
-                Basado en auditoría forense (datos validados)
-              </p>
+              <div className="flex items-center gap-3 mt-2">
+                <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-200">
+                  <Database className="h-3 w-3 mr-1" />
+                  Auditoría Forense
+                </Badge>
+                <Badge variant="outline" className="text-slate-600">
+                  <Activity className="h-3 w-3 mr-1" />
+                  Actualizado: {new Date().toLocaleDateString('es-MX')}
+                </Badge>
+              </div>
             </div>
-          </div>
-          <div className="text-xs text-slate-500 bg-white/70 px-3 py-1 rounded-full">
-            Actualizado: {new Date().toLocaleDateString('es-MX')}
           </div>
         </div>
       </CardHeader>
       
-      <CardContent className="space-y-6">
-        {/* Alerta informativa sobre los datos */}
-        <Alert className="bg-blue-50 border-blue-200">
+      <CardContent className="space-y-8">
+        {/* Alerta informativa mejorada */}
+        <Alert className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
           <Info className="h-4 w-4 text-blue-600" />
-          <AlertDescription className="text-blue-800 text-sm">
-            <strong>Datos auditados:</strong> {forecastData.monthlyServicesActual.toLocaleString()} servicios únicos con estado "Finalizado" 
-            y {formatCurrency(forecastData.monthlyGmvActual)} GMV total (Ene-May 2025). Calculados usando auditoría forense.
+          <AlertDescription className="text-blue-800">
+            <div className="flex items-center justify-between">
+              <div>
+                <strong>Base de datos validada:</strong> {forecastData.monthlyServicesActual.toLocaleString()} servicios finalizados
+              </div>
+              <div className="text-right">
+                <strong>GMV auditado:</strong> {formatCurrency(forecastData.monthlyGmvActual)}
+              </div>
+            </div>
           </AlertDescription>
         </Alert>
         
         {/* Forecast Mensual */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Calendar className="h-5 w-5 text-indigo-600" />
-            <h3 className="text-lg font-semibold text-slate-800 capitalize">
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Calendar className="h-5 w-5 text-purple-600" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-800">
               Forecast de {forecastData.forecastMonth} {currentYear}
             </h3>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <ForecastMetricBox
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <ForecastMetricCard
               title="Servicios del Mes"
               actual={forecastData.monthlyServicesActual}
               forecast={forecastData.monthlyServicesForecast}
@@ -217,7 +241,7 @@ export const ForecastCard = ({ totalServices, totalGMV, isLoading = false, error
               icon={BarChart3}
               period="monthly"
             />
-            <ForecastMetricBox
+            <ForecastMetricCard
               title="GMV del Mes"
               actual={forecastData.monthlyGmvActual}
               forecast={forecastData.monthlyGmvForecast}
@@ -230,24 +254,27 @@ export const ForecastCard = ({ totalServices, totalGMV, isLoading = false, error
         </div>
         
         {/* Forecast Anual */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 mb-3">
-            <TrendingUp className="h-5 w-5 text-purple-600" />
-            <h3 className="text-lg font-semibold text-slate-800">
-              Forecast Anual {currentYear}
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-emerald-100 rounded-lg">
+              <TrendingUp className="h-5 w-5 text-emerald-600" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-800">
+              Proyección Anual {currentYear}
             </h3>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <ForecastMetricBox
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <ForecastMetricCard
               title="Servicios Anuales"
               actual={forecastData.annualServicesActual}
               forecast={forecastData.annualServicesForecast}
               variance={forecastData.annualServicesVariance}
               icon={BarChart3}
               period="annual"
+              progress={monthlyServicesProgress}
             />
-            <ForecastMetricBox
+            <ForecastMetricCard
               title="GMV Anual"
               actual={forecastData.annualGmvActual}
               forecast={forecastData.annualGmvForecast}
@@ -255,32 +282,51 @@ export const ForecastCard = ({ totalServices, totalGMV, isLoading = false, error
               icon={DollarSign}
               isGMV={true}
               period="annual"
+              progress={monthlyGMVProgress}
             />
           </div>
         </div>
         
-        {/* Resumen de insights actualizado */}
-        <div className="bg-white/70 rounded-lg p-4 border border-indigo-100">
-          <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-            <Database className="h-4 w-4" />
-            Metodología del Forecast (Auditoría Forense)
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-600">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <span>Base auditada: {forecastData.monthlyServicesActual.toLocaleString()} servicios finalizados</span>
+        {/* Metodología mejorada */}
+        <div className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl p-6 border border-gray-100">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-slate-100 rounded-lg">
+              <Zap className="h-5 w-5 text-slate-600" />
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-              <span>GMV validado: {formatCurrency(forecastData.monthlyGmvActual)}</span>
+            <h4 className="font-bold text-slate-800">Metodología del Forecast</h4>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="flex items-center gap-3 bg-white rounded-lg p-3 border border-gray-100">
+              <div className="w-3 h-3 bg-blue-500 rounded-full flex-shrink-0"></div>
+              <div className="text-sm">
+                <div className="font-medium text-gray-900">Base Auditada</div>
+                <div className="text-gray-600">{forecastData.monthlyServicesActual.toLocaleString()} servicios</div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span>Promedio mensual: {Math.round(forecastData.monthlyServicesActual / 5)} servicios</span>
+            
+            <div className="flex items-center gap-3 bg-white rounded-lg p-3 border border-gray-100">
+              <div className="w-3 h-3 bg-green-500 rounded-full flex-shrink-0"></div>
+              <div className="text-sm">
+                <div className="font-medium text-gray-900">GMV Validado</div>
+                <div className="text-gray-600">{formatCurrency(forecastData.monthlyGmvActual)}</div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-              <span>Datos 100% consistentes con análisis forense</span>
+            
+            <div className="flex items-center gap-3 bg-white rounded-lg p-3 border border-gray-100">
+              <div className="w-3 h-3 bg-purple-500 rounded-full flex-shrink-0"></div>
+              <div className="text-sm">
+                <div className="font-medium text-gray-900">Promedio Mensual</div>
+                <div className="text-gray-600">{Math.round(forecastData.monthlyServicesActual / 5)} servicios</div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3 bg-white rounded-lg p-3 border border-gray-100">
+              <div className="w-3 h-3 bg-orange-500 rounded-full flex-shrink-0"></div>
+              <div className="text-sm">
+                <div className="font-medium text-gray-900">Precisión</div>
+                <div className="text-gray-600">100% consistente</div>
+              </div>
             </div>
           </div>
         </div>
