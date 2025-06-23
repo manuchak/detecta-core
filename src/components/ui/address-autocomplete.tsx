@@ -41,53 +41,87 @@ export const AddressAutocomplete = ({
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [apiError, setApiError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout>();
+  const abortControllerRef = useRef<AbortController>();
 
-  // Simulamos el token de Mapbox - en producción vendría de las variables de entorno
-  const MAPBOX_TOKEN = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw'; // Token público de demo
+  // Token público de Mapbox - necesitas reemplazar con tu token real
+  const MAPBOX_TOKEN = process.env.VITE_MAPBOX_PUBLIC_TOKEN || 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw';
 
   const searchAddresses = useCallback(async (query: string) => {
+    console.log('Searching addresses for:', query);
+    
     if (query.length < 3) {
       setSuggestions([]);
       setShowSuggestions(false);
+      setApiError(null);
       return;
     }
 
+    // Cancelar búsqueda anterior si existe
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    abortControllerRef.current = new AbortController();
     setIsLoading(true);
+    setApiError(null);
     
     try {
       // Configuración para México y países de LATAM
       const country = 'mx,co,ar,cl,pe,br,ec,bo,py,uy,ve,gt,hn,sv,ni,cr,pa';
       const types = 'address,poi,place,postcode';
       
-      const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?` +
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?` +
         `access_token=${MAPBOX_TOKEN}&` +
         `country=${country}&` +
         `types=${types}&` +
         `language=es&` +
         `limit=5&` +
-        `autocomplete=true`
-      );
+        `autocomplete=true`;
+
+      console.log('Making request to:', url);
+
+      const response = await fetch(url, {
+        signal: abortControllerRef.current.signal
+      });
+
+      console.log('Response status:', response.status);
 
       if (!response.ok) {
-        throw new Error('Error en la búsqueda de direcciones');
+        const errorText = await response.text();
+        console.error('API Error:', response.status, errorText);
+        throw new Error(`Error ${response.status}: ${errorText}`);
       }
 
       const data = await response.json();
-      setSuggestions(data.features || []);
-      setShowSuggestions(true);
-      setSelectedIndex(-1);
+      console.log('Response data:', data);
+
+      if (data.features && Array.isArray(data.features)) {
+        setSuggestions(data.features);
+        setShowSuggestions(data.features.length > 0);
+        setSelectedIndex(-1);
+      } else {
+        console.warn('Invalid response format:', data);
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Request was aborted');
+        return;
+      }
+      
       console.error('Error searching addresses:', error);
+      setApiError(error instanceof Error ? error.message : 'Error desconocido');
       setSuggestions([]);
       setShowSuggestions(false);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [MAPBOX_TOKEN]);
 
   const debouncedSearch = useCallback((query: string) => {
     if (timeoutRef.current) {
@@ -101,14 +135,18 @@ export const AddressAutocomplete = ({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
+    console.log('Input changed:', newValue);
     onChange(newValue);
+    setApiError(null);
     debouncedSearch(newValue);
   };
 
   const handleSuggestionClick = (suggestion: AddressSuggestion) => {
+    console.log('Suggestion selected:', suggestion);
     onChange(suggestion.place_name, suggestion);
     setSuggestions([]);
     setShowSuggestions(false);
+    setApiError(null);
     inputRef.current?.blur();
   };
 
@@ -136,6 +174,7 @@ export const AddressAutocomplete = ({
         setSuggestions([]);
         setShowSuggestions(false);
         setSelectedIndex(-1);
+        setApiError(null);
         break;
     }
   };
@@ -173,11 +212,24 @@ export const AddressAutocomplete = ({
         !inputRef.current?.contains(event.target as Node)
       ) {
         setShowSuggestions(false);
+        setApiError(null);
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Limpiar timeouts al desmontar
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, []);
 
   return (
@@ -203,7 +255,20 @@ export const AddressAutocomplete = ({
         )}
       </div>
 
-      {showSuggestions && suggestions.length > 0 && (
+      {/* Error de API */}
+      {apiError && (
+        <div className="absolute z-50 w-full mt-1 bg-red-50 border border-red-200 rounded-lg shadow-lg p-3">
+          <div className="text-sm text-red-600">
+            <strong>Error de autocompletado:</strong> {apiError}
+          </div>
+          <div className="text-xs text-red-500 mt-1">
+            Verifica tu conexión o continúa escribiendo manualmente
+          </div>
+        </div>
+      )}
+
+      {/* Sugerencias */}
+      {showSuggestions && suggestions.length > 0 && !apiError && (
         <div
           ref={suggestionsRef}
           className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto"
@@ -216,7 +281,7 @@ export const AddressAutocomplete = ({
               <div
                 key={suggestion.id}
                 className={cn(
-                  "px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 hover:bg-gray-50",
+                  "px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors",
                   isSelected && "bg-blue-50 border-blue-200"
                 )}
                 onClick={() => handleSuggestionClick(suggestion)}
@@ -242,13 +307,17 @@ export const AddressAutocomplete = ({
         </div>
       )}
 
-      {showSuggestions && suggestions.length === 0 && !isLoading && value.length >= 3 && (
+      {/* Sin resultados */}
+      {showSuggestions && suggestions.length === 0 && !isLoading && !apiError && value.length >= 3 && (
         <div
           ref={suggestionsRef}
-          className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg"
+          className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-3"
         >
-          <div className="px-4 py-3 text-gray-500 text-center">
-            No se encontraron direcciones
+          <div className="text-sm text-gray-500 text-center">
+            No se encontraron direcciones para "{value}"
+          </div>
+          <div className="text-xs text-gray-400 text-center mt-1">
+            Puedes continuar escribiendo manualmente
           </div>
         </div>
       )}
