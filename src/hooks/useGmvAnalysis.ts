@@ -78,19 +78,24 @@ export const useGmvAnalysis = (selectedClient: string = "all") => {
 
     console.log(`🔍 GMV Analysis: Processing ${allServices.length} total records`);
 
-    // Filter valid services with proper data
+    // Filter valid services with cobro_cliente data
     const validServices = allServices.filter(service => {
-      const estado = (service.estado || '').toLowerCase().trim();
-      const cobro = parseFloat(service.cobro_cliente);
+      const cobro = service.cobro_cliente;
       const fecha = service.fecha_hora_cita;
       
-      // Only include services that are completed/finalized and have valid charge
-      return estado === 'finalizado' && 
-             !isNaN(cobro) && cobro > 0 && 
-             fecha && fecha !== null;
+      // Check if cobro_cliente has value (any number, including 0)
+      const hasValidCobro = cobro !== null && 
+                           cobro !== undefined && 
+                           cobro !== '' && 
+                           !isNaN(parseFloat(cobro)) &&
+                           parseFloat(cobro) >= 0;
+      
+      const hasValidDate = fecha && fecha !== null;
+      
+      return hasValidCobro && hasValidDate;
     });
 
-    console.log(`📊 Valid services after filtering: ${validServices.length}`);
+    console.log(`📊 Valid services with cobro_cliente: ${validServices.length}`);
 
     // Get unique clients from nombre_cliente field
     const uniqueClients = Array.from(new Set(
@@ -132,7 +137,7 @@ export const useGmvAnalysis = (selectedClient: string = "all") => {
         const monthName = months[monthIndex];
         const cobro = parseFloat(service.cobro_cliente);
 
-        if (!isNaN(cobro) && cobro > 0) {
+        if (!isNaN(cobro) && cobro >= 0) {
           if (year === 2025) {
             monthlyStats[monthName].year2025 += cobro;
           } else if (year === 2024) {

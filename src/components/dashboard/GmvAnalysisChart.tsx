@@ -67,7 +67,7 @@ export const GmvAnalysisChart = () => {
               Evolución de Ingresos (Análisis Forense)
             </CardTitle>
             <p className="text-sm text-gray-600 mt-1">
-              Datos históricos completos usando auditoría forense - {formatCurrency(totalGmv2025 + totalGmv2024)} total
+              Datos históricos basados en cobro_cliente - {formatCurrency(totalGmv2025 + totalGmv2024)} total
             </p>
           </div>
           <Select value={selectedClient} onValueChange={setSelectedClient}>
@@ -118,14 +118,14 @@ export const GmvAnalysisChart = () => {
         
         <div className="text-xs text-blue-600 mt-2 flex items-center gap-1">
           <div className="w-2 h-2 bg-blue-100 rounded-full"></div>
-          Solo servicios "Finalizado" con cobro válido
+          Suma de todos los valores en cobro_cliente con fecha válida
         </div>
 
         {!hasData && !isLoading && (
           <div className="flex items-center gap-2 mt-2 p-2 bg-yellow-50 rounded-lg">
             <AlertCircle className="w-4 h-4 text-yellow-600" />
             <span className="text-xs text-yellow-700">
-              No se encontraron datos de GMV válidos. Verificar servicios finalizados con cobro.
+              No se encontraron datos de GMV válidos en la columna cobro_cliente.
             </span>
           </div>
         )}
@@ -136,7 +136,7 @@ export const GmvAnalysisChart = () => {
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
-              <p className="text-sm text-gray-600">Procesando datos completos...</p>
+              <p className="text-sm text-gray-600">Procesando datos de cobro_cliente...</p>
             </div>
           </div>
         ) : !hasData ? (
@@ -145,7 +145,7 @@ export const GmvAnalysisChart = () => {
               <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600 mb-2">No hay datos de GMV disponibles</p>
               <p className="text-sm text-gray-500">
-                Verifica que existan servicios finalizados con cobro válido
+                Verifica que existan registros con valores en la columna cobro_cliente
               </p>
             </div>
           </div>
