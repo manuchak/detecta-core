@@ -10,7 +10,9 @@ import AuthLayout from '@/layouts/AuthLayout';
 
 // Page imports - Fixed to use default imports
 import Index from '@/pages/Index';
+import Home from '@/pages/Home/Home';
 import Dashboard from '@/pages/Dashboard/Dashboard';
+import ExecutiveDashboard from '@/pages/Dashboard/ExecutiveDashboard';
 import Login from '@/pages/Auth/Login';
 import Register from '@/pages/Auth/Register';
 import ForgotPassword from '@/pages/Auth/ForgotPassword';
@@ -37,6 +39,7 @@ import WMSPage from '@/pages/WMS/WMSPage';
 
 // Components
 import ProtectedRoute from '@/components/ProtectedRoute';
+import RoleProtectedRoute from '@/components/RoleProtectedRoute';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -56,6 +59,7 @@ function App() {
             <div className="min-h-screen bg-background">
               <Routes>
                 {/* Public routes */}
+                <Route path="/" element={<Index />} />
                 <Route path="/landing" element={<Landing />} />
                 
                 {/* Auth routes */}
@@ -64,18 +68,47 @@ function App() {
                 <Route path="/auth/forgot-password" element={<AuthLayout><ForgotPassword /></AuthLayout>} />
                 <Route path="/auth/email-confirmation" element={<AuthLayout><EmailConfirmation /></AuthLayout>} />
                 
-                {/* Protected routes */}
+                {/* Protected routes - Home accessible to all authenticated users */}
                 <Route
-                  path="/dashboard"
+                  path="/home"
                   element={
                     <ProtectedRoute>
                       <DashboardLayout>
-                        <Dashboard />
+                        <Home />
                       </DashboardLayout>
                     </ProtectedRoute>
                   }
                 />
                 
+                {/* Legacy dashboard route - redirect to executive dashboard */}
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'coordinador_operaciones', 'jefe_seguridad', 'bi']}>
+                        <DashboardLayout>
+                          <ExecutiveDashboard />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                {/* Executive Dashboard - Role Protected */}
+                <Route
+                  path="/executive-dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'coordinador_operaciones', 'jefe_seguridad', 'bi']}>
+                        <DashboardLayout>
+                          <ExecutiveDashboard />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                {/* Services routes */}
                 <Route
                   path="/services"
                   element={
@@ -91,20 +124,25 @@ function App() {
                   path="/services/rendimiento"
                   element={
                     <ProtectedRoute>
-                      <DashboardLayout>
-                        <RendimientoPage />
-                      </DashboardLayout>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'coordinador_operaciones', 'jefe_seguridad', 'bi']}>
+                        <DashboardLayout>
+                          <RendimientoPage />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
                 />
                 
+                {/* Leads routes - Role protected */}
                 <Route
                   path="/leads"
                   element={
                     <ProtectedRoute>
-                      <DashboardLayout>
-                        <LeadsList />
-                      </DashboardLayout>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'ejecutivo_ventas', 'coordinador_operaciones']}>
+                        <DashboardLayout>
+                          <LeadsList />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
                 />
@@ -113,13 +151,16 @@ function App() {
                   path="/leads/approvals"
                   element={
                     <ProtectedRoute>
-                      <DashboardLayout>
-                        <LeadApprovals />
-                      </DashboardLayout>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'coordinador_operaciones']}>
+                        <DashboardLayout>
+                          <LeadApprovals />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
                 />
                 
+                {/* Monitoring routes */}
                 <Route
                   path="/monitoring"
                   element={
@@ -135,9 +176,11 @@ function App() {
                   path="/monitoring/supply-chain"
                   element={
                     <ProtectedRoute>
-                      <DashboardLayout>
-                        <SupplyChainMonitoring />
-                      </DashboardLayout>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'supply_lead', 'supply', 'coordinador_operaciones']}>
+                        <DashboardLayout>
+                          <SupplyChainMonitoring />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
                 />
@@ -146,13 +189,16 @@ function App() {
                   path="/monitoring/forensic-audit"
                   element={
                     <ProtectedRoute>
-                      <DashboardLayout>
-                        <ForensicAuditPage />
-                      </DashboardLayout>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'jefe_seguridad', 'analista_seguridad']}>
+                        <DashboardLayout>
+                          <ForensicAuditPage />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
                 />
                 
+                {/* ... keep existing code for remaining routes */}
                 <Route
                   path="/installers"
                   element={
@@ -201,9 +247,11 @@ function App() {
                   path="/wms"
                   element={
                     <ProtectedRoute>
-                      <DashboardLayout>
-                        <WMSPage />
-                      </DashboardLayout>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'supply_lead', 'supply']}>
+                        <DashboardLayout>
+                          <WMSPage />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
                 />
@@ -234,9 +282,11 @@ function App() {
                   path="/admin/assign-role"
                   element={
                     <ProtectedRoute>
-                      <DashboardLayout>
-                        <AssignRole />
-                      </DashboardLayout>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner']}>
+                        <DashboardLayout>
+                          <AssignRole />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
                 />
@@ -245,9 +295,11 @@ function App() {
                   path="/admin/assign-owner-role"
                   element={
                     <ProtectedRoute>
-                      <DashboardLayout>
-                        <AssignOwnerRole />
-                      </DashboardLayout>
+                      <RoleProtectedRoute allowedRoles={['owner']}>
+                        <DashboardLayout>
+                          <AssignOwnerRole />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
                 />
@@ -256,9 +308,11 @@ function App() {
                   path="/admin/landing-manager"
                   element={
                     <ProtectedRoute>
-                      <DashboardLayout>
-                        <LandingManager />
-                      </DashboardLayout>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner']}>
+                        <DashboardLayout>
+                          <LandingManager />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
                 />
