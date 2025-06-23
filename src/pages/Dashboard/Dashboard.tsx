@@ -2,7 +2,7 @@
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricsCards } from "@/components/dashboard/MetricsCards";
-import { GmvChart } from "@/components/dashboard/GmvChart";
+import { GmvAnalysisChart } from "@/components/dashboard/GmvAnalysisChart";
 import { ServicesCalendar } from "@/components/dashboard/ServicesCalendar";
 import { ServiceStatusChart } from "@/components/dashboard/ServiceStatusChart";
 import { SecondaryCharts } from "@/components/dashboard/SecondaryCharts";
@@ -90,7 +90,7 @@ const Dashboard = () => {
           <h2 className="text-2xl font-semibold text-gray-800 mb-6">Análisis de Rendimiento</h2>
           <div className="grid gap-8 lg:grid-cols-1 xl:grid-cols-2">
             <div className="w-full">
-              <GmvChart />
+              <GmvAnalysisChart />
             </div>
             <div className="w-full">
               <ServiceStatusChart 
