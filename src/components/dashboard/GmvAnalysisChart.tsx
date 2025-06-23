@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { useGmvAnalysis } from "@/hooks/useGmvAnalysis";
-import { Loader2, TrendingUp, TrendingDown } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, AlertCircle } from "lucide-react";
 
 export const GmvAnalysisChart = () => {
   const [selectedClient, setSelectedClient] = useState<string>("all");
@@ -56,6 +56,8 @@ export const GmvAnalysisChart = () => {
     return null;
   };
 
+  const hasData = totalGmv2025 > 0 || totalGmv2024 > 0;
+
   return (
     <Card className="h-full bg-white shadow-sm">
       <CardHeader className="pb-4">
@@ -65,7 +67,7 @@ export const GmvAnalysisChart = () => {
               Evolución de Ingresos (Análisis Forense)
             </CardTitle>
             <p className="text-sm text-gray-600 mt-1">
-              Datos históricos completos usando auditoría forense - Total GMV: {formatCurrency(totalGmv2025)}
+              Datos históricos completos usando auditoría forense - {formatCurrency(totalGmv2025 + totalGmv2024)} total
             </p>
           </div>
           <Select value={selectedClient} onValueChange={setSelectedClient}>
@@ -118,6 +120,15 @@ export const GmvAnalysisChart = () => {
           <div className="w-2 h-2 bg-blue-100 rounded-full"></div>
           Solo servicios "Finalizado" con cobro válido
         </div>
+
+        {!hasData && !isLoading && (
+          <div className="flex items-center gap-2 mt-2 p-2 bg-yellow-50 rounded-lg">
+            <AlertCircle className="w-4 h-4 text-yellow-600" />
+            <span className="text-xs text-yellow-700">
+              No se encontraron datos de GMV válidos. Verificar servicios finalizados con cobro.
+            </span>
+          </div>
+        )}
       </CardHeader>
 
       <CardContent className="h-80">
@@ -126,6 +137,16 @@ export const GmvAnalysisChart = () => {
             <div className="text-center">
               <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
               <p className="text-sm text-gray-600">Procesando datos completos...</p>
+            </div>
+          </div>
+        ) : !hasData ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600 mb-2">No hay datos de GMV disponibles</p>
+              <p className="text-sm text-gray-500">
+                Verifica que existan servicios finalizados con cobro válido
+              </p>
             </div>
           </div>
         ) : (

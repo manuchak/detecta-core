@@ -76,30 +76,43 @@ export const useGmvAnalysis = (selectedClient: string = "all") => {
       };
     }
 
-    // Filter valid services
+    console.log(`🔍 GMV Analysis: Processing ${allServices.length} total records`);
+
+    // Filter valid services with proper data
     const validServices = allServices.filter(service => {
       const estado = (service.estado || '').toLowerCase().trim();
-      const cobro = Number(service.cobro_cliente);
-      const custodio = service.nombre_custodio || '';
+      const cobro = parseFloat(service.cobro_cliente);
+      const fecha = service.fecha_hora_cita;
       
+      // Only include services that are completed/finalized and have valid charge
       return estado === 'finalizado' && 
              !isNaN(cobro) && cobro > 0 && 
-             custodio.trim() !== '' && custodio !== '#N/A' &&
-             service.fecha_hora_cita;
+             fecha && fecha !== null;
     });
 
-    // Get unique clients
+    console.log(`📊 Valid services after filtering: ${validServices.length}`);
+
+    // Get unique clients from nombre_cliente field
     const uniqueClients = Array.from(new Set(
       validServices
         .map(s => s.nombre_cliente)
-        .filter(client => client && client.trim() !== '' && client !== '#N/A')
+        .filter(client => client && 
+                         client.trim() !== '' && 
+                         client !== '#N/A' &&
+                         client.toLowerCase() !== 'n/a')
         .map(client => client.trim())
     )).sort();
 
-    // Filter by client if not "all"
-    const filteredServices = selectedClient === "all" 
-      ? validServices 
-      : validServices.filter(s => s.nombre_cliente?.trim() === selectedClient);
+    console.log(`👥 Unique clients found: ${uniqueClients.length}`, uniqueClients.slice(0, 5));
+
+    // Filter by selected client if not "all"
+    let filteredServices = validServices;
+    if (selectedClient !== "all") {
+      filteredServices = validServices.filter(s => 
+        s.nombre_cliente?.trim() === selectedClient
+      );
+      console.log(`🎯 Services for client "${selectedClient}": ${filteredServices.length}`);
+    }
 
     // Process monthly data
     const monthlyStats: { [key: string]: { year2025: number; year2024: number } } = {};
@@ -112,20 +125,26 @@ export const useGmvAnalysis = (selectedClient: string = "all") => {
 
     // Aggregate data by month and year
     filteredServices.forEach(service => {
-      const fecha = new Date(service.fecha_hora_cita);
-      const year = fecha.getFullYear();
-      const monthIndex = fecha.getMonth();
-      const monthName = months[monthIndex];
-      const cobro = Number(service.cobro_cliente);
+      try {
+        const fecha = new Date(service.fecha_hora_cita);
+        const year = fecha.getFullYear();
+        const monthIndex = fecha.getMonth();
+        const monthName = months[monthIndex];
+        const cobro = parseFloat(service.cobro_cliente);
 
-      if (year === 2025) {
-        monthlyStats[monthName].year2025 += cobro;
-      } else if (year === 2024) {
-        monthlyStats[monthName].year2024 += cobro;
+        if (!isNaN(cobro) && cobro > 0) {
+          if (year === 2025) {
+            monthlyStats[monthName].year2025 += cobro;
+          } else if (year === 2024) {
+            monthlyStats[monthName].year2024 += cobro;
+          }
+        }
+      } catch (error) {
+        console.warn('Error processing service date:', service.fecha_hora_cita, error);
       }
     });
 
-    // Convert to chart format
+    // Convert to chart format and calculate growth
     const monthlyData: GmvMonthData[] = months.map(month => {
       const stats = monthlyStats[month];
       const growth = stats.year2024 > 0 
@@ -145,15 +164,16 @@ export const useGmvAnalysis = (selectedClient: string = "all") => {
     const totalGmv2024 = monthlyData.reduce((sum, item) => sum + item.year2024, 0);
     const overallGrowth = totalGmv2024 > 0 
       ? Math.round(((totalGmv2025 - totalGmv2024) / totalGmv2024) * 1000) / 10 
-      : 0;
+      : totalGmv2025 > 0 ? 100 : 0;
 
     console.log(`📊 GMV Analysis Results:`, {
       totalServices: filteredServices.length,
-      totalGmv2025,
-      totalGmv2024,
+      totalGmv2025: totalGmv2025.toLocaleString(),
+      totalGmv2024: totalGmv2024.toLocaleString(),
       overallGrowth,
       clientsCount: uniqueClients.length,
-      selectedClient
+      selectedClient,
+      monthlyDataSample: monthlyData.slice(0, 3)
     });
 
     return {
