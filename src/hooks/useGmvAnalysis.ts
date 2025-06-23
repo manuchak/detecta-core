@@ -275,7 +275,7 @@ export const useGmvAnalysis = (selectedClient: string = "all") => {
     console.log('📊 PASO 3: Análisis de clientes únicos');
     const clientAnalysis = validServices.reduce((acc, service) => {
       const cliente = service.nombre_cliente;
-      if (cliente && cliente.trim() !== '' && cliente !== '#N/A' && cliente.toLowerCase() !== 'n/a') {
+      if (cliente && typeof cliente === 'string' && cliente.trim() !== '' && cliente !== '#N/A' && cliente.toLowerCase() !== 'n/a') {
         acc.valid++;
         if (!acc.uniqueClients.has(cliente.trim())) {
           acc.uniqueClients.add(cliente.trim());

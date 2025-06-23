@@ -11,8 +11,8 @@ import { DashboardFilters, TimeframeOption, ServiceTypeOption } from "@/componen
 import { useDashboardDataCorrected } from "@/hooks/useDashboardDataCorrected";
 
 const ExecutiveDashboard = () => {
-  // Estados para los filtros
-  const [timeframe, setTimeframe] = useState<TimeframeOption>("thisMonth");
+  // Estados para los filtros - Mes hasta la fecha como default
+  const [timeframe, setTimeframe] = useState<TimeframeOption>("monthToDate");
   const [serviceType, setServiceType] = useState<ServiceTypeOption>("all");
 
   const { 
@@ -66,6 +66,7 @@ const ExecutiveDashboard = () => {
       last30Days: "de los últimos 30 días",
       last90Days: "de los últimos 90 días",
       yearToDate: "del año a la fecha",
+      monthToDate: "del mes hasta la fecha",
       month: "del último mes",
       quarter: "del último trimestre",
       year: "del último año",
