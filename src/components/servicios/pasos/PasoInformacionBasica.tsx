@@ -1,10 +1,10 @@
 import { UseFormReturn } from 'react-hook-form';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { User, Building, Phone, Mail, MapPin, Shield, AlertTriangle, Satellite } from 'lucide-react';
+import { AddressAutocomplete } from '@/components/ui/address-autocomplete';
 import type { CreateServicioMonitoreoCompleto } from '@/types/serviciosMonitoreoCompleto';
 
 interface PasoInformacionBasicaProps {
@@ -189,27 +189,36 @@ export const PasoInformacionBasica = ({ form }: PasoInformacionBasicaProps) => {
                 return true;
               }
             }}
-            render={({ field }) => (
+            render={({ field, fieldState }) => (
               <FormItem>
                 <FormLabel className="text-sm font-semibold text-gray-700">
                   <span className="text-red-600">*</span> Dirección Completa del Cliente
                   <span className="text-xs text-red-600 block">OBLIGATORIO - Para análisis de zona de riesgo y ruteo</span>
                 </FormLabel>
                 <FormControl>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Textarea 
-                      {...field} 
-                      placeholder="Ejemplo: Av. Reforma 123, Col. Centro, Ciudad de México, CDMX, CP 06000" 
-                      rows={3} 
-                      className="pl-10 resize-none"
-                    />
-                  </div>
+                  <AddressAutocomplete
+                    value={field.value || ''}
+                    onChange={(value, suggestion) => {
+                      field.onChange(value);
+                      if (suggestion) {
+                        console.log('Dirección seleccionada:', suggestion);
+                        // Aquí podríamos extraer información adicional como coordenadas, código postal, etc.
+                      }
+                    }}
+                    placeholder="Buscar dirección... (ej: Av. Reforma 123, Col. Centro)"
+                    error={!!fieldState.error}
+                    className="resize-none"
+                  />
                 </FormControl>
                 <FormMessage />
-                <p className="text-xs text-amber-600 mt-1">
-                  ⚠️ Dirección imprecisa causará retrasos en instalación y evaluación de riesgo
-                </p>
+                <div className="mt-2 space-y-1">
+                  <p className="text-xs text-green-600">
+                    ✅ <strong>Autocompletado inteligente:</strong> Selecciona de las sugerencias para mayor precisión
+                  </p>
+                  <p className="text-xs text-amber-600">
+                    ⚠️ Dirección imprecisa causará retrasos en instalación y evaluación de riesgo
+                  </p>
+                </div>
               </FormItem>
             )}
           />
@@ -464,7 +473,7 @@ export const PasoInformacionBasica = ({ form }: PasoInformacionBasicaProps) => {
               <li>• <strong>Nombre y empresa:</strong> Verificar ortografía exacta para contratos</li>
               <li>• <strong>Teléfono:</strong> Confirmar que sea el número principal disponible 24/7</li>
               <li>• <strong>Email:</strong> Validar que reciba correos (revisar spam/junk)</li>
-              <li>• <strong>Dirección:</strong> Debe ser específica para instalación y evaluación de zona</li>
+              <li>• <strong>Dirección:</strong> Usar autocompletado para máxima precisión</li>
               <li>• <strong>Tipo, prioridad y plan:</strong> Determinan equipamiento y protocolos de respuesta</li>
             </ul>
           </div>
