@@ -1,5 +1,4 @@
 
-
 import React from "react";
 import {
   Home,
@@ -11,6 +10,8 @@ import {
   MessageSquare,
   Settings,
   ChevronDown,
+  Globe,
+  UserCog,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,10 +25,15 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 export function Sidebar({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { userRole } = useAuth();
+
+  // Check if user has admin permissions
+  const hasAdminAccess = userRole === 'admin' || userRole === 'owner' || userRole === 'bi' || userRole === 'supply_admin';
 
   const navigationItems = [
     {
@@ -80,6 +86,14 @@ export function Sidebar({ className, ...props }: React.HTMLAttributes<HTMLDivEle
       icon: MessageSquare,
       path: "/tickets",
     },
+    // Only show Administration section if user has admin access
+    ...(hasAdminAccess ? [{
+      title: "Administración",
+      icon: UserCog,
+      subItems: [
+        { title: "Landing Page", path: "/admin/landing" },
+      ]
+    }] : []),
     {
       title: "Configuración",
       icon: Settings,
@@ -153,4 +167,3 @@ export function Sidebar({ className, ...props }: React.HTMLAttributes<HTMLDivEle
     </div>
   );
 }
-
