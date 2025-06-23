@@ -46,10 +46,10 @@ export interface TopClientsData {
   value: number;
 }
 
-export type TimeframeOption = "day" | "week" | "month" | "quarter" | "year" | "custom" | "thisMonth" | "thisQuarter" | "lastMonth" | "lastQuarter" | "last7Days" | "last30Days" | "last90Days" | "yearToDate";
+export type TimeframeOption = "day" | "week" | "month" | "quarter" | "year" | "custom" | "thisMonth" | "thisQuarter" | "lastMonth" | "lastQuarter" | "last7Days" | "last30Days" | "last90Days" | "yearToDate" | "monthToDate";
 export type ServiceTypeOption = "all" | "local" | "foraneo";
 
-// Función mejorada para calcular rangos de fechas
+// Función mejorada para calcular rangos de fechas - ESPECIALMENTE PARA MES HASTA LA FECHA
 const getDateRange = (timeframe: TimeframeOption) => {
   const now = new Date();
   const startDate = new Date();
@@ -67,6 +67,12 @@ const getDateRange = (timeframe: TimeframeOption) => {
     case "thisMonth":
       startDate.setDate(1);
       startDate.setHours(0, 0, 0, 0);
+      break;
+    case "monthToDate":
+      // MES HASTA LA FECHA: Desde el 1ro del mes actual hasta HOY
+      startDate.setDate(1);
+      startDate.setHours(0, 0, 0, 0);
+      console.log(`📅 MONTH TO DATE: ${startDate.toLocaleDateString()} hasta ${now.toLocaleDateString()}`);
       break;
     case "lastMonth":
       const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -109,7 +115,7 @@ const getDateRange = (timeframe: TimeframeOption) => {
   return { startDate, endDate: now };
 };
 
-// Función mejorada para calcular el período anterior para comparación más precisa
+// Función mejorada para calcular el período anterior para comparación más precisa - ESPECIALMENTE PARA MES HASTA LA FECHA
 const getPreviousDateRange = (timeframe: TimeframeOption) => {
   const { startDate, endDate } = getDateRange(timeframe);
   const duration = endDate.getTime() - startDate.getTime();
@@ -119,6 +125,24 @@ const getPreviousDateRange = (timeframe: TimeframeOption) => {
   
   // Ajustes específicos por tipo de período para comparaciones más lógicas
   switch (timeframe) {
+    case "monthToDate":
+      // Para MES HASTA LA FECHA: comparar con el mismo período del mes anterior
+      const currentDay = endDate.getDate();
+      const currentMonth = endDate.getMonth();
+      const currentYear = endDate.getFullYear();
+      
+      // Período anterior: desde el 1ro del mes anterior hasta el mismo día del mes anterior
+      prevStartDate = new Date(currentYear, currentMonth - 1, 1);
+      prevEndDate = new Date(currentYear, currentMonth - 1, currentDay);
+      
+      // Si estamos en enero, ir al año anterior
+      if (currentMonth === 0) {
+        prevStartDate = new Date(currentYear - 1, 11, 1);
+        prevEndDate = new Date(currentYear - 1, 11, currentDay);
+      }
+      
+      console.log(`📅 MONTH TO DATE COMPARISON: ${prevStartDate.toLocaleDateString()} hasta ${prevEndDate.toLocaleDateString()}`);
+      break;
     case "thisMonth":
       // Comparar con el mes anterior completo
       prevStartDate = new Date(startDate.getFullYear(), startDate.getMonth() - 1, 1);
@@ -147,7 +171,7 @@ const getPreviousDateRange = (timeframe: TimeframeOption) => {
 };
 
 export const useDashboardDataCorrected = (
-  timeframe: TimeframeOption = "thisMonth",
+  timeframe: TimeframeOption = "monthToDate",
   serviceTypeFilter: ServiceTypeOption = "all"
 ) => {
   
