@@ -3,7 +3,6 @@ import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricsCards } from "@/components/dashboard/MetricsCards";
 import { GmvAnalysisChart } from "@/components/dashboard/GmvAnalysisChart";
-import { ServicesCalendar } from "@/components/dashboard/ServicesCalendar";
 import { ServiceStatusChart } from "@/components/dashboard/ServiceStatusChart";
 import { SecondaryCharts } from "@/components/dashboard/SecondaryCharts";
 import { ForecastCard } from "@/components/dashboard/ForecastCard";
@@ -101,20 +100,15 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Calendario y gráficos secundarios - Layout optimizado */}
+        {/* Gráficos secundarios - Layout expandido para ocupar todo el ancho */}
         <div className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-6">Calendario y Estadísticas Detalladas</h2>
-          <div className="grid gap-8 lg:grid-cols-1 xl:grid-cols-5">
-            <div className="xl:col-span-3 w-full">
-              <ServicesCalendar />
-            </div>
-            <div className="xl:col-span-2 w-full">
-              <SecondaryCharts 
-                dailyServiceData={dailyServiceData || []}
-                serviceTypesData={serviceTypesData || []}
-                topClientsData={topClientsData || []}
-              />
-            </div>
+          <h2 className="text-2xl font-semibold text-gray-800 mb-6">Estadísticas Detalladas</h2>
+          <div className="w-full">
+            <SecondaryCharts 
+              dailyServiceData={dailyServiceData || []}
+              serviceTypesData={serviceTypesData || []}
+              topClientsData={topClientsData || []}
+            />
           </div>
         </div>
       </div>
