@@ -47,8 +47,8 @@ export const AddressAutocomplete = ({
   const timeoutRef = useRef<NodeJS.Timeout>();
   const abortControllerRef = useRef<AbortController>();
 
-  // Token público de Mapbox - necesitas reemplazar con tu token real
-  const MAPBOX_TOKEN = process.env.VITE_MAPBOX_PUBLIC_TOKEN || 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw';
+  // Token real de Mapbox
+  const MAPBOX_TOKEN = 'pk.eyJ1IjoiZGV0ZWN0YXNlYyIsImEiOiJjbTlzdjg3ZmkwNGVoMmpwcGg3MWMwNXlhIn0.zIQ8khHoZsJt8bL4jXf35Q';
 
   const searchAddresses = useCallback(async (query: string) => {
     console.log('Searching addresses for:', query);
@@ -82,7 +82,7 @@ export const AddressAutocomplete = ({
         `limit=5&` +
         `autocomplete=true`;
 
-      console.log('Making request to:', url);
+      console.log('Making request to Mapbox API...');
 
       const response = await fetch(url, {
         signal: abortControllerRef.current.signal
@@ -103,6 +103,7 @@ export const AddressAutocomplete = ({
         setSuggestions(data.features);
         setShowSuggestions(data.features.length > 0);
         setSelectedIndex(-1);
+        console.log(`Found ${data.features.length} suggestions`);
       } else {
         console.warn('Invalid response format:', data);
         setSuggestions([]);
@@ -121,7 +122,7 @@ export const AddressAutocomplete = ({
     } finally {
       setIsLoading(false);
     }
-  }, [MAPBOX_TOKEN]);
+  }, []);
 
   const debouncedSearch = useCallback((query: string) => {
     if (timeoutRef.current) {
@@ -130,7 +131,7 @@ export const AddressAutocomplete = ({
     
     timeoutRef.current = setTimeout(() => {
       searchAddresses(query);
-    }, 300);
+    }, 500); // Increased debounce time slightly
   }, [searchAddresses]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
