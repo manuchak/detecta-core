@@ -31,9 +31,17 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
     return data.slice(0, 6);
   };
 
-  // Procesar datos diarios para comparación semanal con fechas específicas
+  // Procesar datos diarios para comparación semanal CORREGIDO - Solo mostrar datos reales, no futuros
   const processWeeklyComparison = (data: DailyServiceData[]) => {
     const daysOrder = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    const today = new Date();
+    const currentDayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    // Obtener el lunes de esta semana
+    const mondayOfThisWeek = new Date(today);
+    const daysFromMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1; // Ajustar para que lunes sea 0
+    mondayOfThisWeek.setDate(today.getDate() - daysFromMonday);
+    mondayOfThisWeek.setHours(0, 0, 0, 0);
     
     // Simular datos de la semana anterior con números más realistas
     const previousWeekData = data.map(item => ({
@@ -41,18 +49,37 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
       count: Math.max(0, Math.floor(item.count * (0.8 + Math.random() * 0.4))) // Variación más conservadora
     }));
 
-    // Combinar datos actuales y anteriores
-    const combinedData = daysOrder.map(day => {
+    // Combinar datos actuales y anteriores - SOLO mostrar hasta hoy
+    const combinedData = daysOrder.map((day, index) => {
+      const currentDate = new Date(mondayOfThisWeek);
+      currentDate.setDate(mondayOfThisWeek.getDate() + index);
+      
+      // Solo mostrar datos si la fecha es hoy o anterior
+      const shouldShowData = currentDate <= today;
+      
       const currentWeek = data.find(d => d.day === day) || { day, count: 0 };
       const previousWeek = previousWeekData.find(d => d.day === day) || { day, count: 0 };
       
       return {
         day,
-        date: currentWeek.date || '',
-        semanaActual: currentWeek.count,
-        semanaAnterior: previousWeek.count,
-        diferencia: currentWeek.count - previousWeek.count
+        date: currentDate.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }),
+        semanaActual: shouldShowData ? currentWeek.count : 0,
+        semanaAnterior: shouldShowData ? previousWeek.count : 0,
+        diferencia: shouldShowData ? currentWeek.count - previousWeek.count : 0,
+        isFuture: !shouldShowData
       };
+    });
+
+    console.log('📅 Weekly data processed:', {
+      today: today.toLocaleDateString(),
+      mondayOfThisWeek: mondayOfThisWeek.toLocaleDateString(),
+      currentDayOfWeek,
+      combinedData: combinedData.map(d => ({
+        day: d.day,
+        date: d.date,
+        isFuture: d.isFuture,
+        semanaActual: d.semanaActual
+      }))
     });
 
     return combinedData;
@@ -62,29 +89,39 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
   const totalClients = processedClientsData.reduce((sum, item) => sum + item.value, 0);
   const weeklyComparisonData = processWeeklyComparison(dailyServiceData);
 
-  // Encontrar el día pico de la semana actual
-  const peakDay = weeklyComparisonData.reduce((max, day) => 
-    day.semanaActual > max.semanaActual ? day : max, weeklyComparisonData[0]);
+  // Encontrar el día pico de la semana actual (solo entre los días que ya han ocurrido)
+  const validDays = weeklyComparisonData.filter(day => !day.isFuture && day.semanaActual > 0);
+  const peakDay = validDays.length > 0 
+    ? validDays.reduce((max, day) => day.semanaActual > max.semanaActual ? day : max, validDays[0])
+    : weeklyComparisonData[0];
 
   // Obtener rango de semana para mostrar en el header
-  const weekRange = dailyServiceData[0]?.weekRange || '';
+  const today = new Date();
+  const weekStart = new Date(today);
+  const daysFromMonday = today.getDay() === 0 ? 6 : today.getDay() - 1;
+  weekStart.setDate(today.getDate() - daysFromMonday);
+  
+  const weekRange = `${weekStart.toLocaleDateString('es-ES')} - ${today.toLocaleDateString('es-ES')}`;
 
   const CustomLineTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
+      const dataPoint = weeklyComparisonData.find(d => d.day === label);
+      
+      // No mostrar tooltip para días futuros
+      if (dataPoint?.isFuture) {
+        return null;
+      }
+      
       const currentWeek = payload.find((p: any) => p.dataKey === 'semanaActual')?.value || 0;
       const previousWeek = payload.find((p: any) => p.dataKey === 'semanaAnterior')?.value || 0;
       const difference = currentWeek - previousWeek;
       const percentageChange = previousWeek > 0 ? ((difference / previousWeek) * 100).toFixed(1) : 'N/A';
       
-      // Encontrar la fecha específica para este día
-      const dayData = weeklyComparisonData.find(d => d.day === label);
-      const specificDate = dayData?.date || '';
-      
       return (
         <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg min-w-[220px]">
           <div className="font-semibold text-gray-900 mb-1">{label}</div>
-          {specificDate && (
-            <div className="text-sm text-gray-600 mb-2">{specificDate}</div>
+          {dataPoint?.date && (
+            <div className="text-sm text-gray-600 mb-2">{dataPoint.date}</div>
           )}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
@@ -109,7 +146,7 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
                 </span>
               </div>
             </div>
-            {label === peakDay.day && (
+            {label === peakDay?.day && !dataPoint.isFuture && (
               <div className="bg-yellow-50 border border-yellow-200 rounded p-2 mt-2">
                 <span className="text-xs text-yellow-800 font-medium">🏆 Día pico de la semana</span>
               </div>
@@ -151,7 +188,6 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
-    // Solo mostrar porcentaje si es mayor al 5%
     if (percent < 0.05) return null;
 
     return (
@@ -194,11 +230,9 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
               <div className="w-3 h-3 rounded-full bg-purple-600"></div>
               Servicios Diarios
             </CardTitle>
-            {weekRange && (
-              <div className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded">
-                Semana: {weekRange}
-              </div>
-            )}
+            <div className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded">
+              Semana: {weekRange}
+            </div>
             <div className="flex items-center gap-4 text-xs text-gray-600">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-purple-600"></div>
@@ -214,7 +248,7 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
             <div className="flex-1 min-h-0 mb-3">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart 
-                  data={weeklyComparisonData}
+                  data={weeklyComparisonData.filter(d => !d.isFuture)} // Filtrar días futuros
                   margin={{ top: 20, right: 25, left: 15, bottom: 25 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -255,13 +289,15 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
                     name="Semana actual"
                   />
                   
-                  {/* Línea de referencia para el día pico */}
-                  <ReferenceLine 
-                    x={peakDay.day} 
-                    stroke="#fbbf24" 
-                    strokeDasharray="2 2"
-                    label={{ value: "Pico", fontSize: 10, fill: "#f59e0b" }}
-                  />
+                  {/* Línea de referencia para el día pico - solo si no es futuro */}
+                  {peakDay && !weeklyComparisonData.find(d => d.day === peakDay.day)?.isFuture && (
+                    <ReferenceLine 
+                      x={peakDay.day} 
+                      stroke="#fbbf24" 
+                      strokeDasharray="2 2"
+                      label={{ value: "Pico", fontSize: 10, fill: "#f59e0b" }}
+                    />
+                  )}
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -271,20 +307,20 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
               <div className="bg-gray-50 rounded-lg p-3">
                 <div className="text-gray-600 text-xs mb-1">Día pico</div>
                 <div className="font-semibold text-purple-600">
-                  {peakDay.day} ({peakDay.semanaActual})
-                  {peakDay.date && <div className="text-gray-500 text-xs mt-1">{peakDay.date}</div>}
+                  {peakDay ? `${peakDay.day} (${peakDay.semanaActual})` : 'N/A'}
+                  {peakDay?.date && <div className="text-gray-500 text-xs mt-1">{peakDay.date}</div>}
                 </div>
               </div>
               <div className="bg-gray-50 rounded-lg p-3">
                 <div className="text-gray-600 text-xs mb-1">Tendencia semanal</div>
                 <div className={`font-semibold ${
-                  weeklyComparisonData.reduce((sum, day) => sum + day.diferencia, 0) >= 0 
+                  weeklyComparisonData.filter(d => !d.isFuture).reduce((sum, day) => sum + day.diferencia, 0) >= 0 
                     ? 'text-green-600' 
                     : 'text-red-600'
                 }`}>
-                  {weeklyComparisonData.reduce((sum, day) => sum + day.diferencia, 0) >= 0 ? '↗️' : '↘️'} 
+                  {weeklyComparisonData.filter(d => !d.isFuture).reduce((sum, day) => sum + day.diferencia, 0) >= 0 ? '↗️' : '↘️'} 
                   {' '}
-                  {weeklyComparisonData.reduce((sum, day) => sum + day.diferencia, 0) >= 0 ? 'Creciendo' : 'Decreciendo'}
+                  {weeklyComparisonData.filter(d => !d.isFuture).reduce((sum, day) => sum + day.diferencia, 0) >= 0 ? 'Creciendo' : 'Decreciendo'}
                 </div>
               </div>
             </div>
