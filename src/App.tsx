@@ -1,3 +1,4 @@
+
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
@@ -36,6 +37,7 @@ import InstallationSchedule from '@/pages/Installers/InstallationSchedule';
 import InstallerPortal from '@/pages/Installers/InstallerPortal';
 import Landing from '@/pages/Landing/Landing';
 import WMSPage from '@/pages/WMS/WMSPage';
+import DuplicateCleanupPage from '@/pages/Maintenance/DuplicateCleanupPage';
 
 // Components
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -311,6 +313,20 @@ function App() {
                       <RoleProtectedRoute allowedRoles={['admin', 'owner']}>
                         <DashboardLayout>
                           <LandingManager />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                {/* Maintenance routes */}
+                <Route
+                  path="/maintenance/duplicate-cleanup"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'bi', 'supply_admin']}>
+                        <DashboardLayout>
+                          <DuplicateCleanupPage />
                         </DashboardLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
