@@ -53,7 +53,7 @@ export interface DashboardMetrics {
   pendingServices: number;
 }
 
-export type TimeframeOption = "day" | "week" | "month" | "quarter" | "year" | "monthToDate";
+export type TimeframeOption = "day" | "week" | "month" | "quarter" | "year" | "monthToDate" | "thisMonth" | "thisQuarter" | "lastMonth" | "lastQuarter" | "last7Days" | "last30Days" | "last90Days" | "yearToDate" | "custom";
 export type ServiceTypeOption = "all" | "local" | "foraneo";
 
 const getDateRangeForTimeframe = (timeframe: TimeframeOption) => {
@@ -84,6 +84,12 @@ const getDateRangeForTimeframe = (timeframe: TimeframeOption) => {
       const monthToDateStart = new Date(now.getFullYear(), now.getMonth(), 1);
       return {
         startDate: monthToDateStart,
+        endDate: today
+      };
+    case 'thisMonth':
+      const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      return {
+        startDate: thisMonthStart,
         endDate: today
       };
     case 'quarter':

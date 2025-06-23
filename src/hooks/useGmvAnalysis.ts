@@ -98,8 +98,9 @@ const fetchAllGmvData = async () => {
           else if (cobro > 0) acc.positive++;
           else acc.other++;
         } else if (typeof cobro === 'string') {
-          if (cobro === '0') acc.zero++;
-          else if (!isNaN(Number(cobro)) && Number(cobro) > 0) acc.positiveString++;
+          const numericValue = Number(cobro);
+          if (cobro === '0' || numericValue === 0) acc.zero++;
+          else if (!isNaN(numericValue) && numericValue > 0) acc.positiveString++;
           else acc.other++;
         } else {
           acc.other++;
@@ -194,7 +195,6 @@ const parseCobroUltraPermissive = (cobro: any): number => {
   }
   
   if (typeof cobro === 'number') {
-    if (cobro === 0) return 0;
     return isNaN(cobro) ? 0 : cobro;
   }
   
