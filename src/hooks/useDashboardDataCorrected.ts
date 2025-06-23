@@ -12,7 +12,7 @@ export interface DashboardMetrics {
   pendingServices: number;
   cancelledServices: number;
   yearlyGrowth: number;
-  // Nuevos campos para comparativos
+  // Nuevos campos para comparativos corregidos
   totalServicesGrowth: number;
   totalGMVGrowth: number;
   activeClientsGrowth: number;
@@ -46,10 +46,10 @@ export interface TopClientsData {
   value: number;
 }
 
-export type TimeframeOption = "day" | "week" | "month" | "quarter" | "year" | "custom" | "thisMonth" | "thisQuarter";
+export type TimeframeOption = "day" | "week" | "month" | "quarter" | "year" | "custom" | "thisMonth" | "thisQuarter" | "lastMonth" | "lastQuarter" | "last7Days" | "last30Days" | "last90Days" | "yearToDate";
 export type ServiceTypeOption = "all" | "local" | "foraneo";
 
-// Función para calcular el rango de fechas basado en el timeframe
+// Función mejorada para calcular rangos de fechas
 const getDateRange = (timeframe: TimeframeOption) => {
   const now = new Date();
   const startDate = new Date();
@@ -59,28 +59,48 @@ const getDateRange = (timeframe: TimeframeOption) => {
       startDate.setHours(0, 0, 0, 0);
       break;
     case "week":
-      startDate.setDate(now.getDate() - 7);
-      break;
-    case "month":
-      startDate.setDate(now.getDate() - 30);
+      const dayOfWeek = now.getDay();
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      startDate.setDate(now.getDate() + mondayOffset);
+      startDate.setHours(0, 0, 0, 0);
       break;
     case "thisMonth":
       startDate.setDate(1);
       startDate.setHours(0, 0, 0, 0);
       break;
-    case "quarter":
-      startDate.setDate(now.getDate() - 90);
-      break;
+    case "lastMonth":
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+      return { startDate: lastMonth, endDate: lastMonthEnd };
     case "thisQuarter":
       const currentQuarter = Math.floor(now.getMonth() / 3);
       startDate.setMonth(currentQuarter * 3, 1);
       startDate.setHours(0, 0, 0, 0);
       break;
+    case "lastQuarter":
+      const lastQuarter = Math.floor(now.getMonth() / 3) - 1;
+      const quarterStart = new Date(now.getFullYear(), lastQuarter * 3, 1);
+      const quarterEnd = new Date(now.getFullYear(), (lastQuarter + 1) * 3, 0);
+      if (lastQuarter < 0) {
+        quarterStart.setFullYear(now.getFullYear() - 1, 9, 1);
+        quarterEnd.setFullYear(now.getFullYear() - 1, 11, 31);
+      }
+      return { startDate: quarterStart, endDate: quarterEnd };
+    case "last7Days":
+      startDate.setDate(now.getDate() - 7);
+      break;
+    case "last30Days":
+      startDate.setDate(now.getDate() - 30);
+      break;
+    case "last90Days":
+      startDate.setDate(now.getDate() - 90);
+      break;
+    case "yearToDate":
+      startDate.setMonth(0, 1);
+      startDate.setHours(0, 0, 0, 0);
+      break;
     case "year":
       startDate.setFullYear(now.getFullYear() - 1);
-      break;
-    case "custom":
-      startDate.setDate(now.getDate() - 30);
       break;
     default:
       startDate.setDate(now.getDate() - 30);
@@ -89,23 +109,49 @@ const getDateRange = (timeframe: TimeframeOption) => {
   return { startDate, endDate: now };
 };
 
-// Función para calcular el período anterior para comparación
+// Función mejorada para calcular el período anterior para comparación más precisa
 const getPreviousDateRange = (timeframe: TimeframeOption) => {
   const { startDate, endDate } = getDateRange(timeframe);
   const duration = endDate.getTime() - startDate.getTime();
   
-  const prevEndDate = new Date(startDate.getTime());
-  const prevStartDate = new Date(startDate.getTime() - duration);
+  let prevEndDate = new Date(startDate.getTime());
+  let prevStartDate = new Date(startDate.getTime() - duration);
+  
+  // Ajustes específicos por tipo de período para comparaciones más lógicas
+  switch (timeframe) {
+    case "thisMonth":
+      // Comparar con el mes anterior completo
+      prevStartDate = new Date(startDate.getFullYear(), startDate.getMonth() - 1, 1);
+      prevEndDate = new Date(startDate.getFullYear(), startDate.getMonth(), 0);
+      break;
+    case "thisQuarter":
+      // Comparar con el trimestre anterior completo
+      const currentQuarter = Math.floor(startDate.getMonth() / 3);
+      const prevQuarter = currentQuarter - 1;
+      if (prevQuarter >= 0) {
+        prevStartDate = new Date(startDate.getFullYear(), prevQuarter * 3, 1);
+        prevEndDate = new Date(startDate.getFullYear(), (prevQuarter + 1) * 3, 0);
+      } else {
+        prevStartDate = new Date(startDate.getFullYear() - 1, 9, 1);
+        prevEndDate = new Date(startDate.getFullYear() - 1, 11, 31);
+      }
+      break;
+    case "yearToDate":
+      // Comparar con el mismo período del año anterior
+      prevStartDate = new Date(startDate.getFullYear() - 1, 0, 1);
+      prevEndDate = new Date(endDate.getFullYear() - 1, endDate.getMonth(), endDate.getDate());
+      break;
+  }
   
   return { startDate: prevStartDate, endDate: prevEndDate };
 };
 
 export const useDashboardDataCorrected = (
-  timeframe: TimeframeOption = "month",
+  timeframe: TimeframeOption = "thisMonth",
   serviceTypeFilter: ServiceTypeOption = "all"
 ) => {
   
-  // Query para obtener todos los servicios usando la función que ya funciona
+  // Query para obtener todos los servicios
   const { data: allServices, isLoading, error, refetch } = useQuery({
     queryKey: ['dashboard-services-corrected', timeframe, serviceTypeFilter],
     queryFn: async () => {
@@ -113,7 +159,7 @@ export const useDashboardDataCorrected = (
       
       try {
         const { data: serviceData, error } = await supabase
-          .rpc('bypass_rls_get_servicios', { max_records: 25000 });
+          .rpc('bypass_rls_get_servicios', { max_records: 50000 });
 
         if (error) {
           console.error('Error al obtener servicios:', error);
@@ -156,21 +202,20 @@ export const useDashboardDataCorrected = (
 
     console.log(`📈 DASHBOARD: Aplicando filtro temporal - ${timeframe}`);
     
-    // PASO 1: Calcular rangos de fechas para período actual y anterior
+    // PASO 1: Calcular rangos de fechas
     const { startDate, endDate } = getDateRange(timeframe);
     const { startDate: prevStartDate, endDate: prevEndDate } = getPreviousDateRange(timeframe);
     
-    console.log(`📅 Dashboard - Período actual: ${startDate.toISOString()} a ${endDate.toISOString()}`);
-    console.log(`📅 Dashboard - Período anterior: ${prevStartDate.toISOString()} a ${prevEndDate.toISOString()}`);
+    console.log(`📅 Dashboard - Período actual: ${startDate.toLocaleDateString()} a ${endDate.toLocaleDateString()}`);
+    console.log(`📅 Dashboard - Período anterior: ${prevStartDate.toLocaleDateString()} a ${prevEndDate.toLocaleDateString()}`);
     
-    // PASO 2: Filtrar servicios por período actual
+    // PASO 2: Filtrar servicios por períodos
     const serviciosEnRango = allServices.filter(service => {
       if (!service.fecha_hora_cita) return false;
       const serviceDate = new Date(service.fecha_hora_cita);
       return serviceDate >= startDate && serviceDate <= endDate;
     });
 
-    // PASO 3: Filtrar servicios por período anterior para comparación
     const serviciosRangoAnterior = allServices.filter(service => {
       if (!service.fecha_hora_cita) return false;
       const serviceDate = new Date(service.fecha_hora_cita);
@@ -192,14 +237,14 @@ export const useDashboardDataCorrected = (
         });
       }
 
-      // Análisis de GMV Corregido basado en auditoría forense
+      // Análisis de GMV Corregido - solo servicios finalizados con cobro válido
       const serviciosFinalizadosConCobro = serviciosFiltrados.filter(service => {
-        const estado = (service.estado || '').trim();
+        const estado = (service.estado || '').trim().toLowerCase();
         const cobro = Number(service.cobro_cliente);
-        return estado === 'Finalizado' && !isNaN(cobro) && cobro > 0;
+        return estado === 'finalizado' && !isNaN(cobro) && cobro > 0;
       });
 
-      // Calcular GMV solo de servicios finalizados (según auditoría forense)
+      // Calcular GMV solo de servicios finalizados únicos
       let totalGmvCalculated = 0;
       const uniqueServiceIds = new Set();
 
@@ -211,10 +256,10 @@ export const useDashboardDataCorrected = (
         }
       });
 
-      // Análizar estados para métricas de estado
+      // Análizar estados para métricas
       const serviciosFinalizados = serviciosFiltrados.filter(service => {
-        const estado = (service.estado || '').trim();
-        return estado === 'Finalizado';
+        const estado = (service.estado || '').trim().toLowerCase();
+        return estado === 'finalizado';
       });
 
       const serviciosCancelados = serviciosFiltrados.filter(service => {
@@ -240,10 +285,10 @@ export const useDashboardDataCorrected = (
         }
       });
 
-      // Clientes únicos en el período (solo de servicios finalizados)
+      // Clientes únicos (solo de servicios finalizados)
       const clientesUnicos = new Set(
         serviciosFinalizados
-          .filter(s => s.nombre_cliente)
+          .filter(s => s.nombre_cliente && s.nombre_cliente.trim() !== '' && s.nombre_cliente !== '#N/A')
           .map(s => s.nombre_cliente.trim().toUpperCase())
       ).size;
 
@@ -266,10 +311,14 @@ export const useDashboardDataCorrected = (
     const currentPeriod = procesarServicios(serviciosEnRango);
     const previousPeriod = procesarServicios(serviciosRangoAnterior);
 
-    // Calcular crecimientos y porcentajes
+    // Calcular crecimientos más precisos con manejo de casos especiales
     const calculateGrowth = (current: number, previous: number) => {
-      if (previous === 0) return current > 0 ? 100 : 0;
-      return Math.round(((current - previous) / previous) * 100);
+      if (previous === 0) {
+        return current > 0 ? 100 : 0;
+      }
+      const growth = ((current - previous) / previous) * 100;
+      // Limitar a valores razonables para evitar porcentajes extremos
+      return Math.max(-100, Math.min(1000, Math.round(growth)));
     };
 
     const calculatePercentage = (value: number, total: number) => {
@@ -279,7 +328,7 @@ export const useDashboardDataCorrected = (
 
     const result = {
       ...currentPeriod,
-      yearlyGrowth: 15,
+      yearlyGrowth: 15, // Placeholder para crecimiento anual
       totalServicesGrowth: calculateGrowth(currentPeriod.totalServices, previousPeriod.totalServices),
       totalGMVGrowth: calculateGrowth(currentPeriod.totalGMV, previousPeriod.totalGMV),
       activeClientsGrowth: calculateGrowth(currentPeriod.activeClients, previousPeriod.activeClients),
@@ -293,9 +342,9 @@ export const useDashboardDataCorrected = (
     console.log(`🎯 DASHBOARD RESULT CORREGIDO para ${timeframe}:`, result);
     console.log(`📊 Crecimientos calculados:`);
     console.log(`   - Servicios: ${result.totalServicesGrowth}% (${currentPeriod.totalServices} vs ${previousPeriod.totalServices})`);
-    console.log(`   - GMV: ${result.totalGMVGrowth}% (${currentPeriod.totalGMV} vs ${previousPeriod.totalGMV})`);
+    console.log(`   - GMV: ${result.totalGMVGrowth}% ($${currentPeriod.totalGMV.toLocaleString()} vs $${previousPeriod.totalGMV.toLocaleString()})`);
     console.log(`   - Clientes: ${result.activeClientsGrowth}% (${currentPeriod.activeClients} vs ${previousPeriod.activeClients})`);
-    console.log(`   - Valor promedio: ${result.averageServiceValueGrowth}% (${currentPeriod.averageServiceValue} vs ${previousPeriod.averageServiceValue})`);
+    console.log(`   - Valor promedio: ${result.averageServiceValueGrowth}% ($${currentPeriod.averageServiceValue.toFixed(0)} vs $${previousPeriod.averageServiceValue.toFixed(0)})`);
     
     return result;
   }, [allServices, isLoading, error, timeframe, serviceTypeFilter]);
@@ -449,6 +498,9 @@ export const useDashboardDataCorrected = (
     error,
     dashboardData,
     refreshAllData: refetch,
-    ...secondaryData
+    serviceStatusData: secondaryData.serviceStatusData, // Placeholder - mantener funcionalidad existente
+    serviceTypesData: secondaryData.serviceTypesData,
+    dailyServiceData: secondaryData.dailyServiceData,
+    topClientsData: secondaryData.topClientsData
   };
 };
