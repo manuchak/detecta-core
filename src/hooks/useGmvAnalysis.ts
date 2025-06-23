@@ -212,9 +212,11 @@ export const useGmvAnalysis = (selectedClient: string = "all") => {
   const { data: allServices, isLoading, error } = useQuery({
     queryKey: ['gmv-analysis-complete'],
     queryFn: fetchAllGmvData,
-    staleTime: 15 * 60 * 1000,
+    staleTime: 5 * 60 * 1000, // Reducido a 5 minutos para datos más frescos
+    gcTime: 10 * 60 * 1000, // Cache durante 10 minutos
     retry: 3,
     refetchOnWindowFocus: false,
+    refetchOnMount: false, // Evitar refetch innecesario al montar
   });
 
   const analysisData = useMemo((): GmvAnalysisData => {

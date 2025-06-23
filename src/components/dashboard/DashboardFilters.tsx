@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, Filter, TrendingUp } from 'lucide-react';
 
-export type TimeframeOption = "day" | "week" | "month" | "quarter" | "year" | "custom" | "thisMonth" | "thisQuarter" | "lastMonth" | "lastQuarter" | "last7Days" | "last30Days" | "last90Days" | "yearToDate";
+export type TimeframeOption = "day" | "week" | "month" | "quarter" | "year" | "custom" | "thisMonth" | "thisQuarter" | "lastMonth" | "lastQuarter" | "last7Days" | "last30Days" | "last90Days" | "yearToDate" | "monthToDate";
 export type ServiceTypeOption = "all" | "local" | "foraneo";
 
 interface DashboardFiltersProps {
@@ -25,6 +25,7 @@ export const DashboardFilters = ({
     { value: "day" as TimeframeOption, label: "Hoy", description: "Datos de hoy" },
     { value: "week" as TimeframeOption, label: "Esta semana", description: "Últimos 7 días" },
     { value: "thisMonth" as TimeframeOption, label: "Este mes", description: "Mes en curso" },
+    { value: "monthToDate" as TimeframeOption, label: "Mes hasta la fecha", description: "Desde inicio del mes hasta hoy" },
     { value: "lastMonth" as TimeframeOption, label: "Mes anterior", description: "Mes pasado completo" },
     { value: "thisQuarter" as TimeframeOption, label: "Este trimestre", description: "Trimestre actual" },
     { value: "lastQuarter" as TimeframeOption, label: "Trimestre anterior", description: "Trimestre pasado" },
@@ -74,7 +75,7 @@ export const DashboardFilters = ({
                   <div className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                     Períodos fijos
                   </div>
-                  {timeframeOptions.slice(0, 6).map((option) => (
+                  {timeframeOptions.slice(0, 7).map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       <div className="flex flex-col">
                         <span className="font-medium">{option.label}</span>
@@ -86,7 +87,7 @@ export const DashboardFilters = ({
                   <div className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wide mt-2">
                     Períodos dinámicos
                   </div>
-                  {timeframeOptions.slice(6).map((option) => (
+                  {timeframeOptions.slice(7).map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       <div className="flex flex-col">
                         <span className="font-medium">{option.label}</span>
