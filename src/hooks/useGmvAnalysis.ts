@@ -87,13 +87,23 @@ const fetchAllGmvData = async () => {
     if (!cobrosError && allCobros) {
       const analysis = allCobros.reduce((acc, record) => {
         const cobro = record.cobro_cliente;
-        if (cobro === null) acc.null++;
-        else if (cobro === undefined) acc.undefined++;
-        else if (cobro === '') acc.empty++;
-        else if ((typeof cobro === 'number' && cobro === 0) || (typeof cobro === 'string' && cobro === '0')) acc.zero++;
-        else if (typeof cobro === 'number' && cobro > 0) acc.positive++;
-        else if (typeof cobro === 'string' && !isNaN(Number(cobro)) && Number(cobro) > 0) acc.positiveString++;
-        else acc.other++;
+        if (cobro === null) {
+          acc.null++;
+        } else if (cobro === undefined) {
+          acc.undefined++;
+        } else if (cobro === '') {
+          acc.empty++;
+        } else if (typeof cobro === 'number') {
+          if (cobro === 0) acc.zero++;
+          else if (cobro > 0) acc.positive++;
+          else acc.other++;
+        } else if (typeof cobro === 'string') {
+          if (cobro === '0') acc.zero++;
+          else if (!isNaN(Number(cobro)) && Number(cobro) > 0) acc.positiveString++;
+          else acc.other++;
+        } else {
+          acc.other++;
+        }
         
         return acc;
       }, { null: 0, undefined: 0, empty: 0, zero: 0, positive: 0, positiveString: 0, other: 0 });
@@ -179,17 +189,18 @@ const parseCobroUltraPermissive = (cobro: any): number => {
     return 0;
   }
   
-  if (cobro === '' || (typeof cobro === 'number' && cobro === 0) || (typeof cobro === 'string' && cobro === '0')) {
+  if (cobro === '') {
     return 0;
   }
   
   if (typeof cobro === 'number') {
+    if (cobro === 0) return 0;
     return isNaN(cobro) ? 0 : cobro;
   }
   
   if (typeof cobro === 'string') {
     const trimmed = cobro.trim();
-    if (trimmed === '') return 0;
+    if (trimmed === '' || trimmed === '0') return 0;
     const numericValue = Number(trimmed);
     return isNaN(numericValue) ? 0 : numericValue;
   }
@@ -273,7 +284,7 @@ export const useGmvAnalysis = (selectedClient: string = "all") => {
       return acc;
     }, { valid: 0, invalid: 0, uniqueClients: new Set<string>() });
 
-    const uniqueClients = Array.from(clientAnalysis.uniqueClients).sort();
+    const uniqueClients: string[] = Array.from(clientAnalysis.uniqueClients).sort();
     console.log('✅ ANÁLISIS DE CLIENTES:', {
       services_with_valid_client: clientAnalysis.valid,
       services_with_invalid_client: clientAnalysis.invalid,
