@@ -19,9 +19,91 @@ interface GmvAnalysisData {
 }
 
 const fetchAllGmvData = async () => {
-  console.log('🔍 GMV Analysis: Iniciando fetch completo de datos...');
+  console.log('🔍 GMV Analysis: Iniciando análisis forense completo...');
   
   try {
+    // Primero, verifiquemos la estructura de la tabla
+    const { data: tableInfo, error: tableError } = await supabase
+      .from('servicios_custodia')
+      .select('*')
+      .limit(1);
+
+    if (tableError) {
+      console.error('❌ Error verificando estructura de tabla:', tableError);
+      throw tableError;
+    }
+
+    console.log('📋 Estructura de tabla verificada:', tableInfo?.[0] ? Object.keys(tableInfo[0]) : 'Tabla vacía');
+
+    // Ahora obtengamos una muestra pequeña para análisis
+    const { data: sampleData, error: sampleError } = await supabase
+      .from('servicios_custodia')
+      .select('id_servicio, cobro_cliente, fecha_hora_cita, nombre_cliente')
+      .order('fecha_hora_cita', { ascending: false })
+      .limit(10);
+
+    if (sampleError) {
+      console.error('❌ Error obteniendo muestra:', sampleError);
+      throw sampleError;
+    }
+
+    console.log('🔬 MUESTRA DE DATOS (primeros 10 registros):');
+    sampleData?.forEach((record, index) => {
+      console.log(`Record ${index + 1}:`, {
+        id: record.id_servicio,
+        cobro_cliente: record.cobro_cliente,
+        cobro_type: typeof record.cobro_cliente,
+        cobro_value: record.cobro_cliente === null ? 'NULL' : record.cobro_cliente === undefined ? 'UNDEFINED' : record.cobro_cliente,
+        fecha: record.fecha_hora_cita,
+        cliente: record.nombre_cliente
+      });
+    });
+
+    // Obtener conteo total
+    const { count: totalCount, error: countError } = await supabase
+      .from('servicios_custodia')
+      .select('*', { count: 'exact', head: true });
+
+    if (countError) {
+      console.error('❌ Error obteniendo conteo:', countError);
+      throw countError;
+    }
+
+    console.log(`📊 TOTAL DE REGISTROS EN LA TABLA: ${totalCount}`);
+
+    // Análisis detallado de cobro_cliente
+    const { data: cobroAnalysis, error: analysisError } = await supabase
+      .from('servicios_custodia')
+      .select('cobro_cliente')
+      .not('cobro_cliente', 'is', null);
+
+    console.log(`🔍 Registros con cobro_cliente NO NULL: ${cobroAnalysis?.length || 0}`);
+
+    // Análisis de tipos de valores
+    const { data: allCobros, error: cobrosError } = await supabase
+      .from('servicios_custodia')
+      .select('cobro_cliente');
+
+    if (!cobrosError && allCobros) {
+      const analysis = allCobros.reduce((acc, record) => {
+        const cobro = record.cobro_cliente;
+        if (cobro === null) acc.null++;
+        else if (cobro === undefined) acc.undefined++;
+        else if (cobro === '') acc.empty++;
+        else if (cobro === 0 || cobro === '0') acc.zero++;
+        else if (typeof cobro === 'number' && cobro > 0) acc.positive++;
+        else if (typeof cobro === 'string' && !isNaN(Number(cobro)) && Number(cobro) > 0) acc.positiveString++;
+        else acc.other++;
+        
+        return acc;
+      }, { null: 0, undefined: 0, empty: 0, zero: 0, positive: 0, positiveString: 0, other: 0 });
+
+      console.log('📈 ANÁLISIS DETALLADO DE COBRO_CLIENTE:', analysis);
+    }
+
+    // Obtener todos los datos válidos paso a paso
+    console.log('🚀 Iniciando fetch completo con filtros aplicados...');
+    
     let allServices: any[] = [];
     let hasMore = true;
     let offset = 0;
@@ -55,20 +137,7 @@ const fetchAllGmvData = async () => {
       }
     }
 
-    console.log(`🎯 Total records fetched: ${allServices.length}`);
-    
-    // Log sample data for debugging
-    if (allServices.length > 0) {
-      const sampleService = allServices[0];
-      console.log('📋 Sample service structure:', {
-        id_servicio: sampleService.id_servicio,
-        cobro_cliente: sampleService.cobro_cliente,
-        cobro_cliente_type: typeof sampleService.cobro_cliente,
-        fecha_hora_cita: sampleService.fecha_hora_cita,
-        nombre_cliente: sampleService.nombre_cliente
-      });
-    }
-    
+    console.log(`🎯 TOTAL RECORDS FETCHED: ${allServices.length}`);
     return allServices;
   } catch (error) {
     console.error('💥 Critical error in fetchAllGmvData:', error);
@@ -76,31 +145,56 @@ const fetchAllGmvData = async () => {
   }
 };
 
-// Función mejorada para validar cobro_cliente
-const isValidCobro = (cobro: any): boolean => {
-  // Permitir 0 explícitamente
-  if (cobro === 0 || cobro === '0' || cobro === '0.00') {
-    return true;
-  }
-  
-  // Verificar que no sea null/undefined/empty
-  if (cobro === null || cobro === undefined || cobro === '') {
+// Función ultra-permisiva para validar cobro_cliente
+const isValidCobroUltraPermissive = (cobro: any): boolean => {
+  // Rechazar solo casos muy específicos
+  if (cobro === null || cobro === undefined) {
     return false;
   }
   
-  // Convertir a número y verificar que sea válido
-  const numericValue = Number(cobro);
-  return !isNaN(numericValue) && isFinite(numericValue);
+  // Aceptar string vacío como 0
+  if (cobro === '') {
+    return true;
+  }
+  
+  // Aceptar cualquier número (incluyendo 0)
+  if (typeof cobro === 'number') {
+    return !isNaN(cobro) && isFinite(cobro);
+  }
+  
+  // Aceptar strings que pueden convertirse a número
+  if (typeof cobro === 'string') {
+    const trimmed = cobro.trim();
+    if (trimmed === '') return true; // string vacío = 0
+    const numericValue = Number(trimmed);
+    return !isNaN(numericValue) && isFinite(numericValue);
+  }
+  
+  return false;
 };
 
-// Función para convertir cobro a número de forma segura
-const parseCobroSafely = (cobro: any): number => {
-  if (cobro === null || cobro === undefined || cobro === '') {
+// Función ultra-permisiva para convertir cobro a número
+const parseCobroUltraPermissive = (cobro: any): number => {
+  if (cobro === null || cobro === undefined) {
     return 0;
   }
   
-  const numericValue = Number(cobro);
-  return isNaN(numericValue) ? 0 : numericValue;
+  if (cobro === '' || cobro === '0' || cobro === 0) {
+    return 0;
+  }
+  
+  if (typeof cobro === 'number') {
+    return isNaN(cobro) ? 0 : cobro;
+  }
+  
+  if (typeof cobro === 'string') {
+    const trimmed = cobro.trim();
+    if (trimmed === '') return 0;
+    const numericValue = Number(trimmed);
+    return isNaN(numericValue) ? 0 : numericValue;
+  }
+  
+  return 0;
 };
 
 export const useGmvAnalysis = (selectedClient: string = "all") => {
@@ -114,7 +208,7 @@ export const useGmvAnalysis = (selectedClient: string = "all") => {
 
   const analysisData = useMemo((): GmvAnalysisData => {
     if (!allServices || allServices.length === 0) {
-      console.log('⚠️ No services data available');
+      console.log('⚠️ No services data available for analysis');
       return {
         monthlyData: [],
         totalGmv2025: 0,
@@ -124,77 +218,98 @@ export const useGmvAnalysis = (selectedClient: string = "all") => {
       };
     }
 
-    console.log(`🔍 GMV Analysis: Processing ${allServices.length} total records`);
+    console.log(`🔍 GMV Analysis: Starting processing of ${allServices.length} total records`);
 
-    // Análisis detallado de cobro_cliente
-    const cobroAnalysis = allServices.reduce((acc, service) => {
+    // PASO 1: Análisis detallado de validación de cobro_cliente
+    console.log('📊 PASO 1: Análisis de validación de cobro_cliente');
+    const cobroValidationAnalysis = allServices.reduce((acc, service, index) => {
       const cobro = service.cobro_cliente;
+      const isValid = isValidCobroUltraPermissive(cobro);
       
-      if (cobro === null) acc.null++;
-      else if (cobro === undefined) acc.undefined++;
-      else if (cobro === '') acc.empty++;
-      else if (cobro === 0 || cobro === '0') acc.zero++;
-      else if (isValidCobro(cobro)) acc.valid++;
+      // Log detallado para los primeros 20 registros
+      if (index < 20) {
+        console.log(`Record ${index + 1}:`, {
+          id: service.id_servicio,
+          cobro_original: cobro,
+          cobro_type: typeof cobro,
+          is_valid: isValid,
+          parsed_value: isValid ? parseCobroUltraPermissive(cobro) : 'N/A',
+          fecha: service.fecha_hora_cita,
+          cliente: service.nombre_cliente
+        });
+      }
+      
+      if (isValid) acc.valid++;
       else acc.invalid++;
       
       return acc;
-    }, { null: 0, undefined: 0, empty: 0, zero: 0, valid: 0, invalid: 0 });
+    }, { valid: 0, invalid: 0 });
 
-    console.log('📊 Cobro_cliente analysis:', cobroAnalysis);
+    console.log('✅ RESULTADO VALIDACIÓN COBRO:', cobroValidationAnalysis);
 
-    // Filter services con validación mejorada
+    // PASO 2: Filtrar servicios válidos
+    console.log('📊 PASO 2: Filtrado de servicios válidos');
     const validServices = allServices.filter(service => {
-      const cobro = service.cobro_cliente;
-      const fecha = service.fecha_hora_cita;
+      const cobroValid = isValidCobroUltraPermissive(service.cobro_cliente);
+      const fechaValid = service.fecha_hora_cita && service.fecha_hora_cita !== null && service.fecha_hora_cita !== '';
       
-      const hasValidCobro = isValidCobro(cobro);
-      const hasValidDate = fecha && fecha !== null && fecha !== '';
-      
-      return hasValidCobro && hasValidDate;
+      return cobroValid && fechaValid;
     });
 
-    console.log(`✅ Valid services after filtering: ${validServices.length}`);
+    console.log(`✅ Services after validation filter: ${validServices.length} de ${allServices.length}`);
 
-    // Get unique clients
-    const uniqueClients = Array.from(new Set(
-      validServices
-        .map(s => s.nombre_cliente)
-        .filter(client => client && 
-                         client.trim() !== '' && 
-                         client !== '#N/A' &&
-                         client.toLowerCase() !== 'n/a')
-        .map(client => client.trim())
-    )).sort();
+    // PASO 3: Análisis de clientes únicos
+    console.log('📊 PASO 3: Análisis de clientes únicos');
+    const clientAnalysis = validServices.reduce((acc, service) => {
+      const cliente = service.nombre_cliente;
+      if (cliente && cliente.trim() !== '' && cliente !== '#N/A' && cliente.toLowerCase() !== 'n/a') {
+        acc.valid++;
+        if (!acc.uniqueClients.has(cliente.trim())) {
+          acc.uniqueClients.add(cliente.trim());
+        }
+      } else {
+        acc.invalid++;
+      }
+      return acc;
+    }, { valid: 0, invalid: 0, uniqueClients: new Set() });
 
-    console.log(`👥 Unique clients found: ${uniqueClients.length}`, uniqueClients.slice(0, 10));
+    const uniqueClients = Array.from(clientAnalysis.uniqueClients).sort();
+    console.log('✅ ANÁLISIS DE CLIENTES:', {
+      services_with_valid_client: clientAnalysis.valid,
+      services_with_invalid_client: clientAnalysis.invalid,
+      unique_clients_count: uniqueClients.length,
+      first_10_clients: uniqueClients.slice(0, 10)
+    });
 
-    // Filter by selected client
+    // PASO 4: Filtrar por cliente seleccionado
+    console.log('📊 PASO 4: Filtrado por cliente seleccionado');
     let filteredServices = validServices;
     if (selectedClient !== "all") {
       filteredServices = validServices.filter(s => 
         s.nombre_cliente?.trim() === selectedClient
       );
-      console.log(`🎯 Services for client "${selectedClient}": ${filteredServices.length}`);
+      console.log(`✅ Services for client "${selectedClient}": ${filteredServices.length}`);
     }
 
-    // Process monthly data con mejor manejo de errores
-    const monthlyStats: { [key: string]: { year2025: number; year2024: number } } = {};
+    // PASO 5: Procesamiento de datos mensuales
+    console.log('📊 PASO 5: Procesamiento de datos mensuales');
+    const monthlyStats: { [key: string]: { year2025: number; year2024: number; count2025: number; count2024: number } } = {};
     
     const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
     months.forEach(month => {
-      monthlyStats[month] = { year2025: 0, year2024: 0 };
+      monthlyStats[month] = { year2025: 0, year2024: 0, count2025: 0, count2024: 0 };
     });
 
     let processedServices = 0;
     let errorCount = 0;
+    let totalAmount = 0;
 
-    filteredServices.forEach(service => {
+    filteredServices.forEach((service, index) => {
       try {
         const fecha = new Date(service.fecha_hora_cita);
         
-        // Validación adicional de fecha
         if (isNaN(fecha.getTime())) {
-          console.warn('⚠️ Invalid date:', service.fecha_hora_cita);
+          console.warn(`⚠️ Invalid date for service ${service.id_servicio}:`, service.fecha_hora_cita);
           errorCount++;
           return;
         }
@@ -203,28 +318,56 @@ export const useGmvAnalysis = (selectedClient: string = "all") => {
         const monthIndex = fecha.getMonth();
         
         if (monthIndex < 0 || monthIndex > 11) {
-          console.warn('⚠️ Invalid month index:', monthIndex);
+          console.warn(`⚠️ Invalid month index ${monthIndex} for service ${service.id_servicio}`);
           errorCount++;
           return;
         }
         
         const monthName = months[monthIndex];
-        const cobro = parseCobroSafely(service.cobro_cliente);
+        const cobro = parseCobroUltraPermissive(service.cobro_cliente);
+        totalAmount += cobro;
+
+        // Log detallado para los primeros 10 servicios procesados
+        if (processedServices < 10) {
+          console.log(`Processing service ${processedServices + 1}:`, {
+            id: service.id_servicio,
+            year,
+            month: monthName,
+            cobro_original: service.cobro_cliente,
+            cobro_parsed: cobro,
+            fecha: service.fecha_hora_cita
+          });
+        }
 
         if (year === 2025) {
           monthlyStats[monthName].year2025 += cobro;
+          monthlyStats[monthName].count2025++;
           processedServices++;
         } else if (year === 2024) {
           monthlyStats[monthName].year2024 += cobro;
+          monthlyStats[monthName].count2024++;
           processedServices++;
         }
       } catch (error) {
-        console.warn('⚠️ Error processing service:', service.id_servicio, error);
+        console.warn(`⚠️ Error processing service ${service.id_servicio}:`, error);
         errorCount++;
       }
     });
 
-    console.log(`📈 Processed services: ${processedServices}, Errors: ${errorCount}`);
+    console.log('✅ RESULTADO PROCESAMIENTO MENSUAL:', {
+      processed_services: processedServices,
+      error_count: errorCount,
+      total_amount: totalAmount,
+      monthly_breakdown: Object.entries(monthlyStats)
+        .filter(([_, stats]) => stats.year2025 > 0 || stats.year2024 > 0)
+        .map(([month, stats]) => ({
+          month,
+          year2025: stats.year2025,
+          year2024: stats.year2024,
+          count2025: stats.count2025,
+          count2024: stats.count2024
+        }))
+    });
 
     // Convert to chart format
     const monthlyData: GmvMonthData[] = months.map(month => {
@@ -235,7 +378,7 @@ export const useGmvAnalysis = (selectedClient: string = "all") => {
 
       return {
         month: month.charAt(0).toUpperCase() + month.slice(1),
-        year2025: Math.round(stats.year2025 * 100) / 100, // Redondear a 2 decimales
+        year2025: Math.round(stats.year2025 * 100) / 100,
         year2024: Math.round(stats.year2024 * 100) / 100,
         growth: Math.round(growth * 10) / 10
       };
@@ -248,17 +391,18 @@ export const useGmvAnalysis = (selectedClient: string = "all") => {
       ? Math.round(((totalGmv2025 - totalGmv2024) / totalGmv2024) * 1000) / 10 
       : totalGmv2025 > 0 ? 100 : 0;
 
-    console.log(`🎯 Final GMV Analysis Results:`, {
-      totalServices: filteredServices.length,
-      processedServices,
-      errorCount,
-      totalGmv2025: totalGmv2025.toLocaleString(),
-      totalGmv2024: totalGmv2024.toLocaleString(),
-      overallGrowth,
-      clientsCount: uniqueClients.length,
-      selectedClient,
-      cobroAnalysis,
-      monthlyDataSample: monthlyData.filter(m => m.year2025 > 0 || m.year2024 > 0)
+    console.log('🎯 RESULTADO FINAL DEL ANÁLISIS GMV:', {
+      total_services_fetched: allServices.length,
+      valid_services_after_filter: validServices.length,
+      filtered_services_for_client: filteredServices.length,
+      processed_services: processedServices,
+      error_count: errorCount,
+      total_gmv_2025: totalGmv2025,
+      total_gmv_2024: totalGmv2024,
+      overall_growth: overallGrowth,
+      clients_count: uniqueClients.length,
+      selected_client: selectedClient,
+      months_with_data: monthlyData.filter(m => m.year2025 > 0 || m.year2024 > 0).length
     });
 
     return {
