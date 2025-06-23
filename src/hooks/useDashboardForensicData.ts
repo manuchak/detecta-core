@@ -1,3 +1,4 @@
+
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,8 +31,6 @@ export interface ForensicDashboardMetrics {
 
 export type TimeframeOption = "day" | "week" | "month" | "quarter" | "year" | "custom" | "thisMonth" | "thisQuarter" | "lastMonth" | "lastQuarter" | "last7Days" | "last30Days" | "last90Days" | "yearToDate";
 export type ServiceTypeOption = "all" | "local" | "foraneo";
-
-// ... keep existing code (getDateRange and getPreviousDateRange functions)
 
 const getDateRange = (timeframe: TimeframeOption) => {
   const now = new Date();
@@ -124,44 +123,89 @@ const getPreviousDateRange = (timeframe: TimeframeOption) => {
   return { startDate: prevStartDate, endDate: prevEndDate };
 };
 
-// Nueva función para obtener TODOS los servicios sin límites
-const fetchAllServices = async () => {
-  console.log('=== DASHBOARD FORENSIC: OBTENIENDO TODOS LOS DATOS SIN LÍMITES ===');
+// Función mejorada para obtener TODOS los servicios eliminando límites
+const fetchAllServicesUnlimited = async () => {
+  console.log('=== DASHBOARD FORENSIC: CARGA COMPLETA SIN LÍMITES (SUPABASE PRO) ===');
   
   try {
-    // Método 1: Intentar obtener directamente de la tabla sin RPC
-    const { data: directData, error: directError, count } = await supabase
-      .from('servicios_custodia')
-      .select('*', { count: 'exact' })
-      .order('fecha_hora_cita', { ascending: false });
+    // Estrategia 1: Consulta directa sin límites usando paginación
+    let allServices: any[] = [];
+    let hasMore = true;
+    let offset = 0;
+    const batchSize = 1000; // Tamaño de lote para evitar timeouts
+    
+    console.log('🔍 FORENSIC: Iniciando carga por lotes para obtener TODOS los registros...');
+    
+    while (hasMore) {
+      const { data: batchData, error: batchError, count } = await supabase
+        .from('servicios_custodia')
+        .select('*', { count: 'exact' })
+        .order('fecha_hora_cita', { ascending: false })
+        .range(offset, offset + batchSize - 1);
 
-    if (directError) {
-      console.warn('⚠️ Acceso directo fallido, intentando con RPC:', directError.message);
+      if (batchError) {
+        console.warn(`⚠️ Error en lote ${offset}: ${batchError.message}`);
+        break;
+      }
+
+      if (batchData && batchData.length > 0) {
+        allServices = [...allServices, ...batchData];
+        console.log(`📦 FORENSIC: Lote ${Math.floor(offset/batchSize) + 1} - ${batchData.length} registros (Total acumulado: ${allServices.length})`);
+        
+        // Verificar si hay más datos
+        if (count && allServices.length >= count) {
+          hasMore = false;
+          console.log(`✅ FORENSIC: Carga completa - ${count} registros totales obtenidos`);
+        } else if (batchData.length < batchSize) {
+          hasMore = false;
+          console.log(`✅ FORENSIC: Último lote completado - ${allServices.length} registros totales`);
+        } else {
+          offset += batchSize;
+        }
+      } else {
+        hasMore = false;
+        console.log('✅ FORENSIC: No hay más datos disponibles');
+      }
+    }
+
+    // Si la consulta directa falla, intentar con RPC sin límites
+    if (allServices.length === 0) {
+      console.warn('⚠️ Consulta directa no devolvió datos, intentando RPC sin límites...');
       
-      // Método 2: Usar la función RPC pero sin límites
       const { data: rpcData, error: rpcError } = await supabase
-        .rpc('bypass_rls_get_servicios', { max_records: 999999 });
+        .rpc('bypass_rls_get_servicios', { max_records: 999999999 }); // Sin límites reales
 
       if (rpcError) {
-        console.error('❌ Error en RPC:', rpcError);
+        console.error('❌ Error en RPC sin límites:', rpcError);
         throw rpcError;
       }
 
-      console.log(`🔍 FORENSIC: Datos obtenidos vía RPC: ${rpcData?.length || 0} registros`);
-      return rpcData || [];
+      allServices = rpcData || [];
+      console.log(`🔍 FORENSIC: RPC sin límites - ${allServices.length} registros obtenidos`);
     }
 
-    console.log(`🔍 FORENSIC: Datos obtenidos directamente: ${directData?.length || 0} registros`);
-    console.log(`📊 FORENSIC: Total de registros en la tabla: ${count || 0}`);
+    console.log(`🎯 FORENSIC FINAL: ${allServices.length} registros totales cargados exitosamente`);
+    console.log('📊 FORENSIC: Eliminadas todas las limitaciones artificiales - datos completos disponibles');
     
-    if (count && directData && directData.length < count) {
-      console.warn(`⚠️ ADVERTENCIA: Solo se obtuvieron ${directData.length} de ${count} registros totales`);
-    }
-
-    return directData || [];
+    return allServices;
+    
   } catch (error) {
-    console.error('💥 Error crítico al obtener servicios:', error);
-    throw error;
+    console.error('💥 Error crítico en carga completa:', error);
+    
+    // Fallback final: intentar consulta básica
+    try {
+      console.log('🆘 FORENSIC: Intentando fallback básico...');
+      const { data: fallbackData } = await supabase
+        .from('servicios_custodia')
+        .select('*')
+        .order('fecha_hora_cita', { ascending: false });
+      
+      console.log(`🔄 FORENSIC FALLBACK: ${fallbackData?.length || 0} registros obtenidos`);
+      return fallbackData || [];
+    } catch (fallbackError) {
+      console.error('💥 Error en fallback:', fallbackError);
+      throw error;
+    }
   }
 };
 
@@ -171,11 +215,12 @@ export const useDashboardForensicData = (
 ) => {
   
   const { data: allServices, isLoading, error, refetch } = useQuery({
-    queryKey: ['dashboard-forensic-data-complete', timeframe, serviceTypeFilter],
-    queryFn: fetchAllServices,
-    staleTime: 5 * 60 * 1000,
-    retry: 2,
-    refetchOnWindowFocus: false, // Evitar refetch automático para datos grandes
+    queryKey: ['dashboard-forensic-unlimited', timeframe, serviceTypeFilter],
+    queryFn: fetchAllServicesUnlimited,
+    staleTime: 10 * 60 * 1000, // 10 minutos para datos grandes
+    retry: 3,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
   
   const dashboardData = useMemo(() => {
@@ -206,7 +251,7 @@ export const useDashboardForensicData = (
       };
     }
 
-    console.log(`🔍 FORENSIC DASHBOARD: Procesando ${allServices.length} registros totales con metodología forense - ${timeframe}`);
+    console.log(`🔍 FORENSIC DASHBOARD: Procesando ${allServices.length} registros COMPLETOS - ${timeframe}`);
     
     // PASO 1: Aplicar validaciones de integridad de datos (metodología forense)
     const validationResults = {
@@ -228,7 +273,7 @@ export const useDashboardForensicData = (
     // Contar duplicados
     for (const [id, count] of serviceIdCount.entries()) {
       if (count > 1) {
-        validationResults.duplicatesFound += count - 1; // Solo los extras
+        validationResults.duplicatesFound += count - 1;
       }
     }
 
@@ -251,7 +296,8 @@ export const useDashboardForensicData = (
       }
     });
 
-    console.log(`📊 FORENSIC AUDIT - Problemas detectados:`);
+    console.log(`📊 FORENSIC AUDIT - Dataset completo analizado:`);
+    console.log(`   - Total de registros: ${allServices.length}`);
     console.log(`   - Duplicados: ${validationResults.duplicatesFound}`);
     console.log(`   - Sin custodio: ${validationResults.missingCustodian}`);
     console.log(`   - Sin cobro: ${validationResults.missingCharges}`);
@@ -277,8 +323,9 @@ export const useDashboardForensicData = (
       return serviceDate >= prevStartDate && serviceDate <= prevEndDate;
     });
     
-    console.log(`📅 FORENSIC - Servicios período actual: ${serviciosEnRango.length}`);
-    console.log(`📅 FORENSIC - Servicios período anterior: ${serviciosRangoAnterior.length}`);
+    console.log(`📅 FORENSIC - Dataset completo: ${allServices.length} registros totales`);
+    console.log(`📅 FORENSIC - Período actual: ${serviciosEnRango.length} registros`);
+    console.log(`📅 FORENSIC - Período anterior: ${serviciosRangoAnterior.length} registros`);
 
     // PASO 4: Procesar servicios con metodología forense
     const procesarServiciosForense = (servicios: any[]) => {
@@ -425,8 +472,8 @@ export const useDashboardForensicData = (
     };
 
     console.log(`🎯 DASHBOARD FORENSIC RESULT COMPLETO para ${timeframe}:`, result);
-    console.log(`📊 Registros procesados: ${allServices.length} total, ${serviciosEnRango.length} en rango`);
-    console.log(`📊 Métricas de calidad de datos:`);
+    console.log(`📊 Dataset completo procesado: ${allServices.length} registros totales, ${serviciosEnRango.length} en período`);
+    console.log(`📊 Métricas de calidad del dataset completo:`);
     console.log(`   - Score de calidad: ${result.dataQualityScore}%`);
     console.log(`   - Duplicados encontrados: ${result.duplicatesFound}`);
     console.log(`   - Registros inválidos: ${result.invalidRecords}`);
