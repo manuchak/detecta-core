@@ -1701,6 +1701,36 @@ export type Database = {
         }
         Relationships: []
       }
+      maintenance_log: {
+        Row: {
+          created_at: string
+          executed_at: string
+          id: string
+          operation_details: string | null
+          operation_type: string
+          records_affected: number | null
+          table_name: string
+        }
+        Insert: {
+          created_at?: string
+          executed_at?: string
+          id?: string
+          operation_details?: string | null
+          operation_type: string
+          records_affected?: number | null
+          table_name: string
+        }
+        Update: {
+          created_at?: string
+          executed_at?: string
+          id?: string
+          operation_details?: string | null
+          operation_type?: string
+          records_affected?: number | null
+          table_name?: string
+        }
+        Relationships: []
+      }
       marcas_gps: {
         Row: {
           activo: boolean | null
@@ -3623,6 +3653,15 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      check_duplicate_service_ids: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id_servicio: string
+          duplicate_count: number
+          service_ids: string[]
+          latest_date: string
+        }[]
+      }
       check_user_role: {
         Args: { user_id: string; role_name: string }
         Returns: boolean
@@ -3638,6 +3677,14 @@ export type Database = {
       check_user_role_secure: {
         Args: { user_id: string; role_name: string }
         Returns: boolean
+      }
+      clean_duplicate_service_ids: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          duplicates_found: number
+          duplicates_removed: number
+          details: string
+        }[]
       }
       clear_redemptions_bypass_rls: {
         Args: Record<PropertyKey, never>
@@ -3687,6 +3734,10 @@ export type Database = {
       current_user_is_coordinator_or_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      daily_duplicate_cleanup: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       delete_reward_bypass_rls: {
         Args: { reward_id: string }

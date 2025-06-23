@@ -1,3 +1,4 @@
+
 import React from "react";
 import {
   Home,
@@ -11,6 +12,7 @@ import {
   ChevronDown,
   Globe,
   UserCog,
+  Database,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -91,6 +93,7 @@ export function Sidebar({ className, ...props }: React.HTMLAttributes<HTMLDivEle
       icon: UserCog,
       subItems: [
         { title: "Landing Page", path: "/admin/landing-manager" },
+        { title: "Mantenimiento DB", path: "/maintenance/duplicate-cleanup" },
       ]
     }] : []),
     {
