@@ -1,4 +1,3 @@
-
 import React from "react";
 import {
   Home,
@@ -91,7 +90,7 @@ export function Sidebar({ className, ...props }: React.HTMLAttributes<HTMLDivEle
       title: "Administración",
       icon: UserCog,
       subItems: [
-        { title: "Landing Page", path: "/admin/landing" },
+        { title: "Landing Page", path: "/admin/landing-manager" },
       ]
     }] : []),
     {
