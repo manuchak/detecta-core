@@ -210,7 +210,7 @@ export const useDashboardForensicData = (
     // Detectar registros con problemas de calidad
     allServices.forEach(service => {
       // Custodios faltantes o con errores
-      if (!service.custodio || service.custodio.trim() === '' || service.custodio === '#N/A') {
+      if (!service.nombre_custodio || service.nombre_custodio.trim() === '' || service.nombre_custodio === '#N/A') {
         validationResults.missingCustodian++;
       }
       
@@ -288,12 +288,12 @@ export const useDashboardForensicData = (
       const serviciosFinalizados = serviciosUnicos.filter(service => {
         const estado = (service.estado || '').trim().toLowerCase();
         const cobro = Number(service.cobro_cliente);
-        const custodio = service.custodio || '';
+        const nombreCustodio = service.nombre_custodio || '';
         
         // Validación forense: solo servicios realmente finalizados con datos válidos
         return estado === 'finalizado' && 
                !isNaN(cobro) && cobro > 0 && 
-               custodio.trim() !== '' && custodio !== '#N/A';
+               nombreCustodio.trim() !== '' && nombreCustodio !== '#N/A';
       });
 
       const serviciosCancelados = serviciosUnicos.filter(service => {
