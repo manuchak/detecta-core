@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -49,6 +48,7 @@ export const FormularioServicioCompleto = ({ open, onOpenChange }: FormularioSer
       direccion_cliente: '',
       tipo_servicio: 'vehicular',
       prioridad: 'media',
+      plan_rastreo_satelital: 'camino_seguro',
       cantidad_vehiculos: 1,
       modelo_vehiculo: '',
       tipo_vehiculo: '',

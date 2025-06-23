@@ -11,6 +11,7 @@ export interface CreateServicioMonitoreoCompleto {
   // Información del servicio
   tipo_servicio: TipoServicio;
   prioridad: Prioridad;
+  plan_rastreo_satelital: 'camino_seguro' | 'flota_segura' | 'cadena_segura' | 'a_tu_medida' | 'freightwatch';
   cantidad_vehiculos: number;
   modelo_vehiculo?: string;
   tipo_vehiculo?: string;

@@ -1,11 +1,10 @@
-
 import { UseFormReturn } from 'react-hook-form';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, Building, Phone, Mail, MapPin, Shield, AlertTriangle } from 'lucide-react';
+import { User, Building, Phone, Mail, MapPin, Shield, AlertTriangle, Satellite } from 'lucide-react';
 import type { CreateServicioMonitoreoCompleto } from '@/types/serviciosMonitoreoCompleto';
 
 interface PasoInformacionBasicaProps {
@@ -343,6 +342,76 @@ export const PasoInformacionBasica = ({ form }: PasoInformacionBasicaProps) => {
             />
           </div>
 
+          {/* Nuevo campo: Plan de Rastreo Satelital */}
+          <FormField
+            control={form.control}
+            name="plan_rastreo_satelital"
+            rules={{ 
+              required: "CRÍTICO: Plan de rastreo satelital obligatorio para definir alcance del servicio" 
+            }}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-sm font-semibold text-gray-700">
+                  <span className="text-red-600">*</span> Tipo de Plan de Rastreo Satelital
+                  <span className="text-xs text-red-600 block">OBLIGATORIO - Define el alcance y características del servicio</span>
+                </FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <div className="relative">
+                      <Satellite className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
+                      <SelectTrigger className="h-11 pl-10">
+                        <SelectValue placeholder="Seleccionar plan de rastreo (requerido)" />
+                      </SelectTrigger>
+                    </div>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="camino_seguro">
+                      <div className="flex flex-col items-start py-1">
+                        <span className="font-medium">Camino Seguro</span>
+                        <span className="text-xs text-gray-500">
+                          Ideal para usuarios individuales y familias
+                        </span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="flota_segura">
+                      <div className="flex flex-col items-start py-1">
+                        <span className="font-medium">Flota Segura</span>
+                        <span className="text-xs text-gray-500">
+                          Para PYMES con flotas pequeñas
+                        </span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="cadena_segura">
+                      <div className="flex flex-col items-start py-1">
+                        <span className="font-medium">Cadena Segura</span>
+                        <span className="text-xs text-gray-500">
+                          Para grandes empresas y cadenas de suministro complejas
+                        </span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="a_tu_medida">
+                      <div className="flex flex-col items-start py-1">
+                        <span className="font-medium">A tu Medida</span>
+                        <span className="text-xs text-gray-500">
+                          Un servicio a la medida de tus necesidades
+                        </span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="freightwatch">
+                      <div className="flex flex-col items-start py-1">
+                        <span className="font-medium">Freightwatch</span>
+                        <span className="text-xs text-gray-500">
+                          Custodias físicas especializadas
+                        </span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           <FormField
             control={form.control}
             name="cantidad_vehiculos"
@@ -396,7 +465,7 @@ export const PasoInformacionBasica = ({ form }: PasoInformacionBasicaProps) => {
               <li>• <strong>Teléfono:</strong> Confirmar que sea el número principal disponible 24/7</li>
               <li>• <strong>Email:</strong> Validar que reciba correos (revisar spam/junk)</li>
               <li>• <strong>Dirección:</strong> Debe ser específica para instalación y evaluación de zona</li>
-              <li>• <strong>Tipo y prioridad:</strong> Determina equipamiento y protocolos de respuesta</li>
+              <li>• <strong>Tipo, prioridad y plan:</strong> Determinan equipamiento y protocolos de respuesta</li>
             </ul>
           </div>
         </div>

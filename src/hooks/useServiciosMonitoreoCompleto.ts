@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -88,6 +87,9 @@ export const useServiciosMonitoreoCompleto = () => {
     if (!data.prioridad) {
       errors.push("Prioridad es obligatoria para definir tiempo de respuesta");
     }
+    if (!data.plan_rastreo_satelital) {
+      errors.push("Plan de rastreo satelital es obligatorio para definir alcance del servicio");
+    }
     if (!data.cantidad_vehiculos || data.cantidad_vehiculos < 1) {
       errors.push("Cantidad de vehículos debe ser mayor a 0");
     }
@@ -134,6 +136,7 @@ export const useServiciosMonitoreoCompleto = () => {
           direccion_cliente: data.direccion_cliente.trim(),
           tipo_servicio: data.tipo_servicio,
           prioridad: data.prioridad,
+          plan_rastreo_satelital: data.plan_rastreo_satelital,
           cantidad_vehiculos: data.cantidad_vehiculos,
           modelo_vehiculo: data.modelo_vehiculo?.trim() || null,
           tipo_vehiculo: data.tipo_vehiculo?.trim() || null,
