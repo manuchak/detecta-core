@@ -264,7 +264,7 @@ export const useGmvAnalysis = (selectedClient: string = "all") => {
     console.log('📊 PASO 2: Filtrado de servicios válidos');
     const validServices = allServices.filter(service => {
       const cobroValid = isValidCobroUltraPermissive(service.cobro_cliente);
-      const fechaValid = service.fecha_hora_cita && service.fecha_hora_cita !== null && service.fecha_hora_cita !== '';
+      const fechaValid = service.fecha_hora_cita && service.fecha_hora_cita !== null && String(service.fecha_hora_cita) !== '';
       
       return cobroValid && fechaValid;
     });
