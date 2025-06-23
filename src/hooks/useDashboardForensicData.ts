@@ -1,4 +1,3 @@
-
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,6 +30,8 @@ export interface ForensicDashboardMetrics {
 
 export type TimeframeOption = "day" | "week" | "month" | "quarter" | "year" | "custom" | "thisMonth" | "thisQuarter" | "lastMonth" | "lastQuarter" | "last7Days" | "last30Days" | "last90Days" | "yearToDate";
 export type ServiceTypeOption = "all" | "local" | "foraneo";
+
+// ... keep existing code (getDateRange and getPreviousDateRange functions)
 
 const getDateRange = (timeframe: TimeframeOption) => {
   const now = new Date();
@@ -123,34 +124,58 @@ const getPreviousDateRange = (timeframe: TimeframeOption) => {
   return { startDate: prevStartDate, endDate: prevEndDate };
 };
 
+// Nueva función para obtener TODOS los servicios sin límites
+const fetchAllServices = async () => {
+  console.log('=== DASHBOARD FORENSIC: OBTENIENDO TODOS LOS DATOS SIN LÍMITES ===');
+  
+  try {
+    // Método 1: Intentar obtener directamente de la tabla sin RPC
+    const { data: directData, error: directError, count } = await supabase
+      .from('servicios_custodia')
+      .select('*', { count: 'exact' })
+      .order('fecha_hora_cita', { ascending: false });
+
+    if (directError) {
+      console.warn('⚠️ Acceso directo fallido, intentando con RPC:', directError.message);
+      
+      // Método 2: Usar la función RPC pero sin límites
+      const { data: rpcData, error: rpcError } = await supabase
+        .rpc('bypass_rls_get_servicios', { max_records: 999999 });
+
+      if (rpcError) {
+        console.error('❌ Error en RPC:', rpcError);
+        throw rpcError;
+      }
+
+      console.log(`🔍 FORENSIC: Datos obtenidos vía RPC: ${rpcData?.length || 0} registros`);
+      return rpcData || [];
+    }
+
+    console.log(`🔍 FORENSIC: Datos obtenidos directamente: ${directData?.length || 0} registros`);
+    console.log(`📊 FORENSIC: Total de registros en la tabla: ${count || 0}`);
+    
+    if (count && directData && directData.length < count) {
+      console.warn(`⚠️ ADVERTENCIA: Solo se obtuvieron ${directData.length} de ${count} registros totales`);
+    }
+
+    return directData || [];
+  } catch (error) {
+    console.error('💥 Error crítico al obtener servicios:', error);
+    throw error;
+  }
+};
+
 export const useDashboardForensicData = (
   timeframe: TimeframeOption = "thisMonth",
   serviceTypeFilter: ServiceTypeOption = "all"
 ) => {
   
   const { data: allServices, isLoading, error, refetch } = useQuery({
-    queryKey: ['dashboard-forensic-data', timeframe, serviceTypeFilter],
-    queryFn: async () => {
-      console.log('=== DASHBOARD FORENSIC: OBTENIENDO DATOS CON METODOLOGÍA FORENSE ===');
-      
-      try {
-        const { data: serviceData, error } = await supabase
-          .rpc('bypass_rls_get_servicios', { max_records: 50000 });
-
-        if (error) {
-          console.error('Error al obtener servicios:', error);
-          throw error;
-        }
-
-        console.log(`🔍 FORENSIC: Total de registros obtenidos: ${serviceData?.length || 0}`);
-        return serviceData || [];
-      } catch (error) {
-        console.error('Error en consulta forensic:', error);
-        throw error;
-      }
-    },
+    queryKey: ['dashboard-forensic-data-complete', timeframe, serviceTypeFilter],
+    queryFn: fetchAllServices,
     staleTime: 5 * 60 * 1000,
-    retry: 2
+    retry: 2,
+    refetchOnWindowFocus: false, // Evitar refetch automático para datos grandes
   });
   
   const dashboardData = useMemo(() => {
@@ -181,7 +206,7 @@ export const useDashboardForensicData = (
       };
     }
 
-    console.log(`🔍 FORENSIC DASHBOARD: Aplicando metodología forense - ${timeframe}`);
+    console.log(`🔍 FORENSIC DASHBOARD: Procesando ${allServices.length} registros totales con metodología forense - ${timeframe}`);
     
     // PASO 1: Aplicar validaciones de integridad de datos (metodología forense)
     const validationResults = {
@@ -225,6 +250,12 @@ export const useDashboardForensicData = (
         validationResults.invalidRecords++;
       }
     });
+
+    console.log(`📊 FORENSIC AUDIT - Problemas detectados:`);
+    console.log(`   - Duplicados: ${validationResults.duplicatesFound}`);
+    console.log(`   - Sin custodio: ${validationResults.missingCustodian}`);
+    console.log(`   - Sin cobro: ${validationResults.missingCharges}`);
+    console.log(`   - Inválidos: ${validationResults.invalidRecords}`);
 
     // PASO 2: Calcular rangos de fechas
     const { startDate, endDate } = getDateRange(timeframe);
@@ -393,7 +424,8 @@ export const useDashboardForensicData = (
       missingCharges: validationResults.missingCharges
     };
 
-    console.log(`🎯 DASHBOARD FORENSIC RESULT para ${timeframe}:`, result);
+    console.log(`🎯 DASHBOARD FORENSIC RESULT COMPLETO para ${timeframe}:`, result);
+    console.log(`📊 Registros procesados: ${allServices.length} total, ${serviciosEnRango.length} en rango`);
     console.log(`📊 Métricas de calidad de datos:`);
     console.log(`   - Score de calidad: ${result.dataQualityScore}%`);
     console.log(`   - Duplicados encontrados: ${result.duplicatesFound}`);
@@ -408,6 +440,7 @@ export const useDashboardForensicData = (
     isLoading,
     error,
     dashboardData,
-    refreshAllData: refetch
+    refreshAllData: refetch,
+    totalRecordsProcessed: allServices?.length || 0
   };
 };
