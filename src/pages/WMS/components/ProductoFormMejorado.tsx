@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
@@ -237,12 +236,7 @@ export const ProductoFormMejorado = ({ open, onOpenChange, producto, onClose }: 
                             <SelectContent>
                               {categorias?.map((categoria) => (
                                 <SelectItem key={categoria.id} value={categoria.id}>
-                                  <div className="flex items-center gap-2">
-                                    {categoria.nombre}
-                                    {categoria.codigo && (
-                                      <Badge variant="outline" className="text-xs">{categoria.codigo}</Badge>
-                                    )}
-                                  </div>
+                                  {categoria.nombre}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -263,12 +257,7 @@ export const ProductoFormMejorado = ({ open, onOpenChange, producto, onClose }: 
                                 <SelectContent>
                                   {marcasGPS?.map((marca) => (
                                     <SelectItem key={marca.id} value={marca.id}>
-                                      <div className="flex items-center gap-2">
-                                        {marca.nombre}
-                                        {marca.soporte_wialon && (
-                                          <Badge variant="secondary" className="text-xs">Wialon</Badge>
-                                        )}
-                                      </div>
+                                      {marca.nombre}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -291,9 +280,9 @@ export const ProductoFormMejorado = ({ open, onOpenChange, producto, onClose }: 
                                       <div className="flex items-center gap-2">
                                         {modelo.nombre}
                                         {modelo.precio_referencia_usd && (
-                                          <Badge variant="outline" className="text-xs">
+                                          <span className="text-xs text-muted-foreground ml-auto">
                                             ${modelo.precio_referencia_usd}
-                                          </Badge>
+                                          </span>
                                         )}
                                       </div>
                                     </SelectItem>
