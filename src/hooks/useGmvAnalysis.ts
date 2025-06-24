@@ -1,4 +1,3 @@
-
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -286,7 +285,7 @@ export const useGmvAnalysis = (selectedClient: string = "all") => {
       return acc;
     }, { valid: 0, invalid: 0, uniqueClients: new Set<string>() });
 
-    const uniqueClients: string[] = Array.from(clientAnalysis.uniqueClients).sort();
+    const uniqueClients: string[] = Array.from(clientAnalysis.uniqueClients);
     console.log('✅ ANÁLISIS DE CLIENTES:', {
       services_with_valid_client: clientAnalysis.valid,
       services_with_invalid_client: clientAnalysis.invalid,
@@ -423,7 +422,7 @@ export const useGmvAnalysis = (selectedClient: string = "all") => {
       totalGmv2025,
       totalGmv2024,
       overallGrowth,
-      clients: uniqueClients
+      clients: uniqueClients.sort()
     };
   }, [allServices, selectedClient]);
 
