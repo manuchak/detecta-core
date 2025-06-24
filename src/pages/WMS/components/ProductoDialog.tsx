@@ -1,5 +1,5 @@
 
-import { ProductoFormOdoo } from './ProductoFormOdoo';
+import { ProductoFormMejorado } from './ProductoFormMejorado';
 import type { ProductoInventario } from '@/types/wms';
 
 interface ProductoDialogProps {
@@ -11,7 +11,7 @@ interface ProductoDialogProps {
 
 export const ProductoDialog = ({ open, onOpenChange, producto, onClose }: ProductoDialogProps) => {
   return (
-    <ProductoFormOdoo
+    <ProductoFormMejorado
       open={open}
       onOpenChange={onOpenChange}
       producto={producto}
