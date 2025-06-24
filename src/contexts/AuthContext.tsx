@@ -185,7 +185,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: {
             display_name: name,
           },
-          emailRedirectTo: `${window.location.origin}/auth/confirm`
+          emailRedirectTo: `${window.location.origin}/auth/email-confirmation`
         },
       });
 
