@@ -4675,10 +4675,6 @@ export type Database = {
         Args: Record<PropertyKey, never> | { user_id: string }
         Returns: boolean
       }
-      is_admin_bypass_rls: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
       is_admin_no_recursion: {
         Args: { check_user_id: string }
         Returns: boolean
@@ -4696,6 +4692,10 @@ export type Database = {
         Returns: boolean
       }
       is_admin_user: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_admin_user_secure: {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
@@ -4851,6 +4851,10 @@ export type Database = {
         Args: { p_permission_id: string; p_allowed: boolean }
         Returns: boolean
       }
+      update_user_role_secure: {
+        Args: { p_user_id: string; p_role: string }
+        Returns: boolean
+      }
       upsert_user_profile: {
         Args: {
           user_id: string
@@ -4914,6 +4918,10 @@ export type Database = {
       }
       verify_user_account: {
         Args: { target_user_id: string; verify_status: boolean }
+        Returns: boolean
+      }
+      verify_user_email_secure: {
+        Args: { p_user_id: string }
         Returns: boolean
       }
       verify_user_role: {
