@@ -1737,18 +1737,27 @@ export type Database = {
           created_at: string | null
           id: string
           nombre: string
+          pais_origen: string | null
+          sitio_web: string | null
+          soporte_wialon: boolean | null
         }
         Insert: {
           activo?: boolean | null
           created_at?: string | null
           id?: string
           nombre: string
+          pais_origen?: string | null
+          sitio_web?: string | null
+          soporte_wialon?: boolean | null
         }
         Update: {
           activo?: boolean | null
           created_at?: string | null
           id?: string
           nombre?: string
+          pais_origen?: string | null
+          sitio_web?: string | null
+          soporte_wialon?: boolean | null
         }
         Relationships: []
       }
@@ -1779,27 +1788,81 @@ export type Database = {
       modelos_gps: {
         Row: {
           activo: boolean | null
-          caracteristicas: Json | null
+          alimentacion_externa: string | null
+          bateria_interna: boolean | null
+          certificaciones: string[] | null
+          conectividad: string[] | null
           created_at: string | null
+          dimensiones: string | null
+          disponible_mexico: boolean | null
+          entradas_analogicas: number | null
+          entradas_digitales: number | null
+          especificaciones_json: Json | null
+          gps_precision: string | null
           id: string
           marca_id: string | null
           nombre: string
+          observaciones: string | null
+          peso_gramos: number | null
+          precio_referencia_usd: number | null
+          protocolo_comunicacion: string[] | null
+          resistencia_agua: string | null
+          salidas_digitales: number | null
+          sensores_soportados: string[] | null
+          temperatura_operacion: string | null
+          tipo_dispositivo: string | null
         }
         Insert: {
           activo?: boolean | null
-          caracteristicas?: Json | null
+          alimentacion_externa?: string | null
+          bateria_interna?: boolean | null
+          certificaciones?: string[] | null
+          conectividad?: string[] | null
           created_at?: string | null
+          dimensiones?: string | null
+          disponible_mexico?: boolean | null
+          entradas_analogicas?: number | null
+          entradas_digitales?: number | null
+          especificaciones_json?: Json | null
+          gps_precision?: string | null
           id?: string
           marca_id?: string | null
           nombre: string
+          observaciones?: string | null
+          peso_gramos?: number | null
+          precio_referencia_usd?: number | null
+          protocolo_comunicacion?: string[] | null
+          resistencia_agua?: string | null
+          salidas_digitales?: number | null
+          sensores_soportados?: string[] | null
+          temperatura_operacion?: string | null
+          tipo_dispositivo?: string | null
         }
         Update: {
           activo?: boolean | null
-          caracteristicas?: Json | null
+          alimentacion_externa?: string | null
+          bateria_interna?: boolean | null
+          certificaciones?: string[] | null
+          conectividad?: string[] | null
           created_at?: string | null
+          dimensiones?: string | null
+          disponible_mexico?: boolean | null
+          entradas_analogicas?: number | null
+          entradas_digitales?: number | null
+          especificaciones_json?: Json | null
+          gps_precision?: string | null
           id?: string
           marca_id?: string | null
           nombre?: string
+          observaciones?: string | null
+          peso_gramos?: number | null
+          precio_referencia_usd?: number | null
+          protocolo_comunicacion?: string[] | null
+          resistencia_agua?: string | null
+          salidas_digitales?: number | null
+          sensores_soportados?: string[] | null
+          temperatura_operacion?: string | null
+          tipo_dispositivo?: string | null
         }
         Relationships: [
           {
@@ -2097,71 +2160,113 @@ export type Database = {
         Row: {
           activo: boolean | null
           categoria_id: string | null
+          certificaciones: string[] | null
+          codigo_barras: string | null
           codigo_producto: string
+          color: string | null
+          compatibilidad_vehiculos: string[] | null
+          consumo_energia_mw: number | null
           created_at: string | null
           descripcion: string | null
+          dimensiones: string | null
           es_serializado: boolean | null
           especificaciones: Json | null
           foto_url: string | null
+          frecuencia_transmision_hz: number | null
           garantia_meses: number | null
           id: string
           marca: string | null
+          marca_gps_id: string | null
           modelo: string | null
+          modelo_gps_id: string | null
           nombre: string
+          peso_kg: number | null
           precio_compra_promedio: number | null
           precio_venta_sugerido: number | null
+          proveedor_id: string | null
           requiere_configuracion: boolean | null
+          software_requerido: string | null
           stock_maximo: number | null
           stock_minimo: number | null
+          temperatura_operacion: string | null
           ubicacion_almacen: string | null
           unidad_medida: string | null
           updated_at: string | null
+          voltaje_operacion: string | null
         }
         Insert: {
           activo?: boolean | null
           categoria_id?: string | null
+          certificaciones?: string[] | null
+          codigo_barras?: string | null
           codigo_producto: string
+          color?: string | null
+          compatibilidad_vehiculos?: string[] | null
+          consumo_energia_mw?: number | null
           created_at?: string | null
           descripcion?: string | null
+          dimensiones?: string | null
           es_serializado?: boolean | null
           especificaciones?: Json | null
           foto_url?: string | null
+          frecuencia_transmision_hz?: number | null
           garantia_meses?: number | null
           id?: string
           marca?: string | null
+          marca_gps_id?: string | null
           modelo?: string | null
+          modelo_gps_id?: string | null
           nombre: string
+          peso_kg?: number | null
           precio_compra_promedio?: number | null
           precio_venta_sugerido?: number | null
+          proveedor_id?: string | null
           requiere_configuracion?: boolean | null
+          software_requerido?: string | null
           stock_maximo?: number | null
           stock_minimo?: number | null
+          temperatura_operacion?: string | null
           ubicacion_almacen?: string | null
           unidad_medida?: string | null
           updated_at?: string | null
+          voltaje_operacion?: string | null
         }
         Update: {
           activo?: boolean | null
           categoria_id?: string | null
+          certificaciones?: string[] | null
+          codigo_barras?: string | null
           codigo_producto?: string
+          color?: string | null
+          compatibilidad_vehiculos?: string[] | null
+          consumo_energia_mw?: number | null
           created_at?: string | null
           descripcion?: string | null
+          dimensiones?: string | null
           es_serializado?: boolean | null
           especificaciones?: Json | null
           foto_url?: string | null
+          frecuencia_transmision_hz?: number | null
           garantia_meses?: number | null
           id?: string
           marca?: string | null
+          marca_gps_id?: string | null
           modelo?: string | null
+          modelo_gps_id?: string | null
           nombre?: string
+          peso_kg?: number | null
           precio_compra_promedio?: number | null
           precio_venta_sugerido?: number | null
+          proveedor_id?: string | null
           requiere_configuracion?: boolean | null
+          software_requerido?: string | null
           stock_maximo?: number | null
           stock_minimo?: number | null
+          temperatura_operacion?: string | null
           ubicacion_almacen?: string | null
           unidad_medida?: string | null
           updated_at?: string | null
+          voltaje_operacion?: string | null
         }
         Relationships: [
           {
@@ -2169,6 +2274,27 @@ export type Database = {
             columns: ["categoria_id"]
             isOneToOne: false
             referencedRelation: "categorias_productos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "productos_inventario_marca_gps_id_fkey"
+            columns: ["marca_gps_id"]
+            isOneToOne: false
+            referencedRelation: "marcas_gps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "productos_inventario_modelo_gps_id_fkey"
+            columns: ["modelo_gps_id"]
+            isOneToOne: false
+            referencedRelation: "modelos_gps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "productos_inventario_proveedor_id_fkey"
+            columns: ["proveedor_id"]
+            isOneToOne: false
+            referencedRelation: "proveedores"
             referencedColumns: ["id"]
           },
         ]

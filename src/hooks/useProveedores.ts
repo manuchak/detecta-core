@@ -14,6 +14,7 @@ export const useProveedores = () => {
       const { data, error } = await supabase
         .from('proveedores')
         .select('*')
+        .eq('activo', true)
         .order('nombre', { ascending: true });
 
       if (error) throw error;
@@ -37,13 +38,6 @@ export const useProveedores = () => {
       toast({
         title: "Proveedor creado",
         description: "El proveedor ha sido registrado exitosamente.",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "No se pudo crear el proveedor.",
-        variant: "destructive",
       });
     }
   });
@@ -69,30 +63,11 @@ export const useProveedores = () => {
     }
   });
 
-  const deleteProveedor = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('proveedores')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['proveedores'] });
-      toast({
-        title: "Proveedor eliminado",
-        description: "El proveedor ha sido eliminado del sistema.",
-      });
-    }
-  });
-
   return {
     proveedores,
     isLoading,
     error,
     createProveedor,
-    updateProveedor,
-    deleteProveedor
+    updateProveedor
   };
 };
