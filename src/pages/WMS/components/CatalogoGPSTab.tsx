@@ -30,10 +30,22 @@ export const CatalogoGPSTab = () => {
     modelo.tipo_dispositivo?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleInitializeData = () => {
-    initializeCategorias.mutate();
-    initializeMarcasGPS.mutate();
-    initializeModelosGPS.mutate();
+  const handleInitializeData = async () => {
+    console.log('Iniciando carga de base de datos GPS...');
+    try {
+      await initializeCategorias.mutateAsync();
+      console.log('Categorías inicializadas');
+      
+      await initializeMarcasGPS.mutateAsync();
+      console.log('Marcas GPS inicializadas');
+      
+      await initializeModelosGPS.mutateAsync();
+      console.log('Modelos GPS inicializados');
+      
+      console.log('Base de datos GPS cargada completamente');
+    } catch (error) {
+      console.error('Error al cargar base de datos GPS:', error);
+    }
   };
 
   if (loadingMarcas || loadingModelos) {
@@ -68,6 +80,15 @@ export const CatalogoGPSTab = () => {
           </Button>
         </div>
       </div>
+
+      {/* Debug info */}
+      <Card className="bg-blue-50 border-blue-200">
+        <CardContent className="p-4">
+          <div className="text-sm text-blue-800">
+            <strong>Estado actual:</strong> Marcas cargadas: {marcas?.length || 0}, Modelos cargados: {modelos?.length || 0}
+          </div>
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="modelos" className="space-y-4">
         <TabsList>

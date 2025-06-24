@@ -16,7 +16,7 @@ import { useMarcasGPS } from '@/hooks/useMarcasGPS';
 import { useModelosGPS } from '@/hooks/useModelosGPS';
 import { useProveedores } from '@/hooks/useProveedores';
 import type { ProductoInventario } from '@/types/wms';
-import { Package, Barcode, Truck, Settings, DollarSign, MapPin, Zap, Thermometer } from 'lucide-react';
+import { Package, Barcode, Truck, Settings, DollarSign, MapPin, Zap, Thermometer, AlertCircle } from 'lucide-react';
 
 interface ProductoFormOdooProps {
   open: boolean;
@@ -50,6 +50,14 @@ export const ProductoFormOdoo = ({ open, onOpenChange, producto, onClose }: Prod
   const selectedCategoria = categorias?.find(cat => cat.id === watchedCategoriaId);
   const isGPSCategory = selectedCategoria?.nombre?.toLowerCase().includes('gps') || 
                        selectedCategoria?.codigo?.toLowerCase().includes('gps');
+
+  // Debug logs
+  useEffect(() => {
+    console.log('Marcas GPS disponibles:', marcasGPS?.length || 0);
+    console.log('Modelos GPS disponibles:', modelosGPS?.length || 0);
+    console.log('Categorías disponibles:', categorias?.length || 0);
+    console.log('Proveedores disponibles:', proveedores?.length || 0);
+  }, [marcasGPS, modelosGPS, categorias, proveedores]);
 
   useEffect(() => {
     if (producto) {
@@ -102,6 +110,7 @@ export const ProductoFormOdoo = ({ open, onOpenChange, producto, onClose }: Prod
   }, [isGPSCategory, setValue]);
 
   const onSubmit = (data: ProductoInventario) => {
+    console.log('Datos del formulario a enviar:', data);
     if (producto) {
       updateProducto.mutate({ ...data, id: producto.id }, {
         onSuccess: () => onClose()
@@ -239,9 +248,19 @@ export const ProductoFormOdoo = ({ open, onOpenChange, producto, onClose }: Prod
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
+                        {/* Debug info */}
+                        {(!marcasGPS || marcasGPS.length === 0) && (
+                          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-2">
+                            <AlertCircle className="h-4 w-4 text-yellow-600" />
+                            <span className="text-yellow-800 text-sm">
+                              No hay marcas GPS cargadas. Ve al tab "Catálogo GPS" y presiona "Cargar Base de Datos Completa"
+                            </span>
+                          </div>
+                        )}
+
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <Label htmlFor="marca_gps_id">Marca GPS</Label>
+                            <Label htmlFor="marca_gps_id">Marca GPS ({marcasGPS?.length || 0} disponibles)</Label>
                             <Select
                               value={watch('marca_gps_id') || ''}
                               onValueChange={(value) => setValue('marca_gps_id', value)}
@@ -252,7 +271,7 @@ export const ProductoFormOdoo = ({ open, onOpenChange, producto, onClose }: Prod
                               <SelectContent>
                                 {marcasGPS?.map((marca) => (
                                   <SelectItem key={marca.id} value={marca.id}>
-                                    {marca.nombre}
+                                    {marca.nombre} {marca.soporte_wialon && <Badge variant="secondary" className="ml-1">Wialon</Badge>}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -260,7 +279,7 @@ export const ProductoFormOdoo = ({ open, onOpenChange, producto, onClose }: Prod
                           </div>
 
                           <div>
-                            <Label htmlFor="modelo_gps_id">Modelo GPS</Label>
+                            <Label htmlFor="modelo_gps_id">Modelo GPS ({modelosDisponibles.length} disponibles)</Label>
                             <Select
                               value={watch('modelo_gps_id') || ''}
                               onValueChange={(value) => setValue('modelo_gps_id', value)}
