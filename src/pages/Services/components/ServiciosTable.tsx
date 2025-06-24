@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -6,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Calendar, MapPin, Shield, Eye, Filter, Search, Clock, CheckCircle, AlertTriangle, Settings, Trash2 } from 'lucide-react';
+import { Calendar, MapPin, Shield, Eye, Filter, Search, Clock, CheckCircle, AlertTriangle, Settings, Trash2, MoreHorizontal } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { DetalleServicioDialog } from '@/components/servicios/DetalleServicioDialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -64,7 +64,6 @@ export const ServiciosTable = ({
         description: `El servicio ${numeroServicio} ha sido eliminado exitosamente.`,
       });
 
-      // Notificar al componente padre para refrescar la lista
       if (onServiceDeleted) {
         onServiceDeleted();
       }
@@ -115,7 +114,6 @@ export const ServiciosTable = ({
   };
 
   const getPrioridadBadge = (prioridad: string) => {
-    // Only show priority badge if it's not 'media' (standard)
     if (prioridad === 'media') return null;
     
     const config = {
@@ -130,17 +128,14 @@ export const ServiciosTable = ({
     return <Badge variant="outline" className={item.color}>{item.label}</Badge>;
   };
 
-  // Check if GPS programming button should be shown
   const shouldShowGPSButton = (estado: string) => {
     return estado === 'aprobado' || estado === 'programacion_instalacion';
   };
 
-  // Check if service is in installation process
   const isInInstallationProcess = (estado: string) => {
     return ['instalacion_programada', 'instalacion_en_proceso', 'instalacion_completada'].includes(estado);
   };
 
-  // Filter services based on all criteria
   const serviciosFiltrados = servicios.filter(servicio => {
     const matchesBusqueda = servicio.numero_servicio.toLowerCase().includes(busqueda.toLowerCase()) ||
                            servicio.nombre_cliente.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -153,7 +148,6 @@ export const ServiciosTable = ({
     return matchesBusqueda && matchesEstado && matchesPrioridad && matchesTipo;
   });
 
-  // Get unique values for filter options
   const estadosUnicos = [...new Set(servicios.map(s => s.estado_general))];
   const tiposUnicos = [...new Set(servicios.map(s => s.tipo_servicio))];
 
@@ -179,7 +173,6 @@ export const ServiciosTable = ({
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
@@ -190,7 +183,6 @@ export const ServiciosTable = ({
               />
             </div>
 
-            {/* Status Filter */}
             <Select value={filtroEstado} onValueChange={setFiltroEstado}>
               <SelectTrigger>
                 <SelectValue placeholder="Estado" />
@@ -205,7 +197,6 @@ export const ServiciosTable = ({
               </SelectContent>
             </Select>
 
-            {/* Priority Filter */}
             <Select value={filtroPrioridad} onValueChange={setFiltroPrioridad}>
               <SelectTrigger>
                 <SelectValue placeholder="Prioridad" />
@@ -219,7 +210,6 @@ export const ServiciosTable = ({
               </SelectContent>
             </Select>
 
-            {/* Type Filter */}
             <Select value={filtroTipo} onValueChange={setFiltroTipo}>
               <SelectTrigger>
                 <SelectValue placeholder="Tipo de servicio" />
@@ -234,7 +224,6 @@ export const ServiciosTable = ({
               </SelectContent>
             </Select>
 
-            {/* Results counter */}
             <div className="flex items-center text-sm text-gray-600">
               <span className="font-medium">{serviciosFiltrados.length}</span>
               <span className="ml-1">de {servicios.length} servicios</span>
@@ -289,19 +278,12 @@ export const ServiciosTable = ({
                   </div>
                 </div>
                 
-                <div className="flex flex-col gap-2 ml-4">
-                  <DetalleServicioDialog servicioId={servicio.id}>
-                    <Button variant="outline" size="sm">
-                      <Eye className="h-4 w-4 mr-1" />
-                      Ver Detalle
-                    </Button>
-                  </DetalleServicioDialog>
-                  
+                <div className="flex items-center gap-2 ml-4">
+                  {/* Primary action button based on service status */}
                   {shouldShowGPSButton(servicio.estado_general) && (
                     <Button
-                      variant="default"
-                      size="sm"
                       onClick={() => onProgramarInstalacion(servicio.id)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       <Calendar className="h-4 w-4 mr-1" />
                       Programar GPS
@@ -309,59 +291,80 @@ export const ServiciosTable = ({
                   )}
 
                   {isInInstallationProcess(servicio.estado_general) && (
-                    <div className="flex flex-col gap-1">
+                    <div className="px-3 py-2 rounded-md bg-gray-50 border">
                       {servicio.estado_general === 'instalacion_programada' && (
-                        <Badge variant="outline" className="text-blue-600 border-blue-600 justify-center">
-                          <Clock className="h-3 w-3 mr-1" />
-                          GPS Programado
-                        </Badge>
+                        <div className="flex items-center gap-2 text-blue-700">
+                          <Clock className="h-4 w-4" />
+                          <span className="text-sm font-medium">GPS Programado</span>
+                        </div>
                       )}
                       {servicio.estado_general === 'instalacion_en_proceso' && (
-                        <Badge variant="outline" className="text-orange-600 border-orange-600 justify-center">
-                          <Settings className="h-3 w-3 mr-1" />
-                          Instalando...
-                        </Badge>
+                        <div className="flex items-center gap-2 text-orange-700">
+                          <Settings className="h-4 w-4" />
+                          <span className="text-sm font-medium">Instalando...</span>
+                        </div>
                       )}
                       {servicio.estado_general === 'instalacion_completada' && (
-                        <Badge variant="outline" className="text-green-600 border-green-600 justify-center">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Instalado
-                        </Badge>
+                        <div className="flex items-center gap-2 text-green-700">
+                          <CheckCircle className="h-4 w-4" />
+                          <span className="text-sm font-medium">Instalado</span>
+                        </div>
                       )}
                     </div>
                   )}
 
-                  {/* Delete Button with Confirmation Dialog */}
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button 
-                        variant="destructive" 
-                        size="sm"
-                        disabled={deletingService === servicio.id}
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        {deletingService === servicio.id ? 'Eliminando...' : 'Eliminar'}
+                  {/* Actions dropdown menu */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                        <MoreHorizontal className="h-4 w-4" />
+                        <span className="sr-only">Abrir menú</span>
                       </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Esta acción no se puede deshacer. Esto eliminará permanentemente el servicio 
-                          <strong> {servicio.numero_servicio}</strong> y todos sus datos asociados.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleDeleteService(servicio.id, servicio.numero_servicio)}
-                          className="bg-red-600 hover:bg-red-700"
-                        >
-                          Eliminar Servicio
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuItem asChild>
+                        <DetalleServicioDialog servicioId={servicio.id}>
+                          <div className="flex items-center w-full cursor-pointer">
+                            <Eye className="h-4 w-4 mr-2" />
+                            Ver Detalle
+                          </div>
+                        </DetalleServicioDialog>
+                      </DropdownMenuItem>
+                      
+                      <DropdownMenuSeparator />
+                      
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <DropdownMenuItem 
+                            className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                            onSelect={(e) => e.preventDefault()}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Eliminar Servicio
+                          </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Esta acción no se puede deshacer. Esto eliminará permanentemente el servicio 
+                              <strong> {servicio.numero_servicio}</strong> y todos sus datos asociados.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteService(servicio.id, servicio.numero_servicio)}
+                              className="bg-red-600 hover:bg-red-700"
+                              disabled={deletingService === servicio.id}
+                            >
+                              {deletingService === servicio.id ? 'Eliminando...' : 'Eliminar Servicio'}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
             </CardContent>
