@@ -10,55 +10,106 @@ import {
   MessageSquare,
   Settings,
   ChevronDown,
-  Globe,
   UserCog,
-  Database,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
+import { useUserSkills } from "@/hooks/useUserSkills";
 
 export function Sidebar({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { userRole } = useAuth();
+  const { hasSkill, hasAnySkill } = useUserSkills();
 
-  // Check if user has admin permissions
-  const hasAdminAccess = userRole === 'admin' || userRole === 'owner' || userRole === 'bi' || userRole === 'supply_admin';
+  // Verificar si el usuario tiene acceso completo de admin o es instalador/custodio limitado
+  const isAdminUser = hasSkill('admin_full_access');
+  const isInstallerOnly = hasSkill('installer_portal_only') && !isAdminUser;
+  const isCustodioOnly = hasSkill('custodio_tracking_only') && !isAdminUser;
 
+  // Si es instalador únicamente, solo mostrar su portal
+  if (isInstallerOnly) {
+    return (
+      <div className={cn("pb-12", className)} {...props}>
+        <div className="space-y-4 py-4">
+          <div className="px-3 py-2">
+            <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
+              Portal de Instalador
+            </h2>
+            <div className="space-y-1">
+              <Button
+                variant={location.pathname === "/installers/portal" ? "secondary" : "ghost"}
+                className="w-full justify-start"
+                onClick={() => navigate("/installers/portal")}
+              >
+                <Wrench className="mr-2 h-4 w-4" />
+                Mis Instalaciones
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Si es custodio únicamente, solo mostrar seguimiento de leads
+  if (isCustodioOnly) {
+    return (
+      <div className={cn("pb-12", className)} {...props}>
+        <div className="space-y-4 py-4">
+          <div className="px-3 py-2">
+            <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
+              Seguimiento de Candidatos
+            </h2>
+            <div className="space-y-1">
+              <Button
+                variant={location.pathname === "/leads" ? "secondary" : "ghost"}
+                className="w-full justify-start"
+                onClick={() => navigate("/leads")}
+              >
+                <Users className="mr-2 h-4 w-4" />
+                Mi Proceso de Reclutamiento
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Menu completo para usuarios con múltiples permisos
   const navigationItems = [
-    {
+    // Dashboard - solo si tiene el skill
+    ...(hasSkill('dashboard_view') || isAdminUser ? [{
       title: "Panel Principal",
       icon: Home,
       path: "/dashboard",
-    },
-    {
+    }] : []),
+
+    // Servicios - solo si tiene permisos de servicios
+    ...(hasAnySkill(['services_view', 'services_manage']) || isAdminUser ? [{
       title: "Servicios",
       icon: Car,
       subItems: [
         { title: "Gestión de Servicios", path: "/services" },
         { title: "Rendimiento", path: "/services/rendimiento" },
       ]
-    },
-    {
+    }] : []),
+
+    // Leads - solo si tiene permisos de leads
+    ...(hasAnySkill(['leads_management', 'leads_approval', 'custodio_tracking_only']) || isAdminUser ? [{
       title: "Leads",
       icon: Users,
       subItems: [
         { title: "Gestión de Leads", path: "/leads" },
-        { title: "Aprobaciones", path: "/leads/approvals" },
+        ...(hasSkill('leads_approval') || isAdminUser ? [
+          { title: "Aprobaciones", path: "/leads/approvals" }
+        ] : []),
       ]
-    },
-    {
+    }] : []),
+
+    // Monitoreo - solo si tiene permisos de monitoreo
+    ...(hasAnySkill(['monitoring_view', 'monitoring_manage']) || isAdminUser ? [{
       title: "Monitoreo",
       icon: Shield,
       path: "/monitoring",
@@ -66,8 +117,10 @@ export function Sidebar({ className, ...props }: React.HTMLAttributes<HTMLDivEle
         { title: "Supply Chain", path: "/monitoring/supply-chain" },
         { title: "Auditoría Forense", path: "/monitoring/forensic-audit" },
       ]
-    },
-    {
+    }] : []),
+
+    // Instaladores - solo si tiene permisos
+    ...(hasAnySkill(['installer_portal_only']) || isAdminUser ? [{
       title: "Instaladores",
       icon: Wrench,
       path: "/installers",
@@ -76,19 +129,24 @@ export function Sidebar({ className, ...props }: React.HTMLAttributes<HTMLDivEle
         { title: "Calendario", path: "/installers/calendar" },
         { title: "Portal", path: "/installers/portal" },
       ]
-    },
-    {
+    }] : []),
+
+    // WMS - solo si tiene permisos
+    ...(hasAnySkill(['wms_view', 'wms_manage']) || isAdminUser ? [{
       title: "WMS - GPS",
       icon: Package,
       path: "/wms",
-    },
-    {
+    }] : []),
+
+    // Tickets - solo si tiene permisos
+    ...(hasAnySkill(['tickets_view', 'tickets_manage']) || isAdminUser ? [{
       title: "Tickets",
       icon: MessageSquare,
       path: "/tickets",
-    },
-    // Only show Administration section if user has admin access
-    ...(hasAdminAccess ? [{
+    }] : []),
+
+    // Administración - solo para admins
+    ...(isAdminUser ? [{
       title: "Administración",
       icon: UserCog,
       subItems: [
@@ -96,11 +154,13 @@ export function Sidebar({ className, ...props }: React.HTMLAttributes<HTMLDivEle
         { title: "Mantenimiento DB", path: "/maintenance/duplicate-cleanup" },
       ]
     }] : []),
-    {
+
+    // Configuración - solo si tiene permisos
+    ...(hasAnySkill(['settings_view', 'settings_manage']) || isAdminUser ? [{
       title: "Configuración",
       icon: Settings,
       path: "/settings",
-    },
+    }] : []),
   ];
 
   const [expandedItems, setExpandedItems] = React.useState<number[]>([]);

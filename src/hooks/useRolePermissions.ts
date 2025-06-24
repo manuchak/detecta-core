@@ -62,7 +62,7 @@ const fetchAvailableRoles = async (): Promise<Role[]> => {
 const fetchRolePermissions = async (): Promise<Permission[]> => {
   try {
     // First verify admin access using the secure function
-    const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_bypass_rls');
+    const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_user_secure');
     
     if (adminError) {
       console.error('Error checking admin status:', adminError);
@@ -193,7 +193,7 @@ export const useRolePermissions = () => {
         console.log(`Adding permission: ${role}.${permissionType}.${permissionId}=${allowed}`);
         
         // First verify admin access
-        const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_bypass_rls');
+        const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_user_secure');
         
         if (adminError || !isAdminData) {
           throw new Error('Sin permisos para añadir permisos');

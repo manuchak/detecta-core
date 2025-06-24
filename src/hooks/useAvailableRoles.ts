@@ -12,11 +12,28 @@ export const useAvailableRoles = () => {
     queryKey: ['available-roles'],
     queryFn: async () => {
       try {
-        // Use the updated secure function that includes new roles
-        const { data, error } = await supabase.rpc('get_available_roles_secure');
+        console.log('Fetching available roles...');
         
+        // First verify admin access using the secure function
+        const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_user_secure');
+        
+        if (adminError) {
+          console.error('Error checking admin status:', adminError);
+          throw new Error('No se pudo verificar los permisos de administrador');
+        }
+
+        if (!isAdminData) {
+          throw new Error('Sin permisos para acceder a esta información');
+        }
+
+        // Get available roles from database
+        const { data, error } = await supabase
+          .from('available_roles')
+          .select('role')
+          .order('role', { ascending: true });
+
         if (error) {
-          console.error('Error fetching available roles:', error);
+          console.error('Error fetching roles:', error);
           // Return default roles as fallback
           return [
             'owner',
@@ -38,57 +55,46 @@ export const useAvailableRoles = () => {
             'unverified'
           ] as Role[];
         }
-        
-        // Map the returned data to Role type safely
+
         return (data || []).map((item: { role: string }) => item.role as Role);
       } catch (err) {
-        console.error('Error in fetchAvailableRoles:', err);
-        // Return default roles as fallback
-        return [
-          'owner',
-          'admin',
-          'supply_admin',
-          'coordinador_operaciones',
-          'jefe_seguridad',
-          'analista_seguridad',
-          'supply_lead',
-          'ejecutivo_ventas',
-          'custodio',
-          'bi',
-          'monitoring_supervisor',
-          'monitoring',
-          'supply',
-          'instalador',
-          'soporte',
-          'pending',
-          'unverified'
-        ] as Role[];
+        console.error('Error in useAvailableRoles:', err);
+        throw err;
       }
     },
+    retry: 1,
+    staleTime: 300000, // 5 minutes
   });
 
   const createRole = useMutation({
-    mutationFn: async (input: CreateRoleInput) => {
-      // First verify admin access
-      const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_bypass_rls');
-      
-      if (adminError || !isAdminData) {
-        throw new Error('Sin permisos para crear roles');
-      }
+    mutationFn: async ({ role }: CreateRoleInput) => {
+      try {
+        console.log(`Creating role: ${role}`);
+        
+        // First verify admin access
+        const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_user_secure');
+        
+        if (adminError || !isAdminData) {
+          throw new Error('Sin permisos para crear roles');
+        }
 
-      // Insert directly into user_roles table for new role creation
-      const { data, error } = await supabase
-        .from('user_roles')
-        .insert([{ 
-          user_id: '00000000-0000-0000-0000-000000000000', // Placeholder for role definition
-          role: input.role 
-        }]);
-      
-      if (error) {
-        throw new Error(`Error creating role: ${error.message}`);
+        const { data, error } = await supabase
+          .from('available_roles')
+          .insert([{ role }])
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error creating role:', error);
+          throw new Error(`Error al crear rol: ${error.message}`);
+        }
+
+        console.log(`Role created successfully: ${role}`);
+        return data;
+      } catch (err) {
+        console.error('Error in createRole:', err);
+        throw err;
       }
-      
-      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['available-roles'] });
@@ -98,6 +104,7 @@ export const useAvailableRoles = () => {
       });
     },
     onError: (error) => {
+      console.error('Create role error:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Error al crear el rol",
@@ -107,25 +114,36 @@ export const useAvailableRoles = () => {
   });
 
   const updateRole = useMutation({
-    mutationFn: async (input: UpdateRoleInput) => {
-      // First verify admin access
-      const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_bypass_rls');
-      
-      if (adminError || !isAdminData) {
-        throw new Error('Sin permisos para actualizar roles');
-      }
+    mutationFn: async ({ oldRole, newRole }: UpdateRoleInput) => {
+      try {
+        console.log(`Updating role from ${oldRole} to ${newRole}`);
+        
+        // First verify admin access
+        const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_user_secure');
+        
+        if (adminError || !isAdminData) {
+          throw new Error('Sin permisos para actualizar roles');
+        }
 
-      // Update all instances of the old role to the new role
-      const { data, error } = await supabase
-        .from('user_roles')
-        .update({ role: input.newRole })
-        .eq('role', input.oldRole);
-      
-      if (error) {
-        throw new Error(`Error updating role: ${error.message}`);
+        // Update the role in available_roles table
+        const { data, error } = await supabase
+          .from('available_roles')
+          .update({ role: newRole })
+          .eq('role', oldRole)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error updating role:', error);
+          throw new Error(`Error al actualizar rol: ${error.message}`);
+        }
+
+        console.log(`Role updated successfully from ${oldRole} to ${newRole}`);
+        return data;
+      } catch (err) {
+        console.error('Error in updateRole:', err);
+        throw err;
       }
-      
-      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['available-roles'] });
@@ -136,8 +154,9 @@ export const useAvailableRoles = () => {
       });
     },
     onError: (error) => {
+      console.error('Update role error:', error);
       toast({
-        title: "Error", 
+        title: "Error",
         description: error instanceof Error ? error.message : "Error al actualizar el rol",
         variant: "destructive",
       });
@@ -145,25 +164,33 @@ export const useAvailableRoles = () => {
   });
 
   const deleteRole = useMutation({
-    mutationFn: async (input: DeleteRoleInput) => {
-      // First verify admin access
-      const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_bypass_rls');
-      
-      if (adminError || !isAdminData) {
-        throw new Error('Sin permisos para eliminar roles');
-      }
+    mutationFn: async ({ role }: DeleteRoleInput) => {
+      try {
+        console.log(`Deleting role: ${role}`);
+        
+        // First verify admin access
+        const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_user_secure');
+        
+        if (adminError || !isAdminData) {
+          throw new Error('Sin permisos para eliminar roles');
+        }
 
-      // Delete all instances of the role
-      const { data, error } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('role', input.role);
-      
-      if (error) {
-        throw new Error(`Error deleting role: ${error.message}`);
+        const { error } = await supabase
+          .from('available_roles')
+          .delete()
+          .eq('role', role);
+
+        if (error) {
+          console.error('Error deleting role:', error);
+          throw new Error(`Error al eliminar rol: ${error.message}`);
+        }
+
+        console.log(`Role deleted successfully: ${role}`);
+        return { role };
+      } catch (err) {
+        console.error('Error in deleteRole:', err);
+        throw err;
       }
-      
-      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['available-roles'] });
@@ -174,6 +201,7 @@ export const useAvailableRoles = () => {
       });
     },
     onError: (error) => {
+      console.error('Delete role error:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Error al eliminar el rol",

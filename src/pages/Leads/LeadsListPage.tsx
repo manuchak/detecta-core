@@ -69,7 +69,7 @@ export const LeadsListPage = () => {
           </CardHeader>
           <CardContent>
             <LeadForm
-              lead={editingLead}
+              editingLead={editingLead}
               onSuccess={handleCloseForm}
               onCancel={handleCloseForm}
             />
