@@ -24,54 +24,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const fetchUserRole = async (userId: string) => {
+  const fetchUserRole = async () => {
     try {
-      const { data, error } = await supabase.rpc('get_user_role_safe', {
-        user_uid: userId
-      });
-
-      if (error) {
-        console.error('Error fetching user role:', error);
+      if (!supabase.auth.getSession) {
+        console.log('Auth not ready yet');
         return null;
       }
 
-      return data;
+      const { data, error } = await supabase.rpc('get_current_user_role');
+
+      if (error) {
+        console.error('Error fetching user role:', error);
+        return 'unverified';
+      }
+
+      console.log('Fetched user role:', data);
+      return data || 'unverified';
     } catch (err) {
       console.error('Error in fetchUserRole:', err);
-      return null;
+      return 'unverified';
     }
   };
 
   const assignRole = async (userId: string, role: string): Promise<boolean> => {
     try {
-      // First verify admin access
-      const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_bypass_rls');
+      console.log(`Assigning role ${role} to user ${userId}`);
       
-      if (adminError || !isAdminData) {
-        throw new Error('Sin permisos para asignar roles');
-      }
-
-      // Delete existing role
-      const { error: deleteError } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId);
+      const { data, error } = await supabase.rpc('update_user_role_secure', {
+        p_user_id: userId,
+        p_role: role
+      });
       
-      if (deleteError) {
-        console.error('Error deleting existing role:', deleteError);
-        throw new Error(`Error updating role: ${deleteError.message}`);
+      if (error) {
+        console.error('Error assigning role:', error);
+        throw new Error(`Error asignando rol: ${error.message}`);
       }
       
-      // Insert new role
-      const { error: insertError } = await supabase
-        .from('user_roles')
-        .insert([{ user_id: userId, role }]);
-        
-      if (insertError) {
-        console.error('Error inserting new role:', insertError);
-        throw new Error(`Error updating role: ${insertError.message}`);
-      }
-      
+      console.log('Role assigned successfully');
       return true;
     } catch (error) {
       console.error('Error in assignRole:', error);
@@ -115,28 +104,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    // Set up the auth state listener - KEEP IT SIMPLE
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         if (!mounted) return;
 
         console.log("Auth state changed:", event, currentSession?.user?.email);
         
-        // Only update state - no other async operations
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         
-        // Fetch user role if user is present
         if (currentSession?.user) {
-          // Use setTimeout to avoid blocking the auth state change
+          // Fetch user role in background
           setTimeout(async () => {
             if (mounted) {
               try {
-                const role = await fetchUserRole(currentSession.user.id);
-                setUserRole(role);
+                const role = await fetchUserRole();
+                if (mounted) {
+                  setUserRole(role);
+                }
               } catch (error) {
                 console.error('Error fetching user role:', error);
-                setUserRole(null);
+                if (mounted) {
+                  setUserRole('unverified');
+                }
               }
             }
           }, 100);
@@ -144,7 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUserRole(null);
         }
         
-        // Show appropriate toasts for auth events
+        // Handle auth events
         if (event === 'SIGNED_IN' && currentSession?.user) {
           console.log("User signed in:", currentSession.user.email);
           toast({
@@ -152,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             description: `Has iniciado sesión como ${currentSession.user.email}`,
           });
           
-          // Update last login in background without blocking
+          // Update last login
           setTimeout(async () => {
             if (mounted) {
               try {
@@ -171,15 +161,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             description: "Has cerrado sesión exitosamente",
           });
         }
-        
-        if (event === 'USER_UPDATED' && currentSession?.user) {
-          if (currentSession.user.email_confirmed_at) {
-            toast({
-              title: "Email confirmado",
-              description: "Tu email ha sido confirmado exitosamente.",
-            });
-          }
-        }
       }
     );
 
@@ -191,9 +172,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
       
-      // Fetch user role if user is present
       if (currentSession?.user) {
-        fetchUserRole(currentSession.user.id).then(role => {
+        fetchUserRole().then(role => {
           if (mounted) {
             setUserRole(role);
           }
@@ -265,7 +245,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       
-      // Get the current origin dynamically
       const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
       const redirectUrl = `${currentOrigin}/auth/email-confirmation`;
       
