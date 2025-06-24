@@ -12,33 +12,49 @@ export const useUserRoles = () => {
     queryKey: ['users-with-roles'],
     queryFn: async () => {
       try {
+        console.log('Fetching users with roles...');
+        
         // Use the new secure function that bypasses RLS and includes admin checks
         const { data, error } = await supabase.rpc('get_users_with_roles_secure');
         
         if (error) {
           console.error("Error fetching users with roles:", error);
-          throw error;
+          throw new Error(`Database error: ${error.message}`);
+        }
+        
+        console.log('Raw data from get_users_with_roles_secure:', data);
+        
+        if (!data) {
+          console.log('No data returned from function');
+          return [];
         }
         
         // Map the returned data to UserWithRole type safely
-        return (data || []).map((user: any) => ({
+        const mappedUsers = (data || []).map((user: any) => ({
           id: user.id,
           email: user.email,
-          display_name: user.display_name,
+          display_name: user.display_name || user.email,
           role: user.role as Role,
           created_at: user.created_at,
           last_login: user.last_login
         })) as UserWithRole[];
+        
+        console.log('Mapped users:', mappedUsers);
+        return mappedUsers;
       } catch (error) {
         console.error("Error in useUserRoles:", error);
         throw error;
       }
     },
+    retry: 1,
+    staleTime: 30000, // 30 seconds
   });
 
   const updateUserRole = useMutation({
     mutationFn: async ({ userId, role }: { userId: string, role: Role }) => {
       try {
+        console.log(`Updating user ${userId} to role ${role}`);
+        
         // First verify admin access
         const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_bypass_rls');
         
@@ -67,6 +83,7 @@ export const useUserRoles = () => {
           throw new Error(`Error updating role: ${insertError.message}`);
         }
         
+        console.log(`Successfully updated user ${userId} to role ${role}`);
         return { userId, role };
       } catch (error) {
         console.error('Error in updateUserRole:', error);
@@ -82,6 +99,7 @@ export const useUserRoles = () => {
       });
     },
     onError: (error) => {
+      console.error('Mutation error:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Error al actualizar el rol",
@@ -93,6 +111,8 @@ export const useUserRoles = () => {
   const verifyUserEmail = useMutation({
     mutationFn: async ({ userId }: { userId: string }) => {
       try {
+        console.log(`Verifying email for user ${userId}`);
+        
         // First verify admin access  
         const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_bypass_rls');
         
@@ -121,6 +141,7 @@ export const useUserRoles = () => {
           console.error('Error updating role after verification:', roleError);
         }
         
+        console.log(`Successfully verified email for user ${userId}`);
         return { userId };
       } catch (error) {
         console.error('Error in verifyUserEmail:', error);
@@ -135,6 +156,7 @@ export const useUserRoles = () => {
       });
     },
     onError: (error) => {
+      console.error('Verification error:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Error al verificar el email",
