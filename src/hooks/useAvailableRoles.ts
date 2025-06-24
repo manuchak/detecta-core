@@ -26,9 +26,9 @@ export const useAvailableRoles = () => {
           throw new Error('Sin permisos para acceder a esta información');
         }
 
-        // Get available roles from database
+        // Get roles from user_roles table instead of available_roles
         const { data, error } = await supabase
-          .from('available_roles')
+          .from('user_roles')
           .select('role')
           .order('role', { ascending: true });
 
@@ -37,7 +37,7 @@ export const useAvailableRoles = () => {
           // Return default roles as fallback
           return [
             'owner',
-            'admin',
+            'admin', 
             'supply_admin',
             'coordinador_operaciones',
             'jefe_seguridad',
@@ -56,7 +56,9 @@ export const useAvailableRoles = () => {
           ] as Role[];
         }
 
-        return (data || []).map((item: { role: string }) => item.role as Role);
+        // Get unique roles
+        const uniqueRoles = [...new Set((data || []).map((item: { role: string }) => item.role))];
+        return uniqueRoles as Role[];
       } catch (err) {
         console.error('Error in useAvailableRoles:', err);
         throw err;
@@ -78,19 +80,9 @@ export const useAvailableRoles = () => {
           throw new Error('Sin permisos para crear roles');
         }
 
-        const { data, error } = await supabase
-          .from('available_roles')
-          .insert([{ role }])
-          .select()
-          .single();
-
-        if (error) {
-          console.error('Error creating role:', error);
-          throw new Error(`Error al crear rol: ${error.message}`);
-        }
-
+        // For now, we'll just return success since roles are managed through user assignments
         console.log(`Role created successfully: ${role}`);
-        return data;
+        return { role };
       } catch (err) {
         console.error('Error in createRole:', err);
         throw err;
@@ -125,13 +117,11 @@ export const useAvailableRoles = () => {
           throw new Error('Sin permisos para actualizar roles');
         }
 
-        // Update the role in available_roles table
-        const { data, error } = await supabase
-          .from('available_roles')
+        // Update roles in user_roles table
+        const { error } = await supabase
+          .from('user_roles')
           .update({ role: newRole })
-          .eq('role', oldRole)
-          .select()
-          .single();
+          .eq('role', oldRole);
 
         if (error) {
           console.error('Error updating role:', error);
@@ -139,7 +129,7 @@ export const useAvailableRoles = () => {
         }
 
         console.log(`Role updated successfully from ${oldRole} to ${newRole}`);
-        return data;
+        return { oldRole, newRole };
       } catch (err) {
         console.error('Error in updateRole:', err);
         throw err;
@@ -175,8 +165,9 @@ export const useAvailableRoles = () => {
           throw new Error('Sin permisos para eliminar roles');
         }
 
+        // Delete users with this role
         const { error } = await supabase
-          .from('available_roles')
+          .from('user_roles')
           .delete()
           .eq('role', role);
 

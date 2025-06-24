@@ -11,14 +11,6 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { useUserSkills } from '@/hooks/useUserSkills';
 import { SKILL_DEFINITIONS, Skill } from '@/types/skillTypes';
@@ -62,7 +54,7 @@ export const SkillsManager = () => {
     return SKILL_DEFINITIONS.find(def => def.skill === skill);
   };
 
-  const getSkillCategory = (skill: Skill) => {
+  const getSkillCategory = (skill: Skill) => {   
     const definition = getSkillDefinition(skill);
     return definition?.category || 'General';
   };
@@ -78,6 +70,10 @@ export const SkillsManager = () => {
       'General': 'bg-gray-100 text-gray-800'
     };
     return colors[category as keyof typeof colors] || colors['General'];
+  };
+
+  const handleSkillChange = (value: string) => {
+    setSelectedSkill(value as Skill | '');
   };
 
   return (
@@ -120,7 +116,7 @@ export const SkillsManager = () => {
 
             <div>
               <label className="text-sm font-medium mb-2 block">Skill</label>
-              <Select value={selectedSkill} onValueChange={setSelectedSkill}>
+              <Select value={selectedSkill} onValueChange={handleSkillChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar skill" />
                 </SelectTrigger>
