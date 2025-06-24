@@ -51,10 +51,23 @@ export interface ProductoInventario {
   foto_url?: string;
   marca_gps_id?: string;
   modelo_gps_id?: string;
+  proveedor_id?: string;
+  codigo_barras?: string;
+  peso_kg?: number;
+  dimensiones?: string;
+  color?: string;
+  voltaje_operacion?: string;
+  temperatura_operacion?: string;
+  certificaciones?: string[];
+  compatibilidad_vehiculos?: string[];
+  software_requerido?: string;
+  consumo_energia_mw?: number;
+  frecuencia_transmision_hz?: number;
   created_at?: string;
   updated_at?: string;
   categoria?: CategoriaProducto;
   stock?: StockProducto;
+  proveedor?: Proveedor;
 }
 
 export interface StockProducto {
@@ -182,12 +195,12 @@ export interface ModeloGPS {
   id: string;
   marca_id: string;
   nombre: string;
-  tipo_dispositivo?: string; // 'tracker', 'obd', 'beacon', 'smartphone'
+  tipo_dispositivo?: string;
   protocolo_comunicacion?: string[];
-  conectividad?: string[]; // '2G', '3G', '4G', 'WiFi', 'Bluetooth'
+  conectividad?: string[];
   gps_precision?: string;
   bateria_interna?: boolean;
-  alimentacion_externa?: string; // '12V', '24V', '9-75V'
+  alimentacion_externa?: string;
   entradas_digitales?: number;
   salidas_digitales?: number;
   entradas_analogicas?: number;
@@ -196,7 +209,7 @@ export interface ModeloGPS {
   certificaciones?: string[];
   dimensiones?: string;
   peso_gramos?: number;
-  resistencia_agua?: string; // 'IP65', 'IP67', etc
+  resistencia_agua?: string;
   precio_referencia_usd?: number;
   disponible_mexico?: boolean;
   observaciones?: string;
