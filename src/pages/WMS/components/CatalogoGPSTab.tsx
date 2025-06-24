@@ -13,13 +13,13 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Search, Smartphone, ExternalLink } from 'lucide-react';
+import { Plus, Search, Smartphone, ExternalLink, Database, RefreshCw } from 'lucide-react';
 import { useMarcasGPS } from '@/hooks/useMarcasGPS';
 import { useModelosGPS } from '@/hooks/useModelosGPS';
 
 export const CatalogoGPSTab = () => {
-  const { marcas, isLoading: loadingMarcas } = useMarcasGPS();
-  const { modelos, isLoading: loadingModelos } = useModelosGPS();
+  const { marcas, isLoading: loadingMarcas, initializeMarcasGPS } = useMarcasGPS();
+  const { modelos, isLoading: loadingModelos, initializeModelosGPS } = useModelosGPS();
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredModelos = modelos?.filter(modelo =>
@@ -27,6 +27,11 @@ export const CatalogoGPSTab = () => {
     modelo.marca?.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
     modelo.tipo_dispositivo?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleInitializeData = () => {
+    initializeMarcasGPS.mutate();
+    initializeModelosGPS.mutate();
+  };
 
   if (loadingMarcas || loadingModelos) {
     return (
@@ -44,12 +49,27 @@ export const CatalogoGPSTab = () => {
           <h2 className="text-2xl font-bold">Catálogo GPS</h2>
           <p className="text-muted-foreground">Marcas y modelos compatibles con Wialon</p>
         </div>
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleInitializeData}
+            className="flex items-center gap-2"
+            variant="outline"
+            disabled={initializeMarcasGPS.isPending || initializeModelosGPS.isPending}
+          >
+            {initializeMarcasGPS.isPending || initializeModelosGPS.isPending ? (
+              <RefreshCw className="h-4 w-4 animate-spin" />
+            ) : (
+              <Database className="h-4 w-4" />
+            )}
+            Cargar Base de Datos
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="modelos" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="modelos">Modelos GPS</TabsTrigger>
-          <TabsTrigger value="marcas">Marcas</TabsTrigger>
+          <TabsTrigger value="modelos">Modelos GPS ({modelos?.length || 0})</TabsTrigger>
+          <TabsTrigger value="marcas">Marcas ({marcas?.length || 0})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="modelos" className="space-y-4">
@@ -63,6 +83,9 @@ export const CatalogoGPSTab = () => {
                 className="pl-10"
               />
             </div>
+            <Badge variant="secondary" className="text-sm">
+              {filteredModelos?.length || 0} modelos encontrados
+            </Badge>
           </div>
 
           <Card>
