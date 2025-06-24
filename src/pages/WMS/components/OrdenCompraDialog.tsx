@@ -21,7 +21,7 @@ import { useProductosInventario } from '@/hooks/useProductosInventario';
 import { useOrdenesCompra } from '@/hooks/useOrdenesCompra';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import type { OrdenCompra, DetalleOrdenCompra } from '@/types/wms';
+import type { OrdenCompra } from '@/types/wms';
 
 interface OrdenCompraDialogProps {
   open: boolean;
@@ -107,6 +107,16 @@ export const OrdenCompraDialog = ({
       const totales = calcularTotales();
       const { data: user } = await supabase.auth.getUser();
       
+      // Transform detalles to match the expected type structure
+      const detallesFormatted = detalles.map(detalle => ({
+        producto_id: detalle.producto_id,
+        cantidad_solicitada: detalle.cantidad_solicitada,
+        cantidad_recibida: 0, // Initially 0, will be updated when receiving
+        precio_unitario: detalle.precio_unitario,
+        descuento_porcentaje: detalle.descuento_porcentaje || 0,
+        notas: detalle.notas
+      }));
+      
       await createOrden.mutateAsync({
         proveedor_id: data.proveedor_id,
         fecha_orden: new Date().toISOString().split('T')[0],
@@ -119,7 +129,7 @@ export const OrdenCompraDialog = ({
         terminos_pago: data.terminos_pago,
         notas: data.notas,
         creado_por: user.user?.id,
-        detalles: detalles
+        detalles: detallesFormatted
       });
 
       reset();
