@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -12,7 +13,18 @@ interface CreateDetalleOrdenCompra {
   notas?: string;
 }
 
-interface CreateOrdenCompraData extends Omit<OrdenCompra, 'id' | 'numero_orden' | 'created_at' | 'updated_at'> {
+interface CreateOrdenCompraData {
+  proveedor_id: string;
+  fecha_orden: string;
+  fecha_entrega_esperada?: string;
+  estado: 'borrador' | 'enviada' | 'confirmada' | 'parcial' | 'recibida' | 'cancelada';
+  subtotal: number;
+  impuestos: number;
+  total: number;
+  moneda?: string;
+  terminos_pago?: string;
+  notas?: string;
+  creado_por?: string;
   detalles?: CreateDetalleOrdenCompra[];
 }
 
