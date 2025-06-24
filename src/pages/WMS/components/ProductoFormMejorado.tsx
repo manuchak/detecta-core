@@ -1,31 +1,22 @@
+
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { useProductosInventario } from '@/hooks/useProductosInventario';
 import { useCategorias } from '@/hooks/useCategorias';
 import { useMarcasGPS } from '@/hooks/useMarcasGPS';
 import { useModelosGPS } from '@/hooks/useModelosGPS';
 import { useProveedores } from '@/hooks/useProveedores';
 import type { ProductoInventario } from '@/types/wms';
-import { 
-  Package, 
-  Zap, 
-  CircuitBoard, 
-  DollarSign, 
-  Settings, 
-  Truck, 
-  CheckCircle,
-  Sparkles,
-  Info
-} from 'lucide-react';
+import { Package } from 'lucide-react';
+
+// Import new components
+import { SmartCategorySelection } from './product-form/SmartCategorySelection';
+import { BasicInfoCard } from './product-form/BasicInfoCard';
+import { TechnicalSpecsCard } from './product-form/TechnicalSpecsCard';
+import { ConfigurationCard } from './product-form/ConfigurationCard';
+import { PricingStockCard } from './product-form/PricingStockCard';
+import { ProviderCard } from './product-form/ProviderCard';
 
 interface ProductoFormMejoradoProps {
   open: boolean;
@@ -184,8 +175,6 @@ export const ProductoFormMejorado = ({ open, onOpenChange, producto, onClose }: 
   const modelosDisponibles = selectedMarcaGPS && modelosPorMarca ? 
     modelosPorMarca[selectedMarcaGPS] || [] : [];
 
-  const selectedModelo = modelosGPS?.find(m => m.id === watchedModeloGPS);
-
   if (!open) return null;
 
   return (
@@ -214,455 +203,49 @@ export const ProductoFormMejorado = ({ open, onOpenChange, producto, onClose }: 
                 {/* Columna Principal - Información Básica */}
                 <div className="col-span-8 space-y-6">
                   
-                  {/* Smart Category & GPS Selection */}
-                  <Card className="relative">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Sparkles className="h-5 w-5 text-blue-500" />
-                        Selección Inteligente
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-3 gap-4">
-                        <div>
-                          <Label htmlFor="categoria_id">Categoría *</Label>
-                          <Select
-                            value={watchedCategoriaId || ''}
-                            onValueChange={(value) => setValue('categoria_id', value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Seleccionar" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {categorias?.map((categoria) => (
-                                <SelectItem key={categoria.id} value={categoria.id}>
-                                  {categoria.nombre}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                  <SmartCategorySelection
+                    categorias={categorias}
+                    marcasGPS={marcasGPS}
+                    modelosDisponibles={modelosDisponibles}
+                    modelosGPS={modelosGPS}
+                    autoFilledFields={autoFilledFields}
+                    setValue={setValue}
+                    watch={watch}
+                  />
 
-                        {isGPSCategory && (
-                          <>
-                            <div>
-                              <Label htmlFor="marca_gps_id">Marca GPS</Label>
-                              <Select
-                                value={watchedMarcaGPS || ''}
-                                onValueChange={(value) => setValue('marca_gps_id', value)}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Seleccionar marca" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {marcasGPS?.map((marca) => (
-                                    <SelectItem key={marca.id} value={marca.id}>
-                                      {marca.nombre}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
+                  <BasicInfoCard
+                    register={register}
+                    errors={errors}
+                    autoFilledFields={autoFilledFields}
+                  />
 
-                            <div>
-                              <Label htmlFor="modelo_gps_id">Modelo GPS</Label>
-                              <Select
-                                value={watchedModeloGPS || ''}
-                                onValueChange={(value) => setValue('modelo_gps_id', value)}
-                                disabled={!selectedMarcaGPS}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Seleccionar modelo" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {modelosDisponibles.map((modelo) => (
-                                    <SelectItem key={modelo.id} value={modelo.id}>
-                                      <div className="flex items-center gap-2">
-                                        {modelo.nombre}
-                                        {modelo.precio_referencia_usd && (
-                                          <span className="text-xs text-muted-foreground ml-auto">
-                                            ${modelo.precio_referencia_usd}
-                                          </span>
-                                        )}
-                                      </div>
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </>
-                        )}
-                      </div>
-
-                      {/* Auto-filled notification */}
-                      {autoFilledFields.length > 0 && (
-                        <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          <span className="text-green-800 text-sm">
-                            ✨ Campos completados automáticamente: {autoFilledFields.join(', ')}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* GPS Model Info Panel */}
-                      {selectedModelo && (
-                        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                          <h4 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
-                            <Info className="h-4 w-4" />
-                            Especificaciones {selectedModelo.nombre}
-                          </h4>
-                          <div className="grid grid-cols-4 gap-4 text-sm">
-                            <div><span className="font-medium">Tipo:</span> {selectedModelo.tipo_dispositivo}</div>
-                            <div><span className="font-medium">Precisión:</span> {selectedModelo.gps_precision}</div>
-                            <div><span className="font-medium">Peso:</span> {selectedModelo.peso_gramos}g</div>
-                            <div><span className="font-medium">Dimensiones:</span> {selectedModelo.dimensiones}</div>
-                          </div>
-                          {selectedModelo.conectividad && selectedModelo.conectividad.length > 0 && (
-                            <div className="mt-3">
-                              <span className="font-medium text-blue-900">Conectividad:</span>
-                              <div className="flex gap-1 mt-1">
-                                {selectedModelo.conectividad.map((conn, idx) => (
-                                  <Badge key={idx} variant="outline" className="text-xs bg-blue-100 text-blue-800">
-                                    {conn}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Basic Information */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Package className="h-5 w-5" />
-                        Información Básica
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className={autoFilledFields.includes('nombre') ? 'relative' : ''}>
-                          <Label htmlFor="nombre">Nombre del Producto *</Label>
-                          <Input
-                            id="nombre"
-                            {...register('nombre', { required: 'Nombre requerido' })}
-                            placeholder="Ej: GPS Tracker Professional"
-                            className={autoFilledFields.includes('nombre') ? 'bg-green-50 border-green-300' : ''}
-                          />
-                          {errors.nombre && (
-                            <span className="text-sm text-red-500">{errors.nombre.message}</span>
-                          )}
-                        </div>
-                        <div>
-                          <Label htmlFor="codigo_producto">Código del Producto *</Label>
-                          <Input
-                            id="codigo_producto"
-                            {...register('codigo_producto', { required: 'Código requerido' })}
-                            placeholder="Ej: GPS-001"
-                          />
-                          {errors.codigo_producto && (
-                            <span className="text-sm text-red-500">{errors.codigo_producto.message}</span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="descripcion">Descripción</Label>
-                        <Textarea
-                          id="descripcion"
-                          {...register('descripcion')}
-                          placeholder="Descripción detallada del producto..."
-                          rows={3}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className={autoFilledFields.includes('marca') ? 'relative' : ''}>
-                          <Label htmlFor="marca">Marca</Label>
-                          <Input
-                            id="marca"
-                            {...register('marca')}
-                            placeholder="Ej: Teltonika"
-                            className={autoFilledFields.includes('marca') ? 'bg-green-50 border-green-300' : ''}
-                          />
-                        </div>
-                        <div className={autoFilledFields.includes('modelo') ? 'relative' : ''}>
-                          <Label htmlFor="modelo">Modelo</Label>
-                          <Input
-                            id="modelo"
-                            {...register('modelo')}
-                            placeholder="Ej: FMB920"
-                            className={autoFilledFields.includes('modelo') ? 'bg-green-50 border-green-300' : ''}
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Technical Specifications */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <CircuitBoard className="h-5 w-5" />
-                        Especificaciones Técnicas
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-4 gap-4">
-                        <div className={autoFilledFields.includes('peso_kg') ? 'relative' : ''}>
-                          <Label htmlFor="peso_kg">Peso (kg)</Label>
-                          <Input
-                            id="peso_kg"
-                            type="number"
-                            step="0.001"
-                            {...register('peso_kg', { valueAsNumber: true })}
-                            placeholder="0.000"
-                            className={autoFilledFields.includes('peso_kg') ? 'bg-green-50 border-green-300' : ''}
-                          />
-                        </div>
-                        <div className={autoFilledFields.includes('dimensiones') ? 'relative' : ''}>
-                          <Label htmlFor="dimensiones">Dimensiones</Label>
-                          <Input
-                            id="dimensiones"
-                            {...register('dimensiones')}
-                            placeholder="L x W x H mm"
-                            className={autoFilledFields.includes('dimensiones') ? 'bg-green-50 border-green-300' : ''}
-                          />
-                        </div>
-                        <div className={autoFilledFields.includes('voltaje_operacion') ? 'relative' : ''}>
-                          <Label htmlFor="voltaje_operacion">Voltaje</Label>
-                          <Input
-                            id="voltaje_operacion"
-                            {...register('voltaje_operacion')}
-                            placeholder="12V-24V"
-                            className={autoFilledFields.includes('voltaje_operacion') ? 'bg-green-50 border-green-300' : ''}
-                          />
-                        </div>
-                        <div className={autoFilledFields.includes('temperatura_operacion') ? 'relative' : ''}>
-                          <Label htmlFor="temperatura_operacion">Temperatura</Label>
-                          <Input
-                            id="temperatura_operacion"
-                            {...register('temperatura_operacion')}
-                            placeholder="-40°C a +85°C"
-                            className={autoFilledFields.includes('temperatura_operacion') ? 'bg-green-50 border-green-300' : ''}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-4">
-                        <div>
-                          <Label htmlFor="consumo_energia_mw">Consumo (mW)</Label>
-                          <Input
-                            id="consumo_energia_mw"
-                            type="number"
-                            {...register('consumo_energia_mw', { valueAsNumber: true })}
-                            placeholder="1000"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="frecuencia_transmision_hz">Frecuencia (Hz)</Label>
-                          <Input
-                            id="frecuencia_transmision_hz"
-                            type="number"
-                            {...register('frecuencia_transmision_hz', { valueAsNumber: true })}
-                            placeholder="900000000"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="codigo_barras">Código de Barras</Label>
-                          <Input
-                            id="codigo_barras"
-                            {...register('codigo_barras')}
-                            placeholder="EAN-13 o UPC"
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <TechnicalSpecsCard
+                    register={register}
+                    autoFilledFields={autoFilledFields}
+                  />
                 </div>
 
                 {/* Columna Lateral - Configuración y Precios */}
                 <div className="col-span-4 space-y-6">
                   
-                  {/* Status y Configuración */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Settings className="h-5 w-5" />
-                        Configuración
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="activo">Producto Activo</Label>
-                          <Switch
-                            id="activo"
-                            checked={watch('activo')}
-                            onCheckedChange={(checked) => setValue('activo', checked)}
-                          />
-                        </div>
-                        
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="es_serializado" className={autoFilledFields.includes('es_serializado') ? 'text-green-700' : ''}>
-                            Serializado
-                          </Label>
-                          <Switch
-                            id="es_serializado"
-                            checked={watch('es_serializado')}
-                            onCheckedChange={(checked) => setValue('es_serializado', checked)}
-                          />
-                        </div>
-                        
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="requiere_configuracion" className={autoFilledFields.includes('requiere_configuracion') ? 'text-green-700' : ''}>
-                            Requiere Config.
-                          </Label>
-                          <Switch
-                            id="requiere_configuracion"
-                            checked={watch('requiere_configuracion')}
-                            onCheckedChange={(checked) => setValue('requiere_configuracion', checked)}
-                          />
-                        </div>
-                      </div>
+                  <ConfigurationCard
+                    watch={watch}
+                    setValue={setValue}
+                    autoFilledFields={autoFilledFields}
+                  />
 
-                      <Separator />
+                  <PricingStockCard
+                    register={register}
+                    watch={watch}
+                    autoFilledFields={autoFilledFields}
+                  />
 
-                      <div>
-                        <Label htmlFor="unidad_medida">Unidad de Medida</Label>
-                        <Select
-                          value={watch('unidad_medida') || 'pieza'}
-                          onValueChange={(value) => setValue('unidad_medida', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pieza">Pieza</SelectItem>
-                            <SelectItem value="kit">Kit</SelectItem>
-                            <SelectItem value="caja">Caja</SelectItem>
-                            <SelectItem value="metro">Metro</SelectItem>
-                            <SelectItem value="rollo">Rollo</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="garantia_meses">Garantía (meses)</Label>
-                        <Input
-                          id="garantia_meses"
-                          type="number"
-                          {...register('garantia_meses', { valueAsNumber: true })}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Precios y Stock */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <DollarSign className="h-5 w-5" />
-                        Precios y Stock
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className={autoFilledFields.includes('precio_compra_promedio') ? 'relative' : ''}>
-                        <Label htmlFor="precio_compra_promedio">Precio Compra</Label>
-                        <Input
-                          id="precio_compra_promedio"
-                          type="number"
-                          step="0.01"
-                          {...register('precio_compra_promedio', { valueAsNumber: true })}
-                          placeholder="0.00"
-                          className={autoFilledFields.includes('precio_compra_promedio') ? 'bg-green-50 border-green-300' : ''}
-                        />
-                      </div>
-
-                      <div className={autoFilledFields.includes('precio_venta_sugerido') ? 'relative' : ''}>
-                        <Label htmlFor="precio_venta_sugerido">Precio Venta</Label>
-                        <Input
-                          id="precio_venta_sugerido"
-                          type="number"
-                          step="0.01"
-                          {...register('precio_venta_sugerido', { valueAsNumber: true })}
-                          placeholder="0.00"
-                          className={autoFilledFields.includes('precio_venta_sugerido') ? 'bg-green-50 border-green-300' : ''}
-                        />
-                      </div>
-
-                      <Separator />
-
-                      <div>
-                        <Label htmlFor="stock_minimo">Stock Mínimo</Label>
-                        <Input
-                          id="stock_minimo"
-                          type="number"
-                          {...register('stock_minimo', { valueAsNumber: true })}
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="stock_maximo">Stock Máximo</Label>
-                        <Input
-                          id="stock_maximo"
-                          type="number"
-                          {...register('stock_maximo', { valueAsNumber: true })}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Proveedor */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Truck className="h-5 w-5" />
-                        Proveedor
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div>
-                        <Label htmlFor="proveedor_id">Proveedor Principal</Label>
-                        <Select
-                          value={watch('proveedor_id') || ''}
-                          onValueChange={(value) => setValue('proveedor_id', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Seleccionar proveedor" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {proveedores?.map((proveedor) => (
-                              <SelectItem key={proveedor.id} value={proveedor.id}>
-                                {proveedor.nombre}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="ubicacion_almacen">Ubicación Almacén</Label>
-                        <Input
-                          id="ubicacion_almacen"
-                          {...register('ubicacion_almacen')}
-                          placeholder="Ej: A-1-1"
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="color">Color</Label>
-                        <Input
-                          id="color"
-                          {...register('color')}
-                          placeholder="Negro, Blanco, etc."
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <ProviderCard
+                    register={register}
+                    watch={watch}
+                    setValue={setValue}
+                    proveedores={proveedores}
+                  />
                 </div>
               </div>
 
