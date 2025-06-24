@@ -4,10 +4,11 @@ import ApiCredentials from "@/components/settings/ApiCredentials";
 import { UserRoleManager } from "@/components/settings/UserRoleManager";
 import { PermissionsManager } from "@/components/settings/PermissionsManager";
 import { SkillsManager } from "@/components/settings/SkillsManager";
+import { QuickSkillsPanel } from "@/components/settings/QuickSkillsPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Settings = () => {
-  const [activeTab, setActiveTab] = useState("roles");
+  const [activeTab, setActiveTab] = useState("skills");
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -21,18 +22,19 @@ const Settings = () => {
         className="w-full"
       >
         <TabsList className="mb-6">
-          <TabsTrigger value="roles">Roles de Usuario</TabsTrigger>
           <TabsTrigger value="skills">Skills de Usuario</TabsTrigger>
+          <TabsTrigger value="roles">Roles de Usuario</TabsTrigger>
           <TabsTrigger value="permissions">Permisos</TabsTrigger>
           <TabsTrigger value="api">API</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="roles">
-          <UserRoleManager />
+        <TabsContent value="skills" className="space-y-6">
+          <QuickSkillsPanel />
+          <SkillsManager />
         </TabsContent>
 
-        <TabsContent value="skills">
-          <SkillsManager />
+        <TabsContent value="roles">
+          <UserRoleManager />
         </TabsContent>
 
         <TabsContent value="permissions">
