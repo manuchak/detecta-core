@@ -13,14 +13,19 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Search, Smartphone, ExternalLink, RefreshCw } from 'lucide-react';
+import { Plus, Search, ExternalLink, RefreshCw } from 'lucide-react';
 import { useMarcasGPS } from '@/hooks/useMarcasGPS';
 import { useModelosGPS } from '@/hooks/useModelosGPS';
+import { NuevaMarcaDialog } from './NuevaMarcaDialog';
+import { NuevoModeloDialog } from './NuevoModeloDialog';
 
 export const CatalogoGPSTab = () => {
   const { marcas, isLoading: loadingMarcas } = useMarcasGPS();
   const { modelos, isLoading: loadingModelos } = useModelosGPS();
   const [searchTerm, setSearchTerm] = useState('');
+  const [showNuevaMarcaDialog, setShowNuevaMarcaDialog] = useState(false);
+  const [showNuevoModeloDialog, setShowNuevoModeloDialog] = useState(false);
+  const [marcaIdSeleccionada, setMarcaIdSeleccionada] = useState<string | undefined>();
 
   const filteredModelos = modelos?.filter(modelo =>
     modelo.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -29,8 +34,12 @@ export const CatalogoGPSTab = () => {
   );
 
   const handleRefreshData = () => {
-    // Los datos ahora se cargan automáticamente desde la base de datos
     window.location.reload();
+  };
+
+  const handleAgregarModelo = (marcaId?: string) => {
+    setMarcaIdSeleccionada(marcaId);
+    setShowNuevoModeloDialog(true);
   };
 
   if (loadingMarcas || loadingModelos) {
@@ -51,12 +60,27 @@ export const CatalogoGPSTab = () => {
         </div>
         <div className="flex gap-2">
           <Button 
+            onClick={() => setShowNuevaMarcaDialog(true)}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Nueva Marca
+          </Button>
+          <Button 
+            onClick={() => handleAgregarModelo()}
+            className="flex items-center gap-2"
+            variant="outline"
+          >
+            <Plus className="h-4 w-4" />
+            Nuevo Modelo
+          </Button>
+          <Button 
             onClick={handleRefreshData}
             className="flex items-center gap-2"
             variant="outline"
           >
             <RefreshCw className="h-4 w-4" />
-            Actualizar Datos
+            Actualizar
           </Button>
         </div>
       </div>
@@ -201,16 +225,27 @@ export const CatalogoGPSTab = () => {
                       <span className="font-medium">Modelos disponibles:</span>{' '}
                       {modelos?.filter(m => m.marca_id === marca.id).length || 0}
                     </div>
-                    {marca.sitio_web && (
-                      <a
-                        href={marca.sitio_web}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-sm text-blue-500 hover:text-blue-700"
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleAgregarModelo(marca.id)}
+                        className="flex items-center gap-1"
                       >
-                        Sitio web <ExternalLink className="h-3 w-3" />
-                      </a>
-                    )}
+                        <Plus className="h-3 w-3" />
+                        Agregar Modelo
+                      </Button>
+                      {marca.sitio_web && (
+                        <a
+                          href={marca.sitio_web}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-sm text-blue-500 hover:text-blue-700"
+                        >
+                          Sitio web <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -218,6 +253,18 @@ export const CatalogoGPSTab = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Dialogs */}
+      <NuevaMarcaDialog
+        open={showNuevaMarcaDialog}
+        onOpenChange={setShowNuevaMarcaDialog}
+      />
+      
+      <NuevoModeloDialog
+        open={showNuevoModeloDialog}
+        onOpenChange={setShowNuevoModeloDialog}
+        marcaIdPreseleccionada={marcaIdSeleccionada}
+      />
     </div>
   );
 };
