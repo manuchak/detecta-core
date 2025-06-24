@@ -7,6 +7,7 @@ import { Shield, ClipboardCheck, Settings, Activity, Calendar, Wrench, AlertTria
 import { useServiciosMonitoreo } from '@/hooks/useServiciosMonitoreo';
 import { useProgramacionInstalaciones } from '@/hooks/useProgramacionInstalaciones';
 import { useAprobacionesWorkflow } from '@/hooks/useAprobacionesWorkflow';
+import { useQueryClient } from '@tanstack/react-query';
 import { ServiciosTable } from './components/ServiciosTable';
 import { ProgramarInstalacionMejorada } from '@/components/instalaciones/ProgramarInstalacionMejorada';
 import { FormularioServicioCompleto } from '@/components/servicios/FormularioServicioCompleto';
@@ -19,6 +20,7 @@ export const ServicesPage = () => {
   const [showProgramarInstalacion, setShowProgramarInstalacion] = useState(false);
   const [showNuevoServicio, setShowNuevoServicio] = useState(false);
   
+  const queryClient = useQueryClient();
   const { servicios, isLoading, error } = useServiciosMonitoreo();
   const { programaciones, isLoading: loadingProgramaciones } = useProgramacionInstalaciones();
   const { serviciosPendientesCoordinador, serviciosPendientesRiesgo } = useAprobacionesWorkflow();
@@ -29,6 +31,11 @@ export const ServicesPage = () => {
   if (error) {
     console.error('Error en ServicesPage:', error);
   }
+
+  const handleServiceDeleted = () => {
+    // Refresh the services list after deletion
+    queryClient.invalidateQueries({ queryKey: ['servicios-monitoreo'] });
+  };
 
   const estadosCount = servicios?.reduce((acc, servicio) => {
     acc[servicio.estado_general] = (acc[servicio.estado_general] || 0) + 1;
@@ -197,6 +204,7 @@ export const ServicesPage = () => {
                     setSelectedServicioId(servicioId);
                     setShowProgramarInstalacion(true);
                   }}
+                  onServiceDeleted={handleServiceDeleted}
                 />
               ) : (
                 <div className="text-center py-12">

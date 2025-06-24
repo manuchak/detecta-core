@@ -1,11 +1,15 @@
+
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Calendar, MapPin, Shield, Eye, Filter, Search, Clock, CheckCircle, AlertTriangle, Settings } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Calendar, MapPin, Shield, Eye, Filter, Search, Clock, CheckCircle, AlertTriangle, Settings, Trash2 } from 'lucide-react';
 import { DetalleServicioDialog } from '@/components/servicios/DetalleServicioDialog';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 // Using a generic type since ServicioMonitoreo is not exported
 interface ServicioMonitoreo {
@@ -26,18 +30,55 @@ interface ServiciosTableProps {
   servicios: ServicioMonitoreo[];
   isLoading: boolean;
   onProgramarInstalacion: (servicioId: string) => void;
+  onServiceDeleted?: () => void;
 }
 
 export const ServiciosTable = ({ 
   servicios, 
   isLoading,
-  onProgramarInstalacion 
+  onProgramarInstalacion,
+  onServiceDeleted 
 }: ServiciosTableProps) => {
   const [servicioSeleccionado, setServicioSeleccionado] = useState<string | null>(null);
   const [filtroEstado, setFiltroEstado] = useState<string>('todos');
   const [filtroPrioridad, setFiltroPrioridad] = useState<string>('todos');
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
   const [busqueda, setBusqueda] = useState('');
+  const [deletingService, setDeletingService] = useState<string | null>(null);
+  
+  const { toast } = useToast();
+
+  const handleDeleteService = async (servicioId: string, numeroServicio: string) => {
+    try {
+      setDeletingService(servicioId);
+      
+      const { error } = await supabase
+        .from('servicios_monitoreo')
+        .delete()
+        .eq('id', servicioId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Servicio eliminado",
+        description: `El servicio ${numeroServicio} ha sido eliminado exitosamente.`,
+      });
+
+      // Notificar al componente padre para refrescar la lista
+      if (onServiceDeleted) {
+        onServiceDeleted();
+      }
+    } catch (error) {
+      console.error('Error deleting service:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el servicio. Inténtelo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingService(null);
+    }
+  };
 
   const getEstadoBadge = (estado: string) => {
     const config = {
@@ -289,6 +330,38 @@ export const ServiciosTable = ({
                       )}
                     </div>
                   )}
+
+                  {/* Delete Button with Confirmation Dialog */}
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button 
+                        variant="destructive" 
+                        size="sm"
+                        disabled={deletingService === servicio.id}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        {deletingService === servicio.id ? 'Eliminando...' : 'Eliminar'}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta acción no se puede deshacer. Esto eliminará permanentemente el servicio 
+                          <strong> {servicio.numero_servicio}</strong> y todos sus datos asociados.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDeleteService(servicio.id, servicio.numero_servicio)}
+                          className="bg-red-600 hover:bg-red-700"
+                        >
+                          Eliminar Servicio
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </div>
             </CardContent>
