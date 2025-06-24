@@ -20,6 +20,7 @@ import { useProveedores } from '@/hooks/useProveedores';
 import { useProductosInventario } from '@/hooks/useProductosInventario';
 import { useOrdenesCompra } from '@/hooks/useOrdenesCompra';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import type { OrdenCompra, DetalleOrdenCompra } from '@/types/wms';
 
 interface OrdenCompraDialogProps {
@@ -51,8 +52,8 @@ export const OrdenCompraDialog = ({
   onClose
 }: OrdenCompraDialogProps) => {
   const { toast } = useToast();
-  const { data: proveedores } = useProveedores();
-  const { data: productos } = useProductosInventario();
+  const { proveedores } = useProveedores();
+  const { productos } = useProductosInventario();
   const { createOrden } = useOrdenesCompra();
   
   const [detalles, setDetalles] = useState<DetalleFormData[]>([]);
@@ -104,6 +105,7 @@ export const OrdenCompraDialog = ({
 
     try {
       const totales = calcularTotales();
+      const { data: user } = await supabase.auth.getUser();
       
       await createOrden.mutateAsync({
         proveedor_id: data.proveedor_id,
@@ -116,7 +118,8 @@ export const OrdenCompraDialog = ({
         moneda: 'MXN',
         terminos_pago: data.terminos_pago,
         notas: data.notas,
-        creado_por: (await supabase.auth.getUser()).data.user?.id
+        creado_por: user.user?.id,
+        detalles: detalles
       });
 
       reset();

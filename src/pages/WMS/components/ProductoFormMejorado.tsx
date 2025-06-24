@@ -175,6 +175,14 @@ export const ProductoFormMejorado = ({ open, onOpenChange, producto, onClose }: 
   const modelosDisponibles = selectedMarcaGPS && modelosPorMarca ? 
     modelosPorMarca[selectedMarcaGPS] || [] : [];
 
+  const handleCategorySelect = (categoria: any) => {
+    console.log('Categoría seleccionada:', categoria);
+  };
+
+  const handleGPSSelect = (marca: any, modelo: any) => {
+    console.log('GPS seleccionado:', marca, modelo);
+  };
+
   if (!open) return null;
 
   return (
@@ -204,13 +212,10 @@ export const ProductoFormMejorado = ({ open, onOpenChange, producto, onClose }: 
                 <div className="col-span-8 space-y-6">
                   
                   <SmartCategorySelection
-                    categorias={categorias}
-                    marcasGPS={marcasGPS}
-                    modelosDisponibles={modelosDisponibles}
-                    modelosGPS={modelosGPS}
-                    autoFilledFields={autoFilledFields}
-                    setValue={setValue}
                     watch={watch}
+                    setValue={setValue}
+                    onCategorySelect={handleCategorySelect}
+                    onGPSSelect={handleGPSSelect}
                   />
 
                   <BasicInfoCard

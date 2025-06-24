@@ -20,9 +20,9 @@ export const SmartCategorySelection = ({
   onCategorySelect,
   onGPSSelect
 }: SmartCategorySelectionProps) => {
-  const { data: categorias } = useCategorias();
-  const { data: marcasGPS } = useMarcasGPS();
-  const { data: modelosGPS } = useModelosGPS();
+  const { categorias } = useCategorias();
+  const { marcas: marcasGPS } = useMarcasGPS();
+  const { modelos: modelosGPS } = useModelosGPS();
 
   const selectedMarcaId = watch('marca_gps_id');
   const modelosFiltrados = modelosGPS?.filter(m => m.marca_id === selectedMarcaId);
