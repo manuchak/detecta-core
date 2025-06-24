@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,11 +6,13 @@ import { useToast } from "@/components/ui/use-toast";
 interface AuthContextType {
   user: User | null;
   session: Session | null;
+  userRole: string | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signOut: () => Promise<void>;
   confirmEmail: (token: string, type: string) => Promise<void>;
+  assignRole: (userId: string, role: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,8 +20,64 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+
+  const fetchUserRole = async (userId: string) => {
+    try {
+      const { data, error } = await supabase.rpc('get_user_role_safe', {
+        user_uid: userId
+      });
+
+      if (error) {
+        console.error('Error fetching user role:', error);
+        return null;
+      }
+
+      return data;
+    } catch (err) {
+      console.error('Error in fetchUserRole:', err);
+      return null;
+    }
+  };
+
+  const assignRole = async (userId: string, role: string): Promise<boolean> => {
+    try {
+      // First verify admin access
+      const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_bypass_rls');
+      
+      if (adminError || !isAdminData) {
+        throw new Error('Sin permisos para asignar roles');
+      }
+
+      // Delete existing role
+      const { error: deleteError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId);
+      
+      if (deleteError) {
+        console.error('Error deleting existing role:', deleteError);
+        throw new Error(`Error updating role: ${deleteError.message}`);
+      }
+      
+      // Insert new role
+      const { error: insertError } = await supabase
+        .from('user_roles')
+        .insert([{ user_id: userId, role }]);
+        
+      if (insertError) {
+        console.error('Error inserting new role:', insertError);
+        throw new Error(`Error updating role: ${insertError.message}`);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error in assignRole:', error);
+      throw error;
+    }
+  };
 
   const confirmEmail = async (token: string, type: string) => {
     try {
@@ -69,6 +126,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         
+        // Fetch user role if user is present
+        if (currentSession?.user) {
+          // Use setTimeout to avoid blocking the auth state change
+          setTimeout(async () => {
+            if (mounted) {
+              try {
+                const role = await fetchUserRole(currentSession.user.id);
+                setUserRole(role);
+              } catch (error) {
+                console.error('Error fetching user role:', error);
+                setUserRole(null);
+              }
+            }
+          }, 100);
+        } else {
+          setUserRole(null);
+        }
+        
         // Show appropriate toasts for auth events
         if (event === 'SIGNED_IN' && currentSession?.user) {
           console.log("User signed in:", currentSession.user.email);
@@ -115,6 +190,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log("Initial session check:", currentSession?.user?.email);
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
+      
+      // Fetch user role if user is present
+      if (currentSession?.user) {
+        fetchUserRole(currentSession.user.id).then(role => {
+          if (mounted) {
+            setUserRole(role);
+          }
+        });
+      }
+      
       setLoading(false);
     });
 
@@ -264,11 +349,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = {
     user,
     session,
+    userRole,
     loading,
     signIn,
     signUp,
     signOut,
     confirmEmail,
+    assignRole,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
