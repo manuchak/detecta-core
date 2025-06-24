@@ -14,7 +14,7 @@ import {
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { useUserSkills } from '@/hooks/useUserSkills';
 import { SKILL_DEFINITIONS, Skill } from '@/types/skillTypes';
-import { Search, Shield, Plus, X } from 'lucide-react';
+import { Search, Shield, Plus, X, Clock } from 'lucide-react';
 
 export const SkillsManager = () => {
   const { users } = useUserRoles();
@@ -83,7 +83,7 @@ export const SkillsManager = () => {
         <div>
           <h2 className="text-xl font-bold">Gestión de Skills</h2>
           <p className="text-sm text-gray-600">
-            Control granular de permisos por usuario
+            Control granular de permisos por usuario usando el nuevo sistema de skills
           </p>
         </div>
       </div>
@@ -136,7 +136,7 @@ export const SkillsManager = () => {
                 disabled={!selectedUser || !selectedSkill || grantSkill.isPending}
                 className="w-full"
               >
-                Otorgar Skill
+                {grantSkill.isPending ? 'Otorgando...' : 'Otorgar Skill'}
               </Button>
             </div>
           </div>
@@ -197,7 +197,24 @@ const UserSkillsCard = ({
   getCategoryColor, 
   getSkillCategory 
 }: any) => {
-  const { userSkills } = useUserSkills(user.id);
+  const { userSkills, isLoading } = useUserSkills(user.id);
+
+  if (isLoading) {
+    return (
+      <div className="border rounded-lg p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h4 className="font-medium">{user.display_name}</h4>
+            <p className="text-sm text-gray-600">{user.email}</p>
+          </div>
+        </div>
+        <div className="animate-pulse">
+          <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
+          <div className="h-6 bg-gray-200 rounded w-full"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="border rounded-lg p-4">
@@ -212,7 +229,14 @@ const UserSkillsCard = ({
       </div>
 
       <div className="space-y-2">
-        <h5 className="text-sm font-medium text-gray-700">Skills activos:</h5>
+        <h5 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+          Skills activos:
+          {userSkills && userSkills.length > 0 && (
+            <Badge variant="secondary" className="text-xs">
+              {userSkills.length}
+            </Badge>
+          )}
+        </h5>
         {userSkills && userSkills.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             {userSkills.map(userSkill => (
@@ -220,13 +244,17 @@ const UserSkillsCard = ({
                 <Badge 
                   className={`text-xs ${getCategoryColor(getSkillCategory(userSkill.skill))}`}
                 >
-                  {getSkillDefinition(userSkill.skill)?.name || userSkill.skill}
+                  <span>{getSkillDefinition(userSkill.skill)?.name || userSkill.skill}</span>
+                  {userSkill.expires_at && (
+                    <Clock className="h-3 w-3 ml-1" />
+                  )}
                 </Badge>
                 <Button
                   size="sm"
                   variant="ghost"
                   className="h-4 w-4 p-0 text-red-600 hover:text-red-700"
                   onClick={() => onRevokeSkill(user.id, userSkill.skill)}
+                  title="Revocar skill"
                 >
                   <X className="h-3 w-3" />
                 </Button>

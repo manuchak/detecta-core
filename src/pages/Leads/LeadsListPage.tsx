@@ -3,17 +3,17 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { useUserSkills } from "@/hooks/useUserSkills";
 import { LeadsTable } from "@/components/leads/LeadsTable";
 import { LeadForm } from "@/components/leads/LeadForm";
 import { Lead } from "@/hooks/useLeads";
 
 export const LeadsListPage = () => {
-  const { userRole } = useAuth();
+  const { hasAnySkill } = useUserSkills();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
 
-  const canManageLeads = userRole && ['admin', 'owner', 'supply_admin'].includes(userRole);
+  const canManageLeads = hasAnySkill(['leads_management', 'admin_full_access']);
 
   const handleEditLead = (lead: Lead) => {
     setEditingLead(lead);
@@ -36,7 +36,7 @@ export const LeadsListPage = () => {
                 No tienes permisos para acceder a la gestión de candidatos.
               </p>
               <p className="text-sm text-muted-foreground mt-2">
-                Rol actual: {userRole || 'Sin rol asignado'}
+                Se requieren skills: leads_management o admin_full_access
               </p>
             </div>
           </CardContent>

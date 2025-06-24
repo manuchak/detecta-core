@@ -11,66 +11,32 @@ export const useUserSkills = (userId?: string) => {
   const queryClient = useQueryClient();
   const targetUserId = userId || user?.id;
 
-  // Get current user's skills - for now we'll simulate with role-based access
+  // Get current user's skills from the new user_skills table
   const { data: userSkills, isLoading, error } = useQuery({
     queryKey: ['user-skills', targetUserId],
     queryFn: async () => {
       if (!targetUserId) return [];
       
       try {
-        // Get user's role to simulate skills
-        const { data: userRoles, error: roleError } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', targetUserId);
+        const { data, error } = await supabase.rpc('get_user_skills', {
+          check_user_id: targetUserId
+        });
 
-        if (roleError) {
-          console.error('Error fetching user roles:', roleError);
+        if (error) {
+          console.error('Error fetching user skills:', error);
           return [];
         }
 
-        // Convert roles to skills based on ROLE_TO_SKILLS_MAPPING
-        const skills: UserSkill[] = [];
-        
-        if (userRoles && userRoles.length > 0) {
-          const role = userRoles[0].role;
-          
-          // Map role to skills based on our mapping
-          let mappedSkills: Skill[] = [];
-          
-          switch (role) {
-            case 'owner':
-            case 'admin':
-              mappedSkills = ['admin_full_access'];
-              break;
-            case 'supply_admin':
-              mappedSkills = ['dashboard_view', 'leads_management', 'services_manage', 'reports_view'];
-              break;
-            case 'coordinador_operaciones':
-              mappedSkills = ['dashboard_view', 'services_manage', 'monitoring_view', 'reports_view'];
-              break;
-            case 'custodio':
-              mappedSkills = ['custodio_tracking_only'];
-              break;
-            case 'instalador':
-              mappedSkills = ['installer_portal_only'];
-              break;
-            default:
-              mappedSkills = [];
-          }
-          
-          // Convert to UserSkill format
-          mappedSkills.forEach(skill => {
-            skills.push({
-              id: `${targetUserId}-${skill}`,
-              user_id: targetUserId,
-              skill,
-              granted_by: targetUserId,
-              granted_at: new Date().toISOString(),
-              is_active: true
-            });
-          });
-        }
+        // Transform the data to match our UserSkill interface
+        const skills: UserSkill[] = (data || []).map((skillData: any) => ({
+          id: `${targetUserId}-${skillData.skill}`,
+          user_id: targetUserId,
+          skill: skillData.skill as Skill,
+          granted_by: targetUserId,
+          granted_at: skillData.granted_at,
+          expires_at: skillData.expires_at,
+          is_active: true
+        }));
 
         return skills;
       } catch (err) {
@@ -99,21 +65,29 @@ export const useUserSkills = (userId?: string) => {
     return skills.some(skill => hasSkill(skill));
   };
 
-  // Grant skill to user (admin only) - placeholder for future implementation
+  // Grant skill to user (admin only)
   const grantSkill = useMutation({
     mutationFn: async ({ userId, skill }: { userId: string; skill: Skill }) => {
       try {
         console.log(`Granting skill ${skill} to user ${userId}`);
         
-        // Verify admin access
-        const { data: isAdmin, error: adminError } = await supabase.rpc('is_admin_user_secure');
-        
-        if (adminError || !isAdmin) {
-          throw new Error('Sin permisos para otorgar skills');
+        // Insert the skill using direct table access
+        const { data, error } = await supabase
+          .from('user_skills')
+          .insert({
+            user_id: userId,
+            skill: skill,
+            granted_by: user?.id,
+            is_active: true
+          })
+          .select()
+          .single();
+
+        if (error) {
+          throw new Error(`Error al otorgar skill: ${error.message}`);
         }
 
-        // For now, just return success - actual implementation would require user_skills table
-        return { userId, skill };
+        return data;
       } catch (err) {
         console.error('Error in grantSkill:', err);
         throw err;
@@ -135,20 +109,27 @@ export const useUserSkills = (userId?: string) => {
     }
   });
 
-  // Revoke skill from user (admin only) - placeholder for future implementation
+  // Revoke skill from user (admin only)
   const revokeSkill = useMutation({
     mutationFn: async ({ userId, skill }: { userId: string; skill: Skill }) => {
       try {
         console.log(`Revoking skill ${skill} from user ${userId}`);
         
-        // Verify admin access
-        const { data: isAdmin, error: adminError } = await supabase.rpc('is_admin_user_secure');
-        
-        if (adminError || !isAdmin) {
-          throw new Error('Sin permisos para revocar skills');
+        // Deactivate the skill instead of deleting it
+        const { error } = await supabase
+          .from('user_skills')
+          .update({ 
+            is_active: false,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', userId)
+          .eq('skill', skill)
+          .eq('is_active', true);
+
+        if (error) {
+          throw new Error(`Error al revocar skill: ${error.message}`);
         }
 
-        // For now, just return success - actual implementation would require user_skills table
         return { userId, skill };
       } catch (err) {
         console.error('Error in revokeSkill:', err);

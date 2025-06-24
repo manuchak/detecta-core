@@ -3457,6 +3457,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_skills: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          granted_at: string | null
+          granted_by: string | null
+          id: string
+          is_active: boolean | null
+          skill: Database["public"]["Enums"]["user_skill_type"]
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          skill: Database["public"]["Enums"]["user_skill_type"]
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          skill?: Database["public"]["Enums"]["user_skill_type"]
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       vapi_call_logs: {
         Row: {
           analysis: Json | null
@@ -3578,7 +3614,19 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      user_skills_view: {
+        Row: {
+          display_name: string | null
+          email: string | null
+          expires_at: string | null
+          granted_at: string | null
+          is_active: boolean | null
+          skill: Database["public"]["Enums"]["user_skill_type"] | null
+          status: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       add_admin_role: {
@@ -3811,6 +3859,10 @@ export type Database = {
           duplicates_removed: number
           details: string
         }[]
+      }
+      cleanup_expired_skills: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
       clear_redemptions_bypass_rls: {
         Args: Record<PropertyKey, never>
@@ -4624,6 +4676,14 @@ export type Database = {
           puntos_ganados: number
         }[]
       }
+      get_user_skills: {
+        Args: { check_user_id: string }
+        Returns: {
+          skill: Database["public"]["Enums"]["user_skill_type"]
+          granted_at: string
+          expires_at: string
+        }[]
+      }
       get_user_statistics: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -4752,6 +4812,10 @@ export type Database = {
       migrate_existing_categories: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      migrate_roles_to_skills: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
       obtener_estadisticas_custodio: {
         Args: { custodio_id: string }
@@ -4882,6 +4946,13 @@ export type Database = {
         Args: { user_uuid: string; required_role: string }
         Returns: boolean
       }
+      user_has_skill: {
+        Args: {
+          check_user_id: string
+          required_skill: Database["public"]["Enums"]["user_skill_type"]
+        }
+        Returns: boolean
+      }
       validar_horario_instalacion: {
         Args: { fecha_programada: string }
         Returns: boolean
@@ -4945,6 +5016,29 @@ export type Database = {
         | "ejecutivo_ventas"
         | "coordinador_operaciones"
         | "tecnico_instalador"
+      user_skill_type:
+        | "dashboard_view"
+        | "leads_management"
+        | "leads_approval"
+        | "user_management"
+        | "role_management"
+        | "monitoring_view"
+        | "monitoring_manage"
+        | "services_view"
+        | "services_manage"
+        | "installer_portal_only"
+        | "custodio_tracking_only"
+        | "supply_chain_view"
+        | "supply_chain_manage"
+        | "reports_view"
+        | "reports_export"
+        | "settings_view"
+        | "settings_manage"
+        | "wms_view"
+        | "wms_manage"
+        | "tickets_view"
+        | "tickets_manage"
+        | "admin_full_access"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -5075,6 +5169,30 @@ export const Constants = {
         "ejecutivo_ventas",
         "coordinador_operaciones",
         "tecnico_instalador",
+      ],
+      user_skill_type: [
+        "dashboard_view",
+        "leads_management",
+        "leads_approval",
+        "user_management",
+        "role_management",
+        "monitoring_view",
+        "monitoring_manage",
+        "services_view",
+        "services_manage",
+        "installer_portal_only",
+        "custodio_tracking_only",
+        "supply_chain_view",
+        "supply_chain_manage",
+        "reports_view",
+        "reports_export",
+        "settings_view",
+        "settings_manage",
+        "wms_view",
+        "wms_manage",
+        "tickets_view",
+        "tickets_manage",
+        "admin_full_access",
       ],
     },
   },
