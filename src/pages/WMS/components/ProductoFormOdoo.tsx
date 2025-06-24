@@ -16,7 +16,7 @@ import { useMarcasGPS } from '@/hooks/useMarcasGPS';
 import { useModelosGPS } from '@/hooks/useModelosGPS';
 import { useProveedores } from '@/hooks/useProveedores';
 import type { ProductoInventario } from '@/types/wms';
-import { Package, Barcode, Truck, Settings, DollarSign, MapPin, Zap, Thermometer, AlertCircle } from 'lucide-react';
+import { Package, Barcode, Truck, Settings, DollarSign, MapPin, Zap, Thermometer, CheckCircle } from 'lucide-react';
 
 interface ProductoFormOdooProps {
   open: boolean;
@@ -53,6 +53,7 @@ export const ProductoFormOdoo = ({ open, onOpenChange, producto, onClose }: Prod
 
   // Debug logs
   useEffect(() => {
+    console.log('Datos GPS cargados desde base de datos:');
     console.log('Marcas GPS disponibles:', marcasGPS?.length || 0);
     console.log('Modelos GPS disponibles:', modelosGPS?.length || 0);
     console.log('Categorías disponibles:', categorias?.length || 0);
@@ -248,12 +249,18 @@ export const ProductoFormOdoo = ({ open, onOpenChange, producto, onClose }: Prod
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        {/* Debug info */}
-                        {(!marcasGPS || marcasGPS.length === 0) && (
+                        {/* GPS Data Status */}
+                        {marcasGPS && marcasGPS.length > 0 ? (
+                          <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <span className="text-green-800 text-sm">
+                              ✓ Base de datos GPS cargada: {marcasGPS.length} marcas, {modelosGPS?.length || 0} modelos disponibles
+                            </span>
+                          </div>
+                        ) : (
                           <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-2">
-                            <AlertCircle className="h-4 w-4 text-yellow-600" />
                             <span className="text-yellow-800 text-sm">
-                              No hay marcas GPS cargadas. Ve al tab "Catálogo GPS" y presiona "Cargar Base de Datos Completa"
+                              ⚠️ Cargando datos GPS desde la base de datos...
                             </span>
                           </div>
                         )}
@@ -271,7 +278,12 @@ export const ProductoFormOdoo = ({ open, onOpenChange, producto, onClose }: Prod
                               <SelectContent>
                                 {marcasGPS?.map((marca) => (
                                   <SelectItem key={marca.id} value={marca.id}>
-                                    {marca.nombre} {marca.soporte_wialon && <Badge variant="secondary" className="ml-1">Wialon</Badge>}
+                                    <div className="flex items-center gap-2">
+                                      {marca.nombre}
+                                      {marca.soporte_wialon && (
+                                        <Badge variant="secondary" className="text-xs">Wialon</Badge>
+                                      )}
+                                    </div>
                                   </SelectItem>
                                 ))}
                               </SelectContent>

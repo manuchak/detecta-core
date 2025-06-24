@@ -13,15 +13,13 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Search, Smartphone, ExternalLink, Database, RefreshCw } from 'lucide-react';
+import { Plus, Search, Smartphone, ExternalLink, RefreshCw } from 'lucide-react';
 import { useMarcasGPS } from '@/hooks/useMarcasGPS';
 import { useModelosGPS } from '@/hooks/useModelosGPS';
-import { useCategorias } from '@/hooks/useCategorias';
 
 export const CatalogoGPSTab = () => {
-  const { marcas, isLoading: loadingMarcas, initializeMarcasGPS } = useMarcasGPS();
-  const { modelos, isLoading: loadingModelos, initializeModelosGPS } = useModelosGPS();
-  const { initializeCategorias } = useCategorias();
+  const { marcas, isLoading: loadingMarcas } = useMarcasGPS();
+  const { modelos, isLoading: loadingModelos } = useModelosGPS();
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredModelos = modelos?.filter(modelo =>
@@ -30,22 +28,9 @@ export const CatalogoGPSTab = () => {
     modelo.tipo_dispositivo?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleInitializeData = async () => {
-    console.log('Iniciando carga de base de datos GPS...');
-    try {
-      await initializeCategorias.mutateAsync();
-      console.log('Categorías inicializadas');
-      
-      await initializeMarcasGPS.mutateAsync();
-      console.log('Marcas GPS inicializadas');
-      
-      await initializeModelosGPS.mutateAsync();
-      console.log('Modelos GPS inicializados');
-      
-      console.log('Base de datos GPS cargada completamente');
-    } catch (error) {
-      console.error('Error al cargar base de datos GPS:', error);
-    }
+  const handleRefreshData = () => {
+    // Los datos ahora se cargan automáticamente desde la base de datos
+    window.location.reload();
   };
 
   if (loadingMarcas || loadingModelos) {
@@ -66,26 +51,21 @@ export const CatalogoGPSTab = () => {
         </div>
         <div className="flex gap-2">
           <Button 
-            onClick={handleInitializeData}
+            onClick={handleRefreshData}
             className="flex items-center gap-2"
             variant="outline"
-            disabled={initializeMarcasGPS.isPending || initializeModelosGPS.isPending || initializeCategorias.isPending}
           >
-            {initializeMarcasGPS.isPending || initializeModelosGPS.isPending || initializeCategorias.isPending ? (
-              <RefreshCw className="h-4 w-4 animate-spin" />
-            ) : (
-              <Database className="h-4 w-4" />
-            )}
-            Cargar Base de Datos Completa
+            <RefreshCw className="h-4 w-4" />
+            Actualizar Datos
           </Button>
         </div>
       </div>
 
-      {/* Debug info */}
-      <Card className="bg-blue-50 border-blue-200">
+      {/* Status info */}
+      <Card className="bg-green-50 border-green-200">
         <CardContent className="p-4">
-          <div className="text-sm text-blue-800">
-            <strong>Estado actual:</strong> Marcas cargadas: {marcas?.length || 0}, Modelos cargados: {modelos?.length || 0}
+          <div className="text-sm text-green-800">
+            <strong>✓ Base de datos cargada:</strong> {marcas?.length || 0} marcas GPS, {modelos?.length || 0} modelos disponibles
           </div>
         </CardContent>
       </Card>
