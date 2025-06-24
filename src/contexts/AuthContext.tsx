@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -178,6 +179,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string, name: string) => {
     try {
       setLoading(true);
+      
+      // Get the current origin dynamically
+      const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+      const redirectUrl = `${currentOrigin}/auth/email-confirmation`;
+      
+      console.log('Sign up redirect URL:', redirectUrl);
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -185,7 +193,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: {
             display_name: name,
           },
-          emailRedirectTo: `${window.location.origin}/auth/email-confirmation`
+          emailRedirectTo: redirectUrl
         },
       });
 

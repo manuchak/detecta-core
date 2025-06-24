@@ -28,9 +28,9 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
     );
   }
 
-  // If user is already authenticated, redirect to dashboard
+  // If user is already authenticated, redirect to home instead of dashboard
   if (user) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/home" replace />;
   }
 
   return (
