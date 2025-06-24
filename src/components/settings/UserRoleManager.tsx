@@ -130,6 +130,14 @@ export const UserRoleManager = () => {
               <div className="space-y-2">
                 <p><strong>Error al cargar usuarios:</strong></p>
                 <p className="text-sm">{error instanceof Error ? error.message : 'Error desconocido'}</p>
+                <div className="text-xs text-gray-600 mt-2">
+                  <p>Posibles causas:</p>
+                  <ul className="list-disc list-inside">
+                    <li>No tienes permisos de administrador</li>
+                    <li>Problema de conexión con la base de datos</li>
+                    <li>La función de seguridad no está configurada correctamente</li>
+                  </ul>
+                </div>
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -190,12 +198,18 @@ export const UserRoleManager = () => {
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              No se encontraron usuarios registrados. Esto puede ser debido a:
-              <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>No hay usuarios en el sistema</li>
-                <li>Problemas de permisos de acceso</li>
-                <li>Error en la consulta a la base de datos</li>
-              </ul>
+              <div className="space-y-2">
+                <p>No se encontraron usuarios registrados.</p>
+                <div className="text-sm text-gray-600">
+                  <p>Usuarios esperados: brenda.jimenez@detectasecurity.io, marbelli.casillas@detectasecurity.io</p>
+                  <p>Verifica que:</p>
+                  <ul className="list-disc list-inside mt-1">
+                    <li>Los usuarios hayan confirmado su email</li>
+                    <li>Tengas permisos de administrador</li>
+                    <li>La función de base de datos esté funcionando correctamente</li>
+                  </ul>
+                </div>
+              </div>
             </AlertDescription>
           </Alert>
         ) : (

@@ -14,23 +14,23 @@ export const useUserRoles = () => {
       try {
         console.log('Fetching users with roles...');
         
-        // Use the new secure function that bypasses RLS and includes admin checks
+        // Use the improved secure function
         const { data, error } = await supabase.rpc('get_users_with_roles_secure');
         
         if (error) {
           console.error("Error fetching users with roles:", error);
-          throw new Error(`Database error: ${error.message}`);
+          throw new Error(`Error de base de datos: ${error.message}`);
         }
         
         console.log('Raw data from get_users_with_roles_secure:', data);
         
-        if (!data) {
-          console.log('No data returned from function');
+        if (!data || data.length === 0) {
+          console.log('No users returned from function');
           return [];
         }
         
         // Map the returned data to UserWithRole type safely
-        const mappedUsers = (data || []).map((user: any) => ({
+        const mappedUsers = data.map((user: any) => ({
           id: user.id,
           email: user.email,
           display_name: user.display_name || user.email,
@@ -43,11 +43,15 @@ export const useUserRoles = () => {
         return mappedUsers;
       } catch (error) {
         console.error("Error in useUserRoles:", error);
-        throw error;
+        if (error instanceof Error) {
+          throw error;
+        }
+        throw new Error('Error desconocido al cargar usuarios');
       }
     },
     retry: 1,
     staleTime: 30000, // 30 seconds
+    refetchOnWindowFocus: false,
   });
 
   const updateUserRole = useMutation({
@@ -55,32 +59,14 @@ export const useUserRoles = () => {
       try {
         console.log(`Updating user ${userId} to role ${role}`);
         
-        // First verify admin access
-        const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_bypass_rls');
+        const { data, error } = await supabase.rpc('update_user_role_secure', {
+          p_user_id: userId,
+          p_role: role
+        });
         
-        if (adminError || !isAdminData) {
-          throw new Error('Sin permisos para actualizar roles de usuario');
-        }
-
-        // First delete any existing role
-        const { error: deleteError } = await supabase
-          .from('user_roles')
-          .delete()
-          .eq('user_id', userId);
-        
-        if (deleteError) {
-          console.error('Error deleting existing role:', deleteError);
-          throw new Error(`Error updating role: ${deleteError.message}`);
-        }
-        
-        // Then insert new role
-        const { error: insertError } = await supabase
-          .from('user_roles')
-          .insert([{ user_id: userId, role }]);
-          
-        if (insertError) {
-          console.error('Error inserting new role:', insertError);
-          throw new Error(`Error updating role: ${insertError.message}`);
+        if (error) {
+          console.error('Error updating user role:', error);
+          throw new Error(`Error al actualizar rol: ${error.message}`);
         }
         
         console.log(`Successfully updated user ${userId} to role ${role}`);
@@ -113,32 +99,13 @@ export const useUserRoles = () => {
       try {
         console.log(`Verifying email for user ${userId}`);
         
-        // First verify admin access  
-        const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_bypass_rls');
+        const { data, error } = await supabase.rpc('verify_user_email_secure', {
+          p_user_id: userId
+        });
         
-        if (adminError || !isAdminData) {
-          throw new Error('Sin permisos para verificar emails de usuario');
-        }
-
-        // Update user profile to mark as verified
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({ is_verified: true })
-          .eq('id', userId);
-        
-        if (profileError) {
-          console.error('Error updating profile verification:', profileError);
-        }
-        
-        // Update user role from unverified to pending if needed
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .update({ role: 'pending' })
-          .eq('user_id', userId)
-          .eq('role', 'unverified');
-        
-        if (roleError) {
-          console.error('Error updating role after verification:', roleError);
+        if (error) {
+          console.error('Error verifying user email:', error);
+          throw new Error(`Error al verificar email: ${error.message}`);
         }
         
         console.log(`Successfully verified email for user ${userId}`);
