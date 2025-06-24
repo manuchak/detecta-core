@@ -1,4 +1,5 @@
 
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,9 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Plus, Settings, Tag } from 'lucide-react';
 import { useCategorias } from '@/hooks/useCategorias';
 import { Badge } from '@/components/ui/badge';
+import { NuevaCategoriaDialog } from './NuevaCategoriaDialog';
 
 export const ConfiguracionTab = () => {
   const { categorias, isLoading } = useCategorias();
+  const [showNuevaCategoriaDialog, setShowNuevaCategoriaDialog] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -31,7 +34,10 @@ export const ConfiguracionTab = () => {
                   Gestiona las categorías para clasificar productos
                 </CardDescription>
               </div>
-              <Button size="sm">
+              <Button 
+                size="sm"
+                onClick={() => setShowNuevaCategoriaDialog(true)}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Agregar
               </Button>
@@ -123,6 +129,12 @@ export const ConfiguracionTab = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Dialog de Nueva Categoría */}
+      <NuevaCategoriaDialog
+        open={showNuevaCategoriaDialog}
+        onOpenChange={setShowNuevaCategoriaDialog}
+      />
     </div>
   );
 };
