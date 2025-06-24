@@ -14,8 +14,8 @@ export const useUserRoles = () => {
       try {
         console.log('Fetching users with roles...');
         
-        // Use the improved secure function
-        const { data, error } = await supabase.rpc('get_users_with_roles_secure');
+        // Use the improved secure function with proper type casting
+        const { data, error } = await (supabase as any).rpc('get_users_with_roles_secure');
         
         if (error) {
           console.error("Error fetching users with roles:", error);
@@ -59,7 +59,8 @@ export const useUserRoles = () => {
       try {
         console.log(`Updating user ${userId} to role ${role}`);
         
-        const { data, error } = await supabase.rpc('update_user_role_secure', {
+        // Use type casting to call the new function
+        const { data, error } = await (supabase as any).rpc('update_user_role_secure', {
           p_user_id: userId,
           p_role: role
         });
@@ -99,7 +100,8 @@ export const useUserRoles = () => {
       try {
         console.log(`Verifying email for user ${userId}`);
         
-        const { data, error } = await supabase.rpc('verify_user_email_secure', {
+        // Use type casting to call the new function
+        const { data, error } = await (supabase as any).rpc('verify_user_email_secure', {
           p_user_id: userId
         });
         
