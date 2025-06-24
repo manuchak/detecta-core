@@ -16,13 +16,15 @@ export const useGmvAnalysis = (selectedClient: string = "all") => {
   });
 
   const analysisData = useMemo((): GmvAnalysisData => {
-    return processGmvData(allServices, selectedClient);
+    // Ensure allServices is an array before processing
+    const servicesArray = Array.isArray(allServices) ? allServices : [];
+    return processGmvData(servicesArray, selectedClient);
   }, [allServices, selectedClient]);
 
   return {
     ...analysisData,
     isLoading,
     error,
-    totalRecords: allServices?.length || 0
+    totalRecords: Array.isArray(allServices) ? allServices.length : 0
   };
 };
