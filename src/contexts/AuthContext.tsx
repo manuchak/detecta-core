@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return null;
       }
 
-      const { data, error } = await supabase.rpc('get_current_user_role');
+      const { data, error } = await (supabase as any).rpc('get_current_user_role');
 
       if (error) {
         console.error('Error fetching user role:', error);
@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log(`Assigning role ${role} to user ${userId}`);
       
-      const { data, error } = await supabase.rpc('update_user_role_secure', {
+      const { data, error } = await (supabase as any).rpc('update_user_role_secure', {
         p_user_id: userId,
         p_role: role
       });
