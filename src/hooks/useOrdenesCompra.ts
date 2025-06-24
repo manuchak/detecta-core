@@ -1,8 +1,20 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { OrdenCompra, DetalleOrdenCompra } from '@/types/wms';
+
+interface CreateDetalleOrdenCompra {
+  producto_id: string;
+  cantidad_solicitada: number;
+  cantidad_recibida: number;
+  precio_unitario: number;
+  descuento_porcentaje: number;
+  notas?: string;
+}
+
+interface CreateOrdenCompraData extends Omit<OrdenCompra, 'id' | 'numero_orden' | 'created_at' | 'updated_at'> {
+  detalles?: CreateDetalleOrdenCompra[];
+}
 
 export const useOrdenesCompra = () => {
   const { toast } = useToast();
@@ -29,7 +41,7 @@ export const useOrdenesCompra = () => {
   });
 
   const createOrden = useMutation({
-    mutationFn: async (ordenData: Omit<OrdenCompra, 'id' | 'numero_orden' | 'created_at' | 'updated_at'> & { detalles?: Omit<DetalleOrdenCompra, 'id' | 'orden_id' | 'subtotal' | 'created_at'>[] }) => {
+    mutationFn: async (ordenData: CreateOrdenCompraData) => {
       // Generar número de orden automático
       const { count } = await supabase
         .from('ordenes_compra')
