@@ -1,4 +1,3 @@
-
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
@@ -42,6 +41,7 @@ import DuplicateCleanupPage from '@/pages/Maintenance/DuplicateCleanupPage';
 // Components
 import ProtectedRoute from '@/components/ProtectedRoute';
 import RoleProtectedRoute from '@/components/RoleProtectedRoute';
+import SignUp from '@/pages/Auth/SignUp';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -66,7 +66,8 @@ function App() {
                 
                 {/* Auth routes */}
                 <Route path="/auth/login" element={<AuthLayout><Login /></AuthLayout>} />
-                <Route path="/auth/register" element={<AuthLayout><Register /></AuthLayout>} />
+                <Route path="/auth/register" element={<SignUp />} />
+                <Route path="/auth/signup" element={<SignUp />} />
                 <Route path="/auth/forgot-password" element={<AuthLayout><ForgotPassword /></AuthLayout>} />
                 <Route path="/auth/email-confirmation" element={<AuthLayout><EmailConfirmation /></AuthLayout>} />
                 
