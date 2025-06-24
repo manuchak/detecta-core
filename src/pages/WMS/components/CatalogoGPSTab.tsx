@@ -16,10 +16,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Search, Smartphone, ExternalLink, Database, RefreshCw } from 'lucide-react';
 import { useMarcasGPS } from '@/hooks/useMarcasGPS';
 import { useModelosGPS } from '@/hooks/useModelosGPS';
+import { useCategorias } from '@/hooks/useCategorias';
 
 export const CatalogoGPSTab = () => {
   const { marcas, isLoading: loadingMarcas, initializeMarcasGPS } = useMarcasGPS();
   const { modelos, isLoading: loadingModelos, initializeModelosGPS } = useModelosGPS();
+  const { initializeCategorias } = useCategorias();
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredModelos = modelos?.filter(modelo =>
@@ -29,6 +31,7 @@ export const CatalogoGPSTab = () => {
   );
 
   const handleInitializeData = () => {
+    initializeCategorias.mutate();
     initializeMarcasGPS.mutate();
     initializeModelosGPS.mutate();
   };
@@ -54,14 +57,14 @@ export const CatalogoGPSTab = () => {
             onClick={handleInitializeData}
             className="flex items-center gap-2"
             variant="outline"
-            disabled={initializeMarcasGPS.isPending || initializeModelosGPS.isPending}
+            disabled={initializeMarcasGPS.isPending || initializeModelosGPS.isPending || initializeCategorias.isPending}
           >
-            {initializeMarcasGPS.isPending || initializeModelosGPS.isPending ? (
+            {initializeMarcasGPS.isPending || initializeModelosGPS.isPending || initializeCategorias.isPending ? (
               <RefreshCw className="h-4 w-4 animate-spin" />
             ) : (
               <Database className="h-4 w-4" />
             )}
-            Cargar Base de Datos
+            Cargar Base de Datos Completa
           </Button>
         </div>
       </div>

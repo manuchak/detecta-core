@@ -44,6 +44,12 @@ export const ProductoFormOdoo = ({ open, onOpenChange, producto, onClose }: Prod
   } = useForm<ProductoInventario>();
 
   const watchedMarcaGPS = watch('marca_gps_id');
+  const watchedCategoriaId = watch('categoria_id');
+
+  // Check if selected category is GPS
+  const selectedCategoria = categorias?.find(cat => cat.id === watchedCategoriaId);
+  const isGPSCategory = selectedCategoria?.nombre?.toLowerCase().includes('gps') || 
+                       selectedCategoria?.codigo?.toLowerCase().includes('gps');
 
   useEffect(() => {
     if (producto) {
@@ -85,6 +91,15 @@ export const ProductoFormOdoo = ({ open, onOpenChange, producto, onClose }: Prod
       setValue('modelo_gps_id', '');
     }
   }, [watchedMarcaGPS, selectedMarcaGPS, setValue]);
+
+  // Clear GPS fields when category is not GPS
+  useEffect(() => {
+    if (!isGPSCategory) {
+      setValue('marca_gps_id', '');
+      setValue('modelo_gps_id', '');
+      setSelectedMarcaGPS('');
+    }
+  }, [isGPSCategory, setValue]);
 
   const onSubmit = (data: ProductoInventario) => {
     if (producto) {
@@ -214,83 +229,85 @@ export const ProductoFormOdoo = ({ open, onOpenChange, producto, onClose }: Prod
                     </CardContent>
                   </Card>
 
-                  {/* Especificaciones GPS */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <MapPin className="h-5 w-5" />
-                        Especificaciones GPS
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="marca_gps_id">Marca GPS</Label>
-                          <Select
-                            value={watch('marca_gps_id') || ''}
-                            onValueChange={(value) => setValue('marca_gps_id', value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Seleccionar marca GPS" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {marcasGPS?.map((marca) => (
-                                <SelectItem key={marca.id} value={marca.id}>
-                                  {marca.nombre}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div>
-                          <Label htmlFor="modelo_gps_id">Modelo GPS</Label>
-                          <Select
-                            value={watch('modelo_gps_id') || ''}
-                            onValueChange={(value) => setValue('modelo_gps_id', value)}
-                            disabled={!selectedMarcaGPS}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Seleccionar modelo GPS" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {modelosDisponibles.map((modelo) => (
-                                <SelectItem key={modelo.id} value={modelo.id}>
-                                  {modelo.nombre}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      {selectedModelo && (
-                        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                          <h4 className="font-medium text-blue-900 mb-3">Especificaciones del Modelo</h4>
-                          <div className="grid grid-cols-3 gap-4 text-sm">
-                            <div><span className="font-medium">Tipo:</span> {selectedModelo.tipo_dispositivo}</div>
-                            <div><span className="font-medium">Precisión GPS:</span> {selectedModelo.gps_precision}</div>
-                            <div><span className="font-medium">Alimentación:</span> {selectedModelo.alimentacion_externa}</div>
-                            <div><span className="font-medium">Dimensiones:</span> {selectedModelo.dimensiones}</div>
-                            <div><span className="font-medium">Peso:</span> {selectedModelo.peso_gramos}g</div>
-                            <div><span className="font-medium">Resistencia:</span> {selectedModelo.resistencia_agua}</div>
-                          </div>
-                          {selectedModelo.conectividad && selectedModelo.conectividad.length > 0 && (
-                            <div className="mt-3">
-                              <span className="font-medium text-blue-900">Conectividad:</span>
-                              <div className="flex gap-1 mt-1">
-                                {selectedModelo.conectividad.map((conn, idx) => (
-                                  <Badge key={idx} variant="outline" className="text-xs bg-blue-100 text-blue-800">
-                                    {conn}
-                                  </Badge>
+                  {/* Especificaciones GPS - Solo visible para categoría GPS */}
+                  {isGPSCategory && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <MapPin className="h-5 w-5" />
+                          Especificaciones GPS
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="marca_gps_id">Marca GPS</Label>
+                            <Select
+                              value={watch('marca_gps_id') || ''}
+                              onValueChange={(value) => setValue('marca_gps_id', value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Seleccionar marca GPS" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {marcasGPS?.map((marca) => (
+                                  <SelectItem key={marca.id} value={marca.id}>
+                                    {marca.nombre}
+                                  </SelectItem>
                                 ))}
-                              </div>
-                            </div>
-                          )}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <Label htmlFor="modelo_gps_id">Modelo GPS</Label>
+                            <Select
+                              value={watch('modelo_gps_id') || ''}
+                              onValueChange={(value) => setValue('modelo_gps_id', value)}
+                              disabled={!selectedMarcaGPS}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Seleccionar modelo GPS" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {modelosDisponibles.map((modelo) => (
+                                  <SelectItem key={modelo.id} value={modelo.id}>
+                                    {modelo.nombre}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
+
+                        {selectedModelo && (
+                          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                            <h4 className="font-medium text-blue-900 mb-3">Especificaciones del Modelo</h4>
+                            <div className="grid grid-cols-3 gap-4 text-sm">
+                              <div><span className="font-medium">Tipo:</span> {selectedModelo.tipo_dispositivo}</div>
+                              <div><span className="font-medium">Precisión GPS:</span> {selectedModelo.gps_precision}</div>
+                              <div><span className="font-medium">Alimentación:</span> {selectedModelo.alimentacion_externa}</div>
+                              <div><span className="font-medium">Dimensiones:</span> {selectedModelo.dimensiones}</div>
+                              <div><span className="font-medium">Peso:</span> {selectedModelo.peso_gramos}g</div>
+                              <div><span className="font-medium">Resistencia:</span> {selectedModelo.resistencia_agua}</div>
+                            </div>
+                            {selectedModelo.conectividad && selectedModelo.conectividad.length > 0 && (
+                              <div className="mt-3">
+                                <span className="font-medium text-blue-900">Conectividad:</span>
+                                <div className="flex gap-1 mt-1">
+                                  {selectedModelo.conectividad.map((conn, idx) => (
+                                    <Badge key={idx} variant="outline" className="text-xs bg-blue-100 text-blue-800">
+                                      {conn}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
 
                   {/* Especificaciones Técnicas */}
                   <Card>
@@ -494,7 +511,6 @@ export const ProductoFormOdoo = ({ open, onOpenChange, producto, onClose }: Prod
                     </CardContent>
                   </Card>
 
-                  {/* Proveedor y Almacén */}
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
