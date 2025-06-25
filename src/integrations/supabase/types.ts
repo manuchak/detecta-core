@@ -3241,6 +3241,7 @@ export type Database = {
           nombre_cliente: string
           numero_servicio: string
           observaciones: string | null
+          plan_rastreo_satelital: string | null
           prioridad: string
           requiere_paro_motor: boolean | null
           rutas_habituales: string[] | null
@@ -3277,6 +3278,7 @@ export type Database = {
           nombre_cliente: string
           numero_servicio?: string
           observaciones?: string | null
+          plan_rastreo_satelital?: string | null
           prioridad?: string
           requiere_paro_motor?: boolean | null
           rutas_habituales?: string[] | null
@@ -3313,6 +3315,7 @@ export type Database = {
           nombre_cliente?: string
           numero_servicio?: string
           observaciones?: string | null
+          plan_rastreo_satelital?: string | null
           prioridad?: string
           requiere_paro_motor?: boolean | null
           rutas_habituales?: string[] | null
