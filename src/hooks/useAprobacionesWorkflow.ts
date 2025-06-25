@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -81,21 +80,35 @@ export const useAprobacionesWorkflow = () => {
     return useQuery({
       queryKey: ['detalle-servicio', servicioId],
       queryFn: async () => {
-        const { data, error } = await supabase
-          .from('servicios_monitoreo')
-          .select(`
-            *,
-            analisis_riesgo_seguridad(*),
-            aprobacion_coordinador(*),
-            contactos_emergencia_servicio(*)
-          `)
-          .eq('id', servicioId)
-          .single();
+        console.log('Obteniendo detalle del servicio:', servicioId);
+        
+        try {
+          const { data, error } = await supabase
+            .from('servicios_monitoreo')
+            .select(`
+              *,
+              analisis_riesgo_seguridad(*),
+              aprobacion_coordinador(*),
+              contactos_emergencia_servicio(*)
+            `)
+            .eq('id', servicioId)
+            .single();
 
-        if (error) throw error;
-        return data;
+          if (error) {
+            console.error('Error al obtener detalle del servicio:', error);
+            throw error;
+          }
+
+          console.log('Detalle del servicio obtenido:', data);
+          return data;
+        } catch (error) {
+          console.error('Error en obtenerDetalleServicio:', error);
+          throw error;
+        }
       },
-      enabled: !!servicioId
+      enabled: !!servicioId,
+      retry: 3,
+      retryDelay: 1000
     });
   };
 
