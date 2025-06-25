@@ -1,4 +1,3 @@
-
 -- Migración para crear el sistema granular de skills (Corregida - Final)
 -- Este sistema permite control de acceso más específico que los roles tradicionales
 
@@ -286,8 +285,8 @@ FROM public.user_skills us
 JOIN public.profiles p ON us.user_id = p.id
 WHERE us.is_active = true;
 
--- 16. Habilitar RLS en la vista
-ALTER VIEW public.user_skills_view SET (security_barrier = true);
+-- 16. Establecer permisos básicos para la vista
+GRANT SELECT ON public.user_skills_view TO authenticated;
 
 -- 17. Comentarios
 COMMENT ON TABLE public.user_skills IS 'Sistema granular de permisos basado en skills para usuarios';
