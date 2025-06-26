@@ -46,20 +46,8 @@ export const useLeadsDiagnostic = () => {
           diagnosticResults.errors.push('Error al obtener rol: ' + (error as Error).message);
         }
 
-        // 3. Verificar si la tabla leads existe y su estructura
-        console.log('🔍 Paso 3: Verificando estructura de tabla leads...');
-        try {
-          const { data: tableInfo, error: tableError } = await supabase
-            .rpc('get_table_info', { table_name: 'leads' })
-            .single();
-          
-          diagnosticResults.tableStructure = { data: tableInfo, error: tableError };
-        } catch (error) {
-          console.log('⚠️ No se pudo obtener info de tabla, continuando...');
-        }
-
-        // 4. Intentar consulta directa a la tabla leads
-        console.log('🔍 Paso 4: Intentando consulta directa...');
+        // 3. Intentar consulta directa a la tabla leads
+        console.log('🔍 Paso 3: Intentando consulta directa...');
         try {
           const { data: leadsData, error: leadsError, count } = await supabase
             .from('leads')
@@ -83,32 +71,65 @@ export const useLeadsDiagnostic = () => {
           diagnosticResults.errors.push('Error en consulta: ' + (error as Error).message);
         }
 
-        // 5. Verificar políticas RLS
-        console.log('🔍 Paso 5: Verificando políticas RLS...');
+        // 4. Verificar si existen leads usando una consulta simple
+        console.log('🔍 Paso 4: Verificando existencia de datos...');
         try {
-          const { data: policiesData, error: policiesError } = await supabase
-            .rpc('get_rls_policies', { table_name: 'leads' });
+          const { data: simpleQuery, error: simpleError } = await supabase
+            .from('leads')
+            .select('id, nombre, email')
+            .limit(1);
           
-          diagnosticResults.rlsPolicies = { data: policiesData, error: policiesError };
-        } catch (error) {
-          console.log('⚠️ No se pudieron obtener políticas RLS');
-        }
-
-        // 6. Intentar con función bypass si es admin
-        console.log('🔍 Paso 6: Intentando función bypass para admin...');
-        try {
-          const { data: bypassData, error: bypassError } = await supabase
-            .rpc('get_all_leads');
-          
-          if (!bypassError && bypassData) {
-            console.log('✅ Función bypass exitosa, leads encontrados:', bypassData.length);
-            diagnosticResults.sampleLeads = bypassData.slice(0, 5);
-            diagnosticResults.leadCount = bypassData.length;
+          if (simpleError) {
+            diagnosticResults.errors.push('Error en consulta simple: ' + simpleError.message);
+          } else if (simpleQuery && simpleQuery.length > 0) {
+            console.log('✅ Se encontraron leads en la base de datos');
+            diagnosticResults.tableExists = true;
           } else {
-            diagnosticResults.errors.push('Error en función bypass: ' + (bypassError?.message || 'Unknown'));
+            console.log('⚠️ No se encontraron leads en la base de datos');
+            diagnosticResults.errors.push('La tabla leads está vacía');
           }
         } catch (error) {
-          diagnosticResults.errors.push('Error ejecutando bypass: ' + (error as Error).message);
+          diagnosticResults.errors.push('Error verificando datos: ' + (error as Error).message);
+        }
+
+        // 5. Verificar permisos básicos - intentar insertar y eliminar un registro de prueba
+        console.log('🔍 Paso 5: Verificando permisos de escritura...');
+        try {
+          // Intentar insertar un lead de prueba
+          const testLead = {
+            nombre: 'Test Lead - Diagnóstico',
+            email: `test-${Date.now()}@diagnostic.com`,
+            telefono: '+52 55 0000 0000',
+            estado: 'nuevo',
+            fuente: 'diagnostic',
+            notas: 'Lead de prueba para diagnóstico - eliminar'
+          };
+
+          const { data: insertData, error: insertError } = await supabase
+            .from('leads')
+            .insert([testLead])
+            .select()
+            .single();
+
+          if (insertError) {
+            diagnosticResults.errors.push('Error de permisos INSERT: ' + insertError.message);
+          } else {
+            console.log('✅ Permisos de INSERT funcionan correctamente');
+            
+            // Intentar eliminar el lead de prueba
+            const { error: deleteError } = await supabase
+              .from('leads')
+              .delete()
+              .eq('id', insertData.id);
+
+            if (deleteError) {
+              console.log('⚠️ Error eliminando lead de prueba:', deleteError.message);
+            } else {
+              console.log('✅ Permisos de DELETE funcionan correctamente');
+            }
+          }
+        } catch (error) {
+          diagnosticResults.errors.push('Error verificando permisos: ' + (error as Error).message);
         }
 
         return diagnosticResults;
@@ -121,19 +142,4 @@ export const useLeadsDiagnostic = () => {
     retry: false,
     refetchOnWindowFocus: false,
   });
-};
-
-// Función auxiliar para obtener información de tabla
-export const getTableInfo = async (tableName: string) => {
-  try {
-    const { data, error } = await supabase
-      .from('information_schema.tables')
-      .select('*')
-      .eq('table_name', tableName)
-      .eq('table_schema', 'public');
-    
-    return { data, error };
-  } catch (error) {
-    return { data: null, error };
-  }
 };
