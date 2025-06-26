@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
@@ -27,36 +28,57 @@ export const useLeads = () => {
       try {
         console.log('🔍 Iniciando consulta de leads...');
         
-        // Verificar autenticación
-        const { data: userData, error: userError } = await supabase.auth.getUser();
-        if (userError) {
-          console.error('❌ Error de autenticación:', userError);
-          throw new Error(`Error de autenticación: ${userError.message}`);
+        // Verificar autenticación primero
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        console.log('👤 Usuario autenticado:', user?.email, 'ID:', user?.id);
+        
+        if (authError) {
+          console.error('❌ Error de autenticación:', authError);
+          throw new Error(`Error de autenticación: ${authError.message}`);
         }
         
-        console.log('👤 Usuario autenticado:', userData?.user?.email);
+        if (!user) {
+          console.error('❌ No hay usuario autenticado');
+          throw new Error('Usuario no autenticado');
+        }
+
+        // Verificar roles del usuario
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id);
         
-        // Consulta simple y directa
+        console.log('👥 Roles del usuario:', roleData, 'Error roles:', roleError);
+        
+        // Consulta simple y directa a leads
+        console.log('📊 Ejecutando consulta a tabla leads...');
         const { data, error, count } = await supabase
           .from('leads')
           .select('*', { count: 'exact' })
           .order('fecha_creacion', { ascending: false });
         
+        console.log('📈 Resultado consulta:', {
+          data: data?.slice(0, 2), // Solo primeros 2 para debug
+          count,
+          error,
+          totalRecords: data?.length
+        });
+        
         if (error) {
-          console.error("❌ Error en consulta:", error);
-          throw new Error(`Error al cargar leads: ${error.message}`);
+          console.error("❌ Error en consulta leads:", error);
+          throw new Error(`Error al cargar leads: ${error.message} (${error.code})`);
         }
         
-        console.log(`✅ Leads cargados: ${data?.length || 0} registros`);
+        console.log(`✅ Leads cargados exitosamente: ${data?.length || 0} registros`);
         return data || [];
         
       } catch (error) {
-        console.error("💥 Error en useLeads:", error);
+        console.error("💥 Error completo en useLeads:", error);
         throw error;
       }
     },
-    retry: 2,
-    staleTime: 30000,
+    retry: 1,
+    staleTime: 10000,
     refetchOnWindowFocus: false
   });
 

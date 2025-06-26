@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, Edit, AlertCircle, RefreshCw } from "lucide-react";
+import { Search, UserPlus, Edit, AlertCircle, RefreshCw, Info } from "lucide-react";
 import { useLeads, Lead } from "@/hooks/useLeads";
 import { LeadAssignmentDialog } from "./LeadAssignmentDialog";
 
@@ -33,10 +32,11 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
 
-  console.log('🎯 LeadsTable - Estado:', {
+  console.log('🎯 LeadsTable - Estado actual:', {
     isLoading,
     error: error ? error.message : null,
-    leadsCount: leads?.length || 0
+    leadsCount: leads?.length || 0,
+    leads: leads?.slice(0, 2) // Solo primeros 2 para debug
   });
 
   if (isLoading) {
@@ -45,6 +45,9 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         <div className="flex flex-col items-center space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           <span className="text-sm text-muted-foreground">Cargando candidatos...</span>
+          <div className="text-xs text-gray-500 max-w-md text-center">
+            Consultando base de datos y verificando permisos...
+          </div>
         </div>
       </div>
     );
@@ -58,17 +61,37 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
           <span className="font-semibold">Error al cargar candidatos</span>
         </div>
         
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-2">
-          <p className="text-red-800 font-medium">Detalles del error:</p>
-          <p className="text-red-700 text-sm font-mono">
-            {error instanceof Error ? error.message : 'Error desconocido'}
-          </p>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
+          <div>
+            <p className="text-red-800 font-medium">Detalles del error:</p>
+            <p className="text-red-700 text-sm font-mono break-words">
+              {error instanceof Error ? error.message : 'Error desconocido'}
+            </p>
+          </div>
+          
+          <div className="text-left">
+            <p className="text-red-800 font-medium mb-2">Posibles causas:</p>
+            <ul className="text-red-700 text-sm space-y-1 list-disc list-inside">
+              <li>Permisos RLS insuficientes para acceder a la tabla</li>
+              <li>Usuario no tiene el rol adecuado (admin, owner, manager)</li>
+              <li>Problemas de autenticación con Supabase</li>
+              <li>Configuración incorrecta del cliente Supabase</li>
+            </ul>
+          </div>
         </div>
         
-        <Button onClick={() => refetch()} variant="outline">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Reintentar
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Button onClick={() => refetch()} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Reintentar
+          </Button>
+          <Button 
+            onClick={() => window.location.reload()} 
+            variant="secondary"
+          >
+            Recargar página
+          </Button>
+        </div>
       </div>
     );
   }
@@ -76,11 +99,22 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
   if (!leads || leads.length === 0) {
     return (
       <div className="p-8 text-center space-y-4">
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 space-y-3">
-          <h3 className="font-semibold text-amber-800">No se encontraron candidatos</h3>
-          <p className="text-amber-700">
-            La consulta se ejecutó correctamente pero no devolvió resultados.
-          </p>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 space-y-3">
+          <div className="flex items-center justify-center space-x-2 text-blue-600">
+            <Info className="h-5 w-5" />
+            <h3 className="font-semibold">No se encontraron candidatos</h3>
+          </div>
+          <div className="space-y-2 text-blue-700">
+            <p>La consulta se ejecutó correctamente pero no devolvió resultados.</p>
+            <div className="text-sm bg-blue-100 p-3 rounded border">
+              <p className="font-medium">Esto puede significar:</p>
+              <ul className="mt-1 list-disc list-inside space-y-1">
+                <li>No hay leads registrados en la base de datos</li>
+                <li>Los leads no son visibles con tu rol actual</li>
+                <li>Las políticas RLS están restringiendo el acceso</li>
+              </ul>
+            </div>
+          </div>
         </div>
         
         <Button onClick={() => refetch()} variant="outline">
@@ -125,15 +159,19 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
 
   return (
     <div className="space-y-4">
+      {/* Estado de éxito */}
       <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-        <div className="flex items-center space-x-2 text-green-800">
-          <span className="text-sm font-medium">✅ Datos cargados exitosamente</span>
-        </div>
-        <div className="text-xs text-green-600 mt-1">
-          Total: {leads.length} candidatos | Filtrados: {filteredLeads.length}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2 text-green-800">
+            <span className="text-sm font-medium">✅ Datos cargados exitosamente</span>
+          </div>
+          <div className="text-xs text-green-600">
+            Total: {leads.length} | Filtrados: {filteredLeads.length}
+          </div>
         </div>
       </div>
 
+      {/* ... keep existing code (search and filters, table) */}
       <div className="flex gap-4 items-center">
         <div className="relative flex-1">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
