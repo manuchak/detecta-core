@@ -27,70 +27,37 @@ export const useLeads = () => {
       try {
         console.log('🔍 Iniciando consulta de leads...');
         
-        // Verificar primero el usuario autenticado
+        // Verificar autenticación
         const { data: userData, error: userError } = await supabase.auth.getUser();
-        console.log('👤 Usuario autenticado:', userData?.user?.email);
-        
         if (userError) {
           console.error('❌ Error de autenticación:', userError);
           throw new Error(`Error de autenticación: ${userError.message}`);
         }
-
-        // Intentar consulta directa básica primero
-        console.log('📊 Intentando consulta SELECT básica...');
+        
+        console.log('👤 Usuario autenticado:', userData?.user?.email);
+        
+        // Consulta simple y directa
         const { data, error, count } = await supabase
           .from('leads')
           .select('*', { count: 'exact' })
           .order('fecha_creacion', { ascending: false });
         
-        console.log('📈 Resultado consulta:', {
-          data: data?.slice(0, 2), // Solo mostrar primeros 2 para debug
-          count,
-          error,
-          totalRecords: data?.length
-        });
-        
         if (error) {
-          console.error("❌ Error en consulta SELECT:", error);
-          
-          // Información detallada del error para diagnóstico
-          console.error("Detalles del error:", {
-            code: error.code,
-            message: error.message,
-            details: error.details,
-            hint: error.hint
-          });
-          
-          throw new Error(`Error al cargar leads: ${error.message} (Código: ${error.code})`);
+          console.error("❌ Error en consulta:", error);
+          throw new Error(`Error al cargar leads: ${error.message}`);
         }
         
-        if (!data) {
-          console.warn('⚠️ La consulta no devolvió datos (null)');
-          return [];
-        }
-        
-        console.log(`✅ Leads cargados exitosamente: ${data.length} registros`);
-        console.log('📋 Primeros leads:', data.slice(0, 3).map(lead => ({
-          id: lead.id,
-          nombre: lead.nombre,
-          email: lead.email,
-          fuente: lead.fuente
-        })));
-        
+        console.log(`✅ Leads cargados: ${data?.length || 0} registros`);
         return data || [];
         
       } catch (error) {
         console.error("💥 Error en useLeads:", error);
-        if (error instanceof Error) {
-          throw error;
-        }
-        throw new Error('Error desconocido al cargar leads');
+        throw error;
       }
     },
-    retry: 1, // Reducir reintentos para debug más rápido
-    staleTime: 10000, // 10 segundos
-    refetchOnWindowFocus: true, // Ayuda con debugging
-    refetchOnMount: true
+    retry: 2,
+    staleTime: 30000,
+    refetchOnWindowFocus: false
   });
 
   const assignLead = useMutation({

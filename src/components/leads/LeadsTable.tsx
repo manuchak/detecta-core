@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,11 +33,10 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
 
-  console.log('🎯 LeadsTable - Estado actual:', {
+  console.log('🎯 LeadsTable - Estado:', {
     isLoading,
     error: error ? error.message : null,
-    leadsCount: leads?.length || 0,
-    leads: leads?.slice(0, 2) // Solo primeros 2 para debug
+    leadsCount: leads?.length || 0
   });
 
   if (isLoading) {
@@ -45,9 +45,6 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         <div className="flex flex-col items-center space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           <span className="text-sm text-muted-foreground">Cargando candidatos...</span>
-          <div className="text-xs text-muted-foreground bg-blue-50 p-2 rounded">
-            🔍 Consultando base de datos...
-          </div>
         </div>
       </div>
     );
@@ -68,19 +65,10 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
           </p>
         </div>
         
-        <div className="flex space-x-2 justify-center">
-          <Button onClick={() => refetch()} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Reintentar
-          </Button>
-          <Button onClick={() => window.location.reload()} variant="outline">
-            Recargar Página
-          </Button>
-        </div>
-        
-        <div className="text-xs text-muted-foreground bg-yellow-50 p-3 rounded border">
-          💡 <strong>Sugerencia:</strong> Revisa el panel de diagnóstico arriba para más detalles sobre el problema.
-        </div>
+        <Button onClick={() => refetch()} variant="outline">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Reintentar
+        </Button>
       </div>
     );
   }
@@ -93,24 +81,12 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
           <p className="text-amber-700">
             La consulta se ejecutó correctamente pero no devolvió resultados.
           </p>
-          
-          <div className="text-sm text-amber-600 space-y-1">
-            <p>• La tabla está vacía, o</p>
-            <p>• Las políticas RLS están bloqueando el acceso, o</p>
-            <p>• Los datos no cumplen con algún filtro aplicado</p>
-          </div>
         </div>
         
-        <div className="flex space-x-2 justify-center">
-          <Button onClick={() => refetch()} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Actualizar
-          </Button>
-        </div>
-        
-        <div className="text-xs text-muted-foreground bg-blue-50 p-3 rounded border">
-          🔍 <strong>Diagnóstico:</strong> Revisa el panel de diagnóstico arriba para identificar la causa específica.
-        </div>
+        <Button onClick={() => refetch()} variant="outline">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Actualizar
+        </Button>
       </div>
     );
   }
@@ -149,7 +125,6 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
 
   return (
     <div className="space-y-4">
-      {/* Información de estado para debugging */}
       <div className="bg-green-50 border border-green-200 rounded-lg p-3">
         <div className="flex items-center space-x-2 text-green-800">
           <span className="text-sm font-medium">✅ Datos cargados exitosamente</span>
