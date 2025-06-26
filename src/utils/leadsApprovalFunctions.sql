@@ -1,3 +1,4 @@
+
 -- Función para obtener leads asignados al analista actual con información del proceso de aprobación
 CREATE OR REPLACE FUNCTION public.get_analyst_assigned_leads()
 RETURNS TABLE(

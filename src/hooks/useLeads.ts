@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
@@ -23,16 +22,6 @@ export const useLeads = () => {
     queryFn: async () => {
       try {
         console.log('Fetching leads...');
-        
-        // Verificar primero el rol del usuario
-        const { data: userRole, error: roleError } = await (supabase as any).rpc('get_current_user_role');
-        
-        if (roleError) {
-          console.error('Error checking user role:', roleError);
-          throw new Error('No se pudo verificar los permisos del usuario');
-        }
-        
-        console.log('Current user role:', userRole);
         
         // Obtener leads directamente - las políticas RLS manejarán el acceso
         const { data, error } = await supabase
