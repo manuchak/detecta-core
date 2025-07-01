@@ -2,6 +2,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 
+const SUPABASE_URL = "https://yydzzeljaewsfhmilnhm.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5ZHp6ZWxqYWV3c2ZobWlsbmhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc2OTc1MjIsImV4cCI6MjA2MzI3MzUyMn0.iP9UG12mKESneZq7XwY6vHvqRGH3hq3D1Hu0qneu8B8";
+
 export interface Lead {
   id: string;
   nombre: string;
@@ -29,8 +32,8 @@ export const useLeads = () => {
         
         // PASO 1: Verificar conexión a Supabase
         console.log('📡 Verificando conexión a Supabase...');
-        console.log('Supabase URL:', supabase.supabaseUrl);
-        console.log('Supabase Key:', supabase.supabaseKey ? 'Configurada ✅' : 'No configurada ❌');
+        console.log('Supabase URL:', SUPABASE_URL);
+        console.log('Supabase Key:', SUPABASE_KEY ? 'Configurada ✅' : 'No configurada ❌');
         
         // PASO 2: Verificar autenticación
         console.log('🔐 Verificando autenticación...');

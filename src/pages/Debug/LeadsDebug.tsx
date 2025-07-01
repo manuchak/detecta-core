@@ -6,6 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { AlertCircle, CheckCircle, Info, RefreshCw } from 'lucide-react';
 
+const SUPABASE_URL = "https://yydzzeljaewsfhmilnhm.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5ZHp6ZWxqYWV3c2ZobWlsbmhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc2OTc1MjIsImV4cCI6MjA2MzI3MzUyMn0.iP9UG12mKESneZq7XwY6vHvqRGH3hq3D1Hu0qneu8B8";
+
 interface DiagnosticResult {
   step: string;
   status: 'success' | 'error' | 'warning';
@@ -29,8 +32,8 @@ export const LeadsDebug = () => {
         status: 'success',
         message: 'Cliente Supabase configurado correctamente',
         details: {
-          url: supabase.supabaseUrl,
-          hasKey: !!supabase.supabaseKey
+          url: SUPABASE_URL,
+          hasKey: !!SUPABASE_KEY
         }
       });
 
@@ -168,33 +171,32 @@ export const LeadsDebug = () => {
         });
       }
 
-      // 6. Verificar políticas RLS
+      // 6. Verificar conectividad básica
       try {
-        const { data: rlsData, error: rlsError } = await supabase
-          .rpc('get_table_rls_info', { table_name: 'leads' })
-          .single();
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/`, {
+          method: 'HEAD',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`
+          }
+        });
         
-        if (rlsError) {
-          results.push({
-            step: '6. Políticas RLS',
-            status: 'warning',
-            message: `No se pudo verificar RLS: ${rlsError.message}`,
-            details: rlsError
-          });
-        } else {
-          results.push({
-            step: '6. Políticas RLS',
-            status: 'info',
-            message: 'Información RLS obtenida',
-            details: rlsData
-          });
-        }
+        results.push({
+          step: '6. Conectividad HTTP',
+          status: response.ok ? 'success' : 'error',
+          message: response.ok ? 'Conexión HTTP exitosa' : `Error HTTP: ${response.status}`,
+          details: {
+            status: response.status,
+            statusText: response.statusText,
+            headers: Object.fromEntries(response.headers.entries())
+          }
+        });
       } catch (error) {
         results.push({
-          step: '6. Políticas RLS',
-          status: 'warning',
-          message: 'No se pudo verificar RLS (función no disponible)',
-          details: null
+          step: '6. Conectividad HTTP',
+          status: 'error',
+          message: `Error de conectividad: ${error}`,
+          details: error
         });
       }
 
@@ -228,12 +230,11 @@ export const LeadsDebug = () => {
     const variants = {
       success: 'bg-green-100 text-green-800',
       error: 'bg-red-100 text-red-800',
-      warning: 'bg-yellow-100 text-yellow-800',
-      info: 'bg-blue-100 text-blue-800'
+      warning: 'bg-yellow-100 text-yellow-800'
     };
     
     return (
-      <Badge className={variants[status as keyof typeof variants] || variants.info}>
+      <Badge className={variants[status as keyof typeof variants] || 'bg-blue-100 text-blue-800'}>
         {status.toUpperCase()}
       </Badge>
     );
