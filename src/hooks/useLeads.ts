@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
@@ -26,60 +25,107 @@ export const useLeads = () => {
     queryKey: ['leads'],
     queryFn: async () => {
       try {
-        console.log('🔍 Iniciando consulta de leads...');
+        console.log('🔍 DIAGNÓSTICO DETALLADO - Iniciando consulta de leads...');
         
-        // Verificar autenticación primero
+        // PASO 1: Verificar conexión a Supabase
+        console.log('📡 Verificando conexión a Supabase...');
+        console.log('Supabase URL:', supabase.supabaseUrl);
+        console.log('Supabase Key:', supabase.supabaseKey ? 'Configurada ✅' : 'No configurada ❌');
+        
+        // PASO 2: Verificar autenticación
+        console.log('🔐 Verificando autenticación...');
         const { data: { user }, error: authError } = await supabase.auth.getUser();
-        console.log('👤 Usuario autenticado:', user?.email, 'ID:', user?.id);
         
         if (authError) {
-          console.error('❌ Error de autenticación:', authError);
+          console.error('❌ ERROR DE AUTENTICACIÓN:', authError);
+          console.error('Código de error:', authError.message);
           throw new Error(`Error de autenticación: ${authError.message}`);
         }
         
         if (!user) {
-          console.error('❌ No hay usuario autenticado');
+          console.error('❌ USUARIO NO AUTENTICADO');
           throw new Error('Usuario no autenticado');
         }
+        
+        console.log('✅ Usuario autenticado:', {
+          id: user.id,
+          email: user.email,
+          created_at: user.created_at
+        });
 
-        // Verificar roles del usuario
-        const { data: roleData, error: roleError } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id);
+        // PASO 3: Verificar roles del usuario
+        console.log('👥 Verificando roles del usuario...');
+        try {
+          const { data: roleData, error: roleError } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', user.id);
+          
+          if (roleError) {
+            console.error('❌ ERROR AL OBTENER ROLES:', roleError);
+            console.error('Código:', roleError.code, 'Mensaje:', roleError.message);
+          } else {
+            console.log('✅ Roles obtenidos:', roleData);
+          }
+        } catch (roleErr) {
+          console.error('❌ EXCEPCIÓN AL OBTENER ROLES:', roleErr);
+        }
         
-        console.log('👥 Roles del usuario:', roleData, 'Error roles:', roleError);
+        // PASO 4: Verificar tabla leads existe
+        console.log('🗂️ Verificando existencia de tabla leads...');
+        try {
+          const { data: tableCheck, error: tableError } = await supabase
+            .from('leads')
+            .select('count', { count: 'exact', head: true });
+          
+          if (tableError) {
+            console.error('❌ ERROR AL VERIFICAR TABLA LEADS:', tableError);
+            console.error('Código:', tableError.code, 'Mensaje:', tableError.message);
+            throw new Error(`Error al verificar tabla leads: ${tableError.message}`);
+          }
+          
+          console.log('✅ Tabla leads existe, total registros:', tableCheck);
+        } catch (tableErr) {
+          console.error('❌ EXCEPCIÓN AL VERIFICAR TABLA:', tableErr);
+          throw tableErr;
+        }
         
-        // Consulta simple y directa a leads
-        console.log('📊 Ejecutando consulta a tabla leads...');
+        // PASO 5: Consulta principal de leads
+        console.log('📊 Ejecutando consulta principal de leads...');
         const { data, error, count } = await supabase
           .from('leads')
           .select('*', { count: 'exact' })
           .order('fecha_creacion', { ascending: false });
         
-        console.log('📈 Resultado consulta:', {
-          data: data?.slice(0, 2), // Solo primeros 2 para debug
-          count,
-          error,
-          totalRecords: data?.length
-        });
-        
         if (error) {
-          console.error("❌ Error en consulta leads:", error);
-          throw new Error(`Error al cargar leads: ${error.message} (${error.code})`);
+          console.error('❌ ERROR EN CONSULTA PRINCIPAL:', error);
+          console.error('Detalles completos del error:', {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint
+          });
+          throw new Error(`Error al cargar leads: ${error.message} (Código: ${error.code})`);
         }
         
-        console.log(`✅ Leads cargados exitosamente: ${data?.length || 0} registros`);
+        console.log('✅ CONSULTA EXITOSA:', {
+          totalRegistros: count,
+          registrosDevueltos: data?.length || 0,
+          primerosRegistros: data?.slice(0, 3) || []
+        });
+        
         return data || [];
         
       } catch (error) {
-        console.error("💥 Error completo en useLeads:", error);
+        console.error('💥 ERROR GENERAL EN useLeads:', error);
+        console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
         throw error;
       }
     },
     retry: 1,
     staleTime: 10000,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true
   });
 
   const assignLead = useMutation({
