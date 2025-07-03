@@ -72,9 +72,12 @@ export const LeadAssignmentDialog = ({
       console.log('Raw profiles data:', profiles);
 
       // Filtrar solo usuarios con roles de admin (que pueden actuar como analistas)
-      const analystProfiles = (profiles || []).filter((profile: any) => 
-        ['admin', 'supply_admin', 'manager'].includes(profile.role)
-      );
+      // Incluir específicamente 'supply_admin' que es el rol que necesitas
+      const analystProfiles = (profiles || []).filter((profile: any) => {
+        const allowedRoles = ['admin', 'owner', 'supply_admin', 'manager'];
+        console.log(`Usuario: ${profile.email}, Rol: ${profile.role}, Incluido: ${allowedRoles.includes(profile.role)}`);
+        return allowedRoles.includes(profile.role);
+      });
 
       console.log('Filtered analyst profiles:', analystProfiles);
 
