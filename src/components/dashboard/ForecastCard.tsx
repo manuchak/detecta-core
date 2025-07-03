@@ -131,7 +131,7 @@ export const ForecastCard = ({ totalServices, totalGMV, isLoading = false, error
           <div>
             <h4 className="font-semibold text-gray-900">{title}</h4>
             <p className="text-sm text-gray-500">
-              {period === 'monthly' ? `Junio ${currentYear}` : `Año ${currentYear}`}
+              {period === 'monthly' ? `${forecastData.forecastMonth} ${currentYear}` : `Año ${currentYear}`}
             </p>
           </div>
         </div>
@@ -153,7 +153,7 @@ export const ForecastCard = ({ totalServices, totalGMV, isLoading = false, error
         </div>
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-600">
-            Real (Ene-May):
+            Real (Ene-{forecastData.lastDataMonth}):
           </span>
           <span className="font-semibold text-gray-900">
             {isGMV ? formatCurrency(actual) : actual.toLocaleString()}

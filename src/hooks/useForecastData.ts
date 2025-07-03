@@ -110,11 +110,12 @@ export const useForecastData = (
     console.log(`└─ GMV solo finalizados: ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(realGmvEneroAHoy)}`);
     
     // Calcular nombres de meses dinámicamente
+    // Si estamos en julio (mes 7), los datos reales son Ene-Jun (hasta mes anterior completo)
     const lastDataMonth = new Date(2025, currentMonth - 2, 1).toLocaleDateString('es-ES', { month: 'long' });
     const forecastMonth = new Date(2025, currentMonth - 1, 1).toLocaleDateString('es-ES', { month: 'long' });
     
-    // Calcular cuántos meses completos tenemos de datos (enero a mes anterior del actual)
-    const monthsWithData = Math.max(1, currentMonth - 1); // Al menos 1 mes
+    // Datos reales: enero hasta el mes anterior completo (si estamos en julio, incluye hasta junio)
+    const monthsWithData = Math.max(1, currentMonth - 1); // Si julio=7, entonces 6 meses (ene-jun)
     
     // Si no hay servicios reales, retornar ceros
     if (realServicesEneroAHoy === 0) {
@@ -210,8 +211,8 @@ export const useForecastData = (
     };
     
     console.log('🎯 FORECAST RESULTADO FINAL (USANDO DATOS FORENSES):');
-    console.log(`└─ Servicios reales (Ene-May): ${result.monthlyServicesActual}`);
-    console.log(`└─ GMV real (Ene-May): ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(result.monthlyGmvActual)}`);
+    console.log(`└─ Servicios reales (Ene-${lastDataMonth}): ${result.monthlyServicesActual}`);
+    console.log(`└─ GMV real (Ene-${lastDataMonth}): ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(result.monthlyGmvActual)}`);
     console.log(`└─ Forecast ${forecastMonth}: ${result.monthlyServicesForecast} servicios, ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(result.monthlyGmvForecast)}`);
     console.log(`└─ Forecast anual 2025: ${result.annualServicesForecast} servicios, ${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(result.annualGmvForecast)}`);
     
