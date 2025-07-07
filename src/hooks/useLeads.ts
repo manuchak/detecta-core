@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
@@ -28,20 +29,13 @@ export const useLeads = () => {
     queryKey: ['leads'],
     queryFn: async () => {
       try {
-        console.log('🔍 DIAGNÓSTICO DETALLADO - Iniciando consulta de leads...');
+        console.log('🔍 Iniciando carga de leads...');
         
-        // PASO 1: Verificar conexión a Supabase
-        console.log('📡 Verificando conexión a Supabase...');
-        console.log('Supabase URL:', SUPABASE_URL);
-        console.log('Supabase Key:', SUPABASE_KEY ? 'Configurada ✅' : 'No configurada ❌');
-        
-        // PASO 2: Verificar autenticación
-        console.log('🔐 Verificando autenticación...');
+        // Verificar autenticación
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         
         if (authError) {
           console.error('❌ ERROR DE AUTENTICACIÓN:', authError);
-          console.error('Código de error:', authError.message);
           throw new Error(`Error de autenticación: ${authError.message}`);
         }
         
@@ -50,82 +44,34 @@ export const useLeads = () => {
           throw new Error('Usuario no autenticado');
         }
         
-        console.log('✅ Usuario autenticado:', {
-          id: user.id,
-          email: user.email,
-          created_at: user.created_at
-        });
+        console.log('✅ Usuario autenticado:', user.email);
 
-        // PASO 3: Verificar roles del usuario
-        console.log('👥 Verificando roles del usuario...');
-        try {
-          const { data: roleData, error: roleError } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', user.id);
-          
-          if (roleError) {
-            console.error('❌ ERROR AL OBTENER ROLES:', roleError);
-            console.error('Código:', roleError.code, 'Mensaje:', roleError.message);
-          } else {
-            console.log('✅ Roles obtenidos:', roleData);
-          }
-        } catch (roleErr) {
-          console.error('❌ EXCEPCIÓN AL OBTENER ROLES:', roleErr);
-        }
-        
-        // PASO 4: Verificar tabla leads existe
-        console.log('🗂️ Verificando existencia de tabla leads...');
-        try {
-          const { data: tableCheck, error: tableError } = await supabase
-            .from('leads')
-            .select('count', { count: 'exact', head: true });
-          
-          if (tableError) {
-            console.error('❌ ERROR AL VERIFICAR TABLA LEADS:', tableError);
-            console.error('Código:', tableError.code, 'Mensaje:', tableError.message);
-            throw new Error(`Error al verificar tabla leads: ${tableError.message}`);
-          }
-          
-          console.log('✅ Tabla leads existe, total registros:', tableCheck);
-        } catch (tableErr) {
-          console.error('❌ EXCEPCIÓN AL VERIFICAR TABLA:', tableErr);
-          throw tableErr;
-        }
-        
-        // PASO 5: Consulta principal de leads
-        console.log('📊 Ejecutando consulta principal de leads...');
+        // Consulta simplificada sin joins complejos que puedan causar recursión
+        console.log('📊 Ejecutando consulta simplificada de leads...');
         const { data, error, count } = await supabase
           .from('leads')
           .select('*', { count: 'exact' })
           .order('fecha_creacion', { ascending: false });
         
         if (error) {
-          console.error('❌ ERROR EN CONSULTA PRINCIPAL:', error);
-          console.error('Detalles completos del error:', {
-            code: error.code,
-            message: error.message,
-            details: error.details,
-            hint: error.hint
-          });
-          throw new Error(`Error al cargar leads: ${error.message} (Código: ${error.code})`);
+          console.error('❌ ERROR EN CONSULTA:', error);
+          throw new Error(`Error al cargar leads: ${error.message}`);
         }
         
         console.log('✅ CONSULTA EXITOSA:', {
           totalRegistros: count,
-          registrosDevueltos: data?.length || 0,
-          primerosRegistros: data?.slice(0, 3) || []
+          registrosDevueltos: data?.length || 0
         });
         
         return data || [];
         
       } catch (error) {
         console.error('💥 ERROR GENERAL EN useLeads:', error);
-        console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
         throw error;
       }
     },
     retry: 1,
+    retryDelay: 1000,
     staleTime: 10000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true
@@ -134,7 +80,7 @@ export const useLeads = () => {
   const assignLead = useMutation({
     mutationFn: async ({ leadId, analystId }: { leadId: string, analystId: string }) => {
       try {
-        console.log(`Assigning lead ${leadId} to analyst ${analystId}`);
+        console.log(`Asignando lead ${leadId} al analista ${analystId}`);
         
         const { data, error } = await supabase
           .from('leads')
@@ -147,15 +93,15 @@ export const useLeads = () => {
           .single();
         
         if (error) {
-          console.error('Error assigning lead:', error);
+          console.error('Error asignando lead:', error);
           throw new Error(`Error al asignar candidato: ${error.message}`);
         }
         
-        console.log(`Successfully assigned lead ${leadId} to analyst ${analystId}`);
+        console.log(`Lead ${leadId} asignado exitosamente`);
         return data;
         
       } catch (error) {
-        console.error('Error in assignLead:', error);
+        console.error('Error en assignLead:', error);
         throw error;
       }
     },
@@ -167,7 +113,7 @@ export const useLeads = () => {
       });
     },
     onError: (error) => {
-      console.error('Assignment error:', error);
+      console.error('Error en asignación:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Error al asignar el candidato",
@@ -179,7 +125,7 @@ export const useLeads = () => {
   const updateLead = useMutation({
     mutationFn: async ({ leadId, updates }: { leadId: string, updates: Partial<Lead> }) => {
       try {
-        console.log(`Updating lead ${leadId}`, updates);
+        console.log(`Actualizando lead ${leadId}`, updates);
         
         const { data, error } = await supabase
           .from('leads')
@@ -192,15 +138,15 @@ export const useLeads = () => {
           .single();
         
         if (error) {
-          console.error('Error updating lead:', error);
+          console.error('Error actualizando lead:', error);
           throw new Error(`Error al actualizar candidato: ${error.message}`);
         }
         
-        console.log(`Successfully updated lead ${leadId}`);
+        console.log(`Lead ${leadId} actualizado exitosamente`);
         return data;
         
       } catch (error) {
-        console.error('Error in updateLead:', error);
+        console.error('Error en updateLead:', error);
         throw error;
       }
     },
@@ -212,7 +158,7 @@ export const useLeads = () => {
       });
     },
     onError: (error) => {
-      console.error('Update error:', error);
+      console.error('Error en actualización:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Error al actualizar el candidato",
@@ -224,7 +170,7 @@ export const useLeads = () => {
   const createLead = useMutation({
     mutationFn: async (leadData: Omit<Lead, 'id' | 'fecha_creacion'>) => {
       try {
-        console.log('Creating new lead:', leadData);
+        console.log('Creando nuevo lead:', leadData);
         
         const { data, error } = await supabase
           .from('leads')
@@ -237,15 +183,15 @@ export const useLeads = () => {
           .single();
         
         if (error) {
-          console.error('Error creating lead:', error);
+          console.error('Error creando lead:', error);
           throw new Error(`Error al crear candidato: ${error.message}`);
         }
         
-        console.log('Successfully created lead:', data.id);
+        console.log('Lead creado exitosamente:', data.id);
         return data;
         
       } catch (error) {
-        console.error('Error in createLead:', error);
+        console.error('Error en createLead:', error);
         throw error;
       }
     },
@@ -257,7 +203,7 @@ export const useLeads = () => {
       });
     },
     onError: (error) => {
-      console.error('Creation error:', error);
+      console.error('Error en creación:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Error al crear el candidato",

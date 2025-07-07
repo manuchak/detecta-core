@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,7 +47,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           <span className="text-sm text-muted-foreground">Cargando candidatos...</span>
           <div className="text-xs text-gray-500 max-w-md text-center">
-            Consultando base de datos y verificando permisos...
+            Verificando permisos y consultando base de datos...
           </div>
         </div>
       </div>
@@ -72,10 +73,10 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
           <div className="text-left">
             <p className="text-red-800 font-medium mb-2">Posibles causas:</p>
             <ul className="text-red-700 text-sm space-y-1 list-disc list-inside">
-              <li>Permisos RLS insuficientes para acceder a la tabla</li>
+              <li>Problema de recursión infinita en políticas RLS</li>
+              <li>Permisos insuficientes para acceder a la tabla</li>
               <li>Usuario no tiene el rol adecuado (admin, owner, manager)</li>
               <li>Problemas de autenticación con Supabase</li>
-              <li>Configuración incorrecta del cliente Supabase</li>
             </ul>
           </div>
         </div>
@@ -171,7 +172,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         </div>
       </div>
 
-      {/* ... keep existing code (search and filters, table) */}
+      {/* Controles de búsqueda y filtros */}
       <div className="flex gap-4 items-center">
         <div className="relative flex-1">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
