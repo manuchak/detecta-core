@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Helper functions for authentication and authorization
- * Following Supabase best practices
+ * Following Supabase best practices with consolidated security functions
  */
 
 export const getCurrentUserRole = async (): Promise<string | null> => {
@@ -12,10 +12,8 @@ export const getCurrentUserRole = async (): Promise<string | null> => {
     
     if (!user) return null;
     
-    // Use the safe function that doesn't cause recursion
-    const { data, error } = await supabase.rpc('get_user_role_safe', {
-      user_uid: user.id
-    });
+    // Use the consolidated safe function that doesn't cause recursion
+    const { data, error } = await supabase.rpc('get_current_user_role');
 
     if (error) {
       console.error('Error getting user role:', error);
@@ -35,15 +33,8 @@ export const isUserAdmin = async (): Promise<boolean> => {
     
     if (!user) return false;
     
-    // Direct admin check for admin@admin.com
-    if (user.email === 'admin@admin.com') {
-      return true;
-    }
-    
-    const { data, error } = await supabase.rpc('has_role', {
-      user_uid: user.id,
-      required_role: 'admin'
-    });
+    // Use the consolidated secure function
+    const { data, error } = await supabase.rpc('is_admin_user_secure');
 
     if (error) {
       console.error('Error checking admin role:', error);

@@ -4,10 +4,12 @@ import { Role, Permission, UserWithRole } from '@/types/roleTypes';
 
 /**
  * Helper functions to handle database operations following Supabase best practices
+ * Updated to use consolidated security functions
  */
 
 export const fetchUserRoles = async (): Promise<Role[]> => {
   try {
+    // Use the new consolidated secure function
     const { data, error } = await supabase.rpc('get_available_roles_secure');
     
     if (error) {
@@ -63,6 +65,14 @@ export const fetchUserRoles = async (): Promise<Role[]> => {
 
 export const fetchRolePermissions = async (): Promise<Permission[]> => {
   try {
+    // Verify admin access first using consolidated function
+    const { data: isAdmin, error: adminError } = await supabase.rpc('is_admin_user_secure');
+    
+    if (adminError || !isAdmin) {
+      console.error('No admin permissions for fetching role permissions');
+      return [];
+    }
+
     const { data, error } = await supabase
       .from('role_permissions')
       .select('id, role, permission_type, permission_id, allowed')
@@ -89,6 +99,7 @@ export const fetchRolePermissions = async (): Promise<Permission[]> => {
 
 export const fetchUsersWithRoles = async (): Promise<UserWithRole[]> => {
   try {
+    // Use the consolidated secure function
     const { data, error } = await supabase.rpc('get_users_with_roles_secure');
     
     if (error) {
