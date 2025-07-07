@@ -4597,7 +4597,7 @@ export type Database = {
         Returns: string
       }
       get_user_role_direct: {
-        Args: { user_uid: string }
+        Args: Record<PropertyKey, never> | { user_uid: string }
         Returns: string
       }
       get_user_role_safe: {
@@ -4605,7 +4605,7 @@ export type Database = {
         Returns: string
       }
       get_user_role_secure: {
-        Args: { user_uuid: string }
+        Args: Record<PropertyKey, never> | { user_uuid: string }
         Returns: string
       }
       get_user_roles: {
@@ -4748,7 +4748,7 @@ export type Database = {
         Returns: boolean
       }
       is_admin_or_owner: {
-        Args: { user_uuid: string }
+        Args: Record<PropertyKey, never> | { user_uuid: string }
         Returns: boolean
       }
       is_admin_safe: {
