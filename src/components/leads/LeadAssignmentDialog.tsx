@@ -58,9 +58,9 @@ export const LeadAssignmentDialog = ({
   const fetchAnalysts = async () => {
     try {
       setLoadingAnalysts(true);
-      console.log('Fetching analysts...');
+      console.log('Fetching analysts using secure function...');
       
-      // Obtener usuarios con roles de admin o analista usando el hook seguro
+      // Use the consolidated secure function
       const { data: profiles, error } = await supabase
         .rpc('get_users_with_roles_secure');
 
@@ -71,10 +71,9 @@ export const LeadAssignmentDialog = ({
 
       console.log('Raw profiles data:', profiles);
 
-      // Filtrar solo usuarios con roles de admin (que pueden actuar como analistas)
-      // Incluir específicamente 'supply_admin' que es el rol que necesitas
+      // Filter analysts based on roles that can be assigned leads
       const analystProfiles = (profiles || []).filter((profile: any) => {
-        const allowedRoles = ['admin', 'owner', 'supply_admin', 'manager'];
+        const allowedRoles = ['admin', 'owner', 'supply_admin', 'analista_seguridad'];
         console.log(`Usuario: ${profile.email}, Rol: ${profile.role}, Incluido: ${allowedRoles.includes(profile.role)}`);
         return allowedRoles.includes(profile.role);
       });

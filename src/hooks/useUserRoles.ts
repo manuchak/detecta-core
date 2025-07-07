@@ -12,10 +12,10 @@ export const useUserRoles = () => {
     queryKey: ['users-with-roles'],
     queryFn: async () => {
       try {
-        console.log('Fetching users with roles...');
+        console.log('Fetching users with roles using secure function...');
         
-        // Verificar primero si el usuario actual es admin
-        const { data: currentUserRole, error: roleError } = await (supabase as any).rpc('get_current_user_role');
+        // Verificar primero si el usuario actual es admin usando la función segura
+        const { data: currentUserRole, error: roleError } = await supabase.rpc('get_current_user_role');
         
         if (roleError) {
           console.error('Error checking user role:', roleError);
@@ -24,12 +24,12 @@ export const useUserRoles = () => {
         
         console.log('Current user role:', currentUserRole);
         
-        if (!currentUserRole || !['admin', 'owner'].includes(currentUserRole)) {
+        if (!currentUserRole || !['admin', 'owner', 'supply_admin'].includes(currentUserRole)) {
           throw new Error('Sin permisos de administrador para ver usuarios');
         }
         
-        // Usar la función segura para obtener usuarios
-        const { data, error } = await (supabase as any).rpc('get_users_with_roles_secure');
+        // Usar la función segura consolidada
+        const { data, error } = await supabase.rpc('get_users_with_roles_secure');
         
         if (error) {
           console.error("Error fetching users with roles:", error);
@@ -64,7 +64,7 @@ export const useUserRoles = () => {
         throw new Error('Error desconocido al cargar usuarios');
       }
     },
-    retry: 2,
+    retry: 1,
     staleTime: 30000,
     refetchOnWindowFocus: false,
   });
@@ -74,10 +74,32 @@ export const useUserRoles = () => {
       try {
         console.log(`Updating user ${userId} to role ${role}`);
         
-        const { data, error } = await (supabase as any).rpc('update_user_role_secure', {
-          p_user_id: userId,
-          p_role: role
-        });
+        // Verificar permisos antes de actualizar
+        const { data: hasPermission, error: permissionError } = await supabase.rpc('is_admin_user_secure');
+        
+        if (permissionError || !hasPermission) {
+          throw new Error('Sin permisos para actualizar roles de usuario');
+        }
+        
+        // Actualizar el rol directamente en la tabla user_roles
+        const { error: deleteError } = await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', userId);
+        
+        if (deleteError) {
+          console.error('Error deleting old roles:', deleteError);
+          throw new Error(`Error al eliminar roles anteriores: ${deleteError.message}`);
+        }
+        
+        const { data, error } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: userId,
+            role: role
+          })
+          .select()
+          .single();
         
         if (error) {
           console.error('Error updating user role:', error);
@@ -115,9 +137,21 @@ export const useUserRoles = () => {
       try {
         console.log(`Verifying email for user ${userId}`);
         
-        const { data, error } = await (supabase as any).rpc('verify_user_email_secure', {
-          p_user_id: userId
-        });
+        // Verificar permisos antes de verificar email
+        const { data: hasPermission, error: permissionError } = await supabase.rpc('is_admin_user_secure');
+        
+        if (permissionError || !hasPermission) {
+          throw new Error('Sin permisos para verificar emails de usuario');
+        }
+        
+        // Actualizar el perfil del usuario
+        const { error } = await supabase
+          .from('profiles')
+          .update({ 
+            is_verified: true,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', userId);
         
         if (error) {
           console.error('Error verifying user email:', error);

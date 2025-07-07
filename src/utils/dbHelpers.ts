@@ -3,8 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Role, Permission, UserWithRole } from '@/types/roleTypes';
 
 /**
- * Helper functions to handle database operations following Supabase best practices
- * Updated to use consolidated security functions
+ * Database helper functions optimized for Phase 2 RLS policies
+ * Updated to use the new consolidated secure functions
  */
 
 export const fetchUserRoles = async (): Promise<Role[]> => {
@@ -14,10 +14,10 @@ export const fetchUserRoles = async (): Promise<Role[]> => {
     
     if (error) {
       console.error('Error fetching user roles:', error);
-      // Return default roles as fallback including all new roles
+      // Return comprehensive default roles as fallback
       return [
         'owner',
-        'admin',
+        'admin', 
         'supply_admin',
         'coordinador_operaciones',
         'jefe_seguridad',
@@ -40,7 +40,7 @@ export const fetchUserRoles = async (): Promise<Role[]> => {
     return (data || []).map((item: { role: string }) => item.role as Role);
   } catch (err) {
     console.error('Error in fetchUserRoles:', err);
-    // Return default roles as fallback including all new roles
+    // Return comprehensive default roles as fallback
     return [
       'owner',
       'admin',
@@ -73,6 +73,7 @@ export const fetchRolePermissions = async (): Promise<Permission[]> => {
       return [];
     }
 
+    // Fetch permissions directly with the new secure RLS policies
     const { data, error } = await supabase
       .from('role_permissions')
       .select('id, role, permission_type, permission_id, allowed')

@@ -4951,7 +4951,9 @@ export type Database = {
         Returns: boolean
       }
       user_has_role_secure: {
-        Args: { user_uuid: string; required_role: string }
+        Args:
+          | { check_role: string }
+          | { user_uuid: string; required_role: string }
         Returns: boolean
       }
       user_has_skill: {
