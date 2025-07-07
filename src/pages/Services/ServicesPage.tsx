@@ -27,9 +27,43 @@ export const ServicesPage = () => {
 
   console.log('ServicesPage - Estado de carga:', { isLoading, error, servicios: servicios?.length });
 
-  // Manejar estado de error
+  // Manejar estado de error con mejor información
   if (error) {
     console.error('Error en ServicesPage:', error);
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center max-w-md">
+          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error al cargar servicios</h2>
+          <p className="text-gray-600 mb-4">
+            {error.message?.includes('infinite recursion') 
+              ? 'Hay un problema con la configuración de la base de datos. Por favor contacta al administrador.'
+              : 'Ha ocurrido un error al cargar los datos de servicios.'
+            }
+          </p>
+          <div className="space-y-2">
+            <Button onClick={() => window.location.reload()} className="w-full">
+              Reintentar
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['servicios-monitoreo'] })}
+              className="w-full"
+            >
+              Refrescar datos
+            </Button>
+          </div>
+          {error.message && (
+            <details className="mt-4 text-left">
+              <summary className="text-sm text-gray-500 cursor-pointer">Detalles técnicos</summary>
+              <pre className="text-xs text-gray-400 mt-2 p-2 bg-gray-100 rounded overflow-auto">
+                {error.message}
+              </pre>
+            </details>
+          )}
+        </div>
+      </div>
+    );
   }
 
   const handleServiceDeleted = () => {
@@ -53,21 +87,6 @@ export const ServicesPage = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p>Cargando servicios...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error al cargar servicios</h2>
-          <p className="text-gray-600 mb-4">Ha ocurrido un error al cargar los datos de servicios.</p>
-          <Button onClick={() => window.location.reload()}>
-            Reintentar
-          </Button>
         </div>
       </div>
     );
