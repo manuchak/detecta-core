@@ -73,7 +73,7 @@ export const LeadAssignmentDialog = ({
 
       // Filter analysts based on roles that can be assigned leads
       const analystProfiles = (profiles || []).filter((profile: any) => {
-        const allowedRoles = ['admin', 'owner', 'supply_admin', 'analista_seguridad'];
+        const allowedRoles = ['admin', 'owner', 'supply_admin', 'analista_seguridad', 'custodio', 'coordinador_operaciones', 'jefe_seguridad'];
         console.log(`Usuario: ${profile.email}, Rol: ${profile.role}, Incluido: ${allowedRoles.includes(profile.role)}`);
         return allowedRoles.includes(profile.role);
       });
