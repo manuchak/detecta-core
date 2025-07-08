@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, Edit, AlertCircle, RefreshCw, CheckCircle } from "lucide-react";
+import { Search, UserPlus, Edit, AlertCircle, RefreshCw, CheckCircle, User, UserX } from "lucide-react";
 import { useLeads, Lead } from "@/hooks/useLeads";
 import { LeadAssignmentDialog } from "./LeadAssignmentDialog";
 
@@ -30,6 +30,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
   const { leads, isLoading, error, refetch } = useLeads();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [assignmentFilter, setAssignmentFilter] = useState("all");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
 
@@ -133,7 +134,11 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     
     const matchesStatus = statusFilter === "all" || lead.estado === statusFilter;
     
-    return matchesSearch && matchesStatus;
+    const matchesAssignment = assignmentFilter === "all" || 
+      (assignmentFilter === "assigned" && lead.asignado_a) ||
+      (assignmentFilter === "unassigned" && !lead.asignado_a);
+    
+    return matchesSearch && matchesStatus && matchesAssignment;
   });
 
   const getStatusBadge = (status: string) => {
@@ -196,6 +201,26 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
             <SelectItem value="pendiente">Pendiente</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={assignmentFilter} onValueChange={setAssignmentFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Filtrar por asignación" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="assigned">
+              <div className="flex items-center">
+                <User className="h-4 w-4 mr-2 text-green-600" />
+                Asignados
+              </div>
+            </SelectItem>
+            <SelectItem value="unassigned">
+              <div className="flex items-center">
+                <UserX className="h-4 w-4 mr-2 text-red-600" />
+                Sin asignar
+              </div>
+            </SelectItem>
+          </SelectContent>
+        </Select>
         <Button onClick={() => refetch()} variant="outline">
           <RefreshCw className="h-4 w-4 mr-2" />
           Actualizar
@@ -217,8 +242,14 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredLeads.map((lead) => (
-              <TableRow key={lead.id}>
+          {filteredLeads.map((lead) => {
+            const isAssigned = !!lead.asignado_a;
+            const rowClass = isAssigned 
+              ? "bg-green-50 hover:bg-green-100/80 border-l-4 border-l-green-500" 
+              : "bg-red-50 hover:bg-red-100/80 border-l-4 border-l-red-500";
+            
+            return (
+              <TableRow key={lead.id} className={rowClass}>
                 <TableCell className="font-medium">{lead.nombre}</TableCell>
                 <TableCell>{lead.email}</TableCell>
                 <TableCell>{lead.telefono}</TableCell>
@@ -230,21 +261,31 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
                   {lead.fecha_creacion ? new Date(lead.fecha_creacion).toLocaleDateString('es-ES') : 'N/A'}
                 </TableCell>
                 <TableCell>
-                  {lead.asignado_a ? (
-                    <Badge variant="outline">Asignado</Badge>
+                  {isAssigned ? (
+                    <div className="flex items-center space-x-2">
+                      <User className="h-4 w-4 text-green-600" />
+                      <Badge className="bg-green-100 text-green-800 border-green-300">
+                        Asignado
+                      </Badge>
+                    </div>
                   ) : (
-                    <Badge variant="secondary">Sin asignar</Badge>
+                    <div className="flex items-center space-x-2">
+                      <UserX className="h-4 w-4 text-red-600" />
+                      <Badge className="bg-red-100 text-red-800 border-red-300">
+                        Sin asignar
+                      </Badge>
+                    </div>
                   )}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex gap-2 justify-end">
                     <Button
-                      variant="outline"
+                      variant={isAssigned ? "secondary" : "default"}
                       size="sm"
                       onClick={() => handleAssignLead(lead)}
                     >
                       <UserPlus className="h-4 w-4 mr-1" />
-                      Asignar
+                      {isAssigned ? "Reasignar" : "Asignar"}
                     </Button>
                     {onEditLead && (
                       <Button
@@ -259,7 +300,8 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+            );
+          })}
           </TableBody>
         </Table>
       </div>
