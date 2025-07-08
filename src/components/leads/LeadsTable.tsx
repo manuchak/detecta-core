@@ -235,9 +235,8 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
               <TableHead>Email</TableHead>
               <TableHead>Teléfono</TableHead>
               <TableHead>Estado</TableHead>
-              <TableHead>Fuente</TableHead>
               <TableHead>Fecha</TableHead>
-              <TableHead>Asignado a</TableHead>
+              <TableHead className="w-[200px]">Asignación</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -255,25 +254,28 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
                 <TableCell>{lead.telefono}</TableCell>
                 <TableCell>{getStatusBadge(lead.estado)}</TableCell>
                 <TableCell>
-                  <Badge variant="outline">{lead.fuente || 'N/A'}</Badge>
-                </TableCell>
-                <TableCell>
                   {lead.fecha_creacion ? new Date(lead.fecha_creacion).toLocaleDateString('es-ES') : 'N/A'}
                 </TableCell>
                 <TableCell>
                   {isAssigned ? (
-                    <div className="flex items-center space-x-2">
-                      <User className="h-4 w-4 text-green-600" />
-                      <Badge className="bg-green-100 text-green-800 border-green-300">
-                        Asignado
-                      </Badge>
+                    <div className="flex items-center space-x-3 p-2 bg-green-100 rounded-lg border border-green-200">
+                      <div className="flex items-center justify-center w-8 h-8 bg-green-500 rounded-full">
+                        <User className="h-4 w-4 text-white" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-green-800">Asignado</span>
+                        <span className="text-xs text-green-600">ID: {lead.asignado_a?.slice(-8)}</span>
+                      </div>
                     </div>
                   ) : (
-                    <div className="flex items-center space-x-2">
-                      <UserX className="h-4 w-4 text-red-600" />
-                      <Badge className="bg-red-100 text-red-800 border-red-300">
-                        Sin asignar
-                      </Badge>
+                    <div className="flex items-center space-x-3 p-2 bg-red-100 rounded-lg border border-red-200">
+                      <div className="flex items-center justify-center w-8 h-8 bg-red-500 rounded-full">
+                        <UserX className="h-4 w-4 text-white" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-red-800">Sin asignar</span>
+                        <span className="text-xs text-red-600">Requiere asignación</span>
+                      </div>
                     </div>
                   )}
                 </TableCell>
