@@ -140,11 +140,13 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
   }
 
   const filteredLeads = useMemo(() => {
-    if (!leads) return [];
+    if (!leads || !Array.isArray(leads)) return [];
     
     return leads.filter(lead => {
+      if (!lead) return false;
+      
       // Filtro de búsqueda
-      const matchesSearch = 
+      const matchesSearch = !searchTerm || 
         lead.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         lead.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         lead.telefono?.includes(searchTerm);
@@ -161,17 +163,29 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
       let matchesAdvanced = true;
       
       // Filtro de fecha
-      if (advancedFilters.dateFrom) {
-        const leadDate = new Date(lead.fecha_creacion);
-        const fromDate = new Date(advancedFilters.dateFrom);
-        matchesAdvanced = matchesAdvanced && leadDate >= fromDate;
+      if (advancedFilters.dateFrom && lead.fecha_creacion) {
+        try {
+          const leadDate = new Date(lead.fecha_creacion);
+          const fromDate = new Date(advancedFilters.dateFrom);
+          if (!isNaN(leadDate.getTime()) && !isNaN(fromDate.getTime())) {
+            matchesAdvanced = matchesAdvanced && leadDate >= fromDate;
+          }
+        } catch (e) {
+          // Ignore date parsing errors
+        }
       }
       
-      if (advancedFilters.dateTo) {
-        const leadDate = new Date(lead.fecha_creacion);
-        const toDate = new Date(advancedFilters.dateTo);
-        toDate.setHours(23, 59, 59); // Incluir todo el día
-        matchesAdvanced = matchesAdvanced && leadDate <= toDate;
+      if (advancedFilters.dateTo && lead.fecha_creacion) {
+        try {
+          const leadDate = new Date(lead.fecha_creacion);
+          const toDate = new Date(advancedFilters.dateTo);
+          if (!isNaN(leadDate.getTime()) && !isNaN(toDate.getTime())) {
+            toDate.setHours(23, 59, 59); // Incluir todo el día
+            matchesAdvanced = matchesAdvanced && leadDate <= toDate;
+          }
+        } catch (e) {
+          // Ignore date parsing errors
+        }
       }
       
       // Filtro de fuente
@@ -180,12 +194,20 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
       }
       
       // Filtro de días sin asignar
-      if (advancedFilters.unassignedDays !== 'all' && !lead.asignado_a) {
-        const daysThreshold = parseInt(advancedFilters.unassignedDays);
-        const daysSinceCreation = Math.floor(
-          (Date.now() - new Date(lead.fecha_creacion).getTime()) / (1000 * 60 * 60 * 24)
-        );
-        matchesAdvanced = matchesAdvanced && daysSinceCreation > daysThreshold;
+      if (advancedFilters.unassignedDays !== 'all' && !lead.asignado_a && lead.fecha_creacion) {
+        try {
+          const daysThreshold = parseInt(advancedFilters.unassignedDays);
+          if (!isNaN(daysThreshold)) {
+            const daysSinceCreation = Math.floor(
+              (Date.now() - new Date(lead.fecha_creacion).getTime()) / (1000 * 60 * 60 * 24)
+            );
+            if (!isNaN(daysSinceCreation)) {
+              matchesAdvanced = matchesAdvanced && daysSinceCreation > daysThreshold;
+            }
+          }
+        } catch (e) {
+          // Ignore date parsing errors
+        }
       }
       
       return matchesSearch && matchesStatus && matchesAssignment && matchesAdvanced;
