@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 import { useUserSkills } from "@/hooks/useUserSkills";
 import { LeadsTable } from "@/components/leads/LeadsTable";
 import { LeadForm } from "@/components/leads/LeadForm";
-import { LeadsDiagnostic } from "@/components/leads/LeadsDiagnostic";
+
 import { Lead } from "@/hooks/useLeads";
 
 export const LeadsListPage = () => {
@@ -61,8 +61,6 @@ export const LeadsListPage = () => {
         </Button>
       </div>
 
-      {/* Componente de diagnóstico temporal */}
-      <LeadsDiagnostic />
 
       {showCreateForm ? (
         <Card>

@@ -1,7 +1,8 @@
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -21,6 +22,9 @@ import { Badge } from "@/components/ui/badge";
 import { Search, UserPlus, Edit, AlertCircle, RefreshCw, CheckCircle, User, UserX } from "lucide-react";
 import { useLeads, Lead } from "@/hooks/useLeads";
 import { LeadAssignmentDialog } from "./LeadAssignmentDialog";
+import { LeadsMetricsDashboard } from "./LeadsMetricsDashboard";
+import { BulkActionsToolbar } from "./BulkActionsToolbar";
+import { AdvancedFilters, AdvancedFiltersState } from "./AdvancedFilters";
 
 interface LeadsTableProps {
   onEditLead?: (lead: Lead) => void;
@@ -33,6 +37,15 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
   const [assignmentFilter, setAssignmentFilter] = useState("all");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
+  const [selectedLeads, setSelectedLeads] = useState<Lead[]>([]);
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFiltersState>({
+    dateFrom: '',
+    dateTo: '',
+    source: 'all',
+    unassignedDays: 'all',
+    status: 'all',
+    assignment: 'all'
+  });
 
   console.log('🎯 LeadsTable - Estado actual:', {
     isLoading,
@@ -126,20 +139,58 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     );
   }
 
-  const filteredLeads = leads.filter(lead => {
-    const matchesSearch = 
-      lead.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lead.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lead.telefono?.includes(searchTerm);
+  const filteredLeads = useMemo(() => {
+    if (!leads) return [];
     
-    const matchesStatus = statusFilter === "all" || lead.estado === statusFilter;
-    
-    const matchesAssignment = assignmentFilter === "all" || 
-      (assignmentFilter === "assigned" && lead.asignado_a) ||
-      (assignmentFilter === "unassigned" && !lead.asignado_a);
-    
-    return matchesSearch && matchesStatus && matchesAssignment;
-  });
+    return leads.filter(lead => {
+      // Filtro de búsqueda
+      const matchesSearch = 
+        lead.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.telefono?.includes(searchTerm);
+      
+      // Filtro de estado
+      const matchesStatus = statusFilter === "all" || lead.estado === statusFilter;
+      
+      // Filtro de asignación
+      const matchesAssignment = assignmentFilter === "all" || 
+        (assignmentFilter === "assigned" && lead.asignado_a) ||
+        (assignmentFilter === "unassigned" && !lead.asignado_a);
+      
+      // Filtros avanzados
+      let matchesAdvanced = true;
+      
+      // Filtro de fecha
+      if (advancedFilters.dateFrom) {
+        const leadDate = new Date(lead.fecha_creacion);
+        const fromDate = new Date(advancedFilters.dateFrom);
+        matchesAdvanced = matchesAdvanced && leadDate >= fromDate;
+      }
+      
+      if (advancedFilters.dateTo) {
+        const leadDate = new Date(lead.fecha_creacion);
+        const toDate = new Date(advancedFilters.dateTo);
+        toDate.setHours(23, 59, 59); // Incluir todo el día
+        matchesAdvanced = matchesAdvanced && leadDate <= toDate;
+      }
+      
+      // Filtro de fuente
+      if (advancedFilters.source !== 'all') {
+        matchesAdvanced = matchesAdvanced && lead.fuente === advancedFilters.source;
+      }
+      
+      // Filtro de días sin asignar
+      if (advancedFilters.unassignedDays !== 'all' && !lead.asignado_a) {
+        const daysThreshold = parseInt(advancedFilters.unassignedDays);
+        const daysSinceCreation = Math.floor(
+          (Date.now() - new Date(lead.fecha_creacion).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        matchesAdvanced = matchesAdvanced && daysSinceCreation > daysThreshold;
+      }
+      
+      return matchesSearch && matchesStatus && matchesAssignment && matchesAdvanced;
+    });
+  }, [leads, searchTerm, statusFilter, assignmentFilter, advancedFilters]);
 
   const getStatusBadge = (status: string) => {
     const statusColors = {
@@ -162,8 +213,67 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     setShowAssignmentDialog(true);
   };
 
+  const handleSelectLead = (lead: Lead, checked: boolean) => {
+    if (checked) {
+      setSelectedLeads(prev => [...prev, lead]);
+    } else {
+      setSelectedLeads(prev => prev.filter(l => l.id !== lead.id));
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedLeads(filteredLeads);
+    } else {
+      setSelectedLeads([]);
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedLeads([]);
+  };
+
+  const handleResetFilters = () => {
+    setAdvancedFilters({
+      dateFrom: '',
+      dateTo: '',
+      source: 'all',
+      unassignedDays: 'all',
+      status: 'all',
+      assignment: 'all'
+    });
+    setStatusFilter('all');
+    setAssignmentFilter('all');
+    setSearchTerm('');
+  };
+
+  const isLeadSelected = (leadId: string) => {
+    return selectedLeads.some(lead => lead.id === leadId);
+  };
+
+  const allFilteredSelected = filteredLeads.length > 0 && 
+    filteredLeads.every(lead => isLeadSelected(lead.id));
+  const someFilteredSelected = filteredLeads.some(lead => isLeadSelected(lead.id));
+
   return (
     <div className="space-y-4">
+      {/* Dashboard de métricas */}
+      <LeadsMetricsDashboard leads={leads || []} />
+
+      {/* Filtros avanzados */}
+      <AdvancedFilters 
+        filters={advancedFilters}
+        onFiltersChange={setAdvancedFilters}
+        onResetFilters={handleResetFilters}
+      />
+
+      {/* Toolbar de acciones masivas */}
+      <BulkActionsToolbar 
+        selectedLeads={selectedLeads}
+        onClearSelection={handleClearSelection}
+        onBulkAssignmentComplete={refetch}
+      />
+
       {/* Estado de éxito */}
       <div className="bg-green-50 border border-green-200 rounded-lg p-3">
         <div className="flex items-center justify-between">
@@ -172,7 +282,8 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
             <span className="text-sm font-medium">✅ Datos cargados exitosamente</span>
           </div>
           <div className="text-xs text-green-600">
-            Total: {leads.length} | Filtrados: {filteredLeads.length}
+            Total: {leads?.length || 0} | Filtrados: {filteredLeads.length}
+            {selectedLeads.length > 0 && ` | Seleccionados: ${selectedLeads.length}`}
           </div>
         </div>
       </div>
@@ -231,6 +342,12 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-12">
+                <Checkbox
+                  checked={allFilteredSelected}
+                  onCheckedChange={handleSelectAll}
+                />
+              </TableHead>
               <TableHead>Nombre</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Teléfono</TableHead>
@@ -249,6 +366,12 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
             
             return (
               <TableRow key={lead.id} className={rowClass}>
+                <TableCell>
+                  <Checkbox
+                    checked={isLeadSelected(lead.id)}
+                    onCheckedChange={(checked) => handleSelectLead(lead, checked as boolean)}
+                  />
+                </TableCell>
                 <TableCell className="font-medium">{lead.nombre}</TableCell>
                 <TableCell>{lead.email}</TableCell>
                 <TableCell>{lead.telefono}</TableCell>

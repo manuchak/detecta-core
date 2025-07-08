@@ -32,6 +32,8 @@ interface LeadAssignmentDialogProps {
   leadName: string;
   currentAssignee?: string | null;
   onAssignmentUpdate: () => void;
+  isBulkMode?: boolean;
+  selectedLeadIds?: string[];
 }
 
 export const LeadAssignmentDialog = ({
@@ -40,7 +42,9 @@ export const LeadAssignmentDialog = ({
   leadId,
   leadName,
   currentAssignee,
-  onAssignmentUpdate
+  onAssignmentUpdate,
+  isBulkMode = false,
+  selectedLeadIds = []
 }: LeadAssignmentDialogProps) => {
   const [analysts, setAnalysts] = useState<Analyst[]>([]);
   const [selectedAnalyst, setSelectedAnalyst] = useState<string>("");
@@ -112,20 +116,39 @@ export const LeadAssignmentDialog = ({
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('leads')
-        .update({ 
-          asignado_a: selectedAnalyst,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', leadId);
+      if (isBulkMode && selectedLeadIds.length > 0) {
+        // Asignación masiva
+        const { error } = await supabase
+          .from('leads')
+          .update({ 
+            asignado_a: selectedAnalyst,
+            updated_at: new Date().toISOString()
+          })
+          .in('id', selectedLeadIds);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast({
-        title: "Candidato asignado",
-        description: `El candidato ha sido asignado exitosamente.`,
-      });
+        toast({
+          title: "Candidatos asignados",
+          description: `${selectedLeadIds.length} candidatos han sido asignados exitosamente.`,
+        });
+      } else {
+        // Asignación individual
+        const { error } = await supabase
+          .from('leads')
+          .update({ 
+            asignado_a: selectedAnalyst,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', leadId);
+
+        if (error) throw error;
+
+        toast({
+          title: "Candidato asignado",
+          description: `El candidato ha sido asignado exitosamente.`,
+        });
+      }
 
       onAssignmentUpdate();
       onOpenChange(false);
@@ -133,7 +156,9 @@ export const LeadAssignmentDialog = ({
       console.error('Error assigning lead:', error);
       toast({
         title: "Error",
-        description: "No se pudo asignar el candidato.",
+        description: isBulkMode 
+          ? "No se pudieron asignar los candidatos." 
+          : "No se pudo asignar el candidato.",
         variant: "destructive",
       });
     } finally {
