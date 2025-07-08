@@ -3835,6 +3835,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      check_admin_secure: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       check_duplicate_service_ids: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -4948,6 +4952,10 @@ export type Database = {
       }
       user_has_role: {
         Args: { user_id: string; required_role: string }
+        Returns: boolean
+      }
+      user_has_role_direct: {
+        Args: { role_name: string }
         Returns: boolean
       }
       user_has_role_secure: {

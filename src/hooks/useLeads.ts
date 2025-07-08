@@ -29,9 +29,9 @@ export const useLeads = () => {
     queryKey: ['leads'],
     queryFn: async () => {
       try {
-        console.log('🔍 Iniciando carga de leads...');
+        console.log('🔍 Iniciando carga de leads con funciones seguras...');
         
-        // Verificar autenticación
+        // Verificar autenticación básica
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         
         if (authError) {
@@ -46,15 +46,20 @@ export const useLeads = () => {
         
         console.log('✅ Usuario autenticado:', user.email);
 
-        // Consulta directa usando las nuevas funciones seguras
-        console.log('📊 Ejecutando consulta de leads con funciones seguras...');
+        // Consulta simple y directa - las políticas RLS manejan la seguridad
+        console.log('📊 Ejecutando consulta optimizada de leads...');
         const { data, error, count } = await supabase
           .from('leads')
           .select('*', { count: 'exact' })
-          .order('fecha_creacion', { ascending: false });
+          .order('fecha_creacion', { ascending: false })
+          .limit(100); // Limitar para mejor rendimiento
         
         if (error) {
           console.error('❌ ERROR EN CONSULTA:', error);
+          // Verificar si es error de recursión
+          if (error.code === '42P17') {
+            throw new Error('Error de configuración del sistema. Contacte al administrador.');
+          }
           throw new Error(`Error al cargar leads: ${error.message}`);
         }
         
