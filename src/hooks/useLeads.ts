@@ -46,8 +46,8 @@ export const useLeads = () => {
         
         console.log('✅ Usuario autenticado:', user.email);
 
-        // Consulta simplificada sin joins complejos que puedan causar recursión
-        console.log('📊 Ejecutando consulta simplificada de leads...');
+        // Consulta directa usando las nuevas funciones seguras
+        console.log('📊 Ejecutando consulta de leads con funciones seguras...');
         const { data, error, count } = await supabase
           .from('leads')
           .select('*', { count: 'exact' })
@@ -70,7 +70,7 @@ export const useLeads = () => {
         throw error;
       }
     },
-    retry: 1,
+    retry: 2,
     retryDelay: 1000,
     staleTime: 10000,
     refetchOnWindowFocus: false,

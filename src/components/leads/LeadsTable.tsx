@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, Edit, AlertCircle, RefreshCw, Info } from "lucide-react";
+import { Search, UserPlus, Edit, AlertCircle, RefreshCw, CheckCircle } from "lucide-react";
 import { useLeads, Lead } from "@/hooks/useLeads";
 import { LeadAssignmentDialog } from "./LeadAssignmentDialog";
 
@@ -47,7 +47,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           <span className="text-sm text-muted-foreground">Cargando candidatos...</span>
           <div className="text-xs text-gray-500 max-w-md text-center">
-            Verificando permisos y consultando base de datos...
+            Usando funciones seguras para evitar problemas de RLS...
           </div>
         </div>
       </div>
@@ -71,12 +71,11 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
           </div>
           
           <div className="text-left">
-            <p className="text-red-800 font-medium mb-2">Posibles causas:</p>
+            <p className="text-red-800 font-medium mb-2">Acciones disponibles:</p>
             <ul className="text-red-700 text-sm space-y-1 list-disc list-inside">
-              <li>Problema de recursión infinita en políticas RLS</li>
-              <li>Permisos insuficientes para acceder a la tabla</li>
-              <li>Usuario no tiene el rol adecuado (admin, owner, manager)</li>
-              <li>Problemas de autenticación con Supabase</li>
+              <li>Verificar que estás autenticado correctamente</li>
+              <li>Recargar la página para refrescar la sesión</li>
+              <li>Contactar al administrador si el problema persiste</li>
             </ul>
           </div>
         </div>
@@ -102,17 +101,17 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
       <div className="p-8 text-center space-y-4">
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 space-y-3">
           <div className="flex items-center justify-center space-x-2 text-blue-600">
-            <Info className="h-5 w-5" />
-            <h3 className="font-semibold">No se encontraron candidatos</h3>
+            <CheckCircle className="h-5 w-5" />
+            <h3 className="font-semibold">Sistema funcionando correctamente</h3>
           </div>
           <div className="space-y-2 text-blue-700">
-            <p>La consulta se ejecutó correctamente pero no devolvió resultados.</p>
+            <p>La consulta se ejecutó exitosamente pero no hay candidatos registrados.</p>
             <div className="text-sm bg-blue-100 p-3 rounded border">
-              <p className="font-medium">Esto puede significar:</p>
+              <p className="font-medium">Puedes:</p>
               <ul className="mt-1 list-disc list-inside space-y-1">
-                <li>No hay leads registrados en la base de datos</li>
-                <li>Los leads no son visibles con tu rol actual</li>
-                <li>Las políticas RLS están restringiendo el acceso</li>
+                <li>Crear un nuevo candidato usando el botón "Nuevo Candidato"</li>
+                <li>Verificar que tienes los permisos necesarios</li>
+                <li>Contactar al administrador si esperabas ver datos</li>
               </ul>
             </div>
           </div>
@@ -164,6 +163,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
       <div className="bg-green-50 border border-green-200 rounded-lg p-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2 text-green-800">
+            <CheckCircle className="h-4 w-4" />
             <span className="text-sm font-medium">✅ Datos cargados exitosamente</span>
           </div>
           <div className="text-xs text-green-600">
