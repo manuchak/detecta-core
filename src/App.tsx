@@ -37,7 +37,7 @@ import InstallerPortal from '@/pages/Installers/InstallerPortal';
 import Landing from '@/pages/Landing/Landing';
 import WMSPage from '@/pages/WMS/WMSPage';
 import DuplicateCleanupPage from '@/pages/Maintenance/DuplicateCleanupPage';
-import UserRoles from "@/pages/Admin/UserRoles";
+
 
 // Components
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -291,14 +291,6 @@ function App() {
                   }
                 />
                 
-                <Route
-                  path="/admin/user-roles"
-                  element={
-                    <RoleProtectedRoute allowedRoles={['admin', 'owner']}>
-                      <UserRoles />
-                    </RoleProtectedRoute>
-                  }
-                />
                 
                 <Route
                   path="/admin/assign-owner-role"

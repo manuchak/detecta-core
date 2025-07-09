@@ -1,145 +1,242 @@
-
 import React, { useState } from 'react';
-import { useRoles } from '@/hooks/useRoles';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle, 
-  CardDescription 
-} from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
-import { Role } from '@/types/roleTypes';
-import { RoleSearch } from './RoleSearch';
-import { RolesTable } from './RolesTable';
-import { RoleDialog } from './RoleDialog';
-import { DeleteRoleDialog } from './DeleteRoleDialog';
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+import { useUserRoles } from '@/hooks/useUserRoles';
+import { useUserSkills } from '@/hooks/useUserSkills';
+import { SKILL_DEFINITIONS, Skill } from '@/types/skillTypes';
+import { Search, Users, Shield, Settings, UserPlus } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export const RoleManager = () => {
-  const { roles, isLoading, error, createRole, updateRole, deleteRole } = useRoles();
+  const { users, updateUserRole } = useUserRoles();
   const [searchTerm, setSearchTerm] = useState('');
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [currentRole, setCurrentRole] = useState<{ id?: string, name: string, description: string }>({
-    name: '',
-    description: ''
-  });
-  const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
-  const { toast } = useToast();
 
-  // Filter roles based on search term
-  const filteredRoles = roles?.filter(role => 
-    role.toLowerCase().includes(searchTerm.toLowerCase())
+  // Obtener usuarios únicos por email
+  const uniqueUsers = users?.reduce((acc, user) => {
+    const existingUser = acc.find(u => u.email === user.email);
+    if (!existingUser) {
+      acc.push(user);
+    }
+    return acc;
+  }, [] as typeof users) || [];
+
+  const filteredUsers = uniqueUsers.filter(user => 
+    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.display_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleCreateRole = () => {
-    setCurrentRole({ name: '', description: '' });
-    setIsDialogOpen(true);
+  const availableRoles = [
+    'admin', 'supply_admin', 'coordinador_operaciones', 'jefe_seguridad',
+    'analista_seguridad', 'supply_lead', 'ejecutivo_ventas', 'bi',
+    'monitoring_supervisor', 'monitoring', 'supply', 'instalador', 'soporte'
+  ];
+
+  const getRoleDisplayName = (role: string) => {
+    const roleNames: Record<string, string> = {
+      'admin': 'Administrador',
+      'supply_admin': 'Admin Suministros',
+      'coordinador_operaciones': 'Coordinador Operaciones',
+      'jefe_seguridad': 'Jefe de Seguridad',
+      'analista_seguridad': 'Analista Seguridad',
+      'supply_lead': 'Lead Supply',
+      'ejecutivo_ventas': 'Ejecutivo Ventas',
+      'bi': 'Business Intelligence',
+      'monitoring_supervisor': 'Supervisor Monitoreo',
+      'monitoring': 'Monitoreo',
+      'supply': 'Suministros',
+      'instalador': 'Instalador',
+      'soporte': 'Soporte'
+    };
+    return roleNames[role] || role;
   };
 
-  const handleEditRole = (role: Role) => {
-    setCurrentRole({ 
-      id: role,
-      name: role, 
-      description: '' // In a real app, you would fetch the description from the database
-    });
-    setIsDialogOpen(true);
-  };
-
-  const handleDeleteRole = (role: Role) => {
-    setRoleToDelete(role);
-    setIsDeleteDialogOpen(true);
-  };
-
-  const handleSaveRole = async () => {
-    try {
-      // Format the role name: lowercase and replace spaces with underscores
-      const formattedRoleName = currentRole.name.toLowerCase().replace(/\s+/g, '_') as Role;
-      
-      if (currentRole.id) {
-        // Update existing role
-        await updateRole.mutateAsync({
-          oldRole: currentRole.id as Role,
-          newRole: formattedRoleName
-        });
-      } else {
-        // Create new role
-        await createRole.mutateAsync({
-          role: formattedRoleName
-        });
-      }
-      setIsDialogOpen(false);
-      
-    } catch (error) {
-      console.error('Error saving role:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "No se pudo guardar el rol",
-        variant: "destructive",
-      });
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'supply_admin':
+      case 'coordinador_operaciones':
+      case 'jefe_seguridad':
+        return 'bg-amber-100 text-amber-800 border-amber-200';
+      case 'analista_seguridad':
+      case 'supply_lead':
+        return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'supply':
+      case 'soporte':
+      case 'bi':
+      case 'monitoring':
+      case 'instalador':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
-  const handleConfirmDelete = () => {
-    if (roleToDelete) {
-      deleteRole.mutate({ role: roleToDelete });
-      setIsDeleteDialogOpen(false);
-    }
+  const getSkillSummary = (role: string) => {
+    const skillsByRole: Record<string, string[]> = {
+      'admin': ['Acceso completo al sistema'],
+      'supply_admin': ['Gestión de leads', 'Dashboard ejecutivo'],
+      'coordinador_operaciones': ['Leads', 'Instaladores', 'Monitoreo'],
+      'analista_seguridad': ['Análisis de riesgo', 'Reportes'],
+      'instalador': ['Portal de instalación', 'Documentación']
+    };
+    return skillsByRole[role] || ['Permisos básicos'];
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-destructive p-4 border border-destructive rounded-md">
-        Error: {error instanceof Error ? error.message : 'Unknown error'}
-      </div>
-    );
-  }
+  const handleRoleChange = (userId: string, newRole: string) => {
+    updateUserRole.mutate({ userId, role: newRole as any });
+  };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Administración de Roles</CardTitle>
-        <CardDescription>
-          Gestione los roles disponibles en el sistema
-        </CardDescription>
-        <RoleSearch 
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          onCreateRole={handleCreateRole}
-        />
-      </CardHeader>
-      <CardContent>
-        <RolesTable 
-          filteredRoles={filteredRoles}
-          handleEditRole={handleEditRole}
-          handleDeleteRole={handleDeleteRole}
-        />
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Users className="h-6 w-6 text-primary" />
+        <div>
+          <h2 className="text-2xl font-bold">Gestión de Roles y Usuarios</h2>
+          <p className="text-sm text-muted-foreground">
+            Administra roles de usuarios para dar acceso a diferentes funcionalidades
+          </p>
+        </div>
+      </div>
 
-        {/* Role Create/Edit Dialog */}
-        <RoleDialog 
-          isOpen={isDialogOpen}
-          onOpenChange={setIsDialogOpen}
-          currentRole={currentRole}
-          onSave={handleSaveRole}
-          setCurrentRole={setCurrentRole}
-        />
+      {/* Search */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar usuarios por email o nombre..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Role Delete Confirmation Dialog */}
-        <DeleteRoleDialog 
-          isOpen={isDeleteDialogOpen}
-          onOpenChange={setIsDeleteDialogOpen}
-          roleToDelete={roleToDelete}
-          onConfirmDelete={handleConfirmDelete}
-        />
+      {/* Quick Access for Key Users */}
+      <Alert className="border-blue-200 bg-blue-50">
+        <Shield className="h-4 w-4" />
+        <AlertDescription>
+          <div className="space-y-2">
+            <p className="font-medium text-blue-900">Roles recomendados para acceso completo:</p>
+            <div className="flex flex-wrap gap-2 text-sm">
+              <Badge className="bg-amber-100 text-amber-800">supply_admin</Badge>
+              <span className="text-blue-700">→ Acceso completo a leads e instaladores</span>
+            </div>
+            <div className="flex flex-wrap gap-2 text-sm">
+              <Badge className="bg-orange-100 text-orange-800">coordinador_operaciones</Badge>
+              <span className="text-blue-700">→ Gestión operativa y monitoreo</span>
+            </div>
+          </div>
+        </AlertDescription>
+      </Alert>
+
+      {/* Users Grid */}
+      <div className="grid gap-4">
+        {filteredUsers.map(user => (
+          <UserRoleCard 
+            key={user.id}
+            user={user}
+            availableRoles={availableRoles}
+            onRoleChange={handleRoleChange}
+            getRoleDisplayName={getRoleDisplayName}
+            getRoleBadgeColor={getRoleBadgeColor}
+            getSkillSummary={getSkillSummary}
+          />
+        ))}
+      </div>
+
+      {filteredUsers.length === 0 && (
+        <Card>
+          <CardContent className="py-8 text-center">
+            <UserPlus className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">No se encontraron usuarios</p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
+
+// Componente para mostrar cada usuario con sus roles y skills
+const UserRoleCard = ({ 
+  user, 
+  availableRoles, 
+  onRoleChange, 
+  getRoleDisplayName, 
+  getRoleBadgeColor,
+  getSkillSummary 
+}: any) => {
+  const { userSkills } = useUserSkills(user.id);
+
+  return (
+    <Card className="hover:shadow-md transition-shadow">
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-4 flex-1">
+            <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center">
+              <Users className="h-6 w-6 text-primary" />
+            </div>
+            
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 mb-2">
+                <h3 className="font-semibold text-lg">{user.display_name}</h3>
+                <Badge className={`text-xs border ${getRoleBadgeColor(user.role)}`}>
+                  {getRoleDisplayName(user.role)}
+                </Badge>
+              </div>
+              
+              <p className="text-sm text-muted-foreground mb-3">{user.email}</p>
+              
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-muted-foreground">CAPACIDADES:</div>
+                <div className="flex flex-wrap gap-1">
+                  {getSkillSummary(user.role).map((skill: string, index: number) => (
+                    <Badge key={index} variant="outline" className="text-xs">
+                      {skill}
+                    </Badge>
+                  ))}
+                </div>
+                
+                {userSkills && userSkills.length > 0 && (
+                  <div className="text-xs text-blue-600">
+                    + {userSkills.length} skills específicos asignados
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2 min-w-[200px]">
+            <div className="text-xs font-medium text-muted-foreground">CAMBIAR ROL:</div>
+            <Select
+              defaultValue={user.role}
+              onValueChange={(value) => onRoleChange(user.id, value)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableRoles.map((role) => (
+                  <SelectItem key={role} value={role}>
+                    {getRoleDisplayName(role)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
