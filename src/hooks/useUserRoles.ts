@@ -74,36 +74,19 @@ export const useUserRoles = () => {
       try {
         console.log(`Updating user ${userId} to role ${role}`);
         
-        // Verificar permisos antes de actualizar
-        const { data: hasPermission, error: permissionError } = await supabase.rpc('is_admin_user_secure');
-        
-        if (permissionError || !hasPermission) {
-          throw new Error('Sin permisos para actualizar roles de usuario');
-        }
-        
-        // Actualizar el rol directamente en la tabla user_roles
-        const { error: deleteError } = await supabase
-          .from('user_roles')
-          .delete()
-          .eq('user_id', userId);
-        
-        if (deleteError) {
-          console.error('Error deleting old roles:', deleteError);
-          throw new Error(`Error al eliminar roles anteriores: ${deleteError.message}`);
-        }
-        
-        const { data, error } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: userId,
-            role: role
-          })
-          .select()
-          .single();
+        // Usar la función segura que maneja todo internamente
+        const { data, error } = await supabase.rpc('update_user_role_secure', {
+          target_user_id: userId,
+          new_role: role
+        });
         
         if (error) {
           console.error('Error updating user role:', error);
           throw new Error(`Error al actualizar rol: ${error.message}`);
+        }
+        
+        if (!data) {
+          throw new Error('No se pudo completar la actualización del rol');
         }
         
         console.log(`Successfully updated user ${userId} to role ${role}`);
@@ -137,25 +120,18 @@ export const useUserRoles = () => {
       try {
         console.log(`Verifying email for user ${userId}`);
         
-        // Verificar permisos antes de verificar email
-        const { data: hasPermission, error: permissionError } = await supabase.rpc('is_admin_user_secure');
-        
-        if (permissionError || !hasPermission) {
-          throw new Error('Sin permisos para verificar emails de usuario');
-        }
-        
-        // Actualizar el perfil del usuario
-        const { error } = await supabase
-          .from('profiles')
-          .update({ 
-            is_verified: true,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', userId);
+        // Usar la función segura que maneja todo internamente
+        const { data, error } = await supabase.rpc('verify_user_email_secure', {
+          target_user_id: userId
+        });
         
         if (error) {
           console.error('Error verifying user email:', error);
           throw new Error(`Error al verificar email: ${error.message}`);
+        }
+        
+        if (!data) {
+          throw new Error('No se pudo completar la verificación del email');
         }
         
         console.log(`Successfully verified email for user ${userId}`);

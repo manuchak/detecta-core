@@ -20,11 +20,27 @@ export const RoleManager = () => {
   const { users, updateUserRole } = useUserRoles();
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Obtener usuarios únicos por email
+  // Obtener usuarios únicos por email y mostrar el rol de mayor prioridad
   const uniqueUsers = users?.reduce((acc, user) => {
     const existingUser = acc.find(u => u.email === user.email);
     if (!existingUser) {
       acc.push(user);
+    } else {
+      // Si ya existe, mantener el rol de mayor prioridad
+      const priority = (role: string) => {
+        const priorities: Record<string, number> = {
+          'owner': 1, 'admin': 2, 'supply_admin': 3, 'coordinador_operaciones': 4,
+          'jefe_seguridad': 5, 'analista_seguridad': 6, 'supply_lead': 7,
+          'ejecutivo_ventas': 8, 'bi': 9, 'monitoring_supervisor': 10,
+          'monitoring': 11, 'supply': 12, 'instalador': 13, 'soporte': 14,
+          'custodio': 15, 'pending': 16
+        };
+        return priorities[role] || 17;
+      };
+      
+      if (priority(user.role) < priority(existingUser.role)) {
+        Object.assign(existingUser, user);
+      }
     }
     return acc;
   }, [] as typeof users) || [];

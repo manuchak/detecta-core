@@ -4941,7 +4941,7 @@ export type Database = {
         Returns: boolean
       }
       update_user_role_secure: {
-        Args: { p_user_id: string; p_role: string }
+        Args: { target_user_id: string; new_role: string }
         Returns: boolean
       }
       upsert_user_profile: {
@@ -5023,7 +5023,7 @@ export type Database = {
         Returns: boolean
       }
       verify_user_email_secure: {
-        Args: { p_user_id: string }
+        Args: { target_user_id: string }
         Returns: boolean
       }
       verify_user_role: {
