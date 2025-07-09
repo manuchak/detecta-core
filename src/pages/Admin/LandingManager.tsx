@@ -1,7 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { useAuth, useToast } from '@/hooks';
-import { Navigate, Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TestimonialsManager } from '@/components/admin/landing/TestimonialsManager';
 import { HeroManager } from '@/components/admin/landing/HeroManager';
@@ -10,38 +9,7 @@ import { PricesManager } from '@/components/admin/landing/PricesManager';
 import { FaqManager } from '@/components/admin/landing/FaqManager';
 
 const LandingManager = () => {
-  // Always call all hooks at the top level
-  const { user, userRole } = useAuth();
-  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('testimonios');
-  const [hasAccess, setHasAccess] = useState(true); // Default to true to prevent immediate redirect
-  const [shouldRedirect, setShouldRedirect] = useState(false);
-  
-  // Check access permissions in useEffect
-  useEffect(() => {
-    const checkAccess = () => {
-      const hasPermission = !!user && (userRole === 'admin' || userRole === 'owner' || userRole === 'bi' || userRole === 'supply_admin');
-      
-      setHasAccess(hasPermission);
-      
-      if (!hasPermission) {
-        toast({
-          title: "Acceso denegado",
-          description: "No tienes permisos para acceder a esta página. Tu rol actual es: " + (userRole || "sin rol"),
-          variant: "destructive",
-        });
-        setShouldRedirect(true);
-      }
-    };
-    
-    // Check access when user or userRole changes
-    checkAccess();
-  }, [user, userRole, toast]);
-
-  // Move redirect logic here to ensure all hooks are always called
-  if (shouldRedirect) {
-    return <Navigate to="/dashboard" replace />;
-  }
 
   return (
     <div className="container mx-auto py-8">

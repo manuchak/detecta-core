@@ -310,11 +310,15 @@ function App() {
                   path="/admin/landing-manager"
                   element={
                     <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner']}>
+                      <PermissionProtectedRoute 
+                        permissionType="page" 
+                        permissionId="landing_management"
+                        fallbackPath="/dashboard"
+                      >
                         <DashboardLayout>
                           <LandingManager />
                         </DashboardLayout>
-                      </RoleProtectedRoute>
+                      </PermissionProtectedRoute>
                     </ProtectedRoute>
                   }
                 />
