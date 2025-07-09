@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, UserCheck, UserX, Clock, TrendingUp } from "lucide-react";
@@ -31,23 +32,22 @@ export const LeadsMetricsDashboard = ({ leads }: LeadsMetricsDashboardProps) => 
     const inProcess = leads.filter(lead => lead?.estado === 'en_proceso').length;
     const approved = leads.filter(lead => lead?.estado === 'aprobado').length;
     
-    // Calcular días promedio sin asignación con validaciones robustas
+    // Calcular días promedio sin asignación - usar valor fijo para evitar re-renders
     const unassignedLeads = leads.filter(lead => lead && !lead.asignado_a && lead.fecha_creacion);
     
     let avgDaysUnassigned = 0;
     if (unassignedLeads.length > 0) {
       try {
-        // Usar fecha fija para evitar re-renders constantes
-        const currentTime = new Date().getTime();
+        // Crear fecha una sola vez para evitar cálculos constantes
+        const now = Date.now();
         const totalDays = unassignedLeads.reduce((acc, lead) => {
           try {
             const creationDate = new Date(lead.fecha_creacion);
-            // Validar que la fecha sea válida
             if (isNaN(creationDate.getTime())) {
               return acc;
             }
-            const days = Math.floor((currentTime - creationDate.getTime()) / (1000 * 60 * 60 * 24));
-            return acc + Math.max(0, days); // Evitar días negativos
+            const days = Math.floor((now - creationDate.getTime()) / (1000 * 60 * 60 * 24));
+            return acc + Math.max(0, days);
           } catch (error) {
             console.warn('Error calculando días para lead:', lead.id, error);
             return acc;
@@ -73,7 +73,7 @@ export const LeadsMetricsDashboard = ({ leads }: LeadsMetricsDashboardProps) => 
       avgDaysUnassigned,
       assignmentRate
     };
-  }, [leads]);
+  }, [leads]); // Solo depende del array de leads
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

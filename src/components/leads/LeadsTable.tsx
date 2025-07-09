@@ -54,6 +54,81 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     leads: leads?.slice(0, 2) // Solo primeros 2 para debug
   });
 
+  const filteredLeads = useMemo(() => {
+    if (!leads || !Array.isArray(leads)) return [];
+    
+    return leads.filter(lead => {
+      if (!lead) return false;
+      
+      // Filtro de búsqueda
+      const matchesSearch = !searchTerm || 
+        lead.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.telefono?.includes(searchTerm);
+      
+      // Filtro de estado
+      const matchesStatus = statusFilter === "all" || lead.estado === statusFilter;
+      
+      // Filtro de asignación
+      const matchesAssignment = assignmentFilter === "all" || 
+        (assignmentFilter === "assigned" && lead.asignado_a) ||
+        (assignmentFilter === "unassigned" && !lead.asignado_a);
+      
+      // Filtros avanzados
+      let matchesAdvanced = true;
+      
+      // Filtro de fecha (crear fecha una sola vez para evitar re-renders)
+      if (advancedFilters.dateFrom && lead.fecha_creacion) {
+        try {
+          const leadDate = new Date(lead.fecha_creacion);
+          const fromDate = new Date(advancedFilters.dateFrom);
+          if (!isNaN(leadDate.getTime()) && !isNaN(fromDate.getTime())) {
+            matchesAdvanced = matchesAdvanced && leadDate >= fromDate;
+          }
+        } catch (e) {
+          // Ignore date parsing errors
+        }
+      }
+      
+      if (advancedFilters.dateTo && lead.fecha_creacion) {
+        try {
+          const leadDate = new Date(lead.fecha_creacion);
+          const toDate = new Date(advancedFilters.dateTo);
+          if (!isNaN(leadDate.getTime()) && !isNaN(toDate.getTime())) {
+            toDate.setHours(23, 59, 59);
+            matchesAdvanced = matchesAdvanced && leadDate <= toDate;
+          }
+        } catch (e) {
+          // Ignore date parsing errors
+        }
+      }
+      
+      // Filtro de fuente
+      if (advancedFilters.source !== 'all') {
+        matchesAdvanced = matchesAdvanced && lead.fuente === advancedFilters.source;
+      }
+      
+      // Filtro de días sin asignar (calcular una sola vez)
+      if (advancedFilters.unassignedDays !== 'all' && !lead.asignado_a && lead.fecha_creacion) {
+        try {
+          const daysThreshold = parseInt(advancedFilters.unassignedDays);
+          if (!isNaN(daysThreshold)) {
+            const creationTime = new Date(lead.fecha_creacion).getTime();
+            if (!isNaN(creationTime)) {
+              // Usar timestamp fijo para evitar re-renders constantes
+              const daysSinceCreation = Math.floor((Date.now() - creationTime) / (1000 * 60 * 60 * 24));
+              matchesAdvanced = matchesAdvanced && daysSinceCreation > daysThreshold;
+            }
+          }
+        } catch (e) {
+          // Ignore date parsing errors
+        }
+      }
+      
+      return matchesSearch && matchesStatus && matchesAssignment && matchesAdvanced;
+    });
+  }, [leads, searchTerm, statusFilter, assignmentFilter, advancedFilters]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -120,14 +195,6 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
           </div>
           <div className="space-y-2 text-blue-700">
             <p>La consulta se ejecutó exitosamente pero no hay candidatos registrados.</p>
-            <div className="text-sm bg-blue-100 p-3 rounded border">
-              <p className="font-medium">Puedes:</p>
-              <ul className="mt-1 list-disc list-inside space-y-1">
-                <li>Crear un nuevo candidato usando el botón "Nuevo Candidato"</li>
-                <li>Verificar que tienes los permisos necesarios</li>
-                <li>Contactar al administrador si esperabas ver datos</li>
-              </ul>
-            </div>
           </div>
         </div>
         
@@ -138,93 +205,6 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
       </div>
     );
   }
-
-  const filteredLeads = useMemo(() => {
-    if (!leads || !Array.isArray(leads)) return [];
-    
-    return leads.filter(lead => {
-      if (!lead) return false;
-      
-      // Filtro de búsqueda
-      const matchesSearch = !searchTerm || 
-        lead.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.telefono?.includes(searchTerm);
-      
-      // Filtro de estado
-      const matchesStatus = statusFilter === "all" || lead.estado === statusFilter;
-      
-      // Filtro de asignación
-      const matchesAssignment = assignmentFilter === "all" || 
-        (assignmentFilter === "assigned" && lead.asignado_a) ||
-        (assignmentFilter === "unassigned" && !lead.asignado_a);
-      
-      // Filtros avanzados
-      let matchesAdvanced = true;
-      
-      // Filtro de fecha
-      if (advancedFilters.dateFrom && lead.fecha_creacion) {
-        try {
-          const leadDate = new Date(lead.fecha_creacion);
-          const fromDate = new Date(advancedFilters.dateFrom);
-          if (!isNaN(leadDate.getTime()) && !isNaN(fromDate.getTime())) {
-            matchesAdvanced = matchesAdvanced && leadDate >= fromDate;
-          }
-        } catch (e) {
-          // Ignore date parsing errors
-        }
-      }
-      
-      if (advancedFilters.dateTo && lead.fecha_creacion) {
-        try {
-          const leadDate = new Date(lead.fecha_creacion);
-          const toDate = new Date(advancedFilters.dateTo);
-          if (!isNaN(leadDate.getTime()) && !isNaN(toDate.getTime())) {
-            toDate.setHours(23, 59, 59); // Incluir todo el día
-            matchesAdvanced = matchesAdvanced && leadDate <= toDate;
-          }
-        } catch (e) {
-          // Ignore date parsing errors
-        }
-      }
-      
-      // Filtro de fuente
-      if (advancedFilters.source !== 'all') {
-        matchesAdvanced = matchesAdvanced && lead.fuente === advancedFilters.source;
-      }
-      
-      // Filtro de días sin asignar
-      if (advancedFilters.unassignedDays !== 'all' && !lead.asignado_a && lead.fecha_creacion) {
-        try {
-          const daysThreshold = parseInt(advancedFilters.unassignedDays);
-          if (!isNaN(daysThreshold)) {
-            // Usar fecha fija para evitar re-renders
-            const currentTime = new Date().getTime();
-            const creationTime = new Date(lead.fecha_creacion).getTime();
-            if (!isNaN(creationTime)) {
-              const daysSinceCreation = Math.floor((currentTime - creationTime) / (1000 * 60 * 60 * 24));
-              matchesAdvanced = matchesAdvanced && daysSinceCreation > daysThreshold;
-            }
-          }
-        } catch (e) {
-          // Ignore date parsing errors
-        }
-      }
-      
-      return matchesSearch && matchesStatus && matchesAssignment && matchesAdvanced;
-    });
-  }, [
-    leads, 
-    searchTerm, 
-    statusFilter, 
-    assignmentFilter, 
-    advancedFilters.dateFrom,
-    advancedFilters.dateTo,
-    advancedFilters.source,
-    advancedFilters.unassignedDays,
-    advancedFilters.status,
-    advancedFilters.assignment
-  ]);
 
   const getStatusBadge = (status: string) => {
     const statusColors = {
@@ -287,7 +267,6 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
 
   const allFilteredSelected = filteredLeads.length > 0 && 
     filteredLeads.every(lead => isLeadSelected(lead.id));
-  const someFilteredSelected = filteredLeads.some(lead => isLeadSelected(lead.id));
 
   return (
     <div className="space-y-4">

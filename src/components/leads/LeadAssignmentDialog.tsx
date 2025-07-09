@@ -18,12 +18,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2, UserCheck } from "lucide-react";
-
-interface Analyst {
-  id: string;
-  display_name: string;
-  email: string;
-}
+import { useLeadAssignment } from "@/hooks/useLeadAssignment";
 
 interface LeadAssignmentDialogProps {
   open: boolean;
@@ -46,10 +41,9 @@ export const LeadAssignmentDialog = ({
   isBulkMode = false,
   selectedLeadIds = []
 }: LeadAssignmentDialogProps) => {
-  const [analysts, setAnalysts] = useState<Analyst[]>([]);
+  const { analysts, loading: loadingAnalysts, fetchAnalysts } = useLeadAssignment();
   const [selectedAnalyst, setSelectedAnalyst] = useState<string>("");
   const [loading, setLoading] = useState(false);
-  const [loadingAnalysts, setLoadingAnalysts] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -58,51 +52,6 @@ export const LeadAssignmentDialog = ({
       setSelectedAnalyst(currentAssignee || "");
     }
   }, [open, currentAssignee]);
-
-  const fetchAnalysts = async () => {
-    try {
-      setLoadingAnalysts(true);
-      console.log('Fetching analysts using secure function...');
-      
-      // Use the correct secure function
-      const { data: profiles, error } = await supabase
-        .rpc('get_all_users_with_roles');
-
-      if (error) {
-        console.error('Error fetching analysts:', error);
-        throw error;
-      }
-
-      console.log('Raw profiles data:', profiles);
-
-      // Filter analysts based on roles that can be assigned leads
-      const analystProfiles = (profiles || []).filter((profile: any) => {
-        const allowedRoles = ['admin', 'owner', 'supply_admin', 'analista_seguridad', 'custodio', 'coordinador_operaciones', 'jefe_seguridad'];
-        console.log(`Usuario: ${profile.email}, Rol: ${profile.role}, Incluido: ${allowedRoles.includes(profile.role)}`);
-        return allowedRoles.includes(profile.role);
-      });
-
-      console.log('Filtered analyst profiles:', analystProfiles);
-
-      const mappedAnalysts: Analyst[] = analystProfiles.map((profile: any) => ({
-        id: profile.id,
-        display_name: profile.display_name || profile.email,
-        email: profile.email
-      }));
-
-      console.log('Mapped analysts:', mappedAnalysts);
-      setAnalysts(mappedAnalysts);
-    } catch (error) {
-      console.error('Error fetching analysts:', error);
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los analistas disponibles.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingAnalysts(false);
-    }
-  };
 
   const handleAssign = async () => {
     if (!selectedAnalyst) {
@@ -238,7 +187,9 @@ export const LeadAssignmentDialog = ({
                     <SelectItem key={analyst.id} value={analyst.id}>
                       <div className="flex flex-col">
                         <span>{analyst.display_name}</span>
-                        <span className="text-xs text-muted-foreground">{analyst.email}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {analyst.email} • {analyst.role}
+                        </span>
                       </div>
                     </SelectItem>
                   ))}
@@ -249,7 +200,7 @@ export const LeadAssignmentDialog = ({
         </div>
 
         <DialogFooter className="flex gap-2">
-          {currentAssignee && (
+          {currentAssignee && !isBulkMode && (
             <Button 
               type="button" 
               variant="outline" 
