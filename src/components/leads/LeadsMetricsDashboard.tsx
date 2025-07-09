@@ -10,21 +10,56 @@ interface LeadsMetricsDashboardProps {
 
 export const LeadsMetricsDashboard = ({ leads }: LeadsMetricsDashboardProps) => {
   const metrics = useMemo(() => {
+    // Validar que leads sea un array válido
+    if (!Array.isArray(leads)) {
+      return {
+        total: 0,
+        assigned: 0,
+        unassigned: 0,
+        newLeads: 0,
+        inProcess: 0,
+        approved: 0,
+        avgDaysUnassigned: 0,
+        assignmentRate: 0
+      };
+    }
+
     const total = leads.length;
-    const assigned = leads.filter(lead => lead.asignado_a).length;
+    const assigned = leads.filter(lead => lead?.asignado_a).length;
     const unassigned = total - assigned;
-    const newLeads = leads.filter(lead => lead.estado === 'nuevo').length;
-    const inProcess = leads.filter(lead => lead.estado === 'en_proceso').length;
-    const approved = leads.filter(lead => lead.estado === 'aprobado').length;
+    const newLeads = leads.filter(lead => lead?.estado === 'nuevo').length;
+    const inProcess = leads.filter(lead => lead?.estado === 'en_proceso').length;
+    const approved = leads.filter(lead => lead?.estado === 'aprobado').length;
     
-    // Calcular días promedio sin asignación
-    const unassignedLeads = leads.filter(lead => !lead.asignado_a);
-    const avgDaysUnassigned = unassignedLeads.length > 0 
-      ? Math.round(unassignedLeads.reduce((acc, lead) => {
-          const days = Math.floor((Date.now() - new Date(lead.fecha_creacion).getTime()) / (1000 * 60 * 60 * 24));
-          return acc + days;
-        }, 0) / unassignedLeads.length)
-      : 0;
+    // Calcular días promedio sin asignación con validaciones robustas
+    const unassignedLeads = leads.filter(lead => lead && !lead.asignado_a && lead.fecha_creacion);
+    
+    let avgDaysUnassigned = 0;
+    if (unassignedLeads.length > 0) {
+      try {
+        // Usar fecha fija para evitar re-renders constantes
+        const currentTime = new Date().getTime();
+        const totalDays = unassignedLeads.reduce((acc, lead) => {
+          try {
+            const creationDate = new Date(lead.fecha_creacion);
+            // Validar que la fecha sea válida
+            if (isNaN(creationDate.getTime())) {
+              return acc;
+            }
+            const days = Math.floor((currentTime - creationDate.getTime()) / (1000 * 60 * 60 * 24));
+            return acc + Math.max(0, days); // Evitar días negativos
+          } catch (error) {
+            console.warn('Error calculando días para lead:', lead.id, error);
+            return acc;
+          }
+        }, 0);
+        
+        avgDaysUnassigned = Math.round(totalDays / unassignedLeads.length);
+      } catch (error) {
+        console.warn('Error calculando promedio de días sin asignar:', error);
+        avgDaysUnassigned = 0;
+      }
+    }
 
     const assignmentRate = total > 0 ? Math.round((assigned / total) * 100) : 0;
 
