@@ -4708,6 +4708,15 @@ export type Database = {
           users_last_30_days: number
         }[]
       }
+      get_users_with_roles_for_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          user_id: string
+          email: string
+          role: string
+          created_at: string
+        }[]
+      }
       get_users_with_roles_secure: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -4925,6 +4934,10 @@ export type Database = {
       }
       update_role_permission_secure: {
         Args: { p_permission_id: string; p_allowed: boolean }
+        Returns: boolean
+      }
+      update_user_role_by_email: {
+        Args: { p_email: string; p_new_role: string }
         Returns: boolean
       }
       update_user_role_secure: {
