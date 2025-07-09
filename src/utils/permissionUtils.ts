@@ -28,6 +28,9 @@ export const getFriendlyPermissionName = (permissionId: string): string => {
   // Mapeo de permisos comunes
   const permissionMap: Record<string, string> = {
     'dashboard': 'Dashboard Principal',
+    'financial_data': 'Datos Financieros',
+    'analytics': 'Analíticas Avanzadas',
+    'metrics': 'Métricas del Sistema',
     'users': 'Gestión de Usuarios',
     'roles': 'Gestión de Roles',
     'permissions': 'Gestión de Permisos',
@@ -48,8 +51,11 @@ export const getFriendlyPermissionName = (permissionId: string): string => {
     'view report': 'Ver Reporte',
     'export report': 'Exportar Reporte',
     'admin panel': 'Panel Administrativo',
-    'analytics': 'Analíticas',
-    'view analytics': 'Ver Analíticas'
+    'view analytics': 'Ver Analíticas',
+    'executive_dashboard': 'Dashboard Ejecutivo',
+    'wms': 'Sistema WMS',
+    'installers': 'Gestión de Instaladores',
+    'supply_chain_monitoring': 'Monitoreo Cadena Suministro'
     // Agregar más mapeos según sea necesario
   };
   
@@ -66,7 +72,7 @@ export const getPermissionDescription = (permissionType: string, permissionId: s
   
   // Mapeo de descripciones de permisos
   const descriptionMap: Record<string, string> = {
-    'page_dashboard': 'Acceso a la página principal del dashboard',
+    'page_dashboard': 'Acceso a la página principal del dashboard ejecutivo',
     'page_users': 'Acceso a la página de administración de usuarios',
     'page_roles': 'Acceso a la página de administración de roles',
     'page_permissions': 'Acceso a la página de administración de permisos',
@@ -75,6 +81,11 @@ export const getPermissionDescription = (permissionType: string, permissionId: s
     'page_settings': 'Acceso a la página de configuración del sistema',
     'page_reports': 'Acceso a la página de reportes',
     'page_profile': 'Acceso a la página de perfil personal',
+    'page_wms': 'Acceso al sistema de gestión de almacenes',
+    'page_installers': 'Acceso a la gestión de instaladores',
+    'feature_financial_data': 'Acceso a información financiera sensible como GMV, ingresos y costos',
+    'feature_analytics': 'Acceso a analíticas avanzadas y reportes detallados',
+    'feature_metrics': 'Visualización de métricas básicas del sistema',
     'action_create_user': 'Permite crear nuevos usuarios en el sistema',
     'action_edit_user': 'Permite editar información de usuarios existentes',
     'action_delete_user': 'Permite eliminar usuarios del sistema',

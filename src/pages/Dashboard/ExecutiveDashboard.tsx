@@ -8,6 +8,7 @@ import { SecondaryCharts } from "@/components/dashboard/SecondaryCharts";
 import { ForecastCard } from "@/components/dashboard/ForecastCard";
 import WorkflowBanner from "@/components/dashboard/WorkflowBanner";
 import { DashboardFilters, TimeframeOption, ServiceTypeOption } from "@/components/dashboard/DashboardFilters";
+import ConditionalRender from "@/components/ConditionalRender";
 import { useDashboardDataCorrected } from "@/hooks/useDashboardDataCorrected";
 
 const ExecutiveDashboard = () => {
@@ -117,44 +118,98 @@ const ExecutiveDashboard = () => {
           />
         </div>
 
-        {/* Forecast Card */}
-        <div className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-6">Pronósticos y Proyecciones</h2>
-          <ForecastCard 
-            totalServices={currentMetrics.totalServices}
-            totalGMV={currentMetrics.totalGMV}
-            isLoading={isLoading}
-            error={error}
-          />
-        </div>
+        {/* Forecast Card - Solo para usuarios con acceso a datos financieros */}
+        <ConditionalRender 
+          permissionType="feature" 
+          permissionId="financial_data"
+          fallback={
+            <div className="mb-10">
+              <Card className="border-amber-200 bg-amber-50">
+                <CardContent className="p-6">
+                  <div className="text-center text-amber-700">
+                    <h3 className="font-semibold mb-2">Información Financiera Restringida</h3>
+                    <p className="text-sm">No tienes permisos para ver pronósticos financieros. Contacta al administrador.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          }
+        >
+          <div className="mb-10">
+            <h2 className="text-2xl font-semibold text-gray-800 mb-6">Pronósticos y Proyecciones</h2>
+            <ForecastCard 
+              totalServices={currentMetrics.totalServices}
+              totalGMV={currentMetrics.totalGMV}
+              isLoading={isLoading}
+              error={error}
+            />
+          </div>
+        </ConditionalRender>
 
-        {/* Gráficos principales */}
+        {/* Gráficos principales - Con permisos granulares */}
         <div className="mb-10">
           <h2 className="text-2xl font-semibold text-gray-800 mb-6">Análisis de Rendimiento</h2>
           <div className="grid gap-8 lg:grid-cols-1 xl:grid-cols-2">
-            <div className="w-full">
-              <GmvAnalysisChart />
-            </div>
-            <div className="w-full">
-              <ServiceStatusChart 
-                data={serviceStatusData || defaultServiceStatusData}
-                metrics={currentMetrics}
-              />
-            </div>
+            <ConditionalRender 
+              permissionType="feature" 
+              permissionId="analytics"
+              fallback={
+                <Card className="border-amber-200 bg-amber-50">
+                  <CardContent className="p-6">
+                    <div className="text-center text-amber-700">
+                      <h3 className="font-semibold mb-2">Analíticas Avanzadas</h3>
+                      <p className="text-sm">Contacta al administrador para acceso a analíticas avanzadas.</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              }
+            >
+              <div className="w-full">
+                <GmvAnalysisChart />
+              </div>
+            </ConditionalRender>
+            <ConditionalRender 
+              permissionType="feature" 
+              permissionId="metrics"
+            >
+              <div className="w-full">
+                <ServiceStatusChart 
+                  data={serviceStatusData || defaultServiceStatusData}
+                  metrics={currentMetrics}
+                />
+              </div>
+            </ConditionalRender>
           </div>
         </div>
 
         {/* Gráficos secundarios - Layout expandido para ocupar todo el ancho */}
-        <div className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-6">Estadísticas Detalladas</h2>
-          <div className="w-full">
-            <SecondaryCharts 
-              dailyServiceData={dailyServiceData || []}
-              serviceTypesData={serviceTypesData || []}
-              topClientsData={topClientsData || []}
-            />
+        <ConditionalRender 
+          permissionType="feature" 
+          permissionId="analytics"
+          fallback={
+            <div className="mb-10">
+              <Card className="border-gray-200">
+                <CardContent className="p-6">
+                  <div className="text-center text-gray-500">
+                    <h3 className="font-semibold mb-2">Estadísticas Detalladas</h3>
+                    <p className="text-sm">Estas estadísticas requieren permisos de analíticas avanzadas.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          }
+        >
+          <div className="mb-10">
+            <h2 className="text-2xl font-semibold text-gray-800 mb-6">Estadísticas Detalladas</h2>
+            <div className="w-full">
+              <SecondaryCharts 
+                dailyServiceData={dailyServiceData || []}
+                serviceTypesData={serviceTypesData || []}
+                topClientsData={topClientsData || []}
+              />
+            </div>
           </div>
-        </div>
+        </ConditionalRender>
       </div>
     </div>
   );

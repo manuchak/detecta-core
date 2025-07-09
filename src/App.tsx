@@ -42,6 +42,7 @@ import DuplicateCleanupPage from '@/pages/Maintenance/DuplicateCleanupPage';
 // Components
 import ProtectedRoute from '@/components/ProtectedRoute';
 import RoleProtectedRoute from '@/components/RoleProtectedRoute';
+import PermissionProtectedRoute from '@/components/PermissionProtectedRoute';
 import SignUp from '@/pages/Auth/SignUp';
 
 const queryClient = new QueryClient({
@@ -89,25 +90,25 @@ function App() {
                   path="/dashboard"
                   element={
                     <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'coordinador_operaciones', 'jefe_seguridad', 'bi']}>
+                      <PermissionProtectedRoute permissionType="page" permissionId="dashboard" showMessage={true}>
                         <DashboardLayout>
                           <ExecutiveDashboard />
                         </DashboardLayout>
-                      </RoleProtectedRoute>
+                      </PermissionProtectedRoute>
                     </ProtectedRoute>
                   }
                 />
                 
-                {/* Executive Dashboard - Role Protected */}
+                {/* Executive Dashboard - Permission Protected */}
                 <Route
                   path="/executive-dashboard"
                   element={
                     <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'coordinador_operaciones', 'jefe_seguridad', 'bi']}>
+                      <PermissionProtectedRoute permissionType="page" permissionId="dashboard" showMessage={true}>
                         <DashboardLayout>
                           <ExecutiveDashboard />
                         </DashboardLayout>
-                      </RoleProtectedRoute>
+                      </PermissionProtectedRoute>
                     </ProtectedRoute>
                   }
                 />
