@@ -29,7 +29,7 @@ export const useLeads = () => {
     queryKey: ['leads'],
     queryFn: async () => {
       try {
-        console.log('🔍 Iniciando carga de leads con funciones seguras...');
+        console.log('🔍 Iniciando carga completa de leads...');
         
         // Verificar autenticación básica
         const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -46,13 +46,25 @@ export const useLeads = () => {
         
         console.log('✅ Usuario autenticado:', user.email);
 
-        // Consulta simple y directa - las políticas RLS manejan la seguridad
-        console.log('📊 Ejecutando consulta optimizada de leads...');
-        const { data, error, count } = await supabase
+        // Consulta COMPLETA sin límites - primero obtener el conteo total
+        console.log('📊 Obteniendo conteo total de leads...');
+        const { count, error: countError } = await supabase
           .from('leads')
-          .select('*', { count: 'exact' })
-          .order('fecha_creacion', { ascending: false })
-          .limit(100); // Limitar para mejor rendimiento
+          .select('*', { count: 'exact', head: true });
+        
+        if (countError) {
+          console.error('❌ ERROR EN CONTEO:', countError);
+          throw new Error(`Error al contar leads: ${countError.message}`);
+        }
+        
+        console.log('📈 Total de leads en la base de datos:', count);
+
+        // Ahora obtener TODOS los leads sin límite
+        console.log('📊 Ejecutando consulta completa de leads (SIN LÍMITE)...');
+        const { data, error } = await supabase
+          .from('leads')
+          .select('*')
+          .order('fecha_creacion', { ascending: false });
         
         if (error) {
           console.error('❌ ERROR EN CONSULTA:', error);
@@ -64,9 +76,15 @@ export const useLeads = () => {
         }
         
         console.log('✅ CONSULTA EXITOSA:', {
-          totalRegistros: count,
-          registrosDevueltos: data?.length || 0
+          totalEnBD: count,
+          registrosDevueltos: data?.length || 0,
+          coincidencia: count === (data?.length || 0) ? '✅ CORRECTO' : '❌ DISCREPANCIA'
         });
+        
+        if (count !== (data?.length || 0)) {
+          console.warn('⚠️ ADVERTENCIA: Hay discrepancia entre el conteo y los datos devueltos');
+          console.warn('Esto puede indicar problemas de permisos RLS o filtros no visibles');
+        }
         
         return data || [];
         
@@ -77,7 +95,7 @@ export const useLeads = () => {
     },
     retry: 2,
     retryDelay: 1000,
-    staleTime: 10000,
+    staleTime: 30000, // Aumenté el tiempo de cache a 30 segundos para mejorar performance
     refetchOnWindowFocus: false,
     refetchOnReconnect: true
   });

@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -134,9 +133,9 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
       <div className="flex items-center justify-center p-8">
         <div className="flex flex-col items-center space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <span className="text-sm text-muted-foreground">Cargando candidatos...</span>
+          <span className="text-sm text-muted-foreground">Cargando todos los candidatos...</span>
           <div className="text-xs text-gray-500 max-w-md text-center">
-            Usando funciones seguras para evitar problemas de RLS...
+            Consultando la base de datos completa sin límites...
           </div>
         </div>
       </div>
@@ -292,13 +291,18 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2 text-green-800">
             <CheckCircle className="h-4 w-4" />
-            <span className="text-sm font-medium">✅ Datos cargados exitosamente</span>
+            <span className="text-sm font-medium">✅ Datos cargados exitosamente (SIN LÍMITES)</span>
           </div>
           <div className="text-xs text-green-600">
-            Total: {leads?.length || 0} | Filtrados: {filteredLeads.length}
+            Total BD: {leads?.length || 0} | Filtrados: {filteredLeads.length}
             {selectedLeads.length > 0 && ` | Seleccionados: ${selectedLeads.length}`}
           </div>
         </div>
+        {leads && leads.length >= 100 && (
+          <div className="mt-2 text-xs text-green-700">
+            ℹ️ Se han cargado {leads.length} leads de la base de datos (consulta completa sin límites)
+          </div>
+        )}
       </div>
 
       {/* Controles de búsqueda y filtros */}

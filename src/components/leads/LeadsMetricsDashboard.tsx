@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, UserCheck, UserX, Clock, TrendingUp } from "lucide-react";
+import { Users, UserCheck, UserX, Clock, TrendingUp, Database } from "lucide-react";
 import { Lead } from "@/hooks/useLeads";
 import { useMemo } from "react";
 
@@ -32,14 +32,14 @@ export const LeadsMetricsDashboard = ({ leads }: LeadsMetricsDashboardProps) => 
     const inProcess = leads.filter(lead => lead?.estado === 'en_proceso').length;
     const approved = leads.filter(lead => lead?.estado === 'aprobado').length;
     
-    // Calcular días promedio sin asignación - usar valor fijo para evitar re-renders
+    // Calcular días promedio sin asignación usando fecha fija para evitar re-renders
     const unassignedLeads = leads.filter(lead => lead && !lead.asignado_a && lead.fecha_creacion);
     
     let avgDaysUnassigned = 0;
     if (unassignedLeads.length > 0) {
       try {
         // Crear fecha una sola vez para evitar cálculos constantes
-        const now = Date.now();
+        const now = new Date('2025-01-01').getTime(); // Fecha fija para consistencia
         const totalDays = unassignedLeads.reduce((acc, lead) => {
           try {
             const creationDate = new Date(lead.fecha_creacion);
@@ -76,21 +76,47 @@ export const LeadsMetricsDashboard = ({ leads }: LeadsMetricsDashboardProps) => 
   }, [leads]); // Solo depende del array de leads
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Candidatos</CardTitle>
-          <Users className="h-4 w-4 text-muted-foreground" />
+          <Database className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{metrics.total}</div>
           <div className="flex items-center space-x-2 text-xs text-muted-foreground mt-1">
             <Badge variant="outline" className="text-xs">
-              {metrics.newLeads} nuevos
+              Cargados de BD
             </Badge>
-            <Badge variant="outline" className="text-xs">
-              {metrics.inProcess} en proceso
-            </Badge>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Estados</CardTitle>
+          <Users className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-1">
+            <div className="flex justify-between text-sm">
+              <span>Nuevos:</span>
+              <Badge variant="outline" className="text-xs bg-blue-50">
+                {metrics.newLeads}
+              </Badge>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>En proceso:</span>
+              <Badge variant="outline" className="text-xs bg-yellow-50">
+                {metrics.inProcess}
+              </Badge>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>Aprobados:</span>
+              <Badge variant="outline" className="text-xs bg-green-50">
+                {metrics.approved}
+              </Badge>
+            </div>
           </div>
         </CardContent>
       </Card>
