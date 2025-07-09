@@ -198,10 +198,11 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         try {
           const daysThreshold = parseInt(advancedFilters.unassignedDays);
           if (!isNaN(daysThreshold)) {
-            const daysSinceCreation = Math.floor(
-              (Date.now() - new Date(lead.fecha_creacion).getTime()) / (1000 * 60 * 60 * 24)
-            );
-            if (!isNaN(daysSinceCreation)) {
+            // Usar fecha fija para evitar re-renders
+            const currentTime = new Date().getTime();
+            const creationTime = new Date(lead.fecha_creacion).getTime();
+            if (!isNaN(creationTime)) {
+              const daysSinceCreation = Math.floor((currentTime - creationTime) / (1000 * 60 * 60 * 24));
               matchesAdvanced = matchesAdvanced && daysSinceCreation > daysThreshold;
             }
           }
