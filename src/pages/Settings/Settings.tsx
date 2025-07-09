@@ -27,7 +27,6 @@ const Settings = () => {
         </TabsList>
 
         <TabsContent value="roles" className="space-y-6">
-          <QuickSkillsPanel />
           <RoleManager />
         </TabsContent>
 
