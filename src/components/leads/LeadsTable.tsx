@@ -212,7 +212,18 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
       
       return matchesSearch && matchesStatus && matchesAssignment && matchesAdvanced;
     });
-  }, [leads, searchTerm, statusFilter, assignmentFilter, advancedFilters]);
+  }, [
+    leads, 
+    searchTerm, 
+    statusFilter, 
+    assignmentFilter, 
+    advancedFilters.dateFrom,
+    advancedFilters.dateTo,
+    advancedFilters.source,
+    advancedFilters.unassignedDays,
+    advancedFilters.status,
+    advancedFilters.assignment
+  ]);
 
   const getStatusBadge = (status: string) => {
     const statusColors = {
