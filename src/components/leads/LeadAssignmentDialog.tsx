@@ -64,9 +64,9 @@ export const LeadAssignmentDialog = ({
       setLoadingAnalysts(true);
       console.log('Fetching analysts using secure function...');
       
-      // Use the consolidated secure function
+      // Use the correct secure function
       const { data: profiles, error } = await supabase
-        .rpc('get_users_with_roles_secure');
+        .rpc('get_all_users_with_roles');
 
       if (error) {
         console.error('Error fetching analysts:', error);
