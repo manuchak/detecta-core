@@ -4129,6 +4129,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      can_access_home: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       check_admin_for_rewards: {
         Args: Record<PropertyKey, never>
         Returns: boolean
@@ -5121,6 +5125,10 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_supply_admin_or_higher: {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }

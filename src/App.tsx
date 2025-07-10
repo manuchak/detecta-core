@@ -11,6 +11,7 @@ import AuthLayout from '@/layouts/AuthLayout';
 // Page imports - Fixed to use default imports
 import Index from '@/pages/Index';
 import Home from '@/pages/Home/Home';
+import HomeRobust from '@/pages/Home/HomeRobust';
 import Dashboard from '@/pages/Dashboard/Dashboard';
 import ExecutiveDashboard from '@/pages/Dashboard/ExecutiveDashboard';
 import Login from '@/pages/Auth/Login';
@@ -79,7 +80,7 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <DashboardLayout>
-                        <Home />
+                        <HomeRobust />
                       </DashboardLayout>
                     </ProtectedRoute>
                   }

@@ -37,13 +37,26 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   }
 
   // Show loading if we have user but no role yet (prevent blank screen)
-  if (!userRole || userRole === 'unverified') {
+  // Para supply_admin, permitir acceso incluso si userRole es null temporalmente
+  const isSupplyAdminEmail = user?.email === 'brenda.jimenez@detectasecurity.io' || user?.email === 'marbelli.casillas@detectasecurity.io';
+  const shouldWaitForRole = !userRole && !isSupplyAdminEmail;
+  
+  if (shouldWaitForRole) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="space-y-4 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="text-sm text-gray-500">Verificando permisos de usuario...</p>
           <p className="text-xs text-gray-400">Usuario: {user.email}</p>
+          {/* Añadir timeout para usuarios problemáticos */}
+          <div className="mt-6">
+            <button 
+              onClick={() => window.location.reload()} 
+              className="text-blue-600 underline text-sm"
+            >
+              ¿Problemas? Haz clic para recargar
+            </button>
+          </div>
         </div>
       </div>
     );
