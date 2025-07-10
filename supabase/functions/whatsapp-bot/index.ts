@@ -24,6 +24,8 @@ interface TicketData {
 }
 
 serve(async (req) => {
+  console.log('WhatsApp Bot function called with method:', req.method);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -35,15 +37,40 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { action, phone_number, message, chat_id } = await req.json();
+    let requestBody;
+    try {
+      requestBody = await req.json();
+      console.log('Request body:', requestBody);
+    } catch (error) {
+      console.error('Failed to parse request body:', error);
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }), 
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { action, phone_number, message, chat_id } = requestBody;
+    console.log('Action requested:', action);
 
     switch (action) {
       case 'generate_qr': {
-        // En un entorno real, aquí se generaría el QR code usando Baileys
-        // Por ahora, simulamos la generación del QR
-        const qrCodeData = generateMockQRCode();
+        console.log('Generating QR for phone:', phone_number);
         
-        const { error } = await supabase
+        if (!phone_number) {
+          console.error('Phone number is required');
+          return new Response(
+            JSON.stringify({ error: 'Phone number is required' }), 
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Generate mock QR code
+        const qrCodeData = generateMockQRCode();
+        console.log('QR code generated, length:', qrCodeData.length);
+        
+        // Update or create configuration with new QR and connecting status
+        console.log('Attempting to upsert configuration...');
+        const { data, error } = await supabase
           .from('whatsapp_configurations')
           .upsert({
             phone_number,
@@ -56,21 +83,22 @@ serve(async (req) => {
             auto_reply_enabled: true,
             updated_at: new Date().toISOString()
           })
+          .select()
+          .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Database upsert error:', error);
+          return new Response(
+            JSON.stringify({ error: 'Failed to save configuration', details: error.message }), 
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
 
-        // Simular conexión exitosa después de 5 segundos
-        setTimeout(async () => {
-          await supabase
-            .from('whatsapp_configurations')
-            .update({
-              connection_status: 'connected',
-              is_active: true,
-              last_connected_at: new Date().toISOString()
-            })
-            .eq('phone_number', phone_number);
-        }, 5000);
+        console.log('Configuration saved successfully:', data);
 
+        // Note: En un entorno real, aquí esperarías la conexión real
+        // Por ahora simulamos que la conexión será exitosa
+        
         return new Response(
           JSON.stringify({ success: true, qr_code: qrCodeData }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

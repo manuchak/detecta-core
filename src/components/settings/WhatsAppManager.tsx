@@ -46,6 +46,10 @@ export const WhatsAppManager = () => {
   const [generating, setGenerating] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [qrVisible, setQrVisible] = useState(false);
+  const [welcomeMessage, setWelcomeMessage] = useState("");
+  const [businessHoursStart, setBusinessHoursStart] = useState("09:00");
+  const [businessHoursEnd, setBusinessHoursEnd] = useState("18:00");
+  const [autoReplyEnabled, setAutoReplyEnabled] = useState(true);
 
   useEffect(() => {
     loadConfiguration();
@@ -71,15 +75,20 @@ export const WhatsAppManager = () => {
         .select('*')
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
+        console.error('Database error:', error);
         throw error;
       }
 
       if (data) {
         setConfig(data);
         setPhoneNumber(data.phone_number || "");
+        setWelcomeMessage(data.welcome_message || "Hola! Gracias por contactarnos. ¿En qué podemos ayudarte?");
+        setBusinessHoursStart(data.business_hours_start || "09:00");
+        setBusinessHoursEnd(data.business_hours_end || "18:00");
+        setAutoReplyEnabled(data.auto_reply_enabled ?? true);
       }
     } catch (error) {
       console.error('Error loading WhatsApp configuration:', error);
@@ -124,13 +133,15 @@ export const WhatsAppManager = () => {
         phone_number: phoneNumber,
         is_active: config?.is_active ?? true,
         connection_status: config?.connection_status ?? 'disconnected',
-        welcome_message: config?.welcome_message ?? 'Hola! Gracias por contactarnos. ¿En qué podemos ayudarte?',
-        business_hours_start: config?.business_hours_start ?? '09:00',
-        business_hours_end: config?.business_hours_end ?? '18:00',
-        auto_reply_enabled: config?.auto_reply_enabled ?? true,
+        welcome_message: welcomeMessage,
+        business_hours_start: businessHoursStart,
+        business_hours_end: businessHoursEnd,
+        auto_reply_enabled: autoReplyEnabled,
         last_connected_at: config?.last_connected_at,
         qr_code: config?.qr_code
       };
+
+      console.log('Saving configuration:', configData);
 
       const { data, error } = await supabase
         .from('whatsapp_configurations')
@@ -138,9 +149,13 @@ export const WhatsAppManager = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Save error:', error);
+        throw error;
+      }
 
       setConfig(data);
+      console.log('Configuration saved successfully');
       toast.success('Configuración guardada exitosamente');
     } catch (error) {
       console.error('Error saving configuration:', error);
@@ -315,8 +330,8 @@ export const WhatsAppManager = () => {
                 <Textarea
                   id="welcome"
                   placeholder="Mensaje que se enviará cuando alguien inicie una conversación"
-                  value={config?.welcome_message || ""}
-                  onChange={(e) => setConfig(prev => prev ? { ...prev, welcome_message: e.target.value } : null)}
+                  value={welcomeMessage}
+                  onChange={(e) => setWelcomeMessage(e.target.value)}
                   rows={3}
                 />
               </div>
@@ -324,10 +339,8 @@ export const WhatsAppManager = () => {
               <div className="flex items-center space-x-2">
                 <Switch
                   id="auto-reply"
-                  checked={config?.auto_reply_enabled || false}
-                  onCheckedChange={(checked) => 
-                    setConfig(prev => prev ? { ...prev, auto_reply_enabled: checked } : null)
-                  }
+                  checked={autoReplyEnabled}
+                  onCheckedChange={setAutoReplyEnabled}
                 />
                 <Label htmlFor="auto-reply">Habilitar respuestas automáticas</Label>
               </div>
@@ -369,10 +382,8 @@ export const WhatsAppManager = () => {
                   <Input
                     id="start-time"
                     type="time"
-                    value={config?.business_hours_start || "09:00"}
-                    onChange={(e) => 
-                      setConfig(prev => prev ? { ...prev, business_hours_start: e.target.value } : null)
-                    }
+                    value={businessHoursStart}
+                    onChange={(e) => setBusinessHoursStart(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -380,10 +391,8 @@ export const WhatsAppManager = () => {
                   <Input
                     id="end-time"
                     type="time"
-                    value={config?.business_hours_end || "18:00"}
-                    onChange={(e) => 
-                      setConfig(prev => prev ? { ...prev, business_hours_end: e.target.value } : null)
-                    }
+                    value={businessHoursEnd}
+                    onChange={(e) => setBusinessHoursEnd(e.target.value)}
                   />
                 </div>
               </div>
