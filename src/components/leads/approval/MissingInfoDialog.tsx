@@ -377,6 +377,25 @@ export const MissingInfoDialog = ({
   const esArmado = formData.tipo_custodio === 'armado' || formData.tipo_custodio === 'armado_vehiculo';
   const esAbordo = formData.tipo_custodio === 'abordo';
 
+  // Calcular campos faltantes por categoría
+  const getFieldsByCategory = () => {
+    const basicFields = ['Nombre', 'Email', 'Teléfono', 'Empresa'];
+    const locationFields = ['Edad', 'Dirección', 'Estado'];
+    const vehicleFields = ['Tipo de custodio', 'Marca del vehículo', 'Modelo del vehículo', 'Año del vehículo', 'Licencia armas', 'Especialidad a bordo'];
+    const experienceFields = ['Experiencia en custodia', 'Años de experiencia', 'Empresas anteriores', 'Licencia de conducir', 'Antecedentes penales', 'Referencias'];
+    const availabilityFields = ['Disponibilidad de horario', 'Disponibilidad de días'];
+
+    return {
+      basic: missingFields.filter(field => basicFields.includes(field)).length,
+      location: missingFields.filter(field => locationFields.includes(field)).length,
+      vehicle: missingFields.filter(field => vehicleFields.includes(field)).length,
+      experience: missingFields.filter(field => experienceFields.includes(field)).length,
+      availability: missingFields.filter(field => availabilityFields.includes(field)).length
+    };
+  };
+
+  const missingByCategory = getFieldsByCategory();
+
   if (!lead) return null;
 
   return (
@@ -426,14 +445,21 @@ export const MissingInfoDialog = ({
           </div>
 
           {/* Formulario en acordeón */}
-          <Accordion type="multiple" defaultValue={["basic", "personal", "location", "type", "vehicle", "experience", "availability"]} className="w-full">
+          <Accordion type="multiple" defaultValue={[]} className="w-full">
             
             {/* Información Básica */}
             <AccordionItem value="basic">
               <AccordionTrigger className="text-left">
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  Información Básica
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Información Básica
+                  </div>
+                  {missingByCategory.basic > 0 && (
+                    <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200 ml-2">
+                      {missingByCategory.basic}
+                    </Badge>
+                  )}
                 </div>
               </AccordionTrigger>
               <AccordionContent>
@@ -465,9 +491,16 @@ export const MissingInfoDialog = ({
             {/* Ubicación */}
             <AccordionItem value="location">
               <AccordionTrigger className="text-left">
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  Ubicación y Datos Personales
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Ubicación y Datos Personales
+                  </div>
+                  {missingByCategory.location > 0 && (
+                    <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200 ml-2">
+                      {missingByCategory.location}
+                    </Badge>
+                  )}
                 </div>
               </AccordionTrigger>
               <AccordionContent>
@@ -486,9 +519,16 @@ export const MissingInfoDialog = ({
             {/* Vehículo y Tipo de Custodio */}
             <AccordionItem value="vehicle">
               <AccordionTrigger className="text-left">
-                <div className="flex items-center gap-2">
-                  <Car className="h-4 w-4" />
-                  Tipo de Custodio y Vehículo
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2">
+                    <Car className="h-4 w-4" />
+                    Tipo de Custodio y Vehículo
+                  </div>
+                  {missingByCategory.vehicle > 0 && (
+                    <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200 ml-2">
+                      {missingByCategory.vehicle}
+                    </Badge>
+                  )}
                 </div>
               </AccordionTrigger>
               <AccordionContent>
@@ -502,9 +542,16 @@ export const MissingInfoDialog = ({
             {/* Experiencia */}
             <AccordionItem value="experience">
               <AccordionTrigger className="text-left">
-                <div className="flex items-center gap-2">
-                  <Shield className="h-4 w-4" />
-                  Experiencia
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-4 w-4" />
+                    Experiencia
+                  </div>
+                  {missingByCategory.experience > 0 && (
+                    <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200 ml-2">
+                      {missingByCategory.experience}
+                    </Badge>
+                  )}
                 </div>
               </AccordionTrigger>
               <AccordionContent>
@@ -527,9 +574,16 @@ export const MissingInfoDialog = ({
             {/* Disponibilidad */}
             <AccordionItem value="availability">
               <AccordionTrigger className="text-left">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  Disponibilidad
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Disponibilidad
+                  </div>
+                  {missingByCategory.availability > 0 && (
+                    <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200 ml-2">
+                      {missingByCategory.availability}
+                    </Badge>
+                  )}
                 </div>
               </AccordionTrigger>
               <AccordionContent>
