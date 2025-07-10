@@ -316,21 +316,14 @@ export const WhatsAppManager = () => {
                         </p>
                       </div>
                       
-                      <div className="flex justify-center">
-                        <div className="p-6 bg-white rounded-xl border-2 border-blue-200 shadow-lg">
-                          <img 
-                            src={`data:image/svg+xml;base64,${config.qr_code}`} 
-                            alt="Código QR para WhatsApp" 
-                            className="w-56 h-56 block"
-                            onLoad={() => console.log('QR image loaded successfully')}
-                            onError={(e) => {
-                              console.error('Error loading QR image:', e);
-                              console.log('QR data length:', config.qr_code?.length);
-                              console.log('QR data preview:', config.qr_code?.substring(0, 100));
-                            }}
-                          />
-                        </div>
-                      </div>
+                          <div className="flex justify-center">
+                            <div 
+                              className="w-56 h-56"
+                              dangerouslySetInnerHTML={{ 
+                                __html: config.qr_code ? decodeURIComponent(escape(atob(config.qr_code))) : '' 
+                              }}
+                            />
+                          </div>
 
                       <div className="text-center space-y-2">
                         {config.connection_status === 'connecting' && (
