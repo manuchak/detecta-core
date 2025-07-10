@@ -286,24 +286,6 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         onBulkAssignmentComplete={refetch}
       />
 
-      {/* Estado de éxito */}
-      <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2 text-green-800">
-            <CheckCircle className="h-4 w-4" />
-            <span className="text-sm font-medium">✅ Datos cargados exitosamente (SIN LÍMITES)</span>
-          </div>
-          <div className="text-xs text-green-600">
-            Total BD: {leads?.length || 0} | Filtrados: {filteredLeads.length}
-            {selectedLeads.length > 0 && ` | Seleccionados: ${selectedLeads.length}`}
-          </div>
-        </div>
-        {leads && leads.length >= 100 && (
-          <div className="mt-2 text-xs text-green-700">
-            ℹ️ Se han cargado {leads.length} leads de la base de datos (consulta completa sin límites)
-          </div>
-        )}
-      </div>
 
       {/* Controles de búsqueda y filtros */}
       <div className="flex gap-4 items-center">
