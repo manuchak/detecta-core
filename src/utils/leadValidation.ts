@@ -43,16 +43,25 @@ interface LeadNotesData {
 export const validateLeadForApproval = (lead: AssignedLead): { isValid: boolean; missingFields: string[] } => {
   const missingFields: string[] = [];
   
+  // Helper function to safely check if a value is empty
+  const isEmpty = (value: any): boolean => {
+    if (value === null || value === undefined) return true;
+    if (typeof value === 'string') return value.trim() === '';
+    if (typeof value === 'number') return false; // Numbers are not empty
+    if (typeof value === 'boolean') return false; // Booleans are not empty
+    return true; // Other types are considered empty
+  };
+  
   // Campos básicos del lead que siempre se requieren
-  if (!lead.lead_nombre?.trim()) {
+  if (isEmpty(lead.lead_nombre)) {
     missingFields.push("Nombre completo");
   }
   
-  if (!lead.lead_email?.trim()) {
+  if (isEmpty(lead.lead_email)) {
     missingFields.push("Email");
   }
   
-  if (!lead.lead_telefono?.trim()) {
+  if (isEmpty(lead.lead_telefono)) {
     missingFields.push("Teléfono");
   }
 
@@ -67,28 +76,28 @@ export const validateLeadForApproval = (lead: AssignedLead): { isValid: boolean;
   }
 
   // Validar datos personales adicionales
-  if (!notesData.datos_personales?.edad?.trim()) {
+  if (isEmpty(notesData.datos_personales?.edad)) {
     missingFields.push("Edad");
   }
   
-  if (!notesData.datos_personales?.direccion?.trim()) {
+  if (isEmpty(notesData.datos_personales?.direccion)) {
     missingFields.push("Dirección");
   }
   
-  if (!notesData.datos_personales?.estado_id?.trim()) {
+  if (isEmpty(notesData.datos_personales?.estado_id)) {
     missingFields.push("Estado");
   }
   
-  if (!notesData.datos_personales?.ciudad_id?.trim()) {
+  if (isEmpty(notesData.datos_personales?.ciudad_id)) {
     missingFields.push("Ciudad");
   }
   
-  if (!notesData.datos_personales?.zona_trabajo_id?.trim()) {
+  if (isEmpty(notesData.datos_personales?.zona_trabajo_id)) {
     missingFields.push("Zona de trabajo");
   }
 
   // Validar tipo de custodio
-  if (!notesData.tipo_custodio?.trim()) {
+  if (isEmpty(notesData.tipo_custodio)) {
     missingFields.push("Tipo de custodio");
   }
 
@@ -100,60 +109,60 @@ export const validateLeadForApproval = (lead: AssignedLead): { isValid: boolean;
 
   // Validar datos del vehículo si es requerido
   if (requiereVehiculo) {
-    if (!notesData.vehiculo?.marca_vehiculo?.trim()) {
+    if (isEmpty(notesData.vehiculo?.marca_vehiculo)) {
       missingFields.push("Marca del vehículo");
     }
-    if (!notesData.vehiculo?.modelo_vehiculo?.trim()) {
+    if (isEmpty(notesData.vehiculo?.modelo_vehiculo)) {
       missingFields.push("Modelo del vehículo");
     }
-    if (!notesData.vehiculo?.año_vehiculo?.trim()) {
+    if (isEmpty(notesData.vehiculo?.año_vehiculo)) {
       missingFields.push("Año del vehículo");
     }
-    if (!notesData.vehiculo?.placas?.trim()) {
+    if (isEmpty(notesData.vehiculo?.placas)) {
       missingFields.push("Placas del vehículo");
     }
-    if (!notesData.vehiculo?.seguro_vigente?.trim()) {
+    if (isEmpty(notesData.vehiculo?.seguro_vigente)) {
       missingFields.push("Seguro vigente");
     }
   }
 
   // Validar datos de seguridad armada si es requerido
   if (esArmado) {
-    if (!notesData.seguridad_armada?.licencia_armas?.trim()) {
+    if (isEmpty(notesData.seguridad_armada?.licencia_armas)) {
       missingFields.push("Licencia de armas");
     }
   }
 
   // Validar especialidad para custodios abordo
   if (esAbordo) {
-    if (!notesData.custodio_abordo?.especialidad_abordo?.trim()) {
+    if (isEmpty(notesData.custodio_abordo?.especialidad_abordo)) {
       missingFields.push("Especialidad abordo");
     }
   }
 
   // Validar experiencia general
-  if (!notesData.experiencia?.experiencia_custodia?.trim()) {
+  if (isEmpty(notesData.experiencia?.experiencia_custodia)) {
     missingFields.push("Experiencia en custodia");
   }
   
-  if (!notesData.experiencia?.años_experiencia?.trim()) {
+  if (isEmpty(notesData.experiencia?.años_experiencia)) {
     missingFields.push("Años de experiencia");
   }
   
-  if (!notesData.experiencia?.licencia_conducir?.trim()) {
+  if (isEmpty(notesData.experiencia?.licencia_conducir)) {
     missingFields.push("Licencia de conducir");
   }
   
-  if (!notesData.experiencia?.antecedentes_penales?.trim()) {
+  if (isEmpty(notesData.experiencia?.antecedentes_penales)) {
     missingFields.push("Antecedentes penales");
   }
 
   // Validar disponibilidad
-  if (!notesData.disponibilidad?.horario?.trim()) {
+  if (isEmpty(notesData.disponibilidad?.horario)) {
     missingFields.push("Disponibilidad de horario");
   }
   
-  if (!notesData.disponibilidad?.dias?.trim()) {
+  if (isEmpty(notesData.disponibilidad?.dias)) {
     missingFields.push("Disponibilidad de días");
   }
 
