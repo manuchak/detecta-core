@@ -283,31 +283,55 @@ export const WhatsAppManager = () => {
                 </div>
               </div>
 
-              {config?.qr_code && (config.connection_status === 'connecting' || config.connection_status === 'disconnected') && (
-                <Alert>
-                  <QrCode className="h-4 w-4" />
+              {config?.qr_code && (
+                <Alert className="border-blue-200 bg-blue-50">
+                  <QrCode className="h-4 w-4 text-blue-600" />
                   <AlertDescription>
-                    <div className="space-y-3">
-                      <p>Escanea este código QR con WhatsApp Web para conectar el bot.</p>
+                    <div className="space-y-4">
+                      <div className="text-center">
+                        <h4 className="font-semibold text-blue-800 mb-2">
+                          Código QR Generado
+                        </h4>
+                        <p className="text-blue-700">
+                          Escanea este código QR con WhatsApp Web para conectar el bot.
+                        </p>
+                      </div>
+                      
                       <div className="flex justify-center">
-                        <div className="p-4 bg-white rounded-lg border-2 border-gray-200 shadow-sm">
+                        <div className="p-6 bg-white rounded-xl border-2 border-blue-200 shadow-lg">
                           <img 
                             src={`data:image/svg+xml;base64,${config.qr_code}`} 
                             alt="Código QR para WhatsApp" 
-                            className="w-48 h-48"
+                            className="w-56 h-56 block"
+                            onLoad={() => console.log('QR image loaded successfully')}
                             onError={(e) => {
                               console.error('Error loading QR image:', e);
                               console.log('QR data length:', config.qr_code?.length);
+                              console.log('QR data preview:', config.qr_code?.substring(0, 100));
                             }}
                           />
                         </div>
                       </div>
-                      {config.connection_status === 'connecting' && (
-                        <div className="flex items-center justify-center gap-2 text-blue-600">
-                          <RefreshCw className="w-4 h-4 animate-spin" />
-                          <span>Esperando conexión...</span>
-                        </div>
-                      )}
+
+                      <div className="text-center space-y-2">
+                        {config.connection_status === 'connecting' && (
+                          <div className="flex items-center justify-center gap-2 text-blue-600">
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            <span className="font-medium">Esperando conexión...</span>
+                          </div>
+                        )}
+                        {config.connection_status === 'disconnected' && (
+                          <div className="text-orange-600">
+                            <span className="font-medium">Listo para escanear</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="text-xs text-blue-600 text-center">
+                        <p>1. Abre WhatsApp en tu teléfono</p>
+                        <p>2. Ve a Menú → WhatsApp Web</p>
+                        <p>3. Escanea este código QR</p>
+                      </div>
                     </div>
                   </AlertDescription>
                 </Alert>
