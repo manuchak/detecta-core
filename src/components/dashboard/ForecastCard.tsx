@@ -11,6 +11,7 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useState, useCallback, useEffect } from "react";
+import { useForecastConfig, useUpdateForecastConfig, useCanModifyForecastConfig } from "@/hooks/useForecastConfig";
 
 interface ForecastCardProps {
   isLoading?: boolean;
@@ -20,48 +21,89 @@ interface ForecastCardProps {
 export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) => {
   const { formatCurrency } = useFormatters();
   
-  // Estados para parámetros manuales con persistencia
+  // Hooks para configuración global y permisos
+  const { data: globalConfig, isLoading: configLoading } = useForecastConfig();
+  const { data: canModify } = useCanModifyForecastConfig();
+  const updateConfig = useUpdateForecastConfig();
+
+  // Estados locales con fallback a configuración global o localStorage
   const [useManualParams, setUseManualParams] = useState(() => {
+    if (globalConfig) return globalConfig.use_manual;
     const saved = localStorage.getItem('holt-winters-use-manual');
     return saved ? JSON.parse(saved) : false;
   });
+  
   const [manualAlpha, setManualAlpha] = useState(() => {
+    if (globalConfig) return Number(globalConfig.alpha);
     const saved = localStorage.getItem('holt-winters-alpha');
     return saved ? parseFloat(saved) : 0.3;
   });
+  
   const [manualBeta, setManualBeta] = useState(() => {
+    if (globalConfig) return Number(globalConfig.beta);
     const saved = localStorage.getItem('holt-winters-beta');
     return saved ? parseFloat(saved) : 0.1;
   });
+  
   const [manualGamma, setManualGamma] = useState(() => {
+    if (globalConfig) return Number(globalConfig.gamma);
     const saved = localStorage.getItem('holt-winters-gamma');
     return saved ? parseFloat(saved) : 0.1;
   });
+  
   const [showAdvancedControls, setShowAdvancedControls] = useState(() => {
+    if (globalConfig) return globalConfig.show_advanced;
     const saved = localStorage.getItem('holt-winters-show-advanced');
     return saved ? JSON.parse(saved) : false;
   });
-  
-  // Persistir valores en localStorage cuando cambien
-  useEffect(() => {
-    localStorage.setItem('holt-winters-use-manual', JSON.stringify(useManualParams));
-  }, [useManualParams]);
 
+  // Sincronizar estados locales cuando llega la configuración global
   useEffect(() => {
-    localStorage.setItem('holt-winters-alpha', manualAlpha.toString());
-  }, [manualAlpha]);
+    if (globalConfig) {
+      setUseManualParams(globalConfig.use_manual);
+      setManualAlpha(Number(globalConfig.alpha));
+      setManualBeta(Number(globalConfig.beta));
+      setManualGamma(Number(globalConfig.gamma));
+      setShowAdvancedControls(globalConfig.show_advanced);
+    }
+  }, [globalConfig]);
 
-  useEffect(() => {
-    localStorage.setItem('holt-winters-beta', manualBeta.toString());
-  }, [manualBeta]);
+  // Funciones para actualizar configuración
+  const updateGlobalConfig = useCallback((updates: any) => {
+    if (canModify) {
+      updateConfig.mutate(updates);
+    } else {
+      // Si no puede modificar globalmente, usar localStorage
+      Object.entries(updates).forEach(([key, value]) => {
+        localStorage.setItem(`holt-winters-${key.replace('_', '-')}`, JSON.stringify(value));
+      });
+    }
+  }, [canModify, updateConfig]);
 
-  useEffect(() => {
-    localStorage.setItem('holt-winters-gamma', manualGamma.toString());
-  }, [manualGamma]);
+  const handleUseManualChange = useCallback((value: boolean) => {
+    setUseManualParams(value);
+    updateGlobalConfig({ use_manual: value });
+  }, [updateGlobalConfig]);
 
-  useEffect(() => {
-    localStorage.setItem('holt-winters-show-advanced', JSON.stringify(showAdvancedControls));
-  }, [showAdvancedControls]);
+  const handleAlphaChange = useCallback((value: number) => {
+    setManualAlpha(value);
+    updateGlobalConfig({ alpha: value });
+  }, [updateGlobalConfig]);
+
+  const handleBetaChange = useCallback((value: number) => {
+    setManualBeta(value);
+    updateGlobalConfig({ beta: value });
+  }, [updateGlobalConfig]);
+
+  const handleGammaChange = useCallback((value: number) => {
+    setManualGamma(value);
+    updateGlobalConfig({ gamma: value });
+  }, [updateGlobalConfig]);
+
+  const handleShowAdvancedChange = useCallback((value: boolean) => {
+    setShowAdvancedControls(value);
+    updateGlobalConfig({ show_advanced: value });
+  }, [updateGlobalConfig]);
 
   // Hook de forecast con parámetros opcionales
   const forecastData = useHoltWintersForecast(
@@ -411,7 +453,12 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
               
               <Collapsible open={showAdvancedControls} onOpenChange={setShowAdvancedControls}>
                 <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="gap-2"
+                    onClick={() => handleShowAdvancedChange(!showAdvancedControls)}
+                  >
                     <Settings className="h-4 w-4" />
                     Ajustar Parámetros
                     {showAdvancedControls ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -427,14 +474,14 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
                       <Button
                         variant={useManualParams ? "default" : "outline"}
                         size="sm"
-                        onClick={() => setUseManualParams(true)}
+                        onClick={() => handleUseManualChange(true)}
                       >
                         Manual
                       </Button>
                       <Button
                         variant={!useManualParams ? "default" : "outline"}
                         size="sm"
-                        onClick={() => setUseManualParams(false)}
+                        onClick={() => handleUseManualChange(false)}
                       >
                         Auto
                       </Button>
@@ -462,7 +509,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
                       </div>
                       <Slider
                         value={[manualAlpha]}
-                        onValueChange={(value) => setManualAlpha(value[0])}
+                        onValueChange={(value) => handleAlphaChange(value[0])}
                         min={0.1}
                         max={0.9}
                         step={0.05}
@@ -482,7 +529,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
                       </div>
                       <Slider
                         value={[manualBeta]}
-                        onValueChange={(value) => setManualBeta(value[0])}
+                        onValueChange={(value) => handleBetaChange(value[0])}
                         min={0.0}
                         max={0.5}
                         step={0.05}
@@ -502,7 +549,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
                       </div>
                       <Slider
                         value={[manualGamma]}
-                        onValueChange={(value) => setManualGamma(value[0])}
+                        onValueChange={(value) => handleGammaChange(value[0])}
                         min={0.1}
                         max={0.9}
                         step={0.05}

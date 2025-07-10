@@ -1216,6 +1216,45 @@ export type Database = {
         }
         Relationships: []
       }
+      forecast_config: {
+        Row: {
+          alpha: number
+          beta: number
+          config_type: string
+          created_at: string | null
+          gamma: number
+          id: string
+          show_advanced: boolean
+          updated_at: string | null
+          updated_by: string | null
+          use_manual: boolean
+        }
+        Insert: {
+          alpha?: number
+          beta?: number
+          config_type?: string
+          created_at?: string | null
+          gamma?: number
+          id?: string
+          show_advanced?: boolean
+          updated_at?: string | null
+          updated_by?: string | null
+          use_manual?: boolean
+        }
+        Update: {
+          alpha?: number
+          beta?: number
+          config_type?: string
+          created_at?: string | null
+          gamma?: number
+          id?: string
+          show_advanced?: boolean
+          updated_at?: string | null
+          updated_by?: string | null
+          use_manual?: boolean
+        }
+        Relationships: []
+      }
       instalacion_documentacion: {
         Row: {
           completado: boolean | null
