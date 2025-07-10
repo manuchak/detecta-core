@@ -1,7 +1,7 @@
 
 import { AssignedLead } from "../../../types/leadTypes";
 import { VapiCallLog } from "@/types/vapiTypes";
-import { LeadCard } from "./LeadCard";
+import { ImprovedLeadCard } from "./ImprovedLeadCard";
 
 interface LeadsListProps {
   leads: AssignedLead[];
@@ -66,7 +66,7 @@ export const LeadsList = ({
         const leadCallLogs = getLeadCallLogs(lead.lead_id);
         
         return (
-          <LeadCard
+          <ImprovedLeadCard
             key={lead.lead_id}
             lead={lead}
             callLogs={leadCallLogs}

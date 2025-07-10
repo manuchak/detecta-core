@@ -11,4 +11,6 @@ export interface AssignedLead {
   second_interview_required: boolean;
   final_decision: string | null;
   notas?: string; // Campo para almacenar información adicional del candidato
+  analyst_name?: string; // Nombre del analista asignado
+  analyst_email?: string; // Email del analista asignado
 }

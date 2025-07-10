@@ -4453,6 +4453,9 @@ export type Database = {
           phone_interview_completed: boolean
           second_interview_required: boolean
           final_decision: string
+          notas: string
+          analyst_name: string
+          analyst_email: string
         }[]
       }
       get_available_roles_secure: {
