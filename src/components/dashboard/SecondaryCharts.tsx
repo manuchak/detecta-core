@@ -409,27 +409,27 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
         </Card>
       </div>
 
-      {/* Clientes Principales - DISEÑO ULTRA COMPACTO */}
+      {/* Clientes Principales - DISEÑO MEJORADO */}
       <div className="lg:col-span-4">
-        <Card className="h-full">
-          <CardHeader className="pb-2">
+        <Card className="h-full flex flex-col">
+          <CardHeader className="pb-2 flex-shrink-0">
             <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-orange-600"></div>
               Clientes Principales
             </CardTitle>
             <p className="text-sm text-gray-600">Top 5 clientes + otros</p>
           </CardHeader>
-          <CardContent className="h-80 flex flex-col p-4">
-            {/* Gráfico circular más pequeño sin etiquetas */}
-            <div className="flex-1 relative mb-2">
+          <CardContent className="flex-1 flex flex-col p-4 min-h-0 overflow-hidden">
+            {/* Gráfico circular - altura controlada */}
+            <div className="flex-1 min-h-[200px] max-h-[220px] mb-3">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={processedClientsData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={30}
-                    outerRadius={75}
+                    innerRadius={35}
+                    outerRadius={70}
                     paddingAngle={2}
                     dataKey="value"
                     stroke="#fff"
@@ -447,27 +447,27 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
               </ResponsiveContainer>
             </div>
             
-            {/* Leyenda ultra compacta */}
-            <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs flex-shrink-0">
+            {/* Leyenda mejorada con scroll si es necesario */}
+            <div className="flex-shrink-0 space-y-2 overflow-y-auto max-h-32">
               {processedClientsData.map((entry, index) => {
                 const percentage = totalClients > 0 ? ((entry.value / totalClients) * 100).toFixed(1) : '0.0';
                 return (
-                  <div key={entry.name} className="flex items-center gap-2 min-h-[18px]">
-                    <div 
-                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                    />
-                    <div className="min-w-0 flex-1 flex items-center justify-between">
+                  <div key={entry.name} className="flex items-center justify-between gap-2 min-h-[20px]">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <div 
+                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                      />
                       <span 
-                        className="text-gray-700 font-medium truncate leading-tight text-xs" 
+                        className="text-sm font-medium text-gray-700 truncate leading-tight max-w-[120px]" 
                         title={entry.name}
                       >
                         {entry.name}
                       </span>
-                      <span className="text-gray-900 font-bold ml-1 text-xs">
-                        {percentage}%
-                      </span>
                     </div>
+                    <span className="text-sm font-bold text-gray-900 flex-shrink-0">
+                      {percentage}%
+                    </span>
                   </div>
                 );
               })}
