@@ -320,7 +320,7 @@ export const WhatsAppManager = () => {
                             <div 
                               className="w-56 h-56"
                               dangerouslySetInnerHTML={{ 
-                                __html: config.qr_code ? decodeURIComponent(escape(atob(config.qr_code))) : '' 
+                                __html: config.qr_code ? atob(config.qr_code) : '' 
                               }}
                             />
                           </div>
