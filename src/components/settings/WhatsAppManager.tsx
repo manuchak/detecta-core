@@ -70,6 +70,7 @@ export const WhatsAppManager = () => {
 
   const loadConfiguration = async () => {
     try {
+      console.log('=== Loading WhatsApp Configuration ===');
       const { data, error } = await supabase
         .from('whatsapp_configurations')
         .select('*')
@@ -77,22 +78,35 @@ export const WhatsAppManager = () => {
         .limit(1)
         .maybeSingle();
 
+      console.log('Database query result:', { data, error });
+
       if (error) {
         console.error('Database error:', error);
-        throw error;
+        toast.error(`Error de base de datos: ${error.message}`);
+        return;
       }
 
       if (data) {
+        console.log('Configuration loaded:', data);
         setConfig(data);
         setPhoneNumber(data.phone_number || "");
         setWelcomeMessage(data.welcome_message || "Hola! Gracias por contactarnos. ¿En qué podemos ayudarte?");
         setBusinessHoursStart(data.business_hours_start || "09:00");
         setBusinessHoursEnd(data.business_hours_end || "18:00");
         setAutoReplyEnabled(data.auto_reply_enabled ?? true);
+        
+        // Mostrar QR si existe
+        if (data.qr_code) {
+          console.log('QR code found in configuration');
+          setQrVisible(true);
+        }
+      } else {
+        console.log('No configuration found in database');
+        setConfig(null);
       }
     } catch (error) {
       console.error('Error loading WhatsApp configuration:', error);
-      toast.error('Error al cargar la configuración');
+      toast.error(`Error al cargar la configuración: ${error.message || 'Error desconocido'}`);
     } finally {
       setLoading(false);
     }
@@ -142,6 +156,7 @@ export const WhatsAppManager = () => {
   };
 
   const saveConfiguration = async () => {
+    console.log('=== Saving Configuration ===');
     setSaving(true);
     try {
       const configData = {
@@ -156,25 +171,29 @@ export const WhatsAppManager = () => {
         qr_code: config?.qr_code
       };
 
-      console.log('Saving configuration:', configData);
+      console.log('Saving configuration data:', configData);
 
       const { data, error } = await supabase
         .from('whatsapp_configurations')
-        .upsert(configData)
+        .upsert(configData, { 
+          onConflict: 'phone_number',
+          ignoreDuplicates: false 
+        })
         .select()
         .single();
 
       if (error) {
         console.error('Save error:', error);
-        throw error;
+        toast.error(`Error al guardar: ${error.message}`);
+        return;
       }
 
       setConfig(data);
-      console.log('Configuration saved successfully');
-      toast.success('Configuración guardada exitosamente');
+      console.log('Configuration saved successfully:', data);
+      toast.success('Configuración guardada exitosamente ✅');
     } catch (error) {
       console.error('Error saving configuration:', error);
-      toast.error('Error al guardar la configuración');
+      toast.error(`Error al guardar la configuración: ${error.message || 'Error desconocido'}`);
     } finally {
       setSaving(false);
     }

@@ -5096,6 +5096,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      is_whatsapp_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       link_user_to_custodio_services: {
         Args: { p_user_id: string; p_phone: string }
         Returns: {

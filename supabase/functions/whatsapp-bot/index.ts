@@ -88,11 +88,14 @@ serve(async (req) => {
           updated_at: new Date().toISOString()
         };
         
-        console.log('Attempting to upsert configuration with data:', configData);
+        console.log('Attempting to upsert configuration...');
         
         const { data, error } = await supabase
           .from('whatsapp_configurations')
-          .upsert(configData)
+          .upsert(configData, { 
+            onConflict: 'phone_number',
+            ignoreDuplicates: false 
+          })
           .select()
           .single();
 
@@ -117,7 +120,7 @@ serve(async (req) => {
           config: data
         };
         
-        console.log('Sending successful response:', response);
+        console.log('Sending successful response');
         
         return new Response(
           JSON.stringify(response),
