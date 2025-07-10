@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,11 +11,31 @@ interface DashboardLayoutProps {
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const { user, loading, userRole } = useAuth();
+  const [isInitializing, setIsInitializing] = useState(true);
 
   console.log('DashboardLayout - State:', { user: !!user, loading, userRole });
 
+  // Controlar la inicialización para evitar parpadeos
+  useEffect(() => {
+    if (!loading && user) {
+      // Para supply_admin emails, permitir acceso inmediato
+      const email = user.email;
+      if (email === 'brenda.jimenez@detectasecurity.io' || email === 'marbelli.casillas@detectasecurity.io') {
+        setIsInitializing(false);
+        return;
+      }
+      
+      // Para otros usuarios, esperar a que se defina el rol
+      if (userRole !== null) {
+        setIsInitializing(false);
+      }
+    } else if (!loading && !user) {
+      setIsInitializing(false);
+    }
+  }, [loading, user, userRole]);
+
   // Show loading skeleton while checking authentication
-  if (loading) {
+  if (loading || isInitializing) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="space-y-4">
@@ -36,19 +56,17 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     return <Navigate to="/auth/login" replace />;
   }
 
-  // Show loading if we have user but no role yet (prevent blank screen)
-  // Para supply_admin, permitir acceso incluso si userRole es null temporalmente
+  // Verificación específica para supply_admin
   const isSupplyAdminEmail = user?.email === 'brenda.jimenez@detectasecurity.io' || user?.email === 'marbelli.casillas@detectasecurity.io';
-  const shouldWaitForRole = !userRole && !isSupplyAdminEmail;
   
-  if (shouldWaitForRole) {
+  // Solo mostrar pantalla de loading si NO es supply_admin y no tiene rol
+  if (!isSupplyAdminEmail && !userRole) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="space-y-4 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="text-sm text-gray-500">Verificando permisos de usuario...</p>
           <p className="text-xs text-gray-400">Usuario: {user.email}</p>
-          {/* Añadir timeout para usuarios problemáticos */}
           <div className="mt-6">
             <button 
               onClick={() => window.location.reload()} 
