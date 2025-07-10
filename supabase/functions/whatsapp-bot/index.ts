@@ -24,23 +24,30 @@ interface TicketData {
 }
 
 serve(async (req) => {
-  console.log('WhatsApp Bot function called with method:', req.method);
+  console.log('=== WhatsApp Bot Function Started ===');
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
   
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight request');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    console.log('Creating Supabase client...');
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+    console.log('Supabase client created successfully');
 
     let requestBody;
     try {
-      requestBody = await req.json();
-      console.log('Request body:', requestBody);
+      const rawBody = await req.text();
+      console.log('Raw request body:', rawBody);
+      requestBody = JSON.parse(rawBody);
+      console.log('Parsed request body:', requestBody);
     } catch (error) {
       console.error('Failed to parse request body:', error);
       return new Response(
@@ -51,56 +58,69 @@ serve(async (req) => {
 
     const { action, phone_number, message, chat_id } = requestBody;
     console.log('Action requested:', action);
+    console.log('Phone number:', phone_number);
 
     switch (action) {
       case 'generate_qr': {
-        console.log('Generating QR for phone:', phone_number);
+        console.log('=== Generating QR Code ===');
         
         if (!phone_number) {
-          console.error('Phone number is required');
+          console.error('Phone number is required but not provided');
           return new Response(
             JSON.stringify({ error: 'Phone number is required' }), 
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
 
-        // Generate mock QR code
+        console.log('Generating mock QR code...');
         const qrCodeData = generateMockQRCode();
-        console.log('QR code generated, length:', qrCodeData.length);
+        console.log('QR code generated successfully, length:', qrCodeData.length);
         
-        // Update or create configuration with new QR and connecting status
-        console.log('Attempting to upsert configuration...');
+        const configData = {
+          phone_number,
+          qr_code: qrCodeData,
+          connection_status: 'connecting',
+          is_active: true,
+          welcome_message: 'Hola! Gracias por contactarnos. ¿En qué podemos ayudarte?',
+          business_hours_start: '09:00',
+          business_hours_end: '18:00',
+          auto_reply_enabled: true,
+          updated_at: new Date().toISOString()
+        };
+        
+        console.log('Attempting to upsert configuration with data:', configData);
+        
         const { data, error } = await supabase
           .from('whatsapp_configurations')
-          .upsert({
-            phone_number,
-            qr_code: qrCodeData,
-            connection_status: 'connecting',
-            is_active: true,
-            welcome_message: 'Hola! Gracias por contactarnos. ¿En qué podemos ayudarte?',
-            business_hours_start: '09:00',
-            business_hours_end: '18:00',
-            auto_reply_enabled: true,
-            updated_at: new Date().toISOString()
-          })
+          .upsert(configData)
           .select()
           .single();
 
         if (error) {
           console.error('Database upsert error:', error);
           return new Response(
-            JSON.stringify({ error: 'Failed to save configuration', details: error.message }), 
+            JSON.stringify({ 
+              error: 'Failed to save configuration', 
+              details: error.message,
+              code: error.code 
+            }), 
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
 
         console.log('Configuration saved successfully:', data);
-
-        // Note: En un entorno real, aquí esperarías la conexión real
-        // Por ahora simulamos que la conexión será exitosa
+        
+        const response = {
+          success: true,
+          qr_code: qrCodeData,
+          message: 'QR code generated successfully',
+          config: data
+        };
+        
+        console.log('Sending successful response:', response);
         
         return new Response(
-          JSON.stringify({ success: true, qr_code: qrCodeData }),
+          JSON.stringify(response),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }

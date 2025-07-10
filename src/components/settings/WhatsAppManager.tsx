@@ -104,8 +104,12 @@ export const WhatsAppManager = () => {
       return;
     }
 
+    console.log('=== Generating QR Code ===');
+    console.log('Phone number:', phoneNumber);
+    
     setGenerating(true);
     try {
+      console.log('Calling WhatsApp bot function...');
       const { data, error } = await supabase.functions.invoke('whatsapp-bot', {
         body: { 
           action: 'generate_qr',
@@ -113,14 +117,25 @@ export const WhatsAppManager = () => {
         }
       });
 
-      if (error) throw error;
+      console.log('Function response:', { data, error });
 
+      if (error) {
+        console.error('Function error:', error);
+        throw error;
+      }
+
+      if (data?.error) {
+        console.error('Function returned error:', data.error);
+        throw new Error(data.error);
+      }
+
+      console.log('QR generation successful:', data);
       toast.success('Código QR generado. Escanéalo con WhatsApp Web.');
       setQrVisible(true);
       await loadConfiguration();
     } catch (error) {
       console.error('Error generating QR code:', error);
-      toast.error('Error al generar código QR');
+      toast.error(`Error al generar código QR: ${error.message}`);
     } finally {
       setGenerating(false);
     }
@@ -268,7 +283,7 @@ export const WhatsAppManager = () => {
                 </div>
               </div>
 
-              {config?.qr_code && config.connection_status !== 'connected' && (
+              {config?.qr_code && (config.connection_status === 'connecting' || config.connection_status === 'disconnected') && (
                 <Alert>
                   <QrCode className="h-4 w-4" />
                   <AlertDescription>
@@ -280,6 +295,10 @@ export const WhatsAppManager = () => {
                             src={`data:image/svg+xml;base64,${config.qr_code}`} 
                             alt="Código QR para WhatsApp" 
                             className="w-48 h-48"
+                            onError={(e) => {
+                              console.error('Error loading QR image:', e);
+                              console.log('QR data length:', config.qr_code?.length);
+                            }}
                           />
                         </div>
                       </div>
