@@ -240,47 +240,129 @@ async function createWhatsAppConnection(supabase: any, phoneNumber: string) {
 }
 
 function generateDemoQRSVG(content: string): string {
-  const size = 256;
+  const size = 300;
   const modules = 25; // QR code grid size
   const moduleSize = size / modules;
   
   // Create a simple pattern that looks like a QR code
-  let svg = `<svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg" style="background: white;">`;
+  let svg = `<svg viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%; background: white;">`;
   
-  // Generate corner position detection patterns
-  const corners = [
-    [0, 0], [modules-7, 0], [0, modules-7]
-  ];
+  // QR Code Background
+  svg += `<rect width="${size}" height="${size}" fill="white"/>`;
   
-  corners.forEach(([x, y]) => {
-    svg += `<rect x="${x * moduleSize}" y="${y * moduleSize}" width="${7 * moduleSize}" height="${7 * moduleSize}" fill="black"/>`;
-    svg += `<rect x="${(x+1) * moduleSize}" y="${(y+1) * moduleSize}" width="${5 * moduleSize}" height="${5 * moduleSize}" fill="white"/>`;
-    svg += `<rect x="${(x+2) * moduleSize}" y="${(y+2) * moduleSize}" width="${3 * moduleSize}" height="${3 * moduleSize}" fill="black"/>`;
-  });
+  // Corner Position Detection Patterns
+  // Top Left
+  svg += `<rect x="20" y="20" width="70" height="70" fill="black"/>`;
+  svg += `<rect x="30" y="30" width="50" height="50" fill="white"/>`;
+  svg += `<rect x="40" y="40" width="30" height="30" fill="black"/>`;
   
-  // Generate some random data modules
-  for (let i = 0; i < modules; i++) {
-    for (let j = 0; j < modules; j++) {
-      // Skip corner areas
-      if ((i < 9 && j < 9) || (i < 9 && j > modules-9) || (i > modules-9 && j < 9)) continue;
-      
-      // Create pseudo-random pattern based on content
-      const hash = (content.charCodeAt((i + j) % content.length) + i * j) % 4;
-      if (hash === 0) {
-        svg += `<rect x="${i * moduleSize}" y="${j * moduleSize}" width="${moduleSize}" height="${moduleSize}" fill="black"/>`;
-      }
-    }
-  }
+  // Top Right
+  svg += `<rect x="210" y="20" width="70" height="70" fill="black"/>`;
+  svg += `<rect x="220" y="30" width="50" height="50" fill="white"/>`;
+  svg += `<rect x="230" y="40" width="30" height="30" fill="black"/>`;
   
-  // Add WhatsApp logo in center
-  const centerX = size / 2;
-  const centerY = size / 2;
-  const logoSize = 40;
-  svg += `<circle cx="${centerX}" cy="${centerY}" r="${logoSize/2}" fill="white" stroke="black" stroke-width="2"/>`;
-  svg += `<circle cx="${centerX}" cy="${centerY}" r="${logoSize/2 - 4}" fill="#25D366"/>`;
-  svg += `<text x="${centerX}" y="${centerY + 6}" text-anchor="middle" font-family="Arial" font-size="20" fill="white">W</text>`;
+  // Bottom Left
+  svg += `<rect x="20" y="210" width="70" height="70" fill="black"/>`;
+  svg += `<rect x="30" y="220" width="50" height="50" fill="white"/>`;
+  svg += `<rect x="40" y="230" width="30" height="30" fill="black"/>`;
   
-  svg += `<text x="${size/2}" y="${size-10}" text-anchor="middle" font-family="Arial" font-size="12" fill="#666">Demo QR - Funcional</text>`;
+  // Data Pattern (scattered squares to simulate QR data)
+  svg += `<rect x="110" y="20" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="130" y="20" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="150" y="20" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="170" y="20" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="190" y="20" width="10" height="10" fill="black"/>`;
+  
+  svg += `<rect x="20" y="110" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="40" y="110" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="60" y="110" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="80" y="110" width="10" height="10" fill="black"/>`;
+  
+  svg += `<rect x="110" y="40" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="130" y="60" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="150" y="40" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="170" y="60" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="190" y="40" width="10" height="10" fill="black"/>`;
+  
+  svg += `<rect x="110" y="80" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="130" y="80" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="150" y="100" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="170" y="80" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="190" y="100" width="10" height="10" fill="black"/>`;
+  
+  // More data pattern
+  svg += `<rect x="110" y="110" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="130" y="130" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="150" y="110" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="170" y="130" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="190" y="110" width="10" height="10" fill="black"/>`;
+  
+  svg += `<rect x="210" y="110" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="230" y="130" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="250" y="110" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="270" y="130" width="10" height="10" fill="black"/>`;
+  
+  svg += `<rect x="110" y="150" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="130" y="170" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="150" y="150" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="170" y="170" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="190" y="150" width="10" height="10" fill="black"/>`;
+  
+  svg += `<rect x="110" y="190" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="130" y="210" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="150" y="190" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="170" y="210" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="190" y="190" width="10" height="10" fill="black"/>`;
+  
+  svg += `<rect x="210" y="150" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="230" y="170" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="250" y="150" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="270" y="170" width="10" height="10" fill="black"/>`;
+  
+  svg += `<rect x="110" y="230" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="130" y="250" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="150" y="230" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="170" y="250" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="190" y="230" width="10" height="10" fill="black"/>`;
+  
+  svg += `<rect x="210" y="190" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="230" y="210" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="250" y="190" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="270" y="210" width="10" height="10" fill="black"/>`;
+  
+  svg += `<rect x="210" y="230" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="230" y="250" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="250" y="230" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="270" y="250" width="10" height="10" fill="black"/>`;
+  
+  // Timing patterns
+  svg += `<rect x="100" y="60" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="100" y="80" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="100" y="100" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="100" y="120" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="100" y="140" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="100" y="160" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="100" y="180" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="100" y="200" width="10" height="10" fill="black"/>`;
+  
+  svg += `<rect x="60" y="100" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="80" y="100" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="120" y="100" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="140" y="100" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="160" y="100" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="180" y="100" width="10" height="10" fill="black"/>`;
+  svg += `<rect x="200" y="100" width="10" height="10" fill="black"/>`;
+  
+  // WhatsApp Logo in center
+  svg += `<circle cx="150" cy="150" r="25" fill="white" stroke="black" stroke-width="2"/>`;
+  svg += `<circle cx="150" cy="150" r="20" fill="#25D366"/>`;
+  
+  // Simple WhatsApp icon
+  svg += `<path d="M140 140 Q140 135 145 135 Q155 135 160 140 Q160 145 155 150 L150 155 L145 150 Q140 145 140 140 Z" fill="white"/>`;
+  svg += `<circle cx="145" cy="142" r="2" fill="white"/>`;
+  
+  // Demo watermark
+  svg += `<text x="150" y="285" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#999">QR Demo - No Funcional</text>`;
   svg += '</svg>';
   
   return svg;
