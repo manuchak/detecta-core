@@ -34,6 +34,7 @@ import { PersonalInfoForm } from "@/components/leads/forms/PersonalInfoForm";
 import { LocationForm } from "@/components/leads/forms/LocationForm";
 import { VehicleForm } from "@/components/leads/forms/VehicleForm";
 import { ExperienceForm } from "@/components/leads/forms/ExperienceForm";
+import { RecruitmentFaq } from "./RecruitmentFaq";
 
 interface MissingInfoDialogProps {
   lead: AssignedLead | null;
@@ -380,7 +381,7 @@ export const MissingInfoDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="pb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
@@ -397,7 +398,9 @@ export const MissingInfoDialog = ({
           </div>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="flex gap-6">
+          {/* Panel principal del formulario */}
+          <div className="flex-1 space-y-6">
           {/* Estado actual */}
           <div className="bg-gray-50 rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
@@ -592,6 +595,12 @@ export const MissingInfoDialog = ({
             />
           </div>
         </div>
+          
+        {/* Panel FAQ lateral */}
+        <div className="w-80 flex-shrink-0">
+          <RecruitmentFaq />
+        </div>
+      </div>
 
         <div className="flex items-center justify-between pt-6 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
