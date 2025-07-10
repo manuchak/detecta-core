@@ -49,8 +49,13 @@ serve(async (req) => {
             phone_number,
             qr_code: qrCodeData,
             connection_status: 'connecting',
+            is_active: true,
+            welcome_message: 'Hola! Gracias por contactarnos. ¿En qué podemos ayudarte?',
+            business_hours_start: '09:00',
+            business_hours_end: '18:00',
+            auto_reply_enabled: true,
             updated_at: new Date().toISOString()
-          });
+          })
 
         if (error) throw error;
 
