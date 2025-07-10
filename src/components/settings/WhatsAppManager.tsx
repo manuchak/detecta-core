@@ -56,6 +56,29 @@ export const WhatsAppManager = () => {
   const [businessHoursEnd, setBusinessHoursEnd] = useState("18:00");
   const [autoReplyEnabled, setAutoReplyEnabled] = useState(true);
 
+  // Helper function to format QR code URL correctly
+  const formatQRCodeUrl = (qrCode: string | null): string => {
+    if (!qrCode) return '';
+    
+    // If it already has the data URL prefix, return as is
+    if (qrCode.startsWith('data:')) {
+      return qrCode;
+    }
+    
+    // If it's just base64, add the SVG prefix
+    if (qrCode.length > 100 && !qrCode.includes('<svg')) {
+      return `data:image/svg+xml;base64,${qrCode}`;
+    }
+    
+    // If it contains SVG markup, encode it
+    if (qrCode.includes('<svg')) {
+      return `data:image/svg+xml;base64,${btoa(qrCode)}`;
+    }
+    
+    // Fallback
+    return qrCode;
+  };
+
   useEffect(() => {
     loadConfiguration();
   }, []);
@@ -363,11 +386,12 @@ export const WhatsAppManager = () => {
                           <div className="flex justify-center">
                             {config.qr_code ? (
                               <img 
-                                src={config.qr_code} 
+                                src={formatQRCodeUrl(config.qr_code)} 
                                 alt="WhatsApp QR Code" 
                                 className="w-56 h-56 rounded-lg border border-gray-200 shadow-sm"
                                 onError={(e) => {
-                                  console.error('Error loading QR image');
+                                  console.error('Error loading QR image:', e);
+                                  console.error('QR URL:', formatQRCodeUrl(config.qr_code));
                                   e.currentTarget.style.display = 'none';
                                 }}
                                 onLoad={() => {
