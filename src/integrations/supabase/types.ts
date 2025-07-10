@@ -3459,6 +3459,66 @@ export type Database = {
         }
         Relationships: []
       }
+      tickets: {
+        Row: {
+          assigned_to: string | null
+          category: string | null
+          created_at: string | null
+          created_by: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          description: string | null
+          id: string
+          priority: string | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          source: string | null
+          status: string | null
+          subject: string
+          ticket_number: string
+          updated_at: string | null
+          whatsapp_chat_id: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          category?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          description?: string | null
+          id?: string
+          priority?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          source?: string | null
+          status?: string | null
+          subject: string
+          ticket_number?: string
+          updated_at?: string | null
+          whatsapp_chat_id?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          category?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          description?: string | null
+          id?: string
+          priority?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          source?: string | null
+          status?: string | null
+          subject?: string
+          ticket_number?: string
+          updated_at?: string | null
+          whatsapp_chat_id?: string | null
+        }
+        Relationships: []
+      }
       tipos_monitoreo: {
         Row: {
           activo: boolean | null
@@ -3620,6 +3680,173 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      whatsapp_configurations: {
+        Row: {
+          auto_reply_enabled: boolean | null
+          business_hours_end: string | null
+          business_hours_start: string | null
+          connection_status: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_active: boolean | null
+          last_connected_at: string | null
+          phone_number: string | null
+          qr_code: string | null
+          session_data: Json | null
+          updated_at: string | null
+          welcome_message: string | null
+        }
+        Insert: {
+          auto_reply_enabled?: boolean | null
+          business_hours_end?: string | null
+          business_hours_start?: string | null
+          connection_status?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_connected_at?: string | null
+          phone_number?: string | null
+          qr_code?: string | null
+          session_data?: Json | null
+          updated_at?: string | null
+          welcome_message?: string | null
+        }
+        Update: {
+          auto_reply_enabled?: boolean | null
+          business_hours_end?: string | null
+          business_hours_start?: string | null
+          connection_status?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_connected_at?: string | null
+          phone_number?: string | null
+          qr_code?: string | null
+          session_data?: Json | null
+          updated_at?: string | null
+          welcome_message?: string | null
+        }
+        Relationships: []
+      }
+      whatsapp_messages: {
+        Row: {
+          chat_id: string
+          created_at: string | null
+          id: string
+          is_from_bot: boolean | null
+          is_read: boolean | null
+          media_url: string | null
+          message_id: string | null
+          message_text: string | null
+          message_type: string | null
+          sender_name: string | null
+          sender_phone: string | null
+          ticket_id: string | null
+        }
+        Insert: {
+          chat_id: string
+          created_at?: string | null
+          id?: string
+          is_from_bot?: boolean | null
+          is_read?: boolean | null
+          media_url?: string | null
+          message_id?: string | null
+          message_text?: string | null
+          message_type?: string | null
+          sender_name?: string | null
+          sender_phone?: string | null
+          ticket_id?: string | null
+        }
+        Update: {
+          chat_id?: string
+          created_at?: string | null
+          id?: string
+          is_from_bot?: boolean | null
+          is_read?: boolean | null
+          media_url?: string | null
+          message_id?: string | null
+          message_text?: string | null
+          message_type?: string | null
+          sender_name?: string | null
+          sender_phone?: string | null
+          ticket_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_sessions: {
+        Row: {
+          chat_id: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          last_activity: string | null
+          phone_number: string
+          session_data: Json | null
+        }
+        Insert: {
+          chat_id: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_activity?: string | null
+          phone_number: string
+          session_data?: Json | null
+        }
+        Update: {
+          chat_id?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_activity?: string | null
+          phone_number?: string
+          session_data?: Json | null
+        }
+        Relationships: []
+      }
+      whatsapp_templates: {
+        Row: {
+          category: string | null
+          content: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          content: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          content?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       zonas_trabajo: {
         Row: {

@@ -4,6 +4,7 @@ import ApiCredentials from "@/components/settings/ApiCredentials";
 import { PermissionsManager } from "@/components/settings/PermissionsManager";
 import { QuickSkillsPanel } from "@/components/settings/QuickSkillsPanel";
 import { RoleManager } from "@/components/settings/roles/RoleManager";
+import { WhatsAppManager } from "@/components/settings/WhatsAppManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Settings = () => {
@@ -23,6 +24,7 @@ const Settings = () => {
         <TabsList className="mb-6">
           <TabsTrigger value="roles">Roles y Usuarios</TabsTrigger>
           <TabsTrigger value="permissions">Permisos Avanzados</TabsTrigger>
+          <TabsTrigger value="whatsapp">Bot WhatsApp</TabsTrigger>
           <TabsTrigger value="api">API</TabsTrigger>
         </TabsList>
 
@@ -32,6 +34,10 @@ const Settings = () => {
 
         <TabsContent value="permissions">
           <PermissionsManager />
+        </TabsContent>
+
+        <TabsContent value="whatsapp">
+          <WhatsAppManager />
         </TabsContent>
 
         <TabsContent value="api">
