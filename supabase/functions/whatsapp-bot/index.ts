@@ -186,46 +186,30 @@ serve(async (req) => {
 });
 
 function generateMockQRCode(): string {
-  const svgQR = `<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
-    <rect width="200" height="200" fill="white"/>
-    <rect x="20" y="20" width="15" height="15" fill="black"/>
-    <rect x="50" y="20" width="15" height="15" fill="black"/>
-    <rect x="80" y="20" width="15" height="15" fill="black"/>
-    <rect x="110" y="20" width="15" height="15" fill="black"/>
-    <rect x="140" y="20" width="15" height="15" fill="black"/>
-    <rect x="170" y="20" width="15" height="15" fill="black"/>
-    <rect x="20" y="50" width="15" height="15" fill="black"/>
-    <rect x="80" y="50" width="15" height="15" fill="black"/>
-    <rect x="140" y="50" width="15" height="15" fill="black"/>
-    <rect x="170" y="50" width="15" height="15" fill="black"/>
-    <rect x="20" y="80" width="15" height="15" fill="black"/>
-    <rect x="50" y="80" width="15" height="15" fill="black"/>
-    <rect x="110" y="80" width="15" height="15" fill="black"/>
-    <rect x="170" y="80" width="15" height="15" fill="black"/>
-    <rect x="50" y="110" width="15" height="15" fill="black"/>
-    <rect x="80" y="110" width="15" height="15" fill="black"/>
-    <rect x="110" y="110" width="15" height="15" fill="black"/>
-    <rect x="140" y="110" width="15" height="15" fill="black"/>
-    <rect x="20" y="140" width="15" height="15" fill="black"/>
-    <rect x="80" y="140" width="15" height="15" fill="black"/>
-    <rect x="140" y="140" width="15" height="15" fill="black"/>
-    <rect x="50" y="170" width="15" height="15" fill="black"/>
-    <rect x="80" y="170" width="15" height="15" fill="black"/>
-    <rect x="110" y="170" width="15" height="15" fill="black"/>
-    <rect x="170" y="170" width="15" height="15" fill="black"/>
-    <rect x="20" y="20" width="45" height="45" fill="none" stroke="black" stroke-width="3"/>
-    <rect x="135" y="20" width="45" height="45" fill="none" stroke="black" stroke-width="3"/>
-    <rect x="20" y="135" width="45" height="45" fill="none" stroke="black" stroke-width="3"/>
-    <rect x="30" y="30" width="25" height="25" fill="black"/>
-    <rect x="145" y="30" width="25" height="25" fill="black"/>
-    <rect x="30" y="145" width="25" height="25" fill="black"/>
-    <text x="100" y="195" text-anchor="middle" font-family="Arial" font-size="8" fill="gray">Escanea con WhatsApp</text>
-  </svg>`;
+  // IMPORTANTE: Este es un QR FALSO/DEMO que NO funciona con WhatsApp real
+  // Para WhatsApp Web real se necesita whatsapp-web.js o similar
   
-  console.log('QR data length:', svgQR.length);
-  console.log('QR data preview:', svgQR.substring(0, 100));
+  const informativeMessage = `
+    <div style="padding: 20px; text-align: center; border: 2px dashed #FF6B6B; border-radius: 12px; background: #FFF5F5; max-width: 300px;">
+      <div style="font-size: 32px; margin-bottom: 10px;">⚠️</div>
+      <h3 style="color: #E53E3E; margin: 10px 0; font-family: Arial, sans-serif;">QR Demo No Funcional</h3>
+      <p style="color: #2D3748; line-height: 1.6; font-size: 14px; margin: 15px 0;">
+        <strong>Este QR es solo visual/demo</strong>
+        <br><br>
+        Para WhatsApp Web real necesitas:
+        <br>• <code>whatsapp-web.js</code>
+        <br>• Autenticación real con WhatsApp
+        <br>• QR con datos de sesión válidos
+        <br>• WebSocket connection
+        <br><br>
+        <small style="color: #718096;">El QR actual solo simula la apariencia visual</small>
+      </p>
+    </div>
+  `;
   
-  return btoa(svgQR);
+  console.log('Generating informative message instead of fake QR');
+  
+  return btoa(informativeMessage);
 }
 
 async function processIncomingMessage(supabase: any, message: WhatsAppMessage) {
