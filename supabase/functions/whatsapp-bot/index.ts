@@ -186,30 +186,133 @@ serve(async (req) => {
 });
 
 function generateMockQRCode(): string {
-  // IMPORTANTE: Este es un QR FALSO/DEMO que NO funciona con WhatsApp real
+  // IMPORTANTE: Este es un QR DEMO que se ve realista pero NO funciona con WhatsApp real
   // Para WhatsApp Web real se necesita whatsapp-web.js o similar
   
-  const informativeMessage = `
-    <div style="padding: 20px; text-align: center; border: 2px dashed #FF6B6B; border-radius: 12px; background: #FFF5F5; max-width: 300px;">
-      <div style="font-size: 32px; margin-bottom: 10px;">⚠️</div>
-      <h3 style="color: #E53E3E; margin: 10px 0; font-family: Arial, sans-serif;">QR Demo No Funcional</h3>
-      <p style="color: #2D3748; line-height: 1.6; font-size: 14px; margin: 15px 0;">
-        <strong>Este QR es solo visual/demo</strong>
-        <br><br>
-        Para WhatsApp Web real necesitas:
-        <br>• <code>whatsapp-web.js</code>
-        <br>• Autenticación real con WhatsApp
-        <br>• QR con datos de sesión válidos
-        <br>• WebSocket connection
-        <br><br>
-        <small style="color: #718096;">El QR actual solo simula la apariencia visual</small>
-      </p>
-    </div>
+  const realisticQR = `
+    <svg viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%; background: white;">
+      <!-- QR Code Background -->
+      <rect width="300" height="300" fill="white"/>
+      
+      <!-- Corner Position Detection Patterns -->
+      <!-- Top Left -->
+      <rect x="20" y="20" width="70" height="70" fill="black"/>
+      <rect x="30" y="30" width="50" height="50" fill="white"/>
+      <rect x="40" y="40" width="30" height="30" fill="black"/>
+      
+      <!-- Top Right -->
+      <rect x="210" y="20" width="70" height="70" fill="black"/>
+      <rect x="220" y="30" width="50" height="50" fill="white"/>
+      <rect x="230" y="40" width="30" height="30" fill="black"/>
+      
+      <!-- Bottom Left -->
+      <rect x="20" y="210" width="70" height="70" fill="black"/>
+      <rect x="30" y="220" width="50" height="50" fill="white"/>
+      <rect x="40" y="230" width="30" height="30" fill="black"/>
+      
+      <!-- Data Pattern (scattered squares to simulate QR data) -->
+      <rect x="110" y="20" width="10" height="10" fill="black"/>
+      <rect x="130" y="20" width="10" height="10" fill="black"/>
+      <rect x="150" y="20" width="10" height="10" fill="black"/>
+      <rect x="170" y="20" width="10" height="10" fill="black"/>
+      <rect x="190" y="20" width="10" height="10" fill="black"/>
+      
+      <rect x="20" y="110" width="10" height="10" fill="black"/>
+      <rect x="40" y="110" width="10" height="10" fill="black"/>
+      <rect x="60" y="110" width="10" height="10" fill="black"/>
+      <rect x="80" y="110" width="10" height="10" fill="black"/>
+      
+      <rect x="110" y="40" width="10" height="10" fill="black"/>
+      <rect x="130" y="60" width="10" height="10" fill="black"/>
+      <rect x="150" y="40" width="10" height="10" fill="black"/>
+      <rect x="170" y="60" width="10" height="10" fill="black"/>
+      <rect x="190" y="40" width="10" height="10" fill="black"/>
+      
+      <rect x="110" y="80" width="10" height="10" fill="black"/>
+      <rect x="130" y="80" width="10" height="10" fill="black"/>
+      <rect x="150" y="100" width="10" height="10" fill="black"/>
+      <rect x="170" y="80" width="10" height="10" fill="black"/>
+      <rect x="190" y="100" width="10" height="10" fill="black"/>
+      
+      <!-- More data pattern -->
+      <rect x="110" y="110" width="10" height="10" fill="black"/>
+      <rect x="130" y="130" width="10" height="10" fill="black"/>
+      <rect x="150" y="110" width="10" height="10" fill="black"/>
+      <rect x="170" y="130" width="10" height="10" fill="black"/>
+      <rect x="190" y="110" width="10" height="10" fill="black"/>
+      
+      <rect x="210" y="110" width="10" height="10" fill="black"/>
+      <rect x="230" y="130" width="10" height="10" fill="black"/>
+      <rect x="250" y="110" width="10" height="10" fill="black"/>
+      <rect x="270" y="130" width="10" height="10" fill="black"/>
+      
+      <rect x="110" y="150" width="10" height="10" fill="black"/>
+      <rect x="130" y="170" width="10" height="10" fill="black"/>
+      <rect x="150" y="150" width="10" height="10" fill="black"/>
+      <rect x="170" y="170" width="10" height="10" fill="black"/>
+      <rect x="190" y="150" width="10" height="10" fill="black"/>
+      
+      <rect x="110" y="190" width="10" height="10" fill="black"/>
+      <rect x="130" y="210" width="10" height="10" fill="black"/>
+      <rect x="150" y="190" width="10" height="10" fill="black"/>
+      <rect x="170" y="210" width="10" height="10" fill="black"/>
+      <rect x="190" y="190" width="10" height="10" fill="black"/>
+      
+      <rect x="210" y="150" width="10" height="10" fill="black"/>
+      <rect x="230" y="170" width="10" height="10" fill="black"/>
+      <rect x="250" y="150" width="10" height="10" fill="black"/>
+      <rect x="270" y="170" width="10" height="10" fill="black"/>
+      
+      <rect x="110" y="230" width="10" height="10" fill="black"/>
+      <rect x="130" y="250" width="10" height="10" fill="black"/>
+      <rect x="150" y="230" width="10" height="10" fill="black"/>
+      <rect x="170" y="250" width="10" height="10" fill="black"/>
+      <rect x="190" y="230" width="10" height="10" fill="black"/>
+      
+      <rect x="210" y="190" width="10" height="10" fill="black"/>
+      <rect x="230" y="210" width="10" height="10" fill="black"/>
+      <rect x="250" y="190" width="10" height="10" fill="black"/>
+      <rect x="270" y="210" width="10" height="10" fill="black"/>
+      
+      <rect x="210" y="230" width="10" height="10" fill="black"/>
+      <rect x="230" y="250" width="10" height="10" fill="black"/>
+      <rect x="250" y="230" width="10" height="10" fill="black"/>
+      <rect x="270" y="250" width="10" height="10" fill="black"/>
+      
+      <!-- Timing patterns -->
+      <rect x="100" y="60" width="10" height="10" fill="black"/>
+      <rect x="100" y="80" width="10" height="10" fill="black"/>
+      <rect x="100" y="100" width="10" height="10" fill="black"/>
+      <rect x="100" y="120" width="10" height="10" fill="black"/>
+      <rect x="100" y="140" width="10" height="10" fill="black"/>
+      <rect x="100" y="160" width="10" height="10" fill="black"/>
+      <rect x="100" y="180" width="10" height="10" fill="black"/>
+      <rect x="100" y="200" width="10" height="10" fill="black"/>
+      
+      <rect x="60" y="100" width="10" height="10" fill="black"/>
+      <rect x="80" y="100" width="10" height="10" fill="black"/>
+      <rect x="120" y="100" width="10" height="10" fill="black"/>
+      <rect x="140" y="100" width="10" height="10" fill="black"/>
+      <rect x="160" y="100" width="10" height="10" fill="black"/>
+      <rect x="180" y="100" width="10" height="10" fill="black"/>
+      <rect x="200" y="100" width="10" height="10" fill="black"/>
+      
+      <!-- WhatsApp Logo in center -->
+      <circle cx="150" cy="150" r="25" fill="white" stroke="black" stroke-width="2"/>
+      <circle cx="150" cy="150" r="20" fill="#25D366"/>
+      
+      <!-- Simple WhatsApp icon -->
+      <path d="M140 140 Q140 135 145 135 Q155 135 160 140 Q160 145 155 150 L150 155 L145 150 Q140 145 140 140 Z" fill="white"/>
+      <circle cx="145" cy="142" r="2" fill="white"/>
+      
+      <!-- Demo watermark -->
+      <text x="150" y="285" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#999">QR Demo - No Funcional</text>
+    </svg>
   `;
   
-  console.log('Generating informative message instead of fake QR');
+  console.log('Generating realistic QR code demo');
   
-  return btoa(informativeMessage);
+  return btoa(realisticQR);
 }
 
 async function processIncomingMessage(supabase: any, message: WhatsAppMessage) {
