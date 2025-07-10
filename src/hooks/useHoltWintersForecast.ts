@@ -61,8 +61,22 @@ export const useHoltWintersForecast = (): ForecastData => {
         throw error;
       }
       
-      console.log('📊 DATOS HISTÓRICOS OBTENIDOS:', data?.length || 0, 'puntos de datos');
-      return data as HistoricalDataPoint[];
+      const historicalData = (data || []) as Array<{
+        year: number;
+        month: number;
+        services: number;
+        gmv: number;
+        services_completed: number;
+      }>;
+      
+      console.log('📊 DATOS HISTÓRICOS OBTENIDOS:', historicalData.length, 'puntos de datos');
+      return historicalData.map(d => ({
+        year: d.year,
+        month: d.month,
+        services: d.services,
+        gmv: Number(d.gmv),
+        services_completed: d.services_completed
+      }));
     },
     staleTime: 10 * 60 * 1000, // 10 minutos
     retry: 2

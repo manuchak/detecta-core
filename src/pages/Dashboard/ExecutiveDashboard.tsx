@@ -138,8 +138,6 @@ const ExecutiveDashboard = () => {
           <div className="mb-10">
             <h2 className="text-2xl font-semibold text-gray-800 mb-6">Pronósticos y Proyecciones</h2>
             <ForecastCard 
-              totalServices={currentMetrics.totalServices}
-              totalGMV={currentMetrics.totalGMV}
               isLoading={isLoading}
               error={error}
             />

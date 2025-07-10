@@ -1,22 +1,20 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFormatters } from "@/hooks/useFormatters";
-import { useForecastData } from "@/hooks/useForecastData";
-import { TrendingUp, TrendingDown, BarChart3, DollarSign, Calendar, Target, Info, Database, Loader2, AlertTriangle, Activity, Zap } from "lucide-react";
+import { useHoltWintersForecast } from "@/hooks/useHoltWintersForecast";
+import { TrendingUp, TrendingDown, BarChart3, DollarSign, Calendar, Target, Info, Database, Loader2, AlertTriangle, Activity, Zap, Brain } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 
 interface ForecastCardProps {
-  totalServices: number;
-  totalGMV: number;
   isLoading?: boolean;
   error?: any;
 }
 
-export const ForecastCard = ({ totalServices, totalGMV, isLoading = false, error }: ForecastCardProps) => {
+export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) => {
   const { formatCurrency } = useFormatters();
-  const forecastData = useForecastData(totalServices, totalGMV);
+  const forecastData = useHoltWintersForecast();
   
   const currentYear = new Date().getFullYear();
   
@@ -190,14 +188,17 @@ export const ForecastCard = ({ totalServices, totalGMV, isLoading = false, error
               <CardTitle className="text-2xl font-bold text-slate-900">
                 Forecast de Servicios y GMV
               </CardTitle>
-              <div className="flex items-center gap-3 mt-2">
-                <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-200">
-                  <Database className="h-3 w-3 mr-1" />
-                  Auditoría Forense
+               <div className="flex items-center gap-3 mt-2">
+                <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200">
+                  <Brain className="h-3 w-3 mr-1" />
+                  Holt-Winters
                 </Badge>
                 <Badge variant="outline" className="text-slate-600">
                   <Activity className="h-3 w-3 mr-1" />
-                  Actualizado: {new Date().toLocaleDateString('es-MX')}
+                  MAPE: {forecastData.accuracy.serviceMAPE.toFixed(1)}%
+                </Badge>
+                <Badge variant="outline" className="text-slate-600">
+                  Confianza: {forecastData.accuracy.confidence}
                 </Badge>
               </div>
             </div>
@@ -287,45 +288,64 @@ export const ForecastCard = ({ totalServices, totalGMV, isLoading = false, error
           </div>
         </div>
         
-        {/* Metodología mejorada */}
+        {/* Metodología Holt-Winters mejorada */}
         <div className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl p-6 border border-gray-100">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-slate-100 rounded-lg">
-              <Zap className="h-5 w-5 text-slate-600" />
+            <div className="p-2 bg-indigo-100 rounded-lg">
+              <Brain className="h-5 w-5 text-indigo-600" />
             </div>
-            <h4 className="font-bold text-slate-800">Metodología del Forecast</h4>
+            <h4 className="font-bold text-slate-800">Modelo Holt-Winters (Triple Exponential Smoothing)</h4>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <div className="flex items-center gap-3 bg-white rounded-lg p-3 border border-gray-100">
               <div className="w-3 h-3 bg-blue-500 rounded-full flex-shrink-0"></div>
               <div className="text-sm">
-                <div className="font-medium text-gray-900">Base Auditada</div>
-                <div className="text-gray-600">{forecastData.monthlyServicesActual.toLocaleString()} servicios</div>
+                <div className="font-medium text-gray-900">Datos Históricos</div>
+                <div className="text-gray-600">2023-2025 (30+ meses)</div>
               </div>
             </div>
             
             <div className="flex items-center gap-3 bg-white rounded-lg p-3 border border-gray-100">
               <div className="w-3 h-3 bg-green-500 rounded-full flex-shrink-0"></div>
               <div className="text-sm">
-                <div className="font-medium text-gray-900">GMV Validado</div>
-                <div className="text-gray-600">{formatCurrency(forecastData.monthlyGmvActual)}</div>
+                <div className="font-medium text-gray-900">Estacionalidad</div>
+                <div className="text-gray-600">12 meses (anual)</div>
               </div>
             </div>
             
             <div className="flex items-center gap-3 bg-white rounded-lg p-3 border border-gray-100">
               <div className="w-3 h-3 bg-purple-500 rounded-full flex-shrink-0"></div>
               <div className="text-sm">
-                <div className="font-medium text-gray-900">Promedio Mensual</div>
-                <div className="text-gray-600">{Math.round(forecastData.monthlyServicesActual / 5)} servicios</div>
+                <div className="font-medium text-gray-900">Precisión MAPE</div>
+                <div className="text-gray-600">{forecastData.accuracy.serviceMAPE.toFixed(1)}% servicios</div>
               </div>
             </div>
             
             <div className="flex items-center gap-3 bg-white rounded-lg p-3 border border-gray-100">
               <div className="w-3 h-3 bg-orange-500 rounded-full flex-shrink-0"></div>
               <div className="text-sm">
-                <div className="font-medium text-gray-900">Precisión</div>
-                <div className="text-gray-600">100% consistente</div>
+                <div className="font-medium text-gray-900">Confianza</div>
+                <div className="text-gray-600">{forecastData.accuracy.confidence}</div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Componentes del modelo */}
+          <div className="bg-white rounded-lg p-4 border border-gray-100">
+            <h5 className="font-semibold text-gray-800 mb-3">Componentes del Modelo:</h5>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div className="text-center">
+                <div className="font-medium text-blue-600">Nivel (α)</div>
+                <div className="text-gray-600">Suaviza valores observados</div>
+              </div>
+              <div className="text-center">
+                <div className="font-medium text-green-600">Tendencia (β)</div>
+                <div className="text-gray-600">Detecta crecimiento/decrecimiento</div>
+              </div>
+              <div className="text-center">
+                <div className="font-medium text-purple-600">Estacionalidad (γ)</div>
+                <div className="text-gray-600">Patrones mensuales recurrentes</div>
               </div>
             </div>
           </div>

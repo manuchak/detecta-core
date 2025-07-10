@@ -4362,6 +4362,16 @@ export type Database = {
           updated_time: string | null
         }[]
       }
+      get_historical_monthly_data: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          year: number
+          month: number
+          services: number
+          gmv: number
+          services_completed: number
+        }[]
+      }
       get_instaladores_disponibles: {
         Args: { p_fecha: string; p_zona?: Json; p_tipo_instalacion?: string }
         Returns: {
