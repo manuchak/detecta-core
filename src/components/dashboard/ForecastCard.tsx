@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 interface ForecastCardProps {
   isLoading?: boolean;
@@ -20,13 +20,49 @@ interface ForecastCardProps {
 export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) => {
   const { formatCurrency } = useFormatters();
   
-  // Estados para parámetros manuales
-  const [useManualParams, setUseManualParams] = useState(false);
-  const [manualAlpha, setManualAlpha] = useState(0.3);
-  const [manualBeta, setManualBeta] = useState(0.1);
-  const [manualGamma, setManualGamma] = useState(0.1);
-  const [showAdvancedControls, setShowAdvancedControls] = useState(false);
+  // Estados para parámetros manuales con persistencia
+  const [useManualParams, setUseManualParams] = useState(() => {
+    const saved = localStorage.getItem('holt-winters-use-manual');
+    return saved ? JSON.parse(saved) : false;
+  });
+  const [manualAlpha, setManualAlpha] = useState(() => {
+    const saved = localStorage.getItem('holt-winters-alpha');
+    return saved ? parseFloat(saved) : 0.3;
+  });
+  const [manualBeta, setManualBeta] = useState(() => {
+    const saved = localStorage.getItem('holt-winters-beta');
+    return saved ? parseFloat(saved) : 0.1;
+  });
+  const [manualGamma, setManualGamma] = useState(() => {
+    const saved = localStorage.getItem('holt-winters-gamma');
+    return saved ? parseFloat(saved) : 0.1;
+  });
+  const [showAdvancedControls, setShowAdvancedControls] = useState(() => {
+    const saved = localStorage.getItem('holt-winters-show-advanced');
+    return saved ? JSON.parse(saved) : false;
+  });
   
+  // Persistir valores en localStorage cuando cambien
+  useEffect(() => {
+    localStorage.setItem('holt-winters-use-manual', JSON.stringify(useManualParams));
+  }, [useManualParams]);
+
+  useEffect(() => {
+    localStorage.setItem('holt-winters-alpha', manualAlpha.toString());
+  }, [manualAlpha]);
+
+  useEffect(() => {
+    localStorage.setItem('holt-winters-beta', manualBeta.toString());
+  }, [manualBeta]);
+
+  useEffect(() => {
+    localStorage.setItem('holt-winters-gamma', manualGamma.toString());
+  }, [manualGamma]);
+
+  useEffect(() => {
+    localStorage.setItem('holt-winters-show-advanced', JSON.stringify(showAdvancedControls));
+  }, [showAdvancedControls]);
+
   // Hook de forecast con parámetros opcionales
   const forecastData = useHoltWintersForecast(
     useManualParams ? {
