@@ -1,5 +1,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// Import Baileys for real WhatsApp integration
+import makeWASocket, { 
+  DisconnectReason, 
+  useMultiFileAuthState,
+  makeInMemoryStore,
+  ConnectionState,
+  AuthState,
+  WASocket,
+  BaileysEventMap
+} from "https://esm.sh/@whiskeysockets/baileys@6.6.0";
+import { Boom } from "https://esm.sh/@hapi/boom@10.0.1";
+import QRCode from "https://esm.sh/qrcode@1.5.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,6 +34,10 @@ interface TicketData {
   category: string;
   whatsapp_chat_id: string;
 }
+
+// Global storage for active sockets
+const activeSockets = new Map<string, WASocket>();
+const store = makeInMemoryStore({});
 
 serve(async (req) => {
   console.log('=== WhatsApp Bot Function Started ===');
@@ -62,7 +78,7 @@ serve(async (req) => {
 
     switch (action) {
       case 'generate_qr': {
-        console.log('=== Generating QR Code ===');
+        console.log('=== Starting Real WhatsApp Connection ===');
         
         if (!phone_number) {
           console.error('Phone number is required but not provided');
@@ -72,102 +88,81 @@ serve(async (req) => {
           );
         }
 
-        console.log('Generating mock QR code...');
-        const qrCodeData = generateMockQRCode();
-        console.log('QR code generated successfully, length:', qrCodeData.length);
-        
-        const configData = {
-          phone_number,
-          qr_code: qrCodeData,
-          connection_status: 'connecting',
-          is_active: true,
-          welcome_message: 'Hola! Gracias por contactarnos. ¿En qué podemos ayudarte?',
-          business_hours_start: '09:00',
-          business_hours_end: '18:00',
-          auto_reply_enabled: true,
-          updated_at: new Date().toISOString()
-        };
-        
-        console.log('Attempting to upsert configuration...');
-        
-        const { data, error } = await supabase
-          .from('whatsapp_configurations')
-          .upsert(configData, { 
-            onConflict: 'phone_number',
-            ignoreDuplicates: false 
-          })
-          .select()
-          .single();
-
-        if (error) {
-          console.error('Database upsert error:', error);
+        try {
+          // Create a real WhatsApp connection with Baileys
+          const result = await createWhatsAppConnection(supabase, phone_number);
+          
+          return new Response(
+            JSON.stringify(result),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } catch (error) {
+          console.error('Error creating WhatsApp connection:', error);
           return new Response(
             JSON.stringify({ 
-              error: 'Failed to save configuration', 
-              details: error.message,
-              code: error.code 
+              error: 'Failed to create WhatsApp connection', 
+              details: error.message 
             }), 
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
-
-        console.log('Configuration saved successfully:', data);
-        
-        const response = {
-          success: true,
-          qr_code: qrCodeData,
-          message: 'QR code generated successfully',
-          config: data
-        };
-        
-        console.log('Sending successful response');
-        
-        return new Response(
-          JSON.stringify(response),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
       }
 
       case 'disconnect': {
-        const { error } = await supabase
-          .from('whatsapp_configurations')
-          .update({
-            connection_status: 'disconnected',
-            is_active: false,
-            qr_code: null
-          })
-          .eq('is_active', true);
-
-        if (error) throw error;
-
-        return new Response(
-          JSON.stringify({ success: true }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        console.log('=== Disconnecting WhatsApp ===');
+        
+        try {
+          await disconnectWhatsApp(supabase, phone_number);
+          
+          return new Response(
+            JSON.stringify({ success: true }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } catch (error) {
+          console.error('Error disconnecting WhatsApp:', error);
+          return new Response(
+            JSON.stringify({ error: error.message }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
 
       case 'send_message': {
-        // Lógica para enviar mensaje a WhatsApp
-        await logMessage(supabase, {
-          chat_id: chat_id,
-          message_text: message,
-          is_from_bot: true
-        });
-
-        return new Response(
-          JSON.stringify({ success: true }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        console.log('=== Sending WhatsApp Message ===');
+        
+        try {
+          const result = await sendWhatsAppMessage(supabase, chat_id, message, phone_number);
+          
+          return new Response(
+            JSON.stringify(result),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } catch (error) {
+          console.error('Error sending message:', error);
+          return new Response(
+            JSON.stringify({ error: error.message }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
 
-      case 'receive_message': {
-        // Procesar mensaje recibido de WhatsApp
-        const response = await processIncomingMessage(supabase, message);
+      case 'get_status': {
+        console.log('=== Getting Connection Status ===');
         
-        return new Response(
-          JSON.stringify(response),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        try {
+          const status = await getConnectionStatus(supabase, phone_number);
+          
+          return new Response(
+            JSON.stringify(status),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } catch (error) {
+          console.error('Error getting status:', error);
+          return new Response(
+            JSON.stringify({ error: error.message }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
 
       default:
@@ -185,253 +180,353 @@ serve(async (req) => {
   }
 });
 
-function generateMockQRCode(): string {
-  // IMPORTANTE: Este es un QR DEMO que se ve realista pero NO funciona con WhatsApp real
-  // Para WhatsApp Web real se necesita whatsapp-web.js o similar
+async function createWhatsAppConnection(supabase: any, phoneNumber: string) {
+  console.log('Creating WhatsApp connection for:', phoneNumber);
   
-  const realisticQR = `
-    <svg viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%; background: white;">
-      <!-- QR Code Background -->
-      <rect width="300" height="300" fill="white"/>
-      
-      <!-- Corner Position Detection Patterns -->
-      <!-- Top Left -->
-      <rect x="20" y="20" width="70" height="70" fill="black"/>
-      <rect x="30" y="30" width="50" height="50" fill="white"/>
-      <rect x="40" y="40" width="30" height="30" fill="black"/>
-      
-      <!-- Top Right -->
-      <rect x="210" y="20" width="70" height="70" fill="black"/>
-      <rect x="220" y="30" width="50" height="50" fill="white"/>
-      <rect x="230" y="40" width="30" height="30" fill="black"/>
-      
-      <!-- Bottom Left -->
-      <rect x="20" y="210" width="70" height="70" fill="black"/>
-      <rect x="30" y="220" width="50" height="50" fill="white"/>
-      <rect x="40" y="230" width="30" height="30" fill="black"/>
-      
-      <!-- Data Pattern (scattered squares to simulate QR data) -->
-      <rect x="110" y="20" width="10" height="10" fill="black"/>
-      <rect x="130" y="20" width="10" height="10" fill="black"/>
-      <rect x="150" y="20" width="10" height="10" fill="black"/>
-      <rect x="170" y="20" width="10" height="10" fill="black"/>
-      <rect x="190" y="20" width="10" height="10" fill="black"/>
-      
-      <rect x="20" y="110" width="10" height="10" fill="black"/>
-      <rect x="40" y="110" width="10" height="10" fill="black"/>
-      <rect x="60" y="110" width="10" height="10" fill="black"/>
-      <rect x="80" y="110" width="10" height="10" fill="black"/>
-      
-      <rect x="110" y="40" width="10" height="10" fill="black"/>
-      <rect x="130" y="60" width="10" height="10" fill="black"/>
-      <rect x="150" y="40" width="10" height="10" fill="black"/>
-      <rect x="170" y="60" width="10" height="10" fill="black"/>
-      <rect x="190" y="40" width="10" height="10" fill="black"/>
-      
-      <rect x="110" y="80" width="10" height="10" fill="black"/>
-      <rect x="130" y="80" width="10" height="10" fill="black"/>
-      <rect x="150" y="100" width="10" height="10" fill="black"/>
-      <rect x="170" y="80" width="10" height="10" fill="black"/>
-      <rect x="190" y="100" width="10" height="10" fill="black"/>
-      
-      <!-- More data pattern -->
-      <rect x="110" y="110" width="10" height="10" fill="black"/>
-      <rect x="130" y="130" width="10" height="10" fill="black"/>
-      <rect x="150" y="110" width="10" height="10" fill="black"/>
-      <rect x="170" y="130" width="10" height="10" fill="black"/>
-      <rect x="190" y="110" width="10" height="10" fill="black"/>
-      
-      <rect x="210" y="110" width="10" height="10" fill="black"/>
-      <rect x="230" y="130" width="10" height="10" fill="black"/>
-      <rect x="250" y="110" width="10" height="10" fill="black"/>
-      <rect x="270" y="130" width="10" height="10" fill="black"/>
-      
-      <rect x="110" y="150" width="10" height="10" fill="black"/>
-      <rect x="130" y="170" width="10" height="10" fill="black"/>
-      <rect x="150" y="150" width="10" height="10" fill="black"/>
-      <rect x="170" y="170" width="10" height="10" fill="black"/>
-      <rect x="190" y="150" width="10" height="10" fill="black"/>
-      
-      <rect x="110" y="190" width="10" height="10" fill="black"/>
-      <rect x="130" y="210" width="10" height="10" fill="black"/>
-      <rect x="150" y="190" width="10" height="10" fill="black"/>
-      <rect x="170" y="210" width="10" height="10" fill="black"/>
-      <rect x="190" y="190" width="10" height="10" fill="black"/>
-      
-      <rect x="210" y="150" width="10" height="10" fill="black"/>
-      <rect x="230" y="170" width="10" height="10" fill="black"/>
-      <rect x="250" y="150" width="10" height="10" fill="black"/>
-      <rect x="270" y="170" width="10" height="10" fill="black"/>
-      
-      <rect x="110" y="230" width="10" height="10" fill="black"/>
-      <rect x="130" y="250" width="10" height="10" fill="black"/>
-      <rect x="150" y="230" width="10" height="10" fill="black"/>
-      <rect x="170" y="250" width="10" height="10" fill="black"/>
-      <rect x="190" y="230" width="10" height="10" fill="black"/>
-      
-      <rect x="210" y="190" width="10" height="10" fill="black"/>
-      <rect x="230" y="210" width="10" height="10" fill="black"/>
-      <rect x="250" y="190" width="10" height="10" fill="black"/>
-      <rect x="270" y="210" width="10" height="10" fill="black"/>
-      
-      <rect x="210" y="230" width="10" height="10" fill="black"/>
-      <rect x="230" y="250" width="10" height="10" fill="black"/>
-      <rect x="250" y="230" width="10" height="10" fill="black"/>
-      <rect x="270" y="250" width="10" height="10" fill="black"/>
-      
-      <!-- Timing patterns -->
-      <rect x="100" y="60" width="10" height="10" fill="black"/>
-      <rect x="100" y="80" width="10" height="10" fill="black"/>
-      <rect x="100" y="100" width="10" height="10" fill="black"/>
-      <rect x="100" y="120" width="10" height="10" fill="black"/>
-      <rect x="100" y="140" width="10" height="10" fill="black"/>
-      <rect x="100" y="160" width="10" height="10" fill="black"/>
-      <rect x="100" y="180" width="10" height="10" fill="black"/>
-      <rect x="100" y="200" width="10" height="10" fill="black"/>
-      
-      <rect x="60" y="100" width="10" height="10" fill="black"/>
-      <rect x="80" y="100" width="10" height="10" fill="black"/>
-      <rect x="120" y="100" width="10" height="10" fill="black"/>
-      <rect x="140" y="100" width="10" height="10" fill="black"/>
-      <rect x="160" y="100" width="10" height="10" fill="black"/>
-      <rect x="180" y="100" width="10" height="10" fill="black"/>
-      <rect x="200" y="100" width="10" height="10" fill="black"/>
-      
-      <!-- WhatsApp Logo in center -->
-      <circle cx="150" cy="150" r="25" fill="white" stroke="black" stroke-width="2"/>
-      <circle cx="150" cy="150" r="20" fill="#25D366"/>
-      
-      <!-- Simple WhatsApp icon -->
-      <path d="M140 140 Q140 135 145 135 Q155 135 160 140 Q160 145 155 150 L150 155 L145 150 Q140 145 140 140 Z" fill="white"/>
-      <circle cx="145" cy="142" r="2" fill="white"/>
-      
-      <!-- Demo watermark -->
-      <text x="150" y="285" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#999">QR Demo - No Funcional</text>
-    </svg>
-  `;
-  
-  console.log('Generating realistic QR code demo');
-  
-  return btoa(realisticQR);
-}
-
-async function processIncomingMessage(supabase: any, message: WhatsAppMessage) {
-  console.log('Processing incoming message:', message);
-
-  // Registrar el mensaje
-  await logMessage(supabase, {
-    chat_id: message.from,
-    sender_phone: message.from,
-    message_text: message.body,
-    is_from_bot: false
-  });
-
-  // Obtener configuración activa
-  const { data: config } = await supabase
-    .from('whatsapp_configurations')
-    .select('*')
-    .eq('is_active', true)
-    .single();
-
-  if (!config || !config.auto_reply_enabled) {
-    return { success: true, no_reply: true };
-  }
-
-  // Verificar horario de atención
-  const now = new Date();
-  const currentTime = now.toTimeString().slice(0, 5);
-  const isBusinessHours = currentTime >= config.business_hours_start && 
-                         currentTime <= config.business_hours_end;
-
-  if (!isBusinessHours) {
-    const { data: template } = await supabase
-      .from('whatsapp_templates')
-      .select('content')
-      .eq('name', 'fuera_horario')
+  try {
+    // Check if session already exists
+    const { data: existingSession } = await supabase
+      .from('whatsapp_sessions')
+      .select('*')
+      .eq('phone_number', phoneNumber)
       .single();
 
-    if (template) {
-      await sendReply(supabase, message.from, template.content);
+    let sessionId = existingSession?.id;
+    let authState: AuthState;
+    
+    if (existingSession?.auth_state) {
+      console.log('Loading existing auth state');
+      authState = existingSession.auth_state;
+    } else {
+      console.log('Creating new auth state');
+      // For demo purposes, we'll create a simple auth state structure
+      authState = {
+        creds: {},
+        keys: {}
+      } as any;
     }
-    return { success: true, reply: 'out_of_hours' };
-  }
 
-  // Procesar mensaje según contenido
-  const messageText = message.body.toLowerCase().trim();
-  let replyTemplate = null;
-  let createTicket = false;
+    // Create the socket connection
+    const socket = makeWASocket({
+      auth: authState,
+      printQRInTerminal: false,
+      logger: {
+        level: 'silent',
+        child: () => ({ level: 'silent' } as any)
+      } as any,
+      generateHighQualityLinkPreview: true,
+    });
 
-  if (messageText.includes('hola') || messageText.includes('ayuda') || messageText === '1') {
-    replyTemplate = 'menu_principal';
-  } else if (messageText === '2' || messageText.includes('incidencia') || messageText.includes('problema')) {
-    createTicket = true;
-    replyTemplate = 'ticket_creado';
-  } else if (messageText === '4' || messageText.includes('agente') || messageText.includes('humano')) {
-    replyTemplate = 'escalamiento';
-    createTicket = true;
-  } else if (!replyTemplate) {
-    replyTemplate = 'bienvenida';
-  }
+    // Store the socket for later use
+    activeSockets.set(phoneNumber, socket);
 
-  // Crear ticket si es necesario
-  let ticketNumber = null;
-  if (createTicket) {
-    ticketNumber = await createTicketFromMessage(supabase, message);
-  }
+    let qrCode = '';
+    let connectionPromise: Promise<any>;
 
-  // Enviar respuesta automática
-  if (replyTemplate) {
-    const { data: template } = await supabase
-      .from('whatsapp_templates')
-      .select('content')
-      .eq('name', replyTemplate)
-      .single();
+    // Handle connection events
+    connectionPromise = new Promise((resolve, reject) => {
+      socket.ev.on('connection.update', async (update: Partial<ConnectionState>) => {
+        console.log('Connection update:', update);
+        
+        const { connection, lastDisconnect, qr } = update;
+        
+        if (qr) {
+          console.log('QR Code received, generating image...');
+          try {
+            // Generate real QR code as base64 image
+            const qrImageData = await QRCode.toDataURL(qr, {
+              width: 256,
+              margin: 2,
+              color: {
+                dark: '#000000',
+                light: '#FFFFFF'
+              }
+            });
+            
+            qrCode = qrImageData;
+            console.log('QR code generated successfully');
+            
+            // Update session with QR
+            await updateSessionInDatabase(supabase, phoneNumber, {
+              qr_code: qrCode,
+              connection_status: 'waiting_for_scan',
+              session_data: { lastQR: qr }
+            });
 
-    if (template) {
-      let replyText = template.content;
-      if (ticketNumber) {
-        replyText = replyText.replace('{ticket_number}', ticketNumber);
+            // Log event
+            await logConnectionEvent(supabase, sessionId, 'qr_generated', { qr: qr.substring(0, 50) + '...' });
+            
+          } catch (qrError) {
+            console.error('Error generating QR code:', qrError);
+            reject(qrError);
+          }
+        }
+        
+        if (connection === 'close') {
+          const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+          console.log('Connection closed due to:', lastDisconnect?.error, ', reconnecting:', shouldReconnect);
+          
+          await updateSessionInDatabase(supabase, phoneNumber, {
+            connection_status: 'disconnected',
+            qr_code: null
+          });
+
+          await logConnectionEvent(supabase, sessionId, 'disconnected', { 
+            reason: (lastDisconnect?.error as any)?.message || 'Unknown',
+            shouldReconnect 
+          });
+          
+          activeSockets.delete(phoneNumber);
+          
+          if (!shouldReconnect) {
+            reject(new Error('Logged out from WhatsApp'));
+          }
+        } else if (connection === 'open') {
+          console.log('WhatsApp connection opened successfully');
+          
+          // Save auth state to database
+          await updateSessionInDatabase(supabase, phoneNumber, {
+            connection_status: 'connected',
+            last_connected_at: new Date().toISOString(),
+            auth_state: socket.authState,
+            qr_code: null
+          });
+
+          await logConnectionEvent(supabase, sessionId, 'connected', { 
+            user: socket.user?.id || 'Unknown' 
+          });
+          
+          resolve({
+            success: true,
+            status: 'connected',
+            message: 'WhatsApp connected successfully',
+            user: socket.user
+          });
+        }
+      });
+
+      // Handle incoming messages
+      socket.ev.on('messages.upsert', async (m) => {
+        console.log('New messages:', m);
+        
+        for (const msg of m.messages) {
+          if (!msg.key.fromMe && msg.message) {
+            await processIncomingMessage(supabase, socket, msg);
+          }
+        }
+      });
+
+      // Timeout after 60 seconds if no connection
+      setTimeout(() => {
+        if (qrCode) {
+          resolve({
+            success: true,
+            qr_code: qrCode,
+            status: 'waiting_for_scan',
+            message: 'QR code generated, scan with WhatsApp to connect'
+          });
+        } else {
+          reject(new Error('Connection timeout - no QR code generated'));
+        }
+      }, 60000);
+    });
+
+    // If no existing session, create one
+    if (!sessionId) {
+      const { data: newSession, error } = await supabase
+        .from('whatsapp_sessions')
+        .insert({
+          phone_number: phoneNumber,
+          connection_status: 'connecting',
+          auth_state: authState
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating session:', error);
+        throw error;
       }
-      await sendReply(supabase, message.from, replyText);
+      
+      sessionId = newSession.id;
+      console.log('Created new session:', sessionId);
     }
-  }
 
-  return { success: true, ticket_created: !!ticketNumber };
-}
+    return await connectionPromise;
 
-async function createTicketFromMessage(supabase: any, message: WhatsAppMessage): Promise<string> {
-  const ticketData: TicketData = {
-    customer_phone: message.from,
-    subject: 'Consulta desde WhatsApp',
-    description: message.body,
-    category: 'whatsapp',
-    whatsapp_chat_id: message.from
-  };
-
-  const { data, error } = await supabase
-    .from('tickets')
-    .insert(ticketData)
-    .select('ticket_number')
-    .single();
-
-  if (error) {
-    console.error('Error creating ticket:', error);
+  } catch (error) {
+    console.error('Error in createWhatsAppConnection:', error);
     throw error;
   }
-
-  return data.ticket_number;
 }
 
-async function sendReply(supabase: any, chatId: string, message: string) {
-  // En un entorno real, aquí se enviaría el mensaje usando Baileys
-  console.log(`Sending reply to ${chatId}: ${message}`);
+async function updateSessionInDatabase(supabase: any, phoneNumber: string, updates: any) {
+  const { error } = await supabase
+    .from('whatsapp_sessions')
+    .upsert({
+      phone_number: phoneNumber,
+      ...updates,
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict: 'phone_number'
+    });
+
+  if (error) {
+    console.error('Error updating session:', error);
+    throw error;
+  }
+}
+
+async function logConnectionEvent(supabase: any, sessionId: string, eventType: string, eventData: any) {
+  if (!sessionId) return;
   
-  // Registrar el mensaje enviado
-  await logMessage(supabase, {
-    chat_id: chatId,
-    message_text: message,
-    is_from_bot: true
+  const { error } = await supabase
+    .from('whatsapp_connection_logs')
+    .insert({
+      session_id: sessionId,
+      event_type: eventType,
+      event_data: eventData
+    });
+
+  if (error) {
+    console.error('Error logging event:', error);
+  }
+}
+
+async function disconnectWhatsApp(supabase: any, phoneNumber: string) {
+  console.log('Disconnecting WhatsApp for:', phoneNumber);
+  
+  const socket = activeSockets.get(phoneNumber);
+  if (socket) {
+    await socket.logout();
+    activeSockets.delete(phoneNumber);
+  }
+
+  await updateSessionInDatabase(supabase, phoneNumber, {
+    connection_status: 'disconnected',
+    qr_code: null,
+    auth_state: null
   });
+
+  return { success: true, message: 'Disconnected successfully' };
+}
+
+async function sendWhatsAppMessage(supabase: any, chatId: string, message: string, phoneNumber: string) {
+  console.log('Sending message to:', chatId);
+  
+  const socket = activeSockets.get(phoneNumber);
+  if (!socket) {
+    throw new Error('WhatsApp not connected for this phone number');
+  }
+
+  try {
+    const jid = chatId.includes('@') ? chatId : `${chatId}@s.whatsapp.net`;
+    await socket.sendMessage(jid, { text: message });
+    
+    // Log the message
+    await logMessage(supabase, {
+      chat_id: chatId,
+      message_text: message,
+      is_from_bot: true,
+      phone_number: phoneNumber
+    });
+
+    return { success: true, message: 'Message sent successfully' };
+  } catch (error) {
+    console.error('Error sending message:', error);
+    throw error;
+  }
+}
+
+async function getConnectionStatus(supabase: any, phoneNumber: string) {
+  const { data: session } = await supabase
+    .from('whatsapp_sessions')
+    .select('*')
+    .eq('phone_number', phoneNumber)
+    .single();
+
+  if (!session) {
+    return { status: 'not_found', message: 'No session found for this phone number' };
+  }
+
+  const isSocketActive = activeSockets.has(phoneNumber);
+  
+  return {
+    status: session.connection_status,
+    is_active: session.is_active,
+    last_connected: session.last_connected_at,
+    socket_active: isSocketActive,
+    qr_available: !!session.qr_code
+  };
+}
+
+async function processIncomingMessage(supabase: any, socket: WASocket, msg: any) {
+  console.log('Processing incoming message:', msg);
+
+  try {
+    const chatId = msg.key.remoteJid;
+    const messageText = msg.message?.conversation || 
+                       msg.message?.extendedTextMessage?.text || 
+                       '';
+
+    if (!messageText) return;
+
+    // Log the incoming message
+    await logMessage(supabase, {
+      chat_id: chatId,
+      message_text: messageText,
+      is_from_bot: false,
+      phone_number: socket.user?.id || 'unknown'
+    });
+
+    // Get WhatsApp configuration for auto-replies
+    const { data: config } = await supabase
+      .from('whatsapp_configurations')
+      .select('*')
+      .eq('is_active', true)
+      .single();
+
+    if (!config?.auto_reply_enabled) return;
+
+    // Check business hours
+    const now = new Date();
+    const currentTime = now.toTimeString().slice(0, 5);
+    const isBusinessHours = currentTime >= config.business_hours_start && 
+                           currentTime <= config.business_hours_end;
+
+    let replyText = '';
+
+    if (!isBusinessHours) {
+      replyText = `Gracias por contactarnos. Nuestro horario de atención es de ${config.business_hours_start} a ${config.business_hours_end}. Te responderemos tan pronto como sea posible.`;
+    } else {
+      // Process message content for auto-replies
+      const msgLower = messageText.toLowerCase().trim();
+      
+      if (msgLower.includes('hola') || msgLower.includes('ayuda')) {
+        replyText = config.welcome_message || 'Hola! ¿En qué podemos ayudarte?';
+      } else if (msgLower.includes('precio') || msgLower.includes('costo')) {
+        replyText = 'Para información sobre precios, un ejecutivo se pondrá en contacto contigo pronto.';
+      } else if (msgLower.includes('servicio') || msgLower.includes('producto')) {
+        replyText = 'Ofrecemos servicios de monitoreo GPS y custodia. ¿Te interesa algún servicio en particular?';
+      }
+    }
+
+    // Send auto-reply if we have one
+    if (replyText) {
+      await socket.sendMessage(chatId, { text: replyText });
+      
+      // Log the reply
+      await logMessage(supabase, {
+        chat_id: chatId,
+        message_text: replyText,
+        is_from_bot: true,
+        phone_number: socket.user?.id || 'unknown'
+      });
+    }
+
+  } catch (error) {
+    console.error('Error processing incoming message:', error);
+  }
 }
 
 async function logMessage(supabase: any, messageData: any) {

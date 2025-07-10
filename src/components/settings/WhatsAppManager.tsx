@@ -37,6 +37,11 @@ interface WhatsAppConfig {
   auto_reply_enabled: boolean;
   last_connected_at: string | null;
   qr_code: string | null;
+  session_data?: any;
+  auth_state?: any;
+  created_at?: string;
+  updated_at?: string;
+  created_by?: string | null;
 }
 
 export const WhatsAppManager = () => {
@@ -58,10 +63,10 @@ export const WhatsAppManager = () => {
   // Poll for connection status updates when QR is visible
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (qrVisible && config?.connection_status === 'connecting') {
+    if (qrVisible && (config?.connection_status === 'connecting' || config?.connection_status === 'waiting_for_scan')) {
       interval = setInterval(() => {
         loadConfiguration();
-      }, 2000);
+      }, 3000); // Check every 3 seconds
     }
     return () => {
       if (interval) clearInterval(interval);
@@ -71,38 +76,77 @@ export const WhatsAppManager = () => {
   const loadConfiguration = async () => {
     try {
       console.log('=== Loading WhatsApp Configuration ===');
-      const { data, error } = await supabase
-        .from('whatsapp_configurations')
+      
+      // Try to load from new whatsapp_sessions table first (all active sessions)
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('whatsapp_sessions')
         .select('*')
+        .eq('is_active', true)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      console.log('Database query result:', { data, error });
+      console.log('Session query result:', { data: sessionData, error: sessionError });
 
-      if (error) {
-        console.error('Database error:', error);
-        toast.error(`Error de base de datos: ${error.message}`);
-        return;
-      }
+      if (sessionData) {
+        console.log('Session data found:', sessionData);
+        const session = sessionData as any; // Type assertion for Baileys session data
+        setConfig({
+          id: session.id,
+          phone_number: session.phone_number,
+          is_active: session.is_active,
+          qr_code: session.qr_code || null,
+          session_data: session.session_data,
+          connection_status: session.connection_status || 'disconnected',
+          last_connected_at: session.last_connected_at,
+          welcome_message: welcomeMessage,
+          business_hours_start: businessHoursStart,
+          business_hours_end: businessHoursEnd,
+          auto_reply_enabled: autoReplyEnabled,
+          created_at: session.created_at,
+          updated_at: session.updated_at,
+          created_by: null
+        });
 
-      if (data) {
-        console.log('Configuration loaded:', data);
-        setConfig(data);
-        setPhoneNumber(data.phone_number || "");
-        setWelcomeMessage(data.welcome_message || "Hola! Gracias por contactarnos. ¿En qué podemos ayudarte?");
-        setBusinessHoursStart(data.business_hours_start || "09:00");
-        setBusinessHoursEnd(data.business_hours_end || "18:00");
-        setAutoReplyEnabled(data.auto_reply_enabled ?? true);
-        
-        // Mostrar QR si existe
-        if (data.qr_code) {
-          console.log('QR code found in configuration');
+        if (session.qr_code) {
+          console.log('QR code found in session');
           setQrVisible(true);
         }
       } else {
-        console.log('No configuration found in database');
-        setConfig(null);
+        // Fallback to old whatsapp_configurations table
+        const { data: configData, error: configError } = await supabase
+          .from('whatsapp_configurations')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        console.log('Configuration query result:', { data: configData, error: configError });
+
+        if (configError) {
+          console.error('Database error:', configError);
+          toast.error(`Error de base de datos: ${configError.message}`);
+          return;
+        }
+
+        if (configData) {
+          console.log('Configuration loaded:', configData);
+          setConfig(configData);
+          setPhoneNumber(configData.phone_number || "");
+          setWelcomeMessage(configData.welcome_message || "Hola! Gracias por contactarnos. ¿En qué podemos ayudarte?");
+          setBusinessHoursStart(configData.business_hours_start || "09:00");
+          setBusinessHoursEnd(configData.business_hours_end || "18:00");
+          setAutoReplyEnabled(configData.auto_reply_enabled ?? true);
+          
+          // Mostrar QR si existe
+          if (configData.qr_code) {
+            console.log('QR code found in configuration');
+            setQrVisible(true);
+          }
+        } else {
+          console.log('No configuration found in database');
+          setConfig(null);
+        }
       }
     } catch (error) {
       console.error('Error loading WhatsApp configuration:', error);
@@ -317,12 +361,26 @@ export const WhatsAppManager = () => {
                       </div>
                       
                           <div className="flex justify-center">
-                            <div 
-                              className="w-56 h-56"
-                              dangerouslySetInnerHTML={{ 
-                                __html: config.qr_code ? atob(config.qr_code) : '' 
-                              }}
-                            />
+                            {config.qr_code?.startsWith('data:image') ? (
+                              // Baileys QR code (data URL format)
+                              <img 
+                                src={config.qr_code} 
+                                alt="WhatsApp QR Code" 
+                                className="w-56 h-56 rounded-lg border"
+                              />
+                            ) : config.qr_code ? (
+                              // Legacy base64 SVG format
+                              <div 
+                                className="w-56 h-56"
+                                dangerouslySetInnerHTML={{ 
+                                  __html: atob(config.qr_code) 
+                                }}
+                              />
+                            ) : (
+                              <div className="w-56 h-56 bg-gray-100 rounded-lg flex items-center justify-center">
+                                <span className="text-gray-500">Generando QR...</span>
+                              </div>
+                            )}
                           </div>
 
                       <div className="text-center space-y-2">
