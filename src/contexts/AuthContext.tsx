@@ -304,19 +304,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       setLoading(true);
+      
+      // Clear user state immediately for better UX
+      setUser(null);
+      setSession(null);
+      setUserRole(null);
+      
+      // Clear any localStorage data (like forecast settings)
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('forecastConfig');
+        // Clear any other app-specific localStorage items if needed
+      }
+      
       const { error } = await supabase.auth.signOut();
       if (error) {
+        console.error('Logout error:', error);
         toast({
           title: "Error",
-          description: error.message,
+          description: "Error al cerrar sesión: " + error.message,
           variant: "destructive",
         });
         return Promise.reject(error);
       }
+      
+      // Navigate to home page after successful logout
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
+      
     } catch (error) {
+      console.error('Unexpected error during logout:', error);
       toast({
         title: "Error",
-        description: "Ocurrió un error al cerrar sesión",
+        description: "Ocurrió un error inesperado al cerrar sesión",
         variant: "destructive",
       });
       return Promise.reject(error);
