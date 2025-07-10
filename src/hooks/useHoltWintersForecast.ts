@@ -193,18 +193,28 @@ function holtWintersOptimized(data: number[], seasonLength: number, forecastPeri
     throw new Error('Datos insuficientes para Holt-Winters');
   }
   
-  // Optimizar parámetros usando grid search
+  // Limpiar y validar datos
+  const cleanData = data.map(d => Math.max(0, d || 0));
+  
+  // Optimizar parámetros usando grid search más fino y amplio
   let bestMAPE = Infinity;
   let bestParams = { alpha: 0.3, beta: 0.1, gamma: 0.1 };
   let bestResult: HoltWintersResult | null = null;
   
-  // Grid search para encontrar mejores parámetros
-  for (let alpha = 0.1; alpha <= 0.9; alpha += 0.2) {
-    for (let beta = 0.1; beta <= 0.3; beta += 0.1) {
-      for (let gamma = 0.1; gamma <= 0.3; gamma += 0.1) {
+  // Grid search optimizado basado en mejores prácticas
+  // Alpha: 0.1-0.9 (nivel/smoothing principal)
+  // Beta: 0.0-0.5 (tendencia)  
+  // Gamma: 0.1-0.9 (estacionalidad)
+  const alphaValues = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
+  const betaValues = [0.0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5];
+  const gammaValues = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
+  
+  for (const alpha of alphaValues) {
+    for (const beta of betaValues) {
+      for (const gamma of gammaValues) {
         try {
-          const result = holtWintersCalculation(data, seasonLength, forecastPeriods, alpha, beta, gamma);
-          if (result.parameters.mape < bestMAPE) {
+          const result = holtWintersCalculation(cleanData, seasonLength, forecastPeriods, alpha, beta, gamma);
+          if (result.parameters.mape < bestMAPE && !isNaN(result.parameters.mape)) {
             bestMAPE = result.parameters.mape;
             bestParams = { alpha, beta, gamma };
             bestResult = result;
@@ -216,7 +226,9 @@ function holtWintersOptimized(data: number[], seasonLength: number, forecastPeri
     }
   }
   
-  return bestResult || holtWintersCalculation(data, seasonLength, forecastPeriods, 0.3, 0.1, 0.1);
+  console.log(`🎯 HOLT-WINTERS: Mejores parámetros encontrados - α:${bestParams.alpha}, β:${bestParams.beta}, γ:${bestParams.gamma}, MAPE:${bestMAPE.toFixed(2)}%`);
+  
+  return bestResult || holtWintersCalculation(cleanData, seasonLength, forecastPeriods, 0.3, 0.1, 0.1);
 }
 
 function holtWintersCalculation(
@@ -230,32 +242,68 @@ function holtWintersCalculation(
   
   const n = data.length;
   
-  // Inicialización
+  // Inicialización mejorada según mejores prácticas
   const level: number[] = new Array(n);
   const trend: number[] = new Array(n);
   const seasonal: number[] = new Array(n + seasonLength);
   
-  // Calcular valores iniciales de estacionalidad
+  // Validar que tenemos suficientes datos para inicialización
+  if (n < seasonLength * 2) {
+    throw new Error('Datos insuficientes para inicialización estacional');
+  }
+  
+  // Calcular valores iniciales de estacionalidad (método mejorado)
   for (let i = 0; i < seasonLength; i++) {
     let sum = 0;
     let count = 0;
     for (let j = i; j < n; j += seasonLength) {
-      sum += data[j];
-      count++;
+      if (data[j] > 0) { // Solo considerar valores positivos
+        sum += data[j];
+        count++;
+      }
     }
-    const avgForSeason = sum / count;
+    const avgForSeason = count > 0 ? sum / count : 1;
     
-    let totalAvg = data.slice(0, seasonLength * 2).reduce((sum, val) => sum + val, 0) / (seasonLength * 2);
-    seasonal[i] = avgForSeason / totalAvg;
+    // Calcular promedio general más robusto
+    let totalSum = 0;
+    let totalCount = 0;
+    for (let k = 0; k < Math.min(n, seasonLength * 3); k++) {
+      if (data[k] > 0) {
+        totalSum += data[k];
+        totalCount++;
+      }
+    }
+    const totalAvg = totalCount > 0 ? totalSum / totalCount : avgForSeason;
+    
+    // Evitar división por cero y valores extremos
+    seasonal[i] = totalAvg > 0 ? Math.max(0.1, Math.min(10, avgForSeason / totalAvg)) : 1;
   }
   
-  // Nivel inicial (promedio de los primeros 12 meses)
-  level[0] = data.slice(0, seasonLength).reduce((sum, val) => sum + val, 0) / seasonLength;
+  // Nivel inicial (promedio más robusto de la primera temporada)
+  let firstSeasonSum = 0;
+  let firstSeasonCount = 0;
+  for (let i = 0; i < seasonLength && i < n; i++) {
+    if (data[i] > 0) {
+      firstSeasonSum += data[i];
+      firstSeasonCount++;
+    }
+  }
+  level[0] = firstSeasonCount > 0 ? firstSeasonSum / firstSeasonCount : 1;
   
-  // Tendencia inicial
-  const firstSeasonAvg = data.slice(0, seasonLength).reduce((sum, val) => sum + val, 0) / seasonLength;
-  const secondSeasonAvg = data.slice(seasonLength, seasonLength * 2).reduce((sum, val) => sum + val, 0) / seasonLength;
-  trend[0] = (secondSeasonAvg - firstSeasonAvg) / seasonLength;
+  // Tendencia inicial corregida (sin dividir por seasonLength)
+  let secondSeasonSum = 0;
+  let secondSeasonCount = 0;
+  for (let i = seasonLength; i < seasonLength * 2 && i < n; i++) {
+    if (data[i] > 0) {
+      secondSeasonSum += data[i];
+      secondSeasonCount++;
+    }
+  }
+  const firstSeasonAvg = firstSeasonCount > 0 ? firstSeasonSum / firstSeasonCount : level[0];
+  const secondSeasonAvg = secondSeasonCount > 0 ? secondSeasonSum / secondSeasonCount : firstSeasonAvg;
+  
+  // Tendencia inicial = diferencia promedio por período (no dividir por seasonLength)
+  trend[0] = (secondSeasonAvg - firstSeasonAvg);
   
   // Aplicar Holt-Winters
   for (let i = 1; i < n; i++) {
