@@ -6,10 +6,11 @@ import makeWASocket, {
   useMultiFileAuthState,
   makeInMemoryStore,
   ConnectionState,
-  AuthState,
+  AuthenticationState,
   WASocket,
-  BaileysEventMap
-} from "https://esm.sh/@whiskeysockets/baileys@6.6.0";
+  BaileysEventMap,
+  AuthenticationCreds
+} from "https://esm.sh/@whiskeysockets/baileys@6.7.8";
 import { Boom } from "https://esm.sh/@hapi/boom@10.0.1";
 import QRCode from "https://esm.sh/qrcode@1.5.3";
 
@@ -189,24 +190,47 @@ async function createWhatsAppConnection(supabase: any, phoneNumber: string) {
       .from('whatsapp_sessions')
       .select('*')
       .eq('phone_number', phoneNumber)
-      .single();
+      .maybeSingle();
 
     let sessionId = existingSession?.id;
-    let authState: AuthState;
     
-    if (existingSession?.auth_state) {
+    // Create auth state object - Baileys compatible
+    let authState: AuthenticationState;
+    
+    if (existingSession?.auth_state && existingSession.auth_state.creds) {
       console.log('Loading existing auth state');
-      authState = existingSession.auth_state;
+      authState = {
+        state: {
+          creds: existingSession.auth_state.creds,
+          keys: existingSession.auth_state.keys || {}
+        },
+        saveCreds: async () => {
+          // Save credentials to database
+          await updateSessionInDatabase(supabase, phoneNumber, {
+            auth_state: authState.state
+          });
+        }
+      };
     } else {
       console.log('Creating new auth state');
-      // For demo purposes, we'll create a simple auth state structure
-      authState = {
-        creds: {},
+      // Create fresh auth state
+      const emptyState = {
+        creds: {} as AuthenticationCreds,
         keys: {}
-      } as any;
+      };
+      
+      authState = {
+        state: emptyState,
+        saveCreds: async () => {
+          console.log('Saving credentials to database');
+          await updateSessionInDatabase(supabase, phoneNumber, {
+            auth_state: authState.state
+          });
+        }
+      };
     }
 
-    // Create the socket connection
+    // Create the socket connection with proper Baileys setup
     const socket = makeWASocket({
       auth: authState,
       printQRInTerminal: false,
@@ -215,6 +239,8 @@ async function createWhatsAppConnection(supabase: any, phoneNumber: string) {
         child: () => ({ level: 'silent' } as any)
       } as any,
       generateHighQualityLinkPreview: true,
+      browser: ['WhatsApp Bot', 'Chrome', '1.0.0'],
+      markOnlineOnConnect: false
     });
 
     // Store the socket for later use
@@ -226,7 +252,7 @@ async function createWhatsAppConnection(supabase: any, phoneNumber: string) {
     // Handle connection events
     connectionPromise = new Promise((resolve, reject) => {
       socket.ev.on('connection.update', async (update: Partial<ConnectionState>) => {
-        console.log('Connection update:', update);
+        console.log('Connection update:', JSON.stringify(update));
         
         const { connection, lastDisconnect, qr } = update;
         
@@ -240,21 +266,27 @@ async function createWhatsAppConnection(supabase: any, phoneNumber: string) {
               color: {
                 dark: '#000000',
                 light: '#FFFFFF'
-              }
+              },
+              type: 'image/png'
             });
             
             qrCode = qrImageData;
-            console.log('QR code generated successfully');
+            console.log('QR code generated successfully, length:', qrCode.length);
             
             // Update session with QR
             await updateSessionInDatabase(supabase, phoneNumber, {
               qr_code: qrCode,
               connection_status: 'waiting_for_scan',
-              session_data: { lastQR: qr }
+              session_data: { lastQR: qr.substring(0, 50) + '...' }
             });
 
             // Log event
-            await logConnectionEvent(supabase, sessionId, 'qr_generated', { qr: qr.substring(0, 50) + '...' });
+            if (sessionId) {
+              await logConnectionEvent(supabase, sessionId, 'qr_generated', { 
+                qr_length: qr.length,
+                timestamp: new Date().toISOString()
+              });
+            }
             
           } catch (qrError) {
             console.error('Error generating QR code:', qrError);
@@ -271,10 +303,13 @@ async function createWhatsAppConnection(supabase: any, phoneNumber: string) {
             qr_code: null
           });
 
-          await logConnectionEvent(supabase, sessionId, 'disconnected', { 
-            reason: (lastDisconnect?.error as any)?.message || 'Unknown',
-            shouldReconnect 
-          });
+          if (sessionId) {
+            await logConnectionEvent(supabase, sessionId, 'disconnected', { 
+              reason: (lastDisconnect?.error as any)?.message || 'Unknown',
+              shouldReconnect,
+              timestamp: new Date().toISOString()
+            });
+          }
           
           activeSockets.delete(phoneNumber);
           
@@ -288,13 +323,16 @@ async function createWhatsAppConnection(supabase: any, phoneNumber: string) {
           await updateSessionInDatabase(supabase, phoneNumber, {
             connection_status: 'connected',
             last_connected_at: new Date().toISOString(),
-            auth_state: socket.authState,
+            auth_state: authState.state,
             qr_code: null
           });
 
-          await logConnectionEvent(supabase, sessionId, 'connected', { 
-            user: socket.user?.id || 'Unknown' 
-          });
+          if (sessionId) {
+            await logConnectionEvent(supabase, sessionId, 'connected', { 
+              user: socket.user?.id || 'Unknown',
+              timestamp: new Date().toISOString()
+            });
+          }
           
           resolve({
             success: true,
@@ -305,9 +343,12 @@ async function createWhatsAppConnection(supabase: any, phoneNumber: string) {
         }
       });
 
+      // Handle authentication updates
+      socket.ev.on('creds.update', authState.saveCreds);
+
       // Handle incoming messages
       socket.ev.on('messages.upsert', async (m) => {
-        console.log('New messages:', m);
+        console.log('New messages received:', m.messages.length);
         
         for (const msg of m.messages) {
           if (!msg.key.fromMe && msg.message) {
@@ -316,9 +357,10 @@ async function createWhatsAppConnection(supabase: any, phoneNumber: string) {
         }
       });
 
-      // Timeout after 60 seconds if no connection
+      // Timeout after 30 seconds if no QR generated
       setTimeout(() => {
         if (qrCode) {
+          console.log('Resolving with QR code after timeout');
           resolve({
             success: true,
             qr_code: qrCode,
@@ -326,19 +368,22 @@ async function createWhatsAppConnection(supabase: any, phoneNumber: string) {
             message: 'QR code generated, scan with WhatsApp to connect'
           });
         } else {
+          console.log('No QR code generated within timeout');
           reject(new Error('Connection timeout - no QR code generated'));
         }
-      }, 60000);
+      }, 30000);
     });
 
     // If no existing session, create one
     if (!sessionId) {
+      console.log('Creating new session in database');
       const { data: newSession, error } = await supabase
         .from('whatsapp_sessions')
         .insert({
           phone_number: phoneNumber,
           connection_status: 'connecting',
-          auth_state: authState
+          auth_state: authState.state,
+          is_active: true
         })
         .select()
         .single();
@@ -350,6 +395,13 @@ async function createWhatsAppConnection(supabase: any, phoneNumber: string) {
       
       sessionId = newSession.id;
       console.log('Created new session:', sessionId);
+    } else {
+      console.log('Using existing session:', sessionId);
+      // Update existing session to connecting
+      await updateSessionInDatabase(supabase, phoneNumber, {
+        connection_status: 'connecting',
+        is_active: true
+      });
     }
 
     return await connectionPromise;

@@ -361,24 +361,25 @@ export const WhatsAppManager = () => {
                       </div>
                       
                           <div className="flex justify-center">
-                            {config.qr_code?.startsWith('data:image') ? (
-                              // Baileys QR code (data URL format)
+                            {config.qr_code ? (
                               <img 
                                 src={config.qr_code} 
                                 alt="WhatsApp QR Code" 
-                                className="w-56 h-56 rounded-lg border"
-                              />
-                            ) : config.qr_code ? (
-                              // Legacy base64 SVG format
-                              <div 
-                                className="w-56 h-56"
-                                dangerouslySetInnerHTML={{ 
-                                  __html: atob(config.qr_code) 
+                                className="w-56 h-56 rounded-lg border border-gray-200 shadow-sm"
+                                onError={(e) => {
+                                  console.error('Error loading QR image');
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                                onLoad={() => {
+                                  console.log('QR image loaded successfully');
                                 }}
                               />
                             ) : (
-                              <div className="w-56 h-56 bg-gray-100 rounded-lg flex items-center justify-center">
-                                <span className="text-gray-500">Generando QR...</span>
+                              <div className="w-56 h-56 bg-gray-100 rounded-lg flex items-center justify-center border border-gray-200">
+                                <div className="text-center">
+                                  <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-2 text-blue-600" />
+                                  <span className="text-gray-500">Generando QR...</span>
+                                </div>
                               </div>
                             )}
                           </div>
