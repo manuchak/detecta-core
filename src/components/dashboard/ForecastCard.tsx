@@ -2,10 +2,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFormatters } from "@/hooks/useFormatters";
 import { useHoltWintersForecast } from "@/hooks/useHoltWintersForecast";
-import { TrendingUp, TrendingDown, BarChart3, DollarSign, Calendar, Target, Info, Database, Loader2, AlertTriangle, Activity, Zap, Brain } from "lucide-react";
+import { TrendingUp, TrendingDown, BarChart3, DollarSign, Calendar, Target, Info, Database, Loader2, AlertTriangle, Activity, Zap, Brain, Settings, RefreshCcw, ChevronDown, ChevronUp } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useState, useCallback } from "react";
 
 interface ForecastCardProps {
   isLoading?: boolean;
@@ -14,7 +19,31 @@ interface ForecastCardProps {
 
 export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) => {
   const { formatCurrency } = useFormatters();
-  const forecastData = useHoltWintersForecast();
+  
+  // Estados para parámetros manuales
+  const [useManualParams, setUseManualParams] = useState(false);
+  const [manualAlpha, setManualAlpha] = useState(0.3);
+  const [manualBeta, setManualBeta] = useState(0.1);
+  const [manualGamma, setManualGamma] = useState(0.1);
+  const [showAdvancedControls, setShowAdvancedControls] = useState(false);
+  
+  // Hook de forecast con parámetros opcionales
+  const forecastData = useHoltWintersForecast(
+    useManualParams ? {
+      alpha: manualAlpha,
+      beta: manualBeta,
+      gamma: manualGamma,
+      useManual: true
+    } : undefined
+  );
+  
+  // Reset a valores optimizados
+  const handleResetToOptimal = useCallback(() => {
+    setUseManualParams(false);
+    setManualAlpha(0.3);
+    setManualBeta(0.1);
+    setManualGamma(0.1);
+  }, []);
   
   const currentYear = new Date().getFullYear();
   
@@ -331,23 +360,153 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
             </div>
           </div>
           
-          {/* Componentes del modelo */}
+          {/* Controles avanzados del modelo */}
           <div className="bg-white rounded-lg p-4 border border-gray-100">
-            <h5 className="font-semibold text-gray-800 mb-3">Componentes del Modelo:</h5>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div className="text-center">
-                <div className="font-medium text-blue-600">Nivel (α)</div>
-                <div className="text-gray-600">Suaviza valores observados</div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <h5 className="font-semibold text-gray-800">Componentes del Modelo</h5>
+                {useManualParams && (
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                    <Settings className="h-3 w-3 mr-1" />
+                    Manual
+                  </Badge>
+                )}
               </div>
-              <div className="text-center">
-                <div className="font-medium text-green-600">Tendencia (β)</div>
-                <div className="text-gray-600">Detecta crecimiento/decrecimiento</div>
-              </div>
-              <div className="text-center">
-                <div className="font-medium text-purple-600">Estacionalidad (γ)</div>
-                <div className="text-gray-600">Patrones mensuales recurrentes</div>
-              </div>
+              
+              <Collapsible open={showAdvancedControls} onOpenChange={setShowAdvancedControls}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <Settings className="h-4 w-4" />
+                    Ajustar Parámetros
+                    {showAdvancedControls ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </Button>
+                </CollapsibleTrigger>
+                
+                <CollapsibleContent className="mt-4 space-y-4 border-t border-gray-100 pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm font-medium">Usar parámetros manuales</Label>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant={useManualParams ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setUseManualParams(true)}
+                      >
+                        Manual
+                      </Button>
+                      <Button
+                        variant={!useManualParams ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setUseManualParams(false)}
+                      >
+                        Auto
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleResetToOptimal}
+                        className="gap-1"
+                      >
+                        <RefreshCcw className="h-3 w-3" />
+                        Reset
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {/* Controles deslizadores */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Alpha */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium text-blue-600">Nivel (α)</Label>
+                        <span className="text-sm font-mono bg-blue-50 px-2 py-1 rounded text-blue-700">
+                          {manualAlpha.toFixed(2)}
+                        </span>
+                      </div>
+                      <Slider
+                        value={[manualAlpha]}
+                        onValueChange={(value) => setManualAlpha(value[0])}
+                        min={0.1}
+                        max={0.9}
+                        step={0.05}
+                        className="w-full"
+                        disabled={!useManualParams}
+                      />
+                      <p className="text-xs text-gray-500">Suaviza valores observados</p>
+                    </div>
+                    
+                    {/* Beta */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium text-green-600">Tendencia (β)</Label>
+                        <span className="text-sm font-mono bg-green-50 px-2 py-1 rounded text-green-700">
+                          {manualBeta.toFixed(2)}
+                        </span>
+                      </div>
+                      <Slider
+                        value={[manualBeta]}
+                        onValueChange={(value) => setManualBeta(value[0])}
+                        min={0.0}
+                        max={0.5}
+                        step={0.05}
+                        className="w-full"
+                        disabled={!useManualParams}
+                      />
+                      <p className="text-xs text-gray-500">Detecta crecimiento/decrecimiento</p>
+                    </div>
+                    
+                    {/* Gamma */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium text-purple-600">Estacionalidad (γ)</Label>
+                        <span className="text-sm font-mono bg-purple-50 px-2 py-1 rounded text-purple-700">
+                          {manualGamma.toFixed(2)}
+                        </span>
+                      </div>
+                      <Slider
+                        value={[manualGamma]}
+                        onValueChange={(value) => setManualGamma(value[0])}
+                        min={0.1}
+                        max={0.9}
+                        step={0.05}
+                        className="w-full"
+                        disabled={!useManualParams}
+                      />
+                      <p className="text-xs text-gray-500">Patrones mensuales recurrentes</p>
+                    </div>
+                  </div>
+                  
+                  {/* Información de parámetros */}
+                  <div className="bg-gray-50 rounded-lg p-3 text-sm">
+                    <p className="font-medium text-gray-700 mb-1">Parámetros actuales:</p>
+                    <div className="flex gap-4 text-gray-600">
+                      <span>α = {useManualParams ? manualAlpha.toFixed(2) : 'Auto'}</span>
+                      <span>β = {useManualParams ? manualBeta.toFixed(2) : 'Auto'}</span>
+                      <span>γ = {useManualParams ? manualGamma.toFixed(2) : 'Auto'}</span>
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
+            
+            {/* Componentes básicos del modelo */}
+            {!showAdvancedControls && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="text-center">
+                  <div className="font-medium text-blue-600">Nivel (α)</div>
+                  <div className="text-gray-600">Suaviza valores observados</div>
+                </div>
+                <div className="text-center">
+                  <div className="font-medium text-green-600">Tendencia (β)</div>
+                  <div className="text-gray-600">Detecta crecimiento/decrecimiento</div>
+                </div>
+                <div className="text-center">
+                  <div className="font-medium text-purple-600">Estacionalidad (γ)</div>
+                  <div className="text-gray-600">Patrones mensuales recurrentes</div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </CardContent>

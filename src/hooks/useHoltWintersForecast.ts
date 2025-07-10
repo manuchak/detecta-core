@@ -45,7 +45,14 @@ interface ForecastData {
   };
 }
 
-export const useHoltWintersForecast = (): ForecastData => {
+interface ManualParameters {
+  alpha?: number;
+  beta?: number;
+  gamma?: number;
+  useManual?: boolean;
+}
+
+export const useHoltWintersForecast = (manualParams?: ManualParameters): ForecastData => {
   
   // Obtener datos históricos completos
   const { data: historicalData, isLoading, error } = useQuery({
@@ -96,8 +103,18 @@ export const useHoltWintersForecast = (): ForecastData => {
       const gmvTimeSeries = historicalData.map(d => d.gmv);
       
       // Aplicar Holt-Winters a servicios y GMV
-      const servicesForecast = holtWintersOptimized(servicesTimeSeries, 12, 12); // 12 meses estacionalidad, 12 periodos forecast
-      const gmvForecast = holtWintersOptimized(gmvTimeSeries, 12, 12);
+      let servicesForecast, gmvForecast;
+      
+      if (manualParams?.useManual && manualParams.alpha && manualParams.beta !== undefined && manualParams.gamma) {
+        // Usar parámetros manuales
+        console.log(`🎛️ HOLT-WINTERS: Usando parámetros manuales - α:${manualParams.alpha}, β:${manualParams.beta}, γ:${manualParams.gamma}`);
+        servicesForecast = holtWintersCalculation(servicesTimeSeries, 12, 12, manualParams.alpha, manualParams.beta, manualParams.gamma);
+        gmvForecast = holtWintersCalculation(gmvTimeSeries, 12, 12, manualParams.alpha, manualParams.beta, manualParams.gamma);
+      } else {
+        // Usar optimización automática
+        servicesForecast = holtWintersOptimized(servicesTimeSeries, 12, 12);
+        gmvForecast = holtWintersOptimized(gmvTimeSeries, 12, 12);
+      }
       
       // Datos actuales (hasta junio 2025)
       const currentDate = new Date();
@@ -184,7 +201,7 @@ export const useHoltWintersForecast = (): ForecastData => {
       console.error('❌ Error en Holt-Winters:', error);
       return getDefaultForecastData();
     }
-  }, [historicalData, isLoading, error]);
+  }, [historicalData, isLoading, error, manualParams]);
 };
 
 // Implementación optimizada de Holt-Winters
