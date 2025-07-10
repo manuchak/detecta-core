@@ -11,12 +11,12 @@ interface LeadNotesData {
   };
   tipo_custodio?: string;
   vehiculo?: {
-    marca?: string;
-    modelo?: string;
-    año?: string;
+    marca_vehiculo?: string;
+    modelo_vehiculo?: string;
+    año_vehiculo?: string;
     placas?: string;
-    color?: string;
-    tipo?: string;
+    color_vehiculo?: string;
+    tipo_vehiculo?: string;
     seguro_vigente?: string;
   };
   seguridad_armada?: {
@@ -25,7 +25,7 @@ interface LeadNotesData {
     años_experiencia_armada?: string;
   };
   custodio_abordo?: {
-    especialidad?: string;
+    especialidad_abordo?: string;
   };
   experiencia?: {
     experiencia_custodia?: string;
@@ -100,13 +100,13 @@ export const validateLeadForApproval = (lead: AssignedLead): { isValid: boolean;
 
   // Validar datos del vehículo si es requerido
   if (requiereVehiculo) {
-    if (!notesData.vehiculo?.marca?.trim()) {
+    if (!notesData.vehiculo?.marca_vehiculo?.trim()) {
       missingFields.push("Marca del vehículo");
     }
-    if (!notesData.vehiculo?.modelo?.trim()) {
+    if (!notesData.vehiculo?.modelo_vehiculo?.trim()) {
       missingFields.push("Modelo del vehículo");
     }
-    if (!notesData.vehiculo?.año?.trim()) {
+    if (!notesData.vehiculo?.año_vehiculo?.trim()) {
       missingFields.push("Año del vehículo");
     }
     if (!notesData.vehiculo?.placas?.trim()) {
@@ -126,7 +126,7 @@ export const validateLeadForApproval = (lead: AssignedLead): { isValid: boolean;
 
   // Validar especialidad para custodios abordo
   if (esAbordo) {
-    if (!notesData.custodio_abordo?.especialidad?.trim()) {
+    if (!notesData.custodio_abordo?.especialidad_abordo?.trim()) {
       missingFields.push("Especialidad abordo");
     }
   }
