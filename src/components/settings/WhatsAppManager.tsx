@@ -45,10 +45,24 @@ export const WhatsAppManager = () => {
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [qrVisible, setQrVisible] = useState(false);
 
   useEffect(() => {
     loadConfiguration();
   }, []);
+
+  // Poll for connection status updates when QR is visible
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (qrVisible && config?.connection_status === 'connecting') {
+      interval = setInterval(() => {
+        loadConfiguration();
+      }, 2000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [qrVisible, config?.connection_status]);
 
   const loadConfiguration = async () => {
     try {
@@ -93,6 +107,7 @@ export const WhatsAppManager = () => {
       if (error) throw error;
 
       toast.success('Código QR generado. Escanéalo con WhatsApp Web.');
+      setQrVisible(true);
       await loadConfiguration();
     } catch (error) {
       console.error('Error generating QR code:', error);
@@ -103,23 +118,30 @@ export const WhatsAppManager = () => {
   };
 
   const saveConfiguration = async () => {
-    if (!config) return;
-
     setSaving(true);
     try {
-      const { error } = await supabase
+      const configData = {
+        phone_number: phoneNumber,
+        is_active: config?.is_active ?? true,
+        connection_status: config?.connection_status ?? 'disconnected',
+        welcome_message: config?.welcome_message ?? 'Hola! Gracias por contactarnos. ¿En qué podemos ayudarte?',
+        business_hours_start: config?.business_hours_start ?? '09:00',
+        business_hours_end: config?.business_hours_end ?? '18:00',
+        auto_reply_enabled: config?.auto_reply_enabled ?? true,
+        last_connected_at: config?.last_connected_at,
+        qr_code: config?.qr_code
+      };
+
+      const { data, error } = await supabase
         .from('whatsapp_configurations')
-        .upsert({
-          ...config,
-          phone_number: phoneNumber
-        })
+        .upsert(configData)
         .select()
         .single();
 
       if (error) throw error;
 
+      setConfig(data);
       toast.success('Configuración guardada exitosamente');
-      await loadConfiguration();
     } catch (error) {
       console.error('Error saving configuration:', error);
       toast.error('Error al guardar la configuración');
@@ -236,12 +258,21 @@ export const WhatsAppManager = () => {
                   <QrCode className="h-4 w-4" />
                   <AlertDescription>
                     Escanea este código QR con WhatsApp Web para conectar el bot.
-                    <div className="mt-2 p-4 bg-white rounded border inline-block">
-                      <img 
-                        src={`data:image/png;base64,${config.qr_code}`} 
-                        alt="QR Code" 
+                    <div className="mt-4 p-4 bg-white rounded border inline-block">
+                      <div 
+                        dangerouslySetInnerHTML={{
+                          __html: atob(config.qr_code)
+                        }}
                         className="w-48 h-48"
                       />
+                    </div>
+                    <div className="mt-2 text-sm text-muted-foreground">
+                      {config.connection_status === 'connecting' && (
+                        <div className="flex items-center gap-2">
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          Esperando conexión...
+                        </div>
+                      )}
                     </div>
                   </AlertDescription>
                 </Alert>
