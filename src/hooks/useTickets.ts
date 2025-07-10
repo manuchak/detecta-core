@@ -48,15 +48,54 @@ export const useTickets = () => {
 
       const { data, error: ticketsError } = await supabase
         .from('tickets')
-        .select(`
-          *,
-          assigned_user:profiles!tickets_assigned_to_fkey(display_name, email)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (ticketsError) throw ticketsError;
 
-      setTickets((data || []) as Ticket[]);
+      // Get unique assigned user IDs
+      const assignedUserIds = [...new Set(
+        (data || [])
+          .map(ticket => ticket.assigned_to)
+          .filter(Boolean)
+      )] as string[];
+
+      // Fetch user profiles if there are any assigned users
+      const profiles: Record<string, { display_name: string; email: string }> = {};
+      if (assignedUserIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, display_name, email')
+          .in('id', assignedUserIds);
+
+        profilesData?.forEach(profile => {
+          profiles[profile.id] = {
+            display_name: profile.display_name || '',
+            email: profile.email || ''
+          };
+        });
+      }
+
+      // Combine tickets with user profiles
+      const ticketsWithUsers: Ticket[] = (data || []).map(ticket => ({
+        id: ticket.id,
+        ticket_number: ticket.ticket_number || '',
+        customer_phone: ticket.customer_phone,
+        customer_name: ticket.customer_name,
+        subject: ticket.subject || '',
+        description: ticket.description,
+        status: ticket.status as Ticket['status'],
+        priority: ticket.priority as Ticket['priority'],
+        category: ticket.category,
+        source: ticket.source as Ticket['source'],
+        assigned_to: ticket.assigned_to,
+        whatsapp_chat_id: ticket.whatsapp_chat_id,
+        created_at: ticket.created_at || '',
+        updated_at: ticket.updated_at || '',
+        assigned_user: ticket.assigned_to ? profiles[ticket.assigned_to] : undefined
+      }));
+
+      setTickets(ticketsWithUsers);
       
       // Calcular estadísticas
       const now = new Date();
