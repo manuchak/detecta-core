@@ -379,8 +379,8 @@ export const MissingInfoDialog = ({
 
   // Calcular campos faltantes por categoría
   const getFieldsByCategory = () => {
-    const basicFields = ['Nombre', 'Email', 'Teléfono', 'Empresa'];
-    const locationFields = ['Edad', 'Dirección', 'Estado'];
+    const basicFields = ['Nombre', 'Email', 'Teléfono', 'Empresa', 'Edad'];
+    const locationFields = ['Dirección', 'Estado'];
     const vehicleFields = ['Tipo de custodio', 'Marca del vehículo', 'Modelo del vehículo', 'Año del vehículo', 'Licencia armas', 'Especialidad a bordo'];
     const experienceFields = ['Experiencia en custodia', 'Años de experiencia', 'Empresas anteriores', 'Licencia de conducir', 'Antecedentes penales', 'Referencias'];
     const availabilityFields = ['Disponibilidad de horario', 'Disponibilidad de días'];
