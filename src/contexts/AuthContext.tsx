@@ -327,9 +327,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return Promise.reject(error);
       }
       
-      // Navigate to home page after successful logout
+      // Navigate to detectasecurity.io after successful logout
       if (typeof window !== 'undefined') {
-        window.location.href = '/';
+        window.location.href = 'https://www.detectasecurity.io';
       }
       
     } catch (error) {

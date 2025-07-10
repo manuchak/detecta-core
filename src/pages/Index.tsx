@@ -35,7 +35,7 @@ const Index = () => {
                 to="/landing" 
                 className="text-sm text-muted-foreground hover:underline"
               >
-                Ver página de información
+                Ir a landing page de reclutamiento
               </Link>
             </div>
           </CardContent>
