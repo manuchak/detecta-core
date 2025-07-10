@@ -257,20 +257,21 @@ export const WhatsAppManager = () => {
                 <Alert>
                   <QrCode className="h-4 w-4" />
                   <AlertDescription>
-                    Escanea este código QR con WhatsApp Web para conectar el bot.
-                    <div className="mt-4 p-4 bg-white rounded border inline-block">
-                      <div 
-                        dangerouslySetInnerHTML={{
-                          __html: atob(config.qr_code)
-                        }}
-                        className="w-48 h-48"
-                      />
-                    </div>
-                    <div className="mt-2 text-sm text-muted-foreground">
+                    <div className="space-y-3">
+                      <p>Escanea este código QR con WhatsApp Web para conectar el bot.</p>
+                      <div className="flex justify-center">
+                        <div className="p-4 bg-white rounded-lg border-2 border-gray-200 shadow-sm">
+                          <img 
+                            src={`data:image/svg+xml;base64,${config.qr_code}`} 
+                            alt="Código QR para WhatsApp" 
+                            className="w-48 h-48"
+                          />
+                        </div>
+                      </div>
                       {config.connection_status === 'connecting' && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-center gap-2 text-blue-600">
                           <RefreshCw className="w-4 h-4 animate-spin" />
-                          Esperando conexión...
+                          <span>Esperando conexión...</span>
                         </div>
                       )}
                     </div>
