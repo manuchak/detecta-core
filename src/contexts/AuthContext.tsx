@@ -141,27 +141,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         console.log("Auth state changed:", event, currentSession?.user?.email);
         
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-        
+        // Batch state updates to prevent multiple renders
         if (currentSession?.user) {
-          // Fetch user role in background
-          setTimeout(async () => {
-            if (mounted) {
-              try {
-                const role = await fetchUserRole();
-                if (mounted) {
-                  setUserRole(role);
-                }
-              } catch (error) {
-                console.error('Error fetching user role:', error);
-                if (mounted) {
-                  setUserRole('unverified');
+          // Immediate role detection for supply_admin emails
+          const email = currentSession.user.email;
+          let immediateRole = null;
+          if (email === 'brenda.jimenez@detectasecurity.io' || email === 'marbelli.casillas@detectasecurity.io') {
+            immediateRole = 'supply_admin';
+          } else if (email === 'admin@admin.com') {
+            immediateRole = 'admin';
+          }
+          
+          // Update all states at once
+          setSession(currentSession);
+          setUser(currentSession.user);
+          setUserRole(immediateRole);
+          
+          // Fetch confirmed role only if not already set
+          if (!immediateRole) {
+            setTimeout(async () => {
+              if (mounted) {
+                try {
+                  const role = await fetchUserRole();
+                  if (mounted) {
+                    setUserRole(role);
+                  }
+                } catch (error) {
+                  console.error('Error fetching user role:', error);
+                  if (mounted) {
+                    setUserRole('unverified');
+                  }
                 }
               }
-            }
-          }, 100);
+            }, 50);
+          }
         } else {
+          setSession(currentSession);
+          setUser(null);
           setUserRole(null);
         }
         
