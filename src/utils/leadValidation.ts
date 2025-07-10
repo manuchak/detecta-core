@@ -5,9 +5,9 @@ interface LeadNotesData {
   datos_personales?: {
     edad?: string;
     direccion?: string;
-    estado?: string;
-    ciudad?: string;
-    zona_trabajo?: string;
+    estado_id?: string;
+    ciudad_id?: string;
+    zona_trabajo_id?: string;
   };
   tipo_custodio?: string;
   vehiculo?: {
@@ -75,15 +75,15 @@ export const validateLeadForApproval = (lead: AssignedLead): { isValid: boolean;
     missingFields.push("Dirección");
   }
   
-  if (!notesData.datos_personales?.estado?.trim()) {
+  if (!notesData.datos_personales?.estado_id?.trim()) {
     missingFields.push("Estado");
   }
   
-  if (!notesData.datos_personales?.ciudad?.trim()) {
+  if (!notesData.datos_personales?.ciudad_id?.trim()) {
     missingFields.push("Ciudad");
   }
   
-  if (!notesData.datos_personales?.zona_trabajo?.trim()) {
+  if (!notesData.datos_personales?.zona_trabajo_id?.trim()) {
     missingFields.push("Zona de trabajo");
   }
 
