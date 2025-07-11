@@ -451,9 +451,8 @@ export const useDashboardDataCorrected = (
       .sort((a, b) => b.value - a.value)
       .slice(0, 5);
 
-    // 3. DAILY SERVICE DATA - usando función de dashboardCalculations
-    const { processDailyData } = require('@/utils/dashboardCalculations');
-    const dailyServiceData = processDailyData(allServices);
+    // 3. DAILY SERVICE DATA - datos vacíos por ahora, se calculará en el componente
+    const dailyServiceData: DailyServiceData[] = [];
 
     // 4. TOP CLIENTS DATA
     const clientCounts = new Map<string, number>();
