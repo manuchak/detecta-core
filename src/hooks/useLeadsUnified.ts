@@ -244,8 +244,16 @@ export const useLeadsUnified = () => {
     mountedRef.current = true;
     queryExecutedRef.current = false;
 
-    // Esperar a que la autenticación esté lista
-    if (!authLoading) {
+    // Setup cleanup function
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  // Efecto separado para manejar la carga de datos
+  useEffect(() => {
+    // Solo ejecutar si la autenticación está lista y no estamos cargando
+    if (!authLoading && mountedRef.current) {
       // Pequeño delay para asegurar que el DOM esté listo
       const timeoutId = setTimeout(() => {
         if (mountedRef.current) {
@@ -255,18 +263,8 @@ export const useLeadsUnified = () => {
 
       return () => clearTimeout(timeoutId);
     }
-
-    return () => {
-      mountedRef.current = false;
-    };
   }, [authLoading, fetchLeads]);
 
-  // Cleanup en unmount
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
 
   return {
     // Estado
