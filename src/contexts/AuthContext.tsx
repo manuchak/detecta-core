@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useMemo } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -32,12 +32,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [permissions, setPermissions] = useState<AuthPermissions>({
-    canViewLeads: false,
-    canEditLeads: false,
-    canManageUsers: false,
-    canViewDashboard: false,
-  });
   const { toast } = useToast();
 
   // Mapeo de permisos por rol
@@ -99,6 +93,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
     }
   };
+
+  // Memoize permissions to prevent infinite re-renders
+  const permissions = useMemo(() => getPermissionsForRole(userRole), [userRole]);
 
   const fetchUserRole = async () => {
     try {
@@ -228,11 +225,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             immediateRole = 'admin';
           }
           
-          // Update all states at once including permissions
+          // Update all states at once - permissions will be computed via useMemo
           setSession(currentSession);
           setUser(currentSession.user);
           setUserRole(immediateRole);
-          setPermissions(getPermissionsForRole(immediateRole));
           
           // Fetch confirmed role only if not already set
           if (!immediateRole) {
@@ -242,7 +238,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   const role = await fetchUserRole();
                   if (mounted) {
                     setUserRole(role);
-                    setPermissions(getPermissionsForRole(role));
                   }
                 } catch (error) {
                   console.error('Error fetching user role:', error);
@@ -257,7 +252,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(currentSession);
           setUser(null);
           setUserRole(null);
-          setPermissions(getPermissionsForRole(null));
         }
         
         // Handle auth events
@@ -302,7 +296,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         fetchUserRole().then(role => {
           if (mounted) {
             setUserRole(role);
-            setPermissions(getPermissionsForRole(role));
           }
         });
       }
@@ -436,7 +429,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setSession(null);
       setUserRole(null);
-      setPermissions(getPermissionsForRole(null));
       
       // Clear any localStorage data (like forecast settings)
       if (typeof window !== 'undefined') {
