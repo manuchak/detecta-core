@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,7 +24,7 @@ export const useSimpleLeads = () => {
   }, []);
 
   // Función para cargar datos
-  const fetchLeads = async () => {
+  const fetchLeads = useCallback(async () => {
     if (!mounted.current || dataFetched.current || authLoading) return;
     if (!user || !canViewLeads) {
       setIsLoading(false);
@@ -60,22 +60,22 @@ export const useSimpleLeads = () => {
         });
       }
     }
-  };
+  }, [authLoading, user, canViewLeads, userRole, toast]);
 
   // Función para refrescar
-  const refetch = () => {
+  const refetch = useCallback(() => {
     dataFetched.current = false;
     setIsLoading(true);
     setError(null);
     fetchLeads();
-  };
+  }, [fetchLeads]);
 
-  // Efecto principal - usar solo valores memoizados como dependencias
+  // Efecto principal - usar fetchLeads memoizado
   useEffect(() => {
     if (!authLoading) {
       fetchLeads();
     }
-  }, [authLoading, userId, canViewLeads]);
+  }, [authLoading, fetchLeads]);
 
   // Estados derivados usando valores memoizados
   const canAccess = useMemo(() => 
