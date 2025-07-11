@@ -56,6 +56,26 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     assignment: 'all'
   }));
 
+  // Memoize the filter update function to prevent unnecessary re-renders
+  const handleAdvancedFiltersChange = useCallback((newFilters: AdvancedFiltersState) => {
+    setAdvancedFilters(newFilters);
+  }, []);
+
+  // Memoize the reset function
+  const handleResetFilters = useCallback(() => {
+    setAdvancedFilters({
+      dateFrom: '',
+      dateTo: '',
+      source: 'all',
+      unassignedDays: 'all',
+      status: 'all',
+      assignment: 'all'
+    });
+    setStatusFilter('all');
+    setAssignmentFilter('all');
+    setSearchTerm('');
+  }, []);
+
   console.log('🎯 LeadsTable - Estado actual:', {
     isLoading,
     error: error?.message,
@@ -298,19 +318,6 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     setSelectedLeads([]);
   };
 
-  const handleResetFilters = () => {
-    setAdvancedFilters({
-      dateFrom: '',
-      dateTo: '',
-      source: 'all',
-      unassignedDays: 'all',
-      status: 'all',
-      assignment: 'all'
-    });
-    setStatusFilter('all');
-    setAssignmentFilter('all');
-    setSearchTerm('');
-  };
 
   const isLeadSelected = (leadId: string) => {
     return selectedLeads.some(lead => lead.id === leadId);
@@ -327,7 +334,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
       {/* Filtros avanzados */}
       <AdvancedFilters 
         filters={advancedFilters}
-        onFiltersChange={setAdvancedFilters}
+        onFiltersChange={handleAdvancedFiltersChange}
         onResetFilters={handleResetFilters}
       />
 
