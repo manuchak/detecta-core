@@ -25,7 +25,7 @@ import {
 import { Link } from 'react-router-dom';
 
 const Home = () => {
-  const { user, userRole } = useAuth();
+  const { user, userRole, signOut } = useAuth();
 
   const getWelcomeMessage = () => {
     const hour = new Date().getHours();
@@ -148,6 +148,17 @@ const Home = () => {
       {/* Hero Section */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-50/50 via-transparent to-purple-50/30 pointer-events-none" />
+        
+        {/* Logout Button - Positioned at top right */}
+        <div className="absolute top-6 right-6 z-10">
+          <button
+            onClick={signOut}
+            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 bg-white/80 hover:bg-white backdrop-blur-sm border border-gray-200/50 rounded-full transition-all duration-200 hover:shadow-md"
+          >
+            Cerrar Sesión
+          </button>
+        </div>
+        
         <div className="relative max-w-6xl mx-auto px-4 pt-16 pb-24">
           <div className="text-center space-y-6">
             <div className="space-y-4">
