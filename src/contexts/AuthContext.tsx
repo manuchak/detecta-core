@@ -3,11 +3,21 @@ import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 
+interface AuthPermissions {
+  canViewLeads: boolean;
+  canEditLeads: boolean;
+  canManageUsers: boolean;
+  canViewDashboard: boolean;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   userRole: string | null;
   loading: boolean;
+  permissions: AuthPermissions;
+  hasPermission: (permission: keyof AuthPermissions) => boolean;
+  hasRole: (roles: string | string[]) => boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -22,7 +32,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [permissions, setPermissions] = useState<AuthPermissions>({
+    canViewLeads: false,
+    canEditLeads: false,
+    canManageUsers: false,
+    canViewDashboard: false,
+  });
   const { toast } = useToast();
+
+  // Mapeo de permisos por rol
+  const getPermissionsForRole = (role: string | null): AuthPermissions => {
+    switch (role) {
+      case 'admin':
+      case 'owner':
+        return {
+          canViewLeads: true,
+          canEditLeads: true,
+          canManageUsers: true,
+          canViewDashboard: true,
+        };
+      case 'supply_admin':
+        return {
+          canViewLeads: true,
+          canEditLeads: true,
+          canManageUsers: false,
+          canViewDashboard: true,
+        };
+      case 'ejecutivo_ventas':
+        return {
+          canViewLeads: true,
+          canEditLeads: true,
+          canManageUsers: false,
+          canViewDashboard: false,
+        };
+      case 'supply_lead':
+        return {
+          canViewLeads: true,
+          canEditLeads: false,
+          canManageUsers: false,
+          canViewDashboard: true,
+        };
+      case 'supply':
+        return {
+          canViewLeads: true,
+          canEditLeads: false,
+          canManageUsers: false,
+          canViewDashboard: false,
+        };
+      case 'monitoring':
+      case 'coordinador_operaciones':
+      case 'jefe_seguridad':
+      case 'analista_seguridad':
+      case 'bi':
+        return {
+          canViewLeads: false,
+          canEditLeads: false,
+          canManageUsers: false,
+          canViewDashboard: true,
+        };
+      default:
+        return {
+          canViewLeads: false,
+          canEditLeads: false,
+          canManageUsers: false,
+          canViewDashboard: false,
+        };
+    }
+  };
 
   const fetchUserRole = async () => {
     try {
@@ -152,10 +228,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             immediateRole = 'admin';
           }
           
-          // Update all states at once
+          // Update all states at once including permissions
           setSession(currentSession);
           setUser(currentSession.user);
           setUserRole(immediateRole);
+          setPermissions(getPermissionsForRole(immediateRole));
           
           // Fetch confirmed role only if not already set
           if (!immediateRole) {
@@ -165,6 +242,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   const role = await fetchUserRole();
                   if (mounted) {
                     setUserRole(role);
+                    setPermissions(getPermissionsForRole(role));
                   }
                 } catch (error) {
                   console.error('Error fetching user role:', error);
@@ -179,6 +257,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(currentSession);
           setUser(null);
           setUserRole(null);
+          setPermissions(getPermissionsForRole(null));
         }
         
         // Handle auth events
@@ -223,6 +302,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         fetchUserRole().then(role => {
           if (mounted) {
             setUserRole(role);
+            setPermissions(getPermissionsForRole(role));
           }
         });
       }
@@ -356,6 +436,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setSession(null);
       setUserRole(null);
+      setPermissions(getPermissionsForRole(null));
       
       // Clear any localStorage data (like forecast settings)
       if (typeof window !== 'undefined') {
@@ -392,11 +473,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const hasPermission = (permission: keyof AuthPermissions) => permissions[permission];
+  
+  const hasRole = (roles: string | string[]) => {
+    const roleArray = Array.isArray(roles) ? roles : [roles];
+    return userRole ? roleArray.includes(userRole) : false;
+  };
+
   const value = {
     user,
     session,
     userRole,
     loading,
+    permissions,
+    hasPermission,
+    hasRole,
     signIn,
     signUp,
     signOut,
@@ -408,3 +499,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export { AuthContext };
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};

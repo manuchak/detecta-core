@@ -3,13 +3,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus } from "lucide-react";
-import { useStableAuth } from "@/hooks/useStableAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { LeadsTable } from "@/components/leads/LeadsTable";
 import { LeadForm } from "@/components/leads/LeadForm";
 import { Lead } from "@/types/leadTypes";
 
 export const LeadsListPage = () => {
-  const { loading: authLoading, permissions, userRole } = useStableAuth();
+  const { loading: authLoading, permissions, userRole } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
 

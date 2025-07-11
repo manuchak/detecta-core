@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useStableAuth } from './useStableAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { Lead } from '@/types/leadTypes';
 
 export const useSimpleLeads = () => {
@@ -9,7 +9,7 @@ export const useSimpleLeads = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   
-  const { user, userRole, permissions, loading: authLoading } = useStableAuth();
+  const { user, userRole, permissions, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const mounted = useRef(true);
   const dataFetched = useRef(false);
