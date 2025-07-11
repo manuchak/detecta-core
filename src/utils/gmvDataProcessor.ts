@@ -198,7 +198,16 @@ export const processGmvData = (allServices: any[], selectedClient: string = "all
         hasData2024: stats.year2024 > 0
       };
     })
-    .filter(item => item.hasData2025 || item.hasData2024); // Solo mostrar meses con datos reales
+    .filter(item => {
+      // Solo incluir meses que tienen datos reales (no ceros)
+      const hasRealData = item.year2025 > 0 || item.year2024 > 0;
+      if (hasRealData) {
+        console.log(`✅ Mes incluido: ${item.month} - 2025: $${item.year2025}, 2024: $${item.year2024}`);
+      } else {
+        console.log(`❌ Mes excluido: ${item.month} - no tiene datos`);
+      }
+      return hasRealData;
+    });
 
   // Calculate totals
   const totalGmv2025 = monthlyData.reduce((sum, item) => sum + item.year2025, 0);
