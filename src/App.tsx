@@ -37,7 +37,7 @@ import InstallationSchedule from '@/pages/Installers/InstallationSchedule';
 import InstallerPortal from '@/pages/Installers/InstallerPortal';
 import Landing from '@/pages/Landing/Landing';
 import WMSPage from '@/pages/WMS/WMSPage';
-import UltraSimpleLeadsPage from '@/pages/Leads/UltraSimpleLeadsPage';
+
 import DuplicateCleanupPage from '@/pages/Maintenance/DuplicateCleanupPage';
 
 
@@ -138,12 +138,16 @@ function App() {
                   }
                 />
                 
-                {/* Leads routes - Ultra simplified version */}
+                {/* Leads routes */}
                 <Route
                   path="/leads"
                   element={
                     <ProtectedRoute>
-                      <UltraSimpleLeadsPage />
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'ejecutivo_ventas']}>
+                        <DashboardLayout>
+                          <LeadsListPage />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
                 />
