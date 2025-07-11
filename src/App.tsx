@@ -64,8 +64,8 @@ function App() {
           <Router>
             <div className="min-h-screen bg-background">
               <Routes>
-                {/* Public routes */}
-                <Route path="/" element={<Index />} />
+                {/* Main route - Leads as principal page */}
+                <Route path="/" element={<SimpleLeadsPage />} />
                 <Route path="/landing" element={<Landing />} />
                 
                 {/* Auth routes */}
