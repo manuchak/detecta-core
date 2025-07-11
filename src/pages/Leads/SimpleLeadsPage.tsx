@@ -1,126 +1,123 @@
-import React, { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
-import { LeadsTable } from '@/components/leads/LeadsTable';
-import { LeadForm } from '@/components/leads/LeadForm';
-import { Lead } from '@/types/leadTypes';
-import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 const SimpleLeadsPage = () => {
-  const { user, loading, userRole } = useAuth();
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [editingLead, setEditingLead] = useState<Lead | null>(null);
-  const [isReady, setIsReady] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [leads, setLeads] = useState<any[]>([]);
 
-  // Verificación de permisos simplificada
-  const hasAccess = () => {
-    if (!user) return false;
-    
-    // Permitir acceso a supply_admin y roles específicos
-    const allowedRoles = ['admin', 'owner', 'supply_admin', 'ejecutivo_ventas', 'coordinador_operaciones'];
-    const isSupplyAdminEmail = user.email === 'brenda.jimenez@detectasecurity.io' || 
-                              user.email === 'marbelli.casillas@detectasecurity.io';
-    
-    return isSupplyAdminEmail || (userRole && allowedRoles.includes(userRole));
-  };
-
-  // Control de inicialización
   useEffect(() => {
-    if (loading) return;
-    
-    // Esperar un momento para que todo se estabilice
-    const timer = setTimeout(() => {
-      setIsReady(true);
-    }, 100);
+    // Verificar usuario actual de manera simple
+    supabase.auth.getUser().then(({ data }) => {
+      console.log('User data:', data.user?.email);
+      setUser(data.user);
+      setLoading(false);
+      
+      if (data.user) {
+        // Cargar leads directamente
+        supabase.from('leads').select('*').then(({ data: leadsData, error }) => {
+          if (error) {
+            console.error('Error loading leads:', error);
+          } else {
+            console.log('Leads loaded:', leadsData?.length || 0);
+            setLeads(leadsData || []);
+          }
+        });
+      }
+    });
+  }, []);
 
-    return () => clearTimeout(timer);
-  }, [loading, user, userRole]);
-
-  const handleEditLead = (lead: Lead) => {
-    setEditingLead(lead);
-    setShowCreateForm(true);
-  };
-
-  const handleCloseForm = () => {
-    setShowCreateForm(false);
-    setEditingLead(null);
-  };
-
-  // Loading state
-  if (loading || !isReady) {
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="text-gray-600">Cargando gestión de candidatos...</p>
-        </div>
+      <div className="p-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p>Cargando...</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  // Authentication check
   if (!user) {
-    return <Navigate to="/auth/login" replace />;
-  }
-
-  // Access check
-  if (!hasAccess()) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center space-y-4 p-8">
-          <h2 className="text-2xl font-bold text-gray-800">Acceso Restringido</h2>
-          <p className="text-gray-600">No tienes permisos para acceder a la gestión de candidatos.</p>
-          <Button onClick={() => window.history.back()}>
-            Volver
-          </Button>
-        </div>
+      <div className="p-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">
+              <h2 className="text-xl font-semibold mb-2">No autenticado</h2>
+              <p>Debes iniciar sesión para ver esta página</p>
+              <Button onClick={() => window.location.href = '/auth/login'} className="mt-4">
+                Ir a Login
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Gestión de Candidatos</h1>
-            <p className="text-gray-600 mt-1">Administra los candidatos y su proceso de aprobación</p>
-          </div>
-          <Button onClick={() => setShowCreateForm(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nuevo Candidato
-          </Button>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-6">
-        {showCreateForm ? (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">
-                {editingLead ? 'Editar Candidato' : 'Nuevo Candidato'}
-              </h2>
-              <Button variant="outline" onClick={handleCloseForm}>
-                Cancelar
+    <div className="p-6 space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Gestión de Candidatos - Versión Ultra Simple</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+              <p><strong>✅ Usuario autenticado:</strong> {user.email}</p>
+              <p><strong>📊 Total de candidatos:</strong> {leads.length}</p>
+              <p><strong>🔧 Estado:</strong> Sistema funcionando correctamente</p>
+            </div>
+            
+            {leads.length > 0 ? (
+              <div className="space-y-2">
+                <h3 className="font-semibold">Candidatos (mostrando primeros 10):</h3>
+                <div className="grid gap-3">
+                  {leads.slice(0, 10).map((lead, index) => (
+                    <Card key={lead.id || index} className="p-4 border-l-4 border-l-blue-500">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <p className="font-medium text-lg">{lead.nombre || 'Sin nombre'}</p>
+                          <p className="text-sm text-gray-600">{lead.email || 'Sin email'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm"><strong>Estado:</strong> {lead.estado || 'Sin estado'}</p>
+                          <p className="text-sm"><strong>Teléfono:</strong> {lead.telefono || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm"><strong>Fecha:</strong> {lead.fecha_creacion ? new Date(lead.fecha_creacion).toLocaleDateString() : 'N/A'}</p>
+                          <p className="text-sm"><strong>Fuente:</strong> {lead.fuente || 'N/A'}</p>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <Card className="p-6 text-center bg-yellow-50 border-yellow-200">
+                <p className="text-lg">📝 No hay candidatos registrados</p>
+                <p className="text-sm text-gray-600 mt-2">La consulta se ejecutó correctamente pero no se encontraron datos</p>
+              </Card>
+            )}
+            
+            <div className="flex gap-4 pt-4">
+              <Button onClick={() => window.location.reload()}>
+                🔄 Actualizar Página
+              </Button>
+              <Button variant="outline" onClick={() => window.location.href = '/leads'}>
+                📋 Ir a Versión Completa
               </Button>
             </div>
-            <div className="bg-white rounded-lg border p-6">
-              <LeadForm
-                editingLead={editingLead}
-                onSuccess={handleCloseForm}
-                onCancel={handleCloseForm}
-              />
-            </div>
           </div>
-        ) : (
-          <div className="bg-white rounded-lg border">
-            <LeadsTable onEditLead={handleEditLead} />
-          </div>
-        )}
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

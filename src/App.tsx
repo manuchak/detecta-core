@@ -20,7 +20,7 @@ import ForgotPassword from '@/pages/Auth/ForgotPassword';
 import EmailConfirmation from '@/pages/Auth/EmailConfirmation';
 import Settings from '@/pages/Settings/Settings';
 import NotFound from '@/pages/NotFound';
-import LeadsListPage from '@/pages/Leads/LeadsListPage';
+import SimpleLeadsPage from '@/pages/Leads/SimpleLeadsPage';
 import LeadApprovals from '@/pages/Leads/LeadApprovals';
 import AssignOwnerRole from '@/pages/Admin/AssignOwnerRole';
 import AssignRole from '@/pages/Admin/AssignRole';
@@ -145,7 +145,7 @@ function App() {
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'ejecutivo_ventas']}>
                         <DashboardLayout>
-                          <LeadsListPage />
+                          <SimpleLeadsPage />
                         </DashboardLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
