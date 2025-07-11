@@ -287,13 +287,30 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
               <div className="bg-gray-50 rounded-lg p-3">
                 <div className="text-gray-600 text-xs mb-1">Tendencia semanal</div>
                 <div className={`font-semibold ${
-                  weeklyComparisonData.reduce((sum, day) => sum + day.diferencia, 0) >= 0 
-                    ? 'text-green-600' 
-                    : 'text-red-600'
+                  (() => {
+                    // Solo comparar días transcurridos (que tienen datos reales)
+                    const daysWithData = weeklyComparisonData.filter(day => day.semanaActual !== null);
+                    const totalCurrentWeek = daysWithData.reduce((sum, day) => sum + (day.semanaActual || 0), 0);
+                    const totalPreviousWeek = daysWithData.reduce((sum, day) => sum + day.semanaAnterior, 0);
+                    const difference = totalCurrentWeek - totalPreviousWeek;
+                    const percentageChange = totalPreviousWeek > 0 ? ((difference / totalPreviousWeek) * 100) : 0;
+                    
+                    return difference >= 0 ? 'text-green-600' : 'text-red-600';
+                  })()
                 }`}>
-                  {weeklyComparisonData.reduce((sum, day) => sum + day.diferencia, 0) >= 0 ? '↗️' : '↘️'} 
-                  {' '}
-                  {weeklyComparisonData.reduce((sum, day) => sum + day.diferencia, 0) >= 0 ? 'Creciendo' : 'Decreciendo'}
+                  {(() => {
+                    // Calcular tendencia solo para días transcurridos
+                    const daysWithData = weeklyComparisonData.filter(day => day.semanaActual !== null);
+                    const totalCurrentWeek = daysWithData.reduce((sum, day) => sum + (day.semanaActual || 0), 0);
+                    const totalPreviousWeek = daysWithData.reduce((sum, day) => sum + day.semanaAnterior, 0);
+                    const difference = totalCurrentWeek - totalPreviousWeek;
+                    const percentageChange = totalPreviousWeek > 0 ? ((difference / totalPreviousWeek) * 100) : 0;
+                    
+                    const trend = difference >= 0 ? '↗️ Creciendo' : '↘️ Decreciendo';
+                    const percentage = `${percentageChange >= 0 ? '+' : ''}${percentageChange.toFixed(1)}%`;
+                    
+                    return `${trend} ${percentage}`;
+                  })()}
                 </div>
               </div>
             </div>
