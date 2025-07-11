@@ -162,11 +162,9 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     );
   }
 
-  const filteredLeads = useMemo(() => {
+  // Simplified filtering without useMemo to prevent infinite re-renders
+  const getFilteredLeads = () => {
     if (!leads || !Array.isArray(leads)) return [];
-    
-    // Create a stable timestamp reference
-    const currentTime = Date.now();
     
     return leads.filter(lead => {
       if (!lead) return false;
@@ -185,15 +183,14 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         (assignmentFilter === "assigned" && lead.asignado_a) ||
         (assignmentFilter === "unassigned" && !lead.asignado_a);
       
-      // Filtros avanzados - extract individual values to avoid object reference issues
-      const { dateFrom, dateTo, source, unassignedDays } = advancedFilters;
+      // Filtros avanzados básicos
       let matchesAdvanced = true;
       
       // Filtro de fecha
-      if (dateFrom && lead.fecha_creacion) {
+      if (advancedFilters.dateFrom && lead.fecha_creacion) {
         try {
           const leadDate = new Date(lead.fecha_creacion);
-          const fromDate = new Date(dateFrom);
+          const fromDate = new Date(advancedFilters.dateFrom);
           if (!isNaN(leadDate.getTime()) && !isNaN(fromDate.getTime())) {
             matchesAdvanced = matchesAdvanced && leadDate >= fromDate;
           }
@@ -202,10 +199,10 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         }
       }
       
-      if (dateTo && lead.fecha_creacion) {
+      if (advancedFilters.dateTo && lead.fecha_creacion) {
         try {
           const leadDate = new Date(lead.fecha_creacion);
-          const toDate = new Date(dateTo);
+          const toDate = new Date(advancedFilters.dateTo);
           if (!isNaN(leadDate.getTime()) && !isNaN(toDate.getTime())) {
             toDate.setHours(23, 59, 59);
             matchesAdvanced = matchesAdvanced && leadDate <= toDate;
@@ -216,38 +213,15 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
       }
       
       // Filtro de fuente
-      if (source !== 'all') {
-        matchesAdvanced = matchesAdvanced && lead.fuente === source;
-      }
-      
-      // Filtro de días sin asignar - usando timestamp estable
-      if (unassignedDays !== 'all' && !lead.asignado_a && lead.fecha_creacion) {
-        try {
-          const daysThreshold = parseInt(unassignedDays);
-          if (!isNaN(daysThreshold)) {
-            const creationTime = new Date(lead.fecha_creacion).getTime();
-            if (!isNaN(creationTime)) {
-              const daysSinceCreation = Math.floor((currentTime - creationTime) / (1000 * 60 * 60 * 24));
-              matchesAdvanced = matchesAdvanced && daysSinceCreation > daysThreshold;
-            }
-          }
-        } catch (e) {
-          // Ignore date parsing errors
-        }
+      if (advancedFilters.source !== 'all') {
+        matchesAdvanced = matchesAdvanced && lead.fuente === advancedFilters.source;
       }
       
       return matchesSearch && matchesStatus && matchesAssignment && matchesAdvanced;
     });
-  }, [
-    leads, 
-    searchTerm, 
-    statusFilter, 
-    assignmentFilter, 
-    advancedFilters.dateFrom,
-    advancedFilters.dateTo,
-    advancedFilters.source,
-    advancedFilters.unassignedDays
-  ]);
+  };
+
+  const filteredLeads = getFilteredLeads();
 
   if (!leads || leads.length === 0) {
     return (
