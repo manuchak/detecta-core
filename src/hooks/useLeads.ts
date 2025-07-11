@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 const SUPABASE_URL = "https://yydzzeljaewsfhmilnhm.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5ZHp6ZWxqYWV3c2ZobWlsbmhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc2OTc1MjIsImV4cCI6MjA2MzI3MzUyMn0.iP9UG12mKESneZq7XwY6vHvqRGH3hq3D1Hu0qneu8B8";
@@ -24,43 +25,26 @@ export interface Lead {
 export const useLeads = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user, loading: authLoading, userRole } = useAuth();
 
   const { data: leads, isLoading, error, refetch } = useQuery({
     queryKey: ['leads'],
     queryFn: async () => {
       try {
-        console.log('🔍 Iniciando carga completa de leads...');
+        console.log('🔍 Iniciando carga de leads con autenticación verificada...');
+        console.log('👤 Usuario actual:', user?.email);
+        console.log('🎭 Rol actual:', userRole);
         
-        // Verificar autenticación básica
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
-        if (authError) {
-          console.error('❌ ERROR DE AUTENTICACIÓN:', authError);
-          throw new Error(`Error de autenticación: ${authError.message}`);
+        // Verificar sesión actual
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error('Usuario no autenticado - sesión inválida');
         }
         
-        if (!user) {
-          console.error('❌ USUARIO NO AUTENTICADO');
-          throw new Error('Usuario no autenticado');
-        }
-        
-        console.log('✅ Usuario autenticado:', user.email);
+        console.log('✅ Sesión válida para:', session.user.email);
 
-        // Consulta COMPLETA sin límites - primero obtener el conteo total
-        console.log('📊 Obteniendo conteo total de leads...');
-        const { count, error: countError } = await supabase
-          .from('leads')
-          .select('*', { count: 'exact', head: true });
-        
-        if (countError) {
-          console.error('❌ ERROR EN CONTEO:', countError);
-          throw new Error(`Error al contar leads: ${countError.message}`);
-        }
-        
-        console.log('📈 Total de leads en la base de datos:', count);
-
-        // Ahora obtener TODOS los leads sin límite
-        console.log('📊 Ejecutando consulta completa de leads (SIN LÍMITE)...');
+        // Consulta con logging mejorado
+        console.log('📊 Ejecutando consulta de leads...');
         const { data, error } = await supabase
           .from('leads')
           .select('*')
@@ -68,34 +52,43 @@ export const useLeads = () => {
         
         if (error) {
           console.error('❌ ERROR EN CONSULTA:', error);
-          // Verificar si es error de recursión
-          if (error.code === '42P17') {
-            throw new Error('Error de configuración del sistema. Contacte al administrador.');
+          console.error('🔍 Detalles del error:', {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint
+          });
+          
+          // Verificar si es error de permisos
+          if (error.message.includes('permission denied') || error.message.includes('RLS')) {
+            throw new Error(`Sin permisos para acceder a leads. Usuario: ${user?.email}, Rol: ${userRole}`);
           }
+          
           throw new Error(`Error al cargar leads: ${error.message}`);
         }
         
         console.log('✅ CONSULTA EXITOSA:', {
-          totalEnBD: count,
           registrosDevueltos: data?.length || 0,
-          coincidencia: count === (data?.length || 0) ? '✅ CORRECTO' : '❌ DISCREPANCIA'
+          usuarioEmail: user?.email,
+          rolUsuario: userRole
         });
-        
-        if (count !== (data?.length || 0)) {
-          console.warn('⚠️ ADVERTENCIA: Hay discrepancia entre el conteo y los datos devueltos');
-          console.warn('Esto puede indicar problemas de permisos RLS o filtros no visibles');
-        }
         
         return data || [];
         
       } catch (error) {
         console.error('💥 ERROR GENERAL EN useLeads:', error);
+        console.error('🔍 Contexto de error:', {
+          userEmail: user?.email,
+          userRole: userRole,
+          authLoading: authLoading
+        });
         throw error;
       }
     },
-    retry: 2,
+    enabled: !!user && !authLoading && !!userRole, // Esperar autenticación completa
+    retry: 1,
     retryDelay: 1000,
-    staleTime: 30000, // Aumenté el tiempo de cache a 30 segundos para mejorar performance
+    staleTime: 30000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true
   });
@@ -237,7 +230,7 @@ export const useLeads = () => {
 
   return {
     leads,
-    isLoading,
+    isLoading: authLoading || isLoading,
     error,
     refetch,
     assignLead,
