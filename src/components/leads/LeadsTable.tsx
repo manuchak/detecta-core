@@ -152,6 +152,8 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
   const filteredLeads = useMemo(() => {
     if (!leads || !Array.isArray(leads)) return [];
     
+    const now = Date.now(); // Fixed timestamp to prevent constant re-renders
+    
     return leads.filter(lead => {
       if (!lead) return false;
       
@@ -172,7 +174,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
       // Filtros avanzados
       let matchesAdvanced = true;
       
-      // Filtro de fecha (crear fecha una sola vez para evitar re-renders)
+      // Filtro de fecha
       if (advancedFilters.dateFrom && lead.fecha_creacion) {
         try {
           const leadDate = new Date(lead.fecha_creacion);
@@ -203,15 +205,14 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         matchesAdvanced = matchesAdvanced && lead.fuente === advancedFilters.source;
       }
       
-      // Filtro de días sin asignar (calcular una sola vez)
+      // Filtro de días sin asignar - usando timestamp fijo
       if (advancedFilters.unassignedDays !== 'all' && !lead.asignado_a && lead.fecha_creacion) {
         try {
           const daysThreshold = parseInt(advancedFilters.unassignedDays);
           if (!isNaN(daysThreshold)) {
             const creationTime = new Date(lead.fecha_creacion).getTime();
             if (!isNaN(creationTime)) {
-              // Usar timestamp fijo para evitar re-renders constantes
-              const daysSinceCreation = Math.floor((Date.now() - creationTime) / (1000 * 60 * 60 * 24));
+              const daysSinceCreation = Math.floor((now - creationTime) / (1000 * 60 * 60 * 24));
               matchesAdvanced = matchesAdvanced && daysSinceCreation > daysThreshold;
             }
           }
