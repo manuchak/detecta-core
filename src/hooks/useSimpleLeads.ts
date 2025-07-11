@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,85 +14,68 @@ export const useSimpleLeads = () => {
   const mounted = useRef(true);
   const dataFetched = useRef(false);
 
-  // Memoize the permission values to prevent infinite re-renders
-  const canViewLeads = useMemo(() => permissions.canViewLeads, [permissions.canViewLeads]);
-  const userId = useMemo(() => user?.id, [user?.id]);
-
   useEffect(() => {
     mounted.current = true;
     return () => { mounted.current = false; };
   }, []);
 
-  // Función para cargar datos
-  const fetchLeads = useCallback(async () => {
-    if (!mounted.current || dataFetched.current || authLoading) return;
-    if (!user || !canViewLeads) {
-      setIsLoading(false);
-      return;
-    }
+  // Función para cargar datos - simplificada
+  useEffect(() => {
+    if (authLoading || !user || dataFetched.current) return;
+    
+    const fetchLeads = async () => {
+      if (!mounted.current) return;
+      
+      dataFetched.current = true;
+      console.log(`📋 SimpleLeads: Fetching for role ${userRole}`);
 
-    dataFetched.current = true;
-    console.log(`📋 SimpleLeads: Fetching for role ${userRole}`);
+      try {
+        const { data, error: fetchError } = await supabase
+          .from('leads')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-    try {
-      const { data, error: fetchError } = await supabase
-        .from('leads')
-        .select('*')
-        .order('created_at', { ascending: false });
+        if (fetchError) throw fetchError;
 
-      if (fetchError) throw fetchError;
-
-      if (mounted.current) {
-        setLeads(data || []);
-        setIsLoading(false);
-        setError(null);
-        console.log(`✅ SimpleLeads: Loaded ${(data || []).length} leads`);
+        if (mounted.current) {
+          setLeads(data || []);
+          setIsLoading(false);
+          setError(null);
+          console.log(`✅ SimpleLeads: Loaded ${(data || []).length} leads`);
+        }
+      } catch (err) {
+        console.error('❌ SimpleLeads: Error:', err);
+        if (mounted.current) {
+          setError(err instanceof Error ? err : new Error('Error desconocido'));
+          setIsLoading(false);
+          toast({
+            title: "Error",
+            description: "No se pudieron cargar los candidatos",
+            variant: "destructive",
+          });
+        }
       }
-    } catch (err) {
-      console.error('❌ SimpleLeads: Error:', err);
-      if (mounted.current) {
-        setError(err instanceof Error ? err : new Error('Error desconocido'));
-        setIsLoading(false);
-        toast({
-          title: "Error",
-          description: "No se pudieron cargar los candidatos",
-          variant: "destructive",
-        });
-      }
-    }
-  }, [authLoading, user, canViewLeads, userRole, toast]);
+    };
 
-  // Función para refrescar
-  const refetch = useCallback(() => {
+    fetchLeads();
+  }, [authLoading, user, userRole, toast]);
+
+  // Función para refrescar - simplificada
+  const refetch = () => {
     dataFetched.current = false;
     setIsLoading(true);
     setError(null);
-    fetchLeads();
-  }, [fetchLeads]);
+  };
 
-  // Efecto principal - usar fetchLeads memoizado
-  useEffect(() => {
-    if (!authLoading) {
-      fetchLeads();
-    }
-  }, [authLoading, fetchLeads]);
-
-  // Estados derivados usando valores memoizados
-  const canAccess = useMemo(() => 
-    !authLoading && user && canViewLeads, 
-    [authLoading, user, canViewLeads]
-  );
-  
-  const accessReason = useMemo(() => 
-    authLoading 
-      ? 'Verificando autenticación...'
-      : !user 
-        ? 'Debes iniciar sesión'
-        : !canViewLeads
-          ? `Tu rol '${userRole}' no tiene permisos para ver candidatos`
-          : 'Acceso autorizado',
-    [authLoading, user, canViewLeads, userRole]
-  );
+  // Estados derivados - valores estáticos para evitar re-renders
+  const canAccess = Boolean(!authLoading && user && permissions.canViewLeads);
+  const accessReason = authLoading 
+    ? 'Verificando autenticación...'
+    : !user 
+      ? 'Debes iniciar sesión'
+      : !permissions.canViewLeads
+        ? `Tu rol '${userRole}' no tiene permisos para ver candidatos`
+        : 'Acceso autorizado';
 
   return {
     leads,
