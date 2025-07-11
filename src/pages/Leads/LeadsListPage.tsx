@@ -2,25 +2,16 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import { Plus, Users, Settings } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { LeadsTable } from "@/components/leads/LeadsTable";
 import { LeadForm } from "@/components/leads/LeadForm";
-import { ReferralManager } from "@/components/leads/ReferralManager";
-import { BonusConfigManager } from "@/components/leads/BonusConfigManager";
 import { Lead } from "@/hooks/useLeads";
 
 export const LeadsListPage = () => {
   const { userRole } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
-  const [activeTab, setActiveTab] = useState("leads");
 
   // Usar los mismos permisos que en Home.tsx para consistencia
   const canManageLeads = ['admin', 'owner', 'supply_admin', 'ejecutivo_ventas'].includes(userRole || '');
@@ -59,69 +50,42 @@ export const LeadsListPage = () => {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Gestión de Leads</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Gestión de Candidatos</h1>
           <p className="text-muted-foreground">
-            Administra los candidatos y el sistema de referidos.
+            Administra los candidatos y sus asignaciones.
           </p>
         </div>
         <Button onClick={() => setShowCreateForm(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Nuevo Lead
+          Nuevo Candidato
         </Button>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="leads">
-            <Users className="h-4 w-4 mr-2" />
-            Leads
-          </TabsTrigger>
-          <TabsTrigger value="referrals">
-            <Users className="h-4 w-4 mr-2" />
-            Referidos
-          </TabsTrigger>
-          <TabsTrigger value="bonus-config">
-            <Settings className="h-4 w-4 mr-2" />
-            Configuración de Bonos
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="leads" className="mt-6">
-          {showCreateForm ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  {editingLead ? 'Editar Candidato' : 'Crear Nuevo Candidato'}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <LeadForm
-                  editingLead={editingLead}
-                  onSuccess={handleCloseForm}
-                  onCancel={handleCloseForm}
-                />
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>Lista de Candidatos</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <LeadsTable onEditLead={handleEditLead} />
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="referrals" className="mt-6">
-          <ReferralManager />
-        </TabsContent>
-
-        <TabsContent value="bonus-config" className="mt-6">
-          <BonusConfigManager />
-        </TabsContent>
-      </Tabs>
+      {showCreateForm ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {editingLead ? 'Editar Candidato' : 'Crear Nuevo Candidato'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <LeadForm
+              editingLead={editingLead}
+              onSuccess={handleCloseForm}
+              onCancel={handleCloseForm}
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Lista de Candidatos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <LeadsTable onEditLead={handleEditLead} />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
