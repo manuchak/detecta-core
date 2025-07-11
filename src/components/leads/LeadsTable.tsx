@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -47,14 +47,14 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
   const [selectedLeads, setSelectedLeads] = useState<Lead[]>([]);
-  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFiltersState>({
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFiltersState>(() => ({
     dateFrom: '',
     dateTo: '',
     source: 'all',
     unassignedDays: 'all',
     status: 'all',
     assignment: 'all'
-  });
+  }));
 
   console.log('🎯 LeadsTable - Estado actual:', {
     isLoading,
@@ -152,7 +152,8 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
   const filteredLeads = useMemo(() => {
     if (!leads || !Array.isArray(leads)) return [];
     
-    const now = Date.now(); // Fixed timestamp to prevent constant re-renders
+    // Create a stable timestamp reference
+    const currentTime = Date.now();
     
     return leads.filter(lead => {
       if (!lead) return false;
@@ -171,14 +172,15 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         (assignmentFilter === "assigned" && lead.asignado_a) ||
         (assignmentFilter === "unassigned" && !lead.asignado_a);
       
-      // Filtros avanzados
+      // Filtros avanzados - extract individual values to avoid object reference issues
+      const { dateFrom, dateTo, source, unassignedDays } = advancedFilters;
       let matchesAdvanced = true;
       
       // Filtro de fecha
-      if (advancedFilters.dateFrom && lead.fecha_creacion) {
+      if (dateFrom && lead.fecha_creacion) {
         try {
           const leadDate = new Date(lead.fecha_creacion);
-          const fromDate = new Date(advancedFilters.dateFrom);
+          const fromDate = new Date(dateFrom);
           if (!isNaN(leadDate.getTime()) && !isNaN(fromDate.getTime())) {
             matchesAdvanced = matchesAdvanced && leadDate >= fromDate;
           }
@@ -187,10 +189,10 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         }
       }
       
-      if (advancedFilters.dateTo && lead.fecha_creacion) {
+      if (dateTo && lead.fecha_creacion) {
         try {
           const leadDate = new Date(lead.fecha_creacion);
-          const toDate = new Date(advancedFilters.dateTo);
+          const toDate = new Date(dateTo);
           if (!isNaN(leadDate.getTime()) && !isNaN(toDate.getTime())) {
             toDate.setHours(23, 59, 59);
             matchesAdvanced = matchesAdvanced && leadDate <= toDate;
@@ -201,18 +203,18 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
       }
       
       // Filtro de fuente
-      if (advancedFilters.source !== 'all') {
-        matchesAdvanced = matchesAdvanced && lead.fuente === advancedFilters.source;
+      if (source !== 'all') {
+        matchesAdvanced = matchesAdvanced && lead.fuente === source;
       }
       
-      // Filtro de días sin asignar - usando timestamp fijo
-      if (advancedFilters.unassignedDays !== 'all' && !lead.asignado_a && lead.fecha_creacion) {
+      // Filtro de días sin asignar - usando timestamp estable
+      if (unassignedDays !== 'all' && !lead.asignado_a && lead.fecha_creacion) {
         try {
-          const daysThreshold = parseInt(advancedFilters.unassignedDays);
+          const daysThreshold = parseInt(unassignedDays);
           if (!isNaN(daysThreshold)) {
             const creationTime = new Date(lead.fecha_creacion).getTime();
             if (!isNaN(creationTime)) {
-              const daysSinceCreation = Math.floor((now - creationTime) / (1000 * 60 * 60 * 24));
+              const daysSinceCreation = Math.floor((currentTime - creationTime) / (1000 * 60 * 60 * 24));
               matchesAdvanced = matchesAdvanced && daysSinceCreation > daysThreshold;
             }
           }
@@ -223,7 +225,16 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
       
       return matchesSearch && matchesStatus && matchesAssignment && matchesAdvanced;
     });
-  }, [leads, searchTerm, statusFilter, assignmentFilter, advancedFilters]);
+  }, [
+    leads, 
+    searchTerm, 
+    statusFilter, 
+    assignmentFilter, 
+    advancedFilters.dateFrom,
+    advancedFilters.dateTo,
+    advancedFilters.source,
+    advancedFilters.unassignedDays
+  ]);
 
   if (!leads || leads.length === 0) {
     return (
