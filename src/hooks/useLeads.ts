@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 export interface Lead {
   id: string;
@@ -17,12 +18,14 @@ export interface Lead {
   fecha_contacto?: string;
 }
 
-// Hook simplificado que evita el React error #300
+// Hook ultra-simplificado que evita el React error #300
 export const useLeads = () => {
   const { toast } = useToast();
+  const { user, loading: authLoading, userRole } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const mountedRef = useRef(false);
 
   const fetchLeads = async () => {
     try {
@@ -59,13 +62,30 @@ export const useLeads = () => {
   };
 
   useEffect(() => {
-    // Retraso pequeño para asegurar que el DOM esté listo
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    // Solo ejecutar cuando:
+    // 1. El componente esté montado
+    // 2. La autenticación esté completa
+    // 3. El usuario tenga un rol válido
+    if (!mountedRef.current || authLoading || !user || !userRole) {
+      return;
+    }
+
+    // Esperar un tick adicional para asegurar que el DOM esté completamente listo
     const timer = setTimeout(() => {
-      fetchLeads();
-    }, 100);
+      if (mountedRef.current) {
+        fetchLeads();
+      }
+    }, 50);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [user, authLoading, userRole]);
 
   const assignLead = async (leadId: string, analystId: string) => {
     try {
