@@ -151,16 +151,17 @@ export const useUnifiedAuth = () => {
 
     const permissions = userRole ? ROLE_PERMISSIONS[userRole] : ROLE_PERMISSIONS.unverified;
     
-    setAuthState({
+    setAuthState(prev => ({
+      ...prev,
       user,
       session,
       userRole,
       loading: false,
       permissions,
-    });
+    }));
 
     console.log(`🔄 Auth state updated: ${user?.email || 'anonymous'} (${userRole})`);
-  }, []);
+  }, []); // Empty dependencies to prevent re-creation
 
   // Manejo de cambios de autenticación
   useEffect(() => {
@@ -233,7 +234,7 @@ export const useUnifiedAuth = () => {
       mountedRef.current = false;
       subscription.unsubscribe();
     };
-  }, [resolveUserRole, updateAuthState]);
+  }, []); // Remove dependencies to prevent re-running
 
   // Función para refrescar rol manualmente
   const refreshRole = useCallback(async () => {
@@ -249,7 +250,7 @@ export const useUnifiedAuth = () => {
       console.error('❌ Role refresh failed:', error);
       updateAuthState(authState.user, authState.session, 'unverified');
     }
-  }, [authState.user, authState.session, resolveUserRole, updateAuthState]);
+  }, [authState.user, authState.session]); // Reduced dependencies
 
   return {
     ...authState,
