@@ -265,28 +265,32 @@ export const processDailyData = (data: ServiceData[]): DailyServiceData[] => {
   console.log('📊 Servicios semana actual:', dailyCurrentWeek);
   console.log('📊 Servicios semana anterior:', dailyPreviousWeek);
 
-  // Crear resultado solo para días que ya pasaron o son hoy
+  // Crear resultado - incluir toda la semana anterior para mostrar tendencias
+  // y solo días con datos reales para la semana actual
   const result: DailyServiceData[] = [];
   
   daysOrder.forEach((day, index) => {
     const dayDate = new Date(mondayThisWeek);
     dayDate.setDate(mondayThisWeek.getDate() + index);
     
-    // Solo incluir días que ya pasaron o son hoy
-    if (dayDate <= today) {
-      const currentCount = dailyCurrentWeek[day];
-      const previousCount = dailyPreviousWeek[day];
-      
-      // Solo incluir en el resultado si hay datos (no mostrar puntos con 0)
-      if (currentCount > 0 || previousCount > 0) {
-        result.push({
-          day,
-          count: currentCount,
-          previousWeekCount: previousCount,
-          date: dayDate.toLocaleDateString('es-ES'),
-          weekRange: `${mondayThisWeek.getDate()}/${mondayThisWeek.getMonth() + 1}/${mondayThisWeek.getFullYear()} - ${sundayThisWeek.getDate()}/${sundayThisWeek.getMonth() + 1}/${sundayThisWeek.getFullYear()}`
-        });
-      }
+    const currentCount = dailyCurrentWeek[day];
+    const previousCount = dailyPreviousWeek[day];
+    
+    // Para la semana actual: solo incluir días que ya pasaron/son hoy Y que tengan datos
+    const shouldIncludeCurrentWeek = dayDate <= today && currentCount > 0;
+    
+    // Para la semana anterior: incluir todos los días para mostrar tendencia completa
+    const shouldIncludePreviousWeek = previousCount > 0;
+    
+    // Incluir si hay datos en cualquiera de las dos semanas
+    if (shouldIncludeCurrentWeek || shouldIncludePreviousWeek) {
+      result.push({
+        day,
+        count: shouldIncludeCurrentWeek ? currentCount : 0, // Solo mostrar count si es día válido
+        previousWeekCount: previousCount,
+        date: dayDate.toLocaleDateString('es-ES'),
+        weekRange: `${mondayThisWeek.getDate()}/${mondayThisWeek.getMonth() + 1}/${mondayThisWeek.getFullYear()} - ${sundayThisWeek.getDate()}/${sundayThisWeek.getMonth() + 1}/${sundayThisWeek.getFullYear()}`
+      });
     }
   });
 

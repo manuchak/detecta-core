@@ -250,9 +250,16 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
                     dataKey="semanaActual"
                     stroke="#8b5cf6"
                     strokeWidth={3}
-                    dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 5 }}
+                    dot={(props) => {
+                      // Solo mostrar punto si hay datos reales en la semana actual
+                      if (props.payload?.semanaActual > 0) {
+                        return <circle cx={props.cx} cy={props.cy} r={5} fill="#8b5cf6" strokeWidth={2} />;
+                      }
+                      return null;
+                    }}
                     activeDot={{ r: 7, fill: '#8b5cf6', stroke: '#fff', strokeWidth: 2 }}
                     name="Semana actual"
+                    connectNulls={false}
                   />
                   
                   {/* Línea de referencia para el día pico */}
