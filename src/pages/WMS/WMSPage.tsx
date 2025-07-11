@@ -3,12 +3,6 @@ import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Package, ShoppingCart, Users, BarChart3, Truck, Settings, Smartphone } from 'lucide-react';
 import { InventarioTab } from './components/InventarioTab';
-import { ComprasTab } from './components/ComprasTab';
-import { ProveedoresTab } from './components/ProveedoresTab';
-import { StockTab } from './components/StockTab';
-import { RecepcionTab } from './components/RecepcionTab';
-import { ConfiguracionTab } from './components/ConfiguracionTab';
-import { CatalogoGPSTab } from './components/CatalogoGPSTab';
 
 export const WMSPage = () => {
   const [activeTab, setActiveTab] = useState('inventario');
@@ -59,27 +53,45 @@ export const WMSPage = () => {
         </TabsContent>
 
         <TabsContent value="compras">
-          <ComprasTab />
+          <div className="p-8 text-center">
+            <h3 className="text-lg font-semibold mb-2">Módulo de Compras</h3>
+            <p className="text-muted-foreground">En desarrollo</p>
+          </div>
         </TabsContent>
 
         <TabsContent value="proveedores">
-          <ProveedoresTab />
+          <div className="p-8 text-center">
+            <h3 className="text-lg font-semibold mb-2">Módulo de Proveedores</h3>
+            <p className="text-muted-foreground">En desarrollo</p>
+          </div>
         </TabsContent>
 
         <TabsContent value="stock">
-          <StockTab />
+          <div className="p-8 text-center">
+            <h3 className="text-lg font-semibold mb-2">Módulo de Stock</h3>
+            <p className="text-muted-foreground">En desarrollo</p>
+          </div>
         </TabsContent>
 
         <TabsContent value="recepcion">
-          <RecepcionTab />
+          <div className="p-8 text-center">
+            <h3 className="text-lg font-semibold mb-2">Módulo de Recepción</h3>
+            <p className="text-muted-foreground">En desarrollo</p>
+          </div>
         </TabsContent>
 
         <TabsContent value="catalogo-gps">
-          <CatalogoGPSTab />
+          <div className="p-8 text-center">
+            <h3 className="text-lg font-semibold mb-2">Catálogo GPS</h3>
+            <p className="text-muted-foreground">En desarrollo</p>
+          </div>
         </TabsContent>
 
         <TabsContent value="configuracion">
-          <ConfiguracionTab />
+          <div className="p-8 text-center">
+            <h3 className="text-lg font-semibold mb-2">Configuración</h3>
+            <p className="text-muted-foreground">En desarrollo</p>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
