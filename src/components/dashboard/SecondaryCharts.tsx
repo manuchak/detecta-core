@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, ReferenceLine } from "recharts";
-import { ServiceTypesData, DailyServiceData, TopClientsData } from "@/hooks/useDashboardData";
+import { ServiceTypesData, TopClientsData } from "@/hooks/useDashboardData";
+import { DailyServiceData } from "@/types/serviciosMonitoreo";
 
 interface SecondaryChartsProps {
   dailyServiceData: DailyServiceData[];
@@ -35,21 +36,13 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
   const processWeeklyComparison = (data: DailyServiceData[]) => {
     console.log('🔄 Procesando datos diarios para mostrar en tarjeta:', data);
     
-    // Los datos ya vienen filtrados solo con servicios finalizados desde el hook
-    // Solo necesitamos mostrarlos correctamente sin proyecciones futuras
-    
-    // Para la semana anterior, por ahora mostraremos valores simulados
-    // TODO: Implementar lógica para obtener datos reales de la semana anterior
-    const previousWeekData = {
-      'Lun': 25, 'Mar': 33, 'Mié': 28, 'Jue': 30, 'Vie': 22, 'Sáb': 15, 'Dom': 8
-    };
-
+    // Los datos ya vienen con la comparación de semana anterior desde dashboardCalculations
     const result = data.map(item => ({
       day: item.day,
       date: item.date,
       semanaActual: item.count,
-      semanaAnterior: previousWeekData[item.day as keyof typeof previousWeekData] || 0,
-      diferencia: item.count - (previousWeekData[item.day as keyof typeof previousWeekData] || 0)
+      semanaAnterior: item.previousWeekCount || 0,
+      diferencia: item.count - (item.previousWeekCount || 0)
     }));
 
     console.log('🔄 Datos procesados para tarjeta:', result);
@@ -239,15 +232,22 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
                     dataKey="semanaAnterior" 
                     stroke="#c4b5fd"
                     strokeWidth={2}
-                    dot={{ fill: '#c4b5fd', strokeWidth: 2, r: 4 }}
+                    dot={(props) => {
+                      // Solo mostrar punto si hay datos
+                      if (props.payload?.semanaAnterior > 0) {
+                        return <circle cx={props.cx} cy={props.cy} r={4} fill="#c4b5fd" strokeWidth={2} />;
+                      }
+                      return null;
+                    }}
                     activeDot={{ r: 6, fill: '#c4b5fd' }}
                     name="Semana anterior"
+                    connectNulls={false}
                   />
                   
                   {/* Línea de la semana actual */}
                   <Line 
                     type="monotone"
-                    dataKey="semanaActual" 
+                    dataKey="semanaActual"
                     stroke="#8b5cf6"
                     strokeWidth={3}
                     dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 5 }}

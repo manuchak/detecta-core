@@ -166,6 +166,14 @@ export interface ActivoMonitoreo {
   updated_at: string;
 }
 
+export interface DailyServiceData {
+  day: string;
+  count: number;
+  previousWeekCount?: number;
+  date: string;
+  weekRange: string;
+}
+
 export interface CreateServicioData {
   nombre_cliente: string;
   empresa?: string;

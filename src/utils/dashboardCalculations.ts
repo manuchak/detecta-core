@@ -1,4 +1,5 @@
-import { MonthlyGmvData, ServiceTypesData, DailyServiceData, TopClientsData, ServiceStatusData } from "@/hooks/useDashboardData";
+import { MonthlyGmvData, ServiceTypesData, TopClientsData, ServiceStatusData } from "@/hooks/useDashboardData";
+import { DailyServiceData } from "@/types/serviciosMonitoreo";
 
 // Tipos para los datos de servicios
 export interface ServiceData {
@@ -218,44 +219,53 @@ export const processDailyData = (data: ServiceData[]): DailyServiceData[] => {
   mondayThisWeek.setDate(today.getDate() - daysFromMonday);
   mondayThisWeek.setHours(0, 0, 0, 0);
   
-  // Crear conteos por día solo hasta hoy (no mostrar días futuros)
+  // Calcular la semana anterior
+  const mondayLastWeek = new Date(mondayThisWeek);
+  mondayLastWeek.setDate(mondayThisWeek.getDate() - 7);
+  
+  const sundayThisWeek = new Date(mondayThisWeek);
+  sundayThisWeek.setDate(mondayThisWeek.getDate() + 6);
+  sundayThisWeek.setHours(23, 59, 59, 999);
+  
+  const sundayLastWeek = new Date(mondayLastWeek);
+  sundayLastWeek.setDate(mondayLastWeek.getDate() + 6);
+  sundayLastWeek.setHours(23, 59, 59, 999);
+  
+  // Crear conteos por día
   const daysOrder = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-  const dailyCompletedServices: { [key: string]: number } = {};
+  const dailyCurrentWeek: { [key: string]: number } = {};
+  const dailyPreviousWeek: { [key: string]: number } = {};
 
   // Inicializar contadores
   daysOrder.forEach(day => {
-    dailyCompletedServices[day] = 0;
+    dailyCurrentWeek[day] = 0;
+    dailyPreviousWeek[day] = 0;
   });
 
-  // Contar servicios finalizados por día (solo hasta hoy)
+  // Contar servicios finalizados por día
   completedServices.forEach(service => {
     try {
       const serviceDate = new Date(service.fecha_hora_cita!);
       const dayOfWeek = serviceDate.getDay();
       const dayName = daysOrder[dayOfWeek === 0 ? 6 : dayOfWeek - 1]; // Convertir domingo (0) a posición 6
       
-      // Solo contar si el día ya pasó (no contar días futuros)
-      if (serviceDate <= today) {
-        // Verificar que es de esta semana
-        const dayStart = new Date(mondayThisWeek);
-        dayStart.setDate(mondayThisWeek.getDate() + daysOrder.indexOf(dayName));
-        dayStart.setHours(0, 0, 0, 0);
-        
-        const dayEnd = new Date(dayStart);
-        dayEnd.setHours(23, 59, 59, 999);
-        
-        if (serviceDate >= dayStart && serviceDate <= dayEnd) {
-          dailyCompletedServices[dayName]++;
-        }
+      // Verificar si es de esta semana
+      if (serviceDate >= mondayThisWeek && serviceDate <= sundayThisWeek) {
+        dailyCurrentWeek[dayName]++;
+      }
+      // Verificar si es de la semana anterior
+      else if (serviceDate >= mondayLastWeek && serviceDate <= sundayLastWeek) {
+        dailyPreviousWeek[dayName]++;
       }
     } catch (e) {
       console.warn('Error procesando servicio:', e);
     }
   });
 
-  console.log('📊 Servicios finalizados por día:', dailyCompletedServices);
+  console.log('📊 Servicios semana actual:', dailyCurrentWeek);
+  console.log('📊 Servicios semana anterior:', dailyPreviousWeek);
 
-  // Crear resultado solo para días que ya pasaron
+  // Crear resultado solo para días que ya pasaron o son hoy
   const result: DailyServiceData[] = [];
   
   daysOrder.forEach((day, index) => {
@@ -264,12 +274,19 @@ export const processDailyData = (data: ServiceData[]): DailyServiceData[] => {
     
     // Solo incluir días que ya pasaron o son hoy
     if (dayDate <= today) {
-      result.push({
-        day,
-        count: dailyCompletedServices[day],
-        date: dayDate.toLocaleDateString('es-ES'),
-        weekRange: `${mondayThisWeek.toLocaleDateString('es-ES')} - ${today.toLocaleDateString('es-ES')}`
-      });
+      const currentCount = dailyCurrentWeek[day];
+      const previousCount = dailyPreviousWeek[day];
+      
+      // Solo incluir en el resultado si hay datos (no mostrar puntos con 0)
+      if (currentCount > 0 || previousCount > 0) {
+        result.push({
+          day,
+          count: currentCount,
+          previousWeekCount: previousCount,
+          date: dayDate.toLocaleDateString('es-ES'),
+          weekRange: `${mondayThisWeek.getDate()}/${mondayThisWeek.getMonth() + 1}/${mondayThisWeek.getFullYear()} - ${sundayThisWeek.getDate()}/${sundayThisWeek.getMonth() + 1}/${sundayThisWeek.getFullYear()}`
+        });
+      }
     }
   });
 
@@ -409,14 +426,16 @@ function getDefaultDailyData(): DailyServiceData[] {
   const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
   monday.setDate(monday.getDate() + mondayOffset);
   
+  const weekRange = `${monday.toLocaleDateString('es-ES')} - ${new Date(monday.getTime() + 6 * 86400000).toLocaleDateString('es-ES')}`;
+  
   return [
-    { day: 'Lun', count: 12, date: monday.toLocaleDateString('es-ES'), weekRange: `${monday.toLocaleDateString('es-ES')} - ${new Date(monday.getTime() + 6 * 86400000).toLocaleDateString('es-ES')}` },
-    { day: 'Mar', count: 19, date: new Date(monday.getTime() + 86400000).toLocaleDateString('es-ES') },
-    { day: 'Mié', count: 15, date: new Date(monday.getTime() + 172800000).toLocaleDateString('es-ES') },
-    { day: 'Jue', count: 22, date: new Date(monday.getTime() + 259200000).toLocaleDateString('es-ES') },
-    { day: 'Vie', count: 18, date: new Date(monday.getTime() + 345600000).toLocaleDateString('es-ES') },
-    { day: 'Sáb', count: 8, date: new Date(monday.getTime() + 432000000).toLocaleDateString('es-ES') },
-    { day: 'Dom', count: 5, date: new Date(monday.getTime() + 518400000).toLocaleDateString('es-ES') }
+    { day: 'Lun', count: 12, date: monday.toLocaleDateString('es-ES'), weekRange },
+    { day: 'Mar', count: 19, date: new Date(monday.getTime() + 86400000).toLocaleDateString('es-ES'), weekRange },
+    { day: 'Mié', count: 15, date: new Date(monday.getTime() + 172800000).toLocaleDateString('es-ES'), weekRange },
+    { day: 'Jue', count: 22, date: new Date(monday.getTime() + 259200000).toLocaleDateString('es-ES'), weekRange },
+    { day: 'Vie', count: 18, date: new Date(monday.getTime() + 345600000).toLocaleDateString('es-ES'), weekRange },
+    { day: 'Sáb', count: 8, date: new Date(monday.getTime() + 432000000).toLocaleDateString('es-ES'), weekRange },
+    { day: 'Dom', count: 5, date: new Date(monday.getTime() + 518400000).toLocaleDateString('es-ES'), weekRange }
   ];
 }
 

@@ -37,8 +37,9 @@ export interface ServiceTypesData {
 export interface DailyServiceData {
   day: string;
   count: number;
-  date?: string;
-  weekRange?: string;
+  previousWeekCount?: number;
+  date: string;
+  weekRange: string;
 }
 
 export interface TopClientsData {
@@ -450,34 +451,9 @@ export const useDashboardDataCorrected = (
       .sort((a, b) => b.value - a.value)
       .slice(0, 5);
 
-    // 3. DAILY SERVICE DATA (última semana)
-    const dailyData = new Map<string, number>();
-    const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-    
-    // Inicializar días de la semana
-    dayNames.forEach(day => dailyData.set(day, 0));
-    
-    // Procesar servicios de la última semana
-    const weekStart = new Date();
-    weekStart.setDate(weekStart.getDate() - 7);
-    
-    serviciosFiltrados.forEach(service => {
-      if (!service.fecha_hora_cita) return;
-      const serviceDate = new Date(service.fecha_hora_cita);
-      
-      if (serviceDate >= weekStart) {
-        const dayIndex = serviceDate.getDay();
-        const dayName = dayNames[dayIndex === 0 ? 6 : dayIndex - 1]; // Ajustar domingo
-        dailyData.set(dayName, (dailyData.get(dayName) || 0) + 1);
-      }
-    });
-
-    const dailyServiceData: DailyServiceData[] = dayNames.map(day => ({
-      day,
-      count: dailyData.get(day) || 0,
-      date: '', // Se puede agregar fecha específica si es necesario
-      weekRange: `${weekStart.toLocaleDateString()} - ${new Date().toLocaleDateString()}`
-    }));
+    // 3. DAILY SERVICE DATA - usando función de dashboardCalculations
+    const { processDailyData } = require('@/utils/dashboardCalculations');
+    const dailyServiceData = processDailyData(allServices);
 
     // 4. TOP CLIENTS DATA
     const clientCounts = new Map<string, number>();
