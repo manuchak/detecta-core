@@ -1,11 +1,6 @@
-
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
-import { useAuthenticatedQuery } from '@/hooks/useAuthenticatedQuery';
-
-const SUPABASE_URL = "https://yydzzeljaewsfhmilnhm.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5ZHp6ZWxqYWV3c2ZobWlsbmhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc2OTc1MjIsImV4cCI6MjA2MzI3MzUyMn0.iP9UG12mKESneZq7XwY6vHvqRGH3hq3D1Hu0qneu8B8";
 
 export interface Lead {
   id: string;
@@ -22,176 +17,171 @@ export interface Lead {
   fecha_contacto?: string;
 }
 
+// Hook simplificado que evita el React error #300
 export const useLeads = () => {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
-  // Use the simplified authenticated query hook
-  const { data: leads, isLoading, error, refetch } = useAuthenticatedQuery(
-    ['leads'],
-    async () => {
-      console.log('📊 Ejecutando consulta de leads...');
+  const fetchLeads = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Verificar autenticación de forma simple
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Usuario no autenticado');
+      }
+
+      console.log('📊 Cargando leads...');
       const { data, error } = await supabase
         .from('leads')
         .select('*')
         .order('fecha_creacion', { ascending: false });
       
       if (error) {
-        console.error('❌ ERROR EN CONSULTA:', error);
+        console.error('❌ Error:', error);
         throw new Error(`Error al cargar leads: ${error.message}`);
       }
       
-      console.log('✅ CONSULTA EXITOSA - Leads cargados:', data?.length || 0);
-      return data || [];
-    },
-    {
-      staleTime: 30000,
-      refetchOnWindowFocus: false
+      console.log('✅ Leads cargados:', data?.length || 0);
+      setLeads(data || []);
+      
+    } catch (err) {
+      console.error('💥 Error en fetchLeads:', err);
+      setError(err instanceof Error ? err : new Error('Error desconocido'));
+      setLeads([]);
+    } finally {
+      setIsLoading(false);
     }
-  );
+  };
 
-  const assignLead = useMutation({
-    mutationFn: async ({ leadId, analystId }: { leadId: string, analystId: string }) => {
-      try {
-        console.log(`Asignando lead ${leadId} al analista ${analystId}`);
-        
-        const { data, error } = await supabase
-          .from('leads')
-          .update({ 
-            asignado_a: analystId,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', leadId)
-          .select()
-          .single();
-        
-        if (error) {
-          console.error('Error asignando lead:', error);
-          throw new Error(`Error al asignar candidato: ${error.message}`);
-        }
-        
-        console.log(`Lead ${leadId} asignado exitosamente`);
-        return data;
-        
-      } catch (error) {
-        console.error('Error en assignLead:', error);
-        throw error;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['leads'] });
+  useEffect(() => {
+    // Retraso pequeño para asegurar que el DOM esté listo
+    const timer = setTimeout(() => {
+      fetchLeads();
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  const assignLead = async (leadId: string, analystId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('leads')
+        .update({ 
+          asignado_a: analystId,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', leadId)
+        .select()
+        .single();
+      
+      if (error) throw new Error(`Error al asignar: ${error.message}`);
+      
       toast({
         title: "Candidato asignado",
         description: "El candidato ha sido asignado correctamente",
       });
-    },
-    onError: (error) => {
-      console.error('Error en asignación:', error);
+      
+      await fetchLeads(); // Recargar datos
+      return data;
+      
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Error al asignar el candidato";
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Error al asignar el candidato",
+        description: errorMsg,
         variant: "destructive",
       });
+      throw err;
     }
-  });
+  };
 
-  const updateLead = useMutation({
-    mutationFn: async ({ leadId, updates }: { leadId: string, updates: Partial<Lead> }) => {
-      try {
-        console.log(`Actualizando lead ${leadId}`, updates);
-        
-        const { data, error } = await supabase
-          .from('leads')
-          .update({ 
-            ...updates,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', leadId)
-          .select()
-          .single();
-        
-        if (error) {
-          console.error('Error actualizando lead:', error);
-          throw new Error(`Error al actualizar candidato: ${error.message}`);
-        }
-        
-        console.log(`Lead ${leadId} actualizado exitosamente`);
-        return data;
-        
-      } catch (error) {
-        console.error('Error en updateLead:', error);
-        throw error;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['leads'] });
+  const updateLead = async ({ leadId, updates }: { leadId: string, updates: Partial<Lead> }) => {
+    try {
+      const { data, error } = await supabase
+        .from('leads')
+        .update({ 
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', leadId)
+        .select()
+        .single();
+      
+      if (error) throw new Error(`Error al actualizar: ${error.message}`);
+      
       toast({
         title: "Candidato actualizado",
         description: "El candidato ha sido actualizado correctamente",
       });
-    },
-    onError: (error) => {
-      console.error('Error en actualización:', error);
+      
+      await fetchLeads(); // Recargar datos
+      return data;
+      
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Error al actualizar el candidato";
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Error al actualizar el candidato",
+        description: errorMsg,
         variant: "destructive",
       });
+      throw err;
     }
-  });
+  };
 
-  const createLead = useMutation({
-    mutationFn: async (leadData: Omit<Lead, 'id' | 'fecha_creacion'>) => {
-      try {
-        console.log('Creando nuevo lead:', leadData);
-        
-        const { data, error } = await supabase
-          .from('leads')
-          .insert([{
-            ...leadData,
-            fecha_creacion: new Date().toISOString(),
-            estado: leadData.estado || 'nuevo'
-          }])
-          .select()
-          .single();
-        
-        if (error) {
-          console.error('Error creando lead:', error);
-          throw new Error(`Error al crear candidato: ${error.message}`);
-        }
-        
-        console.log('Lead creado exitosamente:', data.id);
-        return data;
-        
-      } catch (error) {
-        console.error('Error en createLead:', error);
-        throw error;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['leads'] });
+  const createLead = async (leadData: Omit<Lead, 'id' | 'fecha_creacion'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('leads')
+        .insert([{
+          ...leadData,
+          fecha_creacion: new Date().toISOString(),
+          estado: leadData.estado || 'nuevo'
+        }])
+        .select()
+        .single();
+      
+      if (error) throw new Error(`Error al crear: ${error.message}`);
+      
       toast({
         title: "Candidato creado",
         description: "El candidato ha sido creado correctamente",
       });
-    },
-    onError: (error) => {
-      console.error('Error en creación:', error);
+      
+      await fetchLeads(); // Recargar datos
+      return data;
+      
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Error al crear el candidato";
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Error al crear el candidato",
+        description: errorMsg,
         variant: "destructive",
       });
+      throw err;
     }
-  });
+  };
 
   return {
     leads,
     isLoading,
     error,
-    refetch,
-    assignLead,
-    updateLead,
-    createLead
+    refetch: fetchLeads,
+    assignLead: { 
+      mutateAsync: assignLead,
+      isPending: isLoading
+    },
+    updateLead: { 
+      mutateAsync: updateLead,
+      isPending: isLoading
+    },
+    createLead: { 
+      mutateAsync: createLead,
+      isPending: isLoading
+    }
   };
 };
