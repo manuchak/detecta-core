@@ -76,14 +76,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     setSearchTerm('');
   }, []);
 
-  console.log('🎯 LeadsTable - Estado actual:', {
-    isLoading,
-    error: error?.message,
-    leadsCount: leads.length,
-    canAccess,
-    accessReason,
-    permissions
-  });
+  // Debug logging removed to prevent infinite re-renders
 
   // Mostrar estado de acceso si no tiene permisos
   if (!canAccess) {
