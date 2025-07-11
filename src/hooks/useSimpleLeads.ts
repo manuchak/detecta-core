@@ -66,12 +66,12 @@ export const useSimpleLeads = () => {
     fetchLeads();
   };
 
-  // Efecto principal
+  // Efecto principal - usar solo valores primitivos como dependencias
   useEffect(() => {
     if (!authLoading) {
       fetchLeads();
     }
-  }, [authLoading, user, permissions.canViewLeads]);
+  }, [authLoading, user?.id, permissions.canViewLeads]);
 
   // Estados derivados
   const canAccess = !authLoading && user && permissions.canViewLeads;

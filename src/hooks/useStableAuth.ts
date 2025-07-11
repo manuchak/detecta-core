@@ -39,7 +39,7 @@ export const useStableAuth = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<UserRole>('unverified');
   const [loading, setLoading] = useState(true);
-  const [permissions, setPermissions] = useState<AuthPermissions>(PERMISSIONS_MAP.unverified);
+  const [permissions, setPermissions] = useState<AuthPermissions>(() => PERMISSIONS_MAP.unverified);
   
   const initialized = useRef(false);
   const mounted = useRef(true);
