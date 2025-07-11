@@ -37,7 +37,7 @@ import InstallationSchedule from '@/pages/Installers/InstallationSchedule';
 import InstallerPortal from '@/pages/Installers/InstallerPortal';
 import Landing from '@/pages/Landing/Landing';
 import WMSPage from '@/pages/WMS/WMSPage';
-import SimpleLeadsPage from '@/pages/Leads/SimpleLeadsPage';
+import UltraSimpleLeadsPage from '@/pages/Leads/UltraSimpleLeadsPage';
 import DuplicateCleanupPage from '@/pages/Maintenance/DuplicateCleanupPage';
 
 
@@ -138,12 +138,12 @@ function App() {
                   }
                 />
                 
-                {/* Leads routes - Simplified version */}
+                {/* Leads routes - Ultra simplified version */}
                 <Route
                   path="/leads"
                   element={
                     <ProtectedRoute>
-                      <SimpleLeadsPage />
+                      <UltraSimpleLeadsPage />
                     </ProtectedRoute>
                   }
                 />
