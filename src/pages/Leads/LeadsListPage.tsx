@@ -3,18 +3,15 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { LeadsTable } from "@/components/leads/LeadsTable";
 import { LeadForm } from "@/components/leads/LeadForm";
 import { Lead } from "@/types/leadTypes";
 
 export const LeadsListPage = () => {
-  const { userRole, loading: authLoading } = useAuth();
+  const { loading: authLoading, permissions, userRole } = useUnifiedAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
-
-  // Usar los mismos permisos que en Home.tsx para consistencia
-  const canManageLeads = ['admin', 'owner', 'supply_admin', 'ejecutivo_ventas'].includes(userRole || '');
 
   const handleEditLead = (lead: Lead) => {
     setEditingLead(lead);
@@ -45,7 +42,8 @@ export const LeadsListPage = () => {
     );
   }
 
-  if (!canManageLeads) {
+  // Verificar permisos usando el sistema unificado
+  if (!permissions.canViewLeads) {
     return (
       <div className="p-6">
         <Card>
@@ -56,10 +54,10 @@ export const LeadsListPage = () => {
                 No tienes permisos para acceder a la gestión de candidatos.
               </p>
               <p className="text-sm text-muted-foreground">
-                Se requieren roles: admin, owner, supply_admin o ejecutivo_ventas
+                Tu rol '{userRole}' no incluye permisos para ver candidatos.
               </p>
               <p className="text-xs text-gray-500 mt-2">
-                Tu rol actual: {userRole || 'No asignado'}
+                Contacta al administrador si necesitas acceso.
               </p>
             </div>
           </CardContent>
@@ -77,10 +75,12 @@ export const LeadsListPage = () => {
             Administra los candidatos y sus asignaciones.
           </p>
         </div>
-        <Button onClick={() => setShowCreateForm(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo Candidato
-        </Button>
+        {permissions.canEditLeads && (
+          <Button onClick={() => setShowCreateForm(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo Candidato
+          </Button>
+        )}
       </div>
 
       {showCreateForm ? (

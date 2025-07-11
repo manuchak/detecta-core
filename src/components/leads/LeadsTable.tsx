@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Search, UserPlus, Edit, AlertCircle, RefreshCw, CheckCircle, User, UserX } from "lucide-react";
-import { useLeadsStable as useLeads } from "@/hooks/useLeadsStable";
+import { useLeadsUnified } from "@/hooks/useLeadsUnified";
 import { Lead } from "@/types/leadTypes";
 import { LeadAssignmentDialog } from "./LeadAssignmentDialog";
 import { LeadsMetricsDashboard } from "./LeadsMetricsDashboard";
@@ -31,7 +31,16 @@ interface LeadsTableProps {
 }
 
 export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
-  const { leads, isLoading, error, refetch } = useLeads();
+  const { 
+    leads, 
+    isLoading, 
+    error, 
+    canAccess, 
+    accessReason, 
+    permissions, 
+    refetch 
+  } = useLeadsUnified();
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [assignmentFilter, setAssignmentFilter] = useState("all");
@@ -49,10 +58,96 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
 
   console.log('🎯 LeadsTable - Estado actual:', {
     isLoading,
-    error: error ? error.message : null,
-    leadsCount: leads?.length || 0,
-    leads: leads?.slice(0, 2) // Solo primeros 2 para debug
+    error: error?.message,
+    leadsCount: leads.length,
+    canAccess,
+    accessReason,
+    permissions
   });
+
+  // Mostrar estado de acceso si no tiene permisos
+  if (!canAccess) {
+    return (
+      <div className="text-center py-8">
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-6 space-y-3">
+          <div className="flex items-center justify-center space-x-2 text-orange-600">
+            <AlertCircle className="h-5 w-5" />
+            <h3 className="font-semibold">Acceso Restringido</h3>
+          </div>
+          <p className="text-orange-700 text-lg">
+            {accessReason}
+          </p>
+          {error && (
+            <p className="text-sm text-destructive mt-2">
+              Error técnico: {error.message}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <span className="text-sm text-muted-foreground">
+            {canAccess ? 'Cargando candidatos...' : 'Verificando permisos...'}
+          </span>
+          {canAccess && (
+            <div className="text-xs text-gray-500 max-w-md text-center">
+              Consultando la base de datos...
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="p-8 text-center space-y-4">
+        <div className="flex items-center justify-center space-x-2 text-red-600">
+          <AlertCircle className="h-5 w-5" />
+          <span className="font-semibold">Error al cargar candidatos</span>
+        </div>
+        
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
+          <div>
+            <p className="text-red-800 font-medium">Detalles del error:</p>
+            <p className="text-red-700 text-sm font-mono break-words">
+              {error.message}
+            </p>
+          </div>
+          
+          <div className="text-left">
+            <p className="text-red-800 font-medium mb-2">Acciones disponibles:</p>
+            <ul className="text-red-700 text-sm space-y-1 list-disc list-inside">
+              <li>Verificar que estás autenticado correctamente</li>
+              <li>Recargar la página para refrescar la sesión</li>
+              <li>Contactar al administrador si el problema persiste</li>
+            </ul>
+          </div>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Button onClick={() => refetch()} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Reintentar
+          </Button>
+          <Button 
+            onClick={() => window.location.reload()} 
+            variant="secondary"
+          >
+            Recargar página
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const filteredLeads = useMemo(() => {
     if (!leads || !Array.isArray(leads)) return [];
@@ -128,62 +223,6 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
       return matchesSearch && matchesStatus && matchesAssignment && matchesAdvanced;
     });
   }, [leads, searchTerm, statusFilter, assignmentFilter, advancedFilters]);
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <span className="text-sm text-muted-foreground">Cargando todos los candidatos...</span>
-          <div className="text-xs text-gray-500 max-w-md text-center">
-            Consultando la base de datos completa sin límites...
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-8 text-center space-y-4">
-        <div className="flex items-center justify-center space-x-2 text-red-600">
-          <AlertCircle className="h-5 w-5" />
-          <span className="font-semibold">Error al cargar candidatos</span>
-        </div>
-        
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
-          <div>
-            <p className="text-red-800 font-medium">Detalles del error:</p>
-            <p className="text-red-700 text-sm font-mono break-words">
-              {error instanceof Error ? error.message : 'Error desconocido'}
-            </p>
-          </div>
-          
-          <div className="text-left">
-            <p className="text-red-800 font-medium mb-2">Acciones disponibles:</p>
-            <ul className="text-red-700 text-sm space-y-1 list-disc list-inside">
-              <li>Verificar que estás autenticado correctamente</li>
-              <li>Recargar la página para refrescar la sesión</li>
-              <li>Contactar al administrador si el problema persiste</li>
-            </ul>
-          </div>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button onClick={() => refetch()} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Reintentar
-          </Button>
-          <Button 
-            onClick={() => window.location.reload()} 
-            variant="secondary"
-          >
-            Recargar página
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   if (!leads || leads.length === 0) {
     return (
@@ -286,7 +325,6 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         onClearSelection={handleClearSelection}
         onBulkAssignmentComplete={refetch}
       />
-
 
       {/* Controles de búsqueda y filtros */}
       <div className="flex gap-4 items-center">
@@ -404,15 +442,17 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex gap-2 justify-end">
-                    <Button
-                      variant={isAssigned ? "secondary" : "default"}
-                      size="sm"
-                      onClick={() => handleAssignLead(lead)}
-                    >
-                      <UserPlus className="h-4 w-4 mr-1" />
-                      {isAssigned ? "Reasignar" : "Asignar"}
-                    </Button>
-                    {onEditLead && (
+                    {permissions.canEditLeads && (
+                      <Button
+                        variant={isAssigned ? "secondary" : "default"}
+                        size="sm"
+                        onClick={() => handleAssignLead(lead)}
+                      >
+                        <UserPlus className="h-4 w-4 mr-1" />
+                        {isAssigned ? "Reasignar" : "Asignar"}
+                      </Button>
+                    )}
+                    {permissions.canEditLeads && onEditLead && (
                       <Button
                         variant="outline"
                         size="sm"
