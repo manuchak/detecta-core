@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Package, ShoppingCart, Users, BarChart3, Truck, Settings, Smartphone } from 'lucide-react';
 import { InventarioTab } from './components/InventarioTab';
+import { StockTab } from './components/StockTab';
 
 export const WMSPage = () => {
   const [activeTab, setActiveTab] = useState('inventario');
@@ -67,10 +68,7 @@ export const WMSPage = () => {
         </TabsContent>
 
         <TabsContent value="stock">
-          <div className="p-8 text-center">
-            <h3 className="text-lg font-semibold mb-2">Módulo de Stock</h3>
-            <p className="text-muted-foreground">En desarrollo</p>
-          </div>
+          <StockTab />
         </TabsContent>
 
         <TabsContent value="recepcion">
