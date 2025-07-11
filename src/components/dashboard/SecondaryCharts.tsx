@@ -252,7 +252,7 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
                     strokeWidth={3}
                     dot={(props) => {
                       // Solo mostrar punto si hay datos reales en la semana actual
-                      if (props.payload?.semanaActual > 0) {
+                      if (props.payload?.semanaActual !== null && props.payload?.semanaActual !== undefined) {
                         return <circle cx={props.cx} cy={props.cy} r={5} fill="#8b5cf6" strokeWidth={2} />;
                       }
                       return null;

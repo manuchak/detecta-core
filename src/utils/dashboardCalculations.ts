@@ -276,8 +276,8 @@ export const processDailyData = (data: ServiceData[]): DailyServiceData[] => {
     const currentCount = dailyCurrentWeek[day];
     const previousCount = dailyPreviousWeek[day];
     
-    // Para la semana actual: solo incluir días que ya pasaron/son hoy Y que tengan datos
-    const shouldIncludeCurrentWeek = dayDate <= today && currentCount > 0;
+    // Para la semana actual: solo incluir días que ya pasaron/son hoy
+    const shouldIncludeCurrentWeek = dayDate <= today;
     
     // Para la semana anterior: incluir todos los días para mostrar tendencia completa
     const shouldIncludePreviousWeek = previousCount > 0;
@@ -286,7 +286,7 @@ export const processDailyData = (data: ServiceData[]): DailyServiceData[] => {
     if (shouldIncludeCurrentWeek || shouldIncludePreviousWeek) {
       result.push({
         day,
-        count: shouldIncludeCurrentWeek ? currentCount : 0, // Solo mostrar count si es día válido
+        count: shouldIncludeCurrentWeek ? currentCount : null, // null para días futuros evita conexión
         previousWeekCount: previousCount,
         date: dayDate.toLocaleDateString('es-ES'),
         weekRange: `${mondayThisWeek.getDate()}/${mondayThisWeek.getMonth() + 1}/${mondayThisWeek.getFullYear()} - ${sundayThisWeek.getDate()}/${sundayThisWeek.getMonth() + 1}/${sundayThisWeek.getFullYear()}`
