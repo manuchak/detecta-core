@@ -13,13 +13,30 @@ import { Package, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
 import { useStockProductos } from '@/hooks/useStockProductos';
 
 export const StockTab = () => {
-  const { stock, movimientos, isLoading } = useStockProductos();
+  const { stock, movimientos, isLoading, isLoadingMovimientos, error } = useStockProductos();
 
-  if (isLoading) {
+  const isLoadingData = isLoading || isLoadingMovimientos;
+
+  if (isLoadingData) {
     return (
       <div className="space-y-4">
+        <div>
+          <h2 className="text-2xl font-bold">Control de Stock</h2>
+          <p className="text-muted-foreground">Cargando datos del inventario...</p>
+        </div>
         <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
         <div className="h-64 bg-gray-200 rounded animate-pulse"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-2xl font-bold">Control de Stock</h2>
+          <p className="text-red-600">Error al cargar los datos: {error.message}</p>
+        </div>
       </div>
     );
   }

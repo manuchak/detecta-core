@@ -2,16 +2,26 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import type { StockProducto, MovimientoInventario } from '@/types/wms';
 
 export const useStockProductos = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user, loading: authLoading } = useAuth();
 
   const { data: stock, isLoading, error } = useQuery({
     queryKey: ['stock-productos'],
     queryFn: async () => {
       try {
+        console.log('🔍 Fetching stock productos...');
+        
+        // Verificar sesión actual
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error('Usuario no autenticado');
+        }
+        
         const { data, error } = await supabase
           .from('stock_productos')
           .select(`
@@ -24,23 +34,35 @@ export const useStockProductos = () => {
           .order('ultima_actualizacion', { ascending: false });
 
         if (error) {
-          console.error('Stock productos query error:', error);
+          console.error('❌ Stock productos query error:', error);
           throw error;
         }
+        
+        console.log('✅ Stock productos fetched successfully:', data?.length || 0, 'records');
         return data as StockProducto[];
       } catch (err) {
-        console.error('Stock productos fetch error:', err);
+        console.error('❌ Stock productos fetch error:', err);
         throw err;
       }
     },
-    retry: false,
-    refetchOnWindowFocus: false
+    enabled: !!user && !authLoading, // Solo ejecutar si hay usuario autenticado
+    retry: 1,
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000, // 5 minutos
   });
 
   const { data: movimientos, isLoading: isLoadingMovimientos } = useQuery({
     queryKey: ['movimientos-inventario'],
     queryFn: async () => {
       try {
+        console.log('🔍 Fetching movimientos inventario...');
+        
+        // Verificar sesión actual
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error('Usuario no autenticado');
+        }
+        
         const { data, error } = await supabase
           .from('movimientos_inventario')
           .select(`
@@ -51,17 +73,21 @@ export const useStockProductos = () => {
           .limit(100);
 
         if (error) {
-          console.error('Movimientos inventario query error:', error);
+          console.error('❌ Movimientos inventario query error:', error);
           throw error;
         }
+        
+        console.log('✅ Movimientos inventario fetched successfully:', data?.length || 0, 'records');
         return data as MovimientoInventario[];
       } catch (err) {
-        console.error('Movimientos inventario fetch error:', err);
+        console.error('❌ Movimientos inventario fetch error:', err);
         throw err;
       }
     },
-    retry: false,
-    refetchOnWindowFocus: false
+    enabled: !!user && !authLoading, // Solo ejecutar si hay usuario autenticado
+    retry: 1,
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000, // 5 minutos
   });
 
   const registrarMovimiento = useMutation({
@@ -137,8 +163,8 @@ export const useStockProductos = () => {
   return {
     stock,
     movimientos,
-    isLoading,
-    isLoadingMovimientos,
+    isLoading: authLoading || isLoading,
+    isLoadingMovimientos: authLoading || isLoadingMovimientos,
     error,
     registrarMovimiento,
     ajustarStock
