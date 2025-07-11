@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useStableAuth } from './useStableAuth';
@@ -14,6 +14,10 @@ export const useSimpleLeads = () => {
   const mounted = useRef(true);
   const dataFetched = useRef(false);
 
+  // Memoize the permission values to prevent infinite re-renders
+  const canViewLeads = useMemo(() => permissions.canViewLeads, [permissions.canViewLeads]);
+  const userId = useMemo(() => user?.id, [user?.id]);
+
   useEffect(() => {
     mounted.current = true;
     return () => { mounted.current = false; };
@@ -22,7 +26,7 @@ export const useSimpleLeads = () => {
   // Función para cargar datos
   const fetchLeads = async () => {
     if (!mounted.current || dataFetched.current || authLoading) return;
-    if (!user || !permissions.canViewLeads) {
+    if (!user || !canViewLeads) {
       setIsLoading(false);
       return;
     }
@@ -66,22 +70,29 @@ export const useSimpleLeads = () => {
     fetchLeads();
   };
 
-  // Efecto principal - usar solo valores primitivos como dependencias
+  // Efecto principal - usar solo valores memoizados como dependencias
   useEffect(() => {
     if (!authLoading) {
       fetchLeads();
     }
-  }, [authLoading, user?.id, permissions.canViewLeads]);
+  }, [authLoading, userId, canViewLeads]);
 
-  // Estados derivados
-  const canAccess = !authLoading && user && permissions.canViewLeads;
-  const accessReason = authLoading 
-    ? 'Verificando autenticación...'
-    : !user 
-      ? 'Debes iniciar sesión'
-      : !permissions.canViewLeads
-        ? `Tu rol '${userRole}' no tiene permisos para ver candidatos`
-        : 'Acceso autorizado';
+  // Estados derivados usando valores memoizados
+  const canAccess = useMemo(() => 
+    !authLoading && user && canViewLeads, 
+    [authLoading, user, canViewLeads]
+  );
+  
+  const accessReason = useMemo(() => 
+    authLoading 
+      ? 'Verificando autenticación...'
+      : !user 
+        ? 'Debes iniciar sesión'
+        : !canViewLeads
+          ? `Tu rol '${userRole}' no tiene permisos para ver candidatos`
+          : 'Acceso autorizado',
+    [authLoading, user, canViewLeads, userRole]
+  );
 
   return {
     leads,
