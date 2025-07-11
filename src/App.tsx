@@ -142,7 +142,7 @@ function App() {
                   path="/leads"
                   element={
                     <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'ejecutivo_ventas', 'coordinador_operaciones']}>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'ejecutivo_ventas', 'coordinador_operaciones']}>
                         <DashboardLayout>
                           <LeadsList />
                         </DashboardLayout>
