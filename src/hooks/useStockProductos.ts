@@ -80,10 +80,13 @@ export const useStockProductos = () => {
         .from('stock_productos')
         .select('cantidad_disponible')
         .eq('producto_id', producto_id)
-        .single();
+        .maybeSingle();
 
       const cantidadAnterior = stockActual?.cantidad_disponible || 0;
       const diferencia = nueva_cantidad - cantidadAnterior;
+
+      // Obtener usuario actual de forma segura
+      const { data: { user } } = await supabase.auth.getUser();
 
       // Registrar movimiento
       await supabase
@@ -96,7 +99,7 @@ export const useStockProductos = () => {
           cantidad_nueva: nueva_cantidad,
           motivo,
           referencia_tipo: 'ajuste_manual',
-          usuario_id: (await supabase.auth.getUser()).data.user?.id
+          usuario_id: user?.id
         });
 
       return { producto_id, nueva_cantidad };
