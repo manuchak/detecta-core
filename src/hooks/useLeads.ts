@@ -2,7 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthenticatedQuery } from '@/hooks/useAuthenticatedQuery';
 
 const SUPABASE_URL = "https://yydzzeljaewsfhmilnhm.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5ZHp6ZWxqYWV3c2ZobWlsbmhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc2OTc1MjIsImV4cCI6MjA2MzI3MzUyMn0.iP9UG12mKESneZq7XwY6vHvqRGH3hq3D1Hu0qneu8B8";
@@ -25,73 +25,30 @@ export interface Lead {
 export const useLeads = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { user, loading: authLoading, userRole } = useAuth();
 
-  const { data: leads, isLoading, error, refetch } = useQuery({
-    queryKey: ['leads'],
-    queryFn: async () => {
-      try {
-        console.log('🔍 Iniciando carga de leads con autenticación verificada...');
-        console.log('👤 Usuario actual:', user?.email);
-        console.log('🎭 Rol actual:', userRole);
-        
-        // Verificar sesión actual
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          throw new Error('Usuario no autenticado - sesión inválida');
-        }
-        
-        console.log('✅ Sesión válida para:', session.user.email);
-
-        // Consulta con logging mejorado
-        console.log('📊 Ejecutando consulta de leads...');
-        const { data, error } = await supabase
-          .from('leads')
-          .select('*')
-          .order('fecha_creacion', { ascending: false });
-        
-        if (error) {
-          console.error('❌ ERROR EN CONSULTA:', error);
-          console.error('🔍 Detalles del error:', {
-            code: error.code,
-            message: error.message,
-            details: error.details,
-            hint: error.hint
-          });
-          
-          // Verificar si es error de permisos
-          if (error.message.includes('permission denied') || error.message.includes('RLS')) {
-            throw new Error(`Sin permisos para acceder a leads. Usuario: ${user?.email}, Rol: ${userRole}`);
-          }
-          
-          throw new Error(`Error al cargar leads: ${error.message}`);
-        }
-        
-        console.log('✅ CONSULTA EXITOSA:', {
-          registrosDevueltos: data?.length || 0,
-          usuarioEmail: user?.email,
-          rolUsuario: userRole
-        });
-        
-        return data || [];
-        
-      } catch (error) {
-        console.error('💥 ERROR GENERAL EN useLeads:', error);
-        console.error('🔍 Contexto de error:', {
-          userEmail: user?.email,
-          userRole: userRole,
-          authLoading: authLoading
-        });
-        throw error;
+  // Use the simplified authenticated query hook
+  const { data: leads, isLoading, error, refetch } = useAuthenticatedQuery(
+    ['leads'],
+    async () => {
+      console.log('📊 Ejecutando consulta de leads...');
+      const { data, error } = await supabase
+        .from('leads')
+        .select('*')
+        .order('fecha_creacion', { ascending: false });
+      
+      if (error) {
+        console.error('❌ ERROR EN CONSULTA:', error);
+        throw new Error(`Error al cargar leads: ${error.message}`);
       }
+      
+      console.log('✅ CONSULTA EXITOSA - Leads cargados:', data?.length || 0);
+      return data || [];
     },
-    enabled: !!user && !authLoading && !!userRole, // Esperar autenticación completa
-    retry: 1,
-    retryDelay: 1000,
-    staleTime: 30000,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: true
-  });
+    {
+      staleTime: 30000,
+      refetchOnWindowFocus: false
+    }
+  );
 
   const assignLead = useMutation({
     mutationFn: async ({ leadId, analystId }: { leadId: string, analystId: string }) => {
@@ -230,7 +187,7 @@ export const useLeads = () => {
 
   return {
     leads,
-    isLoading: authLoading || isLoading,
+    isLoading,
     error,
     refetch,
     assignLead,
