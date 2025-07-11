@@ -79,9 +79,7 @@ function App() {
                   path="/home"
                   element={
                     <ProtectedRoute>
-                      <DashboardLayout>
-                        <HomeRobust />
-                      </DashboardLayout>
+                      <Home />
                     </ProtectedRoute>
                   }
                 />
