@@ -2,7 +2,6 @@
 import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
   User, 
@@ -11,7 +10,17 @@ import {
   Clock, 
   Settings,
   Bell,
-  Activity
+  Activity,
+  TrendingUp,
+  Users,
+  Calendar,
+  BarChart3,
+  Zap,
+  CheckCircle2,
+  ArrowRight,
+  Truck,
+  UserCheck,
+  Monitor
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -49,62 +58,113 @@ const Home = () => {
   };
 
   const getQuickActions = () => {
-    const actions = [];
-    
-    // Acciones comunes para todos
-    actions.push(
-      { title: 'Mi Perfil', icon: User, href: '/settings', description: 'Configurar información personal' },
-      { title: 'Monitoreo', icon: MapPin, href: '/monitoring', description: 'Ver estado de servicios en tiempo real' }
-    );
+    const baseActions = [
+      { 
+        title: 'Mi Perfil', 
+        icon: User, 
+        href: '/settings', 
+        description: 'Configurar información personal',
+        color: 'bg-blue-50 text-blue-600 border-blue-100'
+      },
+      { 
+        title: 'Monitoreo General', 
+        icon: Monitor, 
+        href: '/monitoring', 
+        description: 'Ver estado del sistema en tiempo real',
+        color: 'bg-green-50 text-green-600 border-green-100'
+      },
+      { 
+        title: 'Soporte', 
+        icon: Bell, 
+        href: '/tickets', 
+        description: 'Centro de ayuda y tickets',
+        color: 'bg-orange-50 text-orange-600 border-orange-100'
+      }
+    ];
 
-    // Acciones específicas por rol
-    if (['custodio', 'supply', 'instalador'].includes(userRole || '')) {
-      actions.push(
-        { title: 'Mis Servicios', icon: Activity, href: '/services', description: 'Ver servicios asignados' }
-      );
-    }
+    const roleSpecificActions = [];
 
-    if (['instalador'].includes(userRole || '')) {
-      actions.push(
-        { title: 'Portal Instalador', icon: Settings, href: '/installers/portal', description: 'Gestionar instalaciones' }
-      );
-    }
-
-    if (['monitoring', 'monitoring_supervisor'].includes(userRole || '')) {
-      actions.push(
-        { title: 'Centro de Monitoreo', icon: MapPin, href: '/monitoring', description: 'Supervisar operaciones' }
-      );
-    }
-
+    // Dashboard para roles administrativos
     if (['admin', 'owner', 'supply_admin', 'coordinador_operaciones', 'jefe_seguridad', 'bi'].includes(userRole || '')) {
-      actions.push(
-        { title: 'Dashboard Ejecutivo', icon: Activity, href: '/executive-dashboard', description: 'Datos financieros y métricas avanzadas' }
-      );
+      roleSpecificActions.push({
+        title: 'Dashboard Ejecutivo',
+        icon: TrendingUp,
+        href: '/executive-dashboard',
+        description: 'Analítica avanzada y métricas financieras',
+        color: 'bg-purple-50 text-purple-600 border-purple-100',
+        featured: true
+      });
     }
 
-    return actions;
+    // Servicios para roles operativos
+    if (['custodio', 'supply', 'instalador'].includes(userRole || '')) {
+      roleSpecificActions.push({
+        title: 'Mis Servicios',
+        icon: Truck,
+        href: '/services',
+        description: 'Gestionar servicios asignados',
+        color: 'bg-indigo-50 text-indigo-600 border-indigo-100'
+      });
+    }
+
+    // Portal instalador
+    if (['instalador'].includes(userRole || '')) {
+      roleSpecificActions.push({
+        title: 'Portal Instalador',
+        icon: Settings,
+        href: '/installers/portal',
+        description: 'Gestionar instalaciones',
+        color: 'bg-cyan-50 text-cyan-600 border-cyan-100'
+      });
+    }
+
+    // WMS para roles de suministros
+    if (['supply_admin', 'supply', 'admin', 'owner'].includes(userRole || '')) {
+      roleSpecificActions.push({
+        title: 'WMS - GPS',
+        icon: BarChart3,
+        href: '/wms',
+        description: 'Gestión de inventario y suministros',
+        color: 'bg-emerald-50 text-emerald-600 border-emerald-100'
+      });
+    }
+
+    // Leads para ventas y administración
+    if (['admin', 'owner', 'supply_admin', 'ejecutivo_ventas'].includes(userRole || '')) {
+      roleSpecificActions.push({
+        title: 'Gestión de Leads',
+        icon: UserCheck,
+        href: '/leads',
+        description: 'Administrar candidatos y reclutamiento',
+        color: 'bg-pink-50 text-pink-600 border-pink-100'
+      });
+    }
+
+    return [...roleSpecificActions, ...baseActions];
   };
 
   return (
-    <div className="min-h-screen w-full bg-gray-50">
-      <div className="max-w-7xl mx-auto p-6 space-y-8">
-        {/* Header de Bienvenida */}
-        <div className="bg-white rounded-lg shadow-sm border p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                {getWelcomeMessage()}, {user?.user_metadata?.display_name || user?.email?.split('@')[0]}
-              </h1>
-              <p className="text-gray-600 mt-1">
-                Bienvenido al sistema de gestión GPS
-              </p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Badge variant="secondary" className="flex items-center gap-2">
-                <Shield className="h-4 w-4" />
+    <div className="min-h-screen w-full bg-gradient-to-br from-gray-50 via-white to-gray-50">
+      {/* Hero Section */}
+      <div className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-50/50 via-transparent to-purple-50/30 pointer-events-none" />
+        <div className="relative max-w-6xl mx-auto px-4 pt-16 pb-24">
+          <div className="text-center space-y-6">
+            <div className="space-y-4">
+              <Badge variant="outline" className="px-4 py-2 rounded-full border-gray-200 bg-white/80 backdrop-blur-sm">
+                <Shield className="h-4 w-4 mr-2" />
                 {getRoleDisplay(userRole || 'unverified')}
               </Badge>
-              <div className="flex items-center text-gray-500">
+              <h1 className="text-5xl sm:text-6xl font-light text-gray-900 tracking-tight">
+                {getWelcomeMessage()},
+                <span className="block font-medium bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  {user?.user_metadata?.display_name || user?.email?.split('@')[0]}
+                </span>
+              </h1>
+              <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+                Bienvenido al sistema de gestión GPS - DetectaSecurity
+              </p>
+              <div className="flex items-center justify-center text-gray-400 text-sm">
                 <Clock className="h-4 w-4 mr-2" />
                 {new Date().toLocaleDateString('es-MX', { 
                   weekday: 'long', 
@@ -116,54 +176,110 @@ const Home = () => {
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Acciones Rápidas */}
-        <div>
-          <h2 className="text-2xl font-semibold text-gray-800 mb-6">Acciones Rápidas</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {getQuickActions().map((action, index) => {
-              const Icon = action.icon;
-              return (
-                <Card key={index} className="hover:shadow-lg transition-shadow cursor-pointer">
-                  <Link to={action.href}>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-3 text-lg">
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                          <Icon className="h-5 w-5 text-blue-600" />
+      {/* Main Actions Grid */}
+      <div className="max-w-6xl mx-auto px-4 pb-24">
+        <div className="mb-12">
+          <h2 className="text-3xl font-light text-gray-900 text-center mb-2">Acciones Disponibles</h2>
+          <p className="text-gray-600 text-center">Accede rápidamente a los módulos más importantes</p>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {getQuickActions().map((action, index) => {
+            const Icon = action.icon;
+            const isFeatured = action.featured;
+            
+            return (
+              <Link 
+                key={index} 
+                to={action.href}
+                className="group block"
+              >
+                <Card className={`
+                  relative overflow-hidden border-0 bg-white/70 backdrop-blur-sm 
+                  hover:bg-white hover:shadow-2xl hover:shadow-gray-200/50
+                  transition-all duration-500 ease-out
+                  hover:-translate-y-2 cursor-pointer
+                  ${isFeatured ? 'lg:col-span-2' : ''}
+                `}>
+                  <CardContent className="p-8">
+                    <div className="flex items-start space-x-6">
+                      <div className={`
+                        p-4 rounded-2xl ${action.color} border
+                        group-hover:scale-110 transition-transform duration-300
+                      `}>
+                        <Icon className="h-8 w-8" />
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="text-xl font-semibold text-gray-900 group-hover:text-gray-700">
+                            {action.title}
+                          </h3>
+                          <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-1 transition-all duration-300" />
                         </div>
-                        {action.title}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-gray-600 text-sm">{action.description}</p>
-                    </CardContent>
-                  </Link>
+                        <p className="text-gray-600 leading-relaxed">
+                          {action.description}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
                 </Card>
-              );
-            })}
-          </div>
+              </Link>
+            );
+          })}
         </div>
 
-        {/* Estado del Sistema */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              Estado del Sistema
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span className="text-sm text-gray-600">Todos los sistemas operativos</span>
+        {/* System Status */}
+        <div className="mt-20">
+          <Card className="border-0 bg-white/70 backdrop-blur-sm shadow-lg">
+            <CardContent className="p-8">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-green-50 rounded-2xl border border-green-100">
+                    <CheckCircle2 className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">Estado del Sistema</h3>
+                    <p className="text-green-600 font-medium">Todos los sistemas operativos</p>
+                  </div>
+                </div>
+                
+                <div className="text-right">
+                  <p className="text-sm text-gray-500 mb-1">Última actualización</p>
+                  <p className="text-sm font-medium text-gray-700">
+                    {new Date().toLocaleTimeString('es-MX', { 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    })}
+                  </p>
+                </div>
               </div>
-              <span className="text-xs text-gray-500">
-                Última actualización: {new Date().toLocaleTimeString('es-MX')}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Access Buttons */}
+        <div className="mt-16 text-center">
+          <h3 className="text-2xl font-light text-gray-900 mb-8">Acceso Rápido</h3>
+          <div className="flex flex-wrap justify-center gap-4">
+            <Link 
+              to="/settings" 
+              className="px-6 py-3 bg-gray-900 text-white rounded-full hover:bg-gray-800 transition-colors duration-200 flex items-center space-x-2"
+            >
+              <Settings className="h-4 w-4" />
+              <span>Configuración</span>
+            </Link>
+            <Link 
+              to="/monitoring" 
+              className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-full hover:bg-gray-50 transition-colors duration-200 flex items-center space-x-2"
+            >
+              <Monitor className="h-4 w-4" />
+              <span>Monitoreo</span>
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );
