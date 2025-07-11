@@ -6,6 +6,8 @@ export interface GmvMonthData {
   year2025: number;
   year2024: number;
   growth: number;
+  hasData2025?: boolean;
+  hasData2024?: boolean;
 }
 
 export interface GmvAnalysisData {
@@ -179,20 +181,24 @@ export const processGmvData = (allServices: any[], selectedClient: string = "all
       }))
   });
 
-  // Convert to chart format
-  const monthlyData: GmvMonthData[] = months.map(month => {
-    const stats = monthlyStats[month];
-    const growth = stats.year2024 > 0 
-      ? ((stats.year2025 - stats.year2024) / stats.year2024) * 100 
-      : stats.year2025 > 0 ? 100 : 0;
+  // Convert to chart format - solo incluir meses con datos reales
+  const monthlyData: GmvMonthData[] = months
+    .map(month => {
+      const stats = monthlyStats[month];
+      const growth = stats.year2024 > 0 
+        ? ((stats.year2025 - stats.year2024) / stats.year2024) * 100 
+        : stats.year2025 > 0 ? 100 : 0;
 
-    return {
-      month: month.charAt(0).toUpperCase() + month.slice(1),
-      year2025: Math.round(stats.year2025 * 100) / 100,
-      year2024: Math.round(stats.year2024 * 100) / 100,
-      growth: Math.round(growth * 10) / 10
-    };
-  });
+      return {
+        month: month.charAt(0).toUpperCase() + month.slice(1),
+        year2025: Math.round(stats.year2025 * 100) / 100,
+        year2024: Math.round(stats.year2024 * 100) / 100,
+        growth: Math.round(growth * 10) / 10,
+        hasData2025: stats.year2025 > 0,
+        hasData2024: stats.year2024 > 0
+      };
+    })
+    .filter(item => item.hasData2025 || item.hasData2024); // Solo mostrar meses con datos reales
 
   // Calculate totals
   const totalGmv2025 = monthlyData.reduce((sum, item) => sum + item.year2025, 0);
