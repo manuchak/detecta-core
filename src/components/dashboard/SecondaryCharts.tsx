@@ -31,48 +31,29 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
     return data.slice(0, 6);
   };
 
-  // Procesar datos diarios para comparación semanal - Solo datos reales hasta hoy
+  // Procesar datos diarios para mostrar solo servicios finalizados hasta hoy
   const processWeeklyComparison = (data: DailyServiceData[]) => {
-    const daysOrder = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-    const today = new Date();
-    const currentDayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    console.log('🔄 Procesando datos diarios para mostrar en tarjeta:', data);
     
-    // Obtener el lunes de esta semana
-    const mondayOfThisWeek = new Date(today);
-    const daysFromMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
-    mondayOfThisWeek.setDate(today.getDate() - daysFromMonday);
-    mondayOfThisWeek.setHours(0, 0, 0, 0);
+    // Los datos ya vienen filtrados solo con servicios finalizados desde el hook
+    // Solo necesitamos mostrarlos correctamente sin proyecciones futuras
     
-    // Datos de la semana anterior (valores base para comparación)
-    const previousWeekBaseData = {
-      'Lun': 35, 'Mar': 42, 'Mié': 38, 'Jue': 45, 'Vie': 30, 'Sáb': 25, 'Dom': 15
+    // Para la semana anterior, por ahora mostraremos valores simulados
+    // TODO: Implementar lógica para obtener datos reales de la semana anterior
+    const previousWeekData = {
+      'Lun': 25, 'Mar': 33, 'Mié': 28, 'Jue': 30, 'Vie': 22, 'Sáb': 15, 'Dom': 8
     };
 
-    // Solo incluir días hasta hoy - NO datos futuros
-    const combinedData = daysOrder.map((day, index) => {
-      const currentDate = new Date(mondayOfThisWeek);
-      currentDate.setDate(mondayOfThisWeek.getDate() + index);
-      
-      // Solo incluir si la fecha es hoy o anterior
-      const isValidDay = currentDate <= today;
-      
-      if (!isValidDay) {
-        return null; // No incluir días futuros
-      }
-      
-      const currentWeek = data.find(d => d.day === day) || { day, count: 0 };
-      const previousWeekCount = previousWeekBaseData[day as keyof typeof previousWeekBaseData] || 0;
-      
-      return {
-        day,
-        date: currentDate.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }),
-        semanaActual: currentWeek.count,
-        semanaAnterior: previousWeekCount,
-        diferencia: currentWeek.count - previousWeekCount
-      };
-    }).filter(Boolean); // Remover elementos null (días futuros)
+    const result = data.map(item => ({
+      day: item.day,
+      date: item.date,
+      semanaActual: item.count,
+      semanaAnterior: previousWeekData[item.day as keyof typeof previousWeekData] || 0,
+      diferencia: item.count - (previousWeekData[item.day as keyof typeof previousWeekData] || 0)
+    }));
 
-    return combinedData;
+    console.log('🔄 Datos procesados para tarjeta:', result);
+    return result;
   };
 
   const processedClientsData = processTopClientsForDisplay(topClientsData);

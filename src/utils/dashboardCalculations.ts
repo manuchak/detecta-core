@@ -183,141 +183,97 @@ export const processServiceTypes = (data: ServiceData[]): ServiceTypesData[] => 
   return result;
 };
 
-// Procesar datos diarios - CORREGIDO para mostrar la última semana con datos reales
+// Procesar datos diarios - SOLO servicios finalizados con comparación semanal
 export const processDailyData = (data: ServiceData[]): DailyServiceData[] => {
-  console.log('processDailyData - Datos recibidos:', data.length);
+  console.log('📊 processDailyData - Iniciando procesamiento de servicios finalizados');
   
   if (!data || data.length === 0) {
-    console.log('processDailyData - No hay datos, retornando valores por defecto');
-    return getDefaultDailyData();
+    console.log('📊 No hay datos disponibles');
+    return [];
   }
 
-  // Filtrar datos válidos con mejor validación
-  const validServices = data.filter(item => {
+  // Filtrar SOLO servicios finalizados/completados
+  const completedServices = data.filter(item => {
+    const estado = cleanState(item.estado);
+    const isCompleted = estado === 'finalizado' || estado === 'completado';
     const hasValidDate = item.fecha_hora_cita && !isNaN(new Date(item.fecha_hora_cita).getTime());
-    const hasValidId = item.id_servicio && cleanTextValue(item.id_servicio) !== '';
-    return hasValidDate && hasValidId;
+    const hasValidId = cleanTextValue(item.id_servicio) !== '';
+    
+    return isCompleted && hasValidDate && hasValidId;
   });
 
-  console.log('processDailyData - Servicios válidos después del filtro:', validServices.length);
+  console.log(`📊 Servicios finalizados encontrados: ${completedServices.length} de ${data.length} totales`);
 
-  if (validServices.length === 0) {
-    console.log('processDailyData - No hay servicios válidos, retornando datos por defecto');
-    return getDefaultDailyData();
+  if (completedServices.length === 0) {
+    console.log('📊 No hay servicios finalizados, retornando datos vacíos');
+    return [];
   }
 
-  // Encontrar la fecha más reciente en los datos
-  const latestDate = validServices.reduce((latest, service) => {
-    const serviceDate = new Date(service.fecha_hora_cita!);
-    return serviceDate > latest ? serviceDate : latest;
-  }, new Date(validServices[0].fecha_hora_cita!));
-
-  console.log('processDailyData - Fecha más reciente en datos:', latestDate.toLocaleDateString('es-ES'));
-
-  // Calcular la semana que incluye la fecha más reciente
-  const dayOfWeek = latestDate.getDay(); // 0 = domingo, 1 = lunes, etc.
-  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Calcular cuántos días restar para llegar al lunes
+  // Obtener la semana actual (lunes a domingo)
+  const today = new Date();
+  const currentDayOfWeek = today.getDay(); // 0 = domingo, 1 = lunes, etc.
+  const daysFromMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
   
-  const weekStart = new Date(latestDate);
-  weekStart.setDate(latestDate.getDate() + mondayOffset);
-  weekStart.setHours(0, 0, 0, 0);
+  const mondayThisWeek = new Date(today);
+  mondayThisWeek.setDate(today.getDate() - daysFromMonday);
+  mondayThisWeek.setHours(0, 0, 0, 0);
   
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 6);
-  weekEnd.setHours(23, 59, 59, 999);
+  // Crear conteos por día solo hasta hoy (no mostrar días futuros)
+  const daysOrder = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+  const dailyCompletedServices: { [key: string]: number } = {};
 
-  console.log('processDailyData - Rango de semana calculado:', {
-    desde: weekStart.toLocaleDateString('es-ES'),
-    hasta: weekEnd.toLocaleDateString('es-ES')
+  // Inicializar contadores
+  daysOrder.forEach(day => {
+    dailyCompletedServices[day] = 0;
   });
 
-  // Filtrar servicios de esa semana
-  const weeklyServices = validServices.filter(item => {
-    const serviceDate = new Date(item.fecha_hora_cita!);
-    return serviceDate >= weekStart && serviceDate <= weekEnd;
-  });
-
-  console.log('processDailyData - Servicios de la semana objetivo:', weeklyServices.length);
-
-  // Si no hay servicios en esa semana, buscar la semana anterior con datos
-  if (weeklyServices.length === 0) {
-    console.log('processDailyData - No hay servicios en la semana más reciente, buscando semana anterior');
-    
-    // Buscar semanas anteriores hasta encontrar datos
-    let searchWeekStart = new Date(weekStart);
-    let searchWeekEnd = new Date(weekEnd);
-    let weeklyServicesFound: ServiceData[] = [];
-    let weeksSearched = 0;
-    const maxWeeksToSearch = 8; // Buscar hasta 8 semanas atrás
-    
-    while (weeklyServicesFound.length === 0 && weeksSearched < maxWeeksToSearch) {
-      searchWeekStart.setDate(searchWeekStart.getDate() - 7);
-      searchWeekEnd.setDate(searchWeekEnd.getDate() - 7);
-      weeksSearched++;
-      
-      weeklyServicesFound = validServices.filter(item => {
-        const serviceDate = new Date(item.fecha_hora_cita!);
-        return serviceDate >= searchWeekStart && serviceDate <= searchWeekEnd;
-      });
-      
-      console.log(`processDailyData - Semana ${weeksSearched} atrás (${searchWeekStart.toLocaleDateString('es-ES')} - ${searchWeekEnd.toLocaleDateString('es-ES')}): ${weeklyServicesFound.length} servicios`);
-    }
-    
-    if (weeklyServicesFound.length > 0) {
-      weekStart.setTime(searchWeekStart.getTime());
-      weekEnd.setTime(searchWeekEnd.getTime());
-      weeklyServices.splice(0, 0, ...weeklyServicesFound);
-      console.log(`processDailyData - Usando semana ${weeksSearched} atrás con ${weeklyServicesFound.length} servicios`);
-    }
-  }
-
-  // Si aún no hay servicios, usar datos por defecto
-  if (weeklyServices.length === 0) {
-    console.log('processDailyData - No se encontraron servicios en ninguna semana, usando datos por defecto');
-    return getDefaultDailyData();
-  }
-
-  // Crear conteos por día específico usando fecha completa
-  const dailyServiceIds: { [key: string]: Set<string> } = {};
-  const dayDates: { [key: string]: string } = {}; // Para guardar la fecha específica
-
-  weeklyServices.forEach(item => {
+  // Contar servicios finalizados por día (solo hasta hoy)
+  completedServices.forEach(service => {
     try {
-      const serviceDate = new Date(item.fecha_hora_cita!);
-      const dayKey = serviceDate.toLocaleDateString('es-ES'); // "13/05/2025"
-      const dayName = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'][serviceDate.getDay()];
-      const serviceId = cleanTextValue(item.id_servicio);
+      const serviceDate = new Date(service.fecha_hora_cita!);
+      const dayOfWeek = serviceDate.getDay();
+      const dayName = daysOrder[dayOfWeek === 0 ? 6 : dayOfWeek - 1]; // Convertir domingo (0) a posición 6
       
-      if (serviceId) {
-        if (!dailyServiceIds[dayName]) {
-          dailyServiceIds[dayName] = new Set();
-          dayDates[dayName] = dayKey;
+      // Solo contar si el día ya pasó (no contar días futuros)
+      if (serviceDate <= today) {
+        // Verificar que es de esta semana
+        const dayStart = new Date(mondayThisWeek);
+        dayStart.setDate(mondayThisWeek.getDate() + daysOrder.indexOf(dayName));
+        dayStart.setHours(0, 0, 0, 0);
+        
+        const dayEnd = new Date(dayStart);
+        dayEnd.setHours(23, 59, 59, 999);
+        
+        if (serviceDate >= dayStart && serviceDate <= dayEnd) {
+          dailyCompletedServices[dayName]++;
         }
-        dailyServiceIds[dayName].add(serviceId);
       }
     } catch (e) {
-      console.warn('Error processing daily data item:', e);
+      console.warn('Error procesando servicio:', e);
     }
   });
 
-  // Log detallado de conteos finales
-  console.log('processDailyData - Conteos finales por día:');
-  Object.entries(dailyServiceIds).forEach(([day, set]) => {
-    const count = set.size;
-    const date = dayDates[day];
-    console.log(`  ${day} ${date}: ${count} servicios únicos`);
+  console.log('📊 Servicios finalizados por día:', dailyCompletedServices);
+
+  // Crear resultado solo para días que ya pasaron
+  const result: DailyServiceData[] = [];
+  
+  daysOrder.forEach((day, index) => {
+    const dayDate = new Date(mondayThisWeek);
+    dayDate.setDate(mondayThisWeek.getDate() + index);
+    
+    // Solo incluir días que ya pasaron o son hoy
+    if (dayDate <= today) {
+      result.push({
+        day,
+        count: dailyCompletedServices[day],
+        date: dayDate.toLocaleDateString('es-ES'),
+        weekRange: `${mondayThisWeek.toLocaleDateString('es-ES')} - ${today.toLocaleDateString('es-ES')}`
+      });
+    }
   });
 
-  // Convertir a formato requerido con fechas específicas
-  const orderedDays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-  const result = orderedDays.map(day => ({
-    day,
-    count: dailyServiceIds[day]?.size || 0,
-    date: dayDates[day] || '', // Agregar fecha específica
-    weekRange: `${weekStart.toLocaleDateString('es-ES')} - ${weekEnd.toLocaleDateString('es-ES')}`
-  }));
-
-  console.log('processDailyData - Resultado final:', result);
+  console.log(`📊 Resultado final: ${result.length} días con datos`, result);
   
   return result;
 };
