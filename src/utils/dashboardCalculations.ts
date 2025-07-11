@@ -276,8 +276,12 @@ export const processDailyData = (data: ServiceData[]): DailyServiceData[] => {
     const currentCount = dailyCurrentWeek[day];
     const previousCount = dailyPreviousWeek[day];
     
-    // Para la semana actual: solo incluir días que ya pasaron/son hoy
-    const shouldIncludeCurrentWeek = dayDate <= today;
+    // Considerar el retraso de datos (1 día) - solo mostrar hasta ayer
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    
+    // Para la semana actual: solo incluir días que ya pasaron considerando el retraso
+    const shouldIncludeCurrentWeek = dayDate <= yesterday;
     
     // Para la semana anterior: incluir todos los días para mostrar tendencia completa
     const shouldIncludePreviousWeek = previousCount > 0;
