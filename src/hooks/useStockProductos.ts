@@ -11,37 +11,57 @@ export const useStockProductos = () => {
   const { data: stock, isLoading, error } = useQuery({
     queryKey: ['stock-productos'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('stock_productos')
-        .select(`
-          *,
-          producto:productos_inventario(
+      try {
+        const { data, error } = await supabase
+          .from('stock_productos')
+          .select(`
             *,
-            categoria:categorias_productos(*)
-          )
-        `)
-        .order('ultima_actualizacion', { ascending: false });
+            producto:productos_inventario(
+              *,
+              categoria:categorias_productos(*)
+            )
+          `)
+          .order('ultima_actualizacion', { ascending: false });
 
-      if (error) throw error;
-      return data as StockProducto[];
-    }
+        if (error) {
+          console.error('Stock productos query error:', error);
+          throw error;
+        }
+        return data as StockProducto[];
+      } catch (err) {
+        console.error('Stock productos fetch error:', err);
+        throw err;
+      }
+    },
+    retry: false,
+    refetchOnWindowFocus: false
   });
 
   const { data: movimientos, isLoading: isLoadingMovimientos } = useQuery({
     queryKey: ['movimientos-inventario'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('movimientos_inventario')
-        .select(`
-          *,
-          producto:productos_inventario(*)
-        `)
-        .order('fecha_movimiento', { ascending: false })
-        .limit(100);
+      try {
+        const { data, error } = await supabase
+          .from('movimientos_inventario')
+          .select(`
+            *,
+            producto:productos_inventario(*)
+          `)
+          .order('fecha_movimiento', { ascending: false })
+          .limit(100);
 
-      if (error) throw error;
-      return data as MovimientoInventario[];
-    }
+        if (error) {
+          console.error('Movimientos inventario query error:', error);
+          throw error;
+        }
+        return data as MovimientoInventario[];
+      } catch (err) {
+        console.error('Movimientos inventario fetch error:', err);
+        throw err;
+      }
+    },
+    retry: false,
+    refetchOnWindowFocus: false
   });
 
   const registrarMovimiento = useMutation({
