@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { UserPlus, X, Users } from "lucide-react";
-import { Lead } from "@/hooks/useLeads";
+import { Lead } from "@/types/leadTypes";
 import { LeadAssignmentDialog } from "./LeadAssignmentDialog";
 
 interface BulkActionsToolbarProps {

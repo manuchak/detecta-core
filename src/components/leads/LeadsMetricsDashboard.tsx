@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, UserCheck, UserX, Clock, TrendingUp, Database } from "lucide-react";
-import { Lead } from "@/hooks/useLeads";
+import { Lead } from "@/types/leadTypes";
 import { useMemo } from "react";
 
 interface LeadsMetricsDashboardProps {

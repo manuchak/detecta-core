@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { LeadsTable } from '@/components/leads/LeadsTable';
 import { LeadForm } from '@/components/leads/LeadForm';
-import { Lead } from '@/hooks/useLeads';
+import { Lead } from '@/types/leadTypes';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 

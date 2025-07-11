@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { LeadsTable } from "@/components/leads/LeadsTable";
 import { LeadForm } from "@/components/leads/LeadForm";
-import { Lead } from "@/hooks/useLeads";
+import { Lead } from "@/types/leadTypes";
 
 export const LeadsListPage = () => {
   const { userRole, loading: authLoading } = useAuth();

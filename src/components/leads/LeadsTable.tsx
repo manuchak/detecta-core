@@ -19,7 +19,8 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Search, UserPlus, Edit, AlertCircle, RefreshCw, CheckCircle, User, UserX } from "lucide-react";
-import { useLeads, Lead } from "@/hooks/useLeads";
+import { useLeadsStable as useLeads } from "@/hooks/useLeadsStable";
+import { Lead } from "@/types/leadTypes";
 import { LeadAssignmentDialog } from "./LeadAssignmentDialog";
 import { LeadsMetricsDashboard } from "./LeadsMetricsDashboard";
 import { BulkActionsToolbar } from "./BulkActionsToolbar";

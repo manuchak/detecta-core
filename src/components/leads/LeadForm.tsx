@@ -11,7 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useLeads, Lead } from "@/hooks/useLeads";
+import { useLeadsStable as useLeads } from "@/hooks/useLeadsStable";
+import { Lead } from "@/types/leadTypes";
 import { useToast } from "@/components/ui/use-toast";
 
 interface LeadFormProps {

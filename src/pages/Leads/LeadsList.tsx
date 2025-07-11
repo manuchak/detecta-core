@@ -13,7 +13,7 @@ import { LeadsTable } from "@/components/leads/LeadsTable";
 import { LeadForm } from "@/components/leads/LeadForm";
 import { ReferralManager } from "@/components/leads/ReferralManager";
 import { BonusConfigManager } from "@/components/leads/BonusConfigManager";
-import { Lead } from "@/hooks/useLeads";
+import { Lead } from "@/types/leadTypes";
 
 export const LeadsList = () => {
   const { hasAnySkill } = useUserSkills();

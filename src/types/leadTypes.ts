@@ -1,4 +1,22 @@
 
+// Unified Lead interface used across the application
+export interface Lead {
+  id: string;
+  nombre: string;
+  email: string;
+  telefono?: string; // Make optional to match database
+  empresa?: string;
+  estado: string;
+  fuente?: string;
+  fecha_creacion: string;
+  fecha_contacto?: string;
+  asignado_a?: string;
+  notas?: string;
+  mensaje?: string;
+  updated_at: string;
+  created_at: string;
+}
+
 export interface AssignedLead {
   lead_id: string;
   lead_nombre: string;
