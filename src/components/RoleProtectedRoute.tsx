@@ -1,13 +1,13 @@
 
 import { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
-import { useUnifiedAuth, UserRole } from '@/hooks/useUnifiedAuth';
+import { useStableAuth, UserRole } from '@/hooks/useStableAuth';
 import { Card, CardContent } from '@/components/ui/card';
 
 interface RoleProtectedRouteProps {
   children: ReactNode;
   allowedRoles?: UserRole[];
-  requiredPermission?: keyof NonNullable<ReturnType<typeof useUnifiedAuth>['permissions']>;
+  requiredPermission?: 'canViewLeads' | 'canEditLeads' | 'canManageUsers' | 'canViewDashboard';
   fallbackPath?: string;
   showAccessDenied?: boolean;
 }
@@ -19,7 +19,7 @@ const RoleProtectedRoute = ({
   fallbackPath = '/home',
   showAccessDenied = true
 }: RoleProtectedRouteProps) => {
-  const { user, userRole, loading, hasRole, hasPermission } = useUnifiedAuth();
+  const { user, userRole, loading, hasRole, hasPermission } = useStableAuth();
 
   // Mostrar loading de manera consistente
   if (loading) {

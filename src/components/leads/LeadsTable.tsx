@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Search, UserPlus, Edit, AlertCircle, RefreshCw, CheckCircle, User, UserX } from "lucide-react";
-import { useLeadsUnified } from "@/hooks/useLeadsUnified";
+import { useSimpleLeads } from "@/hooks/useSimpleLeads";
 import { Lead } from "@/types/leadTypes";
 import { LeadAssignmentDialog } from "./LeadAssignmentDialog";
 import { LeadsMetricsDashboard } from "./LeadsMetricsDashboard";
@@ -39,7 +39,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     accessReason, 
     permissions, 
     refetch 
-  } = useLeadsUnified();
+  } = useSimpleLeads();
   
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
