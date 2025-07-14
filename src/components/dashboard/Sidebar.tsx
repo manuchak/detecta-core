@@ -79,6 +79,17 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
     return roleMap[role || 'unverified'] || 'Usuario';
   };
 
+  // ⚠️ ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
+  const [expandedItems, setExpandedItems] = React.useState<number[]>([]);
+
+  const toggleExpanded = (index: number) => {
+    if (expandedItems.includes(index)) {
+      setExpandedItems(expandedItems.filter((itemIndex) => itemIndex !== index));
+    } else {
+      setExpandedItems([...expandedItems, index]);
+    }
+  };
+
   // Crear componente UserProfile
   const UserProfile = () => (
     <div className="px-3 py-2 border-t border-border">
@@ -275,16 +286,6 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
       path: "/settings",
     }] : []),
   ];
-
-  const [expandedItems, setExpandedItems] = React.useState<number[]>([]);
-
-  const toggleExpanded = (index: number) => {
-    if (expandedItems.includes(index)) {
-      setExpandedItems(expandedItems.filter((itemIndex) => itemIndex !== index));
-    } else {
-      setExpandedItems([...expandedItems, index]);
-    }
-  };
 
   return (
     <div className={cn("pb-12 flex flex-col h-full", className)} {...props}>
