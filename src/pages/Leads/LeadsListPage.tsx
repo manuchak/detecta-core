@@ -8,7 +8,7 @@ import { LeadsTable } from "@/components/leads/LeadsTable";
 import { LeadForm } from "@/components/leads/LeadForm";
 import { Lead } from "@/types/leadTypes";
 
-export const LeadsListPage = () => {
+const LeadsListPage = () => {
   const { loading: authLoading, permissions, userRole } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);

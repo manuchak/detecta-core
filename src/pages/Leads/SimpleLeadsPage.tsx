@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { LeadsListPage } from "./LeadsListPage";
+import LeadsListPage from "./LeadsListPage";
 import DashboardLayout from "@/layouts/DashboardLayout";
 
 const SimpleLeadsPage = () => {
