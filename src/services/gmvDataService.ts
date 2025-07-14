@@ -1,7 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
-const THRESHOLD = process.env.NEXT_PUBLIC_GMV_THRESHOLD || 100000;
+const THRESHOLD = 100000;
 
 export const fetchGmvData = async (startDate: string, endDate: string) => {
   try {
