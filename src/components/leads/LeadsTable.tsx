@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -31,6 +31,7 @@ interface LeadsTableProps {
 }
 
 export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
+  // ALL HOOKS MUST BE CALLED FIRST - NO EXCEPTIONS
   const { 
     leads, 
     isLoading, 
@@ -56,12 +57,11 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     assignment: 'all'
   }));
 
-  // Memoize the filter update function to prevent unnecessary re-renders
+  // ALL CALLBACK HOOKS
   const handleAdvancedFiltersChange = useCallback((newFilters: AdvancedFiltersState) => {
     setAdvancedFilters(newFilters);
   }, []);
 
-  // Memoize the reset function
   const handleResetFilters = useCallback(() => {
     setAdvancedFilters({
       dateFrom: '',
@@ -76,9 +76,111 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     setSearchTerm('');
   }, []);
 
-  // Debug logging removed to prevent infinite re-renders
+  // HELPER FUNCTIONS
+  const getFilteredLeads = () => {
+    if (!leads || !Array.isArray(leads)) return [];
+    
+    return leads.filter(lead => {
+      if (!lead) return false;
+      
+      const matchesSearch = !searchTerm || 
+        lead.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.telefono?.includes(searchTerm);
+      
+      const matchesStatus = statusFilter === "all" || lead.estado === statusFilter;
+      
+      const matchesAssignment = assignmentFilter === "all" || 
+        (assignmentFilter === "assigned" && lead.asignado_a) ||
+        (assignmentFilter === "unassigned" && !lead.asignado_a);
+      
+      let matchesAdvanced = true;
+      
+      if (advancedFilters.dateFrom && lead.fecha_creacion) {
+        try {
+          const leadDate = new Date(lead.fecha_creacion);
+          const fromDate = new Date(advancedFilters.dateFrom);
+          if (!isNaN(leadDate.getTime()) && !isNaN(fromDate.getTime())) {
+            matchesAdvanced = matchesAdvanced && leadDate >= fromDate;
+          }
+        } catch (e) {
+          // Ignore date parsing errors
+        }
+      }
+      
+      if (advancedFilters.dateTo && lead.fecha_creacion) {
+        try {
+          const leadDate = new Date(lead.fecha_creacion);
+          const toDate = new Date(advancedFilters.dateTo);
+          if (!isNaN(leadDate.getTime()) && !isNaN(toDate.getTime())) {
+            toDate.setHours(23, 59, 59);
+            matchesAdvanced = matchesAdvanced && leadDate <= toDate;
+          }
+        } catch (e) {
+          // Ignore date parsing errors
+        }
+      }
+      
+      if (advancedFilters.source !== 'all') {
+        matchesAdvanced = matchesAdvanced && lead.fuente === advancedFilters.source;
+      }
+      
+      return matchesSearch && matchesStatus && matchesAssignment && matchesAdvanced;
+    });
+  };
 
-  // Mostrar estado de acceso si no tiene permisos
+  const getStatusBadge = (status: string) => {
+    const statusColors = {
+      'nuevo': 'bg-blue-100 text-blue-800',
+      'en_proceso': 'bg-yellow-100 text-yellow-800',
+      'aprobado': 'bg-green-100 text-green-800',
+      'rechazado': 'bg-red-100 text-red-800',
+      'pendiente': 'bg-orange-100 text-orange-800'
+    };
+    
+    return (
+      <Badge className={statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'}>
+        {status}
+      </Badge>
+    );
+  };
+
+  const handleAssignLead = (lead: Lead) => {
+    setSelectedLead(lead);
+    setShowAssignmentDialog(true);
+  };
+
+  const handleSelectLead = (lead: Lead, checked: boolean) => {
+    if (checked) {
+      setSelectedLeads(prev => [...prev, lead]);
+    } else {
+      setSelectedLeads(prev => prev.filter(l => l.id !== lead.id));
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const filtered = getFilteredLeads();
+      setSelectedLeads(filtered);
+    } else {
+      setSelectedLeads([]);
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedLeads([]);
+  };
+
+  const isLeadSelected = (leadId: string) => {
+    return selectedLeads.some(lead => lead.id === leadId);
+  };
+
+  // CALCULATE FILTERED LEADS
+  const filteredLeads = getFilteredLeads();
+  const allFilteredSelected = filteredLeads.length > 0 && 
+    filteredLeads.every(lead => isLeadSelected(lead.id));
+
+  // CONDITIONAL RENDERING - AFTER ALL HOOKS
   if (!canAccess) {
     return (
       <div className="text-center py-8">
@@ -100,7 +202,6 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     );
   }
 
-  // Loading state
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -119,7 +220,6 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     );
   }
 
-  // Error state
   if (error) {
     return (
       <div className="p-8 text-center space-y-4">
@@ -162,67 +262,6 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     );
   }
 
-  // Simplified filtering without useMemo to prevent infinite re-renders
-  const getFilteredLeads = () => {
-    if (!leads || !Array.isArray(leads)) return [];
-    
-    return leads.filter(lead => {
-      if (!lead) return false;
-      
-      // Filtro de búsqueda
-      const matchesSearch = !searchTerm || 
-        lead.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.telefono?.includes(searchTerm);
-      
-      // Filtro de estado
-      const matchesStatus = statusFilter === "all" || lead.estado === statusFilter;
-      
-      // Filtro de asignación
-      const matchesAssignment = assignmentFilter === "all" || 
-        (assignmentFilter === "assigned" && lead.asignado_a) ||
-        (assignmentFilter === "unassigned" && !lead.asignado_a);
-      
-      // Filtros avanzados básicos
-      let matchesAdvanced = true;
-      
-      // Filtro de fecha
-      if (advancedFilters.dateFrom && lead.fecha_creacion) {
-        try {
-          const leadDate = new Date(lead.fecha_creacion);
-          const fromDate = new Date(advancedFilters.dateFrom);
-          if (!isNaN(leadDate.getTime()) && !isNaN(fromDate.getTime())) {
-            matchesAdvanced = matchesAdvanced && leadDate >= fromDate;
-          }
-        } catch (e) {
-          // Ignore date parsing errors
-        }
-      }
-      
-      if (advancedFilters.dateTo && lead.fecha_creacion) {
-        try {
-          const leadDate = new Date(lead.fecha_creacion);
-          const toDate = new Date(advancedFilters.dateTo);
-          if (!isNaN(leadDate.getTime()) && !isNaN(toDate.getTime())) {
-            toDate.setHours(23, 59, 59);
-            matchesAdvanced = matchesAdvanced && leadDate <= toDate;
-          }
-        } catch (e) {
-          // Ignore date parsing errors
-        }
-      }
-      
-      // Filtro de fuente
-      if (advancedFilters.source !== 'all') {
-        matchesAdvanced = matchesAdvanced && lead.fuente === advancedFilters.source;
-      }
-      
-      return matchesSearch && matchesStatus && matchesAssignment && matchesAdvanced;
-    });
-  };
-
-  const filteredLeads = getFilteredLeads();
-
   if (!leads || leads.length === 0) {
     return (
       <div className="p-8 text-center space-y-4">
@@ -244,75 +283,23 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     );
   }
 
-  const getStatusBadge = (status: string) => {
-    const statusColors = {
-      'nuevo': 'bg-blue-100 text-blue-800',
-      'en_proceso': 'bg-yellow-100 text-yellow-800',
-      'aprobado': 'bg-green-100 text-green-800',
-      'rechazado': 'bg-red-100 text-red-800',
-      'pendiente': 'bg-orange-100 text-orange-800'
-    };
-    
-    return (
-      <Badge className={statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'}>
-        {status}
-      </Badge>
-    );
-  };
-
-  const handleAssignLead = (lead: Lead) => {
-    setSelectedLead(lead);
-    setShowAssignmentDialog(true);
-  };
-
-  const handleSelectLead = (lead: Lead, checked: boolean) => {
-    if (checked) {
-      setSelectedLeads(prev => [...prev, lead]);
-    } else {
-      setSelectedLeads(prev => prev.filter(l => l.id !== lead.id));
-    }
-  };
-
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedLeads(filteredLeads);
-    } else {
-      setSelectedLeads([]);
-    }
-  };
-
-  const handleClearSelection = () => {
-    setSelectedLeads([]);
-  };
-
-
-  const isLeadSelected = (leadId: string) => {
-    return selectedLeads.some(lead => lead.id === leadId);
-  };
-
-  const allFilteredSelected = filteredLeads.length > 0 && 
-    filteredLeads.every(lead => isLeadSelected(lead.id));
-
+  // MAIN RENDER
   return (
     <div className="space-y-4">
-      {/* Dashboard de métricas */}
       <LeadsMetricsDashboard leads={leads || []} />
 
-      {/* Filtros avanzados */}
       <AdvancedFilters 
         filters={advancedFilters}
         onFiltersChange={handleAdvancedFiltersChange}
         onResetFilters={handleResetFilters}
       />
 
-      {/* Toolbar de acciones masivas */}
       <BulkActionsToolbar 
         selectedLeads={selectedLeads}
         onClearSelection={handleClearSelection}
         onBulkAssignmentComplete={refetch}
       />
 
-      {/* Controles de búsqueda y filtros */}
       <div className="flex gap-4 items-center">
         <div className="relative flex-1">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
