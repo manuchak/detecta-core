@@ -16,7 +16,7 @@ import Dashboard from '@/pages/Dashboard/Dashboard';
 import ExecutiveDashboard from '@/pages/Dashboard/ExecutiveDashboard';
 import Login from '@/pages/Auth/Login';
 import Register from '@/pages/Auth/Register';
-import ForgotPassword from '@/pages/Auth/ForgotPassword';
+import { ForgotPassword } from '@/pages/Auth/ForgotPassword';
 import EmailConfirmation from '@/pages/Auth/EmailConfirmation';
 import Settings from '@/pages/Settings/Settings';
 import NotFound from '@/pages/NotFound';
