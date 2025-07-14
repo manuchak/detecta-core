@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { LeadsListPage } from "./LeadsListPage";
+import DashboardLayout from "@/layouts/DashboardLayout";
 
 const SimpleLeadsPage = () => {
   const [user, setUser] = useState<any>(null);
@@ -103,9 +104,9 @@ const SimpleLeadsPage = () => {
 
   // Si tiene acceso, mostrar la interfaz
   return (
-    <div>
+    <DashboardLayout>
       {!showAdvanced ? (
-        <div className="p-6 space-y-6">
+        <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
@@ -156,7 +157,7 @@ const SimpleLeadsPage = () => {
         // Mostrar la versión completa
         <LeadsListPage />
       )}
-    </div>
+    </DashboardLayout>
   );
 };
 
