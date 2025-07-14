@@ -210,25 +210,27 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
       path: "/dashboard",
     }] : []),
 
+    // Leads - principal funcionalidad
+    ...(hasAnySkill(['leads_management', 'leads_approval', 'custodio_tracking_only']) || isAdminUser ? [{
+      title: "Candidatos",
+      icon: Users,
+      path: "/leads",
+      subItems: [
+        { title: "Lista de Candidatos", path: "/leads" },
+        ...(hasSkill('leads_approval') || isAdminUser ? [
+          { title: "Aprobaciones", path: "/leads/approvals" }
+        ] : []),
+      ]
+    }] : []),
+
     // Servicios - solo si tiene permisos de servicios
     ...(hasAnySkill(['services_view', 'services_manage']) || isAdminUser ? [{
       title: "Servicios",
       icon: Car,
+      path: "/services",
       subItems: [
         { title: "Gestión de Servicios", path: "/services" },
-        { title: "Rendimiento", path: "/services/rendimiento" },
-      ]
-    }] : []),
-
-    // Leads - solo si tiene permisos de leads
-    ...(hasAnySkill(['leads_management', 'leads_approval', 'custodio_tracking_only']) || isAdminUser ? [{
-      title: "Leads",
-      icon: Users,
-      subItems: [
-        { title: "Gestión de Leads", path: "/leads" },
-        ...(hasSkill('leads_approval') || isAdminUser ? [
-          { title: "Aprobaciones", path: "/leads/approvals" }
-        ] : []),
+        { title: "Análisis de Rendimiento", path: "/services/rendimiento" },
       ]
     }] : []),
 
@@ -238,6 +240,7 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
       icon: Shield,
       path: "/monitoring",
       subItems: [
+        { title: "Panel de Monitoreo", path: "/monitoring" },
         { title: "Supply Chain", path: "/monitoring/supply-chain" },
         { title: "Auditoría Forense", path: "/monitoring/forensic-audit" },
       ]
@@ -245,26 +248,25 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
 
     // Instaladores - solo si tiene permisos
     ...(hasAnySkill(['installer_portal_only']) || isAdminUser ? [{
-      title: "Instaladores",
+      title: "Instalaciones",
       icon: Wrench,
-      path: "/installers",
       subItems: [
+        { title: "Mi Portal", path: "/installers/portal" },
         { title: "Programación", path: "/installers/schedule" },
         { title: "Calendario", path: "/installers/calendar" },
-        { title: "Portal", path: "/installers/portal" },
       ]
     }] : []),
 
     // WMS - solo si tiene permisos
     ...(hasAnySkill(['wms_view', 'wms_manage']) || isAdminUser ? [{
-      title: "WMS - GPS",
+      title: "Inventario GPS",
       icon: Package,
       path: "/wms",
     }] : []),
 
     // Tickets - solo si tiene permisos
     ...(hasAnySkill(['tickets_view', 'tickets_manage']) || isAdminUser ? [{
-      title: "Tickets",
+      title: "Soporte",
       icon: MessageSquare,
       path: "/tickets",
     }] : []),
@@ -274,8 +276,8 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
       title: "Administración",
       icon: UserCog,
       subItems: [
-        { title: "Landing Page", path: "/admin/landing-manager" },
-        { title: "Mantenimiento DB", path: "/maintenance/duplicate-cleanup" },
+        { title: "Gestión de Landing", path: "/admin/landing-manager" },
+        { title: "Limpieza de BD", path: "/maintenance/duplicate-cleanup" },
       ]
     }] : []),
 
