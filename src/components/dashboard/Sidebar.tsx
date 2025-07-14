@@ -28,7 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function Sidebar({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { hasSkill, hasAnySkill } = useUserSkills();
@@ -344,4 +344,6 @@ export function Sidebar({ className, ...props }: React.HTMLAttributes<HTMLDivEle
       {user && <UserProfile />}
     </div>
   );
-}
+};
+
+export { Sidebar };

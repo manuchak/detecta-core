@@ -31,7 +31,6 @@ interface LeadsTableProps {
 }
 
 export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
-  console.log('🚀 LeadsTable - Component rendering...');
   const { 
     leads, 
     isLoading, 

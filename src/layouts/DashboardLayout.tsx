@@ -10,7 +10,6 @@ interface DashboardLayoutProps {
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
-  console.log('🚀 DashboardLayout - Component rendering...');
   const { user, loading, userRole } = useAuth();
   const [isInitializing, setIsInitializing] = useState(true);
 
