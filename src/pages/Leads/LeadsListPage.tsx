@@ -9,6 +9,7 @@ import { LeadForm } from "@/components/leads/LeadForm";
 import { Lead } from "@/types/leadTypes";
 
 const LeadsListPage = () => {
+  console.log('🚀 LeadsListPage - Component rendering...');
   const { loading: authLoading, permissions, userRole } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);

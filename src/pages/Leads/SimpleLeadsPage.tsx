@@ -6,6 +6,7 @@ import LeadsListPage from "./LeadsListPage";
 import DashboardLayout from "@/layouts/DashboardLayout";
 
 const SimpleLeadsPage = () => {
+  console.log('🚀 SimpleLeadsPage - Component rendering...');
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
