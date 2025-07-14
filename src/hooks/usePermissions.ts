@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useRolePermissions } from '@/hooks/useRolePermissions';
 import { Role } from '@/types/roleTypes';
 

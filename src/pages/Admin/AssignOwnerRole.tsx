@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from "@/components/ui/use-toast";
 import { 
   Card, 
@@ -15,7 +15,7 @@ import { Loader2 } from 'lucide-react';
 const AssignOwnerRole = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { user, assignRole, refetchRole } = useAuth();
+  const { user, assignRole } = useAuth();
 
   const handleAssignOwnerRole = async () => {
     if (!user?.id) {
@@ -32,7 +32,6 @@ const AssignOwnerRole = () => {
       const success = await assignRole(user.id, 'owner');
       
       if (success) {
-        await refetchRole();
         toast({
           title: "Éxito",
           description: "Rol de owner asignado correctamente",

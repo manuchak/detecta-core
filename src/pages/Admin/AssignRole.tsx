@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/components/ui/use-toast";
 import { 
@@ -23,7 +23,7 @@ import { Loader2 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 
 const AssignRole = () => {
-  const { user, refetchRole } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState('');
@@ -107,10 +107,7 @@ const AssignRole = () => {
         description: `Rol '${selectedRole}' asignado correctamente. Por favor cierra sesión y vuelve a iniciar para ver los cambios.`,
       });
       
-      // Refresh the user role immediately
-      if (userId === user?.id) {
-        await refetchRole();
-      }
+      // Role will be updated when user signs out and back in
       
     } catch (error) {
       toast({

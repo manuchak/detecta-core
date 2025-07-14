@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { HeroSection } from '@/components/landing/HeroSection';
 import { BenefitsSection } from '@/components/landing/BenefitsSection';
 import { ForWhoSection } from '@/components/landing/ForWhoSection';
