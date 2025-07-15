@@ -203,12 +203,12 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
 
   // Menu completo para usuarios con múltiples permisos
   const navigationItems = [
-    // Dashboard - solo si tiene el skill
-    ...(hasSkill('dashboard_view') || isAdminUser ? [{
+    // Dashboard - siempre accesible
+    {
       title: "Panel Principal",
       icon: Home,
       path: "/dashboard",
-    }] : []),
+    },
 
     // Leads - principal funcionalidad
     ...(hasAnySkill(['leads_management', 'leads_approval', 'custodio_tracking_only']) || isAdminUser ? [{

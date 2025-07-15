@@ -141,7 +141,13 @@ function App() {
                 {/* Leads routes */}
                 <Route
                   path="/leads"
-                  element={<SimpleLeadsPage />}
+                  element={
+                    <ProtectedRoute>
+                      <DashboardLayout>
+                        <SimpleLeadsPage />
+                      </DashboardLayout>
+                    </ProtectedRoute>
+                  }
                 />
                 
                 <Route
