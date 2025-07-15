@@ -445,7 +445,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
                 <TableCell>{lead.telefono}</TableCell>
                 <TableCell>{getStatusBadge(lead.estado)}</TableCell>
                 <TableCell>
-                  {lead.fecha_creacion ? new Date(lead.fecha_creacion).toLocaleDateString('es-ES') : 'N/A'}
+                  {lead.created_at ? new Date(lead.created_at).toLocaleDateString('es-ES') : 'N/A'}
                 </TableCell>
                 <TableCell>
                   {isAssigned ? (
