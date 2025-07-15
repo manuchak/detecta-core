@@ -51,7 +51,7 @@ export const LeadAssignmentDialog = ({
       fetchAnalysts();
       setSelectedAnalyst(currentAssignee || "");
     }
-  }, [open, currentAssignee]);
+  }, [open, currentAssignee, fetchAnalysts]);
 
   const handleAssign = async () => {
     if (!selectedAnalyst) {

@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -15,7 +15,7 @@ export const useLeadAssignment = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const fetchAnalysts = async () => {
+  const fetchAnalysts = useCallback(async () => {
     try {
       setLoading(true);
       console.log('Fetching analysts for lead assignment...');
@@ -60,7 +60,11 @@ export const useLeadAssignment = () => {
           display_name: user.display_name || user.email,
           email: user.email,
           role: user.role
-        }));
+        }))
+        // Eliminar duplicados basados en el ID
+        .filter((analyst, index, self) => 
+          index === self.findIndex(a => a.id === analyst.id)
+        );
 
       console.log('Filtered analysts:', filteredAnalysts);
       setAnalysts(filteredAnalysts);
@@ -75,7 +79,7 @@ export const useLeadAssignment = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   return {
     analysts,
