@@ -148,9 +148,9 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
       
       let matchesAdvanced = true;
       
-      if (advancedFilters.dateFrom && lead.fecha_creacion) {
+      if (advancedFilters.dateFrom && lead.created_at) {
         try {
-          const leadDate = new Date(lead.fecha_creacion);
+          const leadDate = new Date(lead.created_at);
           const fromDate = new Date(advancedFilters.dateFrom);
           if (!isNaN(leadDate.getTime()) && !isNaN(fromDate.getTime())) {
             matchesAdvanced = matchesAdvanced && leadDate >= fromDate;
@@ -160,9 +160,9 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         }
       }
       
-      if (advancedFilters.dateTo && lead.fecha_creacion) {
+      if (advancedFilters.dateTo && lead.created_at) {
         try {
-          const leadDate = new Date(lead.fecha_creacion);
+          const leadDate = new Date(lead.created_at);
           const toDate = new Date(advancedFilters.dateTo);
           if (!isNaN(leadDate.getTime()) && !isNaN(toDate.getTime())) {
             toDate.setHours(23, 59, 59);
