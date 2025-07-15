@@ -210,14 +210,14 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
       path: "/dashboard",
     },
 
-    // Leads - principal funcionalidad
-    ...(hasAnySkill(['leads_management', 'leads_approval', 'custodio_tracking_only']) || isAdminUser ? [{
+    // Leads - principal funcionalidad - Supply Admin tiene acceso completo
+    ...(hasAnySkill(['leads_management', 'leads_approval', 'custodio_tracking_only']) || isAdminUser || userRole === 'supply_admin' ? [{
       title: "Candidatos",
       icon: Users,
       path: "/leads",
       subItems: [
         { title: "Lista de Candidatos", path: "/leads" },
-        // Permitir aprobaciones para supply_admin también
+        // Supply admin tiene acceso a aprobaciones
         ...(hasSkill('leads_approval') || isAdminUser || userRole === 'supply_admin' ? [
           { title: "Aprobaciones", path: "/leads/approvals" }
         ] : []),
