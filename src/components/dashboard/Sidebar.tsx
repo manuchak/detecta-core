@@ -90,50 +90,56 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
     }
   };
 
-  // Crear componente UserProfile
+  // Crear componente UserProfile - ahora con mejor UX en la parte superior
   const UserProfile = () => (
-    <div className="px-3 py-2 border-t border-border">
+    <div className="px-3 py-3 border-b border-border bg-muted/30">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="w-full justify-start p-2 h-auto">
+          <Button variant="ghost" className="w-full justify-start p-2 h-auto hover:bg-accent">
             <div className="flex items-center space-x-3 w-full">
-              <Avatar className="h-8 w-8">
+              <Avatar className="h-9 w-9 ring-2 ring-primary/20">
                 <AvatarImage src={user?.user_metadata?.avatar_url} />
-                <AvatarFallback className="text-xs">
+                <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
                   {getUserInitials()}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 text-left min-w-0">
-                <p className="text-sm font-medium truncate">
+                <p className="text-sm font-semibold truncate">
                   {getUserDisplayName()}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
                   {getRoleDisplayName(userRole)}
                 </p>
               </div>
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
             </div>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent 
-          align="end" 
-          className="w-56"
+          align="start" 
+          className="w-64"
           side="right"
+          sideOffset={8}
         >
-          <div className="px-2 py-1.5">
-            <p className="text-sm font-medium">{getUserDisplayName()}</p>
+          <div className="px-3 py-2 bg-muted/50">
+            <p className="text-sm font-semibold">{getUserDisplayName()}</p>
             <p className="text-xs text-muted-foreground">{user?.email}</p>
+            <p className="text-xs text-primary font-medium mt-1">{getRoleDisplayName(userRole)}</p>
           </div>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => navigate('/settings')}>
+          <DropdownMenuItem onClick={() => navigate('/settings')} className="cursor-pointer">
             <User className="mr-2 h-4 w-4" />
             Mi Perfil
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => navigate('/settings')}>
+          <DropdownMenuItem onClick={() => navigate('/settings')} className="cursor-pointer">
             <Settings className="mr-2 h-4 w-4" />
             Configuración
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
+          <DropdownMenuItem 
+            onClick={handleSignOut} 
+            className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
+          >
             <LogOut className="mr-2 h-4 w-4" />
             Cerrar Sesión
           </DropdownMenuItem>
@@ -150,7 +156,10 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
   // Si es instalador únicamente, solo mostrar su portal
   if (isInstallerOnly) {
     return (
-      <div className={cn("pb-12 flex flex-col h-full", className)} {...props}>
+      <div className={cn("flex flex-col h-full", className)} {...props}>
+        {/* Profile section at the top for easy access */}
+        {user && <UserProfile />}
+        
         <div className="flex-1 space-y-4 py-4">
           <div className="px-3 py-2">
             <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
@@ -168,8 +177,6 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
             </div>
           </div>
         </div>
-        {/* Profile section at the bottom */}
-        {user && <UserProfile />}
       </div>
     );
   }
@@ -177,7 +184,10 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
   // Si es custodio únicamente, solo mostrar seguimiento de leads
   if (isCustodioOnly) {
     return (
-      <div className={cn("pb-12 flex flex-col h-full", className)} {...props}>
+      <div className={cn("flex flex-col h-full", className)} {...props}>
+        {/* Profile section at the top for easy access */}
+        {user && <UserProfile />}
+        
         <div className="flex-1 space-y-4 py-4">
           <div className="px-3 py-2">
             <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
@@ -195,8 +205,6 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
             </div>
           </div>
         </div>
-        {/* Profile section at the bottom */}
-        {user && <UserProfile />}
       </div>
     );
   }
@@ -291,8 +299,11 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
   ];
 
   return (
-    <div className={cn("pb-12 flex flex-col h-full", className)} {...props}>
-      <div className="flex-1 space-y-4 py-4">
+    <div className={cn("flex flex-col h-full", className)} {...props}>
+      {/* Profile section at the top for easy access */}
+      {user && <UserProfile />}
+      
+      <div className="flex-1 space-y-4 py-4 overflow-y-auto">
         <div className="px-3 py-2">
           <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
             Menu Principal
@@ -343,9 +354,6 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
           </div>
         </div>
       </div>
-      
-      {/* Profile section at the bottom */}
-      {user && <UserProfile />}
     </div>
   );
 };
