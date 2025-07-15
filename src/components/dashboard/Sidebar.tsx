@@ -217,7 +217,8 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
       path: "/leads",
       subItems: [
         { title: "Lista de Candidatos", path: "/leads" },
-        ...(hasSkill('leads_approval') || isAdminUser ? [
+        // Permitir aprobaciones para supply_admin también
+        ...(hasSkill('leads_approval') || isAdminUser || userRole === 'supply_admin' ? [
           { title: "Aprobaciones", path: "/leads/approvals" }
         ] : []),
       ]
