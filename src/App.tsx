@@ -152,7 +152,7 @@ function App() {
                   path="/leads/approvals"
                   element={
                     <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'coordinador_operaciones']}>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'coordinador_operaciones', 'supply_admin']}>
                         <DashboardLayout>
                           <LeadApprovals />
                         </DashboardLayout>
