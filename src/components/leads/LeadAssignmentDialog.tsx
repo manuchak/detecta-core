@@ -99,8 +99,10 @@ export const LeadAssignmentDialog = ({
         });
       }
 
-      onAssignmentUpdate();
+      // Cerrar el diálogo inmediatamente para evitar loops de UI
       onOpenChange(false);
+      // Después actualizar los datos
+      onAssignmentUpdate();
     } catch (error) {
       console.error('Error assigning lead:', error);
       toast({
