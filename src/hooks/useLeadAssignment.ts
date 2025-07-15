@@ -41,6 +41,8 @@ export const useLeadAssignment = () => {
         'admin', 
         'owner', 
         'supply_admin', 
+        'supply_lead',
+        'supply',
         'analista_seguridad', 
         'custodio', 
         'coordinador_operaciones', 
