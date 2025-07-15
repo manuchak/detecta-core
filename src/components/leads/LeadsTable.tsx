@@ -25,6 +25,7 @@ import { LeadAssignmentDialog } from "./LeadAssignmentDialog";
 import { LeadsMetricsDashboard } from "./LeadsMetricsDashboard";
 import { BulkActionsToolbar } from "./BulkActionsToolbar";
 import { AdvancedFilters, AdvancedFiltersState } from "./AdvancedFilters";
+import { QuickFilters, QuickFilterPreset } from "./QuickFilters";
 
 interface LeadsTableProps {
   onEditLead?: (lead: Lead) => void;
@@ -48,6 +49,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
   const [selectedLeads, setSelectedLeads] = useState<Lead[]>([]);
+  const [activeQuickFilter, setActiveQuickFilter] = useState<string>("");
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFiltersState>(() => ({
     dateFrom: '',
     dateTo: '',
@@ -74,7 +76,57 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     setStatusFilter('all');
     setAssignmentFilter('all');
     setSearchTerm('');
+    setActiveQuickFilter('');
   }, []);
+
+  const handleQuickFilter = useCallback((preset: QuickFilterPreset) => {
+    setActiveQuickFilter(preset.id);
+    
+    // Limpiar filtros existentes
+    setAdvancedFilters({
+      dateFrom: '',
+      dateTo: '',
+      source: 'all',
+      unassignedDays: 'all',
+      status: 'all',
+      assignment: 'all'
+    });
+    setStatusFilter('all');
+    setAssignmentFilter('all');
+    
+    // Aplicar el preset de filtros rápidos
+    const newFilters = { ...advancedFilters };
+    
+    if (preset.filters.days) {
+      const targetDate = new Date();
+      targetDate.setDate(targetDate.getDate() - preset.filters.days);
+      newFilters.dateFrom = targetDate.toISOString().split('T')[0];
+    }
+    
+    if (preset.filters.dateFrom) {
+      newFilters.dateFrom = preset.filters.dateFrom;
+    }
+    
+    if (preset.filters.dateTo) {
+      newFilters.dateTo = preset.filters.dateTo;
+    }
+    
+    if (preset.filters.source && preset.filters.source !== 'all') {
+      newFilters.source = preset.filters.source;
+    }
+    
+    if (preset.filters.assignment) {
+      newFilters.assignment = preset.filters.assignment;
+      setAssignmentFilter(preset.filters.assignment);
+    }
+    
+    if (preset.filters.status) {
+      newFilters.status = preset.filters.status;
+      setStatusFilter(preset.filters.status);
+    }
+    
+    setAdvancedFilters(newFilters);
+  }, [advancedFilters]);
 
   // HELPER FUNCTIONS
   const getFilteredLeads = () => {
@@ -287,6 +339,11 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
   return (
     <div className="space-y-4">
       <LeadsMetricsDashboard leads={leads || []} />
+
+      <QuickFilters 
+        onApplyFilter={handleQuickFilter}
+        activePreset={activeQuickFilter}
+      />
 
       <AdvancedFilters 
         filters={advancedFilters}
