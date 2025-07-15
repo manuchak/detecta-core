@@ -10,7 +10,7 @@ import {
 import { Plus, Users, Settings } from "lucide-react";
 import { useUserSkills } from "@/hooks/useUserSkills";
 import { LeadsTable } from "@/components/leads/LeadsTable";
-import { LeadForm } from "@/components/leads/LeadForm";
+import { EnhancedLeadForm } from "@/components/leads/EnhancedLeadForm";
 import { ReferralManager } from "@/components/leads/ReferralManager";
 import { BonusConfigManager } from "@/components/leads/BonusConfigManager";
 import { Lead } from "@/types/leadTypes";
@@ -20,6 +20,9 @@ export const LeadsList = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [activeTab, setActiveTab] = useState("leads");
+
+  // Verificar si el usuario tiene acceso a referidos
+  const canAccessReferrals = hasAnySkill(['leads_management', 'admin_full_access']);
 
   const canManageLeads = hasAnySkill(['leads_management', 'admin_full_access']);
 
@@ -74,14 +77,18 @@ export const LeadsList = () => {
             <Users className="h-4 w-4 mr-2" />
             Leads
           </TabsTrigger>
-          <TabsTrigger value="referrals">
-            <Users className="h-4 w-4 mr-2" />
-            Referidos
-          </TabsTrigger>
-          <TabsTrigger value="bonus-config">
-            <Settings className="h-4 w-4 mr-2" />
-            Configuración de Bonos
-          </TabsTrigger>
+          {canAccessReferrals && (
+            <TabsTrigger value="referrals">
+              <Users className="h-4 w-4 mr-2" />
+              Referidos
+            </TabsTrigger>
+          )}
+          {hasAnySkill(['admin_full_access', 'supply_chain_manage']) && (
+            <TabsTrigger value="bonus-config">
+              <Settings className="h-4 w-4 mr-2" />
+              Configuración de Bonos
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="leads" className="mt-6">
@@ -93,7 +100,7 @@ export const LeadsList = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <LeadForm
+                <EnhancedLeadForm
                   editingLead={editingLead}
                   onSuccess={handleCloseForm}
                   onCancel={handleCloseForm}
@@ -111,14 +118,18 @@ export const LeadsList = () => {
             </Card>
           )}
         </TabsContent>
-
-        <TabsContent value="referrals" className="mt-6">
-          <ReferralManager />
-        </TabsContent>
-
-        <TabsContent value="bonus-config" className="mt-6">
-          <BonusConfigManager />
-        </TabsContent>
+        
+        {canAccessReferrals && (
+          <TabsContent value="referrals" className="mt-6">
+            <ReferralManager />
+          </TabsContent>
+        )}
+        
+        {hasAnySkill(['admin_full_access', 'supply_chain_manage']) && (
+          <TabsContent value="bonus-config" className="mt-6">
+            <BonusConfigManager />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

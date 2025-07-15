@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { LeadsTable } from "@/components/leads/LeadsTable";
-import { LeadForm } from "@/components/leads/LeadForm";
+import { EnhancedLeadForm } from "@/components/leads/EnhancedLeadForm";
 import { Lead } from "@/types/leadTypes";
 
 const LeadsListPage = () => {
@@ -91,7 +91,7 @@ const LeadsListPage = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <LeadForm
+            <EnhancedLeadForm
               editingLead={editingLead}
               onSuccess={handleCloseForm}
               onCancel={handleCloseForm}
