@@ -143,9 +143,9 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
   );
 
   // Verificar si el usuario tiene acceso completo de admin o es instalador/custodio limitado
-  const isAdminUser = hasSkill('admin_full_access');
+  const isAdminUser = hasSkill('admin_full_access') || userRole === 'supply_admin';
   const isInstallerOnly = hasSkill('installer_portal_only') && !isAdminUser;
-  const isCustodioOnly = hasSkill('custodio_tracking_only') && !isAdminUser;
+  const isCustodioOnly = hasSkill('custodio_tracking_only') && !isAdminUser && userRole !== 'supply_admin';
 
   // Si es instalador únicamente, solo mostrar su portal
   if (isInstallerOnly) {
