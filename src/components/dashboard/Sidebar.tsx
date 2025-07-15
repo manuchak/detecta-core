@@ -143,8 +143,8 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
   );
 
   // Verificar si el usuario tiene acceso completo de admin o es instalador/custodio limitado
-  const isAdminUser = hasSkill('admin_full_access') || userRole === 'supply_admin';
-  const isInstallerOnly = hasSkill('installer_portal_only') && !isAdminUser;
+  const isAdminUser = hasSkill('admin_full_access') || userRole === 'supply_admin' || userRole === 'admin' || userRole === 'owner';
+  const isInstallerOnly = hasSkill('installer_portal_only') && !isAdminUser && userRole !== 'supply_admin';
   const isCustodioOnly = hasSkill('custodio_tracking_only') && !isAdminUser && userRole !== 'supply_admin';
 
   // Si es instalador únicamente, solo mostrar su portal
@@ -211,14 +211,14 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
     },
 
     // Leads - principal funcionalidad - Supply Admin tiene acceso completo
-    ...(hasAnySkill(['leads_management', 'leads_approval', 'custodio_tracking_only']) || isAdminUser || userRole === 'supply_admin' ? [{
+    ...(hasAnySkill(['leads_management', 'leads_approval', 'custodio_tracking_only']) || isAdminUser || ['supply_admin', 'admin', 'owner'].includes(userRole || '') ? [{
       title: "Candidatos",
       icon: Users,
       path: "/leads",
       subItems: [
         { title: "Lista de Candidatos", path: "/leads" },
         // Supply admin tiene acceso a aprobaciones
-        ...(hasSkill('leads_approval') || isAdminUser || userRole === 'supply_admin' ? [
+        ...(hasSkill('leads_approval') || isAdminUser || ['supply_admin', 'admin', 'owner'].includes(userRole || '') ? [
           { title: "Aprobaciones", path: "/leads/approvals" }
         ] : []),
       ]
