@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -32,17 +32,7 @@ interface LeadsTableProps {
 }
 
 export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
-  // ALL HOOKS MUST BE CALLED FIRST - NO EXCEPTIONS
-  const { 
-    leads, 
-    isLoading, 
-    error, 
-    canAccess, 
-    accessReason, 
-    permissions, 
-    refetch 
-  } = useSimpleLeads();
-  
+  // Estados para filtros y UI
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [assignmentFilter, setAssignmentFilter] = useState("all");
@@ -50,6 +40,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
   const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
   const [selectedLeads, setSelectedLeads] = useState<Lead[]>([]);
   const [activeQuickFilter, setActiveQuickFilter] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFiltersState>(() => ({
     dateFrom: '',
     dateTo: '',
@@ -59,9 +50,38 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     assignment: 'all'
   }));
 
+  // Preparar filtros para el hook optimizado
+  const leadsFilters = useMemo(() => ({
+    searchTerm: searchTerm || undefined,
+    status: statusFilter !== 'all' ? statusFilter : undefined,
+    assignment: assignmentFilter !== 'all' ? assignmentFilter : undefined,
+    dateFrom: advancedFilters.dateFrom || undefined,
+    dateTo: advancedFilters.dateTo || undefined,
+    source: advancedFilters.source !== 'all' ? advancedFilters.source : undefined,
+  }), [searchTerm, statusFilter, assignmentFilter, advancedFilters]);
+
+  // Hook optimizado con filtros en backend y paginación
+  const { 
+    leads, 
+    totalCount,
+    paginationInfo,
+    isLoading, 
+    error, 
+    canAccess, 
+    accessReason, 
+    permissions, 
+    refetch,
+    clearCache
+  } = useSimpleLeads({
+    filters: leadsFilters,
+    pagination: { page: currentPage, pageSize: 50 },
+    enableCache: true
+  });
+
   // ALL CALLBACK HOOKS
   const handleAdvancedFiltersChange = useCallback((newFilters: AdvancedFiltersState) => {
     setAdvancedFilters(newFilters);
+    setCurrentPage(1); // Reset página al cambiar filtros
   }, []);
 
   const handleResetFilters = useCallback(() => {
@@ -77,6 +97,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     setAssignmentFilter('all');
     setSearchTerm('');
     setActiveQuickFilter('');
+    setCurrentPage(1); // Reset página al limpiar filtros
   }, []);
 
   const handleQuickFilter = useCallback((preset: QuickFilterPreset) => {
@@ -128,58 +149,10 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     setAdvancedFilters(newFilters);
   }, [advancedFilters]);
 
-  // HELPER FUNCTIONS
-  const getFilteredLeads = () => {
-    if (!leads || !Array.isArray(leads)) return [];
-    
-    return leads.filter(lead => {
-      if (!lead) return false;
-      
-      const matchesSearch = !searchTerm || 
-        lead.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.telefono?.includes(searchTerm);
-      
-      const matchesStatus = statusFilter === "all" || lead.estado === statusFilter;
-      
-      const matchesAssignment = assignmentFilter === "all" || 
-        (assignmentFilter === "assigned" && lead.asignado_a) ||
-        (assignmentFilter === "unassigned" && !lead.asignado_a);
-      
-      let matchesAdvanced = true;
-      
-      if (advancedFilters.dateFrom && lead.created_at) {
-        try {
-          const leadDate = new Date(lead.created_at);
-          const fromDate = new Date(advancedFilters.dateFrom);
-          if (!isNaN(leadDate.getTime()) && !isNaN(fromDate.getTime())) {
-            matchesAdvanced = matchesAdvanced && leadDate >= fromDate;
-          }
-        } catch (e) {
-          // Ignore date parsing errors
-        }
-      }
-      
-      if (advancedFilters.dateTo && lead.created_at) {
-        try {
-          const leadDate = new Date(lead.created_at);
-          const toDate = new Date(advancedFilters.dateTo);
-          if (!isNaN(leadDate.getTime()) && !isNaN(toDate.getTime())) {
-            toDate.setHours(23, 59, 59);
-            matchesAdvanced = matchesAdvanced && leadDate <= toDate;
-          }
-        } catch (e) {
-          // Ignore date parsing errors
-        }
-      }
-      
-      if (advancedFilters.source !== 'all') {
-        matchesAdvanced = matchesAdvanced && lead.fuente === advancedFilters.source;
-      }
-      
-      return matchesSearch && matchesStatus && matchesAssignment && matchesAdvanced;
-    });
-  };
+  // HELPER FUNCTIONS (Ya no necesitamos filtrar en frontend, se hace en backend)
+  const resetPageOnFilterChange = useCallback(() => {
+    setCurrentPage(1);
+  }, []);
 
   const getStatusBadge = (status: string) => {
     const statusColors = {
@@ -212,8 +185,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const filtered = getFilteredLeads();
-      setSelectedLeads(filtered);
+      setSelectedLeads(leads); // Usar leads directamente (ya filtrados en backend)
     } else {
       setSelectedLeads([]);
     }
@@ -227,10 +199,9 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     return selectedLeads.some(lead => lead.id === leadId);
   };
 
-  // CALCULATE FILTERED LEADS
-  const filteredLeads = getFilteredLeads();
-  const allFilteredSelected = filteredLeads.length > 0 && 
-    filteredLeads.every(lead => isLeadSelected(lead.id));
+  // Los leads ya vienen filtrados del backend
+  const allFilteredSelected = leads.length > 0 && 
+    leads.every(lead => isLeadSelected(lead.id));
 
   // CONDITIONAL RENDERING - AFTER ALL HOOKS
   if (!canAccess) {
@@ -363,11 +334,17 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
           <Input
             placeholder="Buscar por nombre, email o teléfono..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
             className="pl-8"
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={(value) => {
+          setStatusFilter(value);
+          setCurrentPage(1);
+        }}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Filtrar por estado" />
           </SelectTrigger>
@@ -380,7 +357,10 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
             <SelectItem value="pendiente">Pendiente</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={assignmentFilter} onValueChange={setAssignmentFilter}>
+        <Select value={assignmentFilter} onValueChange={(value) => {
+          setAssignmentFilter(value);
+          setCurrentPage(1);
+        }}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Filtrar por asignación" />
           </SelectTrigger>
@@ -426,7 +406,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
             </TableRow>
           </TableHeader>
           <TableBody>
-          {filteredLeads.map((lead) => {
+          {leads.map((lead) => {
             const isAssigned = !!lead.asignado_a;
             const rowClass = isAssigned 
               ? "bg-green-50 hover:bg-green-100/80 border-l-4 border-l-green-500" 
@@ -501,7 +481,35 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         </Table>
       </div>
 
-      {filteredLeads.length === 0 && leads.length > 0 && (
+      {/* Información de paginación */}
+      <div className="flex items-center justify-between px-2 py-4">
+        <div className="text-sm text-muted-foreground">
+          Mostrando {paginationInfo.startIndex} a {paginationInfo.endIndex} de {paginationInfo.totalCount} candidatos
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+            disabled={!paginationInfo.hasPreviousPage}
+          >
+            Anterior
+          </Button>
+          <span className="text-sm">
+            Página {paginationInfo.currentPage} de {paginationInfo.totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(Math.min(paginationInfo.totalPages, currentPage + 1))}
+            disabled={!paginationInfo.hasNextPage}
+          >
+            Siguiente
+          </Button>
+        </div>
+      </div>
+
+      {leads.length === 0 && !isLoading && (
         <div className="text-center py-8">
           <p className="text-muted-foreground">
             No se encontraron candidatos que coincidan con los filtros aplicados.
