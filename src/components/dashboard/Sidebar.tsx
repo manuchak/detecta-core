@@ -181,7 +181,7 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
         <div className="flex-1 space-y-4 py-4">
           <div className="px-3 py-2">
             <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
-              Seguimiento de Candidatos
+              Mi Panel
             </h2>
             <div className="space-y-1">
               <Button
@@ -190,7 +190,7 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
                 onClick={() => navigate("/leads")}
               >
                 <Users className="mr-2 h-4 w-4" />
-                Mi Proceso de Reclutamiento
+                Candidatos
               </Button>
             </div>
           </div>

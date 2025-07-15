@@ -143,9 +143,7 @@ function App() {
                   path="/leads"
                   element={
                     <ProtectedRoute>
-                      <DashboardLayout>
-                        <SimpleLeadsPage />
-                      </DashboardLayout>
+                      <SimpleLeadsPage />
                     </ProtectedRoute>
                   }
                 />
