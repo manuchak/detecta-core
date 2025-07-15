@@ -36,17 +36,12 @@ export const useLeadAssignment = () => {
         return;
       }
 
-      // Filtrar solo los roles que pueden ser asignados leads
+      // Filtrar solo los roles que gestionan candidatos
       const analystRoles = [
         'admin', 
         'owner', 
         'supply_admin', 
-        'supply_lead',
-        'supply',
-        'analista_seguridad', 
-        'custodio', 
-        'coordinador_operaciones', 
-        'jefe_seguridad'
+        'supply'
       ];
 
       const filteredAnalysts = data
