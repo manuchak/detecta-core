@@ -10,6 +10,7 @@ import { ComprasTab } from './components/ComprasTab';
 import { ProveedoresTab } from './components/ProveedoresTab';
 import { RecepcionTab } from './components/RecepcionTab';
 import { CatalogoGPSTab } from './components/CatalogoGPSTab';
+import { ConfiguracionTab } from './components/ConfiguracionTab';
 
 interface EmptyModuleCardProps {
   title: string;
@@ -110,13 +111,7 @@ export const WMSPage = () => {
           <CatalogoGPSTab />
         </TabsContent>
         <TabsContent value="configuracion">
-          <EmptyModuleCard 
-            title="Configuración"
-            description="Ajusta parámetros del sistema y preferencias"
-            icon={Settings}
-            actionText="Ver Inventario"
-            onAction={() => setActiveTab('inventario')}
-          />
+          <ConfiguracionTab />
         </TabsContent>
       </Tabs>
     </div>
