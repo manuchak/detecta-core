@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
@@ -525,21 +526,32 @@ export const FormularioInstalacionCompleto = ({
 
           <div className="space-y-2">
             <Label>Sensores Adicionales</Label>
-            <Select
-              multiple
-              value={formData.sensores_adicionales}
-              onValueChange={(values) => setFormData(prev => ({ ...prev, sensores_adicionales: values }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona sensores adicionales" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="sensor_temperatura">Sensor de Temperatura</SelectItem>
-                <SelectItem value="sensor_combustible">Sensor de Combustible</SelectItem>
-                <SelectItem value="sensor_puerta">Sensor de Puerta</SelectItem>
-                <SelectItem value="sensor_movimiento">Sensor de Movimiento</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              {['sensor_temperatura', 'sensor_combustible', 'sensor_puerta', 'sensor_movimiento', 'sensor_presencia', 'sensor_carga'].map((sensor) => (
+                <div key={sensor} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={sensor}
+                    checked={formData.sensores_adicionales.includes(sensor)}
+                    onCheckedChange={(checked) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        sensores_adicionales: checked
+                          ? [...prev.sensores_adicionales, sensor]
+                          : prev.sensores_adicionales.filter(s => s !== sensor)
+                      }));
+                    }}
+                  />
+                  <Label htmlFor={sensor} className="text-sm">
+                    {sensor === 'sensor_temperatura' && 'Sensor de Temperatura'}
+                    {sensor === 'sensor_combustible' && 'Sensor de Combustible'}
+                    {sensor === 'sensor_puerta' && 'Sensor de Puerta'}
+                    {sensor === 'sensor_movimiento' && 'Sensor de Movimiento'}
+                    {sensor === 'sensor_presencia' && 'Sensor de Presencia'}
+                    {sensor === 'sensor_carga' && 'Sensor de Carga'}
+                  </Label>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="space-y-2">
