@@ -13,7 +13,8 @@ import {
   Calendar,
   User,
   AlertTriangle,
-  MoreHorizontal
+  MoreHorizontal,
+  PhoneCall
 } from "lucide-react";
 import {
   Tooltip,
@@ -42,6 +43,7 @@ interface ImprovedLeadCardProps {
   onSendToSecondInterview: (lead: AssignedLead) => void;
   onReject: (lead: AssignedLead) => void;
   onCompleteMissingInfo: (lead: AssignedLead) => void;
+  onLogCall: (lead: AssignedLead) => void;
 }
 
 export const ImprovedLeadCard = ({
@@ -54,10 +56,12 @@ export const ImprovedLeadCard = ({
   onApproveLead,
   onSendToSecondInterview,
   onReject,
-  onCompleteMissingInfo
+  onCompleteMissingInfo,
+  onLogCall
 }: ImprovedLeadCardProps) => {
   const validation = validateLeadForApproval(lead);
   const hasMissingInfo = !validation.isValid;
+  const hasSuccessfulCall = lead.has_successful_call || false;
 
   const getStatusBadge = (stage: string, decision: string | null) => {
     if (decision === 'approved') {
@@ -155,8 +159,20 @@ export const ImprovedLeadCard = ({
 
         {/* Acciones principales */}
         <div className="flex items-center gap-2">
-          {/* Acción prioritaria para información incompleta */}
-          {hasMissingInfo && (
+          {/* Acción prioritaria: Llamar (si no ha habido llamada exitosa) */}
+          {!hasSuccessfulCall && (
+            <Button
+              size="sm"
+              onClick={() => onLogCall(lead)}
+              className="bg-blue-500 hover:bg-blue-600 flex-1"
+            >
+              <PhoneCall className="h-4 w-4 mr-2" />
+              Llamar
+            </Button>
+          )}
+
+          {/* Acción para completar información (solo si hay llamada exitosa) */}
+          {hasSuccessfulCall && hasMissingInfo && (
             <Button
               size="sm"
               onClick={() => onCompleteMissingInfo(lead)}
@@ -168,12 +184,12 @@ export const ImprovedLeadCard = ({
           )}
 
           {/* Acciones cuando la información está completa o no es pendiente */}
-          {!lead.final_decision && (
+          {!lead.final_decision && hasSuccessfulCall && (
             <div className="flex items-center gap-2 flex-1">
               <Button
                 size="sm"
                 onClick={() => onApproveLead(lead)}
-                disabled={hasMissingInfo}
+                disabled={hasMissingInfo || !hasSuccessfulCall}
                 className="bg-emerald-500 hover:bg-emerald-600 flex-1"
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
@@ -184,7 +200,7 @@ export const ImprovedLeadCard = ({
                 size="sm"
                 variant="outline"
                 onClick={() => onSendToSecondInterview(lead)}
-                disabled={hasMissingInfo}
+                disabled={hasMissingInfo || !hasSuccessfulCall}
                 className="border-purple-200 text-purple-700 hover:bg-purple-50 flex-1"
               >
                 <ArrowRight className="h-4 w-4 mr-2" />

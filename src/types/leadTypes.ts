@@ -31,4 +31,18 @@ export interface AssignedLead {
   notas?: string; // Campo para almacenar información adicional del candidato
   analyst_name?: string; // Nombre del analista asignado
   analyst_email?: string; // Email del analista asignado
+  last_call_outcome?: string; // Resultado de la última llamada manual
+  has_successful_call?: boolean; // Si ha tenido al menos una llamada exitosa
+}
+
+export interface ManualCallLog {
+  id: string;
+  lead_id: string;
+  caller_id: string;
+  call_outcome: 'successful' | 'no_answer' | 'busy' | 'voicemail' | 'wrong_number' | 'call_failed';
+  call_notes?: string;
+  call_duration_minutes?: number;
+  call_datetime: string;
+  created_at: string;
+  updated_at: string;
 }

@@ -16,6 +16,7 @@ interface LeadsListProps {
   onSendToSecondInterview: (lead: AssignedLead) => void;
   onReject: (lead: AssignedLead) => void;
   onCompleteMissingInfo: (lead: AssignedLead) => void;
+  onLogCall: (lead: AssignedLead) => void;
 }
 
 export const LeadsList = ({
@@ -30,7 +31,8 @@ export const LeadsList = ({
   onApproveLead,
   onSendToSecondInterview,
   onReject,
-  onCompleteMissingInfo
+  onCompleteMissingInfo,
+  onLogCall
 }: LeadsListProps) => {
   const getLeadCallLogs = (leadId: string) => {
     return callLogs.filter(log => log.id === leadId);
@@ -78,6 +80,7 @@ export const LeadsList = ({
             onSendToSecondInterview={onSendToSecondInterview}
             onReject={onReject}
             onCompleteMissingInfo={onCompleteMissingInfo}
+            onLogCall={onLogCall}
           />
         );
       })}

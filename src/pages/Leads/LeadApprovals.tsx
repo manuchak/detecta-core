@@ -39,6 +39,7 @@ export const LeadApprovals = () => {
   const [showManualDialog, setShowManualDialog] = useState(false);
   const [showCallHistory, setShowCallHistory] = useState(false);
   const [showMissingInfoDialog, setShowMissingInfoDialog] = useState(false);
+  const [showCallLogDialog, setShowCallLogDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
 
@@ -65,6 +66,11 @@ export const LeadApprovals = () => {
   const handleCompleteMissingInfo = (lead: AssignedLead) => {
     setSelectedLead(lead);
     setShowMissingInfoDialog(true);
+  };
+
+  const handleLogCall = (lead: AssignedLead) => {
+    setSelectedLead(lead);
+    setShowCallLogDialog(true);
   };
 
   const handleCallComplete = () => {
@@ -143,6 +149,7 @@ export const LeadApprovals = () => {
                   onSendToSecondInterview={handleSendToSecondInterview}
                   onReject={handleReject}
                   onCompleteMissingInfo={handleCompleteMissingInfo}
+                  onLogCall={handleLogCall}
                 />
               </TabsContent>
             </Tabs>
@@ -156,12 +163,14 @@ export const LeadApprovals = () => {
           showManualDialog={showManualDialog}
           showCallHistory={showCallHistory}
           showMissingInfoDialog={showMissingInfoDialog}
+          showCallLogDialog={showCallLogDialog}
           callLogs={callLogs}
           onEditDialogChange={setShowEditDialog}
           onVapiDialogChange={setShowVapiDialog}
           onManualDialogChange={setShowManualDialog}
           onCallHistoryChange={setShowCallHistory}
           onMissingInfoDialogChange={setShowMissingInfoDialog}
+          onCallLogDialogChange={setShowCallLogDialog}
           onUpdate={fetchAssignedLeads}
           onCallComplete={handleCallComplete}
         />

@@ -2499,6 +2499,42 @@ export type Database = {
         }
         Relationships: []
       }
+      manual_call_logs: {
+        Row: {
+          call_datetime: string | null
+          call_duration_minutes: number | null
+          call_notes: string | null
+          call_outcome: string
+          caller_id: string | null
+          created_at: string | null
+          id: string
+          lead_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          call_datetime?: string | null
+          call_duration_minutes?: number | null
+          call_notes?: string | null
+          call_outcome: string
+          caller_id?: string | null
+          created_at?: string | null
+          id?: string
+          lead_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          call_datetime?: string | null
+          call_duration_minutes?: number | null
+          call_notes?: string | null
+          call_outcome?: string
+          caller_id?: string | null
+          created_at?: string | null
+          id?: string
+          lead_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       marcas_gps: {
         Row: {
           activo: boolean | null

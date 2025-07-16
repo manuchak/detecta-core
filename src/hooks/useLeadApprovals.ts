@@ -66,6 +66,36 @@ export const useLeadApprovals = () => {
     }
   };
 
+  // Fetch leads with call status
+  const fetchLeadsWithCallStatus = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get manual call logs
+      const { data: callData } = await supabase
+        .from('manual_call_logs')
+        .select('lead_id, call_outcome')
+        .eq('caller_id', user.id)
+        .order('created_at', { ascending: false });
+
+      // Update leads with call status
+      setAssignedLeads(prev => prev.map(lead => {
+        const leadCalls = callData?.filter(call => call.lead_id === lead.lead_id) || [];
+        const hasSuccessfulCall = leadCalls.some(call => call.call_outcome === 'successful');
+        const lastCall = leadCalls[0];
+        
+        return {
+          ...lead,
+          has_successful_call: hasSuccessfulCall,
+          last_call_outcome: lastCall?.call_outcome
+        };
+      }));
+    } catch (error) {
+      console.error('Error fetching call status:', error);
+    }
+  };
+
   const handleApproveLead = async (lead: AssignedLead) => {
     // Validar que todos los campos requeridos estén completos
     const validation = validateLeadForApproval(lead);
@@ -219,15 +249,22 @@ export const useLeadApprovals = () => {
   };
 
   useEffect(() => {
-    fetchAssignedLeads();
-    fetchCallLogs();
+    const loadData = async () => {
+      await fetchAssignedLeads();
+      await fetchLeadsWithCallStatus();
+      await fetchCallLogs();
+    };
+    loadData();
   }, []);
 
   return {
     assignedLeads,
     callLogs,
     loading,
-    fetchAssignedLeads,
+    fetchAssignedLeads: async () => {
+      await fetchAssignedLeads();
+      await fetchLeadsWithCallStatus();
+    },
     fetchCallLogs,
     handleApproveLead,
     handleSendToSecondInterview,
