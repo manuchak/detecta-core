@@ -23,32 +23,38 @@ import { es } from "date-fns/locale";
 import { useState } from "react";
 import { ProcesoInstalacionDialog } from "@/components/instalacion/ProcesoInstalacionDialog";
 import { useToast } from "@/hooks/use-toast";
+import { FiltrosInteligentes } from "@/components/instalaciones/FiltrosInteligentes";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const InstallerPortal = () => {
   const { programaciones, isLoading, updateEstadoInstalacion, desasignarInstalador } = useProgramacionInstalaciones();
+  const { user, userRole } = useAuth();
   const [instalacionSeleccionada, setInstalacionSeleccionada] = useState<string | null>(null);
   const [showProcesoDialog, setShowProcesoDialog] = useState(false);
+  const [instalacionesFiltradas, setInstalacionesFiltradas] = useState<any[]>([]);
   const { toast } = useToast();
 
-  // Filter installations assigned to current user or show all if admin
-  const instalacionesPendientes = programaciones?.filter(p => 
+  // Use filtered installations for calculations
+  const instalacionesParaCalculo = instalacionesFiltradas.length > 0 ? instalacionesFiltradas : (programaciones || []);
+  
+  const instalacionesPendientes = instalacionesParaCalculo.filter(p => 
     p.estado === 'programada' || p.estado === 'confirmada'
-  ) || [];
+  );
 
-  const instalacionesEnProceso = programaciones?.filter(p => 
+  const instalacionesEnProceso = instalacionesParaCalculo.filter(p => 
     p.estado === 'en_proceso'
-  ) || [];
+  );
 
-  const instalacionesCompletadas = programaciones?.filter(p => 
+  const instalacionesCompletadas = instalacionesParaCalculo.filter(p => 
     p.estado === 'completada'
-  ) || [];
+  );
 
-  const instalacionesCanceladas = programaciones?.filter(p => 
+  const instalacionesCanceladas = instalacionesParaCalculo.filter(p => 
     p.estado === 'cancelada'
-  ) || [];
+  );
 
-  const tiempoPromedio = programaciones?.length > 0 
-    ? Math.round(programaciones.reduce((acc, p) => acc + (p.tiempo_estimado || 60), 0) / programaciones.length / 60 * 10) / 10
+  const tiempoPromedio = instalacionesParaCalculo.length > 0 
+    ? Math.round(instalacionesParaCalculo.reduce((acc, p) => acc + (p.tiempo_estimado || 60), 0) / instalacionesParaCalculo.length / 60 * 10) / 10
     : 0;
 
   const dispositivosInstalados = instalacionesCompletadas.length;
@@ -278,6 +284,16 @@ export const InstallerPortal = () => {
           </Card>
         </div>
         
+        {/* Sistema de filtros inteligentes */}
+        {programaciones && programaciones.length > 0 && (
+          <FiltrosInteligentes
+            instalaciones={programaciones}
+            onFiltrosChange={setInstalacionesFiltradas}
+            userRole={userRole || 'instalador'}
+            userId={user?.id || ''}
+          />
+        )}
+        
         <Card>
           <CardHeader>
             <CardTitle>Instalaciones asignadas</CardTitle>
@@ -301,7 +317,7 @@ export const InstallerPortal = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {programaciones.map((instalacion) => (
+                  {(instalacionesFiltradas.length > 0 ? instalacionesFiltradas : programaciones).map((instalacion) => (
                     <TableRow key={instalacion.id} className="hover:bg-gray-50">
                       <TableCell>
                         <div className="space-y-1">
