@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, CheckCircle, Save, User, Car, Shield, Clock } from "lucide-react";
+import { AlertTriangle, CheckCircle, Save, User, Car, Shield, Clock, X } from "lucide-react";
 import { AssignedLead } from "@/types/leadTypes";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -385,6 +385,54 @@ export const MissingInfoDialog = ({
     }
   };
 
+  const handleReject = async () => {
+    if (!lead) return;
+
+    try {
+      setLoading(true);
+
+      // Actualizar el estado del proceso de aprobación
+      const { error: approvalError } = await supabase
+        .from('lead_approval_process')
+        .update({
+          final_decision: 'rejected',
+          decision_reason: 'No cumple con el perfil requerido',
+          updated_at: new Date().toISOString()
+        })
+        .eq('lead_id', lead.lead_id);
+
+      if (approvalError) throw approvalError;
+
+      // Actualizar el estado del lead
+      const { error: leadError } = await supabase
+        .from('leads')
+        .update({
+          estado: 'rechazado',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', lead.lead_id);
+
+      if (leadError) throw leadError;
+
+      toast({
+        title: "Candidato rechazado",
+        description: "El candidato ha sido rechazado exitosamente.",
+      });
+
+      onUpdate();
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error rejecting lead:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo rechazar al candidato.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const isFormValid = missingFields.length === 0;
   const requiereVehiculo = formData.tipo_custodio === 'custodio_vehiculo' || formData.tipo_custodio === 'armado_vehiculo';
   const esArmado = formData.tipo_custodio === 'armado' || formData.tipo_custodio === 'armado_vehiculo';
@@ -673,9 +721,29 @@ export const MissingInfoDialog = ({
       </div>
 
         <div className="flex items-center justify-between pt-6 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleReject}
+              disabled={loading}
+              className="min-w-[120px]"
+            >
+              {loading ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Rechazando...
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <X className="h-4 w-4" />
+                  Rechazar
+                </div>
+              )}
+            </Button>
+          </div>
           <Button 
             onClick={handleSave} 
             disabled={loading || !isFormValid}
