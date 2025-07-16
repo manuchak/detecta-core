@@ -20,7 +20,7 @@ export const LeadsMetricsDashboard = ({ leads }: LeadsMetricsDashboardProps) => 
         newLeads: 0,
         inProcess: 0,
         approved: 0,
-        avgDaysUnassigned: 0,
+        avgDaysToAssignment: 0,
         assignmentRate: 0
       };
     }
@@ -32,21 +32,22 @@ export const LeadsMetricsDashboard = ({ leads }: LeadsMetricsDashboardProps) => 
     const inProcess = leads.filter(lead => lead?.estado === 'en_proceso').length;
     const approved = leads.filter(lead => lead?.estado === 'aprobado').length;
     
-    // Calcular días promedio sin asignación usando fecha fija para evitar re-renders
-    const unassignedLeads = leads.filter(lead => lead && !lead.asignado_a && lead.fecha_creacion);
+    // Calcular tiempo promedio entre creación y asignación
+    const assignedLeads = leads.filter(lead => lead && lead.asignado_a && lead.fecha_creacion && lead.fecha_contacto);
     
-    let avgDaysUnassigned = 0;
-    if (unassignedLeads.length > 0) {
+    let avgDaysToAssignment = 0;
+    if (assignedLeads.length > 0) {
       try {
-        // Crear fecha una sola vez para evitar cálculos constantes
-        const now = new Date('2025-01-01').getTime(); // Fecha fija para consistencia
-        const totalDays = unassignedLeads.reduce((acc, lead) => {
+        const totalDays = assignedLeads.reduce((acc, lead) => {
           try {
             const creationDate = new Date(lead.fecha_creacion);
-            if (isNaN(creationDate.getTime())) {
+            const assignmentDate = new Date(lead.fecha_contacto); // Usando fecha_contacto como proxy para cuando se asignó
+            
+            if (isNaN(creationDate.getTime()) || isNaN(assignmentDate.getTime())) {
               return acc;
             }
-            const days = Math.floor((now - creationDate.getTime()) / (1000 * 60 * 60 * 24));
+            
+            const days = Math.floor((assignmentDate.getTime() - creationDate.getTime()) / (1000 * 60 * 60 * 24));
             return acc + Math.max(0, days);
           } catch (error) {
             console.warn('Error calculando días para lead:', lead.id, error);
@@ -54,10 +55,10 @@ export const LeadsMetricsDashboard = ({ leads }: LeadsMetricsDashboardProps) => 
           }
         }, 0);
         
-        avgDaysUnassigned = Math.round(totalDays / unassignedLeads.length);
+        avgDaysToAssignment = Math.round(totalDays / assignedLeads.length);
       } catch (error) {
-        console.warn('Error calculando promedio de días sin asignar:', error);
-        avgDaysUnassigned = 0;
+        console.warn('Error calculando promedio de días hasta asignación:', error);
+        avgDaysToAssignment = 0;
       }
     }
 
@@ -70,7 +71,7 @@ export const LeadsMetricsDashboard = ({ leads }: LeadsMetricsDashboardProps) => 
       newLeads,
       inProcess,
       approved,
-      avgDaysUnassigned,
+      avgDaysToAssignment,
       assignmentRate
     };
   }, [leads]); // Solo depende del array de leads
@@ -155,9 +156,9 @@ export const LeadsMetricsDashboard = ({ leads }: LeadsMetricsDashboardProps) => 
           <Clock className="h-4 w-4 text-orange-600" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-orange-600">{metrics.avgDaysUnassigned}</div>
+          <div className="text-2xl font-bold text-orange-600">{metrics.avgDaysToAssignment}</div>
           <div className="text-xs text-muted-foreground mt-1">
-            días sin asignar
+            días hasta asignación
           </div>
         </CardContent>
       </Card>
