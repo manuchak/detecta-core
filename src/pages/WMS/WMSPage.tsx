@@ -8,6 +8,8 @@ import { InventarioTab } from './components/InventarioTab';
 import { StockTab } from './components/StockTab';
 import { ComprasTab } from './components/ComprasTab';
 import { ProveedoresTab } from './components/ProveedoresTab';
+import { RecepcionTab } from './components/RecepcionTab';
+import { CatalogoGPSTab } from './components/CatalogoGPSTab';
 
 interface EmptyModuleCardProps {
   title: string;
@@ -74,7 +76,7 @@ export const WMSPage = () => {
             <Truck className="h-4 w-4" />
             Recepción
           </TabsTrigger>
-          <TabsTrigger value="catalogo-gps" className="flex items-center gap-2">
+          <TabsTrigger value="catalogo" className="flex items-center gap-2">
             <Smartphone className="h-4 w-4" />
             Catálogo GPS
           </TabsTrigger>
@@ -101,25 +103,12 @@ export const WMSPage = () => {
         </TabsContent>
 
         <TabsContent value="recepcion">
-          <EmptyModuleCard 
-            title="Módulo de Recepción"
-            description="Recibe y valida mercancía de proveedores"
-            icon={Truck}
-            actionText="Ver Compras"
-            onAction={() => setActiveTab('compras')}
-          />
+          <RecepcionTab />
         </TabsContent>
 
-        <TabsContent value="catalogo-gps">
-          <EmptyModuleCard 
-            title="Catálogo GPS"
-            description="Explora modelos y especificaciones de dispositivos GPS"
-            icon={Smartphone}
-            actionText="Agregar Producto GPS"
-            onAction={() => setActiveTab('inventario')}
-          />
+        <TabsContent value="catalogo">
+          <CatalogoGPSTab />
         </TabsContent>
-
         <TabsContent value="configuracion">
           <EmptyModuleCard 
             title="Configuración"

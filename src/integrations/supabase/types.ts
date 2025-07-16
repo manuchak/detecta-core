@@ -959,32 +959,44 @@ export type Database = {
         Row: {
           cantidad_esperada: number
           cantidad_recibida: number
+          created_at: string
           diferencia: number | null
           estado_producto: string | null
           id: string
           notas: string | null
+          precio_unitario: number | null
           producto_id: string | null
           recepcion_id: string | null
+          subtotal_esperado: number | null
+          subtotal_recibido: number | null
         }
         Insert: {
           cantidad_esperada: number
           cantidad_recibida: number
+          created_at?: string
           diferencia?: number | null
           estado_producto?: string | null
           id?: string
           notas?: string | null
+          precio_unitario?: number | null
           producto_id?: string | null
           recepcion_id?: string | null
+          subtotal_esperado?: number | null
+          subtotal_recibido?: number | null
         }
         Update: {
           cantidad_esperada?: number
           cantidad_recibida?: number
+          created_at?: string
           diferencia?: number | null
           estado_producto?: string | null
           id?: string
           notas?: string | null
+          precio_unitario?: number | null
           producto_id?: string | null
           recepcion_id?: string | null
+          subtotal_esperado?: number | null
+          subtotal_recibido?: number | null
         }
         Relationships: [
           {
@@ -2676,32 +2688,50 @@ export type Database = {
         Row: {
           created_at: string | null
           estado: string | null
+          fecha_programada: string | null
           fecha_recepcion: string | null
           id: string
           notas_recepcion: string | null
           numero_recepcion: string
+          observaciones: string | null
           orden_compra_id: string | null
+          proveedor_id: string | null
           recibido_por: string | null
+          total_esperado: number | null
+          total_recibido: number | null
+          updated_at: string
         }
         Insert: {
           created_at?: string | null
           estado?: string | null
+          fecha_programada?: string | null
           fecha_recepcion?: string | null
           id?: string
           notas_recepcion?: string | null
           numero_recepcion: string
+          observaciones?: string | null
           orden_compra_id?: string | null
+          proveedor_id?: string | null
           recibido_por?: string | null
+          total_esperado?: number | null
+          total_recibido?: number | null
+          updated_at?: string
         }
         Update: {
           created_at?: string | null
           estado?: string | null
+          fecha_programada?: string | null
           fecha_recepcion?: string | null
           id?: string
           notas_recepcion?: string | null
           numero_recepcion?: string
+          observaciones?: string | null
           orden_compra_id?: string | null
+          proveedor_id?: string | null
           recibido_por?: string | null
+          total_esperado?: number | null
+          total_recibido?: number | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -2709,6 +2739,13 @@ export type Database = {
             columns: ["orden_compra_id"]
             isOneToOne: false
             referencedRelation: "ordenes_compra"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recepciones_mercancia_proveedor_id_fkey"
+            columns: ["proveedor_id"]
+            isOneToOne: false
+            referencedRelation: "proveedores"
             referencedColumns: ["id"]
           },
           {
@@ -4364,6 +4401,10 @@ export type Database = {
           fecha_mas_reciente: string
           registros_fuera_rango: number
         }[]
+      }
+      generate_recepcion_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
       get_active_custodians_count: {
         Args: Record<PropertyKey, never>

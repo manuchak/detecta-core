@@ -29,9 +29,48 @@ export interface CategoriaProducto {
   created_at?: string;
 }
 
+// Tipos para Recepción
+export interface RecepcionMercancia {
+  id: string;
+  numero_recepcion: string;
+  orden_compra_id?: string;
+  proveedor_id?: string;
+  estado: 'pendiente' | 'en_proceso' | 'completada' | 'cancelada';
+  fecha_programada?: string;
+  fecha_recepcion?: string;
+  recibido_por?: string;
+  observaciones?: string;
+  total_esperado: number;
+  total_recibido: number;
+  created_at: string;
+  updated_at: string;
+  // Relaciones
+  orden_compra?: OrdenCompra;
+  proveedor?: Proveedor;
+  detalles?: DetalleRecepcion[];
+}
+
+export interface DetalleRecepcion {
+  id: string;
+  recepcion_id: string;
+  producto_id: string;
+  cantidad_esperada: number;
+  cantidad_recibida: number;
+  diferencia?: number;
+  precio_unitario?: number;
+  subtotal_esperado?: number;
+  subtotal_recibido?: number;
+  estado_producto: 'bueno' | 'dañado' | 'defectuoso';
+  notas?: string;
+  created_at: string;
+  // Relaciones
+  producto?: ProductoInventario;
+}
+
 export interface ProductoInventario {
   id: string;
   codigo_producto: string;
+  sku?: string;
   nombre: string;
   descripcion?: string;
   categoria_id?: string;
@@ -153,31 +192,6 @@ export interface ProductoSerie {
   notas?: string;
   created_at?: string;
   updated_at?: string;
-  producto?: ProductoInventario;
-}
-
-export interface RecepcionMercancia {
-  id: string;
-  orden_compra_id?: string;
-  numero_recepcion: string;
-  fecha_recepcion: string;
-  recibido_por?: string;
-  estado: 'pendiente' | 'parcial' | 'completa' | 'con_diferencias';
-  notas_recepcion?: string;
-  created_at?: string;
-  orden_compra?: OrdenCompra;
-  detalles?: DetalleRecepcion[];
-}
-
-export interface DetalleRecepcion {
-  id: string;
-  recepcion_id: string;
-  producto_id: string;
-  cantidad_esperada: number;
-  cantidad_recibida: number;
-  diferencia: number;
-  estado_producto: 'bueno' | 'dañado' | 'defectuoso';
-  notas?: string;
   producto?: ProductoInventario;
 }
 
