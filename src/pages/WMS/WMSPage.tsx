@@ -1,10 +1,43 @@
 
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Package, ShoppingCart, Users, BarChart3, Truck, Settings, Smartphone } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Package, ShoppingCart, Users, BarChart3, Truck, Settings, Smartphone, ArrowRight } from 'lucide-react';
 import { InventarioTab } from './components/InventarioTab';
 import { StockTab } from './components/StockTab';
 import { ComprasTab } from './components/ComprasTab';
+
+interface EmptyModuleCardProps {
+  title: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  actionText: string;
+  onAction: () => void;
+}
+
+const EmptyModuleCard = ({ title, description, icon: Icon, actionText, onAction }: EmptyModuleCardProps) => (
+  <Card className="max-w-md mx-auto">
+    <CardHeader className="text-center">
+      <div className="mx-auto mb-4 p-3 bg-muted rounded-full w-fit">
+        <Icon className="h-8 w-8 text-muted-foreground" />
+      </div>
+      <CardTitle>{title}</CardTitle>
+      <CardDescription className="text-center">
+        {description}
+      </CardDescription>
+    </CardHeader>
+    <CardContent className="text-center">
+      <p className="text-sm text-muted-foreground mb-6">
+        Este módulo estará disponible próximamente. Mientras tanto, puedes empezar configurando tu inventario.
+      </p>
+      <Button onClick={onAction} variant="outline" className="w-full">
+        {actionText}
+        <ArrowRight className="h-4 w-4 ml-2" />
+      </Button>
+    </CardContent>
+  </Card>
+);
 
 export const WMSPage = () => {
   const [activeTab, setActiveTab] = useState('inventario');
@@ -59,10 +92,13 @@ export const WMSPage = () => {
         </TabsContent>
 
         <TabsContent value="proveedores">
-          <div className="p-8 text-center">
-            <h3 className="text-lg font-semibold mb-2">Módulo de Proveedores</h3>
-            <p className="text-muted-foreground">En desarrollo</p>
-          </div>
+          <EmptyModuleCard 
+            title="Módulo de Proveedores"
+            description="Gestiona tu red de proveedores y sus datos de contacto"
+            icon={Users}
+            actionText="Crear Producto Primero"
+            onAction={() => setActiveTab('inventario')}
+          />
         </TabsContent>
 
         <TabsContent value="stock">
@@ -70,24 +106,33 @@ export const WMSPage = () => {
         </TabsContent>
 
         <TabsContent value="recepcion">
-          <div className="p-8 text-center">
-            <h3 className="text-lg font-semibold mb-2">Módulo de Recepción</h3>
-            <p className="text-muted-foreground">En desarrollo</p>
-          </div>
+          <EmptyModuleCard 
+            title="Módulo de Recepción"
+            description="Recibe y valida mercancía de proveedores"
+            icon={Truck}
+            actionText="Ver Compras"
+            onAction={() => setActiveTab('compras')}
+          />
         </TabsContent>
 
         <TabsContent value="catalogo-gps">
-          <div className="p-8 text-center">
-            <h3 className="text-lg font-semibold mb-2">Catálogo GPS</h3>
-            <p className="text-muted-foreground">En desarrollo</p>
-          </div>
+          <EmptyModuleCard 
+            title="Catálogo GPS"
+            description="Explora modelos y especificaciones de dispositivos GPS"
+            icon={Smartphone}
+            actionText="Agregar Producto GPS"
+            onAction={() => setActiveTab('inventario')}
+          />
         </TabsContent>
 
         <TabsContent value="configuracion">
-          <div className="p-8 text-center">
-            <h3 className="text-lg font-semibold mb-2">Configuración</h3>
-            <p className="text-muted-foreground">En desarrollo</p>
-          </div>
+          <EmptyModuleCard 
+            title="Configuración"
+            description="Ajusta parámetros del sistema y preferencias"
+            icon={Settings}
+            actionText="Ver Inventario"
+            onAction={() => setActiveTab('inventario')}
+          />
         </TabsContent>
       </Tabs>
     </div>
