@@ -2025,6 +2025,56 @@ export type Database = {
           },
         ]
       }
+      movimientos_stock: {
+        Row: {
+          cantidad: number
+          cantidad_anterior: number
+          cantidad_nueva: number
+          created_at: string | null
+          fecha_movimiento: string | null
+          id: string
+          motivo: string | null
+          producto_id: string
+          referencia: string | null
+          tipo_movimiento: string
+          usuario_id: string | null
+        }
+        Insert: {
+          cantidad: number
+          cantidad_anterior: number
+          cantidad_nueva: number
+          created_at?: string | null
+          fecha_movimiento?: string | null
+          id?: string
+          motivo?: string | null
+          producto_id: string
+          referencia?: string | null
+          tipo_movimiento: string
+          usuario_id?: string | null
+        }
+        Update: {
+          cantidad?: number
+          cantidad_anterior?: number
+          cantidad_nueva?: number
+          created_at?: string | null
+          fecha_movimiento?: string | null
+          id?: string
+          motivo?: string | null
+          producto_id?: string
+          referencia?: string | null
+          tipo_movimiento?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimientos_stock_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "productos_inventario"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ordenes_compra: {
         Row: {
           aprobado_por: string | null

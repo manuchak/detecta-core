@@ -52,10 +52,10 @@ export const useStockProductos = () => {
   });
 
   const { data: movimientos, isLoading: isLoadingMovimientos } = useQuery({
-    queryKey: ['movimientos-inventario'],
+    queryKey: ['movimientos-stock'],
     queryFn: async () => {
       try {
-        console.log('🔍 Fetching movimientos inventario...');
+        console.log('🔍 Fetching movimientos stock...');
         
         // Verificar sesión actual
         const { data: { session } } = await supabase.auth.getSession();
@@ -64,7 +64,7 @@ export const useStockProductos = () => {
         }
         
         const { data, error } = await supabase
-          .from('movimientos_inventario')
+          .from('movimientos_stock')
           .select(`
             *,
             producto:productos_inventario(*)
@@ -73,14 +73,14 @@ export const useStockProductos = () => {
           .limit(100);
 
         if (error) {
-          console.error('❌ Movimientos inventario query error:', error);
+          console.error('❌ Movimientos stock query error:', error);
           throw error;
         }
         
-        console.log('✅ Movimientos inventario fetched successfully:', data?.length || 0, 'records');
-        return data as MovimientoInventario[];
+        console.log('✅ Movimientos stock fetched successfully:', data?.length || 0, 'records');
+        return data;
       } catch (err) {
-        console.error('❌ Movimientos inventario fetch error:', err);
+        console.error('❌ Movimientos stock fetch error:', err);
         throw err;
       }
     },
@@ -91,9 +91,18 @@ export const useStockProductos = () => {
   });
 
   const registrarMovimiento = useMutation({
-    mutationFn: async (movimiento: Omit<MovimientoInventario, 'id' | 'fecha_movimiento'>) => {
+    mutationFn: async (movimiento: {
+      producto_id: string;
+      tipo_movimiento: string;
+      cantidad: number;
+      cantidad_anterior: number;
+      cantidad_nueva: number;
+      motivo?: string;
+      referencia?: string;
+      usuario_id?: string;
+    }) => {
       const { data, error } = await supabase
-        .from('movimientos_inventario')
+        .from('movimientos_stock')
         .insert(movimiento)
         .select()
         .single();
@@ -103,10 +112,10 @@ export const useStockProductos = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stock-productos'] });
-      queryClient.invalidateQueries({ queryKey: ['movimientos-inventario'] });
+      queryClient.invalidateQueries({ queryKey: ['movimientos-stock'] });
       toast({
         title: "Movimiento registrado",
-        description: "El movimiento de inventario ha sido procesado.",
+        description: "El movimiento de stock ha sido procesado.",
       });
     }
   });
@@ -136,7 +145,7 @@ export const useStockProductos = () => {
 
       // Registrar movimiento
       await supabase
-        .from('movimientos_inventario')
+        .from('movimientos_stock')
         .insert({
           producto_id,
           tipo_movimiento: 'ajuste',
@@ -144,7 +153,7 @@ export const useStockProductos = () => {
           cantidad_anterior: cantidadAnterior,
           cantidad_nueva: nueva_cantidad,
           motivo,
-          referencia_tipo: 'ajuste_manual',
+          referencia: 'ajuste_manual',
           usuario_id: user?.id
         });
 
@@ -152,7 +161,7 @@ export const useStockProductos = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stock-productos'] });
-      queryClient.invalidateQueries({ queryKey: ['movimientos-inventario'] });
+      queryClient.invalidateQueries({ queryKey: ['movimientos-stock'] });
       toast({
         title: "Stock ajustado",
         description: "El stock ha sido actualizado correctamente.",
