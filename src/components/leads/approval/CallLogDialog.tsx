@@ -73,7 +73,7 @@ export const CallLogDialog = ({
 
     // Validar campos de reprogramación si es necesario
     if (callOutcome === 'reschedule_requested') {
-      if (!rescheduleDate || !rescheduleTime) {
+      if (!selectedDate || !selectedTime) {
         toast({
           title: "Error",
           description: "Por favor selecciona fecha y hora para la reprogramación",
@@ -94,8 +94,8 @@ export const CallLogDialog = ({
 
 
       // Agregar datos de reprogramación si aplica
-      if (callOutcome === 'reschedule_requested' && rescheduleDate && rescheduleTime) {
-        const scheduledDateTime = new Date(`${rescheduleDate}T${rescheduleTime}`);
+      if (callOutcome === 'reschedule_requested' && selectedDate && selectedTime) {
+        const scheduledDateTime = new Date(`${format(selectedDate, 'yyyy-MM-dd')}T${selectedTime}`);
         insertData.scheduled_datetime = scheduledDateTime.toISOString();
         insertData.requires_reschedule = true;
       }
