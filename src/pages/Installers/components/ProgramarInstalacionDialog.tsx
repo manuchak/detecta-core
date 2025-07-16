@@ -14,6 +14,9 @@ import { useProgramacionInstalaciones } from '@/hooks/useProgramacionInstalacion
 import { useServiciosMonitoreo } from '@/hooks/useServiciosMonitoreo';
 import { useToast } from '@/hooks/use-toast';
 import { AsignacionGPSDialog } from '@/components/kits/AsignacionGPSDialog';
+import { supabase } from '@/integrations/supabase/client';
+import { useVehicleData } from '@/hooks/useVehicleData';
+import { Car } from 'lucide-react';
 import type { TipoInstalacion, PrioridadInstalacion } from '@/types/instaladores';
 
 const schema = z.object({
@@ -61,6 +64,15 @@ export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProp
   const { servicios } = useServiciosMonitoreo();
   const { toast } = useToast();
   
+  // Estado para información del vehículo
+  const [vehicleInfo, setVehicleInfo] = React.useState<{
+    marca: string;
+    modelo: string;
+    año: number;
+    tipo_combustible: string;
+    observaciones: string;
+  } | null>(null);
+  
   // Estados para el diálogo de asignación GPS
   const [showAsignacionGPS, setShowAsignacionGPS] = React.useState(false);
   const [programacionCreada, setProgramacionCreada] = React.useState<{
@@ -86,8 +98,49 @@ export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProp
   React.useEffect(() => {
     if (servicioId) {
       setValue('servicio_id', servicioId);
+      loadVehicleInfo(servicioId);
     }
   }, [servicioId, setValue]);
+
+  // Watch for servicio_id changes to load vehicle info
+  const selectedServiceId = watch('servicio_id');
+  React.useEffect(() => {
+    if (selectedServiceId && selectedServiceId !== servicioId) {
+      loadVehicleInfo(selectedServiceId);
+    }
+  }, [selectedServiceId, servicioId]);
+
+  // Function to load vehicle information from service
+  const loadVehicleInfo = async (serviceId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('activos_monitoreo')
+        .select('marca, modelo, año, tipo_activo, descripcion')
+        .eq('servicio_id', serviceId)
+        .eq('tipo_activo', 'vehiculo')
+        .single();
+
+      if (error) {
+        console.log('No vehicle info found for service:', serviceId);
+        setVehicleInfo(null);
+        return;
+      }
+
+      if (data) {
+        const vehicleData = data as any;
+        setVehicleInfo({
+          marca: vehicleData.marca || '',
+          modelo: vehicleData.modelo || '',
+          año: vehicleData.año || new Date().getFullYear(),
+          tipo_combustible: 'gasolina', // Default value
+          observaciones: vehicleData.descripcion || ''
+        });
+      }
+    } catch (error) {
+      console.error('Error loading vehicle info:', error);
+      setVehicleInfo(null);
+    }
+  };
 
   // Filtrar servicios aprobados que necesitan instalación
   const serviciosAprobados = servicios?.filter(s => 
@@ -221,6 +274,55 @@ export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProp
               )}
             </div>
           </div>
+
+          {/* Información del Vehículo */}
+          {vehicleInfo && (
+            <div className="border rounded-lg p-4 bg-muted/50">
+              <div className="flex items-center gap-2 mb-3">
+                <Car className="h-4 w-4" />
+                <h3 className="text-sm font-medium">Información del Vehículo</h3>
+              </div>
+              <div className="grid grid-cols-4 gap-4 text-sm">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Marca del Vehículo</Label>
+                  <Input value={vehicleInfo.marca} disabled className="mt-1" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Modelo</Label>
+                  <Input value={vehicleInfo.modelo} disabled className="mt-1" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Año</Label>
+                  <Input value={vehicleInfo.año.toString()} disabled className="mt-1" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Tipo de Combustible</Label>
+                  <Select value={vehicleInfo.tipo_combustible} disabled>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gasolina">Gasolina</SelectItem>
+                      <SelectItem value="diesel">Diesel</SelectItem>
+                      <SelectItem value="hibrido">Híbrido</SelectItem>
+                      <SelectItem value="electrico">Eléctrico</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {vehicleInfo.observaciones && (
+                <div className="mt-3">
+                  <Label className="text-xs text-muted-foreground">Observaciones del Vehículo</Label>
+                  <Textarea 
+                    value={vehicleInfo.observaciones} 
+                    disabled 
+                    className="mt-1" 
+                    placeholder="Modificaciones, características especiales, daños visibles, etc."
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
