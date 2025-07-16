@@ -140,8 +140,8 @@ export const CallLogDialog = ({
   const resetForm = () => {
     setCallOutcome("");
     setCallNotes("");
-    setRescheduleDate("");
-    setRescheduleTime("");
+    setSelectedDate(undefined);
+    setSelectedTime("");
   };
 
   const selectedOption = callOutcomeOptions.find(option => option.value === callOutcome);
@@ -236,8 +236,8 @@ export const CallLogDialog = ({
                     <Input
                       id="reschedule-date"
                       type="date"
-                      value={rescheduleDate}
-                      onChange={(e) => setRescheduleDate(e.target.value)}
+                      value={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}
+                      onChange={(e) => setSelectedDate(e.target.value ? new Date(e.target.value) : undefined)}
                       min={new Date().toISOString().split('T')[0]}
                     />
                   </div>
@@ -246,8 +246,8 @@ export const CallLogDialog = ({
                     <Input
                       id="reschedule-time"
                       type="time"
-                      value={rescheduleTime}
-                      onChange={(e) => setRescheduleTime(e.target.value)}
+                      value={selectedTime}
+                      onChange={(e) => setSelectedTime(e.target.value)}
                     />
                   </div>
                 </div>
