@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useProductosInventario } from '@/hooks/useProductosInventario';
 import { useCategorias } from '@/hooks/useCategorias';
 import { useMarcasGPS } from '@/hooks/useMarcasGPS';
@@ -183,90 +184,96 @@ export const ProductoFormMejorado = ({ open, onOpenChange, producto, onClose }: 
     console.log('GPS seleccionado:', marca, modelo);
   };
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="fixed inset-0 overflow-y-auto">
-        <div className="flex min-h-full items-start justify-center p-4">
-          <div className="w-full max-w-6xl bg-background rounded-lg shadow-lg">
-            <div className="flex items-center justify-between p-6 border-b">
-              <div className="flex items-center gap-3">
-                <Package className="h-6 w-6" />
-                <div>
-                  <h1 className="text-2xl font-bold">
-                    {producto ? `Editar: ${producto.nombre}` : 'Nuevo Producto'}
-                  </h1>
-                  <p className="text-sm text-muted-foreground">
-                    {isGPSCategory ? 'Formulario inteligente con datos GPS precargados' : 'Información completa del producto'}
-                  </p>
-                </div>
-              </div>
-              <Button variant="ghost" onClick={onClose}>✕</Button>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-3">
+            <Package className="h-6 w-6" />
+            <div>
+              <span className="text-2xl font-bold">
+                {producto ? `Editar: ${producto.nombre}` : 'Nuevo Producto'}
+              </span>
+              <p className="text-sm text-muted-foreground font-normal">
+                {isGPSCategory ? 'Formulario inteligente con datos GPS precargados' : 'Información completa del producto'}
+              </p>
+            </div>
+          </DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <div className="grid grid-cols-12 gap-6">
+            
+            {/* Columna Principal - Información Básica */}
+            <div className="col-span-8 space-y-6">
+              
+              <SmartCategorySelection
+                watch={watch}
+                setValue={setValue}
+                onCategorySelect={handleCategorySelect}
+                onGPSSelect={handleGPSSelect}
+              />
+
+              <BasicInfoCard
+                register={register}
+                errors={errors}
+                autoFilledFields={autoFilledFields}
+              />
+
+              <TechnicalSpecsCard
+                register={register}
+                autoFilledFields={autoFilledFields}
+              />
+
+              <ConfigurationCard
+                watch={watch}
+                setValue={setValue}
+                autoFilledFields={autoFilledFields}
+              />
+
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="p-6">
-              <div className="grid grid-cols-12 gap-6">
-                
-                {/* Columna Principal - Información Básica */}
-                <div className="col-span-8 space-y-6">
-                  
-                  <SmartCategorySelection
-                    watch={watch}
-                    setValue={setValue}
-                    onCategorySelect={handleCategorySelect}
-                    onGPSSelect={handleGPSSelect}
-                  />
+            {/* Sidebar - Pricing, Stock y Provider */}
+            <div className="col-span-4 space-y-6">
+              
+              <PricingStockCard
+                register={register}
+                watch={watch}
+                autoFilledFields={autoFilledFields}
+              />
 
-                  <BasicInfoCard
-                    register={register}
-                    errors={errors}
-                    autoFilledFields={autoFilledFields}
-                  />
+              <ProviderCard
+                register={register}
+                watch={watch}
+                setValue={setValue}
+                proveedores={proveedores}
+              />
 
-                  <TechnicalSpecsCard
-                    register={register}
-                    autoFilledFields={autoFilledFields}
-                  />
-                </div>
-
-                {/* Columna Lateral - Configuración y Precios */}
-                <div className="col-span-4 space-y-6">
-                  
-                  <ConfigurationCard
-                    watch={watch}
-                    setValue={setValue}
-                    autoFilledFields={autoFilledFields}
-                  />
-
-                  <PricingStockCard
-                    register={register}
-                    watch={watch}
-                    autoFilledFields={autoFilledFields}
-                  />
-
-                  <ProviderCard
-                    register={register}
-                    watch={watch}
-                    setValue={setValue}
-                    proveedores={proveedores}
-                  />
+              {/* Submit Actions */}
+              <div className="sticky top-4">
+                <div className="bg-muted/50 border rounded-lg p-4 space-y-3">
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    disabled={createProducto.isPending || updateProducto.isPending}
+                  >
+                    {createProducto.isPending || updateProducto.isPending ? 'Guardando...' : 
+                     producto ? 'Actualizar Producto' : 'Crear Producto'}
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="w-full" 
+                    onClick={onClose}
+                  >
+                    Cancelar
+                  </Button>
                 </div>
               </div>
-
-              {/* Botones de Acción */}
-              <div className="flex justify-end gap-3 mt-8 pt-6 border-t">
-                <Button type="button" variant="outline" onClick={onClose}>
-                  Cancelar
-                </Button>
-                <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-                  {producto ? 'Actualizar Producto' : 'Crear Producto'}
-                </Button>
-              </div>
-            </form>
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
