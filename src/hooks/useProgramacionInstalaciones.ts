@@ -124,11 +124,11 @@ export const useProgramacionInstalaciones = () => {
 
       console.log('Insert data:', insertData);
 
-      // Crear la programación
+      // Crear la programación con manejo específico de errores
       const { data: result, error } = await supabase
         .from('programacion_instalaciones')
         .insert(insertData)
-        .select()
+        .select('id, servicio_id, tipo_instalacion, fecha_programada, estado, contacto_cliente, telefono_contacto, direccion_instalacion')
         .single();
 
       if (error) {
