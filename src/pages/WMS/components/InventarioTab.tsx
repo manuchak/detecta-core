@@ -128,81 +128,95 @@ export const InventarioTab = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Código</TableHead>
-                  <TableHead>Producto</TableHead>
-                  <TableHead>Categoría</TableHead>
-                  <TableHead>Stock</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Precio</TableHead>
-                  <TableHead>Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProductos?.map((producto) => {
-                  const stockInfo = getStockStatus(producto);
-                  const IconComponent = stockInfo.icon;
-                  
-                  return (
-                    <TableRow key={producto.id} className="hover:bg-gray-50">
-                      <TableCell className="font-mono text-sm">
-                        {producto.codigo_producto}
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{producto.nombre}</p>
-                          <p className="text-sm text-gray-500">
-                            {producto.marca} {producto.modelo}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {producto.categoria?.nombre || 'Sin categoría'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-center">
-                          <p className="font-medium">{producto.stock?.cantidad_disponible || 0}</p>
-                          <p className="text-xs text-gray-500">
-                            Min: {producto.stock_minimo || 0}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={stockInfo.color}>
-                          <IconComponent className="h-3 w-3 mr-1" />
-                          {stockInfo.status === 'sin-stock' ? 'Sin Stock' : 
-                           stockInfo.status === 'stock-bajo' ? 'Stock Bajo' : 'OK'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="text-sm font-medium">
-                            ${(producto.precio_compra_promedio || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                          </p>
-                          <p className="text-xs text-gray-500">Compra</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedProducto(producto);
-                            setShowProductoDialog(true);
-                          }}
-                        >
-                          Ver
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            {!filteredProductos || filteredProductos.length === 0 ? (
+              <div className="text-center py-12">
+                <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No hay productos en el inventario</h3>
+                <p className="text-gray-500 mb-4">
+                  Comienza agregando tu primer producto al sistema WMS.
+                </p>
+                <Button onClick={() => setShowProductoDialog(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Agregar Primer Producto
+                </Button>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Código</TableHead>
+                    <TableHead>Producto</TableHead>
+                    <TableHead>Categoría</TableHead>
+                    <TableHead>Stock</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Precio</TableHead>
+                    <TableHead>Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredProductos?.map((producto) => {
+                    const stockInfo = getStockStatus(producto);
+                    const IconComponent = stockInfo.icon;
+                    
+                    return (
+                      <TableRow key={producto.id} className="hover:bg-gray-50">
+                        <TableCell className="font-mono text-sm">
+                          {producto.codigo_producto}
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{producto.nombre}</p>
+                            <p className="text-sm text-gray-500">
+                              {producto.marca} {producto.modelo}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {producto.categoria?.nombre || 'Sin categoría'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-center">
+                            <p className="font-medium">{producto.stock?.cantidad_disponible || 0}</p>
+                            <p className="text-xs text-gray-500">
+                              Min: {producto.stock_minimo || 0}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={stockInfo.color}>
+                            <IconComponent className="h-3 w-3 mr-1" />
+                            {stockInfo.status === 'sin-stock' ? 'Sin Stock' : 
+                             stockInfo.status === 'stock-bajo' ? 'Stock Bajo' : 'OK'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <p className="text-sm font-medium">
+                              ${(producto.precio_compra_promedio || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                            </p>
+                            <p className="text-xs text-gray-500">Compra</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedProducto(producto);
+                              setShowProductoDialog(true);
+                            }}
+                          >
+                            Ver
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>
