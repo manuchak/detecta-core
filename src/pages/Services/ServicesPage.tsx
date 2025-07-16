@@ -251,83 +251,160 @@ export const ServicesPage = () => {
             </TabsContent>
             
             <TabsContent value="instalaciones" className="mt-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium text-gray-900">
-                    Instalaciones GPS Programadas
-                  </h3>
-                  <Button 
-                    onClick={() => setShowProgramarInstalacion(true)}
-                    variant="outline"
-                  >
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Nueva Instalación
-                  </Button>
+              <div className="space-y-6">
+                {/* Servicios pendientes de programar instalación */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-medium text-gray-900">
+                      Servicios Pendientes de Instalación GPS
+                    </h3>
+                    <Badge variant="secondary" className="bg-orange-100 text-orange-800">
+                      {servicios?.filter(s => s.estado_general === 'programacion_instalacion')?.length || 0} servicios
+                    </Badge>
+                  </div>
+
+                  {isLoading ? (
+                    <div className="space-y-3">
+                      {[...Array(3)].map((_, i) => (
+                        <div key={i} className="h-16 bg-gray-100 rounded animate-pulse" />
+                      ))}
+                    </div>
+                  ) : servicios?.filter(s => s.estado_general === 'programacion_instalacion')?.length > 0 ? (
+                    <div className="grid gap-4">
+                      {servicios
+                        .filter(s => s.estado_general === 'programacion_instalacion')
+                        .slice(0, 5)
+                        .map((servicio) => (
+                        <Card key={servicio.id} className="border border-orange-200 bg-orange-50">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Badge variant="outline" className="bg-orange-100 text-orange-800">
+                                    {servicio.numero_servicio}
+                                  </Badge>
+                                  <Badge className="bg-orange-500 text-white">
+                                    Listo para programar
+                                  </Badge>
+                                </div>
+                                <p className="font-medium text-gray-900">
+                                  {servicio.nombre_cliente}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  {servicio.tipo_servicio} {servicio.empresa ? `- ${servicio.empresa}` : ''}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                  Creado: {new Date(servicio.created_at).toLocaleDateString('es-ES')}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <Button 
+                                  onClick={() => {
+                                    setSelectedServicioId(servicio.id);
+                                    setShowProgramarInstalacion(true);
+                                  }}
+                                  variant="default"
+                                  size="sm"
+                                  className="bg-orange-600 hover:bg-orange-700"
+                                >
+                                  <Calendar className="h-4 w-4 mr-2" />
+                                  Programar Instalación
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 bg-gray-50 rounded-lg">
+                      <Settings className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-600 text-sm">
+                        No hay servicios pendientes de programar instalación
+                      </p>
+                    </div>
+                  )}
                 </div>
 
-                {loadingProgramaciones ? (
-                  <div className="space-y-3">
-                    {[...Array(3)].map((_, i) => (
-                      <div key={i} className="h-16 bg-gray-100 rounded animate-pulse" />
-                    ))}
-                  </div>
-                ) : programaciones && programaciones.length > 0 ? (
-                  <div className="grid gap-4">
-                    {programaciones.slice(0, 5).map((programacion) => (
-                      <Card key={programacion.id} className="border border-gray-200">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Badge variant="outline">
-                                  {programacion.tipo_instalacion}
-                                </Badge>
-                                <Badge 
-                                  className={
-                                    programacion.estado === 'completada' 
-                                      ? 'bg-green-100 text-green-800'
-                                      : programacion.estado === 'en_proceso'
-                                      ? 'bg-blue-100 text-blue-800'
-                                      : 'bg-yellow-100 text-yellow-800'
-                                  }
-                                >
-                                  {programacion.estado}
-                                </Badge>
-                              </div>
-                              <p className="font-medium text-gray-900">
-                                {programacion.contacto_cliente}
-                              </p>
-                              <p className="text-sm text-gray-600">
-                                {programacion.direccion_instalacion}
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                {new Date(programacion.fecha_programada).toLocaleDateString('es-ES')}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-sm text-gray-600">
-                                Instalador: {programacion.instalador?.nombre_completo || 'No asignado'}
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                Tiempo est: {programacion.tiempo_estimado}min
-                              </p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Wrench className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      No hay instalaciones programadas
+                {/* Instalaciones ya programadas */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-medium text-gray-900">
+                      Instalaciones GPS Programadas
                     </h3>
-                    <p className="text-gray-600">
-                      Programa tu primera instalación GPS
-                    </p>
+                    <Button 
+                      onClick={() => setShowProgramarInstalacion(true)}
+                      variant="outline"
+                    >
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Nueva Instalación
+                    </Button>
                   </div>
-                )}
+
+                  {loadingProgramaciones ? (
+                    <div className="space-y-3">
+                      {[...Array(3)].map((_, i) => (
+                        <div key={i} className="h-16 bg-gray-100 rounded animate-pulse" />
+                      ))}
+                    </div>
+                  ) : programaciones && programaciones.length > 0 ? (
+                    <div className="grid gap-4">
+                      {programaciones.slice(0, 5).map((programacion) => (
+                        <Card key={programacion.id} className="border border-gray-200">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Badge variant="outline">
+                                    {programacion.tipo_instalacion}
+                                  </Badge>
+                                  <Badge 
+                                    className={
+                                      programacion.estado === 'completada' 
+                                        ? 'bg-green-100 text-green-800'
+                                        : programacion.estado === 'en_proceso'
+                                        ? 'bg-blue-100 text-blue-800'
+                                        : 'bg-yellow-100 text-yellow-800'
+                                    }
+                                  >
+                                    {programacion.estado}
+                                  </Badge>
+                                </div>
+                                <p className="font-medium text-gray-900">
+                                  {programacion.contacto_cliente}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  {programacion.direccion_instalacion}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                  {new Date(programacion.fecha_programada).toLocaleDateString('es-ES')}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm text-gray-600">
+                                  Instalador: {programacion.instalador?.nombre_completo || 'No asignado'}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                  Tiempo est: {programacion.tiempo_estimado}min
+                                </p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Wrench className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">
+                        No hay instalaciones programadas
+                      </h3>
+                      <p className="text-gray-600">
+                        Las instalaciones programadas aparecerán aquí
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </TabsContent>
           </Tabs>
