@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Phone, Clock, User, Calendar } from "lucide-react";
+import { Phone, User, Calendar } from "lucide-react";
 import { AssignedLead, ManualCallLog } from "@/types/leadTypes";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -40,7 +40,6 @@ export const CallLogDialog = ({
 }: CallLogDialogProps) => {
   const [callOutcome, setCallOutcome] = useState<string>("");
   const [callNotes, setCallNotes] = useState("");
-  const [callDuration, setCallDuration] = useState("");
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleTime, setRescheduleTime] = useState("");
   const [loading, setLoading] = useState(false);
@@ -88,11 +87,6 @@ export const CallLogDialog = ({
         call_notes: callNotes || null,
       };
 
-      // Solo incluir duración si la llamada no falló
-      const failedOutcomes = ['call_failed', 'wrong_number', 'no_answer'];
-      if (!failedOutcomes.includes(callOutcome) && callDuration) {
-        insertData.call_duration_minutes = parseInt(callDuration);
-      }
 
       // Agregar datos de reprogramación si aplica
       if (callOutcome === 'reschedule_requested' && rescheduleDate && rescheduleTime) {
@@ -141,7 +135,6 @@ export const CallLogDialog = ({
   const resetForm = () => {
     setCallOutcome("");
     setCallNotes("");
-    setCallDuration("");
     setRescheduleDate("");
     setRescheduleTime("");
   };
@@ -211,21 +204,6 @@ export const CallLogDialog = ({
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="duration">Duración de la llamada (minutos)</Label>
-            <div className="relative">
-              <Clock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="duration"
-                type="number"
-                placeholder="Ej: 5"
-                value={callDuration}
-                onChange={(e) => setCallDuration(e.target.value)}
-                className="pl-10"
-                min="0"
-              />
-            </div>
-          </div>
 
           <div className="space-y-2">
             <Label htmlFor="notes">Notas de la llamada</Label>
