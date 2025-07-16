@@ -5744,6 +5744,10 @@ export type Database = {
         Args: Record<PropertyKey, never> | { user_id: string }
         Returns: boolean
       }
+      is_admin_email_secure: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       is_admin_no_recursion: {
         Args: { check_user_id: string }
         Returns: boolean
