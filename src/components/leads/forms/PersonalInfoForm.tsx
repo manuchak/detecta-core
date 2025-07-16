@@ -9,6 +9,7 @@ interface PersonalInfoFormProps {
     email: string;
     telefono: string;
     edad: string;
+    nivel_escolaridad: string;
   };
   onInputChange: (field: string, value: string) => void;
 }
@@ -23,6 +24,17 @@ const RANGOS_EDAD = [
   { value: "51-55", label: "51-55 años" },
   { value: "56-60", label: "56-60 años" },
   { value: "60+", label: "Más de 60 años" }
+];
+
+const NIVELES_ESCOLARIDAD = [
+  { value: "primaria", label: "Primaria" },
+  { value: "secundaria", label: "Secundaria" },
+  { value: "preparatoria", label: "Preparatoria/Bachillerato" },
+  { value: "tecnica", label: "Carrera Técnica" },
+  { value: "licenciatura", label: "Licenciatura" },
+  { value: "ingenieria", label: "Ingeniería" },
+  { value: "maestria", label: "Maestría" },
+  { value: "doctorado", label: "Doctorado" }
 ];
 
 export const PersonalInfoForm = ({ formData, onInputChange }: PersonalInfoFormProps) => {
@@ -70,6 +82,21 @@ export const PersonalInfoForm = ({ formData, onInputChange }: PersonalInfoFormPr
               {RANGOS_EDAD.map((rango) => (
                 <SelectItem key={rango.value} value={rango.value}>
                   {rango.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="nivel_escolaridad">Nivel de Escolaridad *</Label>
+          <Select value={formData.nivel_escolaridad} onValueChange={(value) => onInputChange('nivel_escolaridad', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar nivel de escolaridad" />
+            </SelectTrigger>
+            <SelectContent>
+              {NIVELES_ESCOLARIDAD.map((nivel) => (
+                <SelectItem key={nivel.value} value={nivel.value}>
+                  {nivel.label}
                 </SelectItem>
               ))}
             </SelectContent>

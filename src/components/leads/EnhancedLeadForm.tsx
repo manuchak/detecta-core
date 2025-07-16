@@ -25,6 +25,7 @@ interface FormData {
   email: string;
   telefono: string;
   edad: string;
+  nivel_escolaridad: string;
   
   // Ubicación
   direccion: string;
@@ -83,6 +84,7 @@ export const EnhancedLeadForm = ({ editingLead, onSuccess, onCancel }: EnhancedL
     email: "",
     telefono: "",
     edad: "",
+    nivel_escolaridad: "",
     
     // Ubicación
     direccion: "",
@@ -123,6 +125,7 @@ export const EnhancedLeadForm = ({ editingLead, onSuccess, onCancel }: EnhancedL
         email: editingLead.email || "",
         telefono: editingLead.telefono || "",
         edad: "",
+        nivel_escolaridad: "",
         
         // Ubicación
         direccion: "",

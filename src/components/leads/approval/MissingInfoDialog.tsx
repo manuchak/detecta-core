@@ -53,6 +53,7 @@ interface FormDataInterface {
   
   // Datos personales
   edad: string;
+  nivel_escolaridad: string;
   direccion: string;
   estado_id: string;
   ciudad_id: string;
@@ -109,6 +110,7 @@ export const MissingInfoDialog = ({
     
     // Datos personales
     edad: "",
+    nivel_escolaridad: "",
     direccion: "",
     estado_id: "",
     ciudad_id: "",
@@ -176,6 +178,7 @@ export const MissingInfoDialog = ({
         
         // Datos personales
         edad: notesData.datos_personales?.edad || "",
+        nivel_escolaridad: notesData.datos_personales?.nivel_escolaridad || "",
         direccion: notesData.datos_personales?.direccion || "",
         estado_id: notesData.datos_personales?.estado_id || "",
         ciudad_id: notesData.datos_personales?.ciudad_id || "",
@@ -468,7 +471,8 @@ export const MissingInfoDialog = ({
                     nombre: formData.nombre,
                     email: formData.email,
                     telefono: formData.telefono,
-                    edad: formData.edad
+                    edad: formData.edad,
+                    nivel_escolaridad: formData.nivel_escolaridad || ""
                   }}
                   onInputChange={handleInputChange}
                 />
