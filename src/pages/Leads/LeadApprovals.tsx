@@ -79,6 +79,12 @@ export const LeadApprovals = () => {
     refreshAfterCall();
   };
 
+  const handleOpenCompleteInfo = () => {
+    if (selectedLead) {
+      setShowMissingInfoDialog(true);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -215,6 +221,7 @@ export const LeadApprovals = () => {
           onCallLogDialogChange={setShowCallLogDialog}
           onUpdate={fetchAssignedLeads}
           onCallComplete={handleCallComplete}
+          onOpenCompleteInfo={handleOpenCompleteInfo}
         />
       </div>
     </TooltipProvider>

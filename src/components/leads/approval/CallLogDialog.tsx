@@ -28,13 +28,15 @@ interface CallLogDialogProps {
   onOpenChange: (open: boolean) => void;
   lead: AssignedLead;
   onCallLogged: () => void;
+  onOpenCompleteInfo?: () => void;
 }
 
 export const CallLogDialog = ({
   open,
   onOpenChange,
   lead,
-  onCallLogged
+  onCallLogged,
+  onOpenCompleteInfo
 }: CallLogDialogProps) => {
   const [callOutcome, setCallOutcome] = useState<string>("");
   const [callNotes, setCallNotes] = useState("");
@@ -117,6 +119,13 @@ export const CallLogDialog = ({
       onCallLogged();
       onOpenChange(false);
       resetForm();
+
+      // Si la llamada fue exitosa, abrir automáticamente el formulario de información
+      if (callOutcome === 'successful' && onOpenCompleteInfo) {
+        setTimeout(() => {
+          onOpenCompleteInfo();
+        }, 500); // Pequeño delay para que se cierre el diálogo actual primero
+      }
     } catch (error) {
       console.error('Error logging call:', error);
       toast({

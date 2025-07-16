@@ -25,6 +25,7 @@ interface LeadDialogsProps {
   onCallLogDialogChange: (open: boolean) => void;
   onUpdate: () => void;
   onCallComplete: () => void;
+  onOpenCompleteInfo: () => void;
 }
 
 export const LeadDialogs = ({
@@ -43,7 +44,8 @@ export const LeadDialogs = ({
   onMissingInfoDialogChange,
   onCallLogDialogChange,
   onUpdate,
-  onCallComplete
+  onCallComplete,
+  onOpenCompleteInfo
 }: LeadDialogsProps) => {
   if (!selectedLead) return null;
 
@@ -93,6 +95,7 @@ export const LeadDialogs = ({
         onOpenChange={onCallLogDialogChange}
         lead={selectedLead}
         onCallLogged={onUpdate}
+        onOpenCompleteInfo={onOpenCompleteInfo}
       />
     </>
   );
