@@ -293,17 +293,23 @@ export const ProgramarInstalacionMejorada = ({
       const result = await createProgramacion.mutateAsync(programacionData);
       
       console.log('✅ Installation scheduled successfully');
+      console.log('🔍 Result from createProgramacion:', result);
       
       // Configurar datos para el diálogo de asignación GPS
       const sensoresRequeridos = formData.sensores_adicionales;
-      setProgramacionCreada({
+      const gpsDialogData = {
         id: result.id,
         tipo_instalacion: formData.tipo_instalacion,
         sensores_requeridos: sensoresRequeridos
-      });
+      };
       
-      // Cerrar el diálogo de programación y abrir el de asignación GPS
+      console.log('📋 Setting programacion data for GPS dialog:', gpsDialogData);
+      setProgramacionCreada(gpsDialogData);
+      
+      console.log('🚪 Closing installation dialog...');
       onOpenChange(false);
+      
+      console.log('🎯 Opening GPS assignment dialog...');
       setShowAsignacionGPS(true);
       
       // Reset form
