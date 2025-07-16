@@ -133,10 +133,12 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
             <User className="mr-2 h-4 w-4" />
             Mi Perfil
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => navigate('/settings')} className="cursor-pointer">
-            <Settings className="mr-2 h-4 w-4" />
-            Configuración
-          </DropdownMenuItem>
+          {(userRole === 'admin' || userRole === 'owner') && (
+            <DropdownMenuItem onClick={() => navigate('/settings')} className="cursor-pointer">
+              <Settings className="mr-2 h-4 w-4" />
+              Configuración
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem 
             onClick={handleSignOut} 
@@ -299,8 +301,8 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
       ]
     }] : []),
 
-    // Configuración - solo si tiene permisos
-    ...(hasAnySkill(['settings_view', 'settings_manage']) || isAdminUser ? [{
+    // Configuración - solo para admins y owners
+    ...(userRole === 'admin' || userRole === 'owner' ? [{
       title: "Configuración",
       icon: Settings,
       path: "/settings",

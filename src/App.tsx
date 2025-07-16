@@ -272,9 +272,11 @@ function App() {
                   path="/settings"
                   element={
                     <ProtectedRoute>
-                      <DashboardLayout>
-                        <Settings />
-                      </DashboardLayout>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner']}>
+                        <DashboardLayout>
+                          <Settings />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
                 />
