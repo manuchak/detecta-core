@@ -88,7 +88,7 @@ const Home = () => {
     const roleSpecificActions = [];
 
     // Dashboard para roles administrativos
-    if (['admin', 'owner', 'supply_admin', 'coordinador_operaciones', 'jefe_seguridad', 'bi'].includes(userRole || '')) {
+    if (['admin', 'owner', 'supply_admin', 'jefe_seguridad', 'bi'].includes(userRole || '')) {
       roleSpecificActions.push({
         title: 'Dashboard Ejecutivo',
         icon: TrendingUp,
@@ -99,8 +99,8 @@ const Home = () => {
       });
     }
 
-    // Servicios para roles operativos
-    if (['custodio', 'supply', 'instalador'].includes(userRole || '')) {
+    // Servicios para roles operativos y coordinadores
+    if (['custodio', 'supply', 'instalador', 'coordinador_operaciones'].includes(userRole || '')) {
       roleSpecificActions.push({
         title: 'Mis Servicios',
         icon: Truck,
