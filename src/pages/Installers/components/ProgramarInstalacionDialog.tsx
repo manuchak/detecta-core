@@ -150,6 +150,7 @@ export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProp
   const onSubmit = async (data: FormData) => {
     try {
       console.log('Datos del formulario:', data);
+      console.log('Abriendo diálogo de asignación GPS...');
       
       // Validar fecha mínima
       const fechaSeleccionada = new Date(data.fecha_programada);

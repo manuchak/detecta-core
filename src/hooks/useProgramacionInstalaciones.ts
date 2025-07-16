@@ -13,30 +13,58 @@ export const useProgramacionInstalaciones = () => {
     queryKey: ['programacion-instalaciones'],
     queryFn: async () => {
       console.log('Fetching programaciones...');
-      const { data, error } = await supabase
+      
+      // Primero obtener las programaciones básicas
+      const { data: programacionesData, error: programacionesError } = await supabase
         .from('programacion_instalaciones')
-        .select(`
-          *,
-          instalador:instaladores(
-            id,
-            nombre_completo,
-            telefono,
-            calificacion_promedio
-          ),
-          servicio:servicios_monitoreo(
-            id,
-            numero_servicio,
-            nombre_cliente
-          )
-        `)
+        .select('*')
         .order('fecha_programada', { ascending: true });
 
-      if (error) {
-        console.error('Error fetching programaciones:', error);
-        throw error;
+      if (programacionesError) {
+        console.error('Error fetching programaciones:', programacionesError);
+        throw programacionesError;
       }
-      console.log('Programaciones fetched:', data);
-      return data as ProgramacionInstalacion[];
+
+      // Luego hacer queries separadas para los datos relacionados si es necesario
+      const programacionesWithRelations = await Promise.all(
+        (programacionesData || []).map(async (programacion) => {
+          try {
+            // Obtener datos del servicio
+            const { data: servicio } = await supabase
+              .from('servicios_monitoreo')
+              .select('id, numero_servicio, nombre_cliente')
+              .eq('id', programacion.servicio_id)
+              .single();
+
+            // Obtener datos del instalador si existe
+            let instalador = null;
+            if (programacion.instalador_id) {
+              const { data: instaladorData } = await supabase
+                .from('instaladores')
+                .select('id, nombre_completo, telefono, calificacion_promedio')
+                .eq('id', programacion.instalador_id)
+                .single();
+              instalador = instaladorData;
+            }
+
+            return {
+              ...programacion,
+              servicio,
+              instalador
+            };
+          } catch (error) {
+            console.error('Error fetching related data for programacion:', programacion.id, error);
+            return {
+              ...programacion,
+              servicio: null,
+              instalador: null
+            };
+          }
+        })
+      );
+
+      console.log('Programaciones fetched:', programacionesWithRelations);
+      return programacionesWithRelations as ProgramacionInstalacion[];
     }
   });
 
