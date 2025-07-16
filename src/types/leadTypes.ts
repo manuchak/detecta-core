@@ -33,6 +33,8 @@ export interface AssignedLead {
   analyst_email?: string; // Email del analista asignado
   last_call_outcome?: string; // Resultado de la última llamada manual
   has_successful_call?: boolean; // Si ha tenido al menos una llamada exitosa
+  has_scheduled_call?: boolean; // Si tiene una llamada reprogramada pendiente
+  scheduled_call_datetime?: string; // Fecha y hora de la llamada reprogramada
 }
 
 export interface ManualCallLog {

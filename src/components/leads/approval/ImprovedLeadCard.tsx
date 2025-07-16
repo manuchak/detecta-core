@@ -105,12 +105,18 @@ export const ImprovedLeadCard = ({
             </Avatar>
             <div>
               <h3 className="font-semibold text-lg leading-none mb-1">{lead.lead_nombre}</h3>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {getStatusBadge(lead.approval_stage, lead.final_decision)}
                 {hasMissingInfo && (
                   <Badge variant="outline" className="text-amber-700 border-amber-200 bg-amber-50">
                     <AlertTriangle className="h-3 w-3 mr-1" />
                     Incompleta
+                  </Badge>
+                )}
+                {lead.has_scheduled_call && (
+                  <Badge variant="outline" className="text-blue-700 border-blue-200 bg-blue-50">
+                    <Calendar className="h-3 w-3 mr-1" />
+                    Reprogramada
                   </Badge>
                 )}
               </div>

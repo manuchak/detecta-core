@@ -198,7 +198,7 @@ export const LeadApprovals = () => {
               </TabsContent>
 
               <TabsContent value="scheduled" className="mt-6">
-                <ScheduledCallsView />
+                <ScheduledCallsView assignedLeads={assignedLeads} />
               </TabsContent>
             </Tabs>
           </CardContent>

@@ -13,13 +13,18 @@ interface ScheduledCall {
   lead_id: string;
   scheduled_datetime: string;
   call_notes?: string;
-  // Lead information from join
+  call_outcome: string;
+  // Lead information that we'll get from the props or context
   lead_nombre?: string;
   lead_telefono?: string;
   lead_email?: string;
 }
 
-export const ScheduledCallsView = () => {
+interface ScheduledCallsViewProps {
+  assignedLeads?: any[];
+}
+
+export const ScheduledCallsView = ({ assignedLeads = [] }: ScheduledCallsViewProps) => {
   const [scheduledCalls, setScheduledCalls] = useState<ScheduledCall[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -32,15 +37,28 @@ export const ScheduledCallsView = () => {
           id,
           lead_id,
           scheduled_datetime,
-          call_notes
+          call_notes,
+          call_outcome
         `)
         .not('scheduled_datetime', 'is', null)
         .gte('scheduled_datetime', new Date().toISOString())
-        .is('call_outcome', null)
+        .eq('call_outcome', 'reschedule_requested')
         .order('scheduled_datetime', { ascending: true });
 
       if (error) throw error;
-      setScheduledCalls(data || []);
+      
+      // Combine call logs with assigned leads information
+      const callsWithLeadInfo = (data || []).map(call => {
+        const matchingLead = assignedLeads.find(lead => lead.lead_id === call.lead_id);
+        return {
+          ...call,
+          lead_nombre: matchingLead?.lead_nombre || `Lead ${call.lead_id}`,
+          lead_telefono: matchingLead?.lead_telefono,
+          lead_email: matchingLead?.lead_email
+        };
+      });
+
+      setScheduledCalls(callsWithLeadInfo);
     } catch (error) {
       console.error('Error fetching scheduled calls:', error);
       toast({
@@ -55,7 +73,7 @@ export const ScheduledCallsView = () => {
 
   useEffect(() => {
     fetchScheduledCalls();
-  }, []);
+  }, [assignedLeads]); // Refrescar cuando cambien los leads asignados
 
   const getPriorityBadge = (datetime: string) => {
     const date = new Date(datetime);
@@ -150,10 +168,11 @@ export const ScheduledCallsView = () => {
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <div>
-                        <p className="font-medium">Lead ID: {call.lead_id}</p>
+                        <p className="font-medium">{call.lead_nombre}</p>
+                        <p className="text-sm text-muted-foreground">{call.lead_telefono}</p>
                         {call.call_notes && (
-                          <p className="text-sm text-muted-foreground truncate max-w-xs">
-                            {call.call_notes}
+                          <p className="text-sm text-muted-foreground truncate max-w-xs mt-1">
+                            Notas: {call.call_notes}
                           </p>
                         )}
                       </div>

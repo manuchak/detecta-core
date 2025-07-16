@@ -72,11 +72,10 @@ export const useLeadApprovals = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get manual call logs
+      // Get manual call logs including reschedule information
       const { data: callData } = await supabase
         .from('manual_call_logs')
-        .select('lead_id, call_outcome')
-        .eq('caller_id', user.id)
+        .select('lead_id, call_outcome, scheduled_datetime, created_at')
         .order('created_at', { ascending: false });
 
       // Update leads with call status
@@ -85,10 +84,19 @@ export const useLeadApprovals = () => {
         const hasSuccessfulCall = leadCalls.some(call => call.call_outcome === 'successful');
         const lastCall = leadCalls[0];
         
+        // Check for rescheduled calls
+        const rescheduledCall = leadCalls.find(call => 
+          call.call_outcome === 'reschedule_requested' && 
+          call.scheduled_datetime &&
+          new Date(call.scheduled_datetime) > new Date()
+        );
+        
         return {
           ...lead,
           has_successful_call: hasSuccessfulCall,
-          last_call_outcome: lastCall?.call_outcome
+          last_call_outcome: lastCall?.call_outcome,
+          has_scheduled_call: !!rescheduledCall,
+          scheduled_call_datetime: rescheduledCall?.scheduled_datetime
         };
       }));
     } catch (error) {
