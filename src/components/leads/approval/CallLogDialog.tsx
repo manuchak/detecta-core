@@ -222,40 +222,96 @@ export const CallLogDialog = ({
           </div>
 
           {callOutcome === 'reschedule_requested' && (
-            <Card className="border-blue-200 bg-blue-50">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2 text-blue-700">
-                  <Calendar className="h-4 w-4" />
+            <div className="mt-8 p-6 bg-card/50 rounded-2xl border-0 backdrop-blur-sm">
+              <div className="text-center mb-6">
+                <h3 className="text-xl font-medium text-foreground mb-2">
                   Programar Nueva Llamada
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="reschedule-date">Fecha *</Label>
-                    <Input
-                      id="reschedule-date"
-                      type="date"
-                      value={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}
-                      onChange={(e) => setSelectedDate(e.target.value ? new Date(e.target.value) : undefined)}
-                      min={new Date().toISOString().split('T')[0]}
-                    />
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Selecciona cuándo te gustaría contactar al candidato
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <Label className="text-sm font-medium text-foreground mb-3 block">
+                    Fecha
+                  </Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full h-12 justify-start text-left font-normal rounded-xl border-input/50 hover:border-input",
+                          !selectedDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-3 h-4 w-4" />
+                        {selectedDate ? (
+                          format(selectedDate, "PPP", { locale: es })
+                        ) : (
+                          <span>Seleccionar fecha</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 border-0 shadow-xl" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={setSelectedDate}
+                        disabled={(date) => {
+                          const day = date.getDay();
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          return date < today || day === 0 || day === 6;
+                        }}
+                        initialFocus
+                        className="rounded-xl border-0"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div>
+                  <Label className="text-sm font-medium text-foreground mb-3 block">
+                    Hora
+                  </Label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {['09:00', '11:00', '14:00', '16:00'].map((time) => (
+                      <Button
+                        key={time}
+                        type="button"
+                        variant={selectedTime === time ? "default" : "outline"}
+                        className={cn(
+                          "h-10 rounded-xl border-input/50 hover:border-input transition-all duration-200",
+                          selectedTime === time && "shadow-md"
+                        )}
+                        onClick={() => setSelectedTime(time)}
+                      >
+                        {time}
+                      </Button>
+                    ))}
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="reschedule-time">Hora *</Label>
+                  <div className="mt-3">
                     <Input
-                      id="reschedule-time"
                       type="time"
                       value={selectedTime}
                       onChange={(e) => setSelectedTime(e.target.value)}
+                      min="09:00"
+                      max="18:00"
+                      className="h-10 rounded-xl border-input/50 focus:border-primary"
+                      placeholder="O selecciona otra hora"
                     />
                   </div>
                 </div>
-                <p className="text-sm text-blue-600">
-                  📅 Se creará una nueva tarea programada para contactar al candidato en la fecha y hora especificada
+              </div>
+
+              <div className="mt-6 p-4 bg-muted/30 rounded-xl">
+                <p className="text-xs text-muted-foreground text-center">
+                  Horario laboral: Lunes a Viernes, 9:00 AM - 6:00 PM
                 </p>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
 
           <div className="flex justify-end gap-2 pt-4">
