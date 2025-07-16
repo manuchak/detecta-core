@@ -20,7 +20,7 @@ export const LeadsMetricsDashboard = ({ leads }: LeadsMetricsDashboardProps) => 
         newLeads: 0,
         inProcess: 0,
         approved: 0,
-        avgDaysToAssignment: 0,
+        avgHoursToAssignment: 0,
         assignmentRate: 0
       };
     }
@@ -32,13 +32,13 @@ export const LeadsMetricsDashboard = ({ leads }: LeadsMetricsDashboardProps) => 
     const inProcess = leads.filter(lead => lead?.estado === 'en_proceso').length;
     const approved = leads.filter(lead => lead?.estado === 'aprobado').length;
     
-    // Calcular tiempo promedio entre creación y asignación
+    // Calcular tiempo promedio entre creación y asignación en horas
     const assignedLeads = leads.filter(lead => lead && lead.asignado_a && lead.fecha_creacion && lead.fecha_contacto);
     
-    let avgDaysToAssignment = 0;
+    let avgHoursToAssignment = 0;
     if (assignedLeads.length > 0) {
       try {
-        const totalDays = assignedLeads.reduce((acc, lead) => {
+        const totalHours = assignedLeads.reduce((acc, lead) => {
           try {
             const creationDate = new Date(lead.fecha_creacion);
             const assignmentDate = new Date(lead.fecha_contacto); // Usando fecha_contacto como proxy para cuando se asignó
@@ -47,18 +47,18 @@ export const LeadsMetricsDashboard = ({ leads }: LeadsMetricsDashboardProps) => 
               return acc;
             }
             
-            const days = Math.floor((assignmentDate.getTime() - creationDate.getTime()) / (1000 * 60 * 60 * 24));
-            return acc + Math.max(0, days);
+            const hours = Math.floor((assignmentDate.getTime() - creationDate.getTime()) / (1000 * 60 * 60));
+            return acc + Math.max(0, hours);
           } catch (error) {
-            console.warn('Error calculando días para lead:', lead.id, error);
+            console.warn('Error calculando horas para lead:', lead.id, error);
             return acc;
           }
         }, 0);
         
-        avgDaysToAssignment = Math.round(totalDays / assignedLeads.length);
+        avgHoursToAssignment = Math.round(totalHours / assignedLeads.length);
       } catch (error) {
-        console.warn('Error calculando promedio de días hasta asignación:', error);
-        avgDaysToAssignment = 0;
+        console.warn('Error calculando promedio de horas hasta asignación:', error);
+        avgHoursToAssignment = 0;
       }
     }
 
@@ -71,7 +71,7 @@ export const LeadsMetricsDashboard = ({ leads }: LeadsMetricsDashboardProps) => 
       newLeads,
       inProcess,
       approved,
-      avgDaysToAssignment,
+      avgHoursToAssignment,
       assignmentRate
     };
   }, [leads]); // Solo depende del array de leads
@@ -156,9 +156,9 @@ export const LeadsMetricsDashboard = ({ leads }: LeadsMetricsDashboardProps) => 
           <Clock className="h-4 w-4 text-orange-600" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-orange-600">{metrics.avgDaysToAssignment}</div>
+          <div className="text-2xl font-bold text-orange-600">{metrics.avgHoursToAssignment}</div>
           <div className="text-xs text-muted-foreground mt-1">
-            días hasta asignación
+            horas hasta asignación
           </div>
         </CardContent>
       </Card>
