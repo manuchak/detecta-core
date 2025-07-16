@@ -864,6 +864,13 @@ export type Database = {
             referencedRelation: "productos_inventario"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "configuraciones_producto_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "vista_analisis_inventario"
+            referencedColumns: ["id"]
+          },
         ]
       }
       contactos_emergencia_servicio: {
@@ -1028,6 +1035,13 @@ export type Database = {
             referencedRelation: "productos_inventario"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "detalles_orden_compra_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "vista_analisis_inventario"
+            referencedColumns: ["id"]
+          },
         ]
       }
       detalles_recepcion: {
@@ -1079,6 +1093,13 @@ export type Database = {
             columns: ["producto_id"]
             isOneToOne: false
             referencedRelation: "productos_inventario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "detalles_recepcion_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "vista_analisis_inventario"
             referencedColumns: ["id"]
           },
           {
@@ -1832,6 +1853,86 @@ export type Database = {
         }
         Relationships: []
       }
+      lotes_inventario: {
+        Row: {
+          activo: boolean
+          cantidad_disponible: number
+          cantidad_inicial: number
+          costo_unitario: number
+          created_at: string
+          fecha_compra: string
+          fecha_vencimiento: string | null
+          id: string
+          notas: string | null
+          numero_lote: string
+          orden_compra_id: string | null
+          producto_id: string
+          proveedor_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          cantidad_disponible?: number
+          cantidad_inicial: number
+          costo_unitario: number
+          created_at?: string
+          fecha_compra?: string
+          fecha_vencimiento?: string | null
+          id?: string
+          notas?: string | null
+          numero_lote: string
+          orden_compra_id?: string | null
+          producto_id: string
+          proveedor_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          cantidad_disponible?: number
+          cantidad_inicial?: number
+          costo_unitario?: number
+          created_at?: string
+          fecha_compra?: string
+          fecha_vencimiento?: string | null
+          id?: string
+          notas?: string | null
+          numero_lote?: string
+          orden_compra_id?: string | null
+          producto_id?: string
+          proveedor_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lotes_inventario_orden_compra_id_fkey"
+            columns: ["orden_compra_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_compra"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lotes_inventario_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "productos_inventario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lotes_inventario_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "vista_analisis_inventario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lotes_inventario_proveedor_id_fkey"
+            columns: ["proveedor_id"]
+            isOneToOne: false
+            referencedRelation: "proveedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_log: {
         Row: {
           created_at: string
@@ -2104,6 +2205,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "movimientos_inventario_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "vista_analisis_inventario"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "movimientos_inventario_usuario_id_fkey"
             columns: ["usuario_id"]
             isOneToOne: false
@@ -2158,6 +2266,13 @@ export type Database = {
             columns: ["producto_id"]
             isOneToOne: false
             referencedRelation: "productos_inventario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_stock_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "vista_analisis_inventario"
             referencedColumns: ["id"]
           },
         ]
@@ -2555,6 +2670,13 @@ export type Database = {
             columns: ["producto_id"]
             isOneToOne: false
             referencedRelation: "productos_inventario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "productos_serie_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "vista_analisis_inventario"
             referencedColumns: ["id"]
           },
           {
@@ -3592,6 +3714,13 @@ export type Database = {
             referencedRelation: "productos_inventario"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "stock_productos_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: true
+            referencedRelation: "vista_analisis_inventario"
+            referencedColumns: ["id"]
+          },
         ]
       }
       system_limits: {
@@ -4095,6 +4224,23 @@ export type Database = {
         }
         Relationships: []
       }
+      vista_analisis_inventario: {
+        Row: {
+          cantidad_disponible: number | null
+          codigo_producto: string | null
+          id: string | null
+          lotes_activos: number | null
+          margen_potencial: number | null
+          nombre: string | null
+          porcentaje_margen: number | null
+          precio_compra_promedio: number | null
+          precio_venta_sugerido: number | null
+          total_lotes: number | null
+          valor_inventario_costo: number | null
+          valor_inventario_venta: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       add_admin_role: {
@@ -4251,9 +4397,21 @@ export type Database = {
           updated_time: string | null
         }[]
       }
+      calcular_costo_promedio_ponderado: {
+        Args: { p_producto_id: string }
+        Returns: number
+      }
       calcular_puntos_viaje: {
         Args: { km_viaje: number; estado_viaje: string }
         Returns: number
+      }
+      calcular_valor_inventario: {
+        Args: { p_producto_id: string }
+        Returns: {
+          valor_costo: number
+          valor_venta: number
+          margen_potencial: number
+        }[]
       }
       calculate_custodian_level: {
         Args: { total_points: number }
