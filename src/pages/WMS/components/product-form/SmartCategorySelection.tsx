@@ -25,10 +25,16 @@ export const SmartCategorySelection = ({
   const { modelos: modelosGPS } = useModelosGPS();
 
   const selectedMarcaId = watch('marca_gps_id');
+  const selectedCategoriaId = watch('categoria_id');
   const modelosFiltrados = modelosGPS?.filter(m => m.marca_id === selectedMarcaId);
 
+  // Check if selected category is GPS
+  const selectedCategoria = categorias?.find(cat => cat.id === selectedCategoriaId);
+  const isGPSCategory = selectedCategoria?.nombre?.toLowerCase().includes('gps') || 
+                       selectedCategoria?.codigo?.toLowerCase().includes('gps');
+
   return (
-    <div className="grid grid-cols-3 gap-4">
+    <div className={`grid gap-4 ${isGPSCategory ? 'grid-cols-3' : 'grid-cols-1'}`}>
       <div>
         <Label htmlFor="categoria_id">Categoría</Label>
         <Select
@@ -54,63 +60,67 @@ export const SmartCategorySelection = ({
         </Select>
       </div>
 
-      <div>
-        <Label htmlFor="marca_gps_id">Marca GPS</Label>
-        <Select
-          value={watch('marca_gps_id') || ''}
-          onValueChange={(value) => {
-            setValue('marca_gps_id', value);
-            setValue('modelo_gps_id', ''); // Reset modelo when marca changes
-          }}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Seleccionar marca" />
-          </SelectTrigger>
-          <SelectContent>
-            {marcasGPS?.map((marca) => (
-              <SelectItem key={marca.id} value={marca.id}>
-                <div className="flex items-center gap-2">
-                  <span>{marca.nombre}</span>
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {isGPSCategory && (
+        <>
+          <div>
+            <Label htmlFor="marca_gps_id">Marca GPS</Label>
+            <Select
+              value={watch('marca_gps_id') || ''}
+              onValueChange={(value) => {
+                setValue('marca_gps_id', value);
+                setValue('modelo_gps_id', ''); // Reset modelo when marca changes
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar marca" />
+              </SelectTrigger>
+              <SelectContent>
+                {marcasGPS?.map((marca) => (
+                  <SelectItem key={marca.id} value={marca.id}>
+                    <div className="flex items-center gap-2">
+                      <span>{marca.nombre}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-      <div>
-        <Label htmlFor="modelo_gps_id">Modelo GPS</Label>
-        <Select
-          value={watch('modelo_gps_id') || ''}
-          onValueChange={(value) => {
-            setValue('modelo_gps_id', value);
-            const marca = marcasGPS?.find(m => m.id === selectedMarcaId);
-            const modelo = modelosFiltrados?.find(m => m.id === value);
-            if (marca && modelo) {
-              onGPSSelect(marca, modelo);
-            }
-          }}
-          disabled={!selectedMarcaId}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Seleccionar modelo" />
-          </SelectTrigger>
-          <SelectContent>
-            {modelosFiltrados?.map((modelo) => (
-              <SelectItem key={modelo.id} value={modelo.id}>
-                <div className="flex items-center justify-between w-full">
-                  <span>{modelo.nombre}</span>
-                  {modelo.precio_referencia_usd && (
-                    <span className="text-xs text-gray-500 ml-2">
-                      ${modelo.precio_referencia_usd} USD
-                    </span>
-                  )}
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+          <div>
+            <Label htmlFor="modelo_gps_id">Modelo GPS</Label>
+            <Select
+              value={watch('modelo_gps_id') || ''}
+              onValueChange={(value) => {
+                setValue('modelo_gps_id', value);
+                const marca = marcasGPS?.find(m => m.id === selectedMarcaId);
+                const modelo = modelosFiltrados?.find(m => m.id === value);
+                if (marca && modelo) {
+                  onGPSSelect(marca, modelo);
+                }
+              }}
+              disabled={!selectedMarcaId}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar modelo" />
+              </SelectTrigger>
+              <SelectContent>
+                {modelosFiltrados?.map((modelo) => (
+                  <SelectItem key={modelo.id} value={modelo.id}>
+                    <div className="flex items-center justify-between w-full">
+                      <span>{modelo.nombre}</span>
+                      {modelo.precio_referencia_usd && (
+                        <span className="text-xs text-gray-500 ml-2">
+                          ${modelo.precio_referencia_usd} USD
+                        </span>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </>
+      )}
     </div>
   );
 };
