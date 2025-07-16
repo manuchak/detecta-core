@@ -15,10 +15,12 @@ import {
   BarChart3,
   TrendingUp,
   Eye,
-  DollarSign
+  DollarSign,
+  Shield
 } from 'lucide-react';
 import { ProductoInventario } from '@/types/wms';
 import { ProductoDialog } from './ProductoDialog';
+import { AuditLogDialog } from './AuditLogDialog';
 
 interface InventarioListProps {
   productos: ProductoInventario[];
@@ -34,6 +36,7 @@ export const InventarioList = ({
   onDeleteProduct 
 }: InventarioListProps) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [showAuditLog, setShowAuditLog] = useState(false);
   
   const filteredProductos = productos.filter(producto =>
     producto.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -81,6 +84,14 @@ export const InventarioList = ({
                 className="pl-10 w-full sm:w-80 bg-background/80 backdrop-blur-sm border-border/50"
               />
             </div>
+            <Button 
+              variant="outline"
+              onClick={() => setShowAuditLog(true)}
+              className="hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors"
+            >
+              <Shield className="h-4 w-4 mr-2" />
+              Log de Auditoría
+            </Button>
             <Button 
               onClick={onCreateProduct} 
               className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 shadow-lg shadow-primary/25 px-6"
@@ -215,6 +226,12 @@ export const InventarioList = ({
           </p>
         </div>
       )}
+
+      {/* Dialog de log de auditoría */}
+      <AuditLogDialog 
+        open={showAuditLog}
+        onOpenChange={setShowAuditLog}
+      />
     </div>
   );
 };

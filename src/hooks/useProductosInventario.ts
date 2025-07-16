@@ -88,6 +88,13 @@ export const useProductosInventario = () => {
 
   const deleteProducto = useMutation({
     mutationFn: async (id: string) => {
+      // Obtener datos del producto antes de eliminarlo para el log
+      const { data: producto } = await supabase
+        .from('productos_inventario')
+        .select('*')
+        .eq('id', id)
+        .single();
+
       // Primero eliminar el registro de stock relacionado
       await supabase
         .from('stock_productos')
@@ -99,6 +106,22 @@ export const useProductosInventario = () => {
         .from('productos_inventario')
         .delete()
         .eq('id', id);
+
+      if (error) throw error;
+
+      // Registrar en el log de auditoría
+      if (producto) {
+        await supabase
+          .from('audit_log_productos')
+          .insert({
+            producto_id: id,
+            accion: 'eliminar',
+            datos_anteriores: producto,
+            datos_nuevos: null,
+            usuario_id: (await supabase.auth.getUser()).data.user?.id,
+            motivo: 'Eliminación de producto desde interfaz WMS'
+          });
+      }
 
       if (error) throw error;
     },

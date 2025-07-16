@@ -449,6 +449,48 @@ export type Database = {
           },
         ]
       }
+      audit_log_productos: {
+        Row: {
+          accion: string
+          created_at: string
+          datos_anteriores: Json | null
+          datos_nuevos: Json | null
+          direccion_ip: unknown | null
+          fecha_accion: string
+          id: string
+          motivo: string | null
+          producto_id: string
+          user_agent: string | null
+          usuario_id: string
+        }
+        Insert: {
+          accion: string
+          created_at?: string
+          datos_anteriores?: Json | null
+          datos_nuevos?: Json | null
+          direccion_ip?: unknown | null
+          fecha_accion?: string
+          id?: string
+          motivo?: string | null
+          producto_id: string
+          user_agent?: string | null
+          usuario_id: string
+        }
+        Update: {
+          accion?: string
+          created_at?: string
+          datos_anteriores?: Json | null
+          datos_nuevos?: Json | null
+          direccion_ip?: unknown | null
+          fecha_accion?: string
+          id?: string
+          motivo?: string | null
+          producto_id?: string
+          user_agent?: string | null
+          usuario_id?: string
+        }
+        Relationships: []
+      }
       benefits: {
         Row: {
           created_at: string
