@@ -1327,6 +1327,76 @@ export type Database = {
           },
         ]
       }
+      evaluaciones_normas: {
+        Row: {
+          created_at: string
+          evaluador_id: string
+          fecha_evaluacion: string
+          fotos_evidencia: string[] | null
+          id: string
+          instalacion_id: string | null
+          instalador_id: string
+          norma_id: string
+          observaciones: string | null
+          pasos_evaluados: Json
+          puntuacion_maxima: number
+          puntuacion_obtenida: number
+          requiere_reevaluacion: boolean
+        }
+        Insert: {
+          created_at?: string
+          evaluador_id: string
+          fecha_evaluacion?: string
+          fotos_evidencia?: string[] | null
+          id?: string
+          instalacion_id?: string | null
+          instalador_id: string
+          norma_id: string
+          observaciones?: string | null
+          pasos_evaluados: Json
+          puntuacion_maxima: number
+          puntuacion_obtenida: number
+          requiere_reevaluacion?: boolean
+        }
+        Update: {
+          created_at?: string
+          evaluador_id?: string
+          fecha_evaluacion?: string
+          fotos_evidencia?: string[] | null
+          id?: string
+          instalacion_id?: string | null
+          instalador_id?: string
+          norma_id?: string
+          observaciones?: string | null
+          pasos_evaluados?: Json
+          puntuacion_maxima?: number
+          puntuacion_obtenida?: number
+          requiere_reevaluacion?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evaluaciones_normas_instalacion_id_fkey"
+            columns: ["instalacion_id"]
+            isOneToOne: false
+            referencedRelation: "programacion_instalaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluaciones_normas_instalador_id_fkey"
+            columns: ["instalador_id"]
+            isOneToOne: false
+            referencedRelation: "instaladores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluaciones_normas_norma_id_fkey"
+            columns: ["norma_id"]
+            isOneToOne: false
+            referencedRelation: "normas_instalacion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       flagged_services: {
         Row: {
           admin_notes: string | null
@@ -1631,6 +1701,115 @@ export type Database = {
           },
         ]
       }
+      instalador_metricas: {
+        Row: {
+          calificacion_promedio: number | null
+          created_at: string
+          horas_trabajadas: number
+          id: string
+          ingresos_periodo: number
+          instalador_id: string
+          kilometros_recorridos: number | null
+          observaciones: string | null
+          periodo_fin: string
+          periodo_inicio: string
+          porcentaje_calidad: number | null
+          porcentaje_puntualidad: number | null
+          servicios_cancelados: number
+          servicios_completados: number
+          tiempo_promedio_instalacion: number | null
+          updated_at: string
+        }
+        Insert: {
+          calificacion_promedio?: number | null
+          created_at?: string
+          horas_trabajadas?: number
+          id?: string
+          ingresos_periodo?: number
+          instalador_id: string
+          kilometros_recorridos?: number | null
+          observaciones?: string | null
+          periodo_fin: string
+          periodo_inicio: string
+          porcentaje_calidad?: number | null
+          porcentaje_puntualidad?: number | null
+          servicios_cancelados?: number
+          servicios_completados?: number
+          tiempo_promedio_instalacion?: number | null
+          updated_at?: string
+        }
+        Update: {
+          calificacion_promedio?: number | null
+          created_at?: string
+          horas_trabajadas?: number
+          id?: string
+          ingresos_periodo?: number
+          instalador_id?: string
+          kilometros_recorridos?: number | null
+          observaciones?: string | null
+          periodo_fin?: string
+          periodo_inicio?: string
+          porcentaje_calidad?: number | null
+          porcentaje_puntualidad?: number | null
+          servicios_cancelados?: number
+          servicios_completados?: number
+          tiempo_promedio_instalacion?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instalador_metricas_instalador_id_fkey"
+            columns: ["instalador_id"]
+            isOneToOne: false
+            referencedRelation: "instaladores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      instalador_ubicaciones: {
+        Row: {
+          created_at: string
+          direccion: string | null
+          id: string
+          instalador_id: string
+          latitud: number
+          longitud: number
+          precision_metros: number | null
+          timestamp: string
+          tipo_ubicacion: string
+        }
+        Insert: {
+          created_at?: string
+          direccion?: string | null
+          id?: string
+          instalador_id: string
+          latitud: number
+          longitud: number
+          precision_metros?: number | null
+          timestamp?: string
+          tipo_ubicacion?: string
+        }
+        Update: {
+          created_at?: string
+          direccion?: string | null
+          id?: string
+          instalador_id?: string
+          latitud?: number
+          longitud?: number
+          precision_metros?: number | null
+          timestamp?: string
+          tipo_ubicacion?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instalador_ubicaciones_instalador_id_fkey"
+            columns: ["instalador_id"]
+            isOneToOne: false
+            referencedRelation: "instaladores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       instaladores: {
         Row: {
           banco_datos: Json | null
@@ -1774,6 +1953,65 @@ export type Database = {
             columns: ["servicio_asignado"]
             isOneToOne: false
             referencedRelation: "servicios_monitoreo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventario_instalador: {
+        Row: {
+          cantidad: number
+          costo_unitario: number | null
+          created_at: string
+          equipo_nombre: string
+          equipo_tipo: string
+          estado: string
+          fecha_asignacion: string
+          fecha_devolucion: string | null
+          id: string
+          instalador_id: string
+          numero_serie: string | null
+          observaciones: string | null
+          responsable_asignacion: string | null
+          updated_at: string
+        }
+        Insert: {
+          cantidad?: number
+          costo_unitario?: number | null
+          created_at?: string
+          equipo_nombre: string
+          equipo_tipo: string
+          estado?: string
+          fecha_asignacion?: string
+          fecha_devolucion?: string | null
+          id?: string
+          instalador_id: string
+          numero_serie?: string | null
+          observaciones?: string | null
+          responsable_asignacion?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cantidad?: number
+          costo_unitario?: number | null
+          created_at?: string
+          equipo_nombre?: string
+          equipo_tipo?: string
+          estado?: string
+          fecha_asignacion?: string
+          fecha_devolucion?: string | null
+          id?: string
+          instalador_id?: string
+          numero_serie?: string | null
+          observaciones?: string | null
+          responsable_asignacion?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventario_instalador_instalador_id_fkey"
+            columns: ["instalador_id"]
+            isOneToOne: false
+            referencedRelation: "instaladores"
             referencedColumns: ["id"]
           },
         ]
@@ -2575,6 +2813,51 @@ export type Database = {
           },
         ]
       }
+      normas_instalacion: {
+        Row: {
+          activa: boolean
+          categoria: string
+          created_at: string
+          created_by: string | null
+          descripcion: string
+          id: string
+          nombre_norma: string
+          pasos_requeridos: Json
+          puntuacion_maxima: number
+          tipo_equipo: string
+          updated_at: string
+          version: string
+        }
+        Insert: {
+          activa?: boolean
+          categoria: string
+          created_at?: string
+          created_by?: string | null
+          descripcion: string
+          id?: string
+          nombre_norma: string
+          pasos_requeridos: Json
+          puntuacion_maxima?: number
+          tipo_equipo: string
+          updated_at?: string
+          version?: string
+        }
+        Update: {
+          activa?: boolean
+          categoria?: string
+          created_at?: string
+          created_by?: string | null
+          descripcion?: string
+          id?: string
+          nombre_norma?: string
+          pasos_requeridos?: Json
+          puntuacion_maxima?: number
+          tipo_equipo?: string
+          updated_at?: string
+          version?: string
+        }
+        Relationships: []
+      }
       ordenes_compra: {
         Row: {
           aprobado_por: string | null
@@ -2656,6 +2939,75 @@ export type Database = {
             columns: ["proveedor_id"]
             isOneToOne: false
             referencedRelation: "proveedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pagos_instaladores: {
+        Row: {
+          comprobante_url: string | null
+          concepto: string
+          created_at: string
+          created_by: string | null
+          estado_pago: string
+          fecha_pago: string | null
+          fecha_trabajo: string
+          id: string
+          instalador_id: string
+          metodo_pago: string | null
+          monto: number
+          observaciones: string | null
+          referencia_pago: string | null
+          servicio_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          comprobante_url?: string | null
+          concepto: string
+          created_at?: string
+          created_by?: string | null
+          estado_pago?: string
+          fecha_pago?: string | null
+          fecha_trabajo: string
+          id?: string
+          instalador_id: string
+          metodo_pago?: string | null
+          monto: number
+          observaciones?: string | null
+          referencia_pago?: string | null
+          servicio_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          comprobante_url?: string | null
+          concepto?: string
+          created_at?: string
+          created_by?: string | null
+          estado_pago?: string
+          fecha_pago?: string | null
+          fecha_trabajo?: string
+          id?: string
+          instalador_id?: string
+          metodo_pago?: string | null
+          monto?: number
+          observaciones?: string | null
+          referencia_pago?: string | null
+          servicio_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagos_instaladores_instalador_id_fkey"
+            columns: ["instalador_id"]
+            isOneToOne: false
+            referencedRelation: "instaladores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagos_instaladores_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_monitoreo"
             referencedColumns: ["id"]
           },
         ]

@@ -35,6 +35,7 @@ import InstallerManagement from '@/pages/Installers/InstallerManagement';
 import InstallationCalendar from '@/pages/Installers/InstallationCalendar';
 import InstallationSchedule from '@/pages/Installers/InstallationSchedule';
 import InstallerPortal from '@/pages/Installers/InstallerPortal';
+import GestionInstaladores from '@/pages/Installers/GestionInstaladores';
 import Landing from '@/pages/Landing/Landing';
 import WMSPage from '@/pages/WMS/WMSPage';
 
@@ -233,16 +234,29 @@ function App() {
                   }
                 />
                 
-                <Route
-                  path="/installers/portal"
-                  element={
-                    <ProtectedRoute>
-                      <DashboardLayout>
-                        <InstallerPortal />
-                      </DashboardLayout>
-                    </ProtectedRoute>
-                  }
-                />
+          <Route
+            path="/installers/portal"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <InstallerPortal />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/installers/gestion"
+            element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin']}>
+                  <DashboardLayout>
+                    <GestionInstaladores />
+                  </DashboardLayout>
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            }
+          />
                 
                 <Route
                   path="/wms"
