@@ -90,6 +90,7 @@ export const CallLogDialog = ({
         lead_id: lead.lead_id,
         call_outcome: callOutcome,
         call_notes: callNotes || null,
+        created_by: (await supabase.auth.getUser()).data.user?.id,
       };
 
 

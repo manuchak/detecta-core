@@ -2507,6 +2507,7 @@ export type Database = {
           call_outcome: string
           caller_id: string | null
           created_at: string | null
+          created_by: string | null
           id: string
           lead_id: string
           requires_reschedule: boolean | null
@@ -2521,6 +2522,7 @@ export type Database = {
           call_outcome: string
           caller_id?: string | null
           created_at?: string | null
+          created_by?: string | null
           id?: string
           lead_id: string
           requires_reschedule?: boolean | null
@@ -2535,6 +2537,7 @@ export type Database = {
           call_outcome?: string
           caller_id?: string | null
           created_at?: string | null
+          created_by?: string | null
           id?: string
           lead_id?: string
           requires_reschedule?: boolean | null
