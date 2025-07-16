@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useUserSkills } from "@/hooks/useUserSkills";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWMSAccess } from "@/hooks/useWMSAccess";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -33,6 +34,7 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
   const location = useLocation();
   const { hasSkill, hasAnySkill } = useUserSkills();
   const { user, userRole, signOut } = useAuth();
+  const { hasWMSAccess } = useWMSAccess();
 
   const handleSignOut = async () => {
     try {
@@ -266,8 +268,8 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
       ]
     }] : []),
 
-    // WMS - solo si tiene permisos
-    ...(hasAnySkill(['wms_view', 'wms_manage']) || isAdminUser ? [{
+    // WMS - solo si tiene permisos (usando nuevo sistema de roles)
+    ...(hasWMSAccess || hasAnySkill(['wms_view', 'wms_manage']) || isAdminUser ? [{
       title: "Inventario GPS",
       icon: Package,
       path: "/wms",
