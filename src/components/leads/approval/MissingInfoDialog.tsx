@@ -391,19 +391,7 @@ export const MissingInfoDialog = ({
     try {
       setLoading(true);
 
-      // Actualizar el estado del proceso de aprobación
-      const { error: approvalError } = await supabase
-        .from('lead_approval_process')
-        .update({
-          final_decision: 'rejected',
-          decision_reason: 'No cumple con el perfil requerido',
-          updated_at: new Date().toISOString()
-        })
-        .eq('lead_id', lead.lead_id);
-
-      if (approvalError) throw approvalError;
-
-      // Actualizar el estado del lead
+      // Actualizar el estado del lead directamente
       const { error: leadError } = await supabase
         .from('leads')
         .update({
@@ -413,6 +401,21 @@ export const MissingInfoDialog = ({
         .eq('id', lead.lead_id);
 
       if (leadError) throw leadError;
+
+      // Intentar actualizar el proceso de aprobación si existe
+      try {
+        await supabase
+          .from('lead_approval_process')
+          .update({
+            final_decision: 'rejected',
+            decision_reason: 'No cumple con el perfil requerido',
+            updated_at: new Date().toISOString()
+          })
+          .eq('lead_id', lead.lead_id);
+      } catch (approvalError) {
+        // Si falla la actualización del proceso de aprobación, continuar
+        console.warn('No se pudo actualizar el proceso de aprobación:', approvalError);
+      }
 
       toast({
         title: "Candidato rechazado",
