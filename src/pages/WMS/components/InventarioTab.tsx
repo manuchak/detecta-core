@@ -3,19 +3,55 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Plus, Package, AlertTriangle, CheckCircle } from 'lucide-react';
 import { ProductoDialog } from './ProductoDialog';
+import { useProductosInventario } from '@/hooks/useProductosInventario';
+import { InventarioList } from './InventarioList';
 
 export const InventarioTab = () => {
   const [showProductoDialog, setShowProductoDialog] = useState(false);
   const [selectedProducto, setSelectedProducto] = useState(null);
+  
+  const { productos, isLoading, deleteProducto } = useProductosInventario();
 
-  // Por ahora mostraremos siempre el estado vacío hasta que se configure la base de datos
-  const productos = [];
+  const handleCreateProduct = () => {
+    setSelectedProducto(null);
+    setShowProductoDialog(true);
+  };
+
+  const handleEditProduct = (producto: any) => {
+    setSelectedProducto(producto);
+    setShowProductoDialog(true);
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    if (window.confirm('¿Estás seguro de que deseas eliminar este producto?')) {
+      deleteProducto.mutate(id);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Package className="h-12 w-12 text-muted-foreground mx-auto animate-pulse" />
+          <p className="text-muted-foreground">Cargando inventario...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
       <div className="space-y-6">
-        {/* Siempre mostrar el estado vacío hasta tener productos */}
-        <EmptyInventoryState onCreateProduct={() => setShowProductoDialog(true)} />
+        {productos && productos.length > 0 ? (
+          <InventarioList
+            productos={productos}
+            onCreateProduct={handleCreateProduct}
+            onEditProduct={handleEditProduct}
+            onDeleteProduct={handleDeleteProduct}
+          />
+        ) : (
+          <EmptyInventoryState onCreateProduct={handleCreateProduct} />
+        )}
       </div>
 
       <ProductoDialog
