@@ -64,7 +64,7 @@ export const useStockProductos = () => {
         }
         
         const { data, error } = await supabase
-          .from('movimientos_stock')
+          .from('movimientos_inventario')
           .select(`
             *,
             producto:productos_inventario(*)
@@ -102,7 +102,7 @@ export const useStockProductos = () => {
       usuario_id?: string;
     }) => {
       const { data, error } = await supabase
-        .from('movimientos_stock')
+        .from('movimientos_inventario')
         .insert(movimiento)
         .select()
         .single();
@@ -145,7 +145,7 @@ export const useStockProductos = () => {
 
       // Registrar movimiento
       await supabase
-        .from('movimientos_stock')
+        .from('movimientos_inventario')
         .insert({
           producto_id,
           tipo_movimiento: 'ajuste',
