@@ -88,6 +88,13 @@ export const useProductosInventario = () => {
 
   const deleteProducto = useMutation({
     mutationFn: async (id: string) => {
+      // Primero eliminar el registro de stock relacionado
+      await supabase
+        .from('stock_productos')
+        .delete()
+        .eq('producto_id', id);
+      
+      // Luego eliminar el producto
       const { error } = await supabase
         .from('productos_inventario')
         .delete()
