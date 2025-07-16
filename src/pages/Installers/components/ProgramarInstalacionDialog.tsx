@@ -13,6 +13,7 @@ import * as z from 'zod';
 import { useProgramacionInstalaciones } from '@/hooks/useProgramacionInstalaciones';
 import { useServiciosMonitoreo } from '@/hooks/useServiciosMonitoreo';
 import { useToast } from '@/hooks/use-toast';
+import { AsignacionGPSDialog } from '@/components/kits/AsignacionGPSDialog';
 import type { TipoInstalacion, PrioridadInstalacion } from '@/types/instaladores';
 
 const schema = z.object({
@@ -38,6 +39,19 @@ interface ProgramarInstalacionDialogProps {
   servicioId?: string;
 }
 
+// Función para determinar sensores requeridos basado en el tipo de instalación
+const determineSensoresRequeridos = (tipoInstalacion: string): string[] => {
+  const sensoresMap: Record<string, string[]> = {
+    'gps_vehicular': ['boton_panico', 'sensor_ignicion'],
+    'gps_personal': ['boton_panico'],
+    'camara': ['camara_respaldo', 'boton_panico'],
+    'alarma': ['sensor_puerta', 'sensor_presencia_vibracion', 'boton_panico'],
+    'combo': ['camara_respaldo', 'boton_panico', 'sensor_ignicion', 'sensor_puerta']
+  };
+  
+  return sensoresMap[tipoInstalacion] || ['boton_panico'];
+};
+
 export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProps> = ({
   open,
   onOpenChange,
@@ -46,6 +60,14 @@ export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProp
   const { createProgramacion } = useProgramacionInstalaciones();
   const { servicios } = useServiciosMonitoreo();
   const { toast } = useToast();
+  
+  // Estados para el diálogo de asignación GPS
+  const [showAsignacionGPS, setShowAsignacionGPS] = React.useState(false);
+  const [programacionCreada, setProgramacionCreada] = React.useState<{
+    id: string;
+    tipo_instalacion: string;
+    sensores_requeridos: string[];
+  } | null>(null);
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -108,14 +130,27 @@ export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProp
 
       console.log('Payload a enviar:', payload);
 
-      await createProgramacion.mutateAsync(payload);
+      const result = await createProgramacion.mutateAsync(payload);
+      
+      // Determinar sensores requeridos basado en el tipo de instalación
+      const sensoresRequeridos = determineSensoresRequeridos(data.tipo_instalacion);
+      
+      // Configurar datos para el diálogo de asignación GPS
+      setProgramacionCreada({
+        id: result.id,
+        tipo_instalacion: data.tipo_instalacion,
+        sensores_requeridos: sensoresRequeridos
+      });
       
       reset();
       onOpenChange(false);
       
+      // Abrir diálogo de asignación GPS
+      setShowAsignacionGPS(true);
+      
       toast({
         title: "Instalación programada",
-        description: "La instalación ha sido programada exitosamente.",
+        description: "Ahora selecciona los componentes del kit GPS.",
       });
     } catch (error) {
       console.error('Error creating installation:', error);
@@ -312,6 +347,21 @@ export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProp
           </div>
         </form>
       </DialogContent>
+      
+      {/* Diálogo de asignación GPS */}
+      {programacionCreada && (
+        <AsignacionGPSDialog
+          open={showAsignacionGPS}
+          onOpenChange={setShowAsignacionGPS}
+          programacionId={programacionCreada.id}
+          tipoInstalacion={programacionCreada.tipo_instalacion}
+          sensoresRequeridos={programacionCreada.sensores_requeridos}
+          onKitCreated={() => {
+            setShowAsignacionGPS(false);
+            setProgramacionCreada(null);
+          }}
+        />
+      )}
     </Dialog>
   );
 };

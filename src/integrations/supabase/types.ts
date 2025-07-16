@@ -947,6 +947,54 @@ export type Database = {
         }
         Relationships: []
       }
+      criterios_recomendacion_gps: {
+        Row: {
+          activo: boolean | null
+          capacidad_microsd_minima_gb: number | null
+          created_at: string | null
+          id: string
+          marca_gps_recomendada: string | null
+          modelo_gps_recomendado: string | null
+          observaciones: string | null
+          prioridad: number | null
+          requiere_microsd: boolean | null
+          sensores_requeridos: string[]
+          tipo_sim_recomendado: string | null
+          tipo_vehiculo: string
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          capacidad_microsd_minima_gb?: number | null
+          created_at?: string | null
+          id?: string
+          marca_gps_recomendada?: string | null
+          modelo_gps_recomendado?: string | null
+          observaciones?: string | null
+          prioridad?: number | null
+          requiere_microsd?: boolean | null
+          sensores_requeridos?: string[]
+          tipo_sim_recomendado?: string | null
+          tipo_vehiculo: string
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          capacidad_microsd_minima_gb?: number | null
+          created_at?: string | null
+          id?: string
+          marca_gps_recomendada?: string | null
+          modelo_gps_recomendado?: string | null
+          observaciones?: string | null
+          prioridad?: number | null
+          requiere_microsd?: boolean | null
+          sensores_requeridos?: string[]
+          tipo_sim_recomendado?: string | null
+          tipo_vehiculo?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       custodio_points: {
         Row: {
           created_at: string
@@ -1726,6 +1774,256 @@ export type Database = {
             columns: ["servicio_asignado"]
             isOneToOne: false
             referencedRelation: "servicios_monitoreo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventario_microsd: {
+        Row: {
+          capacidad_gb: number
+          clase_velocidad: string | null
+          created_at: string | null
+          estado: string
+          fecha_compra: string | null
+          gps_asignado: string | null
+          id: string
+          instalacion_asignada: string | null
+          marca: string
+          modelo: string
+          numero_serie: string
+          observaciones: string | null
+          precio_compra: number | null
+          proveedor_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          capacidad_gb: number
+          clase_velocidad?: string | null
+          created_at?: string | null
+          estado?: string
+          fecha_compra?: string | null
+          gps_asignado?: string | null
+          id?: string
+          instalacion_asignada?: string | null
+          marca: string
+          modelo: string
+          numero_serie: string
+          observaciones?: string | null
+          precio_compra?: number | null
+          proveedor_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          capacidad_gb?: number
+          clase_velocidad?: string | null
+          created_at?: string | null
+          estado?: string
+          fecha_compra?: string | null
+          gps_asignado?: string | null
+          id?: string
+          instalacion_asignada?: string | null
+          marca?: string
+          modelo?: string
+          numero_serie?: string
+          observaciones?: string | null
+          precio_compra?: number | null
+          proveedor_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventario_microsd_gps_asignado_fkey"
+            columns: ["gps_asignado"]
+            isOneToOne: false
+            referencedRelation: "inventario_gps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventario_microsd_instalacion_asignada_fkey"
+            columns: ["instalacion_asignada"]
+            isOneToOne: false
+            referencedRelation: "programacion_instalaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventario_microsd_proveedor_id_fkey"
+            columns: ["proveedor_id"]
+            isOneToOne: false
+            referencedRelation: "proveedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventario_sim: {
+        Row: {
+          costo_mensual: number | null
+          created_at: string | null
+          datos_incluidos_mb: number | null
+          estado: string
+          fecha_activacion: string | null
+          fecha_vencimiento: string | null
+          gps_asignado: string | null
+          id: string
+          instalacion_asignada: string | null
+          numero_iccid: string
+          numero_sim: string
+          observaciones: string | null
+          operador: string
+          pin_puk: string | null
+          tipo_plan: string
+          updated_at: string | null
+        }
+        Insert: {
+          costo_mensual?: number | null
+          created_at?: string | null
+          datos_incluidos_mb?: number | null
+          estado?: string
+          fecha_activacion?: string | null
+          fecha_vencimiento?: string | null
+          gps_asignado?: string | null
+          id?: string
+          instalacion_asignada?: string | null
+          numero_iccid: string
+          numero_sim: string
+          observaciones?: string | null
+          operador: string
+          pin_puk?: string | null
+          tipo_plan: string
+          updated_at?: string | null
+        }
+        Update: {
+          costo_mensual?: number | null
+          created_at?: string | null
+          datos_incluidos_mb?: number | null
+          estado?: string
+          fecha_activacion?: string | null
+          fecha_vencimiento?: string | null
+          gps_asignado?: string | null
+          id?: string
+          instalacion_asignada?: string | null
+          numero_iccid?: string
+          numero_sim?: string
+          observaciones?: string | null
+          operador?: string
+          pin_puk?: string | null
+          tipo_plan?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventario_sim_gps_asignado_fkey"
+            columns: ["gps_asignado"]
+            isOneToOne: false
+            referencedRelation: "inventario_gps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventario_sim_instalacion_asignada_fkey"
+            columns: ["instalacion_asignada"]
+            isOneToOne: false
+            referencedRelation: "programacion_instalaciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kits_instalacion: {
+        Row: {
+          created_at: string | null
+          estado_kit: string
+          fecha_envio: string | null
+          fecha_instalacion: string | null
+          fecha_preparacion: string | null
+          fecha_validacion: string | null
+          gps_id: string
+          id: string
+          instalado_por: string | null
+          microsd_id: string | null
+          numero_tracking: string | null
+          observaciones_instalacion: string | null
+          observaciones_preparacion: string | null
+          observaciones_validacion: string | null
+          preparado_por: string | null
+          programacion_id: string
+          sim_id: string | null
+          updated_at: string | null
+          validado_por: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          estado_kit?: string
+          fecha_envio?: string | null
+          fecha_instalacion?: string | null
+          fecha_preparacion?: string | null
+          fecha_validacion?: string | null
+          gps_id: string
+          id?: string
+          instalado_por?: string | null
+          microsd_id?: string | null
+          numero_tracking?: string | null
+          observaciones_instalacion?: string | null
+          observaciones_preparacion?: string | null
+          observaciones_validacion?: string | null
+          preparado_por?: string | null
+          programacion_id: string
+          sim_id?: string | null
+          updated_at?: string | null
+          validado_por?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          estado_kit?: string
+          fecha_envio?: string | null
+          fecha_instalacion?: string | null
+          fecha_preparacion?: string | null
+          fecha_validacion?: string | null
+          gps_id?: string
+          id?: string
+          instalado_por?: string | null
+          microsd_id?: string | null
+          numero_tracking?: string | null
+          observaciones_instalacion?: string | null
+          observaciones_preparacion?: string | null
+          observaciones_validacion?: string | null
+          preparado_por?: string | null
+          programacion_id?: string
+          sim_id?: string | null
+          updated_at?: string | null
+          validado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kits_instalacion_gps_id_fkey"
+            columns: ["gps_id"]
+            isOneToOne: true
+            referencedRelation: "inventario_gps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kits_instalacion_instalado_por_fkey"
+            columns: ["instalado_por"]
+            isOneToOne: false
+            referencedRelation: "instaladores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kits_instalacion_microsd_id_fkey"
+            columns: ["microsd_id"]
+            isOneToOne: true
+            referencedRelation: "inventario_microsd"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kits_instalacion_programacion_id_fkey"
+            columns: ["programacion_id"]
+            isOneToOne: true
+            referencedRelation: "programacion_instalaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kits_instalacion_sim_id_fkey"
+            columns: ["sim_id"]
+            isOneToOne: true
+            referencedRelation: "inventario_sim"
             referencedColumns: ["id"]
           },
         ]
@@ -4241,6 +4539,44 @@ export type Database = {
         }
         Relationships: []
       }
+      vista_kits_instalacion: {
+        Row: {
+          capacidad_gb: number | null
+          contacto_cliente: string | null
+          direccion_instalacion: string | null
+          estado_kit: string | null
+          fecha_envio: string | null
+          fecha_instalacion: string | null
+          fecha_preparacion: string | null
+          fecha_programada: string | null
+          fecha_validacion: string | null
+          gps_marca: string | null
+          gps_modelo: string | null
+          gps_serie: string | null
+          id: string | null
+          instalador_nombre: string | null
+          microsd_marca: string | null
+          microsd_modelo: string | null
+          numero_sim: string | null
+          numero_tracking: string | null
+          preparado_por_email: string | null
+          programacion_id: string | null
+          sim_operador: string | null
+          sim_plan: string | null
+          tipo_dispositivo: string | null
+          tipo_instalacion: string | null
+          validado_por_email: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kits_instalacion_programacion_id_fkey"
+            columns: ["programacion_id"]
+            isOneToOne: true
+            referencedRelation: "programacion_instalaciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       add_admin_role: {
@@ -4516,6 +4852,16 @@ export type Database = {
           discrepancy_percent: number
           status: string
         }[]
+      }
+      crear_kit_instalacion: {
+        Args: {
+          p_programacion_id: string
+          p_gps_id: string
+          p_sim_id?: string
+          p_microsd_id?: string
+          p_preparado_por?: string
+        }
+        Returns: string
       }
       create_redemptions_bypass_rls: {
         Args: { redemptions_data: Json }
@@ -5498,6 +5844,28 @@ export type Database = {
           viajes_pendientes: number
         }[]
       }
+      obtener_microsd_disponibles: {
+        Args: { p_capacidad_minima_gb?: number }
+        Returns: {
+          microsd_id: string
+          numero_serie: string
+          marca: string
+          modelo: string
+          capacidad_gb: number
+          clase_velocidad: string
+        }[]
+      }
+      obtener_sim_disponibles: {
+        Args: { p_tipo_plan?: string }
+        Returns: {
+          sim_id: string
+          numero_sim: string
+          operador: string
+          tipo_plan: string
+          costo_mensual: number
+          datos_incluidos_mb: number
+        }[]
+      }
       parse_tiempo_retraso: {
         Args: { tiempo_str: string }
         Returns: unknown
@@ -5505,6 +5873,22 @@ export type Database = {
       procesar_bono_referido: {
         Args: { p_referido_id: string }
         Returns: boolean
+      }
+      recomendar_gps_para_instalacion: {
+        Args: {
+          p_tipo_vehiculo: string
+          p_sensores_requeridos: string[]
+          p_ubicacion_instalacion?: string
+        }
+        Returns: {
+          gps_id: string
+          marca: string
+          modelo: string
+          numero_serie: string
+          score_compatibilidad: number
+          requiere_microsd: boolean
+          tipo_sim_recomendado: string
+        }[]
       }
       redeem_points: {
         Args: { p_user_id: string; p_reward_id: string; p_quantity?: number }
@@ -5636,6 +6020,14 @@ export type Database = {
       }
       validar_horario_instalacion: {
         Args: { fecha_programada: string }
+        Returns: boolean
+      }
+      validar_instalacion_completada: {
+        Args: {
+          p_kit_id: string
+          p_validado_por?: string
+          p_observaciones?: string
+        }
         Returns: boolean
       }
       validate_image_url: {
