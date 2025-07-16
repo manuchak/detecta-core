@@ -7,6 +7,7 @@ import { Package, ShoppingCart, Users, BarChart3, Truck, Settings, Smartphone, A
 import { InventarioTab } from './components/InventarioTab';
 import { StockTab } from './components/StockTab';
 import { ComprasTab } from './components/ComprasTab';
+import { ProveedoresTab } from './components/ProveedoresTab';
 
 interface EmptyModuleCardProps {
   title: string;
@@ -92,13 +93,7 @@ export const WMSPage = () => {
         </TabsContent>
 
         <TabsContent value="proveedores">
-          <EmptyModuleCard 
-            title="Módulo de Proveedores"
-            description="Gestiona tu red de proveedores y sus datos de contacto"
-            icon={Users}
-            actionText="Crear Producto Primero"
-            onAction={() => setActiveTab('inventario')}
-          />
+          <ProveedoresTab />
         </TabsContent>
 
         <TabsContent value="stock">
