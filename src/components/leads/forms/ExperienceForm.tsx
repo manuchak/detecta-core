@@ -11,6 +11,8 @@ interface ExperienceFormProps {
     licencia_conducir: string;
     tipo_licencia: string;
     antecedentes_penales: string;
+    institucion_publica: string;
+    baja_institucion: string;
     referencias: string;
     mensaje: string;
   };
@@ -94,6 +96,42 @@ export const ExperienceForm = ({ formData, onInputChange }: ExperienceFormProps)
             </SelectContent>
           </Select>
         </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="institucion_publica">¿Perteneciste a alguna institución pública?</Label>
+          <Select value={formData.institucion_publica} onValueChange={(value) => onInputChange('institucion_publica', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="no">No</SelectItem>
+              <SelectItem value="ejercito">Ejército</SelectItem>
+              <SelectItem value="marina">Marina</SelectItem>
+              <SelectItem value="guardia_nacional">Guardia Nacional</SelectItem>
+              <SelectItem value="policia_federal">Policía Federal</SelectItem>
+              <SelectItem value="policia_estatal">Policía Estatal</SelectItem>
+              <SelectItem value="policia_municipal">Policía Municipal</SelectItem>
+              <SelectItem value="otra">Otra institución</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        {formData.institucion_publica && formData.institucion_publica !== "no" && (
+          <div className="space-y-2">
+            <Label htmlFor="baja_institucion">¿Tienes tu baja de la institución?</Label>
+            <Select value={formData.baja_institucion} onValueChange={(value) => onInputChange('baja_institucion', value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="si">Sí, tengo mi baja</SelectItem>
+                <SelectItem value="no">No, aún no la tengo</SelectItem>
+                <SelectItem value="tramite">En trámite</SelectItem>
+                <SelectItem value="no_aplica">No aplica</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         
         <div className="space-y-2 md:col-span-2">
           <Label htmlFor="empresas_anteriores">Empresas anteriores (opcional)</Label>

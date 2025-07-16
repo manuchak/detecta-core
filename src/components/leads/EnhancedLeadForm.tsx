@@ -46,6 +46,8 @@ interface FormData {
   licencia_conducir: string;
   tipo_licencia: string;
   antecedentes_penales: string;
+  institucion_publica: string;
+  baja_institucion: string;
   referencias: string;
   mensaje: string;
   
@@ -105,6 +107,8 @@ export const EnhancedLeadForm = ({ editingLead, onSuccess, onCancel }: EnhancedL
     licencia_conducir: "",
     tipo_licencia: "",
     antecedentes_penales: "",
+    institucion_publica: "",
+    baja_institucion: "",
     referencias: "",
     mensaje: "",
     
@@ -146,6 +150,8 @@ export const EnhancedLeadForm = ({ editingLead, onSuccess, onCancel }: EnhancedL
         licencia_conducir: "",
         tipo_licencia: "",
         antecedentes_penales: "",
+        institucion_publica: "",
+        baja_institucion: "",
         referencias: "",
         mensaje: editingLead.mensaje || "",
         
@@ -307,6 +313,8 @@ export const EnhancedLeadForm = ({ editingLead, onSuccess, onCancel }: EnhancedL
             licencia: formData.licencia_conducir,
             tipo_licencia: formData.tipo_licencia,
             antecedentes: formData.antecedentes_penales,
+            institucion_publica: formData.institucion_publica,
+            baja_institucion: formData.baja_institucion,
             referencias: formData.referencias
           },
           referido: {

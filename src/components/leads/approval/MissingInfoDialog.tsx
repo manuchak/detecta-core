@@ -86,6 +86,8 @@ interface FormDataInterface {
   licencia_conducir: string;
   tipo_licencia: string;
   antecedentes_penales: string;
+  institucion_publica: string;
+  baja_institucion: string;
   referencias: string;
   mensaje: string;
   
@@ -143,6 +145,8 @@ export const MissingInfoDialog = ({
     licencia_conducir: "",
     tipo_licencia: "",
     antecedentes_penales: "",
+    institucion_publica: "",
+    baja_institucion: "",
     referencias: "",
     mensaje: "",
     
@@ -211,6 +215,8 @@ export const MissingInfoDialog = ({
         licencia_conducir: notesData.experiencia?.licencia_conducir || "",
         tipo_licencia: notesData.experiencia?.tipo_licencia || "",
         antecedentes_penales: notesData.experiencia?.antecedentes_penales || "",
+        institucion_publica: notesData.experiencia?.institucion_publica || "",
+        baja_institucion: notesData.experiencia?.baja_institucion || "",
         referencias: notesData.experiencia?.referencias || "",
         mensaje: notesData.experiencia?.mensaje || "",
         
@@ -272,6 +278,8 @@ export const MissingInfoDialog = ({
         licencia_conducir: data.licencia_conducir,
         tipo_licencia: data.tipo_licencia,
         antecedentes_penales: data.antecedentes_penales,
+        institucion_publica: data.institucion_publica,
+        baja_institucion: data.baja_institucion,
         referencias: data.referencias,
         mensaje: data.mensaje
       },
@@ -331,6 +339,8 @@ export const MissingInfoDialog = ({
           licencia_conducir: formData.licencia_conducir,
           tipo_licencia: formData.tipo_licencia,
           antecedentes_penales: formData.antecedentes_penales,
+          institucion_publica: formData.institucion_publica,
+          baja_institucion: formData.baja_institucion,
           referencias: formData.referencias,
           mensaje: formData.mensaje
         },
@@ -567,6 +577,8 @@ export const MissingInfoDialog = ({
                     licencia_conducir: formData.licencia_conducir,
                     tipo_licencia: formData.tipo_licencia,
                     antecedentes_penales: formData.antecedentes_penales,
+                    institucion_publica: formData.institucion_publica,
+                    baja_institucion: formData.baja_institucion,
                     referencias: formData.referencias,
                     mensaje: formData.mensaje
                   }}
