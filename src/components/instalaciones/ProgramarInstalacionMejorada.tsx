@@ -36,13 +36,14 @@ export const ProgramarInstalacionMejorada = ({
   const [modelos, setModelos] = useState<any[]>([]);
   const [loadingModelos, setLoadingModelos] = useState(false);
   
-  // Estados para el diálogo de asignación GPS
+  // Estados para el flujo mejorado de asignación GPS
   const [showAsignacionGPS, setShowAsignacionGPS] = useState(false);
   const [programacionCreada, setProgramacionCreada] = useState<{
     id: string;
     tipo_instalacion: string;
     sensores_requeridos: string[];
   } | null>(null);
+  const [isShowingSuccess, setIsShowingSuccess] = useState(false);
   
   const [formData, setFormData] = useState({
     // Información del servicio y vehículo
@@ -210,6 +211,8 @@ export const ProgramarInstalacionMejorada = ({
         return formData.fecha_programada && formData.hora_inicio && formData.instalador_asignado;
       case 4:
         return formData.contacto_cliente && formData.telefono_contacto && formData.direccion_instalacion;
+      case 5:
+        return true; // GPS assignment step - always valid once we reach it
       default:
         return false;
     }
@@ -295,7 +298,7 @@ export const ProgramarInstalacionMejorada = ({
       console.log('✅ Installation scheduled successfully');
       console.log('🔍 Result from createProgramacion:', result);
       
-      // Configurar datos para el diálogo de asignación GPS
+      // Configurar datos para el paso 5 (asignación GPS)
       const sensoresRequeridos = formData.sensores_adicionales;
       const gpsDialogData = {
         id: result.id,
@@ -303,24 +306,12 @@ export const ProgramarInstalacionMejorada = ({
         sensores_requeridos: sensoresRequeridos
       };
       
-      console.log('📋 Setting programacion data for GPS dialog:', gpsDialogData);
+      console.log('📋 Setting programacion data for GPS assignment:', gpsDialogData);
       setProgramacionCreada(gpsDialogData);
       
-      console.log('🚪 Closing installation dialog...');
-      onOpenChange(false);
-      
-      console.log('🎯 Opening GPS assignment dialog...');
-      setShowAsignacionGPS(true);
-      
-      // Reset form
-      setCurrentStep(1);
-      setFormData(prev => ({
-        ...prev,
-        fecha_programada: null,
-        hora_inicio: '',
-        instalador_asignado: '',
-        observaciones_instalacion: ''
-      }));
+      // Ir al paso 5 (asignación GPS) en lugar de cerrar el diálogo
+      console.log('🎯 Moving to GPS assignment step...');
+      setCurrentStep(5);
       
     } catch (error) {
       console.error('💥 Error scheduling installation:', error);
@@ -342,7 +333,7 @@ export const ProgramarInstalacionMejorada = ({
       alert('Por favor complete todos los campos requeridos antes de continuar');
       return;
     }
-    setCurrentStep(prev => Math.min(prev + 1, 4));
+    setCurrentStep(prev => Math.min(prev + 1, 5));
   };
   
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
@@ -879,6 +870,66 @@ export const ProgramarInstalacionMejorada = ({
           </div>
         );
 
+      case 5:
+        return (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  ¡Instalación Programada Exitosamente!
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="bg-green-50 border border-green-200 p-6 rounded-lg">
+                  <div className="flex items-center gap-3 mb-4">
+                    <CheckCircle className="h-8 w-8 text-green-600" />
+                    <div>
+                      <h3 className="text-lg font-semibold text-green-800">
+                        Instalación programada correctamente
+                      </h3>
+                      <p className="text-green-600">
+                        Ahora selecciona los componentes del kit GPS para completar el proceso.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Embed GPS Assignment Component */}
+                {programacionCreada && (
+                  <div className="border rounded-lg p-6 bg-white">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <Settings className="h-5 w-5" />
+                      Configuración del Kit GPS
+                    </h3>
+                    <AsignacionGPSDialog
+                      open={true}
+                      onOpenChange={() => {}} // Prevent closing
+                      programacionId={programacionCreada.id}
+                      tipoInstalacion={programacionCreada.tipo_instalacion}
+                      sensoresRequeridos={programacionCreada.sensores_requeridos}
+                      onKitCreated={() => {
+                        // Close the entire workflow
+                        onOpenChange(false);
+                        // Reset form
+                        setCurrentStep(1);
+                        setProgramacionCreada(null);
+                        setFormData(prev => ({
+                          ...prev,
+                          fecha_programada: null,
+                          hora_inicio: '',
+                          instalador_asignado: '',
+                          observaciones_instalacion: ''
+                        }));
+                      }}
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -890,20 +941,22 @@ export const ProgramarInstalacionMejorada = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Wrench className="h-6 w-6" />
-            Programar Instalación GPS - Paso {currentStep} de 4
+            {currentStep <= 4 ? `Programar Instalación GPS - Paso ${currentStep} de 4` : 'Asignación de Kit GPS'}
           </DialogTitle>
         </DialogHeader>
 
         {/* Enhanced Progress indicator */}
         <div className="flex items-center gap-2 mb-6">
-          {[1, 2, 3, 4].map((step) => (
+          {[1, 2, 3, 4, 5].map((step) => (
             <div key={step} className="flex-1 flex items-center">
               <div
                 className={`flex-1 h-3 rounded-full ${
-                  step <= currentStep ? 'bg-gradient-to-r from-blue-500 to-blue-600' : 'bg-gray-200'
+                  step <= currentStep ? 
+                    (step === 5 ? 'bg-gradient-to-r from-green-500 to-green-600' : 'bg-gradient-to-r from-blue-500 to-blue-600') 
+                    : 'bg-gray-200'
                 }`}
               />
-              {step < 4 && <div className="w-2" />}
+              {step < 5 && <div className="w-2" />}
             </div>
           ))}
         </div>
