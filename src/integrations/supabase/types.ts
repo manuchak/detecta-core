@@ -4253,6 +4253,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      can_manage_wms: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       check_admin_for_rewards: {
         Args: Record<PropertyKey, never>
         Returns: boolean
