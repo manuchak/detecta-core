@@ -15,6 +15,7 @@ import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useProgramacionInstalaciones } from '@/hooks/useProgramacionInstalaciones';
 import { useVehicleData } from '@/hooks/useVehicleData';
+import { AsignacionGPSDialog } from '@/components/kits/AsignacionGPSDialog';
 
 interface ProgramarInstalacionMejoradaProps {
   open: boolean;
@@ -34,6 +35,14 @@ export const ProgramarInstalacionMejorada = ({
   const { marcas, loadingMarcas, fetchModelosPorMarca } = useVehicleData();
   const [modelos, setModelos] = useState<any[]>([]);
   const [loadingModelos, setLoadingModelos] = useState(false);
+  
+  // Estados para el diálogo de asignación GPS
+  const [showAsignacionGPS, setShowAsignacionGPS] = useState(false);
+  const [programacionCreada, setProgramacionCreada] = useState<{
+    id: string;
+    tipo_instalacion: string;
+    sensores_requeridos: string[];
+  } | null>(null);
   
   const [formData, setFormData] = useState({
     // Información del servicio y vehículo
@@ -281,10 +290,21 @@ export const ProgramarInstalacionMejorada = ({
       console.log('  - telefono_contacto:', programacionData.telefono_contacto);
       console.log('  - direccion_instalacion:', programacionData.direccion_instalacion);
 
-      await createProgramacion.mutateAsync(programacionData);
+      const result = await createProgramacion.mutateAsync(programacionData);
       
       console.log('✅ Installation scheduled successfully');
+      
+      // Configurar datos para el diálogo de asignación GPS
+      const sensoresRequeridos = formData.sensores_adicionales;
+      setProgramacionCreada({
+        id: result.id,
+        tipo_instalacion: formData.tipo_instalacion,
+        sensores_requeridos: sensoresRequeridos
+      });
+      
+      // Cerrar el diálogo de programación y abrir el de asignación GPS
       onOpenChange(false);
+      setShowAsignacionGPS(true);
       
       // Reset form
       setCurrentStep(1);
@@ -929,6 +949,21 @@ export const ProgramarInstalacionMejorada = ({
           </div>
         </form>
       </DialogContent>
+      
+      {/* Diálogo de asignación GPS */}
+      {programacionCreada && (
+        <AsignacionGPSDialog
+          open={showAsignacionGPS}
+          onOpenChange={setShowAsignacionGPS}
+          programacionId={programacionCreada.id}
+          tipoInstalacion={programacionCreada.tipo_instalacion}
+          sensoresRequeridos={programacionCreada.sensores_requeridos}
+          onKitCreated={() => {
+            setShowAsignacionGPS(false);
+            setProgramacionCreada(null);
+          }}
+        />
+      )}
     </Dialog>
   );
 };
