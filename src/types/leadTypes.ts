@@ -39,10 +39,13 @@ export interface ManualCallLog {
   id: string;
   lead_id: string;
   caller_id: string;
-  call_outcome: 'successful' | 'no_answer' | 'busy' | 'voicemail' | 'wrong_number' | 'call_failed';
+  call_outcome: 'successful' | 'no_answer' | 'busy' | 'voicemail' | 'wrong_number' | 'call_failed' | 'reschedule_requested';
   call_notes?: string;
   call_duration_minutes?: number;
   call_datetime: string;
+  scheduled_datetime?: string;
+  rescheduled_from_call_id?: string;
+  requires_reschedule?: boolean;
   created_at: string;
   updated_at: string;
 }

@@ -257,6 +257,12 @@ export const useLeadApprovals = () => {
     loadData();
   }, []);
 
+  const refreshAfterCall = async () => {
+    await fetchAssignedLeads();
+    await fetchLeadsWithCallStatus();
+    await fetchCallLogs();
+  };
+
   return {
     assignedLeads,
     callLogs,
@@ -266,6 +272,7 @@ export const useLeadApprovals = () => {
       await fetchLeadsWithCallStatus();
     },
     fetchCallLogs,
+    refreshAfterCall,
     handleApproveLead,
     handleSendToSecondInterview,
     handleReject

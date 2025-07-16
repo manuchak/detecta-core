@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Phone, Clock, User } from "lucide-react";
+import { Phone, Clock, User, Calendar } from "lucide-react";
 import { AssignedLead, ManualCallLog } from "@/types/leadTypes";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -39,11 +39,14 @@ export const CallLogDialog = ({
   const [callOutcome, setCallOutcome] = useState<string>("");
   const [callNotes, setCallNotes] = useState("");
   const [callDuration, setCallDuration] = useState("");
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleTime, setRescheduleTime] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   const callOutcomeOptions = [
     { value: 'successful', label: 'Llamada exitosa - Candidato disponible', color: 'text-emerald-600' },
+    { value: 'reschedule_requested', label: 'Candidato solicita reprogramar', color: 'text-blue-600' },
     { value: 'no_answer', label: 'No contestó', color: 'text-amber-600' },
     { value: 'busy', label: 'Línea ocupada', color: 'text-orange-600' },
     { value: 'voicemail', label: 'Buzón de voz', color: 'text-blue-600' },
@@ -62,22 +65,53 @@ export const CallLogDialog = ({
       return;
     }
 
+    // Validar campos de reprogramación si es necesario
+    if (callOutcome === 'reschedule_requested') {
+      if (!rescheduleDate || !rescheduleTime) {
+        toast({
+          title: "Error",
+          description: "Por favor selecciona fecha y hora para la reprogramación",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
     setLoading(true);
     try {
+      // Preparar datos del insert
+      const insertData: any = {
+        lead_id: lead.lead_id,
+        call_outcome: callOutcome,
+        call_notes: callNotes || null,
+      };
+
+      // Solo incluir duración si la llamada no falló
+      const failedOutcomes = ['call_failed', 'wrong_number', 'no_answer'];
+      if (!failedOutcomes.includes(callOutcome) && callDuration) {
+        insertData.call_duration_minutes = parseInt(callDuration);
+      }
+
+      // Agregar datos de reprogramación si aplica
+      if (callOutcome === 'reschedule_requested' && rescheduleDate && rescheduleTime) {
+        const scheduledDateTime = new Date(`${rescheduleDate}T${rescheduleTime}`);
+        insertData.scheduled_datetime = scheduledDateTime.toISOString();
+        insertData.requires_reschedule = true;
+      }
+
       const { error } = await supabase
         .from('manual_call_logs')
-        .insert({
-          lead_id: lead.lead_id,
-          call_outcome: callOutcome,
-          call_notes: callNotes || null,
-          call_duration_minutes: callDuration ? parseInt(callDuration) : null
-        });
+        .insert(insertData);
 
       if (error) throw error;
 
+      const successMessage = callOutcome === 'reschedule_requested' 
+        ? "Llamada registrada y reprogramada exitosamente"
+        : "El resultado de la llamada ha sido guardado exitosamente";
+
       toast({
         title: "Llamada registrada",
-        description: "El resultado de la llamada ha sido guardado exitosamente"
+        description: successMessage
       });
 
       onCallLogged();
@@ -99,6 +133,8 @@ export const CallLogDialog = ({
     setCallOutcome("");
     setCallNotes("");
     setCallDuration("");
+    setRescheduleDate("");
+    setRescheduleTime("");
   };
 
   const selectedOption = callOutcomeOptions.find(option => option.value === callOutcome);
@@ -192,6 +228,43 @@ export const CallLogDialog = ({
               rows={4}
             />
           </div>
+
+          {callOutcome === 'reschedule_requested' && (
+            <Card className="border-blue-200 bg-blue-50">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2 text-blue-700">
+                  <Calendar className="h-4 w-4" />
+                  Programar Nueva Llamada
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="reschedule-date">Fecha *</Label>
+                    <Input
+                      id="reschedule-date"
+                      type="date"
+                      value={rescheduleDate}
+                      onChange={(e) => setRescheduleDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="reschedule-time">Hora *</Label>
+                    <Input
+                      id="reschedule-time"
+                      type="time"
+                      value={rescheduleTime}
+                      onChange={(e) => setRescheduleTime(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <p className="text-sm text-blue-600">
+                  📅 Se creará una nueva tarea programada para contactar al candidato en la fecha y hora especificada
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="flex justify-end gap-2 pt-4">
             <Button

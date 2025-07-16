@@ -20,6 +20,7 @@ import { AssignedLead } from "@/types/leadTypes";
 import { useLeadApprovals } from "@/hooks/useLeadApprovals";
 import { LeadsList } from "@/components/leads/approval/LeadsList";
 import { LeadDialogs } from "@/components/leads/approval/LeadDialogs";
+import { ScheduledCallsView } from "@/components/leads/approval/ScheduledCallsView";
 
 export const LeadApprovals = () => {
   const {
@@ -28,6 +29,7 @@ export const LeadApprovals = () => {
     loading,
     fetchAssignedLeads,
     fetchCallLogs,
+    refreshAfterCall,
     handleApproveLead,
     handleSendToSecondInterview,
     handleReject
@@ -74,8 +76,7 @@ export const LeadApprovals = () => {
   };
 
   const handleCallComplete = () => {
-    fetchCallLogs();
-    fetchAssignedLeads();
+    refreshAfterCall();
   };
 
   if (loading) {
@@ -133,14 +134,15 @@ export const LeadApprovals = () => {
                 <TabsTrigger value="pending">Pendientes</TabsTrigger>
                 <TabsTrigger value="approved">Aprobados</TabsTrigger>
                 <TabsTrigger value="rejected">Rechazados</TabsTrigger>
+                <TabsTrigger value="scheduled">Programadas</TabsTrigger>
               </TabsList>
 
-              <TabsContent value={activeTab} className="mt-6">
+              <TabsContent value="pending" className="mt-6">
                 <LeadsList
                   leads={assignedLeads}
                   callLogs={callLogs}
                   searchTerm={searchTerm}
-                  activeTab={activeTab}
+                  activeTab="pending"
                   onVapiCall={handleVapiCall}
                   onManualInterview={handleManualInterview}
                   onEditLead={handleEditLead}
@@ -151,6 +153,46 @@ export const LeadApprovals = () => {
                   onCompleteMissingInfo={handleCompleteMissingInfo}
                   onLogCall={handleLogCall}
                 />
+              </TabsContent>
+
+              <TabsContent value="approved" className="mt-6">
+                <LeadsList
+                  leads={assignedLeads}
+                  callLogs={callLogs}
+                  searchTerm={searchTerm}
+                  activeTab="approved"
+                  onVapiCall={handleVapiCall}
+                  onManualInterview={handleManualInterview}
+                  onEditLead={handleEditLead}
+                  onViewCallHistory={handleViewCallHistory}
+                  onApproveLead={handleApproveLead}
+                  onSendToSecondInterview={handleSendToSecondInterview}
+                  onReject={handleReject}
+                  onCompleteMissingInfo={handleCompleteMissingInfo}
+                  onLogCall={handleLogCall}
+                />
+              </TabsContent>
+
+              <TabsContent value="rejected" className="mt-6">
+                <LeadsList
+                  leads={assignedLeads}
+                  callLogs={callLogs}
+                  searchTerm={searchTerm}
+                  activeTab="rejected"
+                  onVapiCall={handleVapiCall}
+                  onManualInterview={handleManualInterview}
+                  onEditLead={handleEditLead}
+                  onViewCallHistory={handleViewCallHistory}
+                  onApproveLead={handleApproveLead}
+                  onSendToSecondInterview={handleSendToSecondInterview}
+                  onReject={handleReject}
+                  onCompleteMissingInfo={handleCompleteMissingInfo}
+                  onLogCall={handleLogCall}
+                />
+              </TabsContent>
+
+              <TabsContent value="scheduled" className="mt-6">
+                <ScheduledCallsView />
               </TabsContent>
             </Tabs>
           </CardContent>

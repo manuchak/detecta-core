@@ -2509,6 +2509,9 @@ export type Database = {
           created_at: string | null
           id: string
           lead_id: string
+          requires_reschedule: boolean | null
+          rescheduled_from_call_id: string | null
+          scheduled_datetime: string | null
           updated_at: string | null
         }
         Insert: {
@@ -2520,6 +2523,9 @@ export type Database = {
           created_at?: string | null
           id?: string
           lead_id: string
+          requires_reschedule?: boolean | null
+          rescheduled_from_call_id?: string | null
+          scheduled_datetime?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -2531,9 +2537,27 @@ export type Database = {
           created_at?: string | null
           id?: string
           lead_id?: string
+          requires_reschedule?: boolean | null
+          rescheduled_from_call_id?: string | null
+          scheduled_datetime?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "manual_call_logs_rescheduled_from_call_id_fkey"
+            columns: ["rescheduled_from_call_id"]
+            isOneToOne: false
+            referencedRelation: "manual_call_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_call_logs_rescheduled_from_call_id_fkey"
+            columns: ["rescheduled_from_call_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_calls_view"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       marcas_gps: {
         Row: {
@@ -4897,6 +4921,69 @@ export type Database = {
       }
     }
     Views: {
+      scheduled_calls_view: {
+        Row: {
+          call_datetime: string | null
+          call_duration_minutes: number | null
+          call_notes: string | null
+          call_outcome: string | null
+          caller_id: string | null
+          created_at: string | null
+          id: string | null
+          lead_id: string | null
+          requires_reschedule: boolean | null
+          rescheduled_from_call_id: string | null
+          scheduled_datetime: string | null
+          source_table: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          call_datetime?: string | null
+          call_duration_minutes?: number | null
+          call_notes?: string | null
+          call_outcome?: string | null
+          caller_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          lead_id?: string | null
+          requires_reschedule?: boolean | null
+          rescheduled_from_call_id?: string | null
+          scheduled_datetime?: string | null
+          source_table?: never
+          updated_at?: string | null
+        }
+        Update: {
+          call_datetime?: string | null
+          call_duration_minutes?: number | null
+          call_notes?: string | null
+          call_outcome?: string | null
+          caller_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          lead_id?: string | null
+          requires_reschedule?: boolean | null
+          rescheduled_from_call_id?: string | null
+          scheduled_datetime?: string | null
+          source_table?: never
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_call_logs_rescheduled_from_call_id_fkey"
+            columns: ["rescheduled_from_call_id"]
+            isOneToOne: false
+            referencedRelation: "manual_call_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_call_logs_rescheduled_from_call_id_fkey"
+            columns: ["rescheduled_from_call_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_calls_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_skills_view: {
         Row: {
           display_name: string | null
