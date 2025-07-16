@@ -13,6 +13,7 @@ import {
   UserCog,
   LogOut,
   User,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -225,7 +226,7 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
     // Dashboard - solo para usuarios con acceso
     ...(isAdminUser ? [{
       title: "Panel Principal",
-      icon: Home,
+      icon: BarChart3,
       path: "/dashboard",
     }] : []),
 
