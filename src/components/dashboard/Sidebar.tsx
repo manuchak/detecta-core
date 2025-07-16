@@ -213,12 +213,19 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
 
   // Menu completo para usuarios con múltiples permisos
   const navigationItems = [
-    // Dashboard - siempre accesible
+    // Home - siempre accesible para todos los usuarios
     {
+      title: "Inicio",
+      icon: Home,
+      path: "/home",
+    },
+
+    // Dashboard - solo para usuarios con acceso
+    ...(isAdminUser ? [{
       title: "Panel Principal",
       icon: Home,
       path: "/dashboard",
-    },
+    }] : []),
 
     // Leads - principal funcionalidad - Supply Admin tiene acceso completo
     ...(hasAnySkill(['leads_management', 'leads_approval', 'custodio_tracking_only']) || isAdminUser || ['supply_admin', 'admin', 'owner'].includes(userRole || '') ? [{
