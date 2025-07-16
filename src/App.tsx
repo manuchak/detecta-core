@@ -248,7 +248,7 @@ function App() {
                   path="/wms"
                   element={
                     <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'supply_lead', 'supply']}>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'monitoring_supervisor', 'monitoring', 'coordinador_operaciones']}>
                         <DashboardLayout>
                           <WMSPage />
                         </DashboardLayout>
