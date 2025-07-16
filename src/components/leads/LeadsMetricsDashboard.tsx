@@ -33,7 +33,13 @@ export const LeadsMetricsDashboard = ({ leads }: LeadsMetricsDashboardProps) => 
     const approved = leads.filter(lead => lead?.estado === 'aprobado').length;
     
     // Calcular tiempo promedio entre creación y asignación en horas
-    const assignedLeads = leads.filter(lead => lead && lead.asignado_a && lead.fecha_creacion && lead.fecha_contacto);
+    const assignedLeads = leads.filter(lead => lead && lead.asignado_a && lead.fecha_creacion);
+    
+    console.log('📊 Debug - Total leads:', leads.length);
+    console.log('📊 Debug - Leads asignados (con asignado_a):', leads.filter(lead => lead?.asignado_a).length);
+    console.log('📊 Debug - Leads con fecha_creacion:', leads.filter(lead => lead?.fecha_creacion).length);
+    console.log('📊 Debug - Leads con fecha_contacto:', leads.filter(lead => lead?.fecha_contacto).length);
+    console.log('📊 Debug - Leads asignados válidos para cálculo:', assignedLeads.length);
     
     let avgHoursToAssignment = 0;
     if (assignedLeads.length > 0) {
@@ -41,13 +47,20 @@ export const LeadsMetricsDashboard = ({ leads }: LeadsMetricsDashboardProps) => 
         const totalHours = assignedLeads.reduce((acc, lead) => {
           try {
             const creationDate = new Date(lead.fecha_creacion);
-            const assignmentDate = new Date(lead.fecha_contacto); // Usando fecha_contacto como proxy para cuando se asignó
+            // Usamos fecha_contacto si existe, sino updated_at como fallback
+            const assignmentDate = new Date(lead.fecha_contacto || lead.updated_at);
             
             if (isNaN(creationDate.getTime()) || isNaN(assignmentDate.getTime())) {
+              console.log('📊 Debug - Fechas inválidas para lead:', lead.id, {
+                fecha_creacion: lead.fecha_creacion,
+                fecha_contacto: lead.fecha_contacto,
+                updated_at: lead.updated_at
+              });
               return acc;
             }
             
             const hours = Math.floor((assignmentDate.getTime() - creationDate.getTime()) / (1000 * 60 * 60));
+            console.log('📊 Debug - Lead:', lead.id, 'Horas:', hours);
             return acc + Math.max(0, hours);
           } catch (error) {
             console.warn('Error calculando horas para lead:', lead.id, error);
@@ -56,6 +69,7 @@ export const LeadsMetricsDashboard = ({ leads }: LeadsMetricsDashboardProps) => 
         }, 0);
         
         avgHoursToAssignment = Math.round(totalHours / assignedLeads.length);
+        console.log('📊 Debug - Total horas:', totalHours, 'Promedio:', avgHoursToAssignment);
       } catch (error) {
         console.warn('Error calculando promedio de horas hasta asignación:', error);
         avgHoursToAssignment = 0;
