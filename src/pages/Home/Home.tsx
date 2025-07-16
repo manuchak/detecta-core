@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWMSAccess } from '@/hooks/useWMSAccess';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -20,12 +21,14 @@ import {
   ArrowRight,
   Truck,
   UserCheck,
-  Monitor
+  Monitor,
+  Package
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Home = () => {
   const { user, userRole, signOut } = useAuth();
+  const { hasWMSAccess } = useWMSAccess();
 
   const getWelcomeMessage = () => {
     const hour = new Date().getHours();
@@ -118,13 +121,13 @@ const Home = () => {
       });
     }
 
-    // WMS para roles de suministros
-    if (['supply_admin', 'supply', 'admin', 'owner'].includes(userRole || '')) {
+    // WMS - para usuarios con acceso autorizado
+    if (hasWMSAccess) {
       roleSpecificActions.push({
-        title: 'WMS - GPS',
-        icon: BarChart3,
+        title: 'Inventario GPS',
+        icon: Package,
         href: '/wms',
-        description: 'Gestión de inventario y suministros',
+        description: 'Gestión de inventario y suministros GPS',
         color: 'bg-emerald-50 text-emerald-600 border-emerald-100'
       });
     }
@@ -207,13 +210,12 @@ const Home = () => {
                 to={action.href}
                 className="group block"
               >
-                <Card className={`
+                <Card className="
                   relative overflow-hidden border-0 bg-white/70 backdrop-blur-sm 
                   hover:bg-white hover:shadow-2xl hover:shadow-gray-200/50
                   transition-all duration-500 ease-out
-                  hover:-translate-y-2 cursor-pointer
-                  ${isFeatured ? 'lg:col-span-2' : ''}
-                `}>
+                  hover:-translate-y-2 cursor-pointer h-full
+                ">
                   <CardContent className="p-8">
                     <div className="flex items-start space-x-6">
                       <div className={`
