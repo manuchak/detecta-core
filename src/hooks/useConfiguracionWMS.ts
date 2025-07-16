@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { useWMSAccess } from '@/hooks/useWMSAccess';
 
 export interface ConfiguracionWMS {
   id: string;
@@ -22,11 +23,16 @@ export interface ConfiguracionWMSInput {
 
 export const useConfiguracionWMS = () => {
   const queryClient = useQueryClient();
+  const { canManageConfiguration } = useWMSAccess();
 
   // Obtener configuración actual
   const { data: configuracion, isLoading } = useQuery({
     queryKey: ['configuracion-wms'],
     queryFn: async () => {
+      if (!canManageConfiguration()) {
+        throw new Error('No tienes permisos para acceder a la configuración WMS');
+      }
+      
       const { data, error } = await supabase
         .from('configuracion_wms')
         .select('*')
@@ -35,11 +41,16 @@ export const useConfiguracionWMS = () => {
       if (error) throw error;
       return data as ConfiguracionWMS;
     },
+    enabled: canManageConfiguration(),
   });
 
   // Actualizar configuración
   const updateConfiguracion = useMutation({
     mutationFn: async (input: ConfiguracionWMSInput) => {
+      if (!canManageConfiguration()) {
+        throw new Error('No tienes permisos para modificar la configuración WMS');
+      }
+      
       const { data, error } = await supabase
         .from('configuracion_wms')
         .update(input)
@@ -71,5 +82,6 @@ export const useConfiguracionWMS = () => {
     configuracion,
     isLoading,
     updateConfiguracion,
+    canManageConfiguration,
   };
 };

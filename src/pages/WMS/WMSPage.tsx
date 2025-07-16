@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Package, ShoppingCart, Users, BarChart3, Truck, Settings, Smartphone, ArrowRight } from 'lucide-react';
+import { Package, ShoppingCart, Users, BarChart3, Truck, Settings, Smartphone, ArrowRight, Lock } from 'lucide-react';
+import { useWMSAccess } from '@/hooks/useWMSAccess';
 import { InventarioTab } from './components/InventarioTab';
 import { StockTab } from './components/StockTab';
 import { ComprasTab } from './components/ComprasTab';
@@ -45,6 +46,38 @@ const EmptyModuleCard = ({ title, description, icon: Icon, actionText, onAction 
 
 export const WMSPage = () => {
   const [activeTab, setActiveTab] = useState('inventario');
+  const { hasWMSAccess, canAccessWMS } = useWMSAccess();
+
+  if (!canAccessWMS()) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Sistema WMS - GPS</h1>
+          <p className="text-muted-foreground">
+            Gestión integral de inventario, compras y almacén para dispositivos GPS
+          </p>
+        </div>
+        
+        <Card className="max-w-md mx-auto">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 p-3 bg-destructive/10 rounded-full w-fit">
+              <Lock className="h-8 w-8 text-destructive" />
+            </div>
+            <CardTitle>Acceso Restringido</CardTitle>
+            <CardDescription className="text-center">
+              No tienes permisos para acceder al módulo WMS
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <p className="text-sm text-muted-foreground">
+              Solo los usuarios con roles de administrador, coordinador de operaciones o monitorista 
+              pueden acceder a este módulo. Contacta a tu administrador si necesitas acceso.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
