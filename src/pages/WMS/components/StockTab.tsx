@@ -1,6 +1,8 @@
 
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -9,11 +11,25 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Package, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
+import { Package, AlertTriangle, TrendingUp, TrendingDown, Edit } from 'lucide-react';
 import { useStockProductos } from '@/hooks/useStockProductos';
+import { useWMSAccess } from '@/hooks/useWMSAccess';
+import { EditStockDialog } from './EditStockDialog';
+import type { StockProducto } from '@/types/wms';
 
 export const StockTab = () => {
+  const [editStockDialog, setEditStockDialog] = useState(false);
+  const [selectedStockItem, setSelectedStockItem] = useState<StockProducto | null>(null);
   const { stock, movimientos, isLoading, isLoadingMovimientos, error } = useStockProductos();
+  const { userRole } = useWMSAccess();
+
+  // Verificar si el usuario puede editar stock
+  const canEditStock = userRole === 'owner' || userRole === 'admin' || userRole === 'coordinador_operaciones';
+
+  const handleEditStock = (stockItem: StockProducto) => {
+    setSelectedStockItem(stockItem);
+    setEditStockDialog(true);
+  };
 
   const isLoadingData = isLoading || isLoadingMovimientos;
 
@@ -111,6 +127,7 @@ export const StockTab = () => {
                   <TableHead>Producto</TableHead>
                   <TableHead>Disponible</TableHead>
                   <TableHead>Estado</TableHead>
+                  {canEditStock && <TableHead className="text-center">Acciones</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -145,6 +162,18 @@ export const StockTab = () => {
                           {isOutOfStock ? 'Sin Stock' : isLowStock ? 'Stock Bajo' : 'OK'}
                         </Badge>
                       </TableCell>
+                      {canEditStock && (
+                        <TableCell className="text-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditStock(item)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   );
                 })}
@@ -204,6 +233,13 @@ export const StockTab = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Diálogo de edición de stock */}
+      <EditStockDialog
+        open={editStockDialog}
+        onOpenChange={setEditStockDialog}
+        stockItem={selectedStockItem}
+      />
     </div>
   );
 };

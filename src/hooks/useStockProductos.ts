@@ -133,7 +133,7 @@ export const useStockProductos = () => {
       // Obtener cantidad actual
       const { data: stockActual } = await supabase
         .from('stock_productos')
-        .select('cantidad_disponible')
+        .select('cantidad_disponible, valor_inventario')
         .eq('producto_id', producto_id)
         .maybeSingle();
 
@@ -143,8 +143,19 @@ export const useStockProductos = () => {
       // Obtener usuario actual de forma segura
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Registrar movimiento
-      await supabase
+      // Actualizar el stock en la tabla stock_productos
+      const { error: updateError } = await supabase
+        .from('stock_productos')
+        .update({ 
+          cantidad_disponible: nueva_cantidad,
+          ultima_actualizacion: new Date().toISOString()
+        })
+        .eq('producto_id', producto_id);
+
+      if (updateError) throw updateError;
+
+      // Registrar movimiento en el historial
+      const { error: movError } = await supabase
         .from('movimientos_inventario')
         .insert({
           producto_id,
@@ -153,11 +164,15 @@ export const useStockProductos = () => {
           cantidad_anterior: cantidadAnterior,
           cantidad_nueva: nueva_cantidad,
           motivo,
-          referencia: 'ajuste_manual',
-          usuario_id: user?.id
+          referencia_tipo: 'ajuste_manual',
+          referencia_id: null,
+          usuario_id: user?.id,
+          fecha_movimiento: new Date().toISOString()
         });
 
-      return { producto_id, nueva_cantidad };
+      if (movError) throw movError;
+
+      return { producto_id, nueva_cantidad, diferencia };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stock-productos'] });
@@ -165,6 +180,14 @@ export const useStockProductos = () => {
       toast({
         title: "Stock ajustado",
         description: "El stock ha sido actualizado correctamente.",
+      });
+    },
+    onError: (error) => {
+      console.error('Error adjusting stock:', error);
+      toast({
+        title: "Error al ajustar stock",
+        description: "No se pudo actualizar el stock. Verifique sus permisos.",
+        variant: "destructive",
       });
     }
   });
