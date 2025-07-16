@@ -753,6 +753,39 @@ export type Database = {
           },
         ]
       }
+      configuracion_wms: {
+        Row: {
+          created_at: string
+          id: string
+          moneda_default: string
+          stock_maximo_default: number
+          stock_minimo_default: number
+          ubicacion_almacen_default: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          moneda_default?: string
+          stock_maximo_default?: number
+          stock_minimo_default?: number
+          ubicacion_almacen_default?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          moneda_default?: string
+          stock_maximo_default?: number
+          stock_minimo_default?: number
+          ubicacion_almacen_default?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       configuraciones_producto: {
         Row: {
           created_at: string | null

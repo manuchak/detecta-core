@@ -1,17 +1,44 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, Settings, Tag } from 'lucide-react';
 import { useCategorias } from '@/hooks/useCategorias';
+import { useConfiguracionWMS } from '@/hooks/useConfiguracionWMS';
 import { Badge } from '@/components/ui/badge';
 import { NuevaCategoriaDialog } from './NuevaCategoriaDialog';
 
 export const ConfiguracionTab = () => {
-  const { categorias, isLoading } = useCategorias();
+  const { categorias, isLoading: isLoadingCategorias } = useCategorias();
+  const { configuracion, isLoading: isLoadingConfig, updateConfiguracion } = useConfiguracionWMS();
   const [showNuevaCategoriaDialog, setShowNuevaCategoriaDialog] = useState(false);
+  
+  // Estado local para el formulario
+  const [formData, setFormData] = useState({
+    stock_minimo_default: 5,
+    stock_maximo_default: 100,
+    moneda_default: 'MXN',
+    ubicacion_almacen_default: 'A-1-1'
+  });
+
+  // Actualizar form data cuando se carga la configuración
+  useEffect(() => {
+    if (configuracion) {
+      setFormData({
+        stock_minimo_default: configuracion.stock_minimo_default,
+        stock_maximo_default: configuracion.stock_maximo_default,
+        moneda_default: configuracion.moneda_default,
+        ubicacion_almacen_default: configuracion.ubicacion_almacen_default
+      });
+    }
+  }, [configuracion]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await updateConfiguracion.mutateAsync(formData);
+  };
 
   return (
     <div className="space-y-6">
@@ -56,7 +83,7 @@ export const ConfiguracionTab = () => {
                       <span className="font-medium">{categoria.nombre}</span>
                     </div>
                     {categoria.descripcion && (
-                      <p className="text-sm text-gray-500 mt-1">{categoria.descripcion}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{categoria.descripcion}</p>
                     )}
                   </div>
                   <Button variant="ghost" size="sm">
@@ -64,9 +91,14 @@ export const ConfiguracionTab = () => {
                   </Button>
                 </div>
               )) || (
-                <div className="text-center py-6 text-gray-500">
-                  <Tag className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                <div className="text-center py-6 text-muted-foreground">
+                  <Tag className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
                   <p>No hay categorías configuradas</p>
+                </div>
+              )}
+              {isLoadingCategorias && (
+                <div className="text-center py-6 text-muted-foreground">
+                  <p>Cargando categorías...</p>
                 </div>
               )}
             </div>
@@ -84,48 +116,76 @@ export const ConfiguracionTab = () => {
               Parámetros generales del sistema
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="stock_minimo_default">Stock Mínimo por Defecto</Label>
-              <Input
-                id="stock_minimo_default"
-                type="number"
-                defaultValue="5"
-                placeholder="5"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="stock_maximo_default">Stock Máximo por Defecto</Label>
-              <Input
-                id="stock_maximo_default"
-                type="number"
-                defaultValue="100"
-                placeholder="100"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="moneda_default">Moneda por Defecto</Label>
-              <Input
-                id="moneda_default"
-                defaultValue="MXN"
-                placeholder="MXN"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="ubicacion_default">Ubicación de Almacén por Defecto</Label>
-              <Input
-                id="ubicacion_default"
-                defaultValue="A-1-1"
-                placeholder="A-1-1"
-              />
-            </div>
-            
-            <Button className="w-full">
-              Guardar Configuración
-            </Button>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="stock_minimo_default">Stock Mínimo por Defecto</Label>
+                <Input
+                  id="stock_minimo_default"
+                  type="number"
+                  min="0"
+                  value={formData.stock_minimo_default}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    stock_minimo_default: parseInt(e.target.value) || 0
+                  }))}
+                  placeholder="5"
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="stock_maximo_default">Stock Máximo por Defecto</Label>
+                <Input
+                  id="stock_maximo_default"
+                  type="number"
+                  min="0"
+                  value={formData.stock_maximo_default}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    stock_maximo_default: parseInt(e.target.value) || 0
+                  }))}
+                  placeholder="100"
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="moneda_default">Moneda por Defecto</Label>
+                <Input
+                  id="moneda_default"
+                  value={formData.moneda_default}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    moneda_default: e.target.value
+                  }))}
+                  placeholder="MXN"
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="ubicacion_default">Ubicación de Almacén por Defecto</Label>
+                <Input
+                  id="ubicacion_default"
+                  value={formData.ubicacion_almacen_default}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    ubicacion_almacen_default: e.target.value
+                  }))}
+                  placeholder="A-1-1"
+                  required
+                />
+              </div>
+              
+              <Button 
+                type="submit" 
+                className="w-full"
+                disabled={updateConfiguracion.isPending || isLoadingConfig}
+              >
+                {updateConfiguracion.isPending ? "Guardando..." : "Guardar Configuración"}
+              </Button>
+            </form>
           </CardContent>
         </Card>
       </div>
