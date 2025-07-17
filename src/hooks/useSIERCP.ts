@@ -158,17 +158,17 @@ export const useSIERCP = () => {
     const entrevista = 75; // Placeholder for interview scoring
 
     // Fórmula SIERCP corregida:
-    // Score Global = (IL × 0.20) + (PA × 0.20) + (RV × 0.20) + (AI × 0.15) + (EA × 0.10) + (ER × -0.05) + (EE × 0.10)
-    // Los valores ya están en escala 0-100, aplicamos directamente los pesos
-    const globalScore = Math.round(
+    // Score Global = (IL × 0.20) + (PA × 0.20) + (RV × 0.20) + (AI × 0.15) + (EA × 0.10) + (ER × 0.05) + (EE × 0.10)
+    // Los pesos suman exactamente 1.0 para garantizar escala 0-100
+    const globalScore = Math.min(100, Math.max(0, Math.round(
       (integridad * 0.20) + 
       (psicopatia * 0.20) + 
       (violencia * 0.20) + 
       (agresividad * 0.15) + 
       (afrontamiento * 0.10) + 
-      (veracidad * -0.05) + 
+      (veracidad * 0.05) + 
       (entrevista * 0.10)
-    );
+    )));
 
     const getClassification = (score: number): string => {
       if (score >= 85) return 'Sin riesgo';
