@@ -2253,7 +2253,9 @@ export type Database = {
           decision_reason: string | null
           final_decision: string | null
           id: string
+          interview_interrupted: boolean | null
           interview_method: string | null
+          last_session_id: string | null
           lead_id: string
           phone_interview_completed: boolean | null
           phone_interview_date: string | null
@@ -2271,7 +2273,9 @@ export type Database = {
           decision_reason?: string | null
           final_decision?: string | null
           id?: string
+          interview_interrupted?: boolean | null
           interview_method?: string | null
+          last_session_id?: string | null
           lead_id: string
           phone_interview_completed?: boolean | null
           phone_interview_date?: string | null
@@ -2289,7 +2293,9 @@ export type Database = {
           decision_reason?: string | null
           final_decision?: string | null
           id?: string
+          interview_interrupted?: boolean | null
           interview_method?: string | null
+          last_session_id?: string | null
           lead_id?: string
           phone_interview_completed?: boolean | null
           phone_interview_date?: string | null
@@ -2328,6 +2334,10 @@ export type Database = {
           fecha_creacion: string
           fuente: string | null
           id: string
+          interruption_reason: string | null
+          interview_session_id: string | null
+          last_autosave_at: string | null
+          last_interview_data: Json | null
           mensaje: string | null
           nombre: string
           notas: string | null
@@ -2344,6 +2354,10 @@ export type Database = {
           fecha_creacion?: string
           fuente?: string | null
           id?: string
+          interruption_reason?: string | null
+          interview_session_id?: string | null
+          last_autosave_at?: string | null
+          last_interview_data?: Json | null
           mensaje?: string | null
           nombre: string
           notas?: string | null
@@ -2360,6 +2374,10 @@ export type Database = {
           fecha_creacion?: string
           fuente?: string | null
           id?: string
+          interruption_reason?: string | null
+          interview_session_id?: string | null
+          last_autosave_at?: string | null
+          last_interview_data?: Json | null
           mensaje?: string | null
           nombre?: string
           notas?: string | null
@@ -3474,6 +3492,53 @@ export type Database = {
             columns: ["servicio_id"]
             isOneToOne: false
             referencedRelation: "servicios_monitoreo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      programacion_llamadas: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          estado: string | null
+          fecha_programada: string
+          id: string
+          lead_id: string
+          motivo_reprogramacion: string | null
+          session_id: string | null
+          tipo_llamada: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          estado?: string | null
+          fecha_programada: string
+          id?: string
+          lead_id: string
+          motivo_reprogramacion?: string | null
+          session_id?: string | null
+          tipo_llamada?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          estado?: string | null
+          fecha_programada?: string
+          id?: string
+          lead_id?: string
+          motivo_reprogramacion?: string | null
+          session_id?: string | null
+          tipo_llamada?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "programacion_llamadas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
         ]
@@ -6127,6 +6192,10 @@ export type Database = {
         Args: { user_email: string }
         Returns: boolean
       }
+      mark_interview_interrupted: {
+        Args: { p_lead_id: string; p_session_id: string; p_reason: string }
+        Returns: boolean
+      }
       migrate_existing_categories: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -6202,6 +6271,15 @@ export type Database = {
           p_admin_notes?: string
           p_override_km?: number
           p_override_points?: number
+        }
+        Returns: boolean
+      }
+      save_interview_progress: {
+        Args: {
+          p_lead_id: string
+          p_session_id: string
+          p_interview_data: Json
+          p_autosave?: boolean
         }
         Returns: boolean
       }

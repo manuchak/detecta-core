@@ -35,6 +35,12 @@ export interface AssignedLead {
   has_successful_call?: boolean; // Si ha tenido al menos una llamada exitosa
   has_scheduled_call?: boolean; // Si tiene una llamada reprogramada pendiente
   scheduled_call_datetime?: string; // Fecha y hora de la llamada reprogramada
+  // Nuevos campos para manejo de entrevistas interrumpidas
+  last_interview_data?: Record<string, any>; // Datos de la última sesión de entrevista
+  interruption_reason?: string; // Motivo de la última interrupción
+  interview_session_id?: string; // ID de la sesión actual/última
+  last_autosave_at?: string; // Timestamp del último auto-guardado
+  interview_interrupted?: boolean; // Si la entrevista fue interrumpida
 }
 
 export interface ManualCallLog {
