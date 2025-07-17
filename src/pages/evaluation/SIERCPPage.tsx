@@ -150,7 +150,7 @@ const SIERCPPage = () => {
             placeholder="Escriba su respuesta detallada aquí..."
             className="min-h-[150px] p-4 text-base border-2 border-gray-200 focus:border-primary"
           />
-          <div className="flex justify-end">
+          <div className="flex justify-center mt-8">
             <Button 
               onClick={() => {
                 if ((response?.value as string)?.trim().length >= 1) {
@@ -158,10 +158,14 @@ const SIERCPPage = () => {
                 }
               }}
               disabled={!response?.value || (response?.value as string)?.trim().length < 1}
-              variant="outline"
-              className={`mt-2 ${(response?.value as string)?.trim().length >= 1 ? `bg-${currentModule}-500 text-white hover:bg-${currentModule}-600` : ''}`}
+              size="lg"
+              className={`px-8 py-3 text-lg font-semibold transition-all duration-200 shadow-lg ${
+                (response?.value as string)?.trim().length >= 1 
+                  ? `bg-${currentModule}-500 hover:bg-${currentModule}-600 text-white border-none hover:shadow-xl hover:scale-105` 
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
+              }`}
             >
-              Continuar
+              Continuar →
             </Button>
           </div>
         </div>
