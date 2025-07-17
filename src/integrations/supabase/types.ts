@@ -864,13 +864,6 @@ export type Database = {
             referencedRelation: "productos_inventario"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "configuraciones_producto_producto_id_fkey"
-            columns: ["producto_id"]
-            isOneToOne: false
-            referencedRelation: "vista_analisis_inventario"
-            referencedColumns: ["id"]
-          },
         ]
       }
       contactos_emergencia_servicio: {
@@ -1083,13 +1076,6 @@ export type Database = {
             referencedRelation: "productos_inventario"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "detalles_orden_compra_producto_id_fkey"
-            columns: ["producto_id"]
-            isOneToOne: false
-            referencedRelation: "vista_analisis_inventario"
-            referencedColumns: ["id"]
-          },
         ]
       }
       detalles_recepcion: {
@@ -1141,13 +1127,6 @@ export type Database = {
             columns: ["producto_id"]
             isOneToOne: false
             referencedRelation: "productos_inventario"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "detalles_recepcion_producto_id_fkey"
-            columns: ["producto_id"]
-            isOneToOne: false
-            referencedRelation: "vista_analisis_inventario"
             referencedColumns: ["id"]
           },
           {
@@ -2454,13 +2433,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "lotes_inventario_producto_id_fkey"
-            columns: ["producto_id"]
-            isOneToOne: false
-            referencedRelation: "vista_analisis_inventario"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "lotes_inventario_proveedor_id_fkey"
             columns: ["proveedor_id"]
             isOneToOne: false
@@ -2551,13 +2523,6 @@ export type Database = {
             columns: ["rescheduled_from_call_id"]
             isOneToOne: false
             referencedRelation: "manual_call_logs"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "manual_call_logs_rescheduled_from_call_id_fkey"
-            columns: ["rescheduled_from_call_id"]
-            isOneToOne: false
-            referencedRelation: "scheduled_calls_view"
             referencedColumns: ["id"]
           },
         ]
@@ -2804,13 +2769,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "movimientos_inventario_producto_id_fkey"
-            columns: ["producto_id"]
-            isOneToOne: false
-            referencedRelation: "vista_analisis_inventario"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "movimientos_inventario_usuario_id_fkey"
             columns: ["usuario_id"]
             isOneToOne: false
@@ -2865,13 +2823,6 @@ export type Database = {
             columns: ["producto_id"]
             isOneToOne: false
             referencedRelation: "productos_inventario"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "movimientos_stock_producto_id_fkey"
-            columns: ["producto_id"]
-            isOneToOne: false
-            referencedRelation: "vista_analisis_inventario"
             referencedColumns: ["id"]
           },
         ]
@@ -3383,13 +3334,6 @@ export type Database = {
             columns: ["producto_id"]
             isOneToOne: false
             referencedRelation: "productos_inventario"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "productos_serie_producto_id_fkey"
-            columns: ["producto_id"]
-            isOneToOne: false
-            referencedRelation: "vista_analisis_inventario"
             referencedColumns: ["id"]
           },
           {
@@ -4427,13 +4371,6 @@ export type Database = {
             referencedRelation: "productos_inventario"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "stock_productos_producto_id_fkey"
-            columns: ["producto_id"]
-            isOneToOne: true
-            referencedRelation: "vista_analisis_inventario"
-            referencedColumns: ["id"]
-          },
         ]
       }
       system_limits: {
@@ -4924,69 +4861,6 @@ export type Database = {
       }
     }
     Views: {
-      scheduled_calls_view: {
-        Row: {
-          call_datetime: string | null
-          call_duration_minutes: number | null
-          call_notes: string | null
-          call_outcome: string | null
-          caller_id: string | null
-          created_at: string | null
-          id: string | null
-          lead_id: string | null
-          requires_reschedule: boolean | null
-          rescheduled_from_call_id: string | null
-          scheduled_datetime: string | null
-          source_table: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          call_datetime?: string | null
-          call_duration_minutes?: number | null
-          call_notes?: string | null
-          call_outcome?: string | null
-          caller_id?: string | null
-          created_at?: string | null
-          id?: string | null
-          lead_id?: string | null
-          requires_reschedule?: boolean | null
-          rescheduled_from_call_id?: string | null
-          scheduled_datetime?: string | null
-          source_table?: never
-          updated_at?: string | null
-        }
-        Update: {
-          call_datetime?: string | null
-          call_duration_minutes?: number | null
-          call_notes?: string | null
-          call_outcome?: string | null
-          caller_id?: string | null
-          created_at?: string | null
-          id?: string | null
-          lead_id?: string | null
-          requires_reschedule?: boolean | null
-          rescheduled_from_call_id?: string | null
-          scheduled_datetime?: string | null
-          source_table?: never
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "manual_call_logs_rescheduled_from_call_id_fkey"
-            columns: ["rescheduled_from_call_id"]
-            isOneToOne: false
-            referencedRelation: "manual_call_logs"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "manual_call_logs_rescheduled_from_call_id_fkey"
-            columns: ["rescheduled_from_call_id"]
-            isOneToOne: false
-            referencedRelation: "scheduled_calls_view"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       user_skills_view: {
         Row: {
           display_name: string | null
@@ -4999,61 +4873,6 @@ export type Database = {
           user_id: string | null
         }
         Relationships: []
-      }
-      vista_analisis_inventario: {
-        Row: {
-          cantidad_disponible: number | null
-          codigo_producto: string | null
-          id: string | null
-          lotes_activos: number | null
-          margen_potencial: number | null
-          nombre: string | null
-          porcentaje_margen: number | null
-          precio_compra_promedio: number | null
-          precio_venta_sugerido: number | null
-          total_lotes: number | null
-          valor_inventario_costo: number | null
-          valor_inventario_venta: number | null
-        }
-        Relationships: []
-      }
-      vista_kits_instalacion: {
-        Row: {
-          capacidad_gb: number | null
-          contacto_cliente: string | null
-          direccion_instalacion: string | null
-          estado_kit: string | null
-          fecha_envio: string | null
-          fecha_instalacion: string | null
-          fecha_preparacion: string | null
-          fecha_programada: string | null
-          fecha_validacion: string | null
-          gps_marca: string | null
-          gps_modelo: string | null
-          gps_serie: string | null
-          id: string | null
-          instalador_nombre: string | null
-          microsd_marca: string | null
-          microsd_modelo: string | null
-          numero_sim: string | null
-          numero_tracking: string | null
-          preparado_por_email: string | null
-          programacion_id: string | null
-          sim_operador: string | null
-          sim_plan: string | null
-          tipo_dispositivo: string | null
-          tipo_instalacion: string | null
-          validado_por_email: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "kits_instalacion_programacion_id_fkey"
-            columns: ["programacion_id"]
-            isOneToOne: true
-            referencedRelation: "programacion_instalaciones"
-            referencedColumns: ["id"]
-          },
-        ]
       }
     }
     Functions: {
