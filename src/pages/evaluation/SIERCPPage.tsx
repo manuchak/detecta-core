@@ -240,10 +240,10 @@ const SIERCPPage = () => {
                 className="flex flex-col items-center cursor-pointer group min-w-20"
                 onClick={() => handleResponse(question.id, index + 1)}
               >
-                <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all duration-200 hover:scale-105 mb-3
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center border transition-all duration-200 hover:scale-105 mb-3 backdrop-blur-sm
                   ${response?.value === index + 1 
-                    ? `${moduleConfig[currentModule as keyof typeof moduleConfig].color} text-white border-transparent shadow-lg` 
-                    : 'border-gray-300 hover:border-gray-400 bg-white hover:bg-gray-50'}`
+                    ? `${moduleConfig[currentModule as keyof typeof moduleConfig].color} text-white border-white/30 shadow-lg shadow-primary/25` 
+                    : 'border-white/20 bg-white/10 hover:bg-white/20 hover:border-white/30 shadow-md'}`
                 }>
                   <RadioGroupItem 
                     value={(index + 1).toString()} 
