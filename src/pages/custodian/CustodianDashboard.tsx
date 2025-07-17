@@ -1,109 +1,28 @@
-import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, Clock, User, Phone, Mail, AlertCircle, CheckCircle } from "lucide-react";
-import { useStableAuth } from "@/hooks/useStableAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { Calendar, MapPin, Clock, User, Phone, Mail, AlertCircle, CheckCircle, TrendingUp, DollarSign, Route, Activity } from "lucide-react";
+import { useCustodianProfile } from "@/hooks/useCustodianProfile";
+import { useCustodianServices } from "@/hooks/useCustodianServices";
 import { useToast } from "@/hooks/use-toast";
 
-interface CustodianProfile {
-  id: string;
-  email: string;
-  display_name: string;
-  phone?: string;
-  estado?: string;
-  ciudad?: string;
-  disponibilidad: boolean;
-  fecha_ultima_actividad?: string;
-}
-
-interface AssignedService {
-  id: string;
-  client_name: string;
-  origen: string;
-  destino: string;
-  fecha_programada: string;
-  estado: string;
-  tipo_servicio: string;
-}
-
 const CustodianDashboard = () => {
-  const { user, loading } = useStableAuth();
   const { toast } = useToast();
-  const [profile, setProfile] = useState<CustodianProfile | null>(null);
-  const [assignedServices, setAssignedServices] = useState<AssignedService[]>([]);
-  const [loadingData, setLoadingData] = useState(true);
+  const { profile, loading: profileLoading, updateAvailability } = useCustodianProfile();
+  const { services, stats, loading: servicesLoading, getRecentServices, getUpcomingServices } = useCustodianServices(profile?.phone);
 
-  useEffect(() => {
-    if (user && !loading) {
-      fetchCustodianData();
-    }
-  }, [user, loading]);
+  const loading = profileLoading || servicesLoading;
 
-  const fetchCustodianData = async () => {
-    try {
-      setLoadingData(true);
-      
-      // Fetch custodian profile
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user?.id)
-        .single();
-
-      if (profileError) throw profileError;
-
-      // Fetch assigned services (mock data for now)
-      setProfile({
-        id: profileData.id,
-        email: profileData.email,
-        display_name: profileData.display_name,
-        phone: profileData.phone,
-        estado: 'CDMX',
-        ciudad: 'Ciudad de México',
-        disponibilidad: true,
-        fecha_ultima_actividad: new Date().toISOString()
-      });
-
-      // Mock assigned services - will be replaced with real data later
-      setAssignedServices([
-        {
-          id: '1',
-          client_name: 'Empresa ABC',
-          origen: 'Ciudad de México',
-          destino: 'Guadalajara',
-          fecha_programada: '2025-01-20T09:00:00Z',
-          estado: 'programado',
-          tipo_servicio: 'Custodia de carga'
-        }
-      ]);
-
-    } catch (error) {
-      console.error('Error fetching custodian data:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo cargar la información del custodio",
-        variant: "destructive"
-      });
-    } finally {
-      setLoadingData(false);
-    }
-  };
-
-  const toggleAvailability = async () => {
+  const handleToggleAvailability = async () => {
     if (!profile) return;
     
-    try {
-      const newAvailability = !profile.disponibilidad;
-      // Update availability in database here when table is ready
-      setProfile({ ...profile, disponibilidad: newAvailability });
-      
+    const success = await updateAvailability(!profile.disponibilidad);
+    if (success) {
       toast({
         title: "Disponibilidad actualizada",
-        description: `Ahora estás ${newAvailability ? 'disponible' : 'no disponible'} para servicios`,
+        description: `Ahora estás ${!profile.disponibilidad ? 'disponible' : 'no disponible'} para servicios`,
       });
-    } catch (error) {
+    } else {
       toast({
         title: "Error",
         description: "No se pudo actualizar la disponibilidad",
@@ -112,7 +31,7 @@ const CustodianDashboard = () => {
     }
   };
 
-  if (loading || loadingData) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -122,6 +41,9 @@ const CustodianDashboard = () => {
       </div>
     );
   }
+
+  const recentServices = getRecentServices(3);
+  const upcomingServices = getUpcomingServices();
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -134,9 +56,71 @@ const CustodianDashboard = () => {
             </h1>
             <p className="text-muted-foreground">Panel de control del custodio</p>
           </div>
-          <Badge variant={profile?.disponibilidad ? "default" : "secondary"}>
-            {profile?.disponibilidad ? "Disponible" : "No disponible"}
-          </Badge>
+          <div className="flex items-center gap-3">
+            <Badge variant={profile?.disponibilidad ? "default" : "secondary"}>
+              {profile?.disponibilidad ? "Disponible" : "No disponible"}
+            </Badge>
+            {!profile?.is_verified && (
+              <Badge variant="destructive">
+                No verificado
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Servicios Totales</CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.total_servicios}</div>
+              <p className="text-xs text-muted-foreground">
+                {stats.servicios_completados} completados
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Servicios Pendientes</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.servicios_pendientes}</div>
+              <p className="text-xs text-muted-foreground">
+                Por completar
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Kilómetros Recorridos</CardTitle>
+              <Route className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.km_totales.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">
+                km totales
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Ingresos Totales</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">${stats.ingresos_totales.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">
+                MXN generados
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Profile Card */}
@@ -173,7 +157,7 @@ const CustodianDashboard = () => {
             </div>
             <div className="flex items-center gap-2">
               <Button 
-                onClick={toggleAvailability}
+                onClick={handleToggleAvailability}
                 variant={profile?.disponibilidad ? "outline" : "default"}
                 size="sm"
               >
@@ -185,37 +169,47 @@ const CustodianDashboard = () => {
 
         {/* Services Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Assigned Services */}
+          {/* Recent Services */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Servicios Asignados
+                <TrendingUp className="h-5 w-5" />
+                Servicios Recientes
               </CardTitle>
               <CardDescription>
-                Servicios programados y en progreso
+                Últimos servicios realizados
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {assignedServices.length === 0 ? (
+              {recentServices.length === 0 ? (
                 <div className="text-center py-8">
                   <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No tienes servicios asignados</p>
+                  <p className="text-muted-foreground">No hay servicios recientes</p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {assignedServices.map((service) => (
-                    <div key={service.id} className="border rounded-lg p-4 space-y-2">
+                  {recentServices.map((service) => (
+                    <div key={service.id_servicio} className="border rounded-lg p-4 space-y-2">
                       <div className="flex items-center justify-between">
-                        <h4 className="font-medium">{service.client_name}</h4>
-                        <Badge variant="outline">
+                        <h4 className="font-medium">{service.nombre_cliente}</h4>
+                        <Badge variant={
+                          ['completado', 'finalizado', 'Completado', 'Finalizado'].includes(service.estado) 
+                            ? "default" 
+                            : "secondary"
+                        }>
                           {service.estado}
                         </Badge>
                       </div>
                       <div className="text-sm text-muted-foreground">
                         <p>{service.tipo_servicio}</p>
                         <p>{service.origen} → {service.destino}</p>
-                        <p>Fecha: {new Date(service.fecha_programada).toLocaleDateString('es-ES')}</p>
+                        <p>Fecha: {new Date(service.fecha_hora_cita).toLocaleDateString('es-ES')}</p>
+                        {service.km_recorridos && (
+                          <p>Distancia: {service.km_recorridos} km</p>
+                        )}
+                        {service.cobro_cliente && (
+                          <p>Cobro: ${service.cobro_cliente.toLocaleString()} MXN</p>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -224,33 +218,72 @@ const CustodianDashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Quick Actions */}
+          {/* Upcoming Services */}
           <Card>
             <CardHeader>
-              <CardTitle>Acciones Rápidas</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Servicios Próximos
+              </CardTitle>
               <CardDescription>
-                Funciones disponibles para custodios
+                Servicios programados
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <Button variant="outline" className="w-full justify-start" disabled>
-                <CheckCircle className="mr-2 h-4 w-4" />
-                Ver tickets asignados
-              </Button>
-              <Button variant="outline" className="w-full justify-start" disabled>
-                <MapPin className="mr-2 h-4 w-4" />
-                Actualizar ubicación
-              </Button>
-              <Button variant="outline" className="w-full justify-start" disabled>
-                <Calendar className="mr-2 h-4 w-4" />
-                Ver horarios
-              </Button>
-              <p className="text-xs text-muted-foreground mt-4">
-                * Funciones en desarrollo
-              </p>
+            <CardContent>
+              {upcomingServices.length === 0 ? (
+                <div className="text-center py-8">
+                  <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No hay servicios próximos</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {upcomingServices.map((service) => (
+                    <div key={service.id_servicio} className="border rounded-lg p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium">{service.nombre_cliente}</h4>
+                        <Badge variant="outline">
+                          {service.estado}
+                        </Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        <p>{service.tipo_servicio}</p>
+                        <p>{service.origen} → {service.destino}</p>
+                        <p>Fecha: {new Date(service.fecha_hora_cita).toLocaleDateString('es-ES')}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
+
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Acciones Rápidas</CardTitle>
+            <CardDescription>
+              Funciones disponibles para custodios
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <Button variant="outline" className="justify-start" disabled>
+              <CheckCircle className="mr-2 h-4 w-4" />
+              Ver todos los servicios
+            </Button>
+            <Button variant="outline" className="justify-start" disabled>
+              <MapPin className="mr-2 h-4 w-4" />
+              Actualizar ubicación
+            </Button>
+            <Button variant="outline" className="justify-start" disabled>
+              <Calendar className="mr-2 h-4 w-4" />
+              Ver horarios disponibles
+            </Button>
+            <p className="text-xs text-muted-foreground md:col-span-2 lg:col-span-3 mt-4">
+              * Funciones en desarrollo - Se habilitarán en próximas versiones
+            </p>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
