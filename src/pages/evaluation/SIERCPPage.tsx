@@ -226,45 +226,47 @@ const SIERCPPage = () => {
     const currentScale = scales[question.type as keyof typeof scales] || scales.likert;
 
     return (
-      <div key={question.id} className="space-y-6">
+      <div key={question.id} className="space-y-8">
         <div className="text-xl font-medium text-center">{question.text}</div>
-        <RadioGroup
-          value={response?.value?.toString() || ''}
-          onValueChange={(value) => handleResponse(question.id, parseInt(value))}
-          className="grid grid-cols-5 gap-4 pt-4"
-        >
-          {currentScale.map((label, index) => (
-            <div 
-              key={index} 
-              className="flex flex-col items-center cursor-pointer group"
-              onClick={() => handleResponse(question.id, index + 1)}
-            >
-              <div className={`w-full h-12 flex items-center justify-center mb-2 rounded-md border-2 transition-all 
-                ${response?.value === index + 1 
-                  ? `${moduleConfig[currentModule as keyof typeof moduleConfig].color} text-white border-transparent` 
-                  : 'border-gray-200 hover:border-gray-300 bg-gray-50'}`
-              }>
-                <RadioGroupItem 
-                  value={(index + 1).toString()} 
-                  id={`${question.id}_${index}`} 
-                  className="sr-only"
-                />
+        <div className="flex justify-center">
+          <RadioGroup
+            value={response?.value?.toString() || ''}
+            onValueChange={(value) => handleResponse(question.id, parseInt(value))}
+            className="flex items-center gap-6"
+          >
+            {currentScale.map((label, index) => (
+              <div 
+                key={index} 
+                className="flex flex-col items-center cursor-pointer group"
+                onClick={() => handleResponse(question.id, index + 1)}
+              >
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all duration-200 hover:scale-105
+                  ${response?.value === index + 1 
+                    ? `${moduleConfig[currentModule as keyof typeof moduleConfig].color} text-white border-transparent shadow-lg` 
+                    : 'border-gray-300 hover:border-gray-400 bg-white hover:bg-gray-50'}`
+                }>
+                  <RadioGroupItem 
+                    value={(index + 1).toString()} 
+                    id={`${question.id}_${index}`} 
+                    className="sr-only"
+                  />
+                  <Label 
+                    htmlFor={`${question.id}_${index}`} 
+                    className={`text-sm font-semibold cursor-pointer ${response?.value === index + 1 ? 'text-white' : 'text-gray-700'}`}
+                  >
+                    {index + 1}
+                  </Label>
+                </div>
                 <Label 
                   htmlFor={`${question.id}_${index}`} 
-                  className={`text-sm font-medium cursor-pointer ${response?.value === index + 1 ? 'text-white' : ''}`}
+                  className="text-xs text-center leading-tight font-medium mt-2 max-w-16"
                 >
-                  {index + 1}
+                  {label}
                 </Label>
               </div>
-              <Label 
-                htmlFor={`${question.id}_${index}`} 
-                className="text-xs text-center leading-tight font-medium"
-              >
-                {label}
-              </Label>
-            </div>
-          ))}
-        </RadioGroup>
+            ))}
+          </RadioGroup>
+        </div>
       </div>
     );
   };
