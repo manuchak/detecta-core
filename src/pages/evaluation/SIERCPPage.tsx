@@ -159,13 +159,16 @@ const SIERCPPage = () => {
               }}
               disabled={!response?.value || (response?.value as string)?.trim().length < 1}
               size="lg"
-              className={`px-8 py-3 text-lg font-semibold transition-all duration-200 shadow-lg ${
+              className={`px-10 py-4 text-lg font-semibold transition-all duration-200 shadow-lg rounded-full ${
                 (response?.value as string)?.trim().length >= 1 
-                  ? `bg-${currentModule}-500 hover:bg-${currentModule}-600 text-white border-none hover:shadow-xl hover:scale-105` 
+                  ? `bg-gradient-to-r from-${currentModule}-500 to-${currentModule}-600 hover:from-${currentModule}-600 hover:to-${currentModule}-700 text-white border-none hover:shadow-xl hover:scale-105` 
                   : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
               }`}
             >
-              Continuar →
+              {(response?.value as string)?.trim().length >= 1 
+                ? '✓ Siguiente Pregunta' 
+                : 'Escriba su respuesta para continuar'
+              }
             </Button>
           </div>
         </div>
