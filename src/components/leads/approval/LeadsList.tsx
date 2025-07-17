@@ -44,11 +44,19 @@ export const LeadsList = ({
                          (lead.lead_telefono && lead.lead_telefono.includes(searchTerm));
     
     if (activeTab === "pending") {
-      return matchesSearch && !lead.final_decision;
+      // Un lead está pendiente si no tiene decisión final Y su estado no es rechazado/aprobado
+      return matchesSearch && 
+             !lead.final_decision && 
+             lead.lead_estado !== 'rechazado' && 
+             lead.lead_estado !== 'aprobado';
     } else if (activeTab === "approved") {
-      return matchesSearch && lead.final_decision === 'approved';
+      // Un lead está aprobado si tiene decisión final 'approved' O su estado es 'aprobado'
+      return matchesSearch && 
+             (lead.final_decision === 'approved' || lead.lead_estado === 'aprobado');
     } else if (activeTab === "rejected") {
-      return matchesSearch && lead.final_decision === 'rejected';
+      // Un lead está rechazado si tiene decisión final 'rejected' O su estado es 'rechazado'
+      return matchesSearch && 
+             (lead.final_decision === 'rejected' || lead.lead_estado === 'rechazado');
     }
     
     return matchesSearch;

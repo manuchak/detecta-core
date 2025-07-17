@@ -93,17 +93,12 @@ export const useKitsInstalacion = () => {
     return data || [];
   };
 
-  // Obtener kits de instalación
+  // Obtener kits de instalación - temporalmente comentado hasta corregir la vista
   const { data: kits, isLoading: isLoadingKits, error: errorKits } = useQuery({
     queryKey: ['kits-instalacion'],
     queryFn: async (): Promise<KitInstalacion[]> => {
-      const { data, error } = await supabase
-        .from('vista_kits_instalacion')
-        .select('*')
-        .order('fecha_programada', { ascending: false });
-
-      if (error) throw error;
-      return data || [];
+      // Temporalmente retornamos array vacío hasta que se corrija la estructura
+      return [];
     },
   });
 
