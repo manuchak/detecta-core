@@ -182,41 +182,64 @@ export const ImprovedLeadCard = ({
           </div>
         </div>
 
-        {/* Acciones principales - más elegantes */}
-        <div className="flex items-center gap-1.5">
+        {/* Acciones sutiles */}
+        <div className="flex items-center justify-between">
           {/* Acción prioritaria: Completar información */}
           {hasSuccessfulCall && hasMissingInfo && (
-            <Button
-              size="sm"
-              onClick={() => onCompleteMissingInfo(lead)}
-              className="bg-amber-500 hover:bg-amber-600 text-amber-50 shadow-sm flex-1 h-8"
-            >
-              <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
-              Completar
-            </Button>
+            <div className="flex items-center gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    onClick={() => onCompleteMissingInfo(lead)}
+                    className="h-7 px-3 bg-amber-500 hover:bg-amber-600 text-amber-50 text-xs"
+                  >
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    Completar Info
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Completar información faltante</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
           )}
 
           {/* Acciones de decisión final */}
           {!lead.final_decision && hasSuccessfulCall && !hasMissingInfo && (
-            <>
-              <Button
-                size="sm"
-                onClick={() => onApproveLead(lead)}
-                className="bg-emerald-500 hover:bg-emerald-600 text-emerald-50 shadow-sm flex-1 h-8"
-              >
-                <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
-                Aprobar
-              </Button>
+            <div className="flex items-center gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    onClick={() => onApproveLead(lead)}
+                    className="h-7 px-3 bg-emerald-500 hover:bg-emerald-600 text-emerald-50 text-xs"
+                  >
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Aprobar
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Aprobar candidato</p>
+                </TooltipContent>
+              </Tooltip>
 
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onSendToSecondInterview(lead)}
-                className="border-purple-200 text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-950 flex-1 h-8"
-              >
-                <ArrowRight className="h-3.5 w-3.5 mr-1.5" />
-                2da Entrevista
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onSendToSecondInterview(lead)}
+                    className="h-7 px-3 border-purple-200 text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-950 text-xs"
+                  >
+                    <ArrowRight className="h-3 w-3 mr-1" />
+                    2da Entrevista
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Enviar a segunda entrevista</p>
+                </TooltipContent>
+              </Tooltip>
 
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -224,29 +247,36 @@ export const ImprovedLeadCard = ({
                     size="sm"
                     variant="outline"
                     onClick={() => onReject(lead)}
-                    className="border-red-200 text-red-600 hover:bg-red-50 dark:hover:bg-red-950 h-8 px-2"
+                    className="h-7 w-7 p-0 border-red-200 text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
                   >
-                    <XCircle className="h-3.5 w-3.5" />
+                    <XCircle className="h-3 w-3" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Rechazar candidato</p>
                 </TooltipContent>
               </Tooltip>
-            </>
+            </div>
           )}
 
           {/* Si no hay llamada exitosa, mostrar acciones de contacto */}
           {!hasSuccessfulCall && (
-            <>
-              <Button
-                size="sm"
-                onClick={() => onLogCall(lead)}
-                className="bg-primary hover:bg-primary/90 shadow-sm flex-1 h-8"
-              >
-                <Phone className="h-3.5 w-3.5 mr-1.5" />
-                Registrar Llamada
-              </Button>
+            <div className="flex items-center gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    onClick={() => onLogCall(lead)}
+                    className="h-7 px-3 bg-primary hover:bg-primary/90 text-xs"
+                  >
+                    <Phone className="h-3 w-3 mr-1" />
+                    Llamar
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Registrar llamada manual</p>
+                </TooltipContent>
+              </Tooltip>
               
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -254,41 +284,41 @@ export const ImprovedLeadCard = ({
                     size="sm"
                     variant="outline"
                     onClick={() => onVapiCall(lead)}
-                    className="border-blue-200 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 h-8 px-2"
+                    className="h-7 w-7 p-0 border-blue-200 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950"
                   >
-                    <Bot className="h-3.5 w-3.5" />
+                    <Bot className="h-3 w-3" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Llamada automática con IA</p>
                 </TooltipContent>
               </Tooltip>
-            </>
+            </div>
           )}
 
-          {/* Menú de acciones adicionales */}
+          {/* Menú de acciones adicionales - siempre visible */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted text-muted-foreground hover:text-foreground">
-                <MoreHorizontal className="h-3.5 w-3.5" />
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-muted text-muted-foreground hover:text-foreground">
+                <MoreHorizontal className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem onClick={() => onEditLead(lead)} className="text-sm">
-                <Edit className="h-3.5 w-3.5 mr-2" />
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem onClick={() => onEditLead(lead)} className="text-xs">
+                <Edit className="h-3 w-3 mr-2" />
                 Editar
               </DropdownMenuItem>
               
-              <DropdownMenuItem onClick={() => onManualInterview(lead)} className="text-sm">
-                <Phone className="h-3.5 w-3.5 mr-2" />
+              <DropdownMenuItem onClick={() => onManualInterview(lead)} className="text-xs">
+                <Phone className="h-3 w-3 mr-2" />
                 Entrevista manual
               </DropdownMenuItem>
               
               {callLogs.length > 0 && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onViewCallHistory(lead)} className="text-sm">
-                    <Bot className="h-3.5 w-3.5 mr-2" />
+                  <DropdownMenuItem onClick={() => onViewCallHistory(lead)} className="text-xs">
+                    <Bot className="h-3 w-3 mr-2" />
                     Historial llamadas
                   </DropdownMenuItem>
                 </>
