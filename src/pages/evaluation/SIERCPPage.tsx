@@ -228,19 +228,19 @@ const SIERCPPage = () => {
     return (
       <div key={question.id} className="space-y-8">
         <div className="text-xl font-medium text-center">{question.text}</div>
-        <div className="flex justify-center">
+        <div className="flex justify-center px-4">
           <RadioGroup
             value={response?.value?.toString() || ''}
             onValueChange={(value) => handleResponse(question.id, parseInt(value))}
-            className="flex items-center gap-6"
+            className="flex items-start justify-center gap-8 max-w-4xl"
           >
             {currentScale.map((label, index) => (
               <div 
                 key={index} 
-                className="flex flex-col items-center cursor-pointer group"
+                className="flex flex-col items-center cursor-pointer group min-w-20"
                 onClick={() => handleResponse(question.id, index + 1)}
               >
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all duration-200 hover:scale-105
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all duration-200 hover:scale-105 mb-3
                   ${response?.value === index + 1 
                     ? `${moduleConfig[currentModule as keyof typeof moduleConfig].color} text-white border-transparent shadow-lg` 
                     : 'border-gray-300 hover:border-gray-400 bg-white hover:bg-gray-50'}`
@@ -252,14 +252,14 @@ const SIERCPPage = () => {
                   />
                   <Label 
                     htmlFor={`${question.id}_${index}`} 
-                    className={`text-sm font-semibold cursor-pointer ${response?.value === index + 1 ? 'text-white' : 'text-gray-700'}`}
+                    className={`text-base font-semibold cursor-pointer ${response?.value === index + 1 ? 'text-white' : 'text-gray-700'}`}
                   >
                     {index + 1}
                   </Label>
                 </div>
                 <Label 
                   htmlFor={`${question.id}_${index}`} 
-                  className="text-xs text-center leading-tight font-medium mt-2 max-w-16"
+                  className="text-xs text-center leading-tight font-medium text-gray-600 px-1"
                 >
                   {label}
                 </Label>
