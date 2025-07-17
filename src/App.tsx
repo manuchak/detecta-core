@@ -43,6 +43,7 @@ import CustodianDashboard from '@/pages/custodian/CustodianDashboard';
 import CustodianTickets from '@/pages/custodian/CustodianTickets';
 import CustodianPortalAdmin from '@/pages/admin/CustodianPortalAdmin';
 import SupplyDashboardExtended from '@/pages/supply/SupplyDashboardExtended';
+import SIERCPPage from '@/pages/evaluation/SIERCPPage';
 
 import DuplicateCleanupPage from '@/pages/Maintenance/DuplicateCleanupPage';
 
@@ -375,6 +376,20 @@ function App() {
                       <RoleProtectedRoute allowedRoles={['admin', 'owner']}>
                         <DashboardLayout>
                           <CustodianPortalAdmin />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* SIERCP Evaluation Route */}
+                <Route
+                  path="/evaluation/siercp"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'jefe_seguridad', 'analista_seguridad']}>
+                        <DashboardLayout>
+                          <SIERCPPage />
                         </DashboardLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>

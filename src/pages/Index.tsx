@@ -30,6 +30,12 @@ const Index = () => {
               </Link>
             </Button>
             
+            <Button asChild variant="secondary" className="w-full">
+              <Link to="/evaluation/siercp">
+                Sistema SIERCP
+              </Link>
+            </Button>
+
             <div className="text-center space-y-3">
               <Link 
                 to="/custodian" 
