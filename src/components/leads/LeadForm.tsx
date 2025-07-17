@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { LeadEstado } from "@/types/leadTypes";
 import { useLeadsStable as useLeads } from "@/hooks/useLeadsStable";
 import { Lead } from "@/types/leadTypes";
 import { useToast } from "@/components/ui/use-toast";
@@ -68,13 +69,18 @@ export const LeadForm = ({ editingLead, onSuccess, onCancel }: LeadFormProps) =>
     setLoading(true);
 
     try {
+      const typedFormData = {
+        ...formData,
+        estado: formData.estado as LeadEstado
+      };
+      
       if (editingLead) {
         await updateLead.mutateAsync({
           leadId: editingLead.id,
-          updates: formData
+          updates: typedFormData
         });
       } else {
-        await createLead.mutateAsync(formData);
+        await createLead.mutateAsync(typedFormData);
       }
       onSuccess();
     } catch (error) {

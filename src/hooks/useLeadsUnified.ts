@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useUnifiedAuth } from './useUnifiedAuth';
-import { Lead } from '@/types/leadTypes';
+import { Lead, LeadEstado } from '@/types/leadTypes';
 
 interface LeadsState {
   leads: Lead[];
@@ -108,7 +108,10 @@ export const useLeadsUnified = () => {
 
       setState(prev => ({
         ...prev,
-        leads: data || [],
+        leads: (data || []).map(lead => ({
+          ...lead,
+          estado: lead.estado as LeadEstado
+        })),
         isLoading: false,
         isEmpty: (data || []).length === 0,
         error: null,

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Lead } from '@/types/leadTypes';
+import { Lead, LeadEstado } from '@/types/leadTypes';
 
 interface LeadsFilters {
   searchTerm?: string;
@@ -123,23 +123,27 @@ export const useSimpleLeads = (options: UseSimpleLeadsOptions = {}) => {
       if (fetchError) throw fetchError;
 
       if (mounted.current) {
-        const leadsData = data || [];
+        // Convertir datos de la DB al tipo Lead
+        const typedLeads: Lead[] = (data || []).map(lead => ({
+          ...lead,
+          estado: lead.estado as LeadEstado
+        }));
         const totalCountData = count || 0;
         
-        setLeads(leadsData);
+        setLeads(typedLeads);
         setTotalCount(totalCountData);
         setIsLoading(false);
         
         // Guardar en cache
         if (enableCache) {
           cache.set(cacheKey, {
-            data: leadsData,
+            data: typedLeads,
             totalCount: totalCountData,
             timestamp: Date.now()
           });
         }
         
-        console.log(`✅ SimpleLeads: Loaded ${leadsData.length} of ${totalCountData} leads (page ${pagination.page})`);
+        console.log(`✅ SimpleLeads: Loaded ${typedLeads.length} of ${totalCountData} leads (page ${pagination.page})`);
       }
     } catch (err) {
       console.error('❌ SimpleLeads: Error:', err);

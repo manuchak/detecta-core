@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { AssignedLead } from "@/types/leadTypes";
+import { AssignedLead, LeadEstado } from "@/types/leadTypes";
 import { VapiCallLog } from "@/types/vapiTypes";
 import { validateLeadForApproval, getValidationMessage } from "@/utils/leadValidation";
 
@@ -31,7 +31,12 @@ export const useLeadApprovals = () => {
       }
       
       console.log('Assigned leads data:', data);
-      setAssignedLeads(data || []);
+      // Convertir datos de la DB al tipo AssignedLead
+      const typedLeads: AssignedLead[] = (data || []).map(lead => ({
+        ...lead,
+        lead_estado: lead.lead_estado as LeadEstado
+      }));
+      setAssignedLeads(typedLeads);
       
       if (!data || data.length === 0) {
         toast({

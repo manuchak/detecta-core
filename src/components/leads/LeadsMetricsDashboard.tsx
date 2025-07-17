@@ -29,7 +29,7 @@ export const LeadsMetricsDashboard = ({ leads }: LeadsMetricsDashboardProps) => 
     const assigned = leads.filter(lead => lead?.asignado_a).length;
     const unassigned = total - assigned;
     const newLeads = leads.filter(lead => lead?.estado === 'nuevo').length;
-    const inProcess = leads.filter(lead => lead?.estado === 'en_proceso').length;
+    const inProcess = leads.filter(lead => lead?.estado === 'en_revision').length;
     const approved = leads.filter(lead => lead?.estado === 'aprobado').length;
     
     // Calcular tiempo promedio entre creación y asignación en horas

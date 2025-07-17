@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertCircle, CheckCircle, Clock, Users } from "lucide-react";
+import { LeadEstado } from "@/types/leadTypes";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PersonalInfoForm } from "./forms/PersonalInfoForm";
 import { LocationForm } from "./forms/LocationForm";
@@ -286,7 +287,7 @@ export const EnhancedLeadForm = ({ editingLead, onSuccess, onCancel }: EnhancedL
         nombre: formData.nombre,
         email: formData.email,
         telefono: formData.telefono,
-        estado: formData.estado_lead,
+        estado: formData.estado_lead as LeadEstado,
         mensaje: formData.mensaje,
         notas: formData.notas,
         empresa: "", // Campo requerido por el tipo Lead

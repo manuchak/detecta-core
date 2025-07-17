@@ -2327,11 +2327,17 @@ export type Database = {
         Row: {
           asignado_a: string | null
           created_at: string
+          credenciales_enviadas: boolean | null
           email: string
           empresa: string | null
           estado: string | null
+          fecha_activacion_custodio: string | null
+          fecha_aprobacion: string | null
           fecha_contacto: string | null
           fecha_creacion: string
+          fecha_instalacion_gps: string | null
+          fecha_psicometricos: string | null
+          fecha_toxicologicos: string | null
           fuente: string | null
           id: string
           interruption_reason: string | null
@@ -2339,6 +2345,7 @@ export type Database = {
           last_autosave_at: string | null
           last_interview_data: Json | null
           mensaje: string | null
+          motivo_rechazo: string | null
           nombre: string
           notas: string | null
           telefono: string | null
@@ -2347,11 +2354,17 @@ export type Database = {
         Insert: {
           asignado_a?: string | null
           created_at?: string
+          credenciales_enviadas?: boolean | null
           email: string
           empresa?: string | null
           estado?: string | null
+          fecha_activacion_custodio?: string | null
+          fecha_aprobacion?: string | null
           fecha_contacto?: string | null
           fecha_creacion?: string
+          fecha_instalacion_gps?: string | null
+          fecha_psicometricos?: string | null
+          fecha_toxicologicos?: string | null
           fuente?: string | null
           id?: string
           interruption_reason?: string | null
@@ -2359,6 +2372,7 @@ export type Database = {
           last_autosave_at?: string | null
           last_interview_data?: Json | null
           mensaje?: string | null
+          motivo_rechazo?: string | null
           nombre: string
           notas?: string | null
           telefono?: string | null
@@ -2367,11 +2381,17 @@ export type Database = {
         Update: {
           asignado_a?: string | null
           created_at?: string
+          credenciales_enviadas?: boolean | null
           email?: string
           empresa?: string | null
           estado?: string | null
+          fecha_activacion_custodio?: string | null
+          fecha_aprobacion?: string | null
           fecha_contacto?: string | null
           fecha_creacion?: string
+          fecha_instalacion_gps?: string | null
+          fecha_psicometricos?: string | null
+          fecha_toxicologicos?: string | null
           fuente?: string | null
           id?: string
           interruption_reason?: string | null
@@ -2379,6 +2399,7 @@ export type Database = {
           last_autosave_at?: string | null
           last_interview_data?: Json | null
           mensaje?: string | null
+          motivo_rechazo?: string | null
           nombre?: string
           notas?: string | null
           telefono?: string | null

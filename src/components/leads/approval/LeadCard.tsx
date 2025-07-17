@@ -28,22 +28,9 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
+import { AssignedLead, LeadEstado } from "@/types/leadTypes";
 import { VapiCallLog } from "@/types/vapiTypes";
 import { validateLeadForApproval } from "@/utils/leadValidation";
-
-interface AssignedLead {
-  lead_id: string;
-  lead_nombre: string;
-  lead_email: string;
-  lead_telefono: string;
-  lead_estado: string;
-  lead_fecha_creacion: string;
-  approval_stage: string;
-  phone_interview_completed: boolean;
-  second_interview_required: boolean;
-  final_decision: string | null;
-  notas?: string;
-}
 
 interface LeadCardProps {
   lead: AssignedLead;
