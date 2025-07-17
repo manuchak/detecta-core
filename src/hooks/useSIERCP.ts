@@ -126,22 +126,28 @@ export const useSIERCP = () => {
     if (moduleResponses.length === 0) return 0;
 
     let totalScore = 0;
+    let maxPossibleScore = 0;
+    
     moduleResponses.forEach(response => {
       const question = moduleQuestions.find(q => q.id === response.questionId);
       if (question && typeof response.value === 'number') {
         let score = response.value;
+        
+        // Aplicar inversión si es necesario
         if (question.reverse) {
           score = question.type === 'likert' ? 6 - score : 
                  question.type === 'frequency' ? 6 - score : 
                  question.type === 'dicotomic' ? (score === 1 ? 0 : 1) : score;
         }
+        
         totalScore += score;
+        
+        // Calcular el máximo posible para cada pregunta individualmente
+        maxPossibleScore += question.type === 'dicotomic' ? 1 : 5;
       }
     });
 
-    const maxPossibleScore = moduleQuestions.length * (
-      moduleQuestions[0]?.type === 'dicotomic' ? 1 : 5
-    );
+    if (maxPossibleScore === 0) return 0;
     
     return Math.round((totalScore / maxPossibleScore) * 100);
   }, [responses]);
