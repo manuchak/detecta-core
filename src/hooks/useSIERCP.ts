@@ -159,23 +159,15 @@ export const useSIERCP = () => {
 
     // Fórmula SIERCP corregida:
     // Score Global = (IL × 0.20) + (PA × 0.20) + (RV × 0.20) + (AI × 0.15) + (EA × 0.10) + (ER × -0.05) + (EE × 0.10)
-    // Convertimos los valores de 0-100 a la escala adecuada dividiendo entre 100
-    const IL = integridad / 100; // Integridad Laboral
-    const PA = psicopatia / 100; // Psicopatía/Antisocialidad  
-    const RV = violencia / 100; // Riesgo de Violencia
-    const AI = agresividad / 100; // Agresividad/Impulsividad
-    const EA = afrontamiento / 100; // Estilo de Afrontamiento
-    const ER = veracidad / 100; // Veracidad de Respuesta (penalización)
-    const EE = entrevista / 100; // Entrevista Estructurada
-
+    // Los valores ya están en escala 0-100, aplicamos directamente los pesos
     const globalScore = Math.round(
-      (IL * 0.20) + 
-      (PA * 0.20) + 
-      (RV * 0.20) + 
-      (AI * 0.15) + 
-      (EA * 0.10) + 
-      (ER * -0.05) + 
-      (EE * 0.10)
+      (integridad * 0.20) + 
+      (psicopatia * 0.20) + 
+      (violencia * 0.20) + 
+      (agresividad * 0.15) + 
+      (afrontamiento * 0.10) + 
+      (veracidad * -0.05) + 
+      (entrevista * 0.10)
     );
 
     const getClassification = (score: number): string => {
