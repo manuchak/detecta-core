@@ -153,11 +153,11 @@ const SIERCPPage = () => {
           <div className="flex justify-end">
             <Button 
               onClick={() => {
-                if ((response?.value as string)?.trim().length > 10) {
+                if ((response?.value as string)?.trim().length > 3) {
                   handleNextQuestion();
                 }
               }}
-              disabled={!response?.value || (response?.value as string)?.trim().length < 10}
+              disabled={!response?.value || (response?.value as string)?.trim().length < 3}
               variant="outline"
               className={`mt-2 ${(response?.value as string)?.trim().length > 10 ? `bg-${currentModule}-500 text-white hover:bg-${currentModule}-600` : ''}`}
             >
