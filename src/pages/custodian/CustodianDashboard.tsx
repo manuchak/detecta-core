@@ -1,17 +1,20 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, Clock, User, Phone, Mail, AlertCircle, CheckCircle, TrendingUp, DollarSign, Route, Activity } from "lucide-react";
+import { Calendar, MapPin, Clock, User, Phone, Mail, AlertCircle, CheckCircle, TrendingUp, DollarSign, Route, Activity, Ticket } from "lucide-react";
 import { useCustodianProfile } from "@/hooks/useCustodianProfile";
 import { useCustodianServices } from "@/hooks/useCustodianServices";
+import { useCustodianTickets } from "@/hooks/useCustodianTickets";
 import { useToast } from "@/hooks/use-toast";
+import { Link } from "react-router-dom";
 
 const CustodianDashboard = () => {
   const { toast } = useToast();
   const { profile, loading: profileLoading, updateAvailability } = useCustodianProfile();
   const { services, stats, loading: servicesLoading, getRecentServices, getUpcomingServices } = useCustodianServices(profile?.phone);
+  const { stats: ticketStats, loading: ticketsLoading } = useCustodianTickets(profile?.phone);
 
-  const loading = profileLoading || servicesLoading;
+  const loading = profileLoading || servicesLoading || ticketsLoading;
 
   const handleToggleAvailability = async () => {
     if (!profile) return;
@@ -267,6 +270,12 @@ const CustodianDashboard = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <Button asChild variant="outline" className="justify-start">
+              <Link to="/custodian/tickets">
+                <Ticket className="mr-2 h-4 w-4" />
+                Ver mis tickets ({ticketStats.abiertos} abiertos)
+              </Link>
+            </Button>
             <Button variant="outline" className="justify-start" disabled>
               <CheckCircle className="mr-2 h-4 w-4" />
               Ver todos los servicios

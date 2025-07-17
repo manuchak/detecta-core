@@ -40,6 +40,7 @@ import Landing from '@/pages/Landing/Landing';
 import WMSPage from '@/pages/WMS/WMSPage';
 import CustodianPortal from '@/pages/custodian/CustodianPortal';
 import CustodianDashboard from '@/pages/custodian/CustodianDashboard';
+import CustodianTickets from '@/pages/custodian/CustodianTickets';
 
 import DuplicateCleanupPage from '@/pages/Maintenance/DuplicateCleanupPage';
 
@@ -354,6 +355,7 @@ function App() {
                 {/* Custodian Portal Routes */}
                 <Route path="/custodian" element={<CustodianPortal />}>
                   <Route index element={<CustodianDashboard />} />
+                  <Route path="tickets" element={<CustodianTickets />} />
                 </Route>
                 
                 {/* 404 route */}

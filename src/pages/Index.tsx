@@ -30,10 +30,16 @@ const Index = () => {
               </Link>
             </Button>
             
-            <div className="text-center">
+            <div className="text-center space-y-3">
+              <Link 
+                to="/custodian" 
+                className="block text-sm text-primary hover:underline font-medium"
+              >
+                Portal del Custodio
+              </Link>
               <Link 
                 to="/landing" 
-                className="text-sm text-muted-foreground hover:underline"
+                className="block text-sm text-muted-foreground hover:underline"
               >
                 Ir a landing page de reclutamiento
               </Link>
