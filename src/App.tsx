@@ -41,6 +41,8 @@ import WMSPage from '@/pages/WMS/WMSPage';
 import CustodianPortal from '@/pages/custodian/CustodianPortal';
 import CustodianDashboard from '@/pages/custodian/CustodianDashboard';
 import CustodianTickets from '@/pages/custodian/CustodianTickets';
+import CustodianPortalAdmin from '@/pages/admin/CustodianPortalAdmin';
+import SupplyDashboardExtended from '@/pages/supply/SupplyDashboardExtended';
 
 import DuplicateCleanupPage from '@/pages/Maintenance/DuplicateCleanupPage';
 
@@ -346,6 +348,33 @@ function App() {
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'bi', 'supply_admin']}>
                         <DashboardLayout>
                           <DuplicateCleanupPage />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                {/* Supply Dashboard Extended */}
+                <Route
+                  path="/supply/dashboard-extended"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'supply_lead']}>
+                        <DashboardLayout>
+                          <SupplyDashboardExtended />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Admin Custodian Portal View */}
+                <Route
+                  path="/admin/custodian-portal"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner']}>
+                        <DashboardLayout>
+                          <CustodianPortalAdmin />
                         </DashboardLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
