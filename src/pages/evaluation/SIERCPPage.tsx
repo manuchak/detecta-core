@@ -101,8 +101,12 @@ const SIERCPPage = () => {
 
   const handleResponse = (questionId: string, value: number | string) => {
     addResponse(questionId, value);
-    setAnswered(true);
-    setAnimation('animate-pulse');
+    
+    // Only trigger auto-advance for likert and dicotomic questions, not for open questions
+    if (currentQuestion?.type !== 'open') {
+      setAnswered(true);
+      setAnimation('animate-pulse');
+    }
   };
 
   const handleNextQuestion = () => {
