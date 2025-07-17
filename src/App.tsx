@@ -38,6 +38,8 @@ import InstallerPortal from '@/pages/Installers/InstallerPortal';
 import GestionInstaladores from '@/pages/Installers/GestionInstaladores';
 import Landing from '@/pages/Landing/Landing';
 import WMSPage from '@/pages/WMS/WMSPage';
+import CustodianPortal from '@/pages/custodian/CustodianPortal';
+import CustodianDashboard from '@/pages/custodian/CustodianDashboard';
 
 import DuplicateCleanupPage from '@/pages/Maintenance/DuplicateCleanupPage';
 
@@ -348,6 +350,11 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+
+                {/* Custodian Portal Routes */}
+                <Route path="/custodian" element={<CustodianPortal />}>
+                  <Route index element={<CustodianDashboard />} />
+                </Route>
                 
                 {/* 404 route */}
                 <Route path="*" element={<NotFound />} />
