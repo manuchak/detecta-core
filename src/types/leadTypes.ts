@@ -1,12 +1,30 @@
 
 // Unified Lead interface used across the application
+// Estados del proceso custodio
+export type LeadEstado = 
+  | 'nuevo'
+  | 'contactado'
+  | 'en_revision'
+  | 'aprobado'
+  | 'rechazado'
+  | 'psicometricos_pendiente'
+  | 'psicometricos_completado'
+  | 'toxicologicos_pendiente'
+  | 'toxicologicos_completado'
+  | 'instalacion_gps_pendiente'
+  | 'instalacion_gps_completado'
+  | 'custodio_activo'
+  | 'rechazado_psicometrico'
+  | 'rechazado_toxicologico'
+  | 'inactivo';
+
 export interface Lead {
   id: string;
   nombre: string;
   email: string;
-  telefono?: string; // Make optional to match database
+  telefono?: string;
   empresa?: string;
-  estado: string;
+  estado: LeadEstado;
   fuente?: string;
   fecha_creacion: string;
   fecha_contacto?: string;
@@ -15,6 +33,14 @@ export interface Lead {
   mensaje?: string;
   updated_at: string;
   created_at: string;
+  // Campos específicos del proceso custodio
+  fecha_aprobacion?: string;
+  fecha_psicometricos?: string;
+  fecha_toxicologicos?: string;
+  fecha_instalacion_gps?: string;
+  fecha_activacion_custodio?: string;
+  motivo_rechazo?: string;
+  credenciales_enviadas?: boolean;
 }
 
 export interface AssignedLead {
@@ -22,7 +48,7 @@ export interface AssignedLead {
   lead_nombre: string;
   lead_email: string;
   lead_telefono: string;
-  lead_estado: string;
+  lead_estado: LeadEstado;
   lead_fecha_creacion: string;
   approval_stage: string;
   phone_interview_completed: boolean;
