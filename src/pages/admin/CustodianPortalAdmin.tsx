@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, MapPin, Clock, User, Phone, Mail, AlertTriangle, CheckCircle, TrendingUp, DollarSign, Route, Activity, Ticket, Eye, Settings, UserCheck } from "lucide-react";
+import { Calendar, MapPin, Clock, User, Phone, Mail, AlertTriangle, CheckCircle, TrendingUp, DollarSign, Route, Activity, Ticket, Eye, Settings, UserCheck, Brain } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
@@ -390,21 +390,34 @@ const CustodianPortalAdmin = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-lg">Custodios Registrados</CardTitle>
+                      <CardTitle className="text-lg">Evaluaciones SIERCP</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-3">
-                        {mockCustodians.map((custodian) => (
-                          <div key={custodian.id} className="flex items-center justify-between p-3 border rounded">
-                            <div>
-                              <p className="font-medium">{custodian.name}</p>
-                              <p className="text-sm text-muted-foreground">{custodian.phone}</p>
-                            </div>
-                            <Badge variant={custodian.status === 'Activo' ? 'default' : 'secondary'}>
-                              {custodian.status}
-                            </Badge>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-3 border rounded">
+                          <div>
+                            <p className="font-medium">Sistema de Evaluación SIERCP</p>
+                            <p className="text-sm text-muted-foreground">Sistema Integrado de Evaluación de Riesgo y Confiabilidad Psico-Criminológica</p>
                           </div>
-                        ))}
+                          <Button asChild size="sm">
+                            <Link to="/evaluation/siercp">
+                              <Brain className="mr-2 h-4 w-4" />
+                              Ir a SIERCP
+                            </Link>
+                          </Button>
+                        </div>
+                        <div>
+                          <p className="text-sm mb-2">Módulos disponibles:</p>
+                          <div className="flex flex-wrap gap-2">
+                            <Badge variant="outline">Integridad</Badge>
+                            <Badge variant="outline">Psicopatía</Badge>
+                            <Badge variant="outline">Riesgo de Violencia</Badge>
+                            <Badge variant="outline">Agresividad</Badge>
+                            <Badge variant="outline">Afrontamiento</Badge>
+                            <Badge variant="outline">Veracidad</Badge>
+                            <Badge variant="outline">Entrevista</Badge>
+                          </div>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

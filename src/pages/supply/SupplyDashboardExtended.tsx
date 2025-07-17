@@ -18,7 +18,8 @@ import {
   Timer,
   Zap,
   BarChart3,
-  Settings
+  Settings,
+  Brain
 } from "lucide-react";
 import { useSupplyDashboard } from "@/hooks/useSupplyDashboard";
 import { Link } from "react-router-dom";
@@ -207,12 +208,12 @@ const SupplyDashboardExtended = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="text-center p-4 border rounded-lg">
+                  <Link to="/evaluation/siercp" className="text-center p-4 border rounded-lg hover:bg-secondary/50 transition-colors">
                     <div className="text-2xl font-bold text-blue-600">
                       {leadProcessing.leads_in_psicometricos}
                     </div>
-                    <div className="text-sm text-muted-foreground">Psicométricos</div>
-                  </div>
+                    <div className="text-sm text-muted-foreground">SIERCP/Psicométricos</div>
+                  </Link>
                   <div className="text-center p-4 border rounded-lg">
                     <div className="text-2xl font-bold text-yellow-600">
                       {leadProcessing.leads_in_toxicologicos}
@@ -248,6 +249,12 @@ const SupplyDashboardExtended = () => {
                   <CardTitle>Acciones de Procesamiento</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
+                  <Button asChild className="w-full justify-start">
+                    <Link to="/evaluation/siercp">
+                      <Brain className="mr-2 h-4 w-4" />
+                      Realizar Evaluación SIERCP
+                    </Link>
+                  </Button>
                   <Button className="w-full justify-start" variant="outline">
                     <CheckCircle className="mr-2 h-4 w-4" />
                     Aprobar Leads Pendientes ({metrics.pending_approvals})
