@@ -1,13 +1,13 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, CheckCircle, FileText, Brain, Shield, Zap, Heart, Eye, MessageSquare } from "lucide-react";
-import { useSIERCP } from "@/hooks/useSIERCP";
+import { AlertCircle, CheckCircle, FileText, Brain, Shield, Zap, Heart, Eye, MessageSquare, ArrowRight, ArrowLeft } from "lucide-react";
+import { useSIERCP, SIERCPQuestion } from "@/hooks/useSIERCP";
 
 const moduleConfig = {
   integridad: { 
@@ -68,32 +68,68 @@ const SIERCPPage = () => {
   } = useSIERCP();
 
   const [showResults, setShowResults] = useState(false);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [answered, setAnswered] = useState(false);
+  const [animation, setAnimation] = useState('');
 
   const modules = Object.keys(moduleConfig);
   const currentModuleIndex = modules.indexOf(currentModule);
-  const progress = isCompleted ? 100 : ((currentModuleIndex + 1) / modules.length) * 100;
-
   const currentQuestions = getQuestionsForModule(currentModule);
-  const currentResponses = responses.filter(r => 
-    currentQuestions.some(q => q.id === r.questionId)
-  );
+  
+  // Calculate overall progress: completed modules + current question progress
+  const totalQuestions = modules.reduce((total, mod) => total + getQuestionsForModule(mod).length, 0);
+  const completedQuestions = modules.slice(0, currentModuleIndex).reduce(
+    (total, mod) => total + getQuestionsForModule(mod).length, 0
+  ) + currentQuestionIndex;
+  
+  const progress = isCompleted ? 100 : Math.round((completedQuestions / totalQuestions) * 100);
+  
+  // Get current question
+  const currentQuestion = currentQuestions[currentQuestionIndex];
+  const response = responses.find(r => r.questionId === currentQuestion?.id);
+  
+  // Automatically move to next question when an answer is selected
+  useEffect(() => {
+    if (answered) {
+      const timer = setTimeout(() => {
+        handleNextQuestion();
+        setAnswered(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [answered]);
 
   const handleResponse = (questionId: string, value: number | string) => {
     addResponse(questionId, value);
+    setAnswered(true);
+    setAnimation('animate-pulse');
   };
 
-  const handleNextModule = () => {
-    if (currentModuleIndex < modules.length - 1) {
+  const handleNextQuestion = () => {
+    setAnimation('');
+    
+    if (currentQuestionIndex < currentQuestions.length - 1) {
+      // Move to next question in same module
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+    } else if (currentModuleIndex < modules.length - 1) {
+      // Move to next module
       setCurrentModule(modules[currentModuleIndex + 1]);
+      setCurrentQuestionIndex(0);
     } else {
+      // Complete test
       setIsCompleted(true);
       setShowResults(true);
     }
   };
-
-  const handlePreviousModule = () => {
-    if (currentModuleIndex > 0) {
-      setCurrentModule(modules[currentModuleIndex - 1]);
+  
+  // This is now only used for the "Skip" button
+  const handleNextModule = () => {
+    if (currentModuleIndex < modules.length - 1) {
+      setCurrentModule(modules[currentModuleIndex + 1]);
+      setCurrentQuestionIndex(0);
+    } else {
+      setIsCompleted(true);
+      setShowResults(true);
     }
   };
 
@@ -102,34 +138,76 @@ const SIERCPPage = () => {
     
     if (question.type === 'open') {
       return (
-        <div key={question.id} className="space-y-3">
-          <Label className="text-sm font-medium">{question.text}</Label>
+        <div key={question.id} className="space-y-6">
+          <div className="text-xl font-medium text-center">{question.text}</div>
           <Textarea
             value={response?.value as string || ''}
             onChange={(e) => handleResponse(question.id, e.target.value)}
-            placeholder="Escriba su respuesta aquí..."
-            className="min-h-[100px]"
+            placeholder="Escriba su respuesta detallada aquí..."
+            className="min-h-[150px] p-4 text-base border-2 border-gray-200 focus:border-primary"
           />
+          <div className="flex justify-end">
+            <Button 
+              onClick={() => {
+                if ((response?.value as string)?.trim().length > 10) {
+                  handleNextQuestion();
+                }
+              }}
+              disabled={!response?.value || (response?.value as string)?.trim().length < 10}
+              variant="outline"
+              className={`mt-2 ${(response?.value as string)?.trim().length > 10 ? `bg-${currentModule}-500 text-white hover:bg-${currentModule}-600` : ''}`}
+            >
+              Continuar
+            </Button>
+          </div>
         </div>
       );
     }
 
     if (question.type === 'dicotomic') {
       return (
-        <div key={question.id} className="space-y-3">
-          <Label className="text-sm font-medium">{question.text}</Label>
+        <div key={question.id} className="space-y-6">
+          <div className="text-xl font-medium text-center">{question.text}</div>
           <RadioGroup
             value={response?.value?.toString() || ''}
             onValueChange={(value) => handleResponse(question.id, parseInt(value))}
-            className="flex gap-6"
+            className="grid grid-cols-2 gap-4 pt-4"
           >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="1" id={`${question.id}_si`} />
-              <Label htmlFor={`${question.id}_si`}>Sí</Label>
+            <div 
+              className="flex flex-col items-center cursor-pointer"
+              onClick={() => handleResponse(question.id, 1)}
+            >
+              <div className={`w-full h-16 flex items-center justify-center rounded-md border-2 transition-all
+                ${response?.value === 1 
+                  ? `${moduleConfig[currentModule as keyof typeof moduleConfig].color} text-white border-transparent` 
+                  : 'border-gray-200 hover:border-gray-300 bg-gray-50'}`
+              }>
+                <RadioGroupItem value="1" id={`${question.id}_si`} className="sr-only" />
+                <Label 
+                  htmlFor={`${question.id}_si`} 
+                  className={`text-lg font-medium cursor-pointer ${response?.value === 1 ? 'text-white' : ''}`}
+                >
+                  Sí
+                </Label>
+              </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="0" id={`${question.id}_no`} />
-              <Label htmlFor={`${question.id}_no`}>No</Label>
+            <div 
+              className="flex flex-col items-center cursor-pointer"
+              onClick={() => handleResponse(question.id, 0)}
+            >
+              <div className={`w-full h-16 flex items-center justify-center rounded-md border-2 transition-all
+                ${response?.value === 0 
+                  ? `${moduleConfig[currentModule as keyof typeof moduleConfig].color} text-white border-transparent` 
+                  : 'border-gray-200 hover:border-gray-300 bg-gray-50'}`
+              }>
+                <RadioGroupItem value="0" id={`${question.id}_no`} className="sr-only" />
+                <Label 
+                  htmlFor={`${question.id}_no`} 
+                  className={`text-lg font-medium cursor-pointer ${response?.value === 0 ? 'text-white' : ''}`}
+                >
+                  No
+                </Label>
+              </div>
             </div>
           </RadioGroup>
         </div>
@@ -144,19 +222,39 @@ const SIERCPPage = () => {
     const currentScale = scales[question.type as keyof typeof scales] || scales.likert;
 
     return (
-      <div key={question.id} className="space-y-3">
-        <Label className="text-sm font-medium">{question.text}</Label>
+      <div key={question.id} className="space-y-6">
+        <div className="text-xl font-medium text-center">{question.text}</div>
         <RadioGroup
           value={response?.value?.toString() || ''}
           onValueChange={(value) => handleResponse(question.id, parseInt(value))}
-          className="grid grid-cols-5 gap-2"
+          className="grid grid-cols-5 gap-4 pt-4"
         >
           {currentScale.map((label, index) => (
-            <div key={index} className="flex flex-col items-center space-y-2">
-              <RadioGroupItem value={(index + 1).toString()} id={`${question.id}_${index}`} />
+            <div 
+              key={index} 
+              className="flex flex-col items-center cursor-pointer group"
+              onClick={() => handleResponse(question.id, index + 1)}
+            >
+              <div className={`w-full h-12 flex items-center justify-center mb-2 rounded-md border-2 transition-all 
+                ${response?.value === index + 1 
+                  ? `${moduleConfig[currentModule as keyof typeof moduleConfig].color} text-white border-transparent` 
+                  : 'border-gray-200 hover:border-gray-300 bg-gray-50'}`
+              }>
+                <RadioGroupItem 
+                  value={(index + 1).toString()} 
+                  id={`${question.id}_${index}`} 
+                  className="sr-only"
+                />
+                <Label 
+                  htmlFor={`${question.id}_${index}`} 
+                  className={`text-sm font-medium cursor-pointer ${response?.value === index + 1 ? 'text-white' : ''}`}
+                >
+                  {index + 1}
+                </Label>
+              </div>
               <Label 
                 htmlFor={`${question.id}_${index}`} 
-                className="text-xs text-center leading-tight"
+                className="text-xs text-center leading-tight font-medium"
               >
                 {label}
               </Label>
@@ -170,71 +268,120 @@ const SIERCPPage = () => {
   const results = showResults ? calculateResults() : null;
 
   if (showResults && results) {
+    const getScoreColor = (score: number) => {
+      if (score >= 85) return 'text-green-600';
+      if (score >= 70) return 'text-blue-600';
+      if (score >= 55) return 'text-yellow-600';
+      return 'text-red-600';
+    };
+    
+    const getBgColor = (score: number) => {
+      if (score >= 85) return 'bg-green-100';
+      if (score >= 70) return 'bg-blue-100';
+      if (score >= 55) return 'bg-yellow-100';
+      return 'bg-red-100';
+    };
+    
     return (
-      <div className="container mx-auto p-6 space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-6 w-6" />
-              Resultados SIERCP
-            </CardTitle>
+      <div className="container mx-auto p-6 space-y-6 max-w-3xl">
+        <Card className="overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                <FileText className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <CardTitle>Resultados SIERCP</CardTitle>
+                <CardDescription className="text-white/80">
+                  Sistema Integrado de Evaluación de Riesgo y Confiabilidad Psico-Criminológica
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card>
-                <CardContent className="p-4">
-                  <div className="text-center space-y-2">
-                    <div className="text-3xl font-bold">{results.globalScore}</div>
-                    <div className="text-sm text-muted-foreground">Puntuación Global</div>
-                    <Badge 
-                      variant={results.globalScore >= 70 ? "default" : "destructive"}
-                      className="text-xs"
-                    >
+          
+          <CardContent className="p-6 space-y-8">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className={`w-32 h-32 rounded-full ${getBgColor(results.globalScore)} flex items-center justify-center`}>
+                  <div className={`text-4xl font-bold ${getScoreColor(results.globalScore)}`}>
+                    {results.globalScore}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-40">
+                <Card className="overflow-hidden shadow-md">
+                  <CardHeader className={`${getBgColor(results.globalScore)} py-3`}>
+                    <CardTitle className="text-lg">Clasificación</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getBgColor(results.globalScore)}`}>
+                      {results.globalScore >= 70 ? (
+                        <CheckCircle className={`h-4 w-4 ${getScoreColor(results.globalScore)}`} />
+                      ) : (
+                        <AlertCircle className={`h-4 w-4 ${getScoreColor(results.globalScore)}`} />
+                      )}
+                    </div>
+                    <div className={`font-medium ${getScoreColor(results.globalScore)}`}>
                       {results.classification}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="space-y-2">
-                    <div className="text-sm font-medium">Recomendación</div>
-                    <div className="text-sm">{results.recommendation}</div>
-                    {results.globalScore >= 70 ? (
-                      <CheckCircle className="h-5 w-5 text-green-500" />
-                    ) : (
-                      <AlertCircle className="h-5 w-5 text-red-500" />
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold">{results.integridad}</div>
-                <div className="text-xs text-muted-foreground">Integridad</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">{results.psicopatia}</div>
-                <div className="text-xs text-muted-foreground">Psicopatía</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">{results.violencia}</div>
-                <div className="text-xs text-muted-foreground">Violencia</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">{results.agresividad}</div>
-                <div className="text-xs text-muted-foreground">Agresividad</div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="overflow-hidden shadow-md">
+                  <CardHeader className={`${getBgColor(results.globalScore)} py-3`}>
+                    <CardTitle className="text-lg">Recomendación</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <div className="font-medium">{results.recommendation}</div>
+                  </CardContent>
+                </Card>
               </div>
             </div>
-
-            <div className="flex gap-4">
-              <Button onClick={resetTest} variant="outline">
+            
+            <div className="space-y-2">
+              <h3 className="text-lg font-medium">Detalle por Módulos</h3>
+              <div className="grid grid-cols-2 gap-4">
+                {[
+                  { name: 'Integridad', score: results.integridad, icon: Shield },
+                  { name: 'Psicopatía', score: results.psicopatia, icon: Brain },
+                  { name: 'Violencia', score: results.violencia, icon: AlertCircle },
+                  { name: 'Agresividad', score: results.agresividad, icon: Zap },
+                  { name: 'Afrontamiento', score: results.afrontamiento, icon: Heart },
+                  { name: 'Veracidad', score: results.veracidad, icon: Eye }
+                ].map((module, index) => {
+                  const Icon = module.icon;
+                  return (
+                    <Card key={index} className="overflow-hidden shadow-sm">
+                      <div className="p-4 flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getBgColor(module.score)}`}>
+                          <Icon className={`h-5 w-5 ${getScoreColor(module.score)}`} />
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium">{module.name}</div>
+                          <div className={`text-2xl font-bold ${getScoreColor(module.score)}`}>{module.score}</div>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+            
+            <div className="flex gap-4 pt-4">
+              <Button 
+                onClick={resetTest} 
+                variant="outline" 
+                className="flex-1"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
                 Nueva Evaluación
               </Button>
-              <Button onClick={() => window.print()}>
+              <Button 
+                onClick={() => window.print()} 
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
+              >
+                <FileText className="h-4 w-4 mr-2" />
                 Imprimir Resultados
               </Button>
             </div>
@@ -248,7 +395,7 @@ const SIERCPPage = () => {
   const Icon = currentModuleConfig.icon;
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-6 space-y-6 max-w-3xl">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -256,50 +403,52 @@ const SIERCPPage = () => {
             Sistema Integrado de Evaluación de Riesgo y Confiabilidad Psico-Criminológica
           </CardTitle>
           <div className="space-y-2">
-            <Progress value={progress} className="w-full" />
-            <div className="text-sm text-muted-foreground">
-              Módulo {currentModuleIndex + 1} de {modules.length}: {currentModuleConfig.title}
+            <Progress value={progress} className="w-full h-2" />
+            <div className="flex justify-between text-sm text-muted-foreground">
+              <span>Pregunta {currentQuestionIndex + 1} de {currentQuestions.length}</span>
+              <span>Módulo {currentModuleIndex + 1} de {modules.length}: {currentModuleConfig.title}</span>
             </div>
           </div>
         </CardHeader>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Icon className="h-5 w-5" />
-            {currentModuleConfig.title}
-          </CardTitle>
-          <div className="text-sm text-muted-foreground">
-            {currentModuleConfig.description}
+      <Card className={`overflow-hidden transition-all duration-300 ${animation}`}>
+        <CardHeader className={`${moduleConfig[currentModule as keyof typeof moduleConfig].color} bg-opacity-10`}>
+          <div className="flex items-center gap-2">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${moduleConfig[currentModule as keyof typeof moduleConfig].color}`}>
+              <Icon className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <CardTitle>{currentModuleConfig.title}</CardTitle>
+              <CardDescription>{currentModuleConfig.description}</CardDescription>
+            </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {currentQuestions.map(renderQuestion)}
-          
-          <div className="flex justify-between pt-6">
-            <Button 
-              onClick={handlePreviousModule}
-              disabled={currentModuleIndex === 0}
-              variant="outline"
-            >
-              Anterior
-            </Button>
-            
-            <div className="flex gap-2">
-              <span className="text-sm text-muted-foreground">
-                {currentResponses.length} de {currentQuestions.length} completadas
-              </span>
+        
+        <CardContent className="p-6 pt-8">
+          {currentQuestion && (
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+              {renderQuestion(currentQuestion)}
             </div>
-
-            <Button 
-              onClick={handleNextModule}
-              disabled={currentResponses.length < currentQuestions.length}
-            >
-              {currentModuleIndex === modules.length - 1 ? 'Finalizar' : 'Siguiente'}
-            </Button>
-          </div>
+          )}
         </CardContent>
+        
+        <CardFooter className="flex justify-between p-6 border-t">
+          <div className="text-sm text-muted-foreground">
+            Seleccione su respuesta para continuar
+          </div>
+          
+          <Button 
+            onClick={handleNextQuestion}
+            disabled={!response}
+            size="sm"
+          >
+            {currentQuestionIndex === currentQuestions.length - 1 && currentModuleIndex === modules.length - 1 
+              ? 'Finalizar' 
+              : 'Omitir'}
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </CardFooter>
       </Card>
     </div>
   );
