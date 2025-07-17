@@ -15,13 +15,15 @@ interface CustodianProfile {
 }
 
 export const useCustodianProfile = () => {
-  const { user, loading: authLoading } = useStableAuth();
+  const { user, userRole, loading: authLoading } = useStableAuth();
   const [profile, setProfile] = useState<CustodianProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user && !authLoading) {
       fetchProfile();
+    } else if (!authLoading) {
+      setLoading(false);
     }
   }, [user, authLoading]);
 
@@ -29,29 +31,71 @@ export const useCustodianProfile = () => {
     try {
       setLoading(true);
       
+      // Si el usuario es admin, crear un perfil mock para demo
+      if (userRole === 'admin' || userRole === 'owner') {
+        setProfile({
+          id: user?.id || '',
+          email: user?.email || 'admin@admin.com',
+          display_name: 'Admin Demo',
+          phone: '+52 55 1234 5678',
+          estado: 'CDMX',
+          ciudad: 'Ciudad de México',
+          disponibilidad: true,
+          fecha_ultima_actividad: new Date().toISOString(),
+          is_verified: true
+        });
+        setLoading(false);
+        return;
+      }
+
       const { data: profileData, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user?.id)
         .single();
 
-      if (error) throw error;
-
-      setProfile({
-        id: profileData.id,
-        email: profileData.email,
-        display_name: profileData.display_name || profileData.email,
-        phone: profileData.phone,
-        estado: 'CDMX', // Default value - could be fetched from profile
-        ciudad: 'Ciudad de México', // Default value
-        disponibilidad: true, // Default value - would be stored in profile
-        fecha_ultima_actividad: profileData.last_login,
-        is_verified: profileData.is_verified || false
-      });
+      if (error) {
+        console.error('Error fetching custodian profile:', error);
+        // Para usuarios sin perfil, crear uno básico
+        setProfile({
+          id: user?.id || '',
+          email: user?.email || '',
+          display_name: user?.user_metadata?.display_name || user?.email || '',
+          phone: user?.phone || '',
+          estado: 'CDMX',
+          ciudad: 'Ciudad de México',
+          disponibilidad: true,
+          fecha_ultima_actividad: new Date().toISOString(),
+          is_verified: false
+        });
+      } else {
+        setProfile({
+          id: profileData.id,
+          email: profileData.email,
+          display_name: profileData.display_name || profileData.email,
+          phone: profileData.phone,
+          estado: 'CDMX',
+          ciudad: 'Ciudad de México',
+          disponibilidad: true,
+          fecha_ultima_actividad: profileData.last_login,
+          is_verified: profileData.is_verified || false
+        });
+      }
 
     } catch (error) {
       console.error('Error fetching custodian profile:', error);
-      setProfile(null);
+      // Crear perfil básico en caso de error
+      setProfile({
+        id: user?.id || '',
+        email: user?.email || '',
+        display_name: 'Usuario',
+        phone: '',
+        estado: 'CDMX',
+        ciudad: 'Ciudad de México',
+        disponibilidad: true,
+        fecha_ultima_actividad: new Date().toISOString(),
+        is_verified: false
+      });
     } finally {
       setLoading(false);
     }

@@ -36,14 +36,26 @@ export const useCustodianServices = (custodianPhone?: string) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (custodianPhone) {
-      fetchCustodianServices();
-    }
+    fetchCustodianServices();
   }, [custodianPhone]);
 
   const fetchCustodianServices = async () => {
     try {
       setLoading(true);
+
+      // Si no hay teléfono de custodio, establecer datos vacíos
+      if (!custodianPhone) {
+        setServices([]);
+        setStats({
+          total_servicios: 0,
+          servicios_completados: 0,
+          servicios_pendientes: 0,
+          km_totales: 0,
+          ingresos_totales: 0
+        });
+        setLoading(false);
+        return;
+      }
 
       // Fetch services by phone number
       const { data: servicesData, error: servicesError } = await supabase
@@ -64,7 +76,20 @@ export const useCustodianServices = (custodianPhone?: string) => {
         .order('fecha_hora_cita', { ascending: false })
         .limit(50);
 
-      if (servicesError) throw servicesError;
+      if (servicesError) {
+        console.error('Error fetching services:', servicesError);
+        // En caso de error, establecer datos vacíos en lugar de fallar
+        setServices([]);
+        setStats({
+          total_servicios: 0,
+          servicios_completados: 0,
+          servicios_pendientes: 0,
+          km_totales: 0,
+          ingresos_totales: 0
+        });
+        setLoading(false);
+        return;
+      }
 
       const services = servicesData || [];
       setServices(services);
@@ -88,10 +113,14 @@ export const useCustodianServices = (custodianPhone?: string) => {
 
     } catch (error) {
       console.error('Error fetching custodian services:', error);
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los servicios del custodio",
-        variant: "destructive"
+      // En caso de error, establecer datos vacíos y NO mostrar toast para evitar spam
+      setServices([]);
+      setStats({
+        total_servicios: 0,
+        servicios_completados: 0,
+        servicios_pendientes: 0,
+        km_totales: 0,
+        ingresos_totales: 0
       });
     } finally {
       setLoading(false);
