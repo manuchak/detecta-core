@@ -134,25 +134,7 @@ export const NationalMap: React.FC<NationalMapProps> = ({
       const custodiosText = String(metrica?.custodios_activos || 0);
       el.textContent = custodiosText;
 
-      // Efecto hover más estable - usando eventos de mouse sin modificar la posición
-      let isHovered = false;
-      el.addEventListener('mouseenter', (e) => {
-        e.stopPropagation();
-        if (!isHovered) {
-          isHovered = true;
-          el.style.transform = 'scale(1.1)';
-          el.style.zIndex = '1000';
-        }
-      });
-      
-      el.addEventListener('mouseleave', (e) => {
-        e.stopPropagation();
-        if (isHovered) {
-          isHovered = false;
-          el.style.transform = 'scale(1)';
-          el.style.zIndex = '1';
-        }
-      });
+      // Sin efectos hover que puedan mover los markers
 
       const marker = new mapboxgl.Marker({
         element: el,
@@ -221,16 +203,7 @@ export const NationalMap: React.FC<NationalMapProps> = ({
         transition: transform 0.2s ease;
       `;
 
-      // Hover effect para candidatos sin cambiar posición
-      el.addEventListener('mouseenter', (e) => {
-        e.stopPropagation();
-        el.style.transform = 'scale(1.3)';
-      });
-      
-      el.addEventListener('mouseleave', (e) => {
-        e.stopPropagation();
-        el.style.transform = 'scale(1)';
-      });
+      // Sin efectos hover que puedan mover los markers
 
       const marker = new mapboxgl.Marker({
         element: el,
