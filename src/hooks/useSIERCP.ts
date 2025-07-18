@@ -86,11 +86,32 @@ const questionBank: SIERCPQuestion[] = [
 ];
 
 const interviewQuestions = [
-  { id: 'ENT001', text: '¿Ha sido testigo o víctima de un delito en su vida?', type: 'open' },
-  { id: 'ENT002', text: 'Describa una situación en la que se sintió tentado a incumplir una norma.', type: 'open' },
-  { id: 'ENT003', text: '¿Qué haría si ve a un compañero robar algo menor en una empresa?', type: 'open' },
-  { id: 'ENT004', text: '¿Cómo maneja situaciones de alto estrés?', type: 'open' },
-  { id: 'ENT005', text: '¿Ha tenido problemas legales en el pasado?', type: 'dicotomic' },
+  // Preguntas principales de evaluación
+  { id: 'ENT001', text: '¿Ha sido testigo o víctima de un delito en su vida? Describa la situación y cómo la manejó.', type: 'open' },
+  { id: 'ENT002', text: 'Describa una situación en la que se sintió tentado a incumplir una norma o regla importante. ¿Qué hizo y por qué?', type: 'open' },
+  { id: 'ENT003', text: '¿Qué haría si descubre a un compañero robando algo menor en una empresa? Explique su razonamiento.', type: 'open' },
+  { id: 'ENT004', text: '¿Cómo maneja situaciones de alto estrés o presión? Proporcione un ejemplo específico.', type: 'open' },
+  { id: 'ENT005', text: 'Describa una ocasión en la que tuvo un conflicto significativo con otra persona. ¿Cómo lo resolvió?', type: 'open' },
+  
+  // Preguntas de control y validez (basadas en escalas MMPI)
+  { id: 'ENT006', text: '¿Ha tenido algún problema legal en el pasado?', type: 'dicotomic' },
+  { id: 'ENT007', text: '¿Considera que siempre ha sido una persona completamente honesta en todas las situaciones de su vida?', type: 'dicotomic' },
+  { id: 'ENT008', text: 'En una escala del 1 al 5, ¿qué tan perfecta considera que es su conducta?', type: 'likert' },
+  
+  // Preguntas para detectar inconsistencias (repetición con reformulación)
+  { id: 'ENT009', text: 'Si presenciara un acto de corrupción en su lugar de trabajo, ¿cuál sería su reacción?', type: 'open' },
+  
+  // Preguntas de escalas de validez (detección de sobrereporte/subreporte)
+  { id: 'ENT010', text: '¿Alguna vez ha experimentado pensamientos agresivos hacia otra persona?', type: 'dicotomic' },
+  { id: 'ENT011', text: '¿Ha mentido alguna vez para evitar meterse en problemas?', type: 'dicotomic' },
+  { id: 'ENT012', text: '¿Considera que nunca ha cometido errores de juicio en situaciones importantes?', type: 'dicotomic' },
+  
+  // Pregunta trampa (escala F - infrecuencia)
+  { id: 'ENT013', text: '¿Alguna vez ha respirado aire?', type: 'dicotomic' },
+  
+  // Preguntas de riesgo específico
+  { id: 'ENT014', text: '¿Qué opina sobre las personas que justifican el uso de violencia para resolver conflictos?', type: 'open' },
+  { id: 'ENT015', text: 'Describa una situación en la que sintió una ira intensa. ¿Cómo la controló?', type: 'open' }
 ];
 
 export const useSIERCP = () => {
@@ -152,6 +173,67 @@ export const useSIERCP = () => {
     return Math.round((totalScore / maxPossibleScore) * 100);
   }, [responses]);
 
+  const calculateInterviewScore = useCallback(async (): Promise<number> => {
+    const interviewResponses = responses.filter(r => 
+      interviewQuestions.some(q => q.id === r.questionId)
+    );
+
+    if (interviewResponses.length === 0) return 0;
+
+    // Preparar datos para análisis automático
+    const analysisData = interviewResponses.map(response => {
+      const question = interviewQuestions.find(q => q.id === response.questionId);
+      return {
+        questionId: response.questionId,
+        question: question?.text || '',
+        response: response.value.toString()
+      };
+    });
+
+    try {
+      // Importar y usar la función de análisis
+      const { analyzeInterview } = await import('./useInterviewAnalysis');
+      const analysis = await analyzeInterview(analysisData);
+      
+      if (analysis && analysis.overallScore) {
+        return Math.round(analysis.overallScore);
+      }
+    } catch (error) {
+      console.error('Error en análisis automático de entrevista:', error);
+    }
+
+    // Fallback: scoring básico si falla el análisis automático
+    return calculateBasicInterviewScore(interviewResponses);
+  }, [responses]);
+
+  const calculateBasicInterviewScore = (interviewResponses: SIERCPResponse[]): number => {
+    // Análisis básico como fallback
+    let score = 75; // Base score
+    
+    // Revisar preguntas críticas
+    const criticalAnswers = interviewResponses.filter(r => 
+      ['ENT006', 'ENT007', 'ENT010', 'ENT011', 'ENT012', 'ENT013'].includes(r.questionId)
+    );
+
+    criticalAnswers.forEach(response => {
+      const questionId = response.questionId;
+      const value = response.value;
+
+      // Aplicar lógica de escalas de validez
+      if (questionId === 'ENT013' && value !== 1) { // Pregunta trampa
+        score -= 20; // Penalización severa por respuesta incorrecta
+      }
+      if (questionId === 'ENT007' && value === 1) { // Claim de perfección
+        score -= 15; // Penalización por falta de honestidad
+      }
+      if (questionId === 'ENT012' && value === 1) { // Nunca cometió errores
+        score -= 15; // Penalización por falta de autocrítica
+      }
+    });
+
+    return Math.max(0, Math.min(100, score));
+  };
+
   const calculateResults = useCallback((): SIERCPResults => {
     const integridad = calculateModuleScore('integridad');
     const psicopatia = calculateModuleScore('psicopatia');
@@ -160,12 +242,10 @@ export const useSIERCP = () => {
     const afrontamiento = calculateModuleScore('afrontamiento');
     const veracidad = calculateModuleScore('veracidad');
     
-    // Entrevista scoring (simplified)
-    const entrevista = 75; // Placeholder for interview scoring
+    // Para resultados síncronos, usar scoring básico de entrevista
+    const entrevista = 75; // Se calculará asíncronamente en la página
 
     // Fórmula SIERCP corregida:
-    // Score Global = (IL × 0.20) + (PA × 0.20) + (RV × 0.20) + (AI × 0.15) + (EA × 0.10) + (ER × 0.05) + (EE × 0.10)
-    // Los pesos suman exactamente 1.0 para garantizar escala 0-100
     const globalScore = Math.min(100, Math.max(0, Math.round(
       (integridad * 0.20) + 
       (psicopatia * 0.20) + 
@@ -204,6 +284,56 @@ export const useSIERCP = () => {
     };
   }, [calculateModuleScore]);
 
+  // Nueva función para cálculo completo con entrevista asíncrona
+  const calculateCompleteResults = useCallback(async (): Promise<SIERCPResults> => {
+    const integridad = calculateModuleScore('integridad');
+    const psicopatia = calculateModuleScore('psicopatia');
+    const violencia = calculateModuleScore('violencia');
+    const agresividad = calculateModuleScore('agresividad');
+    const afrontamiento = calculateModuleScore('afrontamiento');
+    const veracidad = calculateModuleScore('veracidad');
+    
+    // Análisis automático de entrevista
+    const entrevista = await calculateInterviewScore();
+
+    const globalScore = Math.min(100, Math.max(0, Math.round(
+      (integridad * 0.20) + 
+      (psicopatia * 0.20) + 
+      (violencia * 0.20) + 
+      (agresividad * 0.15) + 
+      (afrontamiento * 0.10) + 
+      (veracidad * 0.05) + 
+      (entrevista * 0.10)
+    )));
+
+    const getClassification = (score: number): string => {
+      if (score >= 85) return 'Sin riesgo';
+      if (score >= 70) return 'Riesgo bajo';
+      if (score >= 55) return 'Riesgo moderado';
+      return 'Riesgo alto';
+    };
+
+    const getRecommendation = (score: number): string => {
+      if (score >= 85) return 'Contratar sin restricciones';
+      if (score >= 70) return 'Contratar con seguimiento';
+      if (score >= 55) return 'Validación cruzada + entrevista';
+      return 'No recomendado';
+    };
+
+    return {
+      integridad,
+      psicopatia,
+      violencia,
+      agresividad,
+      afrontamiento,
+      veracidad,
+      entrevista,
+      globalScore,
+      classification: getClassification(globalScore),
+      recommendation: getRecommendation(globalScore)
+    };
+  }, [calculateModuleScore, calculateInterviewScore]);
+
   const resetTest = useCallback(() => {
     setResponses([]);
     setCurrentModule('integridad');
@@ -219,6 +349,7 @@ export const useSIERCP = () => {
     setIsCompleted,
     getQuestionsForModule,
     calculateResults,
+    calculateCompleteResults,
     resetTest
   };
 };
