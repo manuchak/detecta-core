@@ -21,13 +21,6 @@ export const useSIERCPAI = () => {
   const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState<boolean | null>(null);
 
-  // Validar conexión automáticamente al inicializar el hook
-  useEffect(() => {
-    if (connected === null) {
-      validateConnection();
-    }
-  }, []);
-
   const validateConnection = async () => {
     setLoading(true);
     try {
@@ -134,6 +127,13 @@ export const useSIERCPAI = () => {
       setLoading(false);
     }
   };
+
+  // Validar conexión automáticamente al inicializar el hook
+  useEffect(() => {
+    if (connected === null) {
+      validateConnection();
+    }
+  }, [connected]); // Include connected as dependency
 
   return {
     loading,
