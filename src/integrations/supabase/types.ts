@@ -651,6 +651,36 @@ export type Database = {
           },
         ]
       }
+      categorias_gastos: {
+        Row: {
+          activo: boolean | null
+          created_at: string | null
+          descripcion: string | null
+          id: string
+          nombre: string
+          tipo: string
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre: string
+          tipo: string
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+          tipo?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       categorias_productos: {
         Row: {
           activo: boolean | null
@@ -1589,6 +1619,99 @@ export type Database = {
           use_manual?: boolean
         }
         Relationships: []
+      }
+      gastos_externos: {
+        Row: {
+          aprobado_por: string | null
+          canal_reclutamiento: string | null
+          categoria_id: string | null
+          comprobante_url: string | null
+          concepto: string
+          created_at: string | null
+          custodios_objetivo: number | null
+          custodios_reales: number | null
+          descripcion: string | null
+          estado: string | null
+          fecha_gasto: string
+          fecha_vencimiento: string | null
+          id: string
+          metodo_pago: string | null
+          moneda: string | null
+          monto: number
+          notas: string | null
+          numero_factura: string | null
+          proveedor: string | null
+          registrado_por: string
+          tags: string[] | null
+          updated_at: string | null
+          zona_id: string | null
+        }
+        Insert: {
+          aprobado_por?: string | null
+          canal_reclutamiento?: string | null
+          categoria_id?: string | null
+          comprobante_url?: string | null
+          concepto: string
+          created_at?: string | null
+          custodios_objetivo?: number | null
+          custodios_reales?: number | null
+          descripcion?: string | null
+          estado?: string | null
+          fecha_gasto: string
+          fecha_vencimiento?: string | null
+          id?: string
+          metodo_pago?: string | null
+          moneda?: string | null
+          monto: number
+          notas?: string | null
+          numero_factura?: string | null
+          proveedor?: string | null
+          registrado_por: string
+          tags?: string[] | null
+          updated_at?: string | null
+          zona_id?: string | null
+        }
+        Update: {
+          aprobado_por?: string | null
+          canal_reclutamiento?: string | null
+          categoria_id?: string | null
+          comprobante_url?: string | null
+          concepto?: string
+          created_at?: string | null
+          custodios_objetivo?: number | null
+          custodios_reales?: number | null
+          descripcion?: string | null
+          estado?: string | null
+          fecha_gasto?: string
+          fecha_vencimiento?: string | null
+          id?: string
+          metodo_pago?: string | null
+          moneda?: string | null
+          monto?: number
+          notas?: string | null
+          numero_factura?: string | null
+          proveedor?: string | null
+          registrado_por?: string
+          tags?: string[] | null
+          updated_at?: string | null
+          zona_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gastos_externos_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias_gastos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gastos_externos_zona_id_fkey"
+            columns: ["zona_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_operacion_nacional"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       instalacion_documentacion: {
         Row: {
@@ -2750,6 +2873,80 @@ export type Database = {
         }
         Relationships: []
       }
+      metricas_canales: {
+        Row: {
+          calidad_promedio: number | null
+          canal: string
+          candidatos_calificados: number | null
+          costo_por_contratacion: number | null
+          costo_por_lead: number | null
+          created_at: string | null
+          custodios_activos: number | null
+          custodios_contratados: number | null
+          id: string
+          inversion: number | null
+          leads_generados: number | null
+          periodo_fin: string
+          periodo_inicio: string
+          roi_canal: number | null
+          tasa_conversion_candidato_custodio: number | null
+          tasa_conversion_lead_candidato: number | null
+          tasa_retencion: number | null
+          updated_at: string | null
+          zona_id: string | null
+        }
+        Insert: {
+          calidad_promedio?: number | null
+          canal: string
+          candidatos_calificados?: number | null
+          costo_por_contratacion?: number | null
+          costo_por_lead?: number | null
+          created_at?: string | null
+          custodios_activos?: number | null
+          custodios_contratados?: number | null
+          id?: string
+          inversion?: number | null
+          leads_generados?: number | null
+          periodo_fin: string
+          periodo_inicio: string
+          roi_canal?: number | null
+          tasa_conversion_candidato_custodio?: number | null
+          tasa_conversion_lead_candidato?: number | null
+          tasa_retencion?: number | null
+          updated_at?: string | null
+          zona_id?: string | null
+        }
+        Update: {
+          calidad_promedio?: number | null
+          canal?: string
+          candidatos_calificados?: number | null
+          costo_por_contratacion?: number | null
+          costo_por_lead?: number | null
+          created_at?: string | null
+          custodios_activos?: number | null
+          custodios_contratados?: number | null
+          id?: string
+          inversion?: number | null
+          leads_generados?: number | null
+          periodo_fin?: string
+          periodo_inicio?: string
+          roi_canal?: number | null
+          tasa_conversion_candidato_custodio?: number | null
+          tasa_conversion_lead_candidato?: number | null
+          tasa_retencion?: number | null
+          updated_at?: string | null
+          zona_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metricas_canales_zona_id_fkey"
+            columns: ["zona_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_operacion_nacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       metricas_demanda_zona: {
         Row: {
           created_at: string | null
@@ -3396,6 +3593,72 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: []
+      }
+      presupuestos_zona: {
+        Row: {
+          aprobado_por: string | null
+          categoria_id: string | null
+          created_at: string | null
+          custodios_objetivo: number | null
+          estado: string | null
+          id: string
+          notas: string | null
+          periodo_fin: string
+          periodo_inicio: string
+          presupuesto_asignado: number
+          presupuesto_utilizado: number | null
+          roi_esperado: number | null
+          updated_at: string | null
+          zona_id: string | null
+        }
+        Insert: {
+          aprobado_por?: string | null
+          categoria_id?: string | null
+          created_at?: string | null
+          custodios_objetivo?: number | null
+          estado?: string | null
+          id?: string
+          notas?: string | null
+          periodo_fin: string
+          periodo_inicio: string
+          presupuesto_asignado: number
+          presupuesto_utilizado?: number | null
+          roi_esperado?: number | null
+          updated_at?: string | null
+          zona_id?: string | null
+        }
+        Update: {
+          aprobado_por?: string | null
+          categoria_id?: string | null
+          created_at?: string | null
+          custodios_objetivo?: number | null
+          estado?: string | null
+          id?: string
+          notas?: string | null
+          periodo_fin?: string
+          periodo_inicio?: string
+          presupuesto_asignado?: number
+          presupuesto_utilizado?: number | null
+          roi_esperado?: number | null
+          updated_at?: string | null
+          zona_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "presupuestos_zona_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias_gastos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuestos_zona_zona_id_fkey"
+            columns: ["zona_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_operacion_nacional"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       productos_inventario: {
         Row: {
@@ -4175,6 +4438,71 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "reward_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roi_custodios: {
+        Row: {
+          costo_adquisicion: number | null
+          created_at: string | null
+          custodio_id: string | null
+          dias_activo: number | null
+          estado_custodio: string | null
+          id: string
+          ingresos_generados: number | null
+          inversion_total: number | null
+          ltv_estimado: number | null
+          payback_dias: number | null
+          periodo_fin: string
+          periodo_inicio: string
+          roi_percentage: number | null
+          servicios_completados: number | null
+          updated_at: string | null
+          zona_id: string | null
+        }
+        Insert: {
+          costo_adquisicion?: number | null
+          created_at?: string | null
+          custodio_id?: string | null
+          dias_activo?: number | null
+          estado_custodio?: string | null
+          id?: string
+          ingresos_generados?: number | null
+          inversion_total?: number | null
+          ltv_estimado?: number | null
+          payback_dias?: number | null
+          periodo_fin: string
+          periodo_inicio: string
+          roi_percentage?: number | null
+          servicios_completados?: number | null
+          updated_at?: string | null
+          zona_id?: string | null
+        }
+        Update: {
+          costo_adquisicion?: number | null
+          created_at?: string | null
+          custodio_id?: string | null
+          dias_activo?: number | null
+          estado_custodio?: string | null
+          id?: string
+          ingresos_generados?: number | null
+          inversion_total?: number | null
+          ltv_estimado?: number | null
+          payback_dias?: number | null
+          periodo_fin?: string
+          periodo_inicio?: string
+          roi_percentage?: number | null
+          servicios_completados?: number | null
+          updated_at?: string | null
+          zona_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roi_custodios_zona_id_fkey"
+            columns: ["zona_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_operacion_nacional"
             referencedColumns: ["id"]
           },
         ]
@@ -5273,6 +5601,10 @@ export type Database = {
       }
     }
     Functions: {
+      actualizar_roi_custodios: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       add_admin_role: {
         Args: { user_id: string }
         Returns: undefined
@@ -5434,6 +5766,18 @@ export type Database = {
       calcular_puntos_viaje: {
         Args: { km_viaje: number; estado_viaje: string }
         Returns: number
+      }
+      calcular_roi_zona: {
+        Args: { p_zona_id: string; p_periodo_dias?: number }
+        Returns: {
+          zona_nombre: string
+          inversion_total: number
+          ingresos_generados: number
+          roi_percentage: number
+          custodios_adquiridos: number
+          costo_promedio_adquisicion: number
+          servicios_totales: number
+        }[]
       }
       calcular_score_urgencia_zona: {
         Args: { p_zona_id: string }
