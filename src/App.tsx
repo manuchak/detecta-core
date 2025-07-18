@@ -44,6 +44,7 @@ import CustodianTickets from '@/pages/custodian/CustodianTickets';
 import CustodianPortalAdmin from '@/pages/admin/CustodianPortalAdmin';
 import SupplyDashboardExtended from '@/pages/supply/SupplyDashboardExtended';
 import SIERCPPage from '@/pages/evaluation/SIERCPPage';
+import SIERCPMethodologyPage from '@/pages/evaluation/SIERCPMethodologyPage';
 
 import DuplicateCleanupPage from '@/pages/Maintenance/DuplicateCleanupPage';
 
@@ -390,6 +391,20 @@ function App() {
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'jefe_seguridad', 'analista_seguridad']}>
                         <DashboardLayout>
                           <SIERCPPage />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* SIERCP Methodology Route */}
+                <Route
+                  path="/evaluation/siercp/methodology"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin']}>
+                        <DashboardLayout>
+                          <SIERCPMethodologyPage />
                         </DashboardLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>

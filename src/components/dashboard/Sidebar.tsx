@@ -283,6 +283,10 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
       title: "Evaluación SIERCP",
       icon: BarChart3,
       path: "/evaluation/siercp",
+      subItems: [
+        { title: "Realizar Evaluación", path: "/evaluation/siercp" },
+        { title: "Metodología", path: "/evaluation/siercp/methodology" },
+      ]
     }] : []),
 
     // WMS - solo si tiene permisos (usando nuevo sistema de roles)
