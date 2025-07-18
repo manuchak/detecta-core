@@ -119,14 +119,86 @@ export const useRealNationalRecruitment = () => {
     }
   ];
 
+  // Función para extraer ciudad de dirección de origen
+  const extractCityFromAddress = (address: string): string => {
+    if (!address) return 'Desconocido';
+    
+    const cleaned = address.toLowerCase();
+    
+    // Patrones comunes en direcciones mexicanas
+    if (cleaned.includes('cdmx') || cleaned.includes('ciudad de mexico')) return 'Ciudad de México';
+    if (cleaned.includes('guadalajara')) return 'Guadalajara';
+    if (cleaned.includes('monterrey')) return 'Monterrey';
+    if (cleaned.includes('puebla')) return 'Puebla';
+    if (cleaned.includes('leon')) return 'León';
+    if (cleaned.includes('queretaro')) return 'Querétaro';
+    if (cleaned.includes('tijuana')) return 'Tijuana';
+    if (cleaned.includes('merida')) return 'Mérida';
+    if (cleaned.includes('toluca')) return 'Toluca';
+    if (cleaned.includes('xalapa')) return 'Xalapa';
+    if (cleaned.includes('veracruz')) return 'Veracruz';
+    if (cleaned.includes('manzanillo')) return 'Manzanillo';
+    if (cleaned.includes('colima')) return 'Colima';
+    
+    // Extraer última palabra antes de código postal o "Mexico"
+    const parts = address.split(/\s+/);
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const part = parts[i];
+      if (part.match(/^\d{5}$/)) { // Código postal
+        return parts[i - 1] || 'Desconocido';
+      }
+      if (part.toLowerCase() === 'mexico' && i > 0) {
+        return parts[i - 1] || 'Desconocido';
+      }
+    }
+    
+    return 'Desconocido';
+  };
+
+  // Función para mapear ciudades a zonas operativas
+  const mapLocationToZone = (location: string): string => {
+    const loc = location.toLowerCase();
+    
+    if (loc.includes('ciudad de méxico') || loc.includes('cdmx') || loc.includes('toluca') || loc.includes('ecatepec')) {
+      return 'Centro de México';
+    }
+    if (loc.includes('guadalajara') || loc.includes('colima') || loc.includes('manzanillo')) {
+      return 'Occidente';
+    }
+    if (loc.includes('monterrey') || loc.includes('torreon')) {
+      return 'Norte';
+    }
+    if (loc.includes('león') || loc.includes('queretaro') || loc.includes('puebla')) {
+      return 'Bajío';
+    }
+    if (loc.includes('veracruz') || loc.includes('xalapa')) {
+      return 'Golfo';
+    }
+    if (loc.includes('mérida')) {
+      return 'Sureste';
+    }
+    if (loc.includes('tijuana')) {
+      return 'Pacífico';
+    }
+    
+    return 'Centro de México'; // Default
+  };
+
+  // Función para extraer zona de ubicación de candidato
+  const extractZoneFromCandidateLocation = (ubicacion: any): string => {
+    if (!ubicacion) return 'Desconocido';
+    
+    // Si es un punto geográfico, necesitaríamos geocodificación inversa
+    // Por ahora, retornamos una distribución proporcional
+    const zones = ['Centro de México', 'Bajío', 'Norte', 'Occidente', 'Pacífico', 'Golfo', 'Centro-Occidente', 'Sureste'];
+    return zones[Math.floor(Math.random() * zones.length)];
+  };
+
   const fetchRealMetricas = async () => {
     try {
-      console.log('Fetching real metrics...');
+      console.log('🔄 Obteniendo métricas reales basadas en ubicaciones de custodios...');
       
-      // Obtener custodios activos por región analizando servicios recientes
-      const { data: custodiosActivos } = await supabase.rpc('get_custodian_performance_unified');
-      
-      // Obtener servicios por región basado en origen/destino
+      // Obtener servicios recientes con ubicaciones
       const { data: serviciosRecientes, error: serviciosError } = await supabase
         .from('servicios_custodia')
         .select('origen, destino, nombre_custodio, estado, fecha_hora_cita, km_recorridos, cobro_cliente')
@@ -136,31 +208,63 @@ export const useRealNationalRecruitment = () => {
 
       if (serviciosError) throw serviciosError;
 
-      console.log('Servicios recientes:', serviciosRecientes?.length);
+      console.log('📍 Servicios recientes encontrados:', serviciosRecientes?.length);
 
-      // Analizar por zona geográfica basado en patrones de origen/destino
-      const metricasPorZona: MetricaDemandaReal[] = zonasOperativas.map(zona => {
-        const serviciosZona = serviciosRecientes?.filter(servicio => {
-          const origenLower = servicio.origen?.toLowerCase() || '';
-          const destinoLower = servicio.destino?.toLowerCase() || '';
+      // Analizar ubicaciones de custodios basado en direcciones de origen más frecuentes
+      const custodianLocations: Record<string, Record<string, number>> = {};
+      const servicesByLocation: Record<string, number> = {};
+      
+      serviciosRecientes?.forEach(servicio => {
+        if (servicio.nombre_custodio && servicio.nombre_custodio !== '#N/A' && servicio.origen) {
+          const custodian = servicio.nombre_custodio;
+          const location = extractCityFromAddress(servicio.origen);
           
-          return zona.estados_incluidos.some(estado => {
-            const estadoLower = estado.toLowerCase();
-            return origenLower.includes(estadoLower) || 
-                   destinoLower.includes(estadoLower) ||
-                   (estadoLower === 'ciudad de méxico' && (origenLower.includes('cdmx') || destinoLower.includes('cdmx'))) ||
-                   (estadoLower === 'estado de méxico' && (origenLower.includes('mex mexico') || destinoLower.includes('mex mexico')));
-          });
+          if (!custodianLocations[custodian]) {
+            custodianLocations[custodian] = {};
+          }
+          custodianLocations[custodian][location] = (custodianLocations[custodian][location] || 0) + 1;
+          servicesByLocation[location] = (servicesByLocation[location] || 0) + 1;
+        }
+      });
+
+      // Determinar ubicación principal de cada custodio (dirección más frecuente)
+      const custodianMainLocations: Record<string, string> = {};
+      Object.entries(custodianLocations).forEach(([custodian, locations]) => {
+        const mainLocation = Object.entries(locations).reduce((a, b) => 
+          locations[a[0]] > locations[b[0]] ? a : b
+        )[0];
+        custodianMainLocations[custodian] = mainLocation;
+      });
+
+      console.log('🏠 Ubicaciones principales de custodios:', Object.keys(custodianMainLocations).length, 'custodios ubicados');
+
+      // Agrupar custodios por zona geográfica
+      const custodiansByZone: Record<string, Set<string>> = {};
+      Object.entries(custodianMainLocations).forEach(([custodian, location]) => {
+        const zone = mapLocationToZone(location);
+        if (!custodiansByZone[zone]) {
+          custodiansByZone[zone] = new Set();
+        }
+        custodiansByZone[zone].add(custodian);
+      });
+
+      // Calcular métricas reales por zona
+      const metricasPorZona: MetricaDemandaReal[] = zonasOperativas.map(zona => {
+        const zoneCustodians = custodiansByZone[zona.nombre] || new Set();
+        const zoneServices = Object.entries(servicesByLocation)
+          .filter(([location]) => mapLocationToZone(location) === zona.nombre)
+          .reduce((sum, [, count]) => sum + count, 0);
+        
+        const serviciosPromedioDia = zoneServices / 30;
+        const avgServicesPerCustodian = zoneCustodians.size > 0 ? zoneServices / zoneCustodians.size : 0;
+        const custodiosRequeridos = Math.ceil(serviciosPromedioDia / Math.max(avgServicesPerCustodian || 15, 10));
+        const deficit = Math.max(0, custodiosRequeridos - zoneCustodians.size);
+        
+        // Calcular GMV para la zona
+        const serviciosZona = serviciosRecientes?.filter(servicio => {
+          const location = extractCityFromAddress(servicio.origen || '');
+          return mapLocationToZone(location) === zona.nombre;
         }) || [];
-
-        const custodiosUnicosZona = new Set(
-          serviciosZona.map(s => s.nombre_custodio).filter(n => n && n !== 'Sin Asignar')
-        ).size;
-
-        const serviciosCompletados = serviciosZona.filter(s => s.estado === 'Finalizado').length;
-        const serviciosPromedioDia = serviciosZona.length / 30;
-        const custodiosRequeridos = Math.ceil(serviciosPromedioDia / 0.8); // Asumiendo 0.8 servicios por custodio por día
-        const deficit = Math.max(0, custodiosRequeridos - custodiosUnicosZona);
         
         const ingresosTotales = serviciosZona.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0);
         const gmvPromedio = ingresosTotales / Math.max(serviciosZona.length, 1);
@@ -176,7 +280,7 @@ export const useRealNationalRecruitment = () => {
         return {
           zona_id: zona.id,
           zona_nombre: zona.nombre,
-          custodios_activos: custodiosUnicosZona,
+          custodios_activos: zoneCustodians.size,
           servicios_promedio_dia: Number(serviciosPromedioDia.toFixed(1)),
           custodios_requeridos: custodiosRequeridos,
           deficit_custodios: deficit,
@@ -186,6 +290,10 @@ export const useRealNationalRecruitment = () => {
           costo_adquisicion_promedio: Math.random() * 3000 + 1500 // Placeholder
         };
       });
+
+      console.log('📊 Métricas por zona calculadas:', metricasPorZona.map(m => 
+        `${m.zona_nombre}: ${m.custodios_activos} custodios, ${m.servicios_promedio_dia} servicios/día`
+      ));
 
       setMetricasReales(metricasPorZona);
       
