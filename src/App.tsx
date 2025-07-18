@@ -42,6 +42,7 @@ import CustodianPortal from '@/pages/custodian/CustodianPortal';
 import CustodianDashboard from '@/pages/custodian/CustodianDashboard';
 import CustodianTickets from '@/pages/custodian/CustodianTickets';
 import CustodianPortalAdmin from '@/pages/admin/CustodianPortalAdmin';
+import RecruitmentStrategy from '@/pages/RecruitmentStrategy';
 import SupplyDashboardExtended from '@/pages/supply/SupplyDashboardExtended';
 import SIERCPPage from '@/pages/evaluation/SIERCPPage';
 import SIERCPMethodologyPage from '@/pages/evaluation/SIERCPMethodologyPage';
@@ -163,6 +164,20 @@ function App() {
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'coordinador_operaciones', 'supply_admin']}>
                         <DashboardLayout>
                           <LeadApprovals />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                {/* Recruitment Strategy routes */}
+                <Route
+                  path="/recruitment-strategy"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'manager', 'coordinador_operaciones']}>
+                        <DashboardLayout>
+                          <RecruitmentStrategy />
                         </DashboardLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>

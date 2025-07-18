@@ -9,6 +9,7 @@ import { NationalMap } from '@/components/recruitment/NationalMap';
 import { AlertsPanel } from '@/components/recruitment/AlertsPanel';
 import { CandidatesPipeline } from '@/components/recruitment/CandidatesPipeline';
 import { MetricsOverview } from '@/components/recruitment/MetricsOverview';
+import FinancialROIDashboard from '@/components/recruitment/FinancialROIDashboard';
 
 const RecruitmentStrategy = () => {
   const {
@@ -131,11 +132,12 @@ const RecruitmentStrategy = () => {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="mapa" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="mapa">Mapa Nacional</TabsTrigger>
           <TabsTrigger value="alertas">Sistema de Alertas</TabsTrigger>
           <TabsTrigger value="pipeline">Pipeline de Candidatos</TabsTrigger>
           <TabsTrigger value="metricas">Métricas y Análisis</TabsTrigger>
+          <TabsTrigger value="roi">ROI y Presupuestos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="mapa" className="space-y-6">
@@ -174,6 +176,18 @@ const RecruitmentStrategy = () => {
             zonas={zonas}
             loading={loading}
           />
+        </TabsContent>
+
+        <TabsContent value="roi" className="space-y-6">
+          <Card className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Dashboard Financiero ROI</h2>
+              <Badge variant="outline">
+                Sistema de Gastos Externos Integrado
+              </Badge>
+            </div>
+            <FinancialROIDashboard />
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

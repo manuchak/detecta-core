@@ -241,6 +241,10 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
         ...(hasSkill('leads_approval') || isAdminUser || ['supply_admin', 'admin', 'owner'].includes(userRole || '') ? [
           { title: "Aprobaciones", path: "/leads/approvals" }
         ] : []),
+        // Estrategia Nacional - solo para coordinadores y administradores
+        ...(userRole === 'admin' || userRole === 'owner' || userRole === 'manager' || userRole === 'coordinador_operaciones' ? [
+          { title: "Estrategia Nacional", path: "/recruitment-strategy" }
+        ] : []),
         // Evaluación SIERCP - solo para admin, owner, supply_admin
         ...(userRole === 'admin' || userRole === 'owner' || userRole === 'supply_admin' ? [
           { title: "Evaluación SIERCP", path: "/evaluation/siercp" },
