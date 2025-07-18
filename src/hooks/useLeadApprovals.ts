@@ -218,11 +218,37 @@ export const useLeadApprovals = () => {
   const handleReject = async (lead: AssignedLead) => {
     // Para rechazar no se requiere validación de campos completos
     try {
+      console.log('Iniciando proceso de rechazo para lead:', lead.lead_id);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('Usuario actual:', user?.id, user?.email);
+      
+      if (!user) {
+        throw new Error('Usuario no autenticado');
+      }
+
+      // Verificar que el lead existe y obtener su información de asignación
+      const { data: leadData, error: leadCheckError } = await supabase
+        .from('leads')
+        .select('id, asignado_a, estado')
+        .eq('id', lead.lead_id)
+        .single();
+
+      if (leadCheckError) {
+        console.error('Error verificando lead:', leadCheckError);
+        throw new Error(`No se pudo verificar el lead: ${leadCheckError.message}`);
+      }
+
+      console.log('Lead data:', leadData);
+      console.log('Lead asignado a:', leadData?.asignado_a);
+      console.log('Usuario actual:', user.id);
+      
+      // Primero intentar crear/actualizar el proceso de aprobación
       const { error: approvalError } = await supabase
         .from('lead_approval_process')
         .upsert({
           lead_id: lead.lead_id,
-          analyst_id: (await supabase.auth.getUser()).data.user?.id,
+          analyst_id: user.id,
           current_stage: 'rejected',
           interview_method: 'manual',
           phone_interview_notes: 'Rechazado por el analista',
@@ -233,8 +259,12 @@ export const useLeadApprovals = () => {
           updated_at: new Date().toISOString()
         });
 
-      if (approvalError) throw approvalError;
+      if (approvalError) {
+        console.error('Error en lead_approval_process:', approvalError);
+        throw new Error(`Error en proceso de aprobación: ${approvalError.message}`);
+      }
 
+      // Luego actualizar el lead
       const { error: leadError } = await supabase
         .from('leads')
         .update({
@@ -243,7 +273,12 @@ export const useLeadApprovals = () => {
         })
         .eq('id', lead.lead_id);
 
-      if (leadError) throw leadError;
+      if (leadError) {
+        console.error('Error actualizando lead:', leadError);
+        throw new Error(`Error actualizando lead: ${leadError.message}`);
+      }
+
+      console.log('Lead rechazado exitosamente');
 
       toast({
         title: "Candidato rechazado",
@@ -252,10 +287,11 @@ export const useLeadApprovals = () => {
 
       fetchAssignedLeads();
     } catch (error) {
-      console.error('Error rejecting lead:', error);
+      console.error('Error completo al rechazar lead:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
       toast({
         title: "Error",
-        description: "No se pudo rechazar el candidato.",
+        description: `No se pudo rechazar el candidato: ${errorMessage}`,
         variant: "destructive",
       });
     }
