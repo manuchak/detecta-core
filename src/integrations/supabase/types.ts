@@ -5831,6 +5831,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      can_access_recruitment_data: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       can_manage_wms: {
         Args: Record<PropertyKey, never>
         Returns: boolean
@@ -6637,6 +6641,10 @@ export type Database = {
       }
       get_user_role_direct: {
         Args: Record<PropertyKey, never> | { user_uid: string }
+        Returns: string
+      }
+      get_user_role_for_recruitment: {
+        Args: Record<PropertyKey, never>
         Returns: string
       }
       get_user_role_safe: {
