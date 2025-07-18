@@ -424,126 +424,217 @@ const SIERCPPage = () => {
     };
     
     const getBgColor = (score: number) => {
-      if (score >= 85) return 'bg-green-100';
-      if (score >= 70) return 'bg-blue-100';
-      if (score >= 55) return 'bg-yellow-100';
-      return 'bg-red-100';
+      if (score >= 85) return 'bg-green-100 border-green-200';
+      if (score >= 70) return 'bg-blue-100 border-blue-200';
+      if (score >= 55) return 'bg-yellow-100 border-yellow-200';
+      return 'bg-red-100 border-red-200';
     };
+
+    const getGradientColor = (score: number) => {
+      if (score >= 85) return 'from-green-500 to-emerald-600';
+      if (score >= 70) return 'from-blue-500 to-indigo-600';
+      if (score >= 55) return 'from-yellow-500 to-orange-600';
+      return 'from-red-500 to-rose-600';
+    };
+
+    const getRiskLevel = (score: number) => {
+      if (score >= 85) return { level: 'Riesgo Bajo', icon: CheckCircle, color: 'text-green-600' };
+      if (score >= 70) return { level: 'Riesgo Moderado-Bajo', icon: AlertCircle, color: 'text-blue-600' };
+      if (score >= 55) return { level: 'Riesgo Moderado', icon: AlertCircle, color: 'text-yellow-600' };
+      return { level: 'Riesgo Alto', icon: AlertCircle, color: 'text-red-600' };
+    };
+
+    const getRecommendation = (score: number) => {
+      if (score >= 85) return 'Contratar con seguimiento estándar';
+      if (score >= 70) return 'Contratar con seguimiento reforzado';
+      if (score >= 55) return 'Evaluar con precaución';
+      return 'No recomendado para contratación';
+    };
+
+    const riskInfo = getRiskLevel(results.globalScore);
     
     return (
-      <div className="container mx-auto p-6 space-y-6 max-w-3xl">
+      <div className="container mx-auto p-6 space-y-6 max-w-5xl">
+        {/* Header Card */}
         <Card className="overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                <FileText className="h-6 w-6 text-white" />
+          <CardHeader className={`bg-gradient-to-r ${getGradientColor(results.globalScore)} text-white`}>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                <FileText className="h-7 w-7 text-white" />
               </div>
               <div>
-                <CardTitle>Resultados SIERCP</CardTitle>
-                <CardDescription className="text-white/80">
+                <CardTitle className="text-2xl">Resultados SIERCP</CardTitle>
+                <CardDescription className="text-white/90 text-base">
                   Sistema Integrado de Evaluación de Riesgo y Confiabilidad Psico-Criminológica
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
-          
-          <CardContent className="p-6 space-y-8">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className={`w-32 h-32 rounded-full ${getBgColor(results.globalScore)} flex items-center justify-center`}>
+        </Card>
+
+        {/* Main Results */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Global Score */}
+          <Card className="lg:col-span-1">
+            <CardContent className="p-6 text-center">
+              <div className="space-y-4">
+                <div className={`relative w-32 h-32 mx-auto rounded-full ${getBgColor(results.globalScore)} border-4 flex items-center justify-center`}>
                   <div className={`text-4xl font-bold ${getScoreColor(results.globalScore)}`}>
                     {results.globalScore}
                   </div>
+                  <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
+                    <Badge variant="secondary" className="text-xs">
+                      Puntuación Global
+                    </Badge>
+                  </div>
                 </div>
+                <Progress value={results.globalScore} className="w-full h-3" />
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-40">
-                <Card className="overflow-hidden shadow-md">
-                  <CardHeader className={`${getBgColor(results.globalScore)} py-3`}>
-                    <CardTitle className="text-lg">Clasificación</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getBgColor(results.globalScore)}`}>
-                      {results.globalScore >= 70 ? (
-                        <CheckCircle className={`h-4 w-4 ${getScoreColor(results.globalScore)}`} />
-                      ) : (
-                        <AlertCircle className={`h-4 w-4 ${getScoreColor(results.globalScore)}`} />
-                      )}
-                    </div>
-                    <div className={`font-medium ${getScoreColor(results.globalScore)}`}>
-                      {results.classification}
-                    </div>
-                  </CardContent>
-                </Card>
+            </CardContent>
+          </Card>
+
+          {/* Classification and Recommendation */}
+          <div className="lg:col-span-2 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <riskInfo.icon className={`h-5 w-5 ${riskInfo.color}`} />
+                  Clasificación
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className={`p-4 rounded-lg border-2 ${getBgColor(results.globalScore)}`}>
+                  <div className={`text-xl font-semibold ${riskInfo.color}`}>
+                    {riskInfo.level}
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Basado en la puntuación global de {results.globalScore}/100
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <UserCheck className="h-5 w-5 text-blue-600" />
+                  Recomendación
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                  <div className="text-lg font-medium text-blue-800">
+                    {getRecommendation(results.globalScore)}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Module Details */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5 text-indigo-600" />
+              Detalle por Módulos
+            </CardTitle>
+            <CardDescription>
+              Puntuaciones específicas de cada área evaluada
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Object.entries(moduleConfig).map(([key, config]) => {
+                if (key === 'entrevista') return null; // Skip interview module for now
                 
-                <Card className="overflow-hidden shadow-md">
-                  <CardHeader className={`${getBgColor(results.globalScore)} py-3`}>
-                    <CardTitle className="text-lg">Recomendación</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4">
-                    <div className="font-medium">{results.recommendation}</div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <h3 className="text-lg font-medium">Detalle por Módulos</h3>
-              <div className="grid grid-cols-2 gap-4">
-                {[
-                  { name: 'Integridad', score: results.integridad, icon: Shield },
-                  { name: 'Psicopatía', score: results.psicopatia, icon: Brain },
-                  { name: 'Violencia', score: results.violencia, icon: AlertCircle },
-                  { name: 'Agresividad', score: results.agresividad, icon: Zap },
-                  { name: 'Afrontamiento', score: results.afrontamiento, icon: Heart },
-                  { name: 'Veracidad', score: results.veracidad, icon: Eye }
-                ].map((module, index) => {
-                  const Icon = module.icon;
-                  return (
-                    <Card key={index} className="overflow-hidden shadow-sm">
-                      <div className="p-4 flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getBgColor(module.score)}`}>
-                          <Icon className={`h-5 w-5 ${getScoreColor(module.score)}`} />
+                const score = results[key as keyof typeof results] as number;
+                const Icon = config.icon;
+                
+                return (
+                  <Card key={key} className="relative overflow-hidden border-2 hover:shadow-md transition-shadow">
+                    <div className={`absolute top-0 left-0 w-full h-1 ${config.color}`}></div>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className={`w-10 h-10 rounded-lg ${config.color} bg-opacity-20 flex items-center justify-center`}>
+                          <Icon className={`h-5 w-5 ${config.color.replace('bg-', 'text-')}`} />
                         </div>
-                        <div>
-                          <div className="text-sm font-medium">{module.name}</div>
-                          <div className={`text-2xl font-bold ${getScoreColor(module.score)}`}>{module.score}</div>
+                        <div className="flex-1">
+                          <h3 className="font-medium text-sm">{config.title}</h3>
+                          <p className="text-xs text-gray-500">{config.description}</p>
                         </div>
                       </div>
-                    </Card>
-                  );
-                })}
-              </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className={`text-2xl font-bold ${getScoreColor(score)}`}>
+                            {score}
+                          </span>
+                          <Badge variant={score >= 70 ? "default" : "destructive"} className="text-xs">
+                            {score >= 70 ? "Normal" : "Atención"}
+                          </Badge>
+                        </div>
+                        <Progress value={score} className="h-2" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
-            
-            <div className="flex gap-4 pt-4">
-              {isAdmin && (
-                <Button 
-                  onClick={resetTest} 
-                  variant="outline" 
-                  className="flex-1"
-                >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Nueva Evaluación
-                </Button>
-              )}
-              <Button 
-                onClick={() => window.print()} 
-                className={`${isAdmin ? 'flex-1' : 'w-full'} bg-blue-600 hover:bg-blue-700`}
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                Imprimir Resultados
-              </Button>
-            </div>
-
-            {saving && (
-              <div className="flex items-center justify-center gap-2 pt-4 text-sm text-muted-foreground">
-                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                Guardando resultados...
-              </div>
-            )}
           </CardContent>
         </Card>
+
+        {/* Actions */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-between">
+          <Button
+            variant="outline"
+            onClick={() => {
+              resetTest();
+              setShowResults(false);
+              setCurrentQuestionIndex(0);
+            }}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Nueva Evaluación
+          </Button>
+          
+          <Button
+            onClick={() => window.print()}
+            className={`bg-gradient-to-r ${getGradientColor(results.globalScore)} text-white hover:opacity-90 flex items-center gap-2`}
+          >
+            <FileText className="h-4 w-4" />
+            Imprimir Resultados
+          </Button>
+        </div>
+
+        {/* Additional Information */}
+        <Card className="bg-gray-50">
+          <CardContent className="p-4">
+            <div className="text-sm text-gray-600 space-y-2">
+              <p className="font-medium">Información importante:</p>
+              <ul className="list-disc list-inside space-y-1 text-xs">
+                <li>Esta evaluación es una herramienta de apoyo y no sustituye el criterio profesional.</li>
+                <li>Los resultados deben ser interpretados por personal calificado.</li>
+                <li>Se recomienda complementar con entrevistas y verificación de referencias.</li>
+                <li>Fecha de evaluación: {new Date().toLocaleDateString('es-ES', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}</li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+
+        {saving && (
+          <div className="flex items-center justify-center gap-2 pt-4 text-sm text-muted-foreground">
+            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+            Guardando resultados...
+          </div>
+        )}
       </div>
     );
   }
