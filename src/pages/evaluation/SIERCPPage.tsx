@@ -11,7 +11,7 @@ import { useSIERCP, SIERCPQuestion } from "@/hooks/useSIERCP";
 import { useSIERCPResults } from "@/hooks/useSIERCPResults";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import AIConnectionTest from "@/components/siercp/AIConnectionTest";
+
 
 // Estilos CSS para impresión
 const printStyles = `
@@ -922,10 +922,6 @@ const SIERCPPage = () => {
 
   return (
     <div className="container mx-auto p-6 space-y-6 max-w-3xl">
-      {/* AI Connection Test - Solo mostrar al inicio de la evaluación */}
-      {currentModuleIndex === 0 && currentQuestionIndex === 0 && (
-        <AIConnectionTest />
-      )}
       
       <Card>
         <CardHeader>

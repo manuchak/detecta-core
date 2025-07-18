@@ -5,10 +5,11 @@ import { PermissionsManager } from "@/components/settings/PermissionsManager";
 import { QuickSkillsPanel } from "@/components/settings/QuickSkillsPanel";
 import { RoleManager } from "@/components/settings/roles/RoleManager";
 import { WhatsAppManager } from "@/components/settings/WhatsAppManager";
+import AIConnectionTest from "@/components/siercp/AIConnectionTest";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Settings = () => {
-  const [activeTab, setActiveTab] = useState("roles");
+  const [activeTab, setActiveTab] = useState("ia");
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -25,6 +26,7 @@ const Settings = () => {
           <TabsTrigger value="roles">Roles y Usuarios</TabsTrigger>
           <TabsTrigger value="permissions">Permisos Avanzados</TabsTrigger>
           <TabsTrigger value="whatsapp">Bot WhatsApp</TabsTrigger>
+          <TabsTrigger value="ia">Inteligencia Artificial</TabsTrigger>
           <TabsTrigger value="api">API</TabsTrigger>
         </TabsList>
 
@@ -38,6 +40,18 @@ const Settings = () => {
 
         <TabsContent value="whatsapp">
           <WhatsAppManager />
+        </TabsContent>
+
+        <TabsContent value="ia" className="space-y-6">
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-xl font-semibold mb-2">Configuración de IA</h2>
+              <p className="text-muted-foreground">
+                Configurar y probar la conexión con servicios de inteligencia artificial para asistir en las evaluaciones SIERCP.
+              </p>
+            </div>
+            <AIConnectionTest />
+          </div>
         </TabsContent>
 
         <TabsContent value="api">
