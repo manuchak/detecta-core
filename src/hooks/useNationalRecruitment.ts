@@ -411,13 +411,22 @@ export const useNationalRecruitment = () => {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      await Promise.all([
+      // Ejecutar las consultas de forma paralela pero con manejo de errores individual
+      const results = await Promise.allSettled([
         fetchZonas(),
         fetchMetricas(),
         fetchAlertas(),
         fetchCandidatos(),
         fetchMetricasReclutamiento()
       ]);
+      
+      // Log de errores para debugging sin bloquear la UI
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          const funcNames = ['fetchZonas', 'fetchMetricas', 'fetchAlertas', 'fetchCandidatos', 'fetchMetricasReclutamiento'];
+          console.error(`Error in ${funcNames[index]}:`, result.reason);
+        }
+      });
     } finally {
       setLoading(false);
     }

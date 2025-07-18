@@ -6979,6 +6979,15 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      test_recruitment_system_access: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          table_name: string
+          record_count: number
+          access_status: string
+          sample_data: Json
+        }[]
+      }
       update_all_custodian_levels: {
         Args: Record<PropertyKey, never>
         Returns: number
