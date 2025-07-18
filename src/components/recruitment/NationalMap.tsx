@@ -29,8 +29,8 @@ export const NationalMap: React.FC<NationalMapProps> = ({
     markersRef.current = [];
   };
 
-  // Función para agregar zonas operativas como polígonos
-  const addZonePolygons = () => {
+  // Función para agregar solo las zonas más críticas como polígonos
+  const addCriticalZones = () => {
     if (!map.current) return;
 
     zonas.forEach(zona => {
@@ -39,80 +39,54 @@ export const NationalMap: React.FC<NationalMapProps> = ({
       const metrica = metricas.find(m => m.zona_id === zona.id);
       const alertasZona = alertas.filter(a => a.zona_id === zona.id);
       
-      // Determinar urgencia y color basado en score y alertas
-      let urgencia = 'baja';
-      let color = 'rgba(34, 197, 94, 0.3)'; // Verde translúcido
-      let borderColor = '#22c55e';
-      
       const scoreUrgencia = metrica?.score_urgencia || 0;
       const deficitCustodios = metrica?.deficit_custodios || 0;
       
-      if (alertasZona.some(a => a.tipo_alerta === 'critica') || scoreUrgencia >= 8 || deficitCustodios > 10) {
-        urgencia = 'critica';
-        color = 'rgba(239, 68, 68, 0.3)'; // Rojo translúcido
-        borderColor = '#ef4444';
-      } else if (alertasZona.some(a => a.tipo_alerta === 'preventiva') || scoreUrgencia >= 6 || deficitCustodios > 5) {
-        urgencia = 'alta';
-        color = 'rgba(245, 158, 11, 0.3)'; // Amarillo translúcido
-        borderColor = '#f59e0b';
-      } else if (scoreUrgencia >= 4 || deficitCustodios > 0) {
-        urgencia = 'media';
-        color = 'rgba(59, 130, 246, 0.3)'; // Azul translúcido
-        borderColor = '#3b82f6';
-      }
-
-      // Crear un círculo que represente la zona operativa
-      const circle = {
-        type: 'Feature',
-        properties: {},
-        geometry: {
-          type: 'Point',
-          coordinates: zona.coordenadas_centro
-        }
-      } as const;
-
-      // Agregar círculo como capa en el mapa
-      const layerId = `zone-${zona.id}`;
+      // Solo mostrar polígonos para zonas críticas y urgentes
+      const isCritical = alertasZona.some(a => a.tipo_alerta === 'critica') || scoreUrgencia >= 8 || deficitCustodios > 10;
+      const isUrgent = alertasZona.some(a => a.tipo_alerta === 'preventiva') || scoreUrgencia >= 6 || deficitCustodios > 5;
       
-      if (!map.current!.getSource(layerId)) {
-        map.current!.addSource(layerId, {
-          type: 'geojson',
-          data: circle
-        });
+      if (isCritical || isUrgent) {
+        const color = isCritical ? 'rgba(220, 38, 38, 0.2)' : 'rgba(234, 88, 12, 0.2)';
+        const borderColor = isCritical ? '#dc2626' : '#ea580c';
 
-        map.current!.addLayer({
-          id: `${layerId}-fill`,
-          type: 'circle',
-          source: layerId,
-          paint: {
-            'circle-radius': {
-              stops: [
-                [5, 20],
-                [10, 80]
-              ]
-            },
-            'circle-color': color,
-            'circle-stroke-color': borderColor,
-            'circle-stroke-width': 2
+        const circle = {
+          type: 'Feature',
+          properties: { name: zona.nombre },
+          geometry: {
+            type: 'Point',
+            coordinates: zona.coordenadas_centro
           }
-        });
+        } as const;
 
-        map.current!.addLayer({
-          id: `${layerId}-label`,
-          type: 'symbol',
-          source: layerId,
-          layout: {
-            'text-field': zona.nombre,
-            'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-            'text-size': 14,
-            'text-anchor': 'center'
-          },
-          paint: {
-            'text-color': borderColor,
-            'text-halo-color': '#ffffff',
-            'text-halo-width': 2
-          }
-        });
+        const layerId = `zone-${zona.id}`;
+        
+        if (!map.current!.getSource(layerId)) {
+          map.current!.addSource(layerId, {
+            type: 'geojson',
+            data: circle
+          });
+
+          // Círculo de fondo para zonas críticas
+          map.current!.addLayer({
+            id: `${layerId}-fill`,
+            type: 'circle',
+            source: layerId,
+            paint: {
+              'circle-radius': {
+                stops: [
+                  [4, 40],
+                  [8, 80],
+                  [12, 120]
+                ]
+              },
+              'circle-color': color,
+              'circle-stroke-color': borderColor,
+              'circle-stroke-width': 3,
+              'circle-opacity': 0.7
+            }
+          });
+        }
       }
     });
   };
@@ -386,7 +360,7 @@ export const NationalMap: React.FC<NationalMapProps> = ({
 
     const updateMarkers = () => {
       clearMarkers();
-      addZonePolygons();
+      addCriticalZones();
       addZoneMarkers();
       addCandidateMarkers();
     };
@@ -406,48 +380,45 @@ export const NationalMap: React.FC<NationalMapProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Leyenda mejorada */}
-      <div className="bg-card border rounded-lg p-4">
-        <h4 className="font-semibold mb-3 text-sm">Niveles de Urgencia por Zona</h4>
-        <div className="flex flex-wrap gap-6 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full" style={{backgroundColor: '#dc2626'}}></div>
-            <div>
-              <div className="font-medium text-destructive">🚨 CRÍTICO</div>
-              <div className="text-muted-foreground">Score ≥8 o déficit {'>'}10</div>
+      {/* Leyenda Ultra Simplificada */}
+      <div className="flex items-center justify-between bg-gradient-to-r from-slate-50 to-slate-100 border rounded-xl p-4">
+        <div className="flex items-center gap-8">
+          <div className="text-sm font-semibold text-slate-700">PRIORIDAD DE ATENCIÓN:</div>
+          
+          {/* Solo mostrar los críticos */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-1 bg-red-100 border border-red-200 rounded-lg">
+              <div className="w-5 h-5 rounded-full bg-red-600 flex items-center justify-center">
+                <span className="text-white text-xs font-bold">🚨</span>
+              </div>
+              <div className="text-red-800 font-bold text-sm">CRÍTICO - Actuar YA</div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full" style={{backgroundColor: '#ea580c'}}></div>
-            <div>
-              <div className="font-medium text-orange-600">⚠️ URGENTE</div>
-              <div className="text-muted-foreground">Score ≥6 o déficit {'>'}5</div>
+            
+            <div className="flex items-center gap-2 px-3 py-1 bg-orange-100 border border-orange-200 rounded-lg">
+              <div className="w-5 h-5 rounded-full bg-orange-600 flex items-center justify-center">
+                <span className="text-white text-xs font-bold">⚠️</span>
+              </div>
+              <div className="text-orange-800 font-bold text-sm">URGENTE - Esta semana</div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full" style={{backgroundColor: '#2563eb'}}></div>
-            <div>
-              <div className="font-medium text-blue-600">📋 ATENCIÓN</div>
-              <div className="text-muted-foreground">Score ≥4 o déficit {'>'}0</div>
+            
+            <div className="flex items-center gap-2 px-3 py-1 bg-blue-100 border border-blue-200 rounded-lg">
+              <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center">
+                <span className="text-white text-xs font-bold">📋</span>
+              </div>
+              <div className="text-blue-800 font-medium text-sm">Vigilar</div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full" style={{backgroundColor: '#22c55e'}}></div>
-            <div>
-              <div className="font-medium text-success">✅ SALUDABLE</div>
-              <div className="text-muted-foreground">Sin déficit significativo</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 ml-6 pl-6 border-l">
-            <div className="w-3 h-3 rounded-full bg-slate-400"></div>
-            <div>
-              <div className="font-medium">👤 Candidatos</div>
-              <div className="text-muted-foreground">En proceso de reclutamiento</div>
+            
+            <div className="flex items-center gap-2 px-3 py-1 bg-green-100 border border-green-200 rounded-lg">
+              <div className="w-5 h-5 rounded-full bg-green-600 flex items-center justify-center">
+                <span className="text-white text-xs font-bold">✅</span>
+              </div>
+              <div className="text-green-800 font-medium text-sm">OK</div>
             </div>
           </div>
         </div>
-        <div className="mt-3 pt-3 border-t text-xs text-muted-foreground">
-          <strong>Nota:</strong> Los números en los marcadores muestran custodios activos (positivos) o déficit (negativos)
+        
+        <div className="text-xs text-slate-500 font-medium">
+          Números = Custodios activos | Negativos = Déficit
         </div>
       </div>
 
