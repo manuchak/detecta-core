@@ -560,32 +560,33 @@ const SIERCPPage = () => {
   }
 
   if (showResults && results) {
+    // Nueva estrategia de colores basada en psicología del color y emocionalidad
     const getScoreColor = (score: number) => {
-      if (score >= 85) return 'text-green-600';
-      if (score >= 70) return 'text-blue-600';
-      if (score >= 55) return 'text-yellow-600';
-      return 'text-red-600';
+      if (score >= 85) return 'text-emerald-600'; // Verde esmeralda - tranquilidad, éxito
+      if (score >= 70) return 'text-teal-600';    // Verde azulado - confianza, balance
+      if (score >= 55) return 'text-amber-600';   // Ámbar - precaución sin alarma
+      return 'text-rose-600';                     // Rosa suave - alerta sin agresividad
     };
     
     const getBgColor = (score: number) => {
-      if (score >= 85) return 'bg-green-100 border-green-200';
-      if (score >= 70) return 'bg-blue-100 border-blue-200';
-      if (score >= 55) return 'bg-yellow-100 border-yellow-200';
-      return 'bg-red-100 border-red-200';
+      if (score >= 85) return 'bg-emerald-50 border-emerald-200';
+      if (score >= 70) return 'bg-teal-50 border-teal-200';
+      if (score >= 55) return 'bg-amber-50 border-amber-200';
+      return 'bg-rose-50 border-rose-200';
     };
 
     const getGradientColor = (score: number) => {
-      if (score >= 85) return 'from-green-500 to-emerald-600';
-      if (score >= 70) return 'from-blue-500 to-indigo-600';
-      if (score >= 55) return 'from-yellow-500 to-orange-600';
-      return 'from-red-500 to-rose-600';
+      if (score >= 85) return 'from-emerald-500 to-teal-600';
+      if (score >= 70) return 'from-teal-500 to-cyan-600';
+      if (score >= 55) return 'from-amber-500 to-orange-500';
+      return 'from-rose-500 to-pink-600';
     };
 
     const getRiskLevel = (score: number) => {
-      if (score >= 85) return { level: 'Riesgo Bajo', icon: CheckCircle, color: 'text-green-600' };
-      if (score >= 70) return { level: 'Riesgo Moderado-Bajo', icon: AlertCircle, color: 'text-blue-600' };
-      if (score >= 55) return { level: 'Riesgo Moderado', icon: AlertCircle, color: 'text-yellow-600' };
-      return { level: 'Riesgo Alto', icon: AlertCircle, color: 'text-red-600' };
+      if (score >= 85) return { level: 'Riesgo Bajo', icon: CheckCircle, color: 'text-emerald-600' };
+      if (score >= 70) return { level: 'Riesgo Moderado-Bajo', icon: AlertCircle, color: 'text-teal-600' };
+      if (score >= 55) return { level: 'Riesgo Moderado', icon: AlertCircle, color: 'text-amber-600' };
+      return { level: 'Riesgo Alto', icon: AlertCircle, color: 'text-rose-600' };
     };
 
     const getRecommendation = (score: number) => {
@@ -595,18 +596,52 @@ const SIERCPPage = () => {
       return 'No recomendado para contratación';
     };
 
+    // Función para obtener el estado del módulo con colores mejorados
+    const getModuleStatus = (score: number) => {
+      if (score >= 85) return { 
+        label: 'Excelente', 
+        variant: 'default' as const, 
+        bgColor: 'bg-emerald-100', 
+        textColor: 'text-emerald-700',
+        borderColor: 'border-emerald-300'
+      };
+      if (score >= 70) return { 
+        label: 'Satisfactorio', 
+        variant: 'secondary' as const, 
+        bgColor: 'bg-teal-100', 
+        textColor: 'text-teal-700',
+        borderColor: 'border-teal-300'
+      };
+      if (score >= 55) return { 
+        label: 'Moderado', 
+        variant: 'outline' as const, 
+        bgColor: 'bg-amber-100', 
+        textColor: 'text-amber-700',
+        borderColor: 'border-amber-300'
+      };
+      return { 
+        label: 'Requiere Atención', 
+        variant: 'outline' as const, 
+        bgColor: 'bg-rose-100', 
+        textColor: 'text-rose-700',
+        borderColor: 'border-rose-300'
+      };
+    };
+
     const riskInfo = getRiskLevel(results.globalScore);
     
-    // Add print styles to head
+    // Add print styles to head - moved outside of conditional render
     useEffect(() => {
       const styleElement = document.createElement('style');
       styleElement.innerHTML = printStyles;
       document.head.appendChild(styleElement);
       
       return () => {
-        document.head.removeChild(styleElement);
+        if (document.head.contains(styleElement)) {
+          document.head.removeChild(styleElement);
+        }
       };
-    }, []);
+    }, []); // Empty dependency array to run only once
     
     return (
       <>
@@ -803,9 +838,17 @@ const SIERCPPage = () => {
                             <span className={`text-2xl font-bold ${getScoreColor(score)}`}>
                               {score}
                             </span>
-                            <Badge variant={score >= 70 ? "default" : "destructive"} className="text-xs">
-                              {score >= 70 ? "Normal" : "Atención"}
-                            </Badge>
+                            {(() => {
+                              const status = getModuleStatus(score);
+                              return (
+                                <Badge 
+                                  variant={status.variant} 
+                                  className={`text-xs ${status.bgColor} ${status.textColor} ${status.borderColor} border`}
+                                >
+                                  {status.label}
+                                </Badge>
+                              );
+                            })()}
                           </div>
                           <Progress value={score} className="h-2" />
                         </div>
