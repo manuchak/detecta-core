@@ -241,6 +241,11 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
         ...(hasSkill('leads_approval') || isAdminUser || ['supply_admin', 'admin', 'owner'].includes(userRole || '') ? [
           { title: "Aprobaciones", path: "/leads/approvals" }
         ] : []),
+        // Evaluación SIERCP - solo para admin, owner, supply_admin
+        ...(userRole === 'admin' || userRole === 'owner' || userRole === 'supply_admin' ? [
+          { title: "Evaluación SIERCP", path: "/evaluation/siercp" },
+          { title: "Metodología SIERCP", path: "/evaluation/siercp/methodology" }
+        ] : []),
       ]
     }] : []),
 
@@ -275,17 +280,6 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
         { title: "Mi Portal", path: "/installers/portal" },
         { title: "Programación", path: "/installers/schedule" },
         { title: "Calendario", path: "/installers/calendar" },
-      ]
-    }] : []),
-
-    // Evaluación SIERCP - solo para admin, owner, supply_admin
-    ...(userRole === 'admin' || userRole === 'owner' || userRole === 'supply_admin' ? [{
-      title: "Evaluación SIERCP",
-      icon: BarChart3,
-      path: "/evaluation/siercp",
-      subItems: [
-        { title: "Realizar Evaluación", path: "/evaluation/siercp" },
-        { title: "Metodología", path: "/evaluation/siercp/methodology" },
       ]
     }] : []),
 
