@@ -91,7 +91,7 @@ export const NationalMap: React.FC<NationalMapProps> = ({
     });
   };
 
-  // Función para agregar markers de zonas (centros)
+  // Función para agregar markers de zonas con información más clara
   const addZoneMarkers = () => {
     if (!map.current) return;
 
@@ -102,101 +102,137 @@ export const NationalMap: React.FC<NationalMapProps> = ({
       const alertasZona = alertas.filter(a => a.zona_id === zona.id);
       const candidatosZona = candidatos.filter(c => c.zona_preferida_id === zona.id);
 
-      // Sistema de colores basado en urgencia real
-      let color = '#22c55e'; // Verde - Saludable
-      let prioridadTexto = 'Saludable';
+      // Sistema de colores más claro basado en urgencia real
+      let color = '#22c55e'; // Verde - OK
+      let prioridadTexto = 'OK';
       let alertIcon = '✅';
+      let markerText = ''; // Texto que va en el marker
       
       const scoreUrgencia = metrica?.score_urgencia || 0;
       const deficitCustodios = metrica?.deficit_custodios || 0;
+      const custodiosActivos = metrica?.custodios_activos || 0;
+      const custodiosRequeridos = metrica?.custodios_requeridos || 0;
       
       if (alertasZona.some(a => a.tipo_alerta === 'critica') || scoreUrgencia >= 8 || deficitCustodios > 10) {
         color = '#dc2626'; // Rojo intenso - CRÍTICO
         prioridadTexto = 'CRÍTICO';
         alertIcon = '🚨';
+        markerText = deficitCustodios > 0 ? `-${deficitCustodios}` : '!!!';
       } else if (alertasZona.some(a => a.tipo_alerta === 'preventiva') || scoreUrgencia >= 6 || deficitCustodios > 5) {
         color = '#ea580c'; // Naranja - URGENTE
         prioridadTexto = 'URGENTE';
         alertIcon = '⚠️';
+        markerText = deficitCustodios > 0 ? `-${deficitCustodios}` : '⚠️';
       } else if (scoreUrgencia >= 4 || deficitCustodios > 0) {
         color = '#2563eb'; // Azul - ATENCIÓN
-        prioridadTexto = 'ATENCIÓN';
+        prioridadTexto = 'VIGILAR';
         alertIcon = '📋';
+        markerText = deficitCustodios > 0 ? `-${deficitCustodios}` : custodiosActivos.toString();
+      } else {
+        // Para zonas OK, mostrar custodios activos solo si hay datos relevantes
+        if (custodiosActivos > 0) {
+          markerText = custodiosActivos.toString();
+        } else {
+          markerText = '✓'; // Checkmark para zonas sin problemas
+        }
       }
 
-      // Crear popup con información clara
+      // Si no hay custodios activos ni déficit, mostrar un indicador neutral
+      if (custodiosActivos === 0 && deficitCustodios === 0 && scoreUrgencia < 4) {
+        markerText = '—'; // Guión para indicar "sin datos relevantes"
+        color = '#64748b'; // Gris neutral
+      }
+
+      // Crear popup con información más visual
       const popupContent = `
-        <div style="padding: 12px; max-width: 320px; font-family: system-ui;">
-          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-            <span style="font-size: 20px;">${alertIcon}</span>
+        <div style="padding: 16px; max-width: 320px; font-family: system-ui;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+            <span style="font-size: 24px;">${alertIcon}</span>
             <div>
-              <h3 style="margin: 0; font-size: 16px; font-weight: bold;">${zona.nombre}</h3>
-              <span style="background: ${color}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">
+              <h3 style="margin: 0; font-size: 18px; font-weight: bold; color: #1f2937;">${zona.nombre}</h3>
+              <span style="background: ${color}; color: white; padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: bold;">
                 ${prioridadTexto}
               </span>
             </div>
           </div>
           
-          <div style="background: #f8fafc; padding: 8px; border-radius: 6px; margin-bottom: 8px;">
-            <p style="margin: 4px 0; font-size: 12px;">
-              <strong>📍 Estados:</strong> ${zona.estados_incluidos?.join(', ') || 'N/A'}
-            </p>
-            <p style="margin: 4px 0; font-size: 12px;">
-              <strong>🎯 Prioridad:</strong> ${zona.prioridad_reclutamiento || 'N/A'}/10
+          <div style="background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+            <p style="margin: 6px 0; font-size: 13px; color: #374151;">
+              <strong>📍 Cobertura:</strong> ${zona.estados_incluidos?.join(', ') || 'N/A'}
             </p>
           </div>
 
           ${metrica ? `
-            <div style="border-top: 1px solid #e2e8f0; padding-top: 8px;">
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
-                <div style="text-align: center; background: #f1f5f9; padding: 6px; border-radius: 4px;">
-                  <div style="font-weight: bold; color: ${deficitCustodios > 0 ? '#dc2626' : '#059669'};">
-                    ${metrica.custodios_activos || 0}/${metrica.custodios_requeridos || 0}
-                  </div>
-                  <div style="font-size: 10px; color: #64748b;">Custodios</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+              <div style="text-align: center; background: ${custodiosActivos >= custodiosRequeridos ? '#dcfce7' : '#fef2f2'}; 
+                          padding: 12px; border-radius: 8px; border: 2px solid ${custodiosActivos >= custodiosRequeridos ? '#22c55e' : '#ef4444'};">
+                <div style="font-size: 20px; font-weight: bold; color: ${custodiosActivos >= custodiosRequeridos ? '#15803d' : '#dc2626'};">
+                  ${custodiosActivos}/${custodiosRequeridos}
                 </div>
-                <div style="text-align: center; background: #f1f5f9; padding: 6px; border-radius: 4px;">
-                  <div style="font-weight: bold; color: #0f172a;">
-                    ${metrica.servicios_promedio_dia || 0}
-                  </div>
-                  <div style="font-size: 10px; color: #64748b;">Servicios/día</div>
-                </div>
+                <div style="font-size: 11px; color: #6b7280; font-weight: 500;">CUSTODIOS</div>
               </div>
               
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 12px;"><strong>Score urgencia:</strong></span>
-                <span style="background: ${scoreUrgencia >= 7 ? '#dc2626' : scoreUrgencia >= 5 ? '#ea580c' : '#059669'}; 
-                            color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: bold;">
+              <div style="text-align: center; background: #f1f5f9; padding: 12px; border-radius: 8px;">
+                <div style="font-size: 20px; font-weight: bold; color: #0f172a;">
+                  ${metrica.servicios_promedio_dia || 0}
+                </div>
+                <div style="font-size: 11px; color: #6b7280; font-weight: 500;">SERVICIOS/DÍA</div>
+              </div>
+              
+              <div style="text-align: center; background: ${scoreUrgencia >= 7 ? '#fef2f2' : scoreUrgencia >= 4 ? '#fef3c7' : '#dcfce7'}; 
+                          padding: 12px; border-radius: 8px;">
+                <div style="font-size: 20px; font-weight: bold; color: ${scoreUrgencia >= 7 ? '#dc2626' : scoreUrgencia >= 4 ? '#d97706' : '#15803d'};">
                   ${scoreUrgencia}/10
-                </span>
-              </div>
-              
-              ${deficitCustodios > 0 ? `
-                <div style="background: #fee2e2; border: 1px solid #fecaca; padding: 6px; border-radius: 4px; margin-top: 8px;">
-                  <p style="margin: 0; font-size: 12px; color: #dc2626; font-weight: bold;">
-                    ⚠️ DÉFICIT: ${deficitCustodios} custodios faltantes
-                  </p>
                 </div>
-              ` : ''}
+                <div style="font-size: 11px; color: #6b7280; font-weight: 500;">URGENCIA</div>
+              </div>
             </div>
-          ` : ''}
+            
+            ${deficitCustodios > 0 ? `
+              <div style="background: #fee2e2; border: 2px solid #fca5a5; padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 20px;">🚨</span>
+                  <div>
+                    <div style="font-size: 14px; color: #dc2626; font-weight: bold;">
+                      DÉFICIT: ${deficitCustodios} custodios
+                    </div>
+                    <div style="font-size: 12px; color: #7f1d1d;">
+                      Acción requerida inmediatamente
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ` : ''}
+          ` : `
+            <div style="background: #f3f4f6; padding: 12px; border-radius: 8px; text-align: center;">
+              <span style="color: #6b7280; font-size: 13px;">Sin métricas disponibles</span>
+            </div>
+          `}
 
           ${candidatosZona.length > 0 ? `
-            <div style="background: #f0f9ff; border-left: 3px solid #0ea5e9; padding: 8px; margin-top: 8px;">
-              <p style="margin: 0; font-size: 12px;">
-                🎯 <strong>${candidatosZona.length} candidatos</strong> en pipeline
-              </p>
+            <div style="background: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 12px; margin-top: 12px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 16px;">🎯</span>
+                <div>
+                  <div style="font-size: 13px; font-weight: bold; color: #0c4a6e;">
+                    ${candidatosZona.length} candidatos en pipeline
+                  </div>
+                  <div style="font-size: 11px; color: #0369a1;">
+                    Proceso de reclutamiento activo
+                  </div>
+                </div>
+              </div>
             </div>
           ` : ''}
 
           ${alertasZona.length > 0 ? `
-            <div style="border-top: 1px solid #e2e8f0; padding-top: 8px; margin-top: 8px;">
-              <p style="margin: 0 0 4px 0; font-size: 12px; font-weight: bold; color: #dc2626;">
+            <div style="border-top: 1px solid #e5e7eb; padding-top: 12px; margin-top: 12px;">
+              <div style="font-size: 13px; font-weight: bold; color: #dc2626; margin-bottom: 8px;">
                 🔔 ${alertasZona.length} alerta(s) activa(s):
-              </p>
-              ${alertasZona.slice(0, 3).map(a => `
-                <div style="background: #fef2f2; padding: 4px 6px; margin: 2px 0; border-radius: 3px; border-left: 2px solid #ef4444;">
-                  <span style="font-size: 11px; font-weight: 500;">${a.titulo}</span>
+              </div>
+              ${alertasZona.slice(0, 2).map(a => `
+                <div style="background: #fef2f2; padding: 8px; margin: 4px 0; border-radius: 6px; border-left: 3px solid #ef4444;">
+                  <div style="font-size: 12px; font-weight: 600; color: #7f1d1d;">${a.titulo}</div>
                 </div>
               `).join('')}
             </div>
@@ -205,35 +241,34 @@ export const NationalMap: React.FC<NationalMapProps> = ({
       `;
 
       const popup = new mapboxgl.Popup({ 
-        offset: 25,
+        offset: 30,
         closeButton: true,
         closeOnClick: false,
-        maxWidth: '350px'
+        maxWidth: '380px'
       }).setHTML(popupContent);
 
-      // Marcador más prominente con mejor indicación visual
+      // Marcador más informativo y claro
       const el = document.createElement('div');
       el.className = 'custom-marker zone-marker';
       el.style.cssText = `
         background: linear-gradient(135deg, ${color}, ${color}dd);
-        width: 40px;
-        height: 40px;
+        width: 50px;
+        height: 50px;
         border-radius: 50%;
-        border: 3px solid white;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3), 0 0 0 2px ${color}44;
+        border: 4px solid white;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.25), 0 0 0 3px ${color}33;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: bold;
+        font-weight: 900;
         color: white;
-        font-size: 14px;
+        font-size: 16px;
         position: relative;
+        z-index: 100;
       `;
       
-      // Mostrar número de custodios activos o déficit
-      const displayText = deficitCustodios > 0 ? `-${deficitCustodios}` : String(metrica?.custodios_activos || 0);
-      el.textContent = displayText;
+      el.textContent = markerText;
 
       const marker = new mapboxgl.Marker({
         element: el,
@@ -328,7 +363,7 @@ export const NationalMap: React.FC<NationalMapProps> = ({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/light-v11',
       center: [-102.5528, 23.6345], // Centro de México
-      zoom: 5,
+      zoom: 4.5, // Zoom menor para mostrar México completo
       projection: 'mercator'
     });
 
@@ -417,13 +452,16 @@ export const NationalMap: React.FC<NationalMapProps> = ({
           </div>
         </div>
         
-        <div className="text-xs text-slate-500 font-medium">
-          Números = Custodios activos | Negativos = Déficit
+        <div className="text-xs text-slate-500 font-medium text-right">
+          <div>📊 <strong>Números en markers:</strong></div>
+          <div>• Positivos = Custodios activos</div>
+          <div>• Negativos = Déficit urgente</div>
+          <div>• "✓" = Sin problemas | "—" = Sin datos | "!!!" = Crisis</div>
         </div>
       </div>
 
-      {/* Mapa */}
-      <div className="relative w-full h-96 rounded-lg overflow-hidden border">
+      {/* Mapa MUCHO más grande */}
+      <div className="relative w-full h-[600px] rounded-lg overflow-hidden border">
         <div ref={mapContainer} className="absolute inset-0" />
       </div>
 
