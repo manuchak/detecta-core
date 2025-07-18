@@ -6,8 +6,11 @@ import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, CheckCircle, FileText, Brain, Shield, Zap, Heart, Eye, MessageSquare, ArrowRight, ArrowLeft } from "lucide-react";
+import { AlertCircle, CheckCircle, FileText, Brain, Shield, Zap, Heart, Eye, MessageSquare, ArrowRight, ArrowLeft, UserCheck, History } from "lucide-react";
 import { useSIERCP, SIERCPQuestion } from "@/hooks/useSIERCP";
+import { useSIERCPResults } from "@/hooks/useSIERCPResults";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
 
 const moduleConfig = {
   integridad: { 
@@ -55,6 +58,7 @@ const moduleConfig = {
 };
 
 const SIERCPPage = () => {
+  const { userRole } = useAuth();
   const {
     responses,
     currentModule,
@@ -67,10 +71,19 @@ const SIERCPPage = () => {
     resetTest
   } = useSIERCP();
 
+  const {
+    existingResult,
+    loading,
+    isAdmin,
+    canTakeEvaluation,
+    saveResult
+  } = useSIERCPResults();
+
   const [showResults, setShowResults] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answered, setAnswered] = useState(false);
   const [animation, setAnimation] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const modules = Object.keys(moduleConfig);
   const currentModuleIndex = modules.indexOf(currentModule);
@@ -280,6 +293,128 @@ const SIERCPPage = () => {
 
   const results = showResults ? calculateResults() : null;
 
+  // Manejar guardado de resultados
+  const handleSaveResults = async (results: any) => {
+    if (!isAdmin && existingResult) {
+      toast({
+        title: "Evaluación ya completada",
+        description: "Ya has completado esta evaluación anteriormente.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await saveResult({
+        scores: {
+          integridad: results.integridad,
+          psicopatia: results.psicopatia,
+          violencia: results.violencia,
+          agresividad: results.agresividad,
+          afrontamiento: results.afrontamiento,
+          veracidad: results.veracidad,
+          entrevista: results.entrevista
+        },
+        percentiles: results.percentiles || {},
+        clinical_interpretation: results.clinicalInterpretation?.interpretation || results.classification,
+        risk_flags: results.clinicalInterpretation?.validityFlags || [],
+        global_score: results.globalScore
+      });
+
+      toast({
+        title: "Resultados guardados",
+        description: "Los resultados de tu evaluación han sido guardados exitosamente.",
+      });
+    } catch (error) {
+      console.error('Error saving results:', error);
+      toast({
+        title: "Error al guardar",
+        description: "Hubo un problema al guardar los resultados. Por favor, intenta de nuevo.",
+        variant: "destructive"
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showResults && results && !isAdmin && !existingResult) {
+      handleSaveResults(results);
+    }
+  }, [showResults, results]);
+
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6 space-y-6 max-w-3xl">
+        <Card>
+          <CardContent className="p-8 text-center">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-muted-foreground">Cargando evaluación...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Mostrar mensaje si ya completó la evaluación
+  if (!canTakeEvaluation && existingResult) {
+    return (
+      <div className="container mx-auto p-6 space-y-6 max-w-3xl">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <UserCheck className="h-6 w-6 text-green-600" />
+              <div>
+                <CardTitle>Evaluación ya completada</CardTitle>
+                <CardDescription>
+                  Ya has completado la evaluación SIERCP anteriormente
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <div>
+                  <p className="font-medium text-green-800">
+                    Evaluación completada el {new Date(existingResult.completed_at).toLocaleDateString('es-ES')}
+                  </p>
+                  <p className="text-sm text-green-600">
+                    Puntuación global: {existingResult.global_score}/100
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="text-sm text-muted-foreground">
+              Los resultados de tu evaluación están registrados en el sistema. 
+              Si necesitas realizar una nueva evaluación, contacta al administrador.
+            </div>
+
+            {isAdmin && (
+              <div className="pt-4 border-t">
+                <Button
+                  onClick={() => {
+                    resetTest();
+                    setShowResults(false);
+                  }}
+                  className="w-full"
+                >
+                  <Brain className="h-4 w-4 mr-2" />
+                  Realizar nueva evaluación (Modo Admin)
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (showResults && results) {
     const getScoreColor = (score: number) => {
       if (score >= 85) return 'text-green-600';
@@ -382,22 +517,31 @@ const SIERCPPage = () => {
             </div>
             
             <div className="flex gap-4 pt-4">
-              <Button 
-                onClick={resetTest} 
-                variant="outline" 
-                className="flex-1"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Nueva Evaluación
-              </Button>
+              {isAdmin && (
+                <Button 
+                  onClick={resetTest} 
+                  variant="outline" 
+                  className="flex-1"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Nueva Evaluación
+                </Button>
+              )}
               <Button 
                 onClick={() => window.print()} 
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
+                className={`${isAdmin ? 'flex-1' : 'w-full'} bg-blue-600 hover:bg-blue-700`}
               >
                 <FileText className="h-4 w-4 mr-2" />
                 Imprimir Resultados
               </Button>
             </div>
+
+            {saving && (
+              <div className="flex items-center justify-center gap-2 pt-4 text-sm text-muted-foreground">
+                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                Guardando resultados...
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

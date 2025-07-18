@@ -4421,6 +4421,42 @@ export type Database = {
           },
         ]
       }
+      siercp_results: {
+        Row: {
+          clinical_interpretation: string | null
+          completed_at: string
+          created_at: string
+          global_score: number
+          id: string
+          percentiles: Json
+          risk_flags: string[] | null
+          scores: Json
+          user_id: string
+        }
+        Insert: {
+          clinical_interpretation?: string | null
+          completed_at?: string
+          created_at?: string
+          global_score: number
+          id?: string
+          percentiles: Json
+          risk_flags?: string[] | null
+          scores: Json
+          user_id: string
+        }
+        Update: {
+          clinical_interpretation?: string | null
+          completed_at?: string
+          created_at?: string
+          global_score?: number
+          id?: string
+          percentiles?: Json
+          risk_flags?: string[] | null
+          scores?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
       stock_productos: {
         Row: {
           cantidad_disponible: number | null

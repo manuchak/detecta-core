@@ -278,6 +278,13 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
       ]
     }] : []),
 
+    // Evaluación SIERCP - solo para admin, owner, supply_admin
+    ...(userRole === 'admin' || userRole === 'owner' || userRole === 'supply_admin' ? [{
+      title: "Evaluación SIERCP",
+      icon: BarChart3,
+      path: "/evaluation/siercp",
+    }] : []),
+
     // WMS - solo si tiene permisos (usando nuevo sistema de roles)
     ...(hasWMSAccess || hasAnySkill(['wms_view', 'wms_manage']) || isAdminUser ? [{
       title: "Inventario GPS",
