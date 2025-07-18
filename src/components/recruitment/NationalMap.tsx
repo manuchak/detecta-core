@@ -29,22 +29,17 @@ export const NationalMap: React.FC<NationalMapProps> = ({
     markersRef.current = [];
   };
 
-  // Función para validar coordenadas dentro de México
-  const isValidMexicoCoordinate = (coords: [number, number]) => {
-    const [lng, lat] = coords;
-    // Límites aproximados de México
-    return lng >= -118 && lng <= -86 && lat >= 14 && lat <= 33;
-  };
-
-  // Función SIMPLIFICADA - solo markers esenciales
+  // Función SIMPLIFICADA - mostrar TODOS los markers
   const addZoneMarkers = () => {
     if (!map.current) return;
 
     zonas.forEach(zona => {
-      if (!zona.coordenadas_centro || !isValidMexicoCoordinate(zona.coordenadas_centro)) {
-        console.warn(`Coordenadas inválidas para zona ${zona.nombre}:`, zona.coordenadas_centro);
+      if (!zona.coordenadas_centro) {
+        console.warn(`Zona sin coordenadas: ${zona.nombre}`);
         return;
       }
+
+      console.log(`Procesando zona: ${zona.nombre}`, zona.coordenadas_centro);
 
       const metrica = metricas.find(m => m.zona_id === zona.id);
       const alertasZona = alertas.filter(a => a.zona_id === zona.id);
@@ -53,125 +48,89 @@ export const NationalMap: React.FC<NationalMapProps> = ({
       const deficitCustodios = metrica?.deficit_custodios || 0;
       const custodiosActivos = metrica?.custodios_activos || 0;
       
-      // SOLO 3 ESTADOS VISUALES CLAROS
-      let estado = 'normal';
-      let color = '#10b981'; // Verde
-      let markerText = custodiosActivos.toString();
-      let bgColor = '#ecfdf5';
+      // Sistema de colores simplificado
+      let color = '#10b981'; // Verde por defecto
+      let markerText = custodiosActivos > 0 ? custodiosActivos.toString() : '0';
       
       if (alertasZona.some(a => a.tipo_alerta === 'critica') || scoreUrgencia >= 8 || deficitCustodios > 5) {
-        estado = 'critico';
         color = '#dc2626'; // Rojo
         markerText = deficitCustodios > 0 ? `-${deficitCustodios}` : '!';
-        bgColor = '#fef2f2';
       } else if (alertasZona.some(a => a.tipo_alerta === 'preventiva') || scoreUrgencia >= 5 || deficitCustodios > 0) {
-        estado = 'atencion';
         color = '#f59e0b'; // Amarillo
         markerText = deficitCustodios > 0 ? `-${deficitCustodios}` : custodiosActivos.toString();
-        bgColor = '#fffbeb';
       }
 
-      // Omitir zonas sin datos relevantes
-      if (custodiosActivos === 0 && deficitCustodios === 0 && scoreUrgencia === 0) {
-        return;
-      }
-
-      // Popup ULTRA simplificado
+      // Popup simple
       const popupContent = `
-        <div style="padding: 16px; font-family: system-ui; background: ${bgColor}; border-radius: 8px; max-width: 280px;">
-          <h3 style="margin: 0 0 12px 0; font-size: 18px; font-weight: bold; color: ${color};">
+        <div style="padding: 12px; font-family: system-ui;">
+          <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: bold; color: ${color};">
             ${zona.nombre}
           </h3>
           
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-            <div style="text-align: center; background: white; padding: 12px; border-radius: 6px; border: 2px solid ${color};">
-              <div style="font-size: 24px; font-weight: bold; color: ${color};">
-                ${custodiosActivos}
-              </div>
-              <div style="font-size: 12px; color: #6b7280;">ACTIVOS</div>
-            </div>
-            
-            ${deficitCustodios > 0 ? `
-            <div style="text-align: center; background: #fef2f2; padding: 12px; border-radius: 6px; border: 2px solid #dc2626;">
-              <div style="font-size: 24px; font-weight: bold; color: #dc2626;">
-                -${deficitCustodios}
-              </div>
-              <div style="font-size: 12px; color: #6b7280;">DÉFICIT</div>
-            </div>
-            ` : `
-            <div style="text-align: center; background: white; padding: 12px; border-radius: 6px;">
-              <div style="font-size: 24px; font-weight: bold; color: #10b981;">
-                ✓
-              </div>
-              <div style="font-size: 12px; color: #6b7280;">SIN DÉFICIT</div>
-            </div>
-            `}
-          </div>
-          
-          <div style="background: white; padding: 8px; border-radius: 4px; text-align: center;">
-            <span style="font-size: 12px; color: #6b7280;">
+          <div style="background: #f8fafc; padding: 8px; border-radius: 6px;">
+            <p style="margin: 4px 0; font-size: 12px;">
               <strong>Estados:</strong> ${zona.estados_incluidos?.join(', ') || 'N/A'}
-            </span>
+            </p>
+            <p style="margin: 4px 0; font-size: 12px;">
+              <strong>Custodios activos:</strong> ${custodiosActivos}
+            </p>
+            ${deficitCustodios > 0 ? `
+              <p style="margin: 4px 0; font-size: 12px; color: #dc2626;">
+                <strong>Déficit:</strong> ${deficitCustodios}
+              </p>
+            ` : ''}
+            <p style="margin: 4px 0; font-size: 12px;">
+              <strong>Score urgencia:</strong> ${scoreUrgencia}/10
+            </p>
           </div>
-          
-          ${scoreUrgencia > 0 ? `
-            <div style="margin-top: 8px; text-align: center;">
-              <span style="background: ${color}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold;">
-                Urgencia: ${scoreUrgencia}/10
-              </span>
-            </div>
-          ` : ''}
         </div>
       `;
 
-      // Marcador MUY simple y claro
+      // Marcador simple pero visible
       const el = document.createElement('div');
       el.style.cssText = `
         background: ${color};
-        width: 56px;
-        height: 56px;
+        width: 40px;
+        height: 40px;
         border-radius: 50%;
-        border: 4px solid white;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+        border: 3px solid white;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: 900;
+        font-weight: bold;
         color: white;
-        font-size: 18px;
+        font-size: 14px;
         position: relative;
-        transition: transform 0.2s ease;
       `;
       
       el.textContent = markerText;
-      
-      el.addEventListener('mouseenter', () => {
-        el.style.transform = 'scale(1.1)';
-      });
-      
-      el.addEventListener('mouseleave', () => {
-        el.style.transform = 'scale(1)';
-      });
 
       const popup = new mapboxgl.Popup({ 
-        offset: 30,
+        offset: 25,
         closeButton: true,
-        closeOnClick: false,
-        maxWidth: '300px'
+        maxWidth: '280px'
       }).setHTML(popupContent);
 
-      const marker = new mapboxgl.Marker({
-        element: el,
-        anchor: 'center',
-        draggable: false
-      })
-        .setLngLat(zona.coordenadas_centro)
-        .setPopup(popup)
-        .addTo(map.current!);
+      try {
+        const marker = new mapboxgl.Marker({
+          element: el,
+          anchor: 'center',
+          draggable: false
+        })
+          .setLngLat(zona.coordenadas_centro)
+          .setPopup(popup)
+          .addTo(map.current!);
 
-      markersRef.current.push(marker);
+        markersRef.current.push(marker);
+        console.log(`Marker agregado para ${zona.nombre}`);
+      } catch (error) {
+        console.error(`Error agregando marker para ${zona.nombre}:`, error);
+      }
     });
+
+    console.log(`Total markers agregados: ${markersRef.current.length}`);
   };
 
   // Función para agregar markers de candidatos
