@@ -109,6 +109,65 @@ export type Database = {
           },
         ]
       }
+      alertas_sistema_nacional: {
+        Row: {
+          acciones_sugeridas: string[] | null
+          asignado_a: string | null
+          categoria: string
+          created_at: string | null
+          datos_contexto: Json | null
+          descripcion: string
+          estado: string | null
+          fecha_resolucion: string | null
+          id: string
+          prioridad: number | null
+          tipo_alerta: string
+          titulo: string
+          updated_at: string | null
+          zona_id: string | null
+        }
+        Insert: {
+          acciones_sugeridas?: string[] | null
+          asignado_a?: string | null
+          categoria: string
+          created_at?: string | null
+          datos_contexto?: Json | null
+          descripcion: string
+          estado?: string | null
+          fecha_resolucion?: string | null
+          id?: string
+          prioridad?: number | null
+          tipo_alerta: string
+          titulo: string
+          updated_at?: string | null
+          zona_id?: string | null
+        }
+        Update: {
+          acciones_sugeridas?: string[] | null
+          asignado_a?: string | null
+          categoria?: string
+          created_at?: string | null
+          datos_contexto?: Json | null
+          descripcion?: string
+          estado?: string | null
+          fecha_resolucion?: string | null
+          id?: string
+          prioridad?: number | null
+          tipo_alerta?: string
+          titulo?: string
+          updated_at?: string | null
+          zona_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alertas_sistema_nacional_zona_id_fkey"
+            columns: ["zona_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_operacion_nacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       analisis_riesgo: {
         Row: {
           antecedentes_verificados: boolean | null
@@ -520,6 +579,77 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      candidatos_custodios: {
+        Row: {
+          calificacion_inicial: number | null
+          created_at: string | null
+          disponibilidad_horarios: Json | null
+          email: string | null
+          estado_proceso: string | null
+          expectativa_ingresos: number | null
+          experiencia_seguridad: boolean | null
+          fecha_contacto: string | null
+          fuente_reclutamiento: string | null
+          id: string
+          inversion_inicial_disponible: number | null
+          nombre: string
+          notas_recruiter: string | null
+          telefono: string | null
+          ubicacion_residencia: unknown | null
+          updated_at: string | null
+          vehiculo_propio: boolean | null
+          zona_preferida_id: string | null
+        }
+        Insert: {
+          calificacion_inicial?: number | null
+          created_at?: string | null
+          disponibilidad_horarios?: Json | null
+          email?: string | null
+          estado_proceso?: string | null
+          expectativa_ingresos?: number | null
+          experiencia_seguridad?: boolean | null
+          fecha_contacto?: string | null
+          fuente_reclutamiento?: string | null
+          id?: string
+          inversion_inicial_disponible?: number | null
+          nombre: string
+          notas_recruiter?: string | null
+          telefono?: string | null
+          ubicacion_residencia?: unknown | null
+          updated_at?: string | null
+          vehiculo_propio?: boolean | null
+          zona_preferida_id?: string | null
+        }
+        Update: {
+          calificacion_inicial?: number | null
+          created_at?: string | null
+          disponibilidad_horarios?: Json | null
+          email?: string | null
+          estado_proceso?: string | null
+          expectativa_ingresos?: number | null
+          experiencia_seguridad?: boolean | null
+          fecha_contacto?: string | null
+          fuente_reclutamiento?: string | null
+          id?: string
+          inversion_inicial_disponible?: number | null
+          nombre?: string
+          notas_recruiter?: string | null
+          telefono?: string | null
+          ubicacion_residencia?: unknown | null
+          updated_at?: string | null
+          vehiculo_propio?: boolean | null
+          zona_preferida_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidatos_custodios_zona_preferida_id_fkey"
+            columns: ["zona_preferida_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_operacion_nacional"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       categorias_productos: {
         Row: {
@@ -2619,6 +2749,118 @@ export type Database = {
           pais_origen?: string | null
         }
         Relationships: []
+      }
+      metricas_demanda_zona: {
+        Row: {
+          created_at: string | null
+          custodios_activos: number | null
+          custodios_requeridos: number | null
+          deficit_custodios: number | null
+          gmv_promedio: number | null
+          id: string
+          ingresos_esperados_custodio: number | null
+          periodo_fin: string
+          periodo_inicio: string
+          score_urgencia: number | null
+          servicios_promedio_dia: number | null
+          updated_at: string | null
+          zona_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          custodios_activos?: number | null
+          custodios_requeridos?: number | null
+          deficit_custodios?: number | null
+          gmv_promedio?: number | null
+          id?: string
+          ingresos_esperados_custodio?: number | null
+          periodo_fin: string
+          periodo_inicio: string
+          score_urgencia?: number | null
+          servicios_promedio_dia?: number | null
+          updated_at?: string | null
+          zona_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          custodios_activos?: number | null
+          custodios_requeridos?: number | null
+          deficit_custodios?: number | null
+          gmv_promedio?: number | null
+          id?: string
+          ingresos_esperados_custodio?: number | null
+          periodo_fin?: string
+          periodo_inicio?: string
+          score_urgencia?: number | null
+          servicios_promedio_dia?: number | null
+          updated_at?: string | null
+          zona_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metricas_demanda_zona_zona_id_fkey"
+            columns: ["zona_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_operacion_nacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      metricas_reclutamiento: {
+        Row: {
+          canal: string
+          candidatos_calificados: number | null
+          costo_por_contratacion: number | null
+          costo_por_lead: number | null
+          created_at: string | null
+          custodios_contratados: number | null
+          id: string
+          inversion_marketing: number | null
+          leads_generados: number | null
+          periodo_fin: string
+          periodo_inicio: string
+          tasa_conversion: number | null
+          zona_id: string | null
+        }
+        Insert: {
+          canal: string
+          candidatos_calificados?: number | null
+          costo_por_contratacion?: number | null
+          costo_por_lead?: number | null
+          created_at?: string | null
+          custodios_contratados?: number | null
+          id?: string
+          inversion_marketing?: number | null
+          leads_generados?: number | null
+          periodo_fin: string
+          periodo_inicio: string
+          tasa_conversion?: number | null
+          zona_id?: string | null
+        }
+        Update: {
+          canal?: string
+          candidatos_calificados?: number | null
+          costo_por_contratacion?: number | null
+          costo_por_lead?: number | null
+          created_at?: string | null
+          custodios_contratados?: number | null
+          id?: string
+          inversion_marketing?: number | null
+          leads_generados?: number | null
+          periodo_fin?: string
+          periodo_inicio?: string
+          tasa_conversion?: number | null
+          zona_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metricas_reclutamiento_zona_id_fkey"
+            columns: ["zona_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_operacion_nacional"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       modelos_gps: {
         Row: {
@@ -4943,6 +5185,39 @@ export type Database = {
         }
         Relationships: []
       }
+      zonas_operacion_nacional: {
+        Row: {
+          coordenadas_centro: unknown | null
+          created_at: string | null
+          estados_incluidos: string[] | null
+          id: string
+          nombre: string
+          prioridad_reclutamiento: number | null
+          radio_cobertura_km: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          coordenadas_centro?: unknown | null
+          created_at?: string | null
+          estados_incluidos?: string[] | null
+          id?: string
+          nombre: string
+          prioridad_reclutamiento?: number | null
+          radio_cobertura_km?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          coordenadas_centro?: unknown | null
+          created_at?: string | null
+          estados_incluidos?: string[] | null
+          id?: string
+          nombre?: string
+          prioridad_reclutamiento?: number | null
+          radio_cobertura_km?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       zonas_trabajo: {
         Row: {
           activo: boolean
@@ -5158,6 +5433,10 @@ export type Database = {
       }
       calcular_puntos_viaje: {
         Args: { km_viaje: number; estado_viaje: string }
+        Returns: number
+      }
+      calcular_score_urgencia_zona: {
+        Args: { p_zona_id: string }
         Returns: number
       }
       calcular_valor_inventario: {
@@ -5403,6 +5682,10 @@ export type Database = {
           fecha_mas_reciente: string
           registros_fuera_rango: number
         }[]
+      }
+      generar_alertas_automaticas: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       generate_recepcion_number: {
         Args: Record<PropertyKey, never>
