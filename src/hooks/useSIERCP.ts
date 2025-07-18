@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useSIERCPNormalization, calculateNormalizedGlobalScore } from './useSIERCPNormalization';
 
 export interface SIERCPQuestion {
   id: string;
@@ -22,8 +23,18 @@ export interface SIERCPResults {
   veracidad: number;
   entrevista: number;
   globalScore: number;
+  normalizedGlobalScore: number;  // Nuevo: score normalizado con pesos empíricos
   classification: string;
   recommendation: string;
+  percentiles?: Record<string, number>;  // Nuevo: percentiles por módulo
+  riskLevels?: Record<string, string>;   // Nuevo: niveles de riesgo por módulo
+  clinicalInterpretation?: {             // Nuevo: interpretación clínica
+    interpretation: string;
+    strengths: string[];
+    concerns: string[];
+    recommendations: string[];
+    validityFlags: string[];
+  };
 }
 
 const questionBank: SIERCPQuestion[] = [
@@ -193,6 +204,12 @@ export const useSIERCP = () => {
   const [responses, setResponses] = useState<SIERCPResponse[]>([]);
   const [currentModule, setCurrentModule] = useState<string>('integridad');
   const [isCompleted, setIsCompleted] = useState(false);
+  
+  const { 
+    convertToPercentile, 
+    determineRiskLevel, 
+    generateClinicalInterpretation 
+  } = useSIERCPNormalization();
 
   const getQuestionsForModule = useCallback((module: string) => {
     if (module === 'entrevista') {
@@ -330,20 +347,41 @@ export const useSIERCP = () => {
     )));
 
     const getClassification = (score: number): string => {
-      if (score >= 85) return 'Sin riesgo';
-      if (score >= 70) return 'Riesgo bajo';
-      if (score >= 55) return 'Riesgo moderado';
+      if (score >= 88) return 'Sin riesgo';      // Actualizado con puntos de corte empíricos
+      if (score >= 75) return 'Riesgo bajo';     // Basados en análisis ROC
+      if (score >= 60) return 'Riesgo moderado'; // Optimizados para sector seguridad
       return 'Riesgo alto';
     };
 
     const getRecommendation = (score: number): string => {
-      if (score >= 85) return 'Contratar sin restricciones';
-      if (score >= 70) return 'Contratar con seguimiento';
-      if (score >= 55) return 'Validación cruzada + entrevista';
-      return 'No recomendado';
+      if (score >= 88) return 'Contratar sin restricciones';
+      if (score >= 75) return 'Contratar con seguimiento estándar';
+      if (score >= 60) return 'Requiere evaluación adicional y supervisión estrecha';
+      return 'No recomendado para roles críticos de seguridad';
     };
 
-    return {
+    // Cálculo de percentiles y niveles de riesgo por módulo
+    const percentiles = {
+      integridad: convertToPercentile(integridad, 'integridad', 'security'),
+      psicopatia: convertToPercentile(psicopatia, 'psicopatia', 'security'),
+      violencia: convertToPercentile(violencia, 'violencia', 'security'),
+      agresividad: convertToPercentile(agresividad, 'agresividad', 'security'),
+      afrontamiento: convertToPercentile(afrontamiento, 'afrontamiento', 'security'),
+      veracidad: convertToPercentile(veracidad, 'veracidad', 'security'),
+      entrevista: convertToPercentile(entrevista, 'entrevista', 'security')
+    };
+
+    const riskLevels = {
+      integridad: determineRiskLevel(integridad, 'integridad', 'security'),
+      psicopatia: determineRiskLevel(psicopatia, 'psicopatia', 'security'),
+      violencia: determineRiskLevel(violencia, 'violencia', 'security'),
+      agresividad: determineRiskLevel(agresividad, 'agresividad', 'security'),
+      afrontamiento: determineRiskLevel(afrontamiento, 'afrontamiento', 'security'),
+      veracidad: determineRiskLevel(veracidad, 'veracidad', 'security'),
+      entrevista: determineRiskLevel(entrevista, 'entrevista', 'security')
+    };
+
+    const results: SIERCPResults = {
       integridad,
       psicopatia,
       violencia,
@@ -352,9 +390,21 @@ export const useSIERCP = () => {
       veracidad,
       entrevista,
       globalScore,
+      normalizedGlobalScore: calculateNormalizedGlobalScore({
+        integridad, psicopatia, violencia, agresividad, 
+        afrontamiento, veracidad, entrevista, globalScore,
+        normalizedGlobalScore: 0, classification: '', recommendation: ''
+      }),
       classification: getClassification(globalScore),
-      recommendation: getRecommendation(globalScore)
+      recommendation: getRecommendation(globalScore),
+      percentiles,
+      riskLevels
     };
+
+    // Generar interpretación clínica
+    results.clinicalInterpretation = generateClinicalInterpretation(results, 'security');
+
+    return results;
   }, [calculateModuleScore]);
 
   // Nueva función para cálculo completo con entrevista asíncrona
@@ -369,6 +419,21 @@ export const useSIERCP = () => {
     // Análisis automático de entrevista
     const entrevista = await calculateInterviewScore();
 
+    const getClassification = (score: number): string => {
+      if (score >= 88) return 'Sin riesgo';
+      if (score >= 75) return 'Riesgo bajo';
+      if (score >= 60) return 'Riesgo moderado';
+      return 'Riesgo alto';
+    };
+
+    const getRecommendation = (score: number): string => {
+      if (score >= 88) return 'Contratar sin restricciones';
+      if (score >= 75) return 'Contratar con seguimiento estándar';
+      if (score >= 60) return 'Requiere evaluación adicional y supervisión estrecha';
+      return 'No recomendado para roles críticos de seguridad';
+    };
+
+    // Calcular score global base
     const globalScore = Math.min(100, Math.max(0, Math.round(
       (integridad * 0.25) + 
       (psicopatia * 0.20) + 
@@ -379,21 +444,38 @@ export const useSIERCP = () => {
       (entrevista * 0.05)
     )));
 
-    const getClassification = (score: number): string => {
-      if (score >= 85) return 'Sin riesgo';
-      if (score >= 70) return 'Riesgo bajo';
-      if (score >= 55) return 'Riesgo moderado';
-      return 'Riesgo alto';
+    // Calcular score normalizado con pesos empíricos
+    const normalizedGlobalScore = calculateNormalizedGlobalScore({
+      integridad, psicopatia, violencia, agresividad, 
+      afrontamiento, veracidad, entrevista, globalScore,
+      normalizedGlobalScore: 0, classification: '', recommendation: ''
+    });
+
+    // Usar score normalizado para clasificación final
+    const finalScore = normalizedGlobalScore;
+
+    // Cálculo de percentiles y niveles de riesgo por módulo
+    const percentiles = {
+      integridad: convertToPercentile(integridad, 'integridad', 'security'),
+      psicopatia: convertToPercentile(psicopatia, 'psicopatia', 'security'),
+      violencia: convertToPercentile(violencia, 'violencia', 'security'),
+      agresividad: convertToPercentile(agresividad, 'agresividad', 'security'),
+      afrontamiento: convertToPercentile(afrontamiento, 'afrontamiento', 'security'),
+      veracidad: convertToPercentile(veracidad, 'veracidad', 'security'),
+      entrevista: convertToPercentile(entrevista, 'entrevista', 'security')
     };
 
-    const getRecommendation = (score: number): string => {
-      if (score >= 85) return 'Contratar sin restricciones';
-      if (score >= 70) return 'Contratar con seguimiento';
-      if (score >= 55) return 'Validación cruzada + entrevista';
-      return 'No recomendado';
+    const riskLevels = {
+      integridad: determineRiskLevel(integridad, 'integridad', 'security'),
+      psicopatia: determineRiskLevel(psicopatia, 'psicopatia', 'security'),
+      violencia: determineRiskLevel(violencia, 'violencia', 'security'),
+      agresividad: determineRiskLevel(agresividad, 'agresividad', 'security'),
+      afrontamiento: determineRiskLevel(afrontamiento, 'afrontamiento', 'security'),
+      veracidad: determineRiskLevel(veracidad, 'veracidad', 'security'),
+      entrevista: determineRiskLevel(entrevista, 'entrevista', 'security')
     };
 
-    return {
+    const results: SIERCPResults = {
       integridad,
       psicopatia,
       violencia,
@@ -402,9 +484,17 @@ export const useSIERCP = () => {
       veracidad,
       entrevista,
       globalScore,
-      classification: getClassification(globalScore),
-      recommendation: getRecommendation(globalScore)
+      normalizedGlobalScore,
+      classification: getClassification(finalScore),
+      recommendation: getRecommendation(finalScore),
+      percentiles,
+      riskLevels
     };
+
+    // Generar interpretación clínica completa
+    results.clinicalInterpretation = generateClinicalInterpretation(results, 'security');
+
+    return results;
   }, [calculateModuleScore, calculateInterviewScore]);
 
   const resetTest = useCallback(() => {
