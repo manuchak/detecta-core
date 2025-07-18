@@ -124,11 +124,37 @@ export const useLeadApprovals = () => {
     }
 
     try {
+      console.log('Iniciando proceso de aprobación para lead:', lead.lead_id);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('Usuario actual:', user?.id, user?.email);
+      
+      if (!user) {
+        throw new Error('Usuario no autenticado');
+      }
+
+      // Verificar que el lead existe y obtener su información de asignación
+      const { data: leadData, error: leadCheckError } = await supabase
+        .from('leads')
+        .select('id, asignado_a, estado')
+        .eq('id', lead.lead_id)
+        .single();
+
+      if (leadCheckError) {
+        console.error('Error verificando lead:', leadCheckError);
+        throw new Error(`No se pudo verificar el lead: ${leadCheckError.message}`);
+      }
+
+      console.log('Lead data:', leadData);
+      console.log('Lead asignado a:', leadData?.asignado_a);
+      console.log('Usuario actual:', user.id);
+
+      // Crear/actualizar el proceso de aprobación
       const { error: approvalError } = await supabase
         .from('lead_approval_process')
         .upsert({
           lead_id: lead.lead_id,
-          analyst_id: (await supabase.auth.getUser()).data.user?.id,
+          analyst_id: user.id,
           current_stage: 'approved',
           interview_method: 'manual',
           phone_interview_notes: 'Aprobado directamente por el analista',
@@ -139,8 +165,12 @@ export const useLeadApprovals = () => {
           updated_at: new Date().toISOString()
         });
 
-      if (approvalError) throw approvalError;
+      if (approvalError) {
+        console.error('Error en lead_approval_process:', approvalError);
+        throw new Error(`Error en proceso de aprobación: ${approvalError.message}`);
+      }
 
+      // Actualizar el lead
       const { error: leadError } = await supabase
         .from('leads')
         .update({
@@ -149,7 +179,12 @@ export const useLeadApprovals = () => {
         })
         .eq('id', lead.lead_id);
 
-      if (leadError) throw leadError;
+      if (leadError) {
+        console.error('Error actualizando lead:', leadError);
+        throw new Error(`Error actualizando lead: ${leadError.message}`);
+      }
+
+      console.log('Lead aprobado exitosamente');
 
       toast({
         title: "Candidato aprobado",
@@ -158,10 +193,11 @@ export const useLeadApprovals = () => {
 
       fetchAssignedLeads();
     } catch (error) {
-      console.error('Error approving lead:', error);
+      console.error('Error completo al aprobar lead:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
       toast({
         title: "Error",
-        description: "No se pudo aprobar el candidato.",
+        description: `No se pudo aprobar el candidato: ${errorMessage}`,
         variant: "destructive",
       });
     }
@@ -182,11 +218,37 @@ export const useLeadApprovals = () => {
     }
 
     try {
+      console.log('Iniciando proceso de segunda entrevista para lead:', lead.lead_id);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('Usuario actual:', user?.id, user?.email);
+      
+      if (!user) {
+        throw new Error('Usuario no autenticado');
+      }
+
+      // Verificar que el lead existe y obtener su información de asignación
+      const { data: leadData, error: leadCheckError } = await supabase
+        .from('leads')
+        .select('id, asignado_a, estado')
+        .eq('id', lead.lead_id)
+        .single();
+
+      if (leadCheckError) {
+        console.error('Error verificando lead:', leadCheckError);
+        throw new Error(`No se pudo verificar el lead: ${leadCheckError.message}`);
+      }
+
+      console.log('Lead data:', leadData);
+      console.log('Lead asignado a:', leadData?.asignado_a);
+      console.log('Usuario actual:', user.id);
+
+      // Crear/actualizar el proceso de aprobación
       const { error: approvalError } = await supabase
         .from('lead_approval_process')
         .upsert({
           lead_id: lead.lead_id,
-          analyst_id: (await supabase.auth.getUser()).data.user?.id,
+          analyst_id: user.id,
           current_stage: 'second_interview',
           interview_method: 'manual',
           phone_interview_notes: 'Enviado a segunda entrevista por el analista',
@@ -197,7 +259,12 @@ export const useLeadApprovals = () => {
           updated_at: new Date().toISOString()
         });
 
-      if (approvalError) throw approvalError;
+      if (approvalError) {
+        console.error('Error en lead_approval_process:', approvalError);
+        throw new Error(`Error en proceso de aprobación: ${approvalError.message}`);
+      }
+
+      console.log('Lead enviado a segunda entrevista exitosamente');
 
       toast({
         title: "Candidato enviado a segunda entrevista",
@@ -206,10 +273,11 @@ export const useLeadApprovals = () => {
 
       fetchAssignedLeads();
     } catch (error) {
-      console.error('Error sending to second interview:', error);
+      console.error('Error completo al enviar a segunda entrevista:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
       toast({
         title: "Error",
-        description: "No se pudo enviar a segunda entrevista.",
+        description: `No se pudo enviar a segunda entrevista: ${errorMessage}`,
         variant: "destructive",
       });
     }
