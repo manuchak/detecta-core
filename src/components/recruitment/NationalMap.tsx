@@ -114,17 +114,25 @@ export const NationalMap: React.FC<NationalMapProps> = ({
       }).setHTML(popupContent);
 
       try {
-        const marker = new mapboxgl.Marker({
-          element: el,
-          anchor: 'center',
-          draggable: false
-        })
-          .setLngLat(zona.coordenadas_centro)
-          .setPopup(popup)
-          .addTo(map.current!);
+        // Asegurar que las coordenadas estén en formato [lng, lat] válido para México
+        const [lng, lat] = zona.coordenadas_centro;
+        
+        // Validar que las coordenadas estén dentro del rango de México
+        if (lng >= -118 && lng <= -86 && lat >= 14 && lat <= 32) {
+          const marker = new mapboxgl.Marker({
+            element: el,
+            anchor: 'center',
+            draggable: false
+          })
+            .setLngLat([lng, lat])
+            .setPopup(popup)
+            .addTo(map.current!);
 
-        markersRef.current.push(marker);
-        console.log(`Marker agregado para ${zona.nombre}`);
+          markersRef.current.push(marker);
+          console.log(`Marker agregado para ${zona.nombre} en [${lng}, ${lat}]`);
+        } else {
+          console.warn(`Coordenadas fuera de México para ${zona.nombre}: [${lng}, ${lat}]`);
+        }
       } catch (error) {
         console.error(`Error agregando marker para ${zona.nombre}:`, error);
       }
