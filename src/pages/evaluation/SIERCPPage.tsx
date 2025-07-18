@@ -12,6 +12,150 @@ import { useSIERCPResults } from "@/hooks/useSIERCPResults";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 
+// Estilos CSS para impresión
+const printStyles = `
+  @media print {
+    @page {
+      margin: 15mm;
+      size: A4;
+    }
+    
+    body * {
+      visibility: hidden;
+    }
+    
+    .print-content, .print-content * {
+      visibility: visible;
+    }
+    
+    .print-content {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      background: white !important;
+      color: black !important;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    
+    .no-print {
+      display: none !important;
+    }
+    
+    .print-header {
+      text-align: center;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #333;
+      padding-bottom: 15px;
+    }
+    
+    .print-header h1 {
+      font-size: 18px;
+      font-weight: bold;
+      margin: 0 0 5px 0;
+      color: #333;
+    }
+    
+    .print-header p {
+      font-size: 12px;
+      margin: 0;
+      color: #666;
+    }
+    
+    .print-score-section {
+      display: flex;
+      justify-content: space-between;
+      margin: 20px 0;
+      padding: 15px;
+      border: 2px solid #333;
+      background: #f9f9f9 !important;
+    }
+    
+    .print-global-score {
+      text-align: center;
+      flex: 1;
+    }
+    
+    .print-global-score .score {
+      font-size: 36px;
+      font-weight: bold;
+      margin: 5px 0;
+    }
+    
+    .print-classification {
+      flex: 2;
+      margin-left: 20px;
+    }
+    
+    .print-modules {
+      margin: 20px 0;
+    }
+    
+    .print-modules h3 {
+      font-size: 14px;
+      font-weight: bold;
+      margin: 15px 0 10px 0;
+      border-bottom: 1px solid #333;
+      padding-bottom: 5px;
+    }
+    
+    .print-module-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    
+    .print-module {
+      border: 1px solid #333;
+      padding: 10px;
+      background: #f9f9f9 !important;
+    }
+    
+    .print-module-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    
+    .print-module-score {
+      font-size: 18px;
+      font-weight: bold;
+      margin-left: auto;
+    }
+    
+    .print-footer {
+      margin-top: 30px;
+      padding-top: 15px;
+      border-top: 1px solid #333;
+      font-size: 10px;
+      color: #666;
+    }
+    
+    .print-footer ul {
+      margin: 5px 0;
+      padding-left: 15px;
+    }
+    
+    .print-progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 5px 0;
+    }
+    
+    .print-progress-fill {
+      height: 100%;
+      background: #333;
+      border-radius: 4px;
+    }
+  }
+`;
+
 const moduleConfig = {
   integridad: { 
     title: 'Integridad Laboral', 
@@ -453,189 +597,279 @@ const SIERCPPage = () => {
 
     const riskInfo = getRiskLevel(results.globalScore);
     
+    // Add print styles to head
+    useEffect(() => {
+      const styleElement = document.createElement('style');
+      styleElement.innerHTML = printStyles;
+      document.head.appendChild(styleElement);
+      
+      return () => {
+        document.head.removeChild(styleElement);
+      };
+    }, []);
+    
     return (
-      <div className="container mx-auto p-6 space-y-6 max-w-5xl">
-        {/* Header Card */}
-        <Card className="overflow-hidden">
-          <CardHeader className={`bg-gradient-to-r ${getGradientColor(results.globalScore)} text-white`}>
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
-                <FileText className="h-7 w-7 text-white" />
-              </div>
-              <div>
-                <CardTitle className="text-2xl">Resultados SIERCP</CardTitle>
-                <CardDescription className="text-white/90 text-base">
-                  Sistema Integrado de Evaluación de Riesgo y Confiabilidad Psico-Criminológica
-                </CardDescription>
+      <>
+        {/* Print-only content */}
+        <div className="print-content" style={{ display: 'none' }}>
+          <div className="print-header">
+            <h1>RESULTADOS SIERCP</h1>
+            <p>Sistema Integrado de Evaluación de Riesgo y Confiabilidad Psico-Criminológica</p>
+            <p>Fecha de evaluación: {new Date().toLocaleDateString('es-ES', { 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}</p>
+          </div>
+
+          <div className="print-score-section">
+            <div className="print-global-score">
+              <h2>Puntuación Global</h2>
+              <div className="score">{results.globalScore}</div>
+              <div className="print-progress-bar">
+                <div className="print-progress-fill" style={{ width: `${results.globalScore}%` }}></div>
               </div>
             </div>
-          </CardHeader>
-        </Card>
+            
+            <div className="print-classification">
+              <h3>Clasificación de Riesgo</h3>
+              <p><strong>{riskInfo.level}</strong></p>
+              <p>Basado en la puntuación global de {results.globalScore}/100</p>
+              
+              <h3>Recomendación</h3>
+              <p><strong>{getRecommendation(results.globalScore)}</strong></p>
+            </div>
+          </div>
 
-        {/* Main Results */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Global Score */}
-          <Card className="lg:col-span-1">
-            <CardContent className="p-6 text-center">
-              <div className="space-y-4">
-                <div className={`relative w-32 h-32 mx-auto rounded-full ${getBgColor(results.globalScore)} border-4 flex items-center justify-center`}>
-                  <div className={`text-4xl font-bold ${getScoreColor(results.globalScore)}`}>
-                    {results.globalScore}
+          <div className="print-modules">
+            <h3>Detalle por Módulos</h3>
+            <div className="print-module-grid">
+              {Object.entries(moduleConfig).map(([key, config]) => {
+                if (key === 'entrevista') return null;
+                
+                const score = results[key as keyof typeof results] as number;
+                
+                return (
+                  <div key={key} className="print-module">
+                    <div className="print-module-header">
+                      <div>
+                        <strong>{config.title}</strong>
+                        <div style={{ fontSize: '10px', color: '#666' }}>{config.description}</div>
+                      </div>
+                      <div className="print-module-score">{score}</div>
+                    </div>
+                    <div className="print-progress-bar">
+                      <div className="print-progress-fill" style={{ width: `${score}%` }}></div>
+                    </div>
+                    <div style={{ fontSize: '10px', marginTop: '5px' }}>
+                      Estado: {score >= 70 ? 'Normal' : 'Requiere Atención'}
+                    </div>
                   </div>
-                  <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
-                    <Badge variant="secondary" className="text-xs">
-                      Puntuación Global
-                    </Badge>
-                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="print-footer">
+            <h4>Información Importante:</h4>
+            <ul>
+              <li>Esta evaluación es una herramienta de apoyo y no sustituye el criterio profesional.</li>
+              <li>Los resultados deben ser interpretados por personal calificado.</li>
+              <li>Se recomienda complementar con entrevistas y verificación de referencias.</li>
+              <li>Este documento contiene información confidencial y debe ser tratado con la debida reserva.</li>
+            </ul>
+            <p style={{ marginTop: '20px', textAlign: 'center', fontSize: '10px' }}>
+              Sistema SIERCP - Documento generado automáticamente - Confidencial
+            </p>
+          </div>
+        </div>
+
+        {/* Screen content */}
+        <div className="container mx-auto p-6 space-y-6 max-w-5xl no-print">
+          {/* Header Card */}
+          <Card className="overflow-hidden">
+            <CardHeader className={`bg-gradient-to-r ${getGradientColor(results.globalScore)} text-white`}>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                  <FileText className="h-7 w-7 text-white" />
                 </div>
-                <Progress value={results.globalScore} className="w-full h-3" />
+                <div>
+                  <CardTitle className="text-2xl">Resultados SIERCP</CardTitle>
+                  <CardDescription className="text-white/90 text-base">
+                    Sistema Integrado de Evaluación de Riesgo y Confiabilidad Psico-Criminológica
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+          </Card>
+
+          {/* Main Results */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Global Score */}
+            <Card className="lg:col-span-1">
+              <CardContent className="p-6 text-center">
+                <div className="space-y-4">
+                  <div className={`relative w-32 h-32 mx-auto rounded-full ${getBgColor(results.globalScore)} border-4 flex items-center justify-center`}>
+                    <div className={`text-4xl font-bold ${getScoreColor(results.globalScore)}`}>
+                      {results.globalScore}
+                    </div>
+                    <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
+                      <Badge variant="secondary" className="text-xs">
+                        Puntuación Global
+                      </Badge>
+                    </div>
+                  </div>
+                  <Progress value={results.globalScore} className="w-full h-3" />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Classification and Recommendation */}
+            <div className="lg:col-span-2 space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <riskInfo.icon className={`h-5 w-5 ${riskInfo.color}`} />
+                    Clasificación
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className={`p-4 rounded-lg border-2 ${getBgColor(results.globalScore)}`}>
+                    <div className={`text-xl font-semibold ${riskInfo.color}`}>
+                      {riskInfo.level}
+                    </div>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Basado en la puntuación global de {results.globalScore}/100
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <UserCheck className="h-5 w-5 text-blue-600" />
+                    Recomendación
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                    <div className="text-lg font-medium text-blue-800">
+                      {getRecommendation(results.globalScore)}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Module Details */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Brain className="h-5 w-5 text-indigo-600" />
+                Detalle por Módulos
+              </CardTitle>
+              <CardDescription>
+                Puntuaciones específicas de cada área evaluada
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Object.entries(moduleConfig).map(([key, config]) => {
+                  if (key === 'entrevista') return null; // Skip interview module for now
+                  
+                  const score = results[key as keyof typeof results] as number;
+                  const Icon = config.icon;
+                  
+                  return (
+                    <Card key={key} className="relative overflow-hidden border-2 hover:shadow-md transition-shadow">
+                      <div className={`absolute top-0 left-0 w-full h-1 ${config.color}`}></div>
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className={`w-10 h-10 rounded-lg ${config.color} bg-opacity-20 flex items-center justify-center`}>
+                            <Icon className={`h-5 w-5 ${config.color.replace('bg-', 'text-')}`} />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-medium text-sm">{config.title}</h3>
+                            <p className="text-xs text-gray-500">{config.description}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className={`text-2xl font-bold ${getScoreColor(score)}`}>
+                              {score}
+                            </span>
+                            <Badge variant={score >= 70 ? "default" : "destructive"} className="text-xs">
+                              {score >= 70 ? "Normal" : "Atención"}
+                            </Badge>
+                          </div>
+                          <Progress value={score} className="h-2" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
 
-          {/* Classification and Recommendation */}
-          <div className="lg:col-span-2 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <riskInfo.icon className={`h-5 w-5 ${riskInfo.color}`} />
-                  Clasificación
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className={`p-4 rounded-lg border-2 ${getBgColor(results.globalScore)}`}>
-                  <div className={`text-xl font-semibold ${riskInfo.color}`}>
-                    {riskInfo.level}
-                  </div>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Basado en la puntuación global de {results.globalScore}/100
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <UserCheck className="h-5 w-5 text-blue-600" />
-                  Recomendación
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
-                  <div className="text-lg font-medium text-blue-800">
-                    {getRecommendation(results.globalScore)}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Actions */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-between">
+            <Button
+              variant="outline"
+              onClick={() => {
+                resetTest();
+                setShowResults(false);
+                setCurrentQuestionIndex(0);
+              }}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Nueva Evaluación
+            </Button>
+            
+            <Button
+              onClick={() => window.print()}
+              className={`bg-gradient-to-r ${getGradientColor(results.globalScore)} text-white hover:opacity-90 flex items-center gap-2`}
+            >
+              <FileText className="h-4 w-4" />
+              Imprimir Resultados
+            </Button>
           </div>
-        </div>
 
-        {/* Module Details */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Brain className="h-5 w-5 text-indigo-600" />
-              Detalle por Módulos
-            </CardTitle>
-            <CardDescription>
-              Puntuaciones específicas de cada área evaluada
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Object.entries(moduleConfig).map(([key, config]) => {
-                if (key === 'entrevista') return null; // Skip interview module for now
-                
-                const score = results[key as keyof typeof results] as number;
-                const Icon = config.icon;
-                
-                return (
-                  <Card key={key} className="relative overflow-hidden border-2 hover:shadow-md transition-shadow">
-                    <div className={`absolute top-0 left-0 w-full h-1 ${config.color}`}></div>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className={`w-10 h-10 rounded-lg ${config.color} bg-opacity-20 flex items-center justify-center`}>
-                          <Icon className={`h-5 w-5 ${config.color.replace('bg-', 'text-')}`} />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-medium text-sm">{config.title}</h3>
-                          <p className="text-xs text-gray-500">{config.description}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className={`text-2xl font-bold ${getScoreColor(score)}`}>
-                            {score}
-                          </span>
-                          <Badge variant={score >= 70 ? "default" : "destructive"} className="text-xs">
-                            {score >= 70 ? "Normal" : "Atención"}
-                          </Badge>
-                        </div>
-                        <Progress value={score} className="h-2" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+          {/* Additional Information */}
+          <Card className="bg-gray-50">
+            <CardContent className="p-4">
+              <div className="text-sm text-gray-600 space-y-2">
+                <p className="font-medium">Información importante:</p>
+                <ul className="list-disc list-inside space-y-1 text-xs">
+                  <li>Esta evaluación es una herramienta de apoyo y no sustituye el criterio profesional.</li>
+                  <li>Los resultados deben ser interpretados por personal calificado.</li>
+                  <li>Se recomienda complementar con entrevistas y verificación de referencias.</li>
+                  <li>Fecha de evaluación: {new Date().toLocaleDateString('es-ES', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}</li>
+                </ul>
+              </div>
+            </CardContent>
+          </Card>
+
+          {saving && (
+            <div className="flex items-center justify-center gap-2 pt-4 text-sm text-muted-foreground">
+              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+              Guardando resultados...
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-between">
-          <Button
-            variant="outline"
-            onClick={() => {
-              resetTest();
-              setShowResults(false);
-              setCurrentQuestionIndex(0);
-            }}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Nueva Evaluación
-          </Button>
-          
-          <Button
-            onClick={() => window.print()}
-            className={`bg-gradient-to-r ${getGradientColor(results.globalScore)} text-white hover:opacity-90 flex items-center gap-2`}
-          >
-            <FileText className="h-4 w-4" />
-            Imprimir Resultados
-          </Button>
+          )}
         </div>
-
-        {/* Additional Information */}
-        <Card className="bg-gray-50">
-          <CardContent className="p-4">
-            <div className="text-sm text-gray-600 space-y-2">
-              <p className="font-medium">Información importante:</p>
-              <ul className="list-disc list-inside space-y-1 text-xs">
-                <li>Esta evaluación es una herramienta de apoyo y no sustituye el criterio profesional.</li>
-                <li>Los resultados deben ser interpretados por personal calificado.</li>
-                <li>Se recomienda complementar con entrevistas y verificación de referencias.</li>
-                <li>Fecha de evaluación: {new Date().toLocaleDateString('es-ES', { 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}</li>
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
-
-        {saving && (
-          <div className="flex items-center justify-center gap-2 pt-4 text-sm text-muted-foreground">
-            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-            Guardando resultados...
-          </div>
-        )}
-      </div>
+      </>
     );
   }
 
