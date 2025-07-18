@@ -29,17 +29,31 @@ export const NationalMap: React.FC<NationalMapProps> = ({
     markersRef.current = [];
   };
 
-  // Función SIMPLIFICADA - mostrar TODOS los markers
   const addZoneMarkers = () => {
     if (!map.current) return;
 
+    // Coordenadas corregidas para zonas reales de México
+    const zonasCorregidas = {
+      'Centro de México': [-99.1332, 19.4326], // Ciudad de México
+      'Bajío': [-101.257, 21.019], // León, Guanajuato  
+      'Norte': [-100.3161, 25.6866], // Monterrey
+      'Occidente': [-103.3496, 20.6597], // Guadalajara
+      'Pacífico': [-106.4245, 23.2494], // Mazatlán (corregido)
+      'Golfo': [-97.7516, 18.1427], // Veracruz (corregido)
+      'Centro-Occidente': [-101.2916, 22.1565], // Aguascalientes
+      'Sureste': [-92.9377, 17.9896] // Villahermosa (corregido)
+    };
+
     zonas.forEach(zona => {
-      if (!zona.coordenadas_centro) {
-        console.warn(`Zona sin coordenadas: ${zona.nombre}`);
+      const coordenadas = zonasCorregidas[zona.nombre] || zona.coordenadas_centro;
+      
+      if (!coordenadas) {
+        console.warn(`Sin coordenadas para zona: ${zona.nombre}`);
         return;
       }
 
-      console.log(`Procesando zona: ${zona.nombre}`, zona.coordenadas_centro);
+      const [lng, lat] = coordenadas;
+      console.log(`Ubicando ${zona.nombre} en [${lng}, ${lat}]`);
 
       const metrica = metricas.find(m => m.zona_id === zona.id);
       const alertasZona = alertas.filter(a => a.zona_id === zona.id);
@@ -48,50 +62,24 @@ export const NationalMap: React.FC<NationalMapProps> = ({
       const deficitCustodios = metrica?.deficit_custodios || 0;
       const custodiosActivos = metrica?.custodios_activos || 0;
       
-      // Sistema de colores simplificado
-      let color = '#10b981'; // Verde por defecto
-      let markerText = custodiosActivos > 0 ? custodiosActivos.toString() : '0';
+      // Sistema de colores y texto simplificado
+      let color = '#10b981'; // Verde
+      let texto = custodiosActivos.toString();
       
-      if (alertasZona.some(a => a.tipo_alerta === 'critica') || scoreUrgencia >= 8 || deficitCustodios > 5) {
+      if (scoreUrgencia >= 8 || deficitCustodios > 5 || alertasZona.some(a => a.tipo_alerta === 'critica')) {
         color = '#dc2626'; // Rojo
-        markerText = deficitCustodios > 0 ? `-${deficitCustodios}` : '!';
-      } else if (alertasZona.some(a => a.tipo_alerta === 'preventiva') || scoreUrgencia >= 5 || deficitCustodios > 0) {
+        texto = deficitCustodios > 0 ? `-${deficitCustodios}` : '!';
+      } else if (scoreUrgencia >= 5 || deficitCustodios > 0 || alertasZona.some(a => a.tipo_alerta === 'preventiva')) {
         color = '#f59e0b'; // Amarillo
-        markerText = deficitCustodios > 0 ? `-${deficitCustodios}` : custodiosActivos.toString();
+        texto = deficitCustodios > 0 ? `-${deficitCustodios}` : custodiosActivos.toString();
       }
 
-      // Popup simple
-      const popupContent = `
-        <div style="padding: 12px; font-family: system-ui;">
-          <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: bold; color: ${color};">
-            ${zona.nombre}
-          </h3>
-          
-          <div style="background: #f8fafc; padding: 8px; border-radius: 6px;">
-            <p style="margin: 4px 0; font-size: 12px;">
-              <strong>Estados:</strong> ${zona.estados_incluidos?.join(', ') || 'N/A'}
-            </p>
-            <p style="margin: 4px 0; font-size: 12px;">
-              <strong>Custodios activos:</strong> ${custodiosActivos}
-            </p>
-            ${deficitCustodios > 0 ? `
-              <p style="margin: 4px 0; font-size: 12px; color: #dc2626;">
-                <strong>Déficit:</strong> ${deficitCustodios}
-              </p>
-            ` : ''}
-            <p style="margin: 4px 0; font-size: 12px;">
-              <strong>Score urgencia:</strong> ${scoreUrgencia}/10
-            </p>
-          </div>
-        </div>
-      `;
-
-      // Marcador simple pero visible
+      // Crear elemento del marcador
       const el = document.createElement('div');
       el.style.cssText = `
         background: ${color};
-        width: 40px;
-        height: 40px;
+        width: 50px;
+        height: 50px;
         border-radius: 50%;
         border: 3px solid white;
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
@@ -101,11 +89,34 @@ export const NationalMap: React.FC<NationalMapProps> = ({
         justify-content: center;
         font-weight: bold;
         color: white;
-        font-size: 14px;
-        position: relative;
+        font-size: 16px;
       `;
-      
-      el.textContent = markerText;
+      el.textContent = texto;
+
+      // Popup informativo
+      const popupContent = `
+        <div style="padding: 12px; max-width: 250px;">
+          <h3 style="margin: 0 0 8px 0; color: ${color}; font-weight: bold;">
+            ${zona.nombre}
+          </h3>
+          <p style="margin: 4px 0; font-size: 12px;">
+            <strong>Custodios activos:</strong> ${custodiosActivos}
+          </p>
+          ${deficitCustodios > 0 ? `
+            <p style="margin: 4px 0; font-size: 12px; color: #dc2626;">
+              <strong>Déficit:</strong> ${deficitCustodios}
+            </p>
+          ` : ''}
+          <p style="margin: 4px 0; font-size: 12px;">
+            <strong>Score urgencia:</strong> ${scoreUrgencia}/10
+          </p>
+          ${zona.estados_incluidos ? `
+            <p style="margin: 4px 0; font-size: 12px;">
+              <strong>Estados:</strong> ${zona.estados_incluidos.join(', ')}
+            </p>
+          ` : ''}
+        </div>
+      `;
 
       const popup = new mapboxgl.Popup({ 
         offset: 25,
@@ -113,29 +124,17 @@ export const NationalMap: React.FC<NationalMapProps> = ({
         maxWidth: '280px'
       }).setHTML(popupContent);
 
-      try {
-        // Asegurar que las coordenadas estén en formato [lng, lat] válido para México
-        const [lng, lat] = zona.coordenadas_centro;
-        
-        // Validar que las coordenadas estén dentro del rango de México
-        if (lng >= -118 && lng <= -86 && lat >= 14 && lat <= 32) {
-          const marker = new mapboxgl.Marker({
-            element: el,
-            anchor: 'center',
-            draggable: false
-          })
-            .setLngLat([lng, lat])
-            .setPopup(popup)
-            .addTo(map.current!);
+      // Crear y agregar marcador
+      const marker = new mapboxgl.Marker({
+        element: el,
+        anchor: 'center',
+        draggable: false
+      })
+        .setLngLat([lng, lat])
+        .setPopup(popup)
+        .addTo(map.current!);
 
-          markersRef.current.push(marker);
-          console.log(`Marker agregado para ${zona.nombre} en [${lng}, ${lat}]`);
-        } else {
-          console.warn(`Coordenadas fuera de México para ${zona.nombre}: [${lng}, ${lat}]`);
-        }
-      } catch (error) {
-        console.error(`Error agregando marker para ${zona.nombre}:`, error);
-      }
+      markersRef.current.push(marker);
     });
 
     console.log(`Total markers agregados: ${markersRef.current.length}`);
