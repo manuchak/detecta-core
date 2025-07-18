@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -20,6 +20,13 @@ interface AIInsights {
 export const useSIERCPAI = () => {
   const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState<boolean | null>(null);
+
+  // Validar conexión automáticamente al inicializar el hook
+  useEffect(() => {
+    if (connected === null) {
+      validateConnection();
+    }
+  }, []);
 
   const validateConnection = async () => {
     setLoading(true);

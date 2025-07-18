@@ -11,6 +11,7 @@ import { useSIERCP, SIERCPQuestion } from "@/hooks/useSIERCP";
 import { useSIERCPResults } from "@/hooks/useSIERCPResults";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { useSIERCPAI } from "@/hooks/useSIERCPAI";
 
 
 // Estilos CSS para impresión
@@ -223,6 +224,9 @@ const SIERCPPage = () => {
     canTakeEvaluation,
     saveResult
   } = useSIERCPResults();
+
+  // Hook para verificar conexión con IA automáticamente
+  const { loading: aiLoading, connected, validateConnection } = useSIERCPAI();
 
   const [showResults, setShowResults] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -489,14 +493,85 @@ const SIERCPPage = () => {
     }
   }, [showResults, results]);
 
-  if (loading) {
+  if (loading || aiLoading) {
     return (
       <div className="container mx-auto p-6 space-y-6 max-w-3xl">
         <Card>
           <CardContent className="p-8 text-center">
             <div className="flex flex-col items-center gap-4">
               <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-muted-foreground">Cargando evaluación...</p>
+              <p className="text-muted-foreground">
+                {aiLoading ? 'Verificando conexión con ChatGPT...' : 'Cargando evaluación...'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Verificar conexión con IA antes de permitir continuar
+  if (connected === false) {
+    return (
+      <div className="container mx-auto p-6 space-y-6 max-w-3xl">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-6 w-6 text-red-600" />
+              <div>
+                <CardTitle className="text-red-800">Conexión con IA requerida</CardTitle>
+                <CardDescription>
+                  La evaluación SIERCP requiere asistencia de ChatGPT para el análisis
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="h-5 w-5 text-red-600" />
+                <div>
+                  <p className="font-medium text-red-800">
+                    No se pudo conectar con ChatGPT
+                  </p>
+                  <p className="text-sm text-red-600">
+                    Esta evaluación requiere asistencia de inteligencia artificial para garantizar análisis precisos
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="text-sm text-muted-foreground">
+              Para continuar con la evaluación, es necesario:
+              <ul className="mt-2 ml-4 list-disc">
+                <li>Configurar la API key de OpenAI en Configuración</li>
+                <li>Verificar que la conexión esté activa</li>
+                <li>Intentar nuevamente la conexión</li>
+              </ul>
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <Button
+                onClick={validateConnection}
+                disabled={aiLoading}
+                className="flex items-center gap-2"
+              >
+                {aiLoading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Brain className="h-4 w-4" />
+                )}
+                Reintentar Conexión
+              </Button>
+              
+              <Button
+                variant="outline"
+                onClick={() => window.location.href = '/settings'}
+                className="flex items-center gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Ir a Configuración
+              </Button>
             </div>
           </CardContent>
         </Card>
