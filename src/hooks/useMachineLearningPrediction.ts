@@ -97,11 +97,27 @@ export const useMachineLearningPrediction = () => {
   const mlPredictions = useQuery({
     queryKey: ['ml-predictions', trainingData, historicalMetrics, zones],
     queryFn: async () => {
-      if (!trainingData || !historicalMetrics || !zones) return null;
+      console.log('🚀 ML Predictions Query iniciada:', {
+        hasTrainingData: !!trainingData,
+        trainingDataLength: trainingData?.length,
+        hasHistoricalMetrics: !!historicalMetrics,
+        historicalMetricsLength: historicalMetrics?.length,
+        hasZones: !!zones,
+        zonesLength: zones?.length
+      });
+      
+      if (!trainingData || !historicalMetrics || !zones) {
+        console.log('❌ ML Predictions: Faltan datos necesarios');
+        return [];
+      }
       
       const predictions: MLPrediction[] = [];
       
+      console.log(`📍 Procesando ${zones.length} zonas para predicciones ML`);
+      
       for (const zone of zones) {
+        console.log(`🔍 Procesando zona: ${zone.nombre} (${zone.id})`);
+        
         // Filtrar datos por zona
         const zoneData = trainingData.filter(service => 
           service.origen?.includes(zone.nombre) || 
@@ -112,7 +128,10 @@ export const useMachineLearningPrediction = () => {
           metric.zona_id === zone.id
         );
 
-        if (zoneData.length > 5) { // Reducir umbral mínimo
+        console.log(`📊 Zona ${zone.nombre}: ${zoneData.length} servicios históricos, ${zoneMetrics.length} métricas`);
+
+        // Cambiar umbral mínimo a 0 para generar predicciones para todas las zonas
+        if (zoneData.length > 0) {
           // Entrenar modelo de regresión
           const model = trainLinearRegressionModel(zoneData, zoneMetrics);
           
@@ -127,7 +146,7 @@ export const useMachineLearningPrediction = () => {
           // Calcular importancia de características
           const featureImportance = generateFeatureImportance(model);
 
-          predictions.push({
+          const predictionResult = {
             zona_id: zone.id,
             zona_nombre: zone.nombre,
             predicted_demand: prediction.demand,
@@ -135,7 +154,10 @@ export const useMachineLearningPrediction = () => {
             prediction_date: new Date().toISOString(),
             model_used: 'linear_regression',
             feature_importance: featureImportance
-          });
+          };
+          
+          console.log(`✅ Predicción generada para ${zone.nombre}:`, predictionResult);
+          predictions.push(predictionResult);
         } else {
           // Para zonas con pocos datos, usar predicción basada en patrones generales
           const basicPrediction = predictDemandWithML(
@@ -149,7 +171,7 @@ export const useMachineLearningPrediction = () => {
             }
           );
 
-          predictions.push({
+          const basicPredictionResult = {
             zona_id: zone.id,
             zona_nombre: zone.nombre,
             predicted_demand: basicPrediction.demand,
@@ -162,9 +184,15 @@ export const useMachineLearningPrediction = () => {
               'Seasonality': 0.25,
               'Growth Trend': 0.25
             }
-          });
+          };
+          
+          console.log(`🔧 Predicción básica para ${zone.nombre}:`, basicPredictionResult);
+          predictions.push(basicPredictionResult);
         }
       }
+      
+      console.log(`🎯 Total predicciones ML generadas: ${predictions.length}`);
+      console.log('🔍 Predicciones finales:', predictions);
       
       return predictions;
     },

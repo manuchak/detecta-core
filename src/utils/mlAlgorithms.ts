@@ -79,11 +79,18 @@ export const predictDemandWithML = (
   zone: any,
   input: PredictionInput
 ): Prediction => {
+  console.log(`🔮 predictDemandWithML llamada para zona ${zone?.zona_nombre || zone?.nombre}:`, {
+    model: model ? 'presente' : 'null',
+    zone: zone ? zone.zona_nombre || zone.nombre : 'null',
+    input
+  });
+
   // Importar calculadora de negocio
   const { calcularDemandaCustodios, estimarServiciosDiarios, calcularFactorEstacional } = require('./businessDemandCalculator');
 
   // Validar entradas
   if (!zone || !input) {
+    console.log('❌ predictDemandWithML: Faltan zone o input');
     return { demand: 0, confidence: 0 };
   }
 
@@ -129,10 +136,15 @@ export const predictDemandWithML = (
     safeInput.avg_revenue
   );
 
-  return { 
+  const result = { 
     demand: demandaPrediction.custodios_necesarios, 
     confidence 
   };
+  
+  console.log(`🎯 predictDemandWithML resultado para ${zone?.zona_nombre || zone?.nombre}:`, result);
+  console.log(`📋 Detalle predicción negocio:`, demandaPrediction);
+  
+  return result;
 };
 
 // Funciones auxiliares específicas del negocio
