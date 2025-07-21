@@ -70,6 +70,13 @@ export interface DeficitConRotacion extends DeficitMejorado {
   deficit_total_con_rotacion: number;
   custodios_en_riesgo: number;
   necesidad_retencion: number;
+  plan_reclutamiento_3_meses: {
+    mes_1: number;
+    mes_2: number;
+    mes_3: number;
+    total_3_meses: number;
+    prioridad_urgencia: 'alta' | 'media' | 'baja';
+  };
 }
 
 export interface PredictionData {
@@ -405,12 +412,39 @@ export const calcularDeficitConRotacion = (
     deficitOriginalValido + deficitPorRotacion + bufferSeguridad
   );
 
-  console.log(`✅ Resultado para ${deficitOriginal.zona_nombre}:`, {
-    deficitOriginal: deficitOriginalValido,
-    deficitPorRotacion,
-    bufferSeguridad,
-    deficitTotalConRotacion
-  });
+  // Calcular plan de reclutamiento para 3 meses
+  const totalNecesario = deficitTotalConRotacion;
+  
+  // Distribuir reclutamiento según urgencia
+  let planReclutamiento;
+  if (deficitOriginal.urgencia_score >= 8) {
+    // Alta urgencia: 60% primer mes, 30% segundo mes, 10% tercer mes
+    planReclutamiento = {
+      mes_1: Math.ceil(totalNecesario * 0.6),
+      mes_2: Math.ceil(totalNecesario * 0.3),
+      mes_3: Math.ceil(totalNecesario * 0.1),
+      total_3_meses: totalNecesario,
+      prioridad_urgencia: 'alta' as const
+    };
+  } else if (deficitOriginal.urgencia_score >= 5) {
+    // Media urgencia: 40% primer mes, 40% segundo mes, 20% tercer mes
+    planReclutamiento = {
+      mes_1: Math.ceil(totalNecesario * 0.4),
+      mes_2: Math.ceil(totalNecesario * 0.4),
+      mes_3: Math.ceil(totalNecesario * 0.2),
+      total_3_meses: totalNecesario,
+      prioridad_urgencia: 'media' as const
+    };
+  } else {
+    // Baja urgencia: distribución uniforme
+    planReclutamiento = {
+      mes_1: Math.ceil(totalNecesario / 3),
+      mes_2: Math.ceil(totalNecesario / 3),
+      mes_3: Math.ceil(totalNecesario / 3),
+      total_3_meses: totalNecesario,
+      prioridad_urgencia: 'baja' as const
+    };
+  }
 
   // Generar recomendaciones mejoradas incluyendo retención
   const recomendacionesConRotacion = [
@@ -431,6 +465,7 @@ export const calcularDeficitConRotacion = (
     deficit_total_con_rotacion: deficitTotalConRotacion,
     custodios_en_riesgo: datosRotacion.custodiosEnRiesgo,
     necesidad_retencion: datosRotacion.retencionNecesaria,
+    plan_reclutamiento_3_meses: planReclutamiento,
     recomendaciones: recomendacionesConRotacion
   };
 };
