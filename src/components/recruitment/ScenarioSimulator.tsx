@@ -188,27 +188,6 @@ export const ScenarioSimulator: React.FC = () => {
         </div>
       </div>
 
-      {/* Stats actuales */}
-      <Card className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-        <div className="grid grid-cols-4 gap-4">
-          <div className="text-center">
-            <div className="text-2xl font-light text-blue-900">{CURRENT_ACTIVE_CUSTODIANS}</div>
-            <div className="text-sm text-blue-600">Custodios Activos</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-light text-blue-900">{MONTHLY_CHURN}</div>
-            <div className="text-sm text-blue-600">Egresos Mensuales</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-light text-blue-900">{CHURN_RATE.toFixed(1)}%</div>
-            <div className="text-sm text-blue-600">Tasa Rotación</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-light text-blue-900">21</div>
-            <div className="text-sm text-blue-600">Déficit Proyectado</div>
-          </div>
-        </div>
-      </Card>
 
       {/* Simulador */}
       <Card className="p-6">
