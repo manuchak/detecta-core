@@ -109,9 +109,20 @@ export const calcularDeficitMejorado = (
   serviciosSegmentados: ServicioSegmentado[]
 ): DeficitMejorado => {
   const custodiosActivos = metricasOperacionales.custodios_activos || 0;
-  const ratioRechazo = metricasOperacionales.ratio_rechazo_promedio;
-  const horasDisponibles = metricasOperacionales.disponibilidad_custodios_horas;
-  const eficiencia = metricasOperacionales.eficiencia_operacional;
+  const ratioRechazo = isNaN(metricasOperacionales.ratio_rechazo_promedio) || metricasOperacionales.ratio_rechazo_promedio == null 
+    ? 0.25 : metricasOperacionales.ratio_rechazo_promedio;
+  const horasDisponibles = isNaN(metricasOperacionales.disponibilidad_custodios_horas) || metricasOperacionales.disponibilidad_custodios_horas == null 
+    ? 16 : metricasOperacionales.disponibilidad_custodios_horas;
+  const eficiencia = isNaN(metricasOperacionales.eficiencia_operacional) || metricasOperacionales.eficiencia_operacional == null 
+    ? 0.85 : metricasOperacionales.eficiencia_operacional;
+
+  console.log(`🔍 Calculando déficit para zona "${zona.nombre}":`, {
+    custodiosActivos,
+    ratioRechazo,
+    horasDisponibles,
+    eficiencia,
+    serviciosDia: zona.servicios_dia
+  });
 
   // Obtener servicios segmentados para esta zona
   const servicioLocal = serviciosSegmentados.find(s => s.zona_id === zona.id && s.tipo_servicio === 'local');
@@ -143,15 +154,28 @@ export const calcularDeficitMejorado = (
     eficiencia
   );
 
-  // Calcular déficits por tipo
-  const demandaLocal = servicioLocal?.demanda_diaria_promedio || zona.servicios_dia * 0.6; // 60% locales
-  const demandaForanea = servicioForaneo?.demanda_diaria_promedio || zona.servicios_dia * 0.3; // 30% foráneos
-  const demandaExpress = servicioExpress?.demanda_diaria_promedio || zona.servicios_dia * 0.1; // 10% express
+  // Calcular déficits por tipo (validando que zona.servicios_dia no sea NaN)
+  const serviciosDiaValidos = isNaN(zona.servicios_dia) || zona.servicios_dia == null ? 0 : zona.servicios_dia;
+  
+  const demandaLocal = servicioLocal?.demanda_diaria_promedio || serviciosDiaValidos * 0.6; // 60% locales
+  const demandaForanea = servicioForaneo?.demanda_diaria_promedio || serviciosDiaValidos * 0.3; // 30% foráneos
+  const demandaExpress = servicioExpress?.demanda_diaria_promedio || serviciosDiaValidos * 0.1; // 10% express
+
+  console.log(`📈 Demandas calculadas para "${zona.nombre}":`, { demandaLocal, demandaForanea, demandaExpress });
+  console.log(`⚙️ Capacidades calculadas para "${zona.nombre}":`, {
+    local: capacidadLocal.servicios_posibles_dia,
+    foranea: capacidadForanea.servicios_posibles_dia,
+    express: capacidadExpress.servicios_posibles_dia
+  });
 
   const deficitLocal = demandaLocal - capacidadLocal.servicios_posibles_dia;
   const deficitForaneo = demandaForanea - capacidadForanea.servicios_posibles_dia;
   const deficitExpress = demandaExpress - capacidadExpress.servicios_posibles_dia;
   const deficitTotal = deficitLocal + deficitForaneo + deficitExpress;
+
+  console.log(`📉 Déficits calculados para "${zona.nombre}":`, {
+    deficitLocal, deficitForaneo, deficitExpress, deficitTotal
+  });
 
   // Calcular score de urgencia mejorado
   const urgenciaScore = calcularUrgenciaMejorada(deficitTotal, zona.servicios_dia, custodiosActivos);
