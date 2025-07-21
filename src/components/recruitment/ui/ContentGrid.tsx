@@ -30,9 +30,10 @@ export function ContentGrid({
 }: ContentGridProps) {
   return (
     <div className={cn(
-      'grid',
+      'grid w-full',
       columnStyles[columns],
       gapStyles[gap],
+      'items-stretch', // Ensures equal height cards
       className
     )}>
       {children}

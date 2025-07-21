@@ -21,16 +21,16 @@ interface MetricCardProps {
 
 const variantStyles = {
   default: 'border-border bg-card',
-  critical: 'border-red-200 bg-red-50',
-  warning: 'border-yellow-200 bg-yellow-50',
-  success: 'border-green-200 bg-green-50',
-  info: 'border-blue-200 bg-blue-50',
+  critical: 'border-red-200 bg-red-50/30',
+  warning: 'border-orange-200 bg-orange-50/50',
+  success: 'border-green-200 bg-green-50/50',
+  info: 'border-blue-200 bg-blue-50/50',
 };
 
 const iconStyles = {
   default: 'text-muted-foreground',
-  critical: 'text-red-600',
-  warning: 'text-yellow-600',
+  critical: 'text-red-500',
+  warning: 'text-orange-600',
   success: 'text-green-600',
   info: 'text-blue-600',
 };

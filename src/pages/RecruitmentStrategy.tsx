@@ -33,6 +33,9 @@ import FinancialROIDashboard from '@/components/recruitment/FinancialROIDashboar
 const RecruitmentStrategy = () => {
   const [activeSection, setActiveSection] = useState('planificacion');
   
+  // Costo base actualizado según análisis de mercado
+  const baseCostPerCustodian = 1830; // Costo promedio sin incluir staff
+  
   // Hooks para datos simulados
   const {
     loading: loadingSimulado,
@@ -212,20 +215,25 @@ const RecruitmentStrategy = () => {
               value={multiMonthData?.targetMonth?.totalNeed || totalDeficit}
               subtitle="Custodios a reclutar"
               icon={Target}
-              variant="critical"
+              variant="warning"
             />
             <MetricCard
               title="Presupuesto Requerido"
-              value={multiMonthData?.kpis?.budgetRequired 
+              value={multiMonthData?.targetMonth?.totalNeed 
                 ? new Intl.NumberFormat('es-MX', { 
                     style: 'currency', 
                     currency: 'MXN',
                     notation: 'compact',
                     maximumFractionDigits: 0
-                  }).format(multiMonthData.kpis.budgetRequired)
-                : '--'
+                  }).format((multiMonthData.targetMonth.totalNeed || totalDeficit) * baseCostPerCustodian)
+                : new Intl.NumberFormat('es-MX', { 
+                    style: 'currency', 
+                    currency: 'MXN',
+                    notation: 'compact',
+                    maximumFractionDigits: 0
+                  }).format(totalDeficit * baseCostPerCustodian)
               }
-              subtitle="Inversión total"
+              subtitle={`Base: $${baseCostPerCustodian.toLocaleString()} por custodio`}
               icon={TrendingUp}
               variant="info"
             />
@@ -237,11 +245,11 @@ const RecruitmentStrategy = () => {
               variant="warning"
             />
             <MetricCard
-              title="Clusters Críticos"
+              title="Clusters Prioritarios"
               value={multiMonthData?.kpis?.criticalClusters || alertasCriticas}
-              subtitle="Requieren acción inmediata"
+              subtitle="Requieren atención"
               icon={AlertTriangle}
-              variant="critical"
+              variant="warning"
             />
           </ContentGrid>
         );
@@ -457,14 +465,14 @@ const RecruitmentStrategy = () => {
       case 'rotacion':
         return (
           <div className="space-y-6">
-            <Card className="p-6 bg-gradient-to-br from-orange-50 to-red-50 border-orange-200">
+            <Card className="p-6 bg-gradient-to-br from-blue-50 to-orange-50 border-blue-200">
               <ContentGrid columns={4}>
                 <MetricCard
                   title="Custodios en Riesgo"
                   value={kpisPrediction.custodiosEnRiesgo || 0}
                   subtitle="30-60 días sin servicio"
                   icon={AlertTriangle}
-                  variant="critical"
+                  variant="warning"
                   size="sm"
                 />
                 <MetricCard
