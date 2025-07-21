@@ -361,20 +361,74 @@ export const calcularDatosRotacionPorCluster = async (nombreCluster: string): Pr
       }
     });
     
-    // Calcular custodios en riesgo (pocos servicios o servicios antiguos)
+    // Calcular custodios en riesgo con criterio específico:
+    // - Entre 30 y 60 días sin servicio
+    // - Pero que tuvieron servicios entre hace 60 a 90 días
     let custodiosEnRiesgo = 0;
     let custodiosInactivos = 0;
     
-    const fechaLimiteRiesgo = new Date();
-    fechaLimiteRiesgo.setDate(fechaLimiteRiesgo.getDate() - 15); // 15 días sin servicio = en riesgo
+    const fecha30DiasAtras = new Date();
+    fecha30DiasAtras.setDate(fecha30DiasAtras.getDate() - 30);
     
-    custodiosPorEstado.forEach((datos, nombre) => {
-      if (datos.servicios <= 2) {
-        custodiosEnRiesgo++;
-      } else if (datos.ultimoServicio && new Date(datos.ultimoServicio) < fechaLimiteRiesgo) {
-        custodiosEnRiesgo++;
-      }
-    });
+    const fecha60DiasAtras = new Date();
+    fecha60DiasAtras.setDate(fecha60DiasAtras.getDate() - 60);
+    
+    const fecha90DiasAtras = new Date();
+    fecha90DiasAtras.setDate(fecha90DiasAtras.getDate() - 90);
+
+    // Obtener servicios de los últimos 90 días para análisis completo
+    const { data: servicios90Dias, error: error90Dias } = await supabase
+      .from('servicios_custodia')
+      .select('nombre_custodio, fecha_hora_cita')
+      .gte('fecha_hora_cita', fecha90DiasAtras.toISOString())
+      .lte('fecha_hora_cita', fechaActual.toISOString())
+      .not('nombre_custodio', 'is', null)
+      .neq('nombre_custodio', '');
+
+    if (!error90Dias && servicios90Dias) {
+      // Agrupar servicios por custodio con fechas
+      const custodiosConHistorial = new Map();
+      
+      servicios90Dias.forEach(servicio => {
+        const nombre = servicio.nombre_custodio;
+        if (!nombre || nombre.trim() === '') return;
+        
+        if (!custodiosConHistorial.has(nombre)) {
+          custodiosConHistorial.set(nombre, []);
+        }
+        custodiosConHistorial.get(nombre).push(new Date(servicio.fecha_hora_cita));
+      });
+
+      // Analizar cada custodio
+      custodiosConHistorial.forEach((fechasServicios, nombre) => {
+        // Ordenar fechas de más reciente a más antigua
+        fechasServicios.sort((a, b) => b.getTime() - a.getTime());
+        
+        const ultimoServicio = fechasServicios[0];
+        
+        // Verificar si tiene servicios en últimos 30 días
+        const tieneServiciosUltimos30 = fechasServicios.some(fecha => fecha >= fecha30DiasAtras);
+        
+        // Verificar si tiene servicios entre 60-90 días atrás
+        const tieneServiciosEntre60y90Dias = fechasServicios.some(fecha => 
+          fecha >= fecha90DiasAtras && fecha < fecha60DiasAtras
+        );
+        
+        // Custodio en riesgo: NO tiene servicios en últimos 30 días, 
+        // pero SÍ tuvo servicios entre hace 60-90 días
+        if (!tieneServiciosUltimos30 && tieneServiciosEntre60y90Dias) {
+          // Verificar que su último servicio esté entre 30-60 días
+          if (ultimoServicio < fecha30DiasAtras && ultimoServicio >= fecha60DiasAtras) {
+            custodiosEnRiesgo++;
+          }
+        }
+        
+        // Custodio inactivo: no tiene servicios en últimos 60 días
+        if (ultimoServicio < fecha60DiasAtras) {
+          custodiosInactivos++;
+        }
+      });
+    }
 
     console.log(`📈 ${nombreCluster} - Custodios activos REALES: ${custodiosActivos}, En Riesgo: ${custodiosEnRiesgo}`);
 
