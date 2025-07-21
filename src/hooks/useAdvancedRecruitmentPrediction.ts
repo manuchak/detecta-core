@@ -240,19 +240,28 @@ const generarRecomendacionesInteligentes = (
 };
 
 // Nuevas funciones para cálculo de rotación
-export const calcularDatosRotacion = async (zona_id: string): Promise<DatosRotacion> => {
+export const calcularDatosRotacion = async (zona_nombre: string): Promise<DatosRotacion> => {
   try {
+    console.log('🔍 Calculando rotación para zona:', zona_nombre);
+    
     const { data, error } = await supabase
       .from('custodios_rotacion_tracking')
       .select('*')
-      .eq('zona_operacion', zona_id);
+      .eq('zona_operacion', zona_nombre);
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Error fetching rotación data:', error);
+      throw error;
+    }
 
+    console.log('📊 Datos de rotación obtenidos:', data?.length || 0, 'registros para', zona_nombre);
+    
     const trackingData = data || [];
     const custodiosActivos = trackingData.filter(c => c.estado_actividad === 'activo').length;
     const custodiosEnRiesgo = trackingData.filter(c => c.estado_actividad === 'en_riesgo').length;
     const custodiosInactivos = trackingData.filter(c => c.estado_actividad === 'inactivo').length;
+
+    console.log(`📈 ${zona_nombre} - Activos: ${custodiosActivos}, En Riesgo: ${custodiosEnRiesgo}, Inactivos: ${custodiosInactivos}`);
 
     // Calcular tasa de rotación mensual (últimos 3 meses)
     const totalCustodios = custodiosActivos + custodiosEnRiesgo + custodiosInactivos;
@@ -260,23 +269,23 @@ export const calcularDatosRotacion = async (zona_id: string): Promise<DatosRotac
 
     // Proyección de egresos (custodios que probablemente se volverán inactivos)
     const proyeccionEgresos30Dias = trackingData.filter(c => 
-      c.estado_actividad === 'en_riesgo' && c.dias_sin_servicio >= 45
+      c.estado_actividad === 'en_riesgo' && (c.dias_sin_servicio || 0) >= 45
     ).length;
     
     const proyeccionEgresos60Dias = trackingData.filter(c => 
       c.estado_actividad === 'en_riesgo' || 
-      (c.estado_actividad === 'activo' && c.dias_sin_servicio >= 15)
+      (c.estado_actividad === 'activo' && (c.dias_sin_servicio || 0) >= 15)
     ).length;
 
     // Promedio de servicios mensuales
-    const promedioServiciosMes = trackingData.reduce((sum, c) => sum + (c.promedio_servicios_mes || 0), 0) / 
-      (trackingData.length || 1);
+    const totalPromedioServicios = trackingData.reduce((sum, c) => sum + (c.promedio_servicios_mes || 0), 0);
+    const promedioServiciosMes = trackingData.length > 0 ? totalPromedioServicios / trackingData.length : 0;
 
     // Necesidad de retención (custodios que requieren atención inmediata)
     const retencionNecesaria = custodiosEnRiesgo + Math.ceil(proyeccionEgresos30Dias * 0.7);
 
-    return {
-      zona_id,
+    const resultado = {
+      zona_id: zona_nombre,
       custodiosActivos,
       custodiosEnRiesgo,
       custodiosInactivos,
@@ -286,10 +295,13 @@ export const calcularDatosRotacion = async (zona_id: string): Promise<DatosRotac
       promedioServiciosMes: Math.round(promedioServiciosMes * 100) / 100,
       retencionNecesaria
     };
+
+    console.log('✅ Resultado rotación para', zona_nombre, ':', resultado);
+    return resultado;
   } catch (error) {
     console.error('Error calculando datos de rotación:', error);
     return {
-      zona_id,
+      zona_id: zona_nombre,
       custodiosActivos: 0,
       custodiosEnRiesgo: 0,
       custodiosInactivos: 0,
@@ -306,18 +318,34 @@ export const calcularDeficitConRotacion = (
   deficitOriginal: DeficitMejorado,
   datosRotacion: DatosRotacion
 ): DeficitConRotacion => {
+  console.log('🧮 Calculando déficit con rotación para:', deficitOriginal.zona_nombre);
+  console.log('📊 Déficit original:', deficitOriginal.deficit_total);
+  console.log('🔄 Datos rotación:', datosRotacion);
+
+  // Validar que los valores no sean NaN o undefined
+  const deficitOriginalValido = isNaN(deficitOriginal.deficit_total) ? 0 : deficitOriginal.deficit_total;
+  const proyeccionEgresos30 = isNaN(datosRotacion.proyeccionEgresos30Dias) ? 0 : datosRotacion.proyeccionEgresos30Dias;
+  const proyeccionEgresos60 = isNaN(datosRotacion.proyeccionEgresos60Dias) ? 0 : datosRotacion.proyeccionEgresos60Dias;
+
   // Calcular déficit adicional por rotación proyectada
   const deficitPorRotacion = Math.ceil(
-    (datosRotacion.proyeccionEgresos30Dias * 1.2) + // Factor de seguridad del 20%
-    (datosRotacion.proyeccionEgresos60Dias * 0.3)    // 30% de probabilidad adicional
+    (proyeccionEgresos30 * 1.2) + // Factor de seguridad del 20%
+    (proyeccionEgresos60 * 0.3)    // 30% de probabilidad adicional
   );
 
   // Buffer de seguridad del 15% para compensar variabilidad
-  const bufferSeguridad = Math.ceil(deficitOriginal.deficit_total * 0.15);
+  const bufferSeguridad = Math.ceil(deficitOriginalValido * 0.15);
   
   const deficitTotalConRotacion = Math.max(0, 
-    deficitOriginal.deficit_total + deficitPorRotacion + bufferSeguridad
+    deficitOriginalValido + deficitPorRotacion + bufferSeguridad
   );
+
+  console.log(`✅ Resultado para ${deficitOriginal.zona_nombre}:`, {
+    deficitOriginal: deficitOriginalValido,
+    deficitPorRotacion,
+    bufferSeguridad,
+    deficitTotalConRotacion
+  });
 
   // Generar recomendaciones mejoradas incluyendo retención
   const recomendacionesConRotacion = [
@@ -420,13 +448,35 @@ export function useAdvancedRecruitmentPrediction() {
       });
 
       // Calcular datos de rotación para cada zona
-      const datosRotacionPromises = zonasData.map(zona => calcularDatosRotacion(zona.nombre));
+      console.log('🏗️ Calculando rotación para zonas:', zonasData.map(z => z.nombre));
+      const datosRotacionPromises = zonasData.map(zona => {
+        // Mapear nombres de zona para que coincidan con la DB de rotación
+        let nombreZonaDB = 'Nacional'; // Por defecto
+        
+        const nombreZona = zona.nombre.toLowerCase();
+        if (nombreZona.includes('centro') && nombreZona.includes('méxico')) {
+          nombreZonaDB = 'CDMX';
+        } else if (nombreZona.includes('occidente')) {
+          nombreZonaDB = 'Guadalajara';
+        } else if (nombreZona.includes('norte')) {
+          nombreZonaDB = 'Monterrey';
+        } else if (nombreZona.includes('bajío')) {
+          nombreZonaDB = 'Puebla';
+        } else if (nombreZona.includes('golfo')) {
+          nombreZonaDB = 'Tijuana';
+        }
+        
+        console.log(`🔗 Mapeando zona "${zona.nombre}" -> "${nombreZonaDB}"`);
+        return calcularDatosRotacion(nombreZonaDB);
+      });
+      
       const datosRotacion = await Promise.all(datosRotacionPromises);
+      console.log('📈 Datos de rotación calculados:', datosRotacion);
 
       // Calcular déficit con rotación combinando ambos datasets
-      const deficitConRotacion = deficitMejorado.map(deficit => {
-        const rotacionData = datosRotacion.find(r => r.zona_id === deficit.zona_nombre) || {
-          zona_id: deficit.zona_id,
+      const deficitConRotacion = deficitMejorado.map((deficit, index) => {
+        const rotacionData = datosRotacion[index] || {
+          zona_id: deficit.zona_nombre,
           custodiosActivos: 0,
           custodiosEnRiesgo: 0,
           custodiosInactivos: 0,
@@ -436,8 +486,12 @@ export function useAdvancedRecruitmentPrediction() {
           promedioServiciosMes: 0,
           retencionNecesaria: 0
         };
+        
+        console.log(`🔄 Combinando déficit "${deficit.zona_nombre}" con rotación:`, rotacionData);
         return calcularDeficitConRotacion(deficit, rotacionData);
       });
+
+      console.log('✅ Déficit con rotación final:', deficitConRotacion);
 
       setPredictionData({
         zonasData,
