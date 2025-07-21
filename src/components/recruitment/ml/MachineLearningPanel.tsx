@@ -49,7 +49,6 @@ export const MachineLearningPanel = () => {
           model_id: selectedModel.id,
           model_name: selectedModel.name,
           hyperparameters: modelConfig,
-          updated_by: (await supabase.auth.getUser()).data.user?.id,
           is_active: true
         }, {
           onConflict: 'model_id'
