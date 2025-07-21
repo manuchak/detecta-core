@@ -53,6 +53,25 @@ export interface DeficitMejorado {
   recomendaciones: string[];
 }
 
+export interface DatosRotacion {
+  zona_id: string;
+  custodiosActivos: number;
+  custodiosEnRiesgo: number;
+  custodiosInactivos: number;
+  tasaRotacionMensual: number;
+  proyeccionEgresos30Dias: number;
+  proyeccionEgresos60Dias: number;
+  promedioServiciosMes: number;
+  retencionNecesaria: number;
+}
+
+export interface DeficitConRotacion extends DeficitMejorado {
+  deficit_por_rotacion: number;
+  deficit_total_con_rotacion: number;
+  custodios_en_riesgo: number;
+  necesidad_retencion: number;
+}
+
 export interface PredictionData {
   zonasData: any[];
   metricasData: any[];
@@ -61,6 +80,8 @@ export interface PredictionData {
   metricasOperacionales: MetricasOperacionales[];
   serviciosSegmentados: ServicioSegmentado[];
   deficitMejorado: DeficitMejorado[];
+  datosRotacion: DatosRotacion[];
+  deficitConRotacion: DeficitConRotacion[];
 }
 
 // Algoritmos de cálculo mejorados
@@ -218,6 +239,109 @@ const generarRecomendacionesInteligentes = (
   return recomendaciones;
 };
 
+// Nuevas funciones para cálculo de rotación
+export const calcularDatosRotacion = async (zona_id: string): Promise<DatosRotacion> => {
+  try {
+    const { data, error } = await supabase
+      .from('custodios_rotacion_tracking')
+      .select('*')
+      .eq('zona_operacion', zona_id);
+
+    if (error) throw error;
+
+    const trackingData = data || [];
+    const custodiosActivos = trackingData.filter(c => c.estado_actividad === 'activo').length;
+    const custodiosEnRiesgo = trackingData.filter(c => c.estado_actividad === 'en_riesgo').length;
+    const custodiosInactivos = trackingData.filter(c => c.estado_actividad === 'inactivo').length;
+
+    // Calcular tasa de rotación mensual (últimos 3 meses)
+    const totalCustodios = custodiosActivos + custodiosEnRiesgo + custodiosInactivos;
+    const tasaRotacionMensual = totalCustodios > 0 ? (custodiosInactivos / totalCustodios) * 100 : 0;
+
+    // Proyección de egresos (custodios que probablemente se volverán inactivos)
+    const proyeccionEgresos30Dias = trackingData.filter(c => 
+      c.estado_actividad === 'en_riesgo' && c.dias_sin_servicio >= 45
+    ).length;
+    
+    const proyeccionEgresos60Dias = trackingData.filter(c => 
+      c.estado_actividad === 'en_riesgo' || 
+      (c.estado_actividad === 'activo' && c.dias_sin_servicio >= 15)
+    ).length;
+
+    // Promedio de servicios mensuales
+    const promedioServiciosMes = trackingData.reduce((sum, c) => sum + (c.promedio_servicios_mes || 0), 0) / 
+      (trackingData.length || 1);
+
+    // Necesidad de retención (custodios que requieren atención inmediata)
+    const retencionNecesaria = custodiosEnRiesgo + Math.ceil(proyeccionEgresos30Dias * 0.7);
+
+    return {
+      zona_id,
+      custodiosActivos,
+      custodiosEnRiesgo,
+      custodiosInactivos,
+      tasaRotacionMensual: Math.round(tasaRotacionMensual * 100) / 100,
+      proyeccionEgresos30Dias,
+      proyeccionEgresos60Dias,
+      promedioServiciosMes: Math.round(promedioServiciosMes * 100) / 100,
+      retencionNecesaria
+    };
+  } catch (error) {
+    console.error('Error calculando datos de rotación:', error);
+    return {
+      zona_id,
+      custodiosActivos: 0,
+      custodiosEnRiesgo: 0,
+      custodiosInactivos: 0,
+      tasaRotacionMensual: 0,
+      proyeccionEgresos30Dias: 0,
+      proyeccionEgresos60Dias: 0,
+      promedioServiciosMes: 0,
+      retencionNecesaria: 0
+    };
+  }
+};
+
+export const calcularDeficitConRotacion = (
+  deficitOriginal: DeficitMejorado,
+  datosRotacion: DatosRotacion
+): DeficitConRotacion => {
+  // Calcular déficit adicional por rotación proyectada
+  const deficitPorRotacion = Math.ceil(
+    (datosRotacion.proyeccionEgresos30Dias * 1.2) + // Factor de seguridad del 20%
+    (datosRotacion.proyeccionEgresos60Dias * 0.3)    // 30% de probabilidad adicional
+  );
+
+  // Buffer de seguridad del 15% para compensar variabilidad
+  const bufferSeguridad = Math.ceil(deficitOriginal.deficit_total * 0.15);
+  
+  const deficitTotalConRotacion = Math.max(0, 
+    deficitOriginal.deficit_total + deficitPorRotacion + bufferSeguridad
+  );
+
+  // Generar recomendaciones mejoradas incluyendo retención
+  const recomendacionesConRotacion = [
+    ...deficitOriginal.recomendaciones,
+    ...(datosRotacion.custodiosEnRiesgo > 0 ? [
+      `Implementar programa de retención para ${datosRotacion.custodiosEnRiesgo} custodios en riesgo`,
+      'Activar bonos de permanencia y asignación preferencial de servicios'
+    ] : []),
+    ...(deficitPorRotacion > 0 ? [
+      `Reclutar ${deficitPorRotacion} custodios adicionales para compensar rotación proyectada`,
+      'Acelerar proceso de onboarding para reducir tiempo de incorporación'
+    ] : [])
+  ];
+
+  return {
+    ...deficitOriginal,
+    deficit_por_rotacion: deficitPorRotacion,
+    deficit_total_con_rotacion: deficitTotalConRotacion,
+    custodios_en_riesgo: datosRotacion.custodiosEnRiesgo,
+    necesidad_retencion: datosRotacion.retencionNecesaria,
+    recomendaciones: recomendacionesConRotacion
+  };
+};
+
 export function useAdvancedRecruitmentPrediction() {
   const [loading, setLoading] = useState(true);
   const [predictionData, setPredictionData] = useState<PredictionData>({
@@ -227,7 +351,9 @@ export function useAdvancedRecruitmentPrediction() {
     candidatosData: [],
     metricasOperacionales: [],
     serviciosSegmentados: [],
-    deficitMejorado: []
+    deficitMejorado: [],
+    datosRotacion: [],
+    deficitConRotacion: []
   });
 
   const fetchMetricasOperacionales = useCallback(async () => {
@@ -293,6 +419,26 @@ export function useAdvancedRecruitmentPrediction() {
         return calcularDeficitMejorado(zona, metricasOp, serviciosSegmentados);
       });
 
+      // Calcular datos de rotación para cada zona
+      const datosRotacionPromises = zonasData.map(zona => calcularDatosRotacion(zona.nombre));
+      const datosRotacion = await Promise.all(datosRotacionPromises);
+
+      // Calcular déficit con rotación combinando ambos datasets
+      const deficitConRotacion = deficitMejorado.map(deficit => {
+        const rotacionData = datosRotacion.find(r => r.zona_id === deficit.zona_nombre) || {
+          zona_id: deficit.zona_id,
+          custodiosActivos: 0,
+          custodiosEnRiesgo: 0,
+          custodiosInactivos: 0,
+          tasaRotacionMensual: 0,
+          proyeccionEgresos30Dias: 0,
+          proyeccionEgresos60Dias: 0,
+          promedioServiciosMes: 0,
+          retencionNecesaria: 0
+        };
+        return calcularDeficitConRotacion(deficit, rotacionData);
+      });
+
       setPredictionData({
         zonasData,
         metricasData,
@@ -300,7 +446,9 @@ export function useAdvancedRecruitmentPrediction() {
         candidatosData: candidatosRes.data || [],
         metricasOperacionales,
         serviciosSegmentados,
-        deficitMejorado
+        deficitMejorado,
+        datosRotacion,
+        deficitConRotacion
       });
     } catch (error) {
       console.error('Error fetching prediction data:', error);
@@ -313,15 +461,31 @@ export function useAdvancedRecruitmentPrediction() {
     fetchAllPredictionData();
   }, [fetchAllPredictionData]);
 
-  // KPIs calculados con algoritmo mejorado
+  // KPIs calculados con algoritmo mejorado incluyendo rotación
   const kpis = useMemo(() => {
-    const { deficitMejorado, alertasData, candidatosData } = predictionData;
+    const { deficitConRotacion, deficitMejorado, alertasData, candidatosData, datosRotacion } = predictionData;
 
-    const totalDeficit = deficitMejorado.reduce((sum, zone) => sum + Math.max(0, zone.deficit_total), 0);
-    const zonasPrioritarias = deficitMejorado.filter(zone => zone.urgencia_score >= 7).length;
+    // Usar déficit con rotación si está disponible, sino el tradicional
+    const deficitData = deficitConRotacion.length > 0 ? deficitConRotacion : deficitMejorado;
+    
+    const totalDeficit = deficitData.reduce((sum, zone) => {
+      const deficit = 'deficit_total_con_rotacion' in zone 
+        ? (zone as DeficitConRotacion).deficit_total_con_rotacion 
+        : zone.deficit_total;
+      return sum + Math.max(0, deficit);
+    }, 0);
+    
+    const zonasPrioritarias = deficitData.filter(zone => zone.urgencia_score >= 7).length;
     const alertasCriticas = alertasData.filter(a => a.prioridad >= 8).length;
     const alertasPreventivas = alertasData.filter(a => a.prioridad >= 5 && a.prioridad < 8).length;
     const candidatosActivos = candidatosData.filter(c => c.estado_proceso !== 'descartado').length;
+
+    // Nuevas métricas de rotación
+    const totalCustodiosEnRiesgo = datosRotacion.reduce((sum, zona) => sum + zona.custodiosEnRiesgo, 0);
+    const totalRotacionProyectada = datosRotacion.reduce((sum, zona) => sum + zona.proyeccionEgresos30Dias, 0);
+    const promedioTasaRotacion = datosRotacion.length > 0 
+      ? datosRotacion.reduce((sum, zona) => sum + zona.tasaRotacionMensual, 0) / datosRotacion.length 
+      : 0;
 
     return {
       alertasCriticas,
@@ -329,7 +493,11 @@ export function useAdvancedRecruitmentPrediction() {
       oportunidades: candidatosActivos,
       totalDeficit: Math.ceil(totalDeficit),
       zonasPrioritarias,
-      candidatosActivos
+      candidatosActivos,
+      // Nuevos KPIs de rotación
+      custodiosEnRiesgo: totalCustodiosEnRiesgo,
+      rotacionProyectada: totalRotacionProyectada,
+      tasaRotacionPromedio: Math.round(promedioTasaRotacion * 100) / 100
     };
   }, [predictionData]);
 

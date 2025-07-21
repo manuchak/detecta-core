@@ -1184,6 +1184,54 @@ export type Database = {
         }
         Relationships: []
       }
+      custodios_rotacion_tracking: {
+        Row: {
+          created_at: string
+          custodio_id: string
+          dias_sin_servicio: number | null
+          estado_actividad: string | null
+          fecha_primera_inactividad: string | null
+          fecha_ultimo_servicio: string | null
+          id: string
+          nombre_custodio: string
+          promedio_servicios_mes: number | null
+          servicios_ultimos_30_dias: number | null
+          total_servicios_historicos: number | null
+          updated_at: string
+          zona_operacion: string
+        }
+        Insert: {
+          created_at?: string
+          custodio_id: string
+          dias_sin_servicio?: number | null
+          estado_actividad?: string | null
+          fecha_primera_inactividad?: string | null
+          fecha_ultimo_servicio?: string | null
+          id?: string
+          nombre_custodio: string
+          promedio_servicios_mes?: number | null
+          servicios_ultimos_30_dias?: number | null
+          total_servicios_historicos?: number | null
+          updated_at?: string
+          zona_operacion: string
+        }
+        Update: {
+          created_at?: string
+          custodio_id?: string
+          dias_sin_servicio?: number | null
+          estado_actividad?: string | null
+          fecha_primera_inactividad?: string | null
+          fecha_ultimo_servicio?: string | null
+          id?: string
+          nombre_custodio?: string
+          promedio_servicios_mes?: number | null
+          servicios_ultimos_30_dias?: number | null
+          total_servicios_historicos?: number | null
+          updated_at?: string
+          zona_operacion?: string
+        }
+        Relationships: []
+      }
       detalles_orden_compra: {
         Row: {
           cantidad_recibida: number | null
@@ -5782,6 +5830,10 @@ export type Database = {
     }
     Functions: {
       actualizar_roi_custodios: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      actualizar_tracking_rotacion: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }

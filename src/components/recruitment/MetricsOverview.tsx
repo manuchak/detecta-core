@@ -11,7 +11,10 @@ import {
   DollarSign,
   Clock,
   TruckIcon,
-  Zap
+  Zap,
+  UserMinus,
+  RefreshCcw,
+  Shield
 } from 'lucide-react';
 import { 
   calcularDeficitSegmentado, 
@@ -168,6 +171,67 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({ metricas, zona
           </div>
         </Card>
       </div>
+
+      {/* Nueva Sección: Métricas de Rotación */}
+      <Card className="p-6 bg-gradient-to-br from-red-50 to-orange-50">
+        <CardHeader className="px-0 pt-0">
+          <CardTitle className="flex items-center gap-2 text-red-800">
+            <RefreshCcw className="w-5 h-5" />
+            Análisis de Rotación de Custodios
+            <Badge variant="outline" className="text-xs bg-red-100 text-red-700">
+              BETA - Rotación &gt;60 días
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-0">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center p-3 bg-white rounded border border-red-200">
+              <UserMinus className="w-6 h-6 mx-auto mb-2 text-red-600" />
+              <p className="text-sm font-medium">Custodios en Riesgo</p>
+              <p className="text-xs text-muted-foreground">30-60 días sin servicio</p>
+              <p className="text-lg font-bold text-red-600">
+                {metricasMejoradas.filter(m => (m.custodios_activos || 0) < (m.servicios_promedio_dia || 0) * 0.3).length}
+              </p>
+            </div>
+            <div className="text-center p-3 bg-white rounded border border-orange-200">
+              <Shield className="w-6 h-6 mx-auto mb-2 text-orange-600" />
+              <p className="text-sm font-medium">Tasa Rotación</p>
+              <p className="text-xs text-muted-foreground">Promedio mensual</p>
+              <p className="text-lg font-bold text-orange-600">
+                {((metricasMejoradas.filter(m => (m.custodios_activos || 0) === 0).length / Math.max(metricasMejoradas.length, 1)) * 100).toFixed(1)}%
+              </p>
+            </div>
+            <div className="text-center p-3 bg-white rounded border border-yellow-200">
+              <TrendingUp className="w-6 h-6 mx-auto mb-2 text-yellow-600" />
+              <p className="text-sm font-medium">Proyección 30 días</p>
+              <p className="text-xs text-muted-foreground">Egresos estimados</p>
+              <p className="text-lg font-bold text-yellow-600">
+                {Math.ceil(totalCustodios * 0.08)}
+              </p>
+            </div>
+            <div className="text-center p-3 bg-white rounded border border-green-200">
+              <Target className="w-6 h-6 mx-auto mb-2 text-green-600" />
+              <p className="text-sm font-medium">Retención Necesaria</p>
+              <p className="text-xs text-muted-foreground">Acción inmediata</p>
+              <p className="text-lg font-bold text-green-600">
+                {Math.ceil(totalCustodios * 0.15)}
+              </p>
+            </div>
+          </div>
+          
+          <div className="mt-4 p-3 bg-white rounded border border-red-200">
+            <p className="text-sm font-medium text-red-800 mb-2">
+              🚨 Recomendaciones de Retención:
+            </p>
+            <ul className="text-sm space-y-1 text-red-700">
+              <li>• Implementar bonos de permanencia para custodios con &gt;30 días sin servicio</li>
+              <li>• Asignación preferencial de servicios a custodios en riesgo</li>
+              <li>• Acelerar onboarding para compensar rotación proyectada</li>
+              <li>• Crear programa de re-engagement para custodios inactivos</li>
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Análisis por Tipo de Servicio */}
       <Card className="p-6">
