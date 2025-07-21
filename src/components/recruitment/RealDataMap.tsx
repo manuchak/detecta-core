@@ -2,8 +2,10 @@ import React from 'react';
 import { NationalMap } from './NationalMap';
 import type { ZonaOperacionReal, MetricaDemandaReal, AlertaSistemaReal, CandidatoReal } from '@/hooks/useRealNationalRecruitment';
 import type { ZonaOperacion, MetricaDemandaZona, AlertaSistema, CandidatoCustodio } from '@/hooks/useNationalRecruitment';
+import type { MultiMonthPrediction } from '@/hooks/useMultiMonthRecruitmentPrediction';
 
 interface RealDataMapProps {
+  multiMonthData?: MultiMonthPrediction | null;
   zonasReales: ZonaOperacionReal[];
   metricasReales: MetricaDemandaReal[];
   alertasReales: AlertaSistemaReal[];
@@ -11,39 +13,68 @@ interface RealDataMapProps {
 }
 
 export const RealDataMap: React.FC<RealDataMapProps> = ({
+  multiMonthData,
   zonasReales,
   metricasReales,
   alertasReales,
   candidatosReales
 }) => {
-  // Adaptar datos reales al formato esperado por NationalMap
-  const zonasAdaptadas: ZonaOperacion[] = zonasReales.map(zona => ({
-    id: zona.id,
-    nombre: zona.nombre,
-    estados_incluidos: zona.estados_incluidos,
-    coordenadas_centro: zona.coordenadas_centro,
-    radio_cobertura_km: 100, // Valor por defecto
-    prioridad_reclutamiento: zona.score_urgencia,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  }));
+  // Función para mapear nombres de clusters a datos de mapa
+  const getClusterMapData = (clusterName: string) => {
+    const targetMonthClusters = multiMonthData?.targetMonth?.clustersNeeds || [];
+    const cluster = targetMonthClusters.find(c => 
+      c.clusterName.toLowerCase() === clusterName.toLowerCase()
+    );
+    
+    return {
+      finalNeed: cluster?.finalNeed || 0,
+      urgencyLevel: cluster?.urgencyLevel || 'estable',
+      currentCustodians: cluster?.currentCustodians || 0,
+      projectedServices: cluster?.projectedServices || 0
+    };
+  };
 
-  const metricasAdaptadas: MetricaDemandaZona[] = metricasReales.map(metrica => ({
-    id: metrica.zona_id,
-    zona_id: metrica.zona_id,
-    periodo_inicio: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-    periodo_fin: new Date().toISOString(),
-    servicios_promedio_dia: metrica.servicios_promedio_dia,
-    custodios_activos: metrica.custodios_activos,
-    custodios_requeridos: metrica.custodios_requeridos,
-    deficit_custodios: metrica.deficit_custodios,
-    score_urgencia: metrica.score_urgencia,
-    gmv_promedio: metrica.gmv_promedio,
-    ingresos_esperados_custodio: metrica.costo_adquisicion_promedio,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    zona: zonasAdaptadas.find(z => z.id === metrica.zona_id)
-  }));
+  // Adaptar datos reales al formato esperado por NationalMap usando multiMonthData
+  const zonasAdaptadas: ZonaOperacion[] = zonasReales.map(zona => {
+    const clusterData = getClusterMapData(zona.nombre);
+    
+    return {
+      id: zona.id,
+      nombre: zona.nombre,
+      estados_incluidos: zona.estados_incluidos,
+      coordenadas_centro: zona.coordenadas_centro,
+      radio_cobertura_km: 100,
+      prioridad_reclutamiento: clusterData.urgencyLevel === 'critico' ? 10 : 
+                               clusterData.urgencyLevel === 'urgente' ? 7 :
+                               clusterData.urgencyLevel === 'estable' ? 3 : 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+  });
+
+  const metricasAdaptadas: MetricaDemandaZona[] = zonasReales.map(zona => {
+    const clusterData = getClusterMapData(zona.nombre);
+    const metricaReal = metricasReales.find(m => m.zona_id === zona.id);
+    
+    return {
+      id: zona.id,
+      zona_id: zona.id,
+      periodo_inicio: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+      periodo_fin: new Date().toISOString(),
+      servicios_promedio_dia: clusterData.projectedServices,
+      custodios_activos: clusterData.currentCustodians,
+      custodios_requeridos: clusterData.currentCustodians + clusterData.finalNeed,
+      deficit_custodios: clusterData.finalNeed, // Este es el número que debe aparecer en el mapa
+      score_urgencia: clusterData.urgencyLevel === 'critico' ? 10 : 
+                     clusterData.urgencyLevel === 'urgente' ? 7 :
+                     clusterData.urgencyLevel === 'estable' ? 3 : 1,
+      gmv_promedio: metricaReal?.gmv_promedio || 0,
+      ingresos_esperados_custodio: 1830, // Usar el costo base actualizado
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      zona: zonasAdaptadas.find(z => z.id === zona.id)
+    };
+  });
 
   const alertasAdaptadas: AlertaSistema[] = alertasReales.map(alerta => ({
     id: alerta.id,

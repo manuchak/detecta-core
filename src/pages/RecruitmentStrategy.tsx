@@ -344,6 +344,7 @@ const RecruitmentStrategy = () => {
         return (
           <Card className="p-6">
             <RealDataMap 
+              multiMonthData={multiMonthData}
               zonasReales={zonasReales}
               metricasReales={metricasReales}
               alertasReales={alertasReales}
