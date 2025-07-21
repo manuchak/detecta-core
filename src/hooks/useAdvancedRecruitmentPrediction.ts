@@ -455,9 +455,10 @@ export const calcularDatosRotacionPorCluster = async (nombreCluster: string): Pr
     const totalMesAnterior = custodiosMesAnterior.size;
     const tasaRotacionMensual = totalMesAnterior > 0 ? (custodiosQueSalieron.length / totalMesAnterior) * 100 : 0;
 
-    // Proyecciones
-    const proyeccionEgresos30Dias = Math.ceil(custodiosEnRiesgo * 0.6); // 60% de los en riesgo
-    const proyeccionEgresos60Dias = Math.ceil(custodiosEnRiesgo * 0.8); // 80% de los en riesgo
+    // Proyecciones basadas en tasa de rotación real
+    const totalCustodiosBase = Math.max(custodiosActivos, totalMesAnterior, 1); // Evitar división por cero
+    const proyeccionEgresos30Dias = Math.ceil((tasaRotacionMensual / 100) * totalCustodiosBase);
+    const proyeccionEgresos60Dias = Math.ceil(proyeccionEgresos30Dias * 1.8); // Proyección a 60 días
     
     // Promedio de servicios
     const totalServicios = Array.from(custodiosPorEstado.values()).reduce((sum, c) => sum + c.servicios, 0);
