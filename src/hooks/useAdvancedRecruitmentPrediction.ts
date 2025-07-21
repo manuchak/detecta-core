@@ -390,14 +390,16 @@ export const calcularDeficitConRotacion = (
   const proyeccionEgresos30 = isNaN(datosRotacion.proyeccionEgresos30Dias) ? 0 : datosRotacion.proyeccionEgresos30Dias;
   const proyeccionEgresos60 = isNaN(datosRotacion.proyeccionEgresos60Dias) ? 0 : datosRotacion.proyeccionEgresos60Dias;
 
-  // Calcular déficit adicional por rotación proyectada
-  const deficitPorRotacion = Math.ceil(
-    (proyeccionEgresos30 * 1.2) + // Factor de seguridad del 20%
-    (proyeccionEgresos60 * 0.3)    // 30% de probabilidad adicional
-  );
-
-  // Buffer de seguridad del 15% para compensar variabilidad
-  const bufferSeguridad = Math.ceil(deficitOriginalValido * 0.15);
+  // Calcular déficit por rotación basado en tasa real mensual
+  // Usar la tasa de rotación para proyectar necesidad real de reclutamiento
+  const custodiosActivosActuales = datosRotacion.custodiosActivos + datosRotacion.custodiosEnRiesgo;
+  const deficitPorRotacionMensual = Math.ceil(custodiosActivosActuales * (datosRotacion.tasaRotacionMensual / 100));
+  
+  // Proyectar a 3 meses para tener buffer razonable
+  const deficitPorRotacion = Math.ceil(deficitPorRotacionMensual * 3);
+  
+  // Buffer de seguridad más conservador del 10%
+  const bufferSeguridad = Math.ceil(deficitPorRotacion * 0.1);
   
   const deficitTotalConRotacion = Math.max(0, 
     deficitOriginalValido + deficitPorRotacion + bufferSeguridad
