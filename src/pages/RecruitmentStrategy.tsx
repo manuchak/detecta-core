@@ -2,22 +2,19 @@ import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNationalRecruitment } from '@/hooks/useNationalRecruitment';
 import { useRealNationalRecruitment } from '@/hooks/useRealNationalRecruitment';
 import { useAdvancedRecruitmentPrediction } from '@/hooks/useAdvancedRecruitmentPrediction';
-import { AlertTriangle, Users, MapPin, TrendingUp, Target, Zap, Database, TestTube } from 'lucide-react';
+import { useMultiMonthRecruitmentPrediction } from '@/hooks/useMultiMonthRecruitmentPrediction';
+import { AlertTriangle, Users, MapPin, TrendingUp, Target, Zap, Database, TestTube, Calendar } from 'lucide-react';
 import { NationalMap } from '@/components/recruitment/NationalMap';
 import { RealDataMap } from '@/components/recruitment/RealDataMap';
-import { AlertsPanel } from '@/components/recruitment/AlertsPanel';
-import { CandidatesPipeline } from '@/components/recruitment/CandidatesPipeline';
-import { MetricsOverview } from '@/components/recruitment/MetricsOverview';
-import FinancialROIDashboard from '@/components/recruitment/FinancialROIDashboard';
+import { MultiMonthTimeline } from '@/components/recruitment/MultiMonthTimeline';
 import { TemporalPatternsPanel } from "@/components/recruitment/temporal/TemporalPatternsPanel";
 import { MachineLearningPanel } from "@/components/recruitment/ml/MachineLearningPanel";
 import { ScenarioSimulationPanel } from "@/components/recruitment/simulation/ScenarioSimulationPanel";
+import FinancialROIDashboard from '@/components/recruitment/FinancialROIDashboard';
 
 const RecruitmentStrategy = () => {
   // Usar siempre datos reales por defecto
@@ -66,6 +63,13 @@ const RecruitmentStrategy = () => {
     refreshData: refreshPredictionData
   } = useAdvancedRecruitmentPrediction();
 
+  // Nuevo hook para predicciones multi-mes
+  const {
+    loading: loadingMultiMonth,
+    multiMonthData,
+    refreshData: refreshMultiMonthData
+  } = useMultiMonthRecruitmentPrediction();
+
   // Usar siempre datos reales
   const loading = loadingReal;
   const alertasCriticas = alertasCriticasReales;
@@ -78,6 +82,7 @@ const RecruitmentStrategy = () => {
   const handleRefreshData = () => {
     fetchAllReal();
     refreshPredictionData();
+    refreshMultiMonthData();
   };
 
   const handleGenerateAlerts = () => {
@@ -115,13 +120,27 @@ const RecruitmentStrategy = () => {
         </div>
       </div>
 
-      {/* KPIs Overview */}
+      {/* KPIs Overview - Priorizar datos multi-mes cuando estén disponibles */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Alertas Críticas</p>
-              <p className="text-2xl font-bold text-destructive">{alertasCriticas}</p>
+              <p className="text-sm font-medium text-muted-foreground">Reclutamiento Inmediato</p>
+              <p className="text-2xl font-bold text-destructive">
+                {multiMonthData?.targetMonth?.totalNeed || totalDeficit}
+              </p>
+            </div>
+            <Target className="h-8 w-8 text-destructive" />
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Clusters Críticos</p>
+              <p className="text-2xl font-bold text-destructive">
+                {multiMonthData?.kpis?.criticalClusters || alertasCriticas}
+              </p>
             </div>
             <AlertTriangle className="h-8 w-8 text-destructive" />
           </div>
@@ -130,40 +149,44 @@ const RecruitmentStrategy = () => {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Alertas Preventivas</p>
-              <p className="text-2xl font-bold text-warning">{alertasPreventivas}</p>
+              <p className="text-sm font-medium text-muted-foreground">Clusters Urgentes</p>
+              <p className="text-2xl font-bold text-warning">
+                {multiMonthData?.kpis?.urgentClusters || alertasPreventivas}
+              </p>
             </div>
-            <Target className="h-8 w-8 text-warning" />
+            <TrendingUp className="h-8 w-8 text-warning" />
           </div>
         </Card>
 
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Oportunidades</p>
-              <p className="text-2xl font-bold text-success">{alertasEstrategicas}</p>
+              <p className="text-sm font-medium text-muted-foreground">Días para Actuar</p>
+              <p className="text-2xl font-bold text-warning">
+                {multiMonthData?.kpis?.daysUntilAction || '--'}
+              </p>
             </div>
-            <TrendingUp className="h-8 w-8 text-success" />
+            <Calendar className="h-8 w-8 text-warning" />
           </div>
         </Card>
 
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Déficit Total</p>
-              <p className="text-2xl font-bold text-destructive">{totalDeficit}</p>
+              <p className="text-sm font-medium text-muted-foreground">Presupuesto Requerido</p>
+              <p className="text-xl font-bold text-green-600">
+                {multiMonthData?.kpis?.budgetRequired 
+                  ? new Intl.NumberFormat('es-MX', { 
+                      style: 'currency', 
+                      currency: 'MXN',
+                      notation: 'compact',
+                      maximumFractionDigits: 1
+                    }).format(multiMonthData.kpis.budgetRequired)
+                  : '--'
+                }
+              </p>
             </div>
-            <Users className="h-8 w-8 text-destructive" />
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Zonas Prioritarias</p>
-              <p className="text-2xl font-bold text-warning">{zonasPrioritarias}</p>
-            </div>
-            <MapPin className="h-8 w-8 text-warning" />
+            <TrendingUp className="h-8 w-8 text-green-600" />
           </div>
         </Card>
 
@@ -179,8 +202,9 @@ const RecruitmentStrategy = () => {
       </div>
 
       {/* Main Content Tabs */}
-      <Tabs defaultValue="mapa" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-9">
+      <Tabs defaultValue="planificacion" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-10">
+          <TabsTrigger value="planificacion">Planificación Multi-Mes</TabsTrigger>
           <TabsTrigger value="mapa">Mapa Nacional</TabsTrigger>
           <TabsTrigger value="alertas">Sistema de Alertas</TabsTrigger>
           <TabsTrigger value="pipeline">Pipeline de Candidatos</TabsTrigger>
@@ -191,6 +215,35 @@ const RecruitmentStrategy = () => {
           <TabsTrigger value="simulation">Simulación</TabsTrigger>
           <TabsTrigger value="roi">ROI y Presupuestos</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="planificacion" className="space-y-6">
+          {loadingMultiMonth ? (
+            <Card className="p-6">
+              <div className="flex items-center justify-center">
+                <div className="text-lg text-muted-foreground">Calculando predicciones multi-mes...</div>
+              </div>
+            </Card>
+          ) : multiMonthData ? (
+            <MultiMonthTimeline 
+              data={multiMonthData} 
+              onRefresh={refreshMultiMonthData}
+              loading={loadingMultiMonth}
+            />
+          ) : (
+            <Card className="p-6">
+              <div className="text-center">
+                <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Datos de planificación no disponibles</h3>
+                <p className="text-muted-foreground mb-4">
+                  Los datos necesarios para la planificación multi-mes aún se están procesando.
+                </p>
+                <Button onClick={refreshMultiMonthData} variant="outline">
+                  Reintentar Carga
+                </Button>
+              </div>
+            </Card>
+          )}
+        </TabsContent>
 
         <TabsContent value="mapa" className="space-y-6">
           <Card className="p-6">
@@ -562,7 +615,7 @@ const RecruitmentStrategy = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="temporal" className="space-y-6">`
+        <TabsContent value="temporal" className="space-y-6">
           <TemporalPatternsPanel />
         </TabsContent>
 
