@@ -79,8 +79,11 @@ export const predictDemandWithML = (
   zone: any,
   input: PredictionInput
 ): Prediction => {
-  // Validar entradas y modelo
-  if (!model || !input) {
+  // Importar calculadora de negocio
+  const { calcularDemandaCustodios, estimarServiciosDiarios, calcularFactorEstacional } = require('./businessDemandCalculator');
+
+  // Validar entradas
+  if (!zone || !input) {
     return { demand: 0, confidence: 0 };
   }
 
@@ -92,66 +95,103 @@ export const predictDemandWithML = (
     days_since_last_service: isNaN(input.days_since_last_service) ? 0 : Math.max(0, input.days_since_last_service)
   };
 
-  // NUEVA LÓGICA BASADA EN EL DOMINIO DEL NEGOCIO
+  // NUEVA LÓGICA BASADA EN COMPRENSIÓN REAL DEL NEGOCIO
   
-  // 1. Calcular servicios promedio diarios por zona basado en históricos
-  const serviciosDiarios = Math.max(1, Math.round(safeInput.historical_services / 30)); // aprox mensual a diario
-  
-  // 2. Determinar tipo de zona y ratio foráneo/local
-  const isZonaCentral = zone?.zona_nombre?.toLowerCase().includes('centro') || 
-                        zone?.zona_nombre?.toLowerCase().includes('méxico') ||
-                        zone?.zona_nombre?.toLowerCase().includes('bajío');
-  
-  const isZonaPuerto = zone?.zona_nombre?.toLowerCase().includes('pacífico') ||
-                       zone?.zona_nombre?.toLowerCase().includes('golfo');
-  
-  const isZonaFrontera = zone?.zona_nombre?.toLowerCase().includes('norte') ||
-                        zone?.zona_nombre?.toLowerCase().includes('frontera');
-
-  // 3. Calcular ratio de servicios foráneos vs locales por tipo de zona
-  let ratioForaneo = 0.7; // Default 70% foráneos
-  if (isZonaCentral) ratioForaneo = 0.8; // Centro: más foráneos (80%)
-  if (isZonaPuerto) ratioForaneo = 0.9; // Puertos: casi todos foráneos (90%)
-  if (isZonaFrontera) ratioForaneo = 0.75; // Frontera: muchos foráneos (75%)
-  
-  const serviciosForaneos = serviciosDiarios * ratioForaneo;
-  const serviciosLocales = serviciosDiarios * (1 - ratioForaneo);
-  
-  // 4. Calcular custodios necesarios basado en disponibilidad real
-  // Foráneos: 1 custodio no disponible por 2 días = disponibilidad 0.5
-  // Locales: 1 custodio trabaja 5/7 días = disponibilidad 0.71
-  const custodiosForaneos = Math.ceil(serviciosForaneos / 0.5); // 2 custodios por servicio foráneo
-  const custodiosLocales = Math.ceil(serviciosLocales / 0.71); // 1.4 custodios por servicio local
-  
-  const custodiosBase = custodiosForaneos + custodiosLocales;
-  
-  // 5. Aplicar factores estacionales y de crecimiento
-  const seasonalMultiplier = getSeasonalMultiplier(safeInput.current_month);
-  const activityFactor = Math.max(0.8, Math.min(1.5, safeInput.avg_revenue / 5000)); // Factor por actividad económica
-  const recentActivityFactor = safeInput.days_since_last_service > 60 ? 0.7 : 1.0; // Reducir si no hay actividad reciente
-  
-  // 6. Cálculo final con todos los factores
-  const demandaPredictiva = Math.round(
-    custodiosBase * seasonalMultiplier * activityFactor * recentActivityFactor
+  // 1. Estimar servicios diarios basado en datos históricos reales
+  const diasPeriodo = 30; // Asumimos datos del último mes
+  const serviciosDiariosEstimados = estimarServiciosDiarios(
+    safeInput.historical_services,
+    diasPeriodo,
+    safeInput.avg_revenue
   );
   
-  // 7. Aplicar límites realistas por tipo de zona
-  let minCustodios = 5, maxCustodios = 200;
-  if (isZonaCentral) { minCustodios = 15; maxCustodios = 300; }
-  if (isZonaPuerto) { minCustodios = 10; maxCustodios = 150; }
-  if (isZonaFrontera) { minCustodios = 8; maxCustodios = 120; }
+  // Si no hay datos históricos suficientes, usar estimación conservadora
+  const serviciosDiarios = safeInput.historical_services > 0 
+    ? serviciosDiariosEstimados 
+    : estimarServiciosPorActividad(zone, safeInput.avg_revenue);
   
-  const demandaFinal = Math.max(minCustodios, Math.min(maxCustodios, demandaPredictiva));
+  // 2. Calcular factores de ajuste
+  const factorEstacional = calcularFactorEstacional(safeInput.current_month);
+  const factorActividad = calcularFactorActividad(safeInput.avg_revenue, safeInput.days_since_last_service);
   
-  // 8. Calcular confianza basada en cantidad de datos históricos
-  const dataConfidence = Math.min(0.9, safeInput.historical_services / 100); // Más datos = más confianza
-  const baseConfidence = 0.4; // Confianza base del modelo de negocio
-  const confidence = Math.max(baseConfidence, baseConfidence + dataConfidence);
+  // 3. Usar calculadora de demanda de negocio
+  const demandaPrediction = calcularDemandaCustodios(
+    serviciosDiarios,
+    zone.zona_nombre || zone.nombre || '',
+    factorEstacional,
+    factorActividad
+  );
+  
+  // 4. Calcular confianza basada en calidad de datos
+  const confidence = calcularConfianzaPrediccion(
+    safeInput.historical_services,
+    safeInput.days_since_last_service,
+    safeInput.avg_revenue
+  );
 
   return { 
-    demand: demandaFinal, 
+    demand: demandaPrediction.custodios_necesarios, 
     confidence 
   };
+};
+
+// Funciones auxiliares específicas del negocio
+const estimarServiciosPorActividad = (zone: any, avgRevenue: number): number => {
+  const zonaNombre = (zone?.zona_nombre || zone?.nombre || '').toLowerCase();
+  
+  // Estimación base por tipo de zona cuando no hay datos históricos
+  let serviciosBase = 2; // Mínimo conservador
+  
+  if (zonaNombre.includes('centro') || zonaNombre.includes('méxico')) {
+    serviciosBase = 8; // Zona central muy activa
+  } else if (zonaNombre.includes('bajío')) {
+    serviciosBase = 6; // Zona industrial
+  } else if (zonaNombre.includes('pacífico') || zonaNombre.includes('golfo')) {
+    serviciosBase = 5; // Puerto comercial
+  } else if (zonaNombre.includes('norte') || zonaNombre.includes('frontera')) {
+    serviciosBase = 4; // Zona fronteriza
+  }
+  
+  // Ajustar por actividad económica (ingresos)
+  const factorIngreso = Math.max(0.5, Math.min(2.0, avgRevenue / 5000));
+  
+  return Math.round(serviciosBase * factorIngreso);
+};
+
+const calcularFactorActividad = (avgRevenue: number, daysSinceLastService: number): number => {
+  // Factor por nivel de ingresos (indicador de actividad económica)
+  const factorIngresos = Math.max(0.7, Math.min(1.4, avgRevenue / 6000));
+  
+  // Factor por recencia de actividad
+  let factorRecencia = 1.0;
+  if (daysSinceLastService > 90) factorRecencia = 0.6; // Muy inactivo
+  else if (daysSinceLastService > 60) factorRecencia = 0.8; // Inactivo
+  else if (daysSinceLastService > 30) factorRecencia = 0.9; // Poco activo
+  
+  return factorIngresos * factorRecencia;
+};
+
+const calcularConfianzaPrediccion = (
+  historicalServices: number,
+  daysSinceLastService: number,
+  avgRevenue: number
+): number => {
+  // Confianza base del modelo de negocio
+  let confidence = 0.6; // 60% base por conocimiento del negocio
+  
+  // Bonus por datos históricos
+  if (historicalServices > 50) confidence += 0.2;
+  else if (historicalServices > 20) confidence += 0.15;
+  else if (historicalServices > 5) confidence += 0.1;
+  
+  // Bonus por actividad reciente
+  if (daysSinceLastService <= 30) confidence += 0.1;
+  else if (daysSinceLastService > 90) confidence -= 0.1;
+  
+  // Bonus por ingresos consistentes
+  if (avgRevenue > 3000) confidence += 0.05;
+  
+  return Math.max(0.4, Math.min(0.95, confidence));
 };
 
 // Función auxiliar mejorada para multiplicador estacional

@@ -1,27 +1,31 @@
-// Algoritmos de predicción mejorados para Fase 1
+// Algoritmos de predicción basados en lógica de negocio real
 
 export interface CapacityConfig {
   horasDisponibles: number;
   ratioRechazo: number;
   eficienciaOperacional: number;
+  diasLaborablesLocal: number;
+  diasNoDisponibleForaneo: number;
 }
 
 export interface ServiceTypeConfig {
-  local: { duracion: number; complejidad: number };
-  foraneo: { duracion: number; complejidad: number };
-  express: { duracion: number; complejidad: number };
+  local: { duracion: number; complejidad: number; disponibilidad: number };
+  foraneo: { duracion: number; complejidad: number; disponibilidad: number };
+  express: { duracion: number; complejidad: number; disponibilidad: number };
 }
 
 export const DEFAULT_CAPACITY_CONFIG: CapacityConfig = {
   horasDisponibles: 16,
   ratioRechazo: 0.25, // 25% de rechazo de servicios
-  eficienciaOperacional: 0.85 // 85% de eficiencia
+  eficienciaOperacional: 0.85, // 85% de eficiencia
+  diasLaborablesLocal: 5, // 5 días por semana para servicios locales
+  diasNoDisponibleForaneo: 2 // 2 días no disponible por servicio foráneo
 };
 
 export const DEFAULT_SERVICE_CONFIG: ServiceTypeConfig = {
-  local: { duracion: 6, complejidad: 3 },
-  foraneo: { duracion: 14, complejidad: 7 },
-  express: { duracion: 4, complejidad: 5 }
+  local: { duracion: 6, complejidad: 3, disponibilidad: 0.71 }, // 5/7 días disponible
+  foraneo: { duracion: 14, complejidad: 7, disponibilidad: 0.5 }, // 1/2 días disponible (viaje vacío + servicio)
+  express: { duracion: 4, complejidad: 5, disponibilidad: 0.8 } // 4/5 días disponible
 };
 
 /**
@@ -35,7 +39,7 @@ export const calcularCapacidadEfectiva = (
 };
 
 /**
- * Calcula servicios posibles por día por tipo de servicio
+ * Calcula servicios posibles por día considerando disponibilidad real del custodio
  */
 export const calcularServiciosPosiblesPorTipo = (
   capacidadEfectiva: number,
@@ -44,7 +48,9 @@ export const calcularServiciosPosiblesPorTipo = (
   serviceConfig: ServiceTypeConfig = DEFAULT_SERVICE_CONFIG
 ): number => {
   const duracionServicio = serviceConfig[tipoServicio].duracion;
-  return capacidadEfectiva * (config.horasDisponibles / duracionServicio);
+  const disponibilidad = serviceConfig[tipoServicio].disponibilidad;
+  const serviciosPorCustodio = (config.horasDisponibles / duracionServicio) * disponibilidad;
+  return capacidadEfectiva * serviciosPorCustodio;
 };
 
 /**
