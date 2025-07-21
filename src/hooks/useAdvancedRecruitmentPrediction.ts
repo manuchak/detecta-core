@@ -309,15 +309,25 @@ export const calcularDatosRotacionPorCluster = async (nombreCluster: string): Pr
     
     console.log(`📅 Analizando servicios del ${inicioMes.toISOString().split('T')[0]} al ${finMes.toISOString().split('T')[0]}`);
     
-    // Obtener servicios reales del mes actual para estas ciudades
-    const { data: serviciosReales, error } = await supabase
+    // Obtener servicios reales del mes actual para estas ciudades específicas del cluster
+    let serviciosRealesQuery = supabase
       .from('servicios_custodia')
-      .select('nombre_custodio, estado, fecha_hora_cita, km_recorridos')
+      .select('nombre_custodio, estado, fecha_hora_cita, km_recorridos, origen, destino')
       .gte('fecha_hora_cita', inicioMes.toISOString())
       .lte('fecha_hora_cita', finMes.toISOString())
       .not('nombre_custodio', 'is', null)
       .neq('nombre_custodio', '')
       .neq('nombre_custodio', '#N/A');
+
+    // Filtrar por ciudades del cluster usando OR para origen y destino
+    if (ciudadesDelCluster.length > 0 && !ciudadesDelCluster.includes(nombreCluster)) {
+      const ciudadFilters = ciudadesDelCluster.map(ciudad => 
+        `origen.ilike.%${ciudad}%,destino.ilike.%${ciudad}%`
+      ).join(',');
+      serviciosRealesQuery = serviciosRealesQuery.or(ciudadFilters);
+    }
+
+    const { data: serviciosReales, error } = await serviciosRealesQuery;
 
     if (error) {
       console.error('❌ Error fetching servicios reales:', error);
@@ -377,13 +387,23 @@ export const calcularDatosRotacionPorCluster = async (nombreCluster: string): Pr
     fecha90DiasAtras.setDate(fecha90DiasAtras.getDate() - 90);
 
     // Obtener servicios de los últimos 90 días para análisis completo
-    const { data: servicios90Dias, error: error90Dias } = await supabase
+    let servicios90DiasQuery = supabase
       .from('servicios_custodia')
-      .select('nombre_custodio, fecha_hora_cita')
+      .select('nombre_custodio, fecha_hora_cita, origen, destino')
       .gte('fecha_hora_cita', fecha90DiasAtras.toISOString())
       .lte('fecha_hora_cita', fechaActual.toISOString())
       .not('nombre_custodio', 'is', null)
       .neq('nombre_custodio', '');
+
+    // Aplicar mismo filtro de ciudades
+    if (ciudadesDelCluster.length > 0 && !ciudadesDelCluster.includes(nombreCluster)) {
+      const ciudadFilters = ciudadesDelCluster.map(ciudad => 
+        `origen.ilike.%${ciudad}%,destino.ilike.%${ciudad}%`
+      ).join(',');
+      servicios90DiasQuery = servicios90DiasQuery.or(ciudadFilters);
+    }
+
+    const { data: servicios90Dias, error: error90Dias } = await servicios90DiasQuery;
 
     if (!error90Dias && servicios90Dias) {
       // Agrupar servicios por custodio con fechas
@@ -436,13 +456,23 @@ export const calcularDatosRotacionPorCluster = async (nombreCluster: string): Pr
     const inicioMesAnterior = new Date(fechaActual.getFullYear(), fechaActual.getMonth() - 1, 1);
     const finMesAnterior = new Date(fechaActual.getFullYear(), fechaActual.getMonth(), 0);
     
-    const { data: serviciosMesAnterior, error: errorAnterior } = await supabase
+    let serviciosMesAnteriorQuery = supabase
       .from('servicios_custodia')
-      .select('nombre_custodio')
+      .select('nombre_custodio, origen, destino')
       .gte('fecha_hora_cita', inicioMesAnterior.toISOString())
       .lte('fecha_hora_cita', finMesAnterior.toISOString())
       .not('nombre_custodio', 'is', null)
       .neq('nombre_custodio', '');
+
+    // Aplicar mismo filtro de ciudades
+    if (ciudadesDelCluster.length > 0 && !ciudadesDelCluster.includes(nombreCluster)) {
+      const ciudadFilters = ciudadesDelCluster.map(ciudad => 
+        `origen.ilike.%${ciudad}%,destino.ilike.%${ciudad}%`
+      ).join(',');
+      serviciosMesAnteriorQuery = serviciosMesAnteriorQuery.or(ciudadFilters);
+    }
+
+    const { data: serviciosMesAnterior, error: errorAnterior } = await serviciosMesAnteriorQuery;
     
     const custodiosMesAnterior = new Set(
       (serviciosMesAnterior || [])
