@@ -3109,6 +3109,39 @@ export type Database = {
           },
         ]
       }
+      ml_model_configurations: {
+        Row: {
+          created_at: string
+          hyperparameters: Json
+          id: string
+          is_active: boolean
+          model_id: string
+          model_name: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          hyperparameters?: Json
+          id?: string
+          is_active?: boolean
+          model_id: string
+          model_name: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          hyperparameters?: Json
+          id?: string
+          is_active?: boolean
+          model_id?: string
+          model_name?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       modelos_gps: {
         Row: {
           activo: boolean | null

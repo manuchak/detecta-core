@@ -93,6 +93,21 @@ export const useMachineLearningPrediction = () => {
     },
   });
 
+  // Obtener configuraciones de modelos ML
+  const { data: mlConfigurations, isLoading: loadingConfigurations } = useQuery({
+    queryKey: ['ml-configurations'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ml_model_configurations')
+        .select('*')
+        .eq('is_active', true)
+        .order('updated_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Entrenar y generar predicciones ML
   const mlPredictions = useQuery({
     queryKey: ['ml-predictions', trainingData, historicalMetrics, zones],
@@ -235,16 +250,16 @@ export const useMachineLearningPrediction = () => {
     enabled: !!trainingData && !!historicalMetrics,
   });
 
-  // Generar modelos disponibles
+  // Generar modelos disponibles usando configuraciones de BD
   const availableModels: MLModel[] = [
     {
       id: 'linear_regression',
       name: 'Regresión Lineal',
       type: 'regression',
-      accuracy: modelValidation.data?.accuracy || 0, // Usar precisión real calculada
+      accuracy: modelValidation.data?.accuracy || 0,
       training_data_points: trainingData?.length || 0,
-      last_trained: new Date().toISOString(),
-      hyperparameters: {
+      last_trained: mlConfigurations?.find(c => c.model_id === 'linear_regression')?.updated_at || new Date().toISOString(),
+      hyperparameters: (mlConfigurations?.find(c => c.model_id === 'linear_regression')?.hyperparameters as Record<string, any>) || {
         learning_rate: 0.01,
         regularization: 0.1
       }
@@ -253,10 +268,10 @@ export const useMachineLearningPrediction = () => {
       id: 'decision_tree',
       name: 'Árbol de Decisión',
       type: 'classification',
-      accuracy: (modelValidation.data?.accuracy || 0) * 0.95, // 95% de la precisión del modelo base
+      accuracy: (modelValidation.data?.accuracy || 0) * 0.95,
       training_data_points: trainingData?.length || 0,
-      last_trained: new Date().toISOString(),
-      hyperparameters: {
+      last_trained: mlConfigurations?.find(c => c.model_id === 'decision_tree')?.updated_at || new Date().toISOString(),
+      hyperparameters: (mlConfigurations?.find(c => c.model_id === 'decision_tree')?.hyperparameters as Record<string, any>) || {
         max_depth: 10,
         min_samples_split: 5
       }
@@ -267,8 +282,8 @@ export const useMachineLearningPrediction = () => {
       type: 'clustering',
       accuracy: 0.85,
       training_data_points: zones?.length || 0,
-      last_trained: new Date().toISOString(),
-      hyperparameters: {
+      last_trained: mlConfigurations?.find(c => c.model_id === 'kmeans_clustering')?.updated_at || new Date().toISOString(),
+      hyperparameters: (mlConfigurations?.find(c => c.model_id === 'kmeans_clustering')?.hyperparameters as Record<string, any>) || {
         n_clusters: 4,
         max_iter: 100
       }
@@ -283,7 +298,8 @@ export const useMachineLearningPrediction = () => {
     zoneClusters: zoneClusters.data as ZoneCluster[] | null,
     modelValidation: modelValidation.data,
     availableModels,
-    isLoading: loadingTraining || loadingMetrics || loadingZones || 
+    mlConfigurations,
+    isLoading: loadingTraining || loadingMetrics || loadingZones || loadingConfigurations ||
               mlPredictions.isLoading || zoneClusters.isLoading || modelValidation.isLoading,
     error: mlPredictions.error || zoneClusters.error || modelValidation.error,
   };

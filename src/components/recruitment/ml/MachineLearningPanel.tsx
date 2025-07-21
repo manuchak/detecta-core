@@ -7,10 +7,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+import { useToast } from "@/hooks/use-toast";
 import { useMachineLearningPrediction } from "@/hooks/useMachineLearningPrediction";
+import { supabase } from "@/integrations/supabase/client";
 import { Brain, Target, TrendingUp, Zap, Settings, BarChart3, Cpu, CheckCircle } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, ScatterChart, Scatter, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const MachineLearningPanel = () => {
   const { 
@@ -24,15 +27,57 @@ export const MachineLearningPanel = () => {
 
   const [selectedModel, setSelectedModel] = useState<any>(null);
   const [modelConfig, setModelConfig] = useState<Record<string, any>>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const handleConfigureModel = (model: any) => {
     setSelectedModel(model);
     setModelConfig(model.hyperparameters || {});
   };
 
-  const handleSaveConfig = () => {
-    console.log('Guardando configuración del modelo:', selectedModel?.name, modelConfig);
-    setSelectedModel(null);
+  const handleSaveConfig = async () => {
+    if (!selectedModel) return;
+    
+    setIsSaving(true);
+    try {
+      console.log('💾 Guardando configuración del modelo:', selectedModel.name, modelConfig);
+      
+      const { data, error } = await supabase
+        .from('ml_model_configurations')
+        .upsert({
+          model_id: selectedModel.id,
+          model_name: selectedModel.name,
+          hyperparameters: modelConfig,
+          is_active: true
+        }, {
+          onConflict: 'model_id'
+        });
+
+      if (error) throw error;
+
+      // Invalidar queries para recargar datos
+      await queryClient.invalidateQueries({ queryKey: ['ml-configurations'] });
+      await queryClient.invalidateQueries({ queryKey: ['ml-predictions'] });
+
+      toast({
+        title: "Configuración guardada",
+        description: `Los hiperparámetros del modelo ${selectedModel.name} han sido actualizados exitosamente.`,
+      });
+
+      setSelectedModel(null);
+      console.log('✅ Configuración guardada exitosamente:', data);
+      
+    } catch (error) {
+      console.error('❌ Error guardando configuración:', error);
+      toast({
+        variant: "destructive",
+        title: "Error al guardar",
+        description: "No se pudo guardar la configuración del modelo. Inténtalo de nuevo.",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (isLoading) {
@@ -477,8 +522,12 @@ export const MachineLearningPanel = () => {
                               <Button variant="outline" className="w-full" onClick={() => setSelectedModel(null)}>
                                 Cancelar
                               </Button>
-                              <Button className="w-full" onClick={handleSaveConfig}>
-                                Guardar Configuración
+                              <Button 
+                                className="w-full" 
+                                onClick={handleSaveConfig}
+                                disabled={isSaving}
+                              >
+                                {isSaving ? "Guardando..." : "Guardar Configuración"}
                               </Button>
                             </div>
                           </div>
