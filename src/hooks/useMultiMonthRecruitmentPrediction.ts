@@ -156,12 +156,26 @@ export function useMultiMonthRecruitmentPrediction() {
       // Usar datos reales del cluster
       const currentCustodians = rotationInfo.custodiosActivos;
       const currentDeficit = cluster.deficit_total || 0;
-      const currentServices = rotationInfo.promedioServiciosMes;
       
-      // Calcular servicios proyectados con estacionalidad
-      const seasonalFactor = getSeasonalFactor(monthData.month);
-      const baseServices = currentServices + (currentDeficit * AVERAGE_SERVICES_PER_CUSTODIAN);
-      const projectedServices = Math.round(baseServices * seasonalFactor);
+      // USAR DATOS REALES DE FORECAST en lugar de cálculos inventados
+      const totalForecastServices = forecastData?.monthlyServicesForecast || 800; // Usar el forecast real
+      const totalClusters = deficitConRotacion.length || 8;
+      
+      // Distribuir servicios del forecast proporcionalmente por cluster
+      // Clusters más grandes como Centro de México tienen más proporción
+      const clusterProportions: Record<string, number> = {
+        'Centro de México': 0.25,  // 25%
+        'Bajío': 0.15,            // 15%
+        'Occidente': 0.15,        // 15%
+        'Norte': 0.12,            // 12%
+        'Pacífico': 0.10,         // 10%
+        'Golfo': 0.08,            // 8%
+        'Sureste': 0.08,          // 8%
+        'Centro-Occidente': 0.07   // 7%
+      };
+      
+      const clusterProportion = clusterProportions[cluster.zona_nombre] || (1 / totalClusters);
+      const projectedServices = Math.round(totalForecastServices * clusterProportion);
       
       // Calcular custodios requeridos para los servicios proyectados
       const requiredCustodians = Math.ceil(projectedServices / AVERAGE_SERVICES_PER_CUSTODIAN);
