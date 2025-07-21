@@ -109,32 +109,55 @@ export function useMultiMonthRecruitmentPrediction() {
     console.log('🧮 Calculando necesidades por cluster para:', monthData.monthName);
     
     return deficitConRotacion.map(cluster => {
-      // Obtener datos de rotación correspondientes
-      const rotationInfo = rotationData.find(r => 
-        r.zona_id.toLowerCase().includes(cluster.zona_nombre.toLowerCase()) ||
-        cluster.zona_nombre.toLowerCase().includes(r.zona_id.toLowerCase())
-      ) || {
-        custodiosActivos: 0,
-        custodiosEnRiesgo: 0,
-        tasaRotacionMensual: 15,
-        proyeccionEgresos30Dias: 0
+      // Buscar datos de rotación para este cluster
+      const rotationInfo = rotationData.find(r => r.zona_id === cluster.zona_id) || {
+        custodiosActivos: 50, // Valor por defecto más realista
+        tasaRotacionMensual: 5,
+        promedioServiciosMes: 300
       };
-
-      // Proyectar servicios basado en tendencia histórica y estacionalidad
-      const baseServices = cluster.deficit_total + rotationInfo.custodiosActivos * AVERAGE_SERVICES_PER_CUSTODIAN;
+      
+      console.log(`📊 Cluster ${cluster.zona_nombre}:`, {
+        deficit_total: cluster.deficit_total,
+        custodiosActivos: rotationInfo.custodiosActivos,
+        promedioServiciosMes: rotationInfo.promedioServiciosMes
+      });
+      
+      // Usar datos reales del cluster
+      const currentCustodians = rotationInfo.custodiosActivos;
+      const currentDeficit = cluster.deficit_total || 0;
+      const currentServices = rotationInfo.promedioServiciosMes;
+      
+      // Calcular servicios proyectados con estacionalidad
       const seasonalFactor = getSeasonalFactor(monthData.month);
+      const baseServices = currentServices + (currentDeficit * AVERAGE_SERVICES_PER_CUSTODIAN);
       const projectedServices = Math.round(baseServices * seasonalFactor);
       
-      // Calcular necesidades
-      const currentCustodians = rotationInfo.custodiosActivos;
+      // Calcular custodios requeridos para los servicios proyectados
       const requiredCustodians = Math.ceil(projectedServices / AVERAGE_SERVICES_PER_CUSTODIAN);
+      
+      // Gap actual: diferencia entre lo requerido y lo actual
       const currentGap = Math.max(0, requiredCustodians - currentCustodians);
-      const rotationImpact = Math.ceil(currentCustodians * (rotationInfo.tasaRotacionMensual / 100));
+      
+      // Impacto de rotación (5% mensual promedio)
+      const rotationRate = 0.05; // 5% mensual
+      const rotationImpact = Math.ceil(currentCustodians * rotationRate);
+      
+      // Necesidad final: solo si hay déficit real
       const finalNeed = currentGap + rotationImpact;
       
-      // Calcular urgencia
-      const urgencyScore = calculateUrgencyScore(finalNeed, currentCustodians, monthData.daysToDeadline);
+      // Calcular urgencia solo si hay necesidad
+      const urgencyScore = finalNeed > 0 ? calculateUrgencyScore(finalNeed, currentCustodians, monthData.daysToDeadline) : 0;
       const urgencyLevel = getUrgencyLevel(urgencyScore);
+      
+      console.log(`📈 Resultado ${cluster.zona_nombre}:`, {
+        currentCustodians,
+        projectedServices,
+        requiredCustodians,
+        currentGap,
+        rotationImpact,
+        finalNeed,
+        urgencyLevel
+      });
       
       return {
         clusterId: cluster.zona_id,
@@ -203,12 +226,23 @@ export function useMultiMonthRecruitmentPrediction() {
     const totalNeed = clustersNeeds.reduce((sum, cluster) => sum + cluster.finalNeed, 0);
     const budgetEstimate = clustersNeeds.reduce((sum, cluster) => sum + cluster.budgetRequired, 0);
     
-    // Calcular urgencia general del mes
-    const avgUrgencyScore = clustersNeeds.length > 0 
-      ? clustersNeeds.reduce((sum, c) => sum + c.urgencyScore, 0) / clustersNeeds.length 
-      : 0;
+    // Calcular urgencia general del mes basada en necesidad total
+    let urgencyLevel: 'critico' | 'urgente' | 'estable' | 'sobreabastecido';
     
-    const urgencyLevel = getUrgencyLevel(avgUrgencyScore);
+    if (totalNeed <= 0) {
+      urgencyLevel = 'sobreabastecido';
+    } else {
+      const criticalClusters = clustersNeeds.filter(c => c.urgencyLevel === 'critico').length;
+      const urgentClusters = clustersNeeds.filter(c => c.urgencyLevel === 'urgente').length;
+      
+      if (criticalClusters > 0 || totalNeed > 50) {
+        urgencyLevel = 'critico';
+      } else if (urgentClusters > 0 || totalNeed > 20) {
+        urgencyLevel = 'urgente';
+      } else {
+        urgencyLevel = 'estable';
+      }
+    }
     
     // Fecha recomendada para iniciar reclutamiento
     const recommendedStartDate = new Date();
