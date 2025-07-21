@@ -185,11 +185,11 @@ export function useMultiMonthRecruitmentPrediction() {
       // Gap actual: diferencia entre lo requerido y lo actual
       const currentGap = Math.max(0, requiredCustodians - currentCustodians);
       
-      // Impacto de rotación (5% mensual promedio) - solo si hay necesidad de reemplazo
+      // Impacto de rotación (5% mensual promedio) - SIEMPRE calcular cuando hay custodios
       const rotationRate = 0.05; // 5% mensual
-      const rotationImpact = currentGap > 0 ? Math.ceil(currentCustodians * rotationRate) : 0;
+      const rotationImpact = currentCustodians > 0 ? Math.ceil(currentCustodians * rotationRate) : 0;
       
-      // Necesidad final: gap + rotación (solo cuando hay déficit)
+      // Necesidad final: gap + rotación (siempre incluir rotación si hay custodios)
       const finalNeed = currentGap + rotationImpact;
       
       // Calcular urgencia basada en el gap real
@@ -204,7 +204,8 @@ export function useMultiMonthRecruitmentPrediction() {
         currentGap,
         rotationImpact,
         finalNeed,
-        urgencyLevel
+        urgencyLevel,
+        avgServicesPerCustodian
       });
       
       return {
