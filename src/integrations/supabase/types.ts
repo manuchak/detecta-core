@@ -3003,6 +3003,56 @@ export type Database = {
           },
         ]
       }
+      metricas_operacionales_zona: {
+        Row: {
+          created_at: string | null
+          custodios_activos: number | null
+          disponibilidad_custodios_horas: number
+          eficiencia_operacional: number
+          horas_trabajo_dia: number
+          id: string
+          periodo: string
+          ratio_rechazo_promedio: number
+          tiempo_respuesta_promedio_minutos: number | null
+          updated_at: string | null
+          zona_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          custodios_activos?: number | null
+          disponibilidad_custodios_horas?: number
+          eficiencia_operacional?: number
+          horas_trabajo_dia?: number
+          id?: string
+          periodo?: string
+          ratio_rechazo_promedio?: number
+          tiempo_respuesta_promedio_minutos?: number | null
+          updated_at?: string | null
+          zona_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          custodios_activos?: number | null
+          disponibilidad_custodios_horas?: number
+          eficiencia_operacional?: number
+          horas_trabajo_dia?: number
+          id?: string
+          periodo?: string
+          ratio_rechazo_promedio?: number
+          tiempo_respuesta_promedio_minutos?: number | null
+          updated_at?: string | null
+          zona_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metricas_operacionales_zona_zona_id_fkey"
+            columns: ["zona_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_operacion_nacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       metricas_reclutamiento: {
         Row: {
           canal: string
@@ -3500,6 +3550,56 @@ export type Database = {
             columns: ["servicio_id"]
             isOneToOne: false
             referencedRelation: "servicios_monitoreo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patrones_demanda_temporal: {
+        Row: {
+          activo: boolean | null
+          created_at: string | null
+          descripcion: string | null
+          dia_semana: number | null
+          factor_multiplicador: number
+          hora_inicio: number | null
+          id: string
+          mes: number | null
+          tipo_patron: string
+          updated_at: string | null
+          zona_id: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          dia_semana?: number | null
+          factor_multiplicador?: number
+          hora_inicio?: number | null
+          id?: string
+          mes?: number | null
+          tipo_patron: string
+          updated_at?: string | null
+          zona_id?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          dia_semana?: number | null
+          factor_multiplicador?: number
+          hora_inicio?: number | null
+          id?: string
+          mes?: number | null
+          tipo_patron?: string
+          updated_at?: string | null
+          zona_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patrones_demanda_temporal_zona_id_fkey"
+            columns: ["zona_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_operacion_nacional"
             referencedColumns: ["id"]
           },
         ]
@@ -4987,6 +5087,53 @@ export type Database = {
             columns: ["ejecutivo_ventas_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      servicios_segmentados: {
+        Row: {
+          complejidad_score: number | null
+          created_at: string | null
+          demanda_diaria_promedio: number | null
+          duracion_promedio_horas: number
+          id: string
+          margen_beneficio: number | null
+          periodo_analisis: string
+          tipo_servicio: string
+          updated_at: string | null
+          zona_id: string | null
+        }
+        Insert: {
+          complejidad_score?: number | null
+          created_at?: string | null
+          demanda_diaria_promedio?: number | null
+          duracion_promedio_horas: number
+          id?: string
+          margen_beneficio?: number | null
+          periodo_analisis?: string
+          tipo_servicio: string
+          updated_at?: string | null
+          zona_id?: string | null
+        }
+        Update: {
+          complejidad_score?: number | null
+          created_at?: string | null
+          demanda_diaria_promedio?: number | null
+          duracion_promedio_horas?: number
+          id?: string
+          margen_beneficio?: number | null
+          periodo_analisis?: string
+          tipo_servicio?: string
+          updated_at?: string | null
+          zona_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "servicios_segmentados_zona_id_fkey"
+            columns: ["zona_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_operacion_nacional"
             referencedColumns: ["id"]
           },
         ]
