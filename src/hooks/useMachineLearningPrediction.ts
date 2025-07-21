@@ -112,7 +112,7 @@ export const useMachineLearningPrediction = () => {
           metric.zona_id === zone.id
         );
 
-        if (zoneData.length > 10) { // Mínimo de datos para entrenar
+        if (zoneData.length > 5) { // Reducir umbral mínimo
           // Entrenar modelo de regresión
           const model = trainLinearRegressionModel(zoneData, zoneMetrics);
           
@@ -135,6 +135,33 @@ export const useMachineLearningPrediction = () => {
             prediction_date: new Date().toISOString(),
             model_used: 'linear_regression',
             feature_importance: featureImportance
+          });
+        } else {
+          // Para zonas con pocos datos, usar predicción basada en patrones generales
+          const basicPrediction = predictDemandWithML(
+            { weights: [0.25, 0.25, 0.25, 0.25], bias: 0, features: ['historical_services', 'avg_revenue', 'seasonality', 'growth_trend'], mse: 0, r_squared: 0.1 },
+            zone,
+            {
+              historical_services: Math.max(zoneData.length, 1),
+              avg_revenue: zoneData.length > 0 ? zoneData.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0) / zoneData.length : 3000,
+              current_month: new Date().getMonth() + 1,
+              days_since_last_service: zoneData.length > 0 ? calculateDaysSinceLastService(zoneData) : 30
+            }
+          );
+
+          predictions.push({
+            zona_id: zone.id,
+            zona_nombre: zone.nombre,
+            predicted_demand: basicPrediction.demand,
+            confidence_score: basicPrediction.confidence,
+            prediction_date: new Date().toISOString(),
+            model_used: 'baseline_pattern',
+            feature_importance: {
+              'Historical Services': 0.25,
+              'Avg Revenue': 0.25,
+              'Seasonality': 0.25,
+              'Growth Trend': 0.25
+            }
           });
         }
       }
