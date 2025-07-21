@@ -210,14 +210,22 @@ export const useRealNationalRecruitment = () => {
 
       console.log('📍 Servicios recientes encontrados:', serviciosRecientes?.length);
 
-      // Analizar ubicaciones de custodios basado en direcciones de origen más frecuentes
+      // Filtrar solo custodios activos (con servicios en últimos 60 días)
+      const custodiosActivos = new Set<string>();
       const custodianLocations: Record<string, Record<string, number>> = {};
       const servicesByLocation: Record<string, number> = {};
       
       serviciosRecientes?.forEach(servicio => {
-        if (servicio.nombre_custodio && servicio.nombre_custodio !== '#N/A' && servicio.origen) {
-          const custodian = servicio.nombre_custodio;
+        if (servicio.nombre_custodio && 
+            servicio.nombre_custodio !== '#N/A' && 
+            servicio.nombre_custodio.trim() !== '' && 
+            servicio.origen) {
+          
+          const custodian = servicio.nombre_custodio.trim();
           const location = extractCityFromAddress(servicio.origen);
+          
+          // Registrar custodio como activo
+          custodiosActivos.add(custodian);
           
           if (!custodianLocations[custodian]) {
             custodianLocations[custodian] = {};
@@ -227,7 +235,7 @@ export const useRealNationalRecruitment = () => {
         }
       });
 
-      // Determinar ubicación principal de cada custodio (dirección más frecuente)
+      // Determinar ubicación principal de cada custodio activo (dirección más frecuente)
       const custodianMainLocations: Record<string, string> = {};
       Object.entries(custodianLocations).forEach(([custodian, locations]) => {
         const mainLocation = Object.entries(locations).reduce((a, b) => 
@@ -236,6 +244,7 @@ export const useRealNationalRecruitment = () => {
         custodianMainLocations[custodian] = mainLocation;
       });
 
+      console.log('👥 Total custodios activos (60 días):', custodiosActivos.size);
       console.log('🏠 Ubicaciones principales de custodios:', Object.keys(custodianMainLocations).length, 'custodios ubicados');
 
       // Agrupar custodios por zona geográfica
@@ -255,7 +264,7 @@ export const useRealNationalRecruitment = () => {
           .filter(([location]) => mapLocationToZone(location) === zona.nombre)
           .reduce((sum, [, count]) => sum + count, 0);
         
-        const serviciosPromedioDia = zoneServices / 30;
+        const serviciosPromedioDia = zoneServices / 60;
         const avgServicesPerCustodian = zoneCustodians.size > 0 ? zoneServices / zoneCustodians.size : 0;
         const custodiosRequeridos = Math.ceil(serviciosPromedioDia / Math.max(avgServicesPerCustodian || 15, 10));
         const deficit = Math.max(0, custodiosRequeridos - zoneCustodians.size);
