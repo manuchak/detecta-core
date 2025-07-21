@@ -241,7 +241,7 @@ export const useMachineLearningPrediction = () => {
       id: 'linear_regression',
       name: 'Regresión Lineal',
       type: 'regression',
-      accuracy: modelValidation.data?.accuracy || 0.65, // Fallback accuracy basado en lógica de negocio
+      accuracy: modelValidation.data?.accuracy || 0, // Usar precisión real calculada
       training_data_points: trainingData?.length || 0,
       last_trained: new Date().toISOString(),
       hyperparameters: {
@@ -253,7 +253,7 @@ export const useMachineLearningPrediction = () => {
       id: 'decision_tree',
       name: 'Árbol de Decisión',
       type: 'classification',
-      accuracy: (modelValidation.data?.accuracy || 0.65) * 0.95, // 95% de la precisión del modelo base
+      accuracy: (modelValidation.data?.accuracy || 0) * 0.95, // 95% de la precisión del modelo base
       training_data_points: trainingData?.length || 0,
       last_trained: new Date().toISOString(),
       hyperparameters: {

@@ -71,15 +71,11 @@ export const MachineLearningPanel = () => {
                     <div className="text-2xl font-bold">
                       {(() => {
                         const accuracy = modelValidation?.accuracy || 0;
-                        const fallbackAccuracy = 0.68; // 68% basado en lógica de negocio
-                        const displayAccuracy = accuracy > 0 ? accuracy : fallbackAccuracy;
-                        console.log('🎯 MachineLearningPanel - Precisión:', {
+                        console.log('🎯 MachineLearningPanel - Precisión del modelo:', {
                           modelValidation,
-                          accuracy,
-                          fallbackAccuracy,
-                          displayAccuracy
+                          accuracy
                         });
-                        return `${Math.round(displayAccuracy * 100)}%`;
+                        return accuracy > 0 ? `${Math.round(accuracy * 100)}%` : 'Calculando...';
                       })()}
                     </div>
                   </div>
