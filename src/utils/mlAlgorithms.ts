@@ -156,7 +156,17 @@ export const crossValidateModel = (
   trainingData: TrainingData[],
   historicalMetrics: any[]
 ): ValidationResult => {
-  const kFolds = 5;
+  // Verificar datos mínimos
+  if (!trainingData || trainingData.length < 10) {
+    return {
+      accuracy: 0,
+      mse: 0,
+      r_squared: 0,
+      cross_validation_scores: []
+    };
+  }
+
+  const kFolds = Math.min(5, Math.floor(trainingData.length / 2)); // Asegurar folds válidos
   const foldSize = Math.floor(trainingData.length / kFolds);
   const scores: number[] = [];
 
@@ -171,6 +181,9 @@ export const crossValidateModel = (
       ...trainingData.slice(testEnd)
     ];
 
+    // Verificar datos suficientes para entrenar
+    if (trainData.length < 5 || testData.length < 2) continue;
+
     // Entrenar modelo con subset
     const model = trainLinearRegressionModel(trainData, historicalMetrics);
     
@@ -178,25 +191,31 @@ export const crossValidateModel = (
     const testFeatures = extractFeatures(testData);
     const testTargets = extractTargets(testData);
     
-    if (testFeatures.length > 0) {
+    if (testFeatures.length > 0 && testTargets.length > 0) {
       const predictions = testFeatures.map(feature => 
-        feature.reduce((sum, val, j) => sum + val * model.weights[j], 0) + model.bias
+        feature.reduce((sum, val, j) => sum + val * (model.weights[j] || 0), 0) + (model.bias || 0)
       );
       
       const score = rSquared(testTargets, predictions);
-      scores.push(score);
+      // Solo agregar scores válidos
+      if (!isNaN(score) && isFinite(score)) {
+        scores.push(Math.max(0, Math.min(1, score))); // Clamp entre 0 y 1
+      }
     }
   }
 
-  const accuracy = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+  // Calcular accuracy solo si hay scores válidos
+  const accuracy = scores.length > 0 
+    ? scores.reduce((sum, score) => sum + score, 0) / scores.length 
+    : 0;
   
   // Entrenar modelo final con todos los datos
   const finalModel = trainLinearRegressionModel(trainingData, historicalMetrics);
 
   return {
-    accuracy,
-    mse: finalModel.mse,
-    r_squared: finalModel.r_squared,
+    accuracy: isNaN(accuracy) ? 0 : Math.max(0, Math.min(1, accuracy)),
+    mse: isNaN(finalModel.mse) || !isFinite(finalModel.mse) ? 0 : finalModel.mse,
+    r_squared: isNaN(finalModel.r_squared) ? 0 : Math.max(0, Math.min(1, finalModel.r_squared)),
     cross_validation_scores: scores
   };
 };
@@ -298,32 +317,50 @@ const gradientDescent = (
 };
 
 const meanSquaredError = (actual: number[], predicted: number[]): number => {
-  if (actual.length !== predicted.length || actual.length === 0) return Infinity;
+  if (actual.length !== predicted.length || actual.length === 0) return 0;
   
-  const mse = actual.reduce((sum, val, i) => {
-    const error = val - predicted[i];
+  // Filtrar valores válidos
+  const validPairs = actual.map((a, i) => ({ actual: a, predicted: predicted[i] }))
+    .filter(pair => !isNaN(pair.actual) && !isNaN(pair.predicted) && isFinite(pair.actual) && isFinite(pair.predicted));
+  
+  if (validPairs.length === 0) return 0;
+  
+  const mse = validPairs.reduce((sum, pair) => {
+    const error = pair.actual - pair.predicted;
     return sum + error * error;
-  }, 0) / actual.length;
+  }, 0) / validPairs.length;
 
-  return mse;
+  return isNaN(mse) || !isFinite(mse) ? 0 : mse;
 };
 
 const rSquared = (actual: number[], predicted: number[]): number => {
   if (actual.length !== predicted.length || actual.length === 0) return 0;
   
-  const actualMean = actual.reduce((sum, val) => sum + val, 0) / actual.length;
+  // Filtrar valores válidos
+  const validPairs = actual.map((a, i) => ({ actual: a, predicted: predicted[i] }))
+    .filter(pair => !isNaN(pair.actual) && !isNaN(pair.predicted) && isFinite(pair.actual) && isFinite(pair.predicted));
   
-  const ssRes = actual.reduce((sum, val, i) => {
-    const error = val - predicted[i];
+  if (validPairs.length === 0) return 0;
+  
+  const validActual = validPairs.map(p => p.actual);
+  const validPredicted = validPairs.map(p => p.predicted);
+  
+  const actualMean = validActual.reduce((sum, val) => sum + val, 0) / validActual.length;
+  
+  const ssRes = validActual.reduce((sum, val, i) => {
+    const error = val - validPredicted[i];
     return sum + error * error;
   }, 0);
   
-  const ssTot = actual.reduce((sum, val) => {
+  const ssTot = validActual.reduce((sum, val) => {
     const error = val - actualMean;
     return sum + error * error;
   }, 0);
 
-  return ssTot === 0 ? 0 : Math.max(0, 1 - ssRes / ssTot);
+  if (ssTot === 0) return 0;
+  
+  const r2 = 1 - ssRes / ssTot;
+  return isNaN(r2) || !isFinite(r2) ? 0 : Math.max(0, Math.min(1, r2));
 };
 
 const calculateVolatility = (services: TrainingData[]): number => {
