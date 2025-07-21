@@ -3,9 +3,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import { useMachineLearningPrediction } from "@/hooks/useMachineLearningPrediction";
 import { Brain, Target, TrendingUp, Zap, Settings, BarChart3, Cpu, CheckCircle } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, ScatterChart, Scatter, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
+import { useState } from "react";
 
 export const MachineLearningPanel = () => {
   const { 
@@ -16,6 +21,19 @@ export const MachineLearningPanel = () => {
     isLoading,
     trainingData 
   } = useMachineLearningPrediction();
+
+  const [selectedModel, setSelectedModel] = useState<any>(null);
+  const [modelConfig, setModelConfig] = useState<Record<string, any>>({});
+
+  const handleConfigureModel = (model: any) => {
+    setSelectedModel(model);
+    setModelConfig(model.hyperparameters || {});
+  };
+
+  const handleSaveConfig = () => {
+    console.log('Guardando configuración del modelo:', selectedModel?.name, modelConfig);
+    setSelectedModel(null);
+  };
 
   if (isLoading) {
     return (
@@ -400,10 +418,72 @@ export const MachineLearningPanel = () => {
                         <span>Último entrenamiento: {new Date(model.last_trained).toLocaleDateString()}</span>
                       </div>
 
-                      <Button size="sm" variant="outline" className="w-full">
-                        <Settings className="h-3 w-3 mr-2" />
-                        Configurar Modelo
-                      </Button>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="w-full"
+                            onClick={() => handleConfigureModel(model)}
+                          >
+                            <Settings className="h-3 w-3 mr-2" />
+                            Configurar Modelo
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-md">
+                          <DialogHeader>
+                            <DialogTitle>Configurar {model.name}</DialogTitle>
+                            <DialogDescription>
+                              Ajusta los hiperparámetros del modelo de {model.type}
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            {Object.entries(model.hyperparameters).map(([key, value]) => (
+                              <div key={key} className="space-y-2">
+                                <Label className="capitalize">{key.replace('_', ' ')}</Label>
+                                {typeof value === 'number' ? (
+                                  key.includes('rate') || key.includes('regularization') ? (
+                                    <div className="space-y-2">
+                                      <Slider
+                                        value={[modelConfig[key] || value]}
+                                        onValueChange={(vals) => setModelConfig(prev => ({...prev, [key]: vals[0]}))}
+                                        max={key.includes('rate') ? 0.1 : 1}
+                                        min={0.001}
+                                        step={0.001}
+                                        className="w-full"
+                                      />
+                                      <div className="text-xs text-muted-foreground text-right">
+                                        {(modelConfig[key] || value).toFixed(3)}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <Input
+                                      type="number"
+                                      value={modelConfig[key] || value}
+                                      onChange={(e) => setModelConfig(prev => ({...prev, [key]: Number(e.target.value)}))}
+                                      min={1}
+                                      max={key.includes('depth') ? 20 : key.includes('iter') ? 500 : 100}
+                                    />
+                                  )
+                                ) : (
+                                  <Input
+                                    value={modelConfig[key] || value}
+                                    onChange={(e) => setModelConfig(prev => ({...prev, [key]: e.target.value}))}
+                                  />
+                                )}
+                              </div>
+                            ))}
+                            <div className="flex gap-2 pt-4">
+                              <Button variant="outline" className="w-full" onClick={() => setSelectedModel(null)}>
+                                Cancelar
+                              </Button>
+                              <Button className="w-full" onClick={handleSaveConfig}>
+                                Guardar Configuración
+                              </Button>
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                     </CardContent>
                   </Card>
                 ))}
