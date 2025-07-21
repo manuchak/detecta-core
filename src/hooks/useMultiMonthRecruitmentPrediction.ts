@@ -164,14 +164,14 @@ export function useMultiMonthRecruitmentPrediction() {
       // Distribuir servicios del forecast proporcionalmente por cluster
       // Clusters más grandes como Centro de México tienen más proporción
       const clusterProportions: Record<string, number> = {
-        'Centro de México': 0.25,  // 25%
-        'Bajío': 0.15,            // 15%
-        'Occidente': 0.15,        // 15%
-        'Norte': 0.12,            // 12%
-        'Pacífico': 0.10,         // 10%
-        'Golfo': 0.08,            // 8%
-        'Sureste': 0.08,          // 8%
-        'Centro-Occidente': 0.07   // 7%
+        'Centro de México': 0.35,  // 35% (aumentado)
+        'Bajío': 0.14,            // 14%
+        'Occidente': 0.14,        // 14%
+        'Norte': 0.10,            // 10%
+        'Pacífico': 0.09,         // 9%
+        'Golfo': 0.07,            // 7%
+        'Sureste': 0.06,          // 6%
+        'Centro-Occidente': 0.05   // 5%
       };
       
       const clusterProportion = clusterProportions[cluster.zona_nombre] || (1 / totalClusters);
