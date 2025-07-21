@@ -28,12 +28,14 @@ export const MachineLearningPanel = () => {
   const [selectedModel, setSelectedModel] = useState<any>(null);
   const [modelConfig, setModelConfig] = useState<Record<string, any>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const handleConfigureModel = (model: any) => {
     setSelectedModel(model);
     setModelConfig(model.hyperparameters || {});
+    setIsDialogOpen(true);
   };
 
   const handleSaveConfig = async () => {
@@ -61,18 +63,24 @@ export const MachineLearningPanel = () => {
       await queryClient.invalidateQueries({ queryKey: ['ml-predictions'] });
 
       toast({
-        title: "Configuración guardada",
-        description: `Los hiperparámetros del modelo ${selectedModel.name} han sido actualizados exitosamente.`,
+        title: "✅ ¡Configuración guardada exitosamente!",
+        description: `Los hiperparámetros del modelo ${selectedModel.name} han sido actualizados.`,
+        className: "border-success text-success-foreground",
       });
 
-      setSelectedModel(null);
+      // Cerrar el diálogo automáticamente después de un breve delay para que el usuario vea el toast
+      setTimeout(() => {
+        setIsDialogOpen(false);
+        setSelectedModel(null);
+      }, 1500);
+      
       console.log('✅ Configuración guardada exitosamente:', data);
       
     } catch (error) {
       console.error('❌ Error guardando configuración:', error);
       toast({
         variant: "destructive",
-        title: "Error al guardar",
+        title: "❌ Error al guardar",
         description: "No se pudo guardar la configuración del modelo. Inténtalo de nuevo.",
       });
     } finally {
@@ -463,7 +471,7 @@ export const MachineLearningPanel = () => {
                         <span>Último entrenamiento: {new Date(model.last_trained).toLocaleDateString()}</span>
                       </div>
 
-                      <Dialog>
+                      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                         <DialogTrigger asChild>
                           <Button 
                             size="sm" 
@@ -477,60 +485,77 @@ export const MachineLearningPanel = () => {
                         </DialogTrigger>
                         <DialogContent className="max-w-md">
                           <DialogHeader>
-                            <DialogTitle>Configurar {model.name}</DialogTitle>
+                            <DialogTitle>Configurar {selectedModel?.name}</DialogTitle>
                             <DialogDescription>
-                              Ajusta los hiperparámetros del modelo de {model.type}
+                              Ajusta los hiperparámetros del modelo de {selectedModel?.type}
                             </DialogDescription>
                           </DialogHeader>
-                          <div className="space-y-4">
-                            {Object.entries(model.hyperparameters).map(([key, value]) => (
-                              <div key={key} className="space-y-2">
-                                <Label className="capitalize">{key.replace('_', ' ')}</Label>
-                                {typeof value === 'number' ? (
-                                  key.includes('rate') || key.includes('regularization') ? (
-                                    <div className="space-y-2">
-                                      <Slider
-                                        value={[modelConfig[key] || value]}
-                                        onValueChange={(vals) => setModelConfig(prev => ({...prev, [key]: vals[0]}))}
-                                        max={key.includes('rate') ? 0.1 : 1}
-                                        min={0.001}
-                                        step={0.001}
-                                        className="w-full"
-                                      />
-                                      <div className="text-xs text-muted-foreground text-right">
-                                        {(modelConfig[key] || value).toFixed(3)}
+                          {selectedModel && (
+                            <div className="space-y-4">
+                              {Object.entries(selectedModel.hyperparameters).map(([key, value]) => (
+                                <div key={key} className="space-y-2">
+                                  <Label className="capitalize">{key.replace('_', ' ')}</Label>
+                                  {typeof value === 'number' ? (
+                                    key.includes('rate') || key.includes('regularization') ? (
+                                      <div className="space-y-2">
+                                        <Slider
+                                          value={[modelConfig[key] || value]}
+                                          onValueChange={(vals) => setModelConfig(prev => ({...prev, [key]: vals[0]}))}
+                                          max={key.includes('rate') ? 0.1 : 1}
+                                          min={0.001}
+                                          step={0.001}
+                                          className="w-full"
+                                        />
+                                        <div className="text-xs text-muted-foreground text-right">
+                                          {(modelConfig[key] || value).toFixed(3)}
+                                        </div>
                                       </div>
-                                    </div>
+                                    ) : (
+                                      <Input
+                                        type="number"
+                                        value={modelConfig[key] || value}
+                                        onChange={(e) => setModelConfig(prev => ({...prev, [key]: Number(e.target.value)}))}
+                                        min={1}
+                                        max={key.includes('depth') ? 20 : key.includes('iter') ? 500 : 100}
+                                      />
+                                    )
                                   ) : (
                                     <Input
-                                      type="number"
                                       value={modelConfig[key] || value}
-                                      onChange={(e) => setModelConfig(prev => ({...prev, [key]: Number(e.target.value)}))}
-                                      min={1}
-                                      max={key.includes('depth') ? 20 : key.includes('iter') ? 500 : 100}
+                                      onChange={(e) => setModelConfig(prev => ({...prev, [key]: e.target.value}))}
                                     />
-                                  )
-                                ) : (
-                                  <Input
-                                    value={modelConfig[key] || value}
-                                    onChange={(e) => setModelConfig(prev => ({...prev, [key]: e.target.value}))}
-                                  />
-                                )}
+                                  )}
+                                </div>
+                              ))}
+                              <div className="flex gap-2 pt-4">
+                                <Button 
+                                  variant="outline" 
+                                  className="w-full" 
+                                  onClick={() => {
+                                    setIsDialogOpen(false);
+                                    setSelectedModel(null);
+                                  }}
+                                  disabled={isSaving}
+                                >
+                                  Cancelar
+                                </Button>
+                                <Button 
+                                  className="w-full" 
+                                  onClick={handleSaveConfig}
+                                  disabled={isSaving}
+                                >
+                                  {isSaving ? (
+                                    <div className="flex items-center gap-2">
+                                      <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                                      Guardando...
+                                    </div>
+                                  ) : (
+                                    "Guardar Configuración"
+                                  )}
+                                </Button>
                               </div>
-                            ))}
-                            <div className="flex gap-2 pt-4">
-                              <Button variant="outline" className="w-full" onClick={() => setSelectedModel(null)}>
-                                Cancelar
-                              </Button>
-                              <Button 
-                                className="w-full" 
-                                onClick={handleSaveConfig}
-                                disabled={isSaving}
-                              >
-                                {isSaving ? "Guardando..." : "Guardar Configuración"}
-                              </Button>
                             </div>
-                          </div>
+                          )}
                         </DialogContent>
                       </Dialog>
                     </CardContent>
