@@ -165,19 +165,6 @@ const MinimalMonthSection: React.FC<{ monthData: MonthlyNeed; isTargetMonth: boo
             <p className="text-sm text-gray-500">Mes principal</p>
           )}
         </div>
-        
-        <div className="text-right space-y-1">
-          <div className="text-3xl font-light text-gray-900">{monthData.totalNeed}</div>
-          <div className="text-sm text-gray-500">Total a reclutar</div>
-          <div className="text-xs text-gray-400">
-            {new Intl.NumberFormat('es-MX', { 
-              style: 'currency', 
-              currency: 'MXN',
-              notation: 'compact',
-              maximumFractionDigits: 0
-            }).format(monthData.budgetEstimate)}
-          </div>
-        </div>
       </div>
 
       {isTargetMonth && monthData.daysToRecruitmentDeadline <= 15 && (
