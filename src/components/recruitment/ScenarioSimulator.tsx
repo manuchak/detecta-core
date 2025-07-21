@@ -29,7 +29,7 @@ interface SimulationResult {
 const predefinedScenarios: ScenarioConfig[] = [
   {
     name: 'Expansión Agresiva',
-    budget: 500000,
+    budget: 100000,
     timeline: 8,
     quality: 70,
     strategy: 'aggressive',
@@ -37,7 +37,7 @@ const predefinedScenarios: ScenarioConfig[] = [
   },
   {
     name: 'Crecimiento Moderado',
-    budget: 300000,
+    budget: 50000,
     timeline: 12,
     quality: 80,
     strategy: 'moderate',
@@ -45,7 +45,7 @@ const predefinedScenarios: ScenarioConfig[] = [
   },
   {
     name: 'Enfoque Conservador',
-    budget: 150000,
+    budget: 30000,
     timeline: 16,
     quality: 90,
     strategy: 'conservative',
@@ -59,7 +59,7 @@ export const ScenarioSimulator: React.FC = () => {
   const [selectedScenario, setSelectedScenario] = useState<ScenarioConfig>(predefinedScenarios[0]);
   const [customConfig, setCustomConfig] = useState<ScenarioConfig>({
     name: 'Escenario Personalizado',
-    budget: 300000,
+    budget: 50000,
     timeline: 12,
     quality: 80,
     strategy: 'moderate',
@@ -73,49 +73,45 @@ export const ScenarioSimulator: React.FC = () => {
   const CHURN_RATE = (MONTHLY_CHURN / CURRENT_ACTIVE_CUSTODIANS) * 100; // ~10.14%
 
   const simulateScenario = (config: ScenarioConfig): SimulationResult => {
-    // Fórmulas calibradas basadas en datos reales
-    const baseRecruitmentCapacity = 8; // custodios por semana en condiciones normales
+    // Ratio de conversión de lead a custodio: 2.5%
+    const LEAD_TO_CUSTODIAN_CONVERSION = 0.025;
     
-    // Ajustar capacidad según estrategia
+    // Calcular leads necesarios basado en presupuesto
+    // Asumiendo costo promedio por lead de $500
+    const costPerLead = 500;
+    const totalLeads = Math.floor(config.budget / costPerLead);
+    
+    // Ajustar cantidad de leads según estrategia
     const strategyMultiplier = {
-      aggressive: 1.5,
+      aggressive: 1.2, // Más leads por inversión en canales múltiples
       moderate: 1.0,
-      conservative: 0.7
+      conservative: 0.8 // Menos leads pero más calificados
     };
     
-    // Ajustar por presupuesto (más presupuesto = más canales/reclutadores)
-    const budgetMultiplier = Math.min(2.0, config.budget / 200000);
+    const adjustedLeads = Math.floor(totalLeads * strategyMultiplier[config.strategy]);
     
-    // Capacidad de reclutamiento ajustada
-    const weeklyCapacity = baseRecruitmentCapacity * 
-                          strategyMultiplier[config.strategy] * 
-                          budgetMultiplier;
+    // Aplicar conversión base del 2.5%
+    const baseCustodians = Math.floor(adjustedLeads * LEAD_TO_CUSTODIAN_CONVERSION);
     
-    // Calcular éxito basado en calidad requerida vs tiempo disponible
-    const qualityTimePenalty = config.quality > 85 ? 0.8 : 1.0;
-    const timelinePressure = config.timeline < 10 ? 0.8 : 1.0;
+    // Ajustar por calidad y tiempo
+    const qualityMultiplier = config.quality > 85 ? 1.1 : 1.0; // Mayor calidad = mejor conversión
+    const timeMultiplier = config.timeline > 12 ? 1.0 : 0.9; // Menos tiempo = menor conversión
     
-    const successRate = Math.min(95, 
-      60 + (config.quality * 0.3) + (config.budget / 10000) * timelinePressure * qualityTimePenalty
-    );
+    const recruitedCustodians = Math.floor(baseCustodians * qualityMultiplier * timeMultiplier);
     
-    // Custodios reclutados efectivos
-    const potentialRecruits = Math.floor(weeklyCapacity * config.timeline);
-    const recruitedCustodians = Math.floor(potentialRecruits * (successRate / 100));
+    // Calcular tasa de éxito efectiva
+    const effectiveConversionRate = recruitedCustodians / adjustedLeads;
+    const successRate = (effectiveConversionRate / LEAD_TO_CUSTODIAN_CONVERSION) * 100;
     
-    // Tiempo real para completar (considerando eficiencia)
-    const timeToComplete = Math.min(config.timeline, 
-      Math.ceil(potentialRecruits / weeklyCapacity)
-    );
+    // Tiempo real para completar (estimado basado en el timeline configurado)
+    const timeToComplete = config.timeline;
     
     // Costo por custodio
     const costPerCustodian = recruitedCustodians > 0 ? 
       Math.floor(config.budget / recruitedCustodians) : config.budget;
     
-    // Score de calidad (basado en tiempo invertido y presupuesto)
-    const qualityScore = Math.min(100, 
-      config.quality + (timeToComplete / config.timeline) * 10
-    );
+    // Score de calidad (basado en parámetros del escenario)
+    const qualityScore = Math.min(100, config.quality);
     
     // Nivel de riesgo
     let riskLevel: 'low' | 'medium' | 'high' = 'medium';
@@ -228,9 +224,9 @@ export const ScenarioSimulator: React.FC = () => {
                         onValueChange={([value]) => 
                           setSelectedScenario(prev => ({ ...prev, budget: value }))
                         }
-                        min={50000}
-                        max={1000000}
-                        step={25000}
+                        min={10000}
+                        max={200000}
+                        step={5000}
                         className="w-full"
                       />
                     </div>
