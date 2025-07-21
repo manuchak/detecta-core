@@ -239,53 +239,75 @@ const generarRecomendacionesInteligentes = (
   return recomendaciones;
 };
 
-// Nuevas funciones para cálculo de rotación
-export const calcularDatosRotacion = async (zona_nombre: string): Promise<DatosRotacion> => {
+// Función para calcular rotación por cluster (corregida)
+export const calcularDatosRotacionPorCluster = async (nombreCluster: string): Promise<DatosRotacion> => {
   try {
-    console.log('🔍 Calculando rotación para zona:', zona_nombre);
+    console.log('🔍 Calculando rotación para cluster:', nombreCluster);
     
-    const { data, error } = await supabase
+    // Mapear cluster a ciudades correspondientes
+    let ciudadesDelCluster: string[] = [];
+    
+    const nombreClusterLower = nombreCluster.toLowerCase();
+    if (nombreClusterLower.includes('centro') && nombreClusterLower.includes('méxico')) {
+      ciudadesDelCluster = ['CDMX', 'Nacional']; // Centro de México incluye CDMX y zona metropolitana
+    } else if (nombreClusterLower.includes('occidente')) {
+      ciudadesDelCluster = ['Guadalajara']; // Occidente incluye Guadalajara
+    } else if (nombreClusterLower.includes('norte')) {
+      ciudadesDelCluster = ['Monterrey']; // Norte incluye Monterrey
+    } else if (nombreClusterLower.includes('bajío')) {
+      ciudadesDelCluster = ['Puebla']; // Bajío incluye Puebla
+    } else if (nombreClusterLower.includes('golfo')) {
+      ciudadesDelCluster = ['Tijuana']; // Golfo incluye Tijuana
+    } else {
+      ciudadesDelCluster = ['Nacional']; // Otros clusters usan datos nacionales
+    }
+    
+    console.log(`🏙️ Cluster "${nombreCluster}" incluye ciudades:`, ciudadesDelCluster);
+    
+    // Obtener datos de todas las ciudades del cluster
+    const { data: trackingData, error } = await supabase
       .from('custodios_rotacion_tracking')
       .select('*')
-      .eq('zona_operacion', zona_nombre);
+      .in('zona_operacion', ciudadesDelCluster);
 
     if (error) {
       console.error('❌ Error fetching rotación data:', error);
       throw error;
     }
 
-    console.log('📊 Datos de rotación obtenidos:', data?.length || 0, 'registros para', zona_nombre);
+    console.log('📊 Datos de rotación obtenidos:', trackingData?.length || 0, 'registros para cluster', nombreCluster);
     
-    const trackingData = data || [];
-    const custodiosActivos = trackingData.filter(c => c.estado_actividad === 'activo').length;
-    const custodiosEnRiesgo = trackingData.filter(c => c.estado_actividad === 'en_riesgo').length;
-    const custodiosInactivos = trackingData.filter(c => c.estado_actividad === 'inactivo').length;
+    // Agregar datos de todas las ciudades del cluster
+    const datosAgregados = trackingData || [];
+    const custodiosActivos = datosAgregados.filter(c => c.estado_actividad === 'activo').length;
+    const custodiosEnRiesgo = datosAgregados.filter(c => c.estado_actividad === 'en_riesgo').length;
+    const custodiosInactivos = datosAgregados.filter(c => c.estado_actividad === 'inactivo').length;
 
-    console.log(`📈 ${zona_nombre} - Activos: ${custodiosActivos}, En Riesgo: ${custodiosEnRiesgo}, Inactivos: ${custodiosInactivos}`);
+    console.log(`📈 ${nombreCluster} - Activos: ${custodiosActivos}, En Riesgo: ${custodiosEnRiesgo}, Inactivos: ${custodiosInactivos}`);
 
-    // Calcular tasa de rotación mensual (últimos 3 meses)
+    // Calcular tasa de rotación mensual
     const totalCustodios = custodiosActivos + custodiosEnRiesgo + custodiosInactivos;
     const tasaRotacionMensual = totalCustodios > 0 ? (custodiosInactivos / totalCustodios) * 100 : 0;
 
-    // Proyección de egresos (custodios que probablemente se volverán inactivos)
-    const proyeccionEgresos30Dias = trackingData.filter(c => 
+    // Proyección de egresos
+    const proyeccionEgresos30Dias = datosAgregados.filter(c => 
       c.estado_actividad === 'en_riesgo' && (c.dias_sin_servicio || 0) >= 45
     ).length;
     
-    const proyeccionEgresos60Dias = trackingData.filter(c => 
+    const proyeccionEgresos60Dias = datosAgregados.filter(c => 
       c.estado_actividad === 'en_riesgo' || 
       (c.estado_actividad === 'activo' && (c.dias_sin_servicio || 0) >= 15)
     ).length;
 
     // Promedio de servicios mensuales
-    const totalPromedioServicios = trackingData.reduce((sum, c) => sum + (c.promedio_servicios_mes || 0), 0);
-    const promedioServiciosMes = trackingData.length > 0 ? totalPromedioServicios / trackingData.length : 0;
+    const totalPromedioServicios = datosAgregados.reduce((sum, c) => sum + (c.promedio_servicios_mes || 0), 0);
+    const promedioServiciosMes = datosAgregados.length > 0 ? totalPromedioServicios / datosAgregados.length : 0;
 
-    // Necesidad de retención (custodios que requieren atención inmediata)
+    // Necesidad de retención
     const retencionNecesaria = custodiosEnRiesgo + Math.ceil(proyeccionEgresos30Dias * 0.7);
 
     const resultado = {
-      zona_id: zona_nombre,
+      zona_id: nombreCluster,
       custodiosActivos,
       custodiosEnRiesgo,
       custodiosInactivos,
@@ -296,12 +318,12 @@ export const calcularDatosRotacion = async (zona_nombre: string): Promise<DatosR
       retencionNecesaria
     };
 
-    console.log('✅ Resultado rotación para', zona_nombre, ':', resultado);
+    console.log('✅ Resultado rotación para cluster', nombreCluster, ':', resultado);
     return resultado;
   } catch (error) {
-    console.error('Error calculando datos de rotación:', error);
+    console.error('Error calculando datos de rotación para cluster:', error);
     return {
-      zona_id: zona_nombre,
+      zona_id: nombreCluster,
       custodiosActivos: 0,
       custodiosEnRiesgo: 0,
       custodiosInactivos: 0,
@@ -447,27 +469,11 @@ export function useAdvancedRecruitmentPrediction() {
         return calcularDeficitMejorado(zona, metricasOp, serviciosSegmentados);
       });
 
-      // Calcular datos de rotación para cada zona
-      console.log('🏗️ Calculando rotación para zonas:', zonasData.map(z => z.nombre));
+      // Calcular datos de rotación para cada cluster
+      console.log('🏗️ Calculando rotación para clusters:', zonasData.map(z => z.nombre));
       const datosRotacionPromises = zonasData.map(zona => {
-        // Mapear nombres de zona para que coincidan con la DB de rotación
-        let nombreZonaDB = 'Nacional'; // Por defecto
-        
-        const nombreZona = zona.nombre.toLowerCase();
-        if (nombreZona.includes('centro') && nombreZona.includes('méxico')) {
-          nombreZonaDB = 'CDMX';
-        } else if (nombreZona.includes('occidente')) {
-          nombreZonaDB = 'Guadalajara';
-        } else if (nombreZona.includes('norte')) {
-          nombreZonaDB = 'Monterrey';
-        } else if (nombreZona.includes('bajío')) {
-          nombreZonaDB = 'Puebla';
-        } else if (nombreZona.includes('golfo')) {
-          nombreZonaDB = 'Tijuana';
-        }
-        
-        console.log(`🔗 Mapeando zona "${zona.nombre}" -> "${nombreZonaDB}"`);
-        return calcularDatosRotacion(nombreZonaDB);
+        console.log(`🔗 Calculando rotación para cluster: "${zona.nombre}"`);
+        return calcularDatosRotacionPorCluster(zona.nombre);
       });
       
       const datosRotacion = await Promise.all(datosRotacionPromises);
