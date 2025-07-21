@@ -168,8 +168,7 @@ export const ScenarioSimulator: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-light text-gray-900 flex items-center gap-2">
-            <Zap className="w-6 h-6" />
+          <h2 className="text-2xl font-light text-gray-900">
             Simulación de Escenarios
           </h2>
           <p className="text-sm text-gray-500 mt-1">
