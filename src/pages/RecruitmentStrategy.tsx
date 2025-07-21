@@ -28,6 +28,7 @@ import { MultiMonthTimeline } from '@/components/recruitment/MultiMonthTimeline'
 import { TemporalPatternsPanel } from "@/components/recruitment/temporal/TemporalPatternsPanel";
 import { MachineLearningPanel } from "@/components/recruitment/ml/MachineLearningPanel";
 import { ScenarioSimulationPanel } from "@/components/recruitment/simulation/ScenarioSimulationPanel";
+import { ScenarioSimulator } from '@/components/recruitment/ScenarioSimulator';
 import FinancialROIDashboard from '@/components/recruitment/FinancialROIDashboard';
 
 const RecruitmentStrategy = () => {
@@ -302,6 +303,34 @@ const RecruitmentStrategy = () => {
               variant="primary"
             />
           </MinimalGrid>
+         );
+
+      case 'simulation':
+        return (
+          <MinimalGrid columns={4}>
+            <MinimalCard
+              title="Custodios Activos"
+              value="69"
+              subtitle="Base actual del sistema"
+              variant="primary"
+            />
+            <MinimalCard
+              title="Egresos Mensuales"
+              value="7"
+              subtitle="Promedio histórico"
+            />
+            <MinimalCard
+              title="Tasa Rotación"
+              value="10.14%"
+              subtitle="Mensual promedio"
+            />
+            <MinimalCard
+              title="Déficit Proyectado"
+              value="21"
+              subtitle="Con rotación incluida"
+              variant="subtle"
+            />
+          </MinimalGrid>
         );
 
       default:
@@ -408,7 +437,7 @@ const RecruitmentStrategy = () => {
         return <MachineLearningPanel />;
         
       case 'simulation':
-        return <ScenarioSimulationPanel />;
+        return <ScenarioSimulator />;
         
       case 'metricas':
         return (
