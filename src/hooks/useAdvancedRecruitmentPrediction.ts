@@ -310,13 +310,10 @@ export const calcularDatosRotacionPorCluster = async (nombreCluster: string): Pr
     console.log(`📈 ${nombreCluster} - Activos: ${custodiosActivos}, En Riesgo: ${custodiosEnRiesgo}, Inactivos: ${custodiosInactivos}`);
 
     // Calcular tasa de rotación mensual correctamente
-    // Fórmula: (Empleados que salen / ((Empleados inicio + Empleados final) / 2)) × 100
-    const empleadosInicioMes = custodiosActivos + custodiosEnRiesgo + custodiosInactivos; // Total actual
-    const empleadosSalenMes = custodiosInactivos; // Los que ya salieron
-    const empleadosFinMes = custodiosActivos + custodiosEnRiesgo; // Los que quedan
-    
-    const promedioEmpleados = (empleadosInicioMes + empleadosFinMes) / 2;
-    const tasaRotacionMensual = promedioEmpleados > 0 ? (empleadosSalenMes / promedioEmpleados) * 100 : 0;
+    // Mi cálculo anterior era de retención, la rotación es 100% - retención
+    const totalCustodios = custodiosActivos + custodiosEnRiesgo + custodiosInactivos;
+    const tasaRetencion = totalCustodios > 0 ? ((custodiosActivos + custodiosEnRiesgo) / totalCustodios) * 100 : 100;
+    const tasaRotacionMensual = 100 - tasaRetencion; // Rotación = 100% - Retención
 
     // Proyección de egresos
     const proyeccionEgresos30Dias = datosAgregados.filter(c => 
