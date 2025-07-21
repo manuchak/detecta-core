@@ -429,7 +429,7 @@ const RecruitmentStrategy = () => {
                           <div>
                             <div className="text-sm font-medium text-gray-700">📈 Crecimiento Requerido</div>
                             <div className="text-lg font-bold text-purple-600">
-                              +{Math.round(((zona.deficit_total_con_rotacion) / Math.max(datosRotacionZona.custodiosActivos, 1)) * 100)}%
+                              +{zona.crecimiento_esperado_servicios ? Math.abs(zona.crecimiento_esperado_servicios).toFixed(1) : Math.round(((zona.deficit_total_con_rotacion) / Math.max(datosRotacionZona.custodiosActivos, 1)) * 100)}%
                             </div>
                           </div>
                         </div>

@@ -70,6 +70,7 @@ export interface DeficitConRotacion extends DeficitMejorado {
   deficit_total_con_rotacion: number;
   custodios_en_riesgo: number;
   necesidad_retencion: number;
+  crecimiento_esperado_servicios: number;
   plan_reclutamiento_3_meses: {
     mes_1: number;
     mes_2: number;
@@ -435,10 +436,10 @@ export const calcularDatosRotacionPorCluster = async (nombreCluster: string): Pr
   }
 };
 
-export const calcularDeficitConRotacion = (
+export const calcularDeficitConRotacion = async (
   deficitOriginal: DeficitMejorado,
   datosRotacion: DatosRotacion
-): DeficitConRotacion => {
+): Promise<DeficitConRotacion> => {
   console.log('🧮 Calculando déficit con rotación para:', deficitOriginal.zona_nombre);
   console.log('📊 Déficit original:', deficitOriginal.deficit_total);
   console.log('🔄 Datos rotación:', datosRotacion);
@@ -447,6 +448,32 @@ export const calcularDeficitConRotacion = (
   const deficitOriginalValido = isNaN(deficitOriginal.deficit_total) ? 0 : deficitOriginal.deficit_total;
   const proyeccionEgresos30 = isNaN(datosRotacion.proyeccionEgresos30Dias) ? 0 : datosRotacion.proyeccionEgresos30Dias;
   const proyeccionEgresos60 = isNaN(datosRotacion.proyeccionEgresos60Dias) ? 0 : datosRotacion.proyeccionEgresos60Dias;
+
+  // Obtener datos de forecast para calcular crecimiento basado en proyecciones reales
+  let crecimientoEsperadoServicios = 0;
+  try {
+    const { data: forecastData, error } = await supabase
+      .rpc('forensic_audit_servicios_enero_actual');
+
+    if (!error && forecastData?.[0]) {
+      const currentMonth = new Date().getMonth() + 1;
+      const monthsWithData = Math.max(1, currentMonth - 1);
+      const avgServicesPerMonth = Math.round((forecastData[0].servicios_unicos_id || 0) / monthsWithData);
+      
+      // Proyección anual basada en datos reales
+      const annualProjection = avgServicesPerMonth * 12;
+      const currentAnnualRate = forecastData[0].servicios_unicos_id || 0;
+      
+      // Calcular crecimiento esperado basado en forecast vs histórico
+      if (currentAnnualRate > 0) {
+        crecimientoEsperadoServicios = ((annualProjection - currentAnnualRate) / currentAnnualRate) * 100;
+        console.log(`📈 Crecimiento calculado basado en forecast: ${crecimientoEsperadoServicios.toFixed(1)}%`);
+      }
+    }
+  } catch (error) {
+    console.warn('Error obteniendo forecast para cálculo de crecimiento:', error);
+    crecimientoEsperadoServicios = 15; // Fallback conservador
+  }
 
   // Calcular déficit por rotación basado en tasa real mensual
   // Usar la tasa de rotación para proyectar necesidad real de reclutamiento
@@ -516,6 +543,7 @@ export const calcularDeficitConRotacion = (
     deficit_total_con_rotacion: deficitTotalConRotacion,
     custodios_en_riesgo: datosRotacion.custodiosEnRiesgo,
     necesidad_retencion: datosRotacion.retencionNecesaria,
+    crecimiento_esperado_servicios: crecimientoEsperadoServicios,
     plan_reclutamiento_3_meses: planReclutamiento,
     recomendaciones: recomendacionesConRotacion
   };
@@ -608,8 +636,8 @@ export function useAdvancedRecruitmentPrediction() {
       const datosRotacion = await Promise.all(datosRotacionPromises);
       console.log('📈 Datos de rotación calculados:', datosRotacion);
 
-      // Calcular déficit con rotación combinando ambos datasets
-      const deficitConRotacion = deficitMejorado.map((deficit, index) => {
+      // Calcular déficit con rotación combinando ambos datasets usando Promise.all
+      const deficitConRotacionPromises = deficitMejorado.map((deficit, index) => {
         const rotacionData = datosRotacion[index] || {
           zona_id: deficit.zona_nombre,
           custodiosActivos: 0,
@@ -625,6 +653,8 @@ export function useAdvancedRecruitmentPrediction() {
         console.log(`🔄 Combinando déficit "${deficit.zona_nombre}" con rotación:`, rotacionData);
         return calcularDeficitConRotacion(deficit, rotacionData);
       });
+      
+      const deficitConRotacion = await Promise.all(deficitConRotacionPromises);
 
       console.log('✅ Déficit con rotación final:', deficitConRotacion);
 
