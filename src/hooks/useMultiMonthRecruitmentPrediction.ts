@@ -51,7 +51,8 @@ export interface MultiMonthPrediction {
 }
 
 const RECRUITMENT_PIPELINE_DAYS = 25;
-const COST_PER_CUSTODIAN = 5000; // Costo promedio de reclutamiento por custodio
+// Costos basados en Excel CPA - promedio de los meses mostrados
+const COST_PER_CUSTODIAN = 8500; // CPA promedio basado en datos reales
 const AVERAGE_SERVICES_PER_CUSTODIAN = 8; // Promedio de servicios por custodio por mes
 
 export function useMultiMonthRecruitmentPrediction() {
@@ -76,15 +77,15 @@ export function useMultiMonthRecruitmentPrediction() {
   // Función para calcular el mes target y siguiente
   const calculateTargetMonths = useCallback(() => {
     const today = new Date();
-    const currentDay = today.getDate();
+    
+    // Para julio 2025, el mes target debe ser agosto 2025
+    // Lógica simplificada: mes siguiente es siempre el target principal
+    const targetDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    const nextDate = new Date(today.getFullYear(), today.getMonth() + 2, 1);
+    
+    // Calcular días restantes hasta fin de mes actual
     const daysInCurrentMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-    const daysLeft = daysInCurrentMonth - currentDay;
-    
-    // Si quedan menos días en el mes actual que el pipeline de reclutamiento, target es el mes siguiente
-    const monthsToAdd = daysLeft < RECRUITMENT_PIPELINE_DAYS ? 2 : 1;
-    
-    const targetDate = new Date(today.getFullYear(), today.getMonth() + monthsToAdd, 1);
-    const nextDate = new Date(today.getFullYear(), today.getMonth() + monthsToAdd + 1, 1);
+    const daysLeft = daysInCurrentMonth - today.getDate();
     
     return {
       target: {
@@ -99,7 +100,7 @@ export function useMultiMonthRecruitmentPrediction() {
         monthName: nextDate.toLocaleDateString('es-ES', { month: 'long' }),
         date: nextDate
       },
-      daysToDeadline: Math.max(0, daysLeft - RECRUITMENT_PIPELINE_DAYS)
+      daysToDeadline: Math.max(0, daysLeft)
     };
   }, []);
 
@@ -163,19 +164,37 @@ export function useMultiMonthRecruitmentPrediction() {
 
   // Calcular score de urgencia
   const calculateUrgencyScore = (need: number, currentCustodians: number, daysToDeadline: number): number => {
-    const gapRatio = currentCustodians > 0 ? need / currentCustodians : 1;
-    const timeUrgency = Math.max(0, (RECRUITMENT_PIPELINE_DAYS - daysToDeadline) / RECRUITMENT_PIPELINE_DAYS);
-    const needUrgency = Math.min(1, gapRatio / 0.5); // 50% gap = máxima urgencia por necesidad
+    // Si no hay custodios actuales, es crítico
+    if (currentCustodians === 0 && need > 0) return 10;
     
-    return Math.round((timeUrgency * 0.6 + needUrgency * 0.4) * 10);
+    // Calcular urgencia basada en necesidad
+    const needRatio = currentCustodians > 0 ? need / currentCustodians : 0;
+    let urgencyScore = 0;
+    
+    // Urgencia por déficit
+    if (needRatio > 0.8) urgencyScore += 5; // >80% de déficit
+    else if (needRatio > 0.5) urgencyScore += 4; // >50% de déficit
+    else if (needRatio > 0.3) urgencyScore += 3; // >30% de déficit
+    else if (needRatio > 0.1) urgencyScore += 2; // >10% de déficit
+    
+    // Urgencia por tiempo (estamos en julio para agosto)
+    if (daysToDeadline <= 10) urgencyScore += 3; // Menos de 10 días
+    else if (daysToDeadline <= 20) urgencyScore += 2; // Menos de 20 días
+    else if (daysToDeadline <= 30) urgencyScore += 1; // Menos de 30 días
+    
+    // Si hay necesidad real (>5 custodios), elevar urgencia
+    if (need >= 5) urgencyScore += 2;
+    else if (need >= 2) urgencyScore += 1;
+    
+    return Math.min(10, urgencyScore);
   };
 
-  // Obtener nivel de urgencia
+  // Obtener nivel de urgencia (más estricto)
   const getUrgencyLevel = (score: number): 'critico' | 'urgente' | 'estable' | 'sobreabastecido' => {
-    if (score >= 8) return 'critico';
-    if (score >= 6) return 'urgente';
-    if (score >= 3) return 'estable';
-    return 'sobreabastecido';
+    if (score >= 7) return 'critico';   // 7-10 crítico
+    if (score >= 5) return 'urgente';   // 5-6 urgente  
+    if (score >= 2) return 'estable';   // 2-4 estable
+    return 'sobreabastecido';           // 0-1 sobreabastecido
   };
 
   // Calcular datos de un mes específico
