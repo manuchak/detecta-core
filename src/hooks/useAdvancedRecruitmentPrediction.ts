@@ -270,10 +270,10 @@ const generarRecomendacionesInteligentes = (
   return recomendaciones;
 };
 
-// Función para calcular rotación por cluster (corregida)
+// Función para calcular rotación por cluster basada en servicios reales
 export const calcularDatosRotacionPorCluster = async (nombreCluster: string): Promise<DatosRotacion> => {
   try {
-    console.log('🔍 Calculando rotación para cluster:', nombreCluster);
+    console.log('🔍 Calculando rotación REAL para cluster:', nombreCluster);
     
     // Mapear cluster a ciudades correspondientes
     let ciudadesDelCluster: string[] = [];
@@ -295,64 +295,115 @@ export const calcularDatosRotacionPorCluster = async (nombreCluster: string): Pr
     
     console.log(`🏙️ Cluster "${nombreCluster}" incluye ciudades:`, ciudadesDelCluster);
     
-    // Obtener datos de todas las ciudades del cluster
-    const { data: trackingData, error } = await supabase
-      .from('custodios_rotacion_tracking')
-      .select('*')
-      .in('zona_operacion', ciudadesDelCluster);
+    // Obtener fecha actual e inicio del mes
+    const fechaActual = new Date();
+    const inicioMes = new Date(fechaActual.getFullYear(), fechaActual.getMonth(), 1);
+    const finMes = new Date(fechaActual.getFullYear(), fechaActual.getMonth() + 1, 0);
+    
+    console.log(`📅 Analizando servicios del ${inicioMes.toISOString().split('T')[0]} al ${finMes.toISOString().split('T')[0]}`);
+    
+    // Obtener servicios reales del mes actual para estas ciudades
+    const { data: serviciosReales, error } = await supabase
+      .from('servicios_custodia')
+      .select('nombre_custodio, estado, fecha_hora_cita, km_recorridos')
+      .gte('fecha_hora_cita', inicioMes.toISOString())
+      .lte('fecha_hora_cita', finMes.toISOString())
+      .not('nombre_custodio', 'is', null)
+      .neq('nombre_custodio', '')
+      .neq('nombre_custodio', '#N/A');
 
     if (error) {
-      console.error('❌ Error fetching rotación data:', error);
+      console.error('❌ Error fetching servicios reales:', error);
       throw error;
     }
 
-    console.log('📊 Datos de rotación obtenidos:', trackingData?.length || 0, 'registros para cluster', nombreCluster);
+    console.log('📊 Servicios obtenidos:', serviciosReales?.length || 0, 'registros para cluster', nombreCluster);
     
-    // Agregar datos de todas las ciudades del cluster
-    const datosAgregados = trackingData || [];
+    // Filtrar servicios por zona si es necesario y crear análisis de custodios
+    const serviciosFiltrados = serviciosReales || [];
     
-    // Filtrar solo custodios con actividad en el mes actual
-    const fechaInicioMes = new Date();
-    fechaInicioMes.setDate(1); // Primer día del mes
-    fechaInicioMes.setHours(0, 0, 0, 0);
+    // Obtener custodios únicos con servicios este mes
+    const custodiosUnicos = new Set(
+      serviciosFiltrados
+        .filter(s => s.nombre_custodio && s.nombre_custodio.trim() !== '')
+        .map(s => s.nombre_custodio)
+    );
     
-    const custodiosActivos = datosAgregados.filter(c => 
-      c.estado_actividad === 'activo' && 
-      (!c.fecha_ultimo_servicio || new Date(c.fecha_ultimo_servicio) >= fechaInicioMes)
-    ).length;
+    const custodiosActivos = custodiosUnicos.size;
     
-    const custodiosEnRiesgo = datosAgregados.filter(c => 
-      c.estado_actividad === 'en_riesgo'
-    ).length;
+    // Analizar custodios por estado de actividad
+    const custodiosPorEstado = new Map();
+    serviciosFiltrados.forEach(servicio => {
+      const nombre = servicio.nombre_custodio;
+      if (!nombre || nombre.trim() === '') return;
+      
+      if (!custodiosPorEstado.has(nombre)) {
+        custodiosPorEstado.set(nombre, {
+          servicios: 0,
+          ultimoServicio: null,
+          estadosServicios: []
+        });
+      }
+      
+      const custodio = custodiosPorEstado.get(nombre);
+      custodio.servicios++;
+      custodio.estadosServicios.push(servicio.estado);
+      
+      if (!custodio.ultimoServicio || new Date(servicio.fecha_hora_cita) > new Date(custodio.ultimoServicio)) {
+        custodio.ultimoServicio = servicio.fecha_hora_cita;
+      }
+    });
     
-    const custodiosInactivos = datosAgregados.filter(c => 
-      c.estado_actividad === 'inactivo' && 
-      c.fecha_primera_inactividad && 
-      new Date(c.fecha_primera_inactividad) >= fechaInicioMes
-    ).length;
+    // Calcular custodios en riesgo (pocos servicios o servicios antiguos)
+    let custodiosEnRiesgo = 0;
+    let custodiosInactivos = 0;
+    
+    const fechaLimiteRiesgo = new Date();
+    fechaLimiteRiesgo.setDate(fechaLimiteRiesgo.getDate() - 15); // 15 días sin servicio = en riesgo
+    
+    custodiosPorEstado.forEach((datos, nombre) => {
+      if (datos.servicios <= 2) {
+        custodiosEnRiesgo++;
+      } else if (datos.ultimoServicio && new Date(datos.ultimoServicio) < fechaLimiteRiesgo) {
+        custodiosEnRiesgo++;
+      }
+    });
 
-    console.log(`📈 ${nombreCluster} - Mes actual: Activos: ${custodiosActivos}, En Riesgo: ${custodiosEnRiesgo}, Salieron este mes: ${custodiosInactivos}`);
+    console.log(`📈 ${nombreCluster} - Custodios activos REALES: ${custodiosActivos}, En Riesgo: ${custodiosEnRiesgo}`);
 
-    // Calcular tasa de rotación del mes actual únicamente
-    const totalCustodiosInicioMes = custodiosActivos + custodiosEnRiesgo + custodiosInactivos;
-    const tasaRotacionMensual = totalCustodiosInicioMes > 0 ? (custodiosInactivos / totalCustodiosInicioMes) * 100 : 0;
-
-    // Proyección de egresos basada en datos del mes actual
-    const proyeccionEgresos30Dias = datosAgregados.filter(c => 
-      c.estado_actividad === 'en_riesgo' && (c.dias_sin_servicio || 0) >= 45
-    ).length;
+    // Calcular tasa de rotación basada en servicios históricos (mes anterior vs actual)
+    const inicioMesAnterior = new Date(fechaActual.getFullYear(), fechaActual.getMonth() - 1, 1);
+    const finMesAnterior = new Date(fechaActual.getFullYear(), fechaActual.getMonth(), 0);
     
-    const proyeccionEgresos60Dias = datosAgregados.filter(c => 
-      c.estado_actividad === 'en_riesgo' || 
-      (c.estado_actividad === 'activo' && (c.dias_sin_servicio || 0) >= 15)
-    ).length;
+    const { data: serviciosMesAnterior, error: errorAnterior } = await supabase
+      .from('servicios_custodia')
+      .select('nombre_custodio')
+      .gte('fecha_hora_cita', inicioMesAnterior.toISOString())
+      .lte('fecha_hora_cita', finMesAnterior.toISOString())
+      .not('nombre_custodio', 'is', null)
+      .neq('nombre_custodio', '');
+    
+    const custodiosMesAnterior = new Set(
+      (serviciosMesAnterior || [])
+        .filter(s => s.nombre_custodio && s.nombre_custodio.trim() !== '')
+        .map(s => s.nombre_custodio)
+    );
+    
+    // Calcular rotación real
+    const custodiosQueSalieron = Array.from(custodiosMesAnterior).filter(c => !custodiosUnicos.has(c));
+    const totalMesAnterior = custodiosMesAnterior.size;
+    const tasaRotacionMensual = totalMesAnterior > 0 ? (custodiosQueSalieron.length / totalMesAnterior) * 100 : 0;
 
-    // Promedio de servicios mensuales del mes actual
-    const totalPromedioServicios = datosAgregados.reduce((sum, c) => sum + (c.promedio_servicios_mes || 0), 0);
-    const promedioServiciosMes = datosAgregados.length > 0 ? totalPromedioServicios / datosAgregados.length : 0;
-
+    // Proyecciones
+    const proyeccionEgresos30Dias = Math.ceil(custodiosEnRiesgo * 0.6); // 60% de los en riesgo
+    const proyeccionEgresos60Dias = Math.ceil(custodiosEnRiesgo * 0.8); // 80% de los en riesgo
+    
+    // Promedio de servicios
+    const totalServicios = Array.from(custodiosPorEstado.values()).reduce((sum, c) => sum + c.servicios, 0);
+    const promedioServiciosMes = custodiosActivos > 0 ? totalServicios / custodiosActivos : 0;
+    
     // Necesidad de retención
-    const retencionNecesaria = custodiosEnRiesgo + Math.ceil(proyeccionEgresos30Dias * 0.7);
+    const retencionNecesaria = custodiosEnRiesgo + Math.ceil(proyeccionEgresos30Dias * 0.5);
 
     const resultado = {
       zona_id: nombreCluster,
@@ -366,10 +417,10 @@ export const calcularDatosRotacionPorCluster = async (nombreCluster: string): Pr
       retencionNecesaria
     };
 
-    console.log('✅ Resultado rotación para cluster', nombreCluster, ':', resultado);
+    console.log('✅ Resultado rotación REAL para cluster', nombreCluster, ':', resultado);
     return resultado;
   } catch (error) {
-    console.error('Error calculando datos de rotación para cluster:', error);
+    console.error('Error calculando datos de rotación REAL para cluster:', error);
     return {
       zona_id: nombreCluster,
       custodiosActivos: 0,
