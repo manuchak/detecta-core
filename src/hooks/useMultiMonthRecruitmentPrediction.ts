@@ -157,9 +157,9 @@ export function useMultiMonthRecruitmentPrediction() {
       const currentCustodians = rotationInfo.custodiosActivos;
       const currentDeficit = cluster.deficit_total || 0;
       
-      // USAR DATOS REALES DE FORECAST en lugar de cálculos inventados
-      const totalForecastServices = forecastData?.monthlyServicesForecast || 800; // Usar el forecast real
-      const totalClusters = deficitConRotacion.length || 8;
+      // USAR DATOS REALES DE FORECAST en lugar de proyecciones manuales
+      const totalForecastServices = forecastData?.monthlyServicesForecast || 0;
+      console.log(`📊 Forecast real para el mes: ${totalForecastServices} servicios`);
       
       // Distribuir servicios del forecast proporcionalmente por cluster
       // Clusters más grandes como Centro de México tienen más proporción
@@ -174,7 +174,7 @@ export function useMultiMonthRecruitmentPrediction() {
         'Centro-Occidente': 0.05   // 5%
       };
       
-      const clusterProportion = clusterProportions[cluster.zona_nombre] || (1 / totalClusters);
+      const clusterProportion = clusterProportions[cluster.zona_nombre] || (1 / deficitConRotacion.length);
       const projectedServices = Math.round(totalForecastServices * clusterProportion);
       
       // Calcular custodios requeridos para los servicios proyectados
