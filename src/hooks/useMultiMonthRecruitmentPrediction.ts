@@ -51,8 +51,8 @@ export interface MultiMonthPrediction {
 }
 
 const RECRUITMENT_PIPELINE_DAYS = 25;
-// Costos basados en Excel CPA - promedio de los meses mostrados
-const COST_PER_CUSTODIAN = 8500; // CPA promedio basado en datos reales
+// Costos actualizados basados en análisis de mercado (sin incluir staff)
+const COST_PER_CUSTODIAN = 1830; // Costo promedio sin incluir valor del staff
 const AVERAGE_SERVICES_PER_CUSTODIAN = 8; // Promedio de servicios por custodio por mes
 
 export function useMultiMonthRecruitmentPrediction() {
