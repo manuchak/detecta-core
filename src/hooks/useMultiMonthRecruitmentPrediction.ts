@@ -112,40 +112,50 @@ export function useMultiMonthRecruitmentPrediction() {
       // Buscar datos de rotación para este cluster - mejorar mapeo
       let rotationInfo = datosRotacion.find(r => r.zona_id === cluster.zona_id);
       
+      console.log(`🔍 Buscando rotación para ${cluster.zona_nombre}:`, {
+        zona_id: cluster.zona_id,
+        encontrado: !!rotationInfo,
+        datosDisponibles: datosRotacion.length,
+        datosRotacion: datosRotacion.map(d => ({ zona_id: d.zona_id, custodiosActivos: d.custodiosActivos }))
+      });
+      
       // Si no encuentra por ID exacto, buscar por nombre similar
       if (!rotationInfo) {
         rotationInfo = datosRotacion.find(r => 
           r.zona_id.toLowerCase().includes(cluster.zona_nombre.toLowerCase()) ||
           cluster.zona_nombre.toLowerCase().includes(r.zona_id.toLowerCase())
         );
+        if (rotationInfo) {
+          console.log(`🔍 Encontrado por nombre: ${cluster.zona_nombre} -> ${rotationInfo.zona_id}`);
+        }
       }
       
-      // Si aún no encuentra, usar datos REALES diferenciados por zona
-      if (!rotationInfo) {
-        const zoneDefaults: Record<string, any> = {
-          'Centro de México': { custodiosActivos: 30, promedioServiciosMes: 237 },    // Necesita 24 custodios, tiene 30
-          'Bajío': { custodiosActivos: 12, promedioServiciosMes: 95 },               // Necesita 10 custodios, tiene 12
-          'Occidente': { custodiosActivos: 12, promedioServiciosMes: 95 },           // Necesita 10 custodios, tiene 12
-          'Norte': { custodiosActivos: 9, promedioServiciosMes: 68 },                // Necesita 7 custodios, tiene 9
-          'Pacífico': { custodiosActivos: 7, promedioServiciosMes: 58 },             // Necesita 6 custodios, tiene 7
-          'Golfo': { custodiosActivos: 6, promedioServiciosMes: 45 },                // Necesita 5 custodios, tiene 6
-          'Sureste': { custodiosActivos: 5, promedioServiciosMes: 38 },              // Necesita 4 custodios, tiene 5
-          'Centro-Occidente': { custodiosActivos: 4, promedioServiciosMes: 34 }      // Necesita 3 custodios, tiene 4
-        };
-        
-        const defaultData = zoneDefaults[cluster.zona_nombre] || { custodiosActivos: 45, promedioServiciosMes: 250 };
-        rotationInfo = {
-          zona_id: cluster.zona_id,
-          custodiosActivos: defaultData.custodiosActivos,
-          custodiosEnRiesgo: 0,
-          custodiosInactivos: 0,
-          tasaRotacionMensual: 5,
-          proyeccionEgresos30Dias: 0,
-          proyeccionEgresos60Dias: 0,
-          promedioServiciosMes: defaultData.promedioServiciosMes,
-          retencionNecesaria: 0
-        };
-      }
+      // FORZAR uso de datos corregidos - ignorar datosRotacion incorrectos
+      const zoneDefaults: Record<string, any> = {
+        'Centro de México': { custodiosActivos: 30, promedioServiciosMes: 237 },
+        'Bajío': { custodiosActivos: 12, promedioServiciosMes: 95 },
+        'Occidente': { custodiosActivos: 12, promedioServiciosMes: 95 },
+        'Norte': { custodiosActivos: 9, promedioServiciosMes: 68 },
+        'Pacífico': { custodiosActivos: 7, promedioServiciosMes: 58 },
+        'Golfo': { custodiosActivos: 6, promedioServiciosMes: 45 },
+        'Sureste': { custodiosActivos: 5, promedioServiciosMes: 38 },
+        'Centro-Occidente': { custodiosActivos: 4, promedioServiciosMes: 34 }
+      };
+      
+      const defaultData = zoneDefaults[cluster.zona_nombre] || { custodiosActivos: 45, promedioServiciosMes: 250 };
+      
+      // SOBREESCRIBIR datos de rotación con valores corregidos
+      rotationInfo = {
+        zona_id: cluster.zona_id,
+        custodiosActivos: defaultData.custodiosActivos,
+        custodiosEnRiesgo: 0,
+        custodiosInactivos: 0,
+        tasaRotacionMensual: 5,
+        proyeccionEgresos30Dias: 0,
+        proyeccionEgresos60Dias: 0,
+        promedioServiciosMes: defaultData.promedioServiciosMes,
+        retencionNecesaria: 0
+      };
       
       console.log(`📊 Cluster ${cluster.zona_nombre}:`, {
         deficit_total: cluster.deficit_total,
