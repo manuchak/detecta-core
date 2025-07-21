@@ -309,11 +309,6 @@ export const ImprovedLeadCard = ({
                 Editar
               </DropdownMenuItem>
               
-              <DropdownMenuItem onClick={() => onManualInterview(lead)} className="text-xs">
-                <Phone className="h-3 w-3 mr-2" />
-                Entrevista manual
-              </DropdownMenuItem>
-              
               {callLogs.length > 0 && (
                 <>
                   <DropdownMenuSeparator />
