@@ -12,12 +12,38 @@ interface MultiMonthTimelineProps {
 }
 
 const getStatusInfo = (urgencyLevel: string, finalNeed: number, clusterName: string) => {
+  // Mapeo de estados por cluster
+  const getStatesForCluster = (name: string) => {
+    switch (name.toLowerCase()) {
+      case 'centro de méxico':
+        return 'Ciudad de México, Estado de México, Morelos, Hidalgo, Tlaxcala, Puebla';
+      case 'norte':
+        return 'Chihuahua, Sonora, Nuevo León, Coahuila, Tamaulipas, Durango';
+      case 'occidente':
+        return 'Jalisco, Michoacán, Colima, Nayarit, Guanajuato';
+      case 'bajío':
+        return 'Aguascalientes, Zacatecas, San Luis Potosí, Querétaro';
+      case 'pacífico':
+        return 'Guerrero, Oaxaca, Chiapas, Veracruz (sur)';
+      case 'golfo':
+        return 'Veracruz (norte), Tabasco, Campeche, Yucatán, Quintana Roo';
+      case 'sureste':
+        return 'Chiapas, Oaxaca, Guerrero, Tabasco, Campeche';
+      case 'centro-occidente':
+        return 'Guanajuato, Querétaro, Michoacán (norte), Jalisco (este)';
+      default:
+        return 'Estados de la zona operativa correspondiente';
+    }
+  };
+
+  const states = getStatesForCluster(clusterName);
+  
   if (finalNeed === 0) {
     return {
       color: 'bg-green-500/20 border-green-500/30',
       dotColor: 'bg-green-500',
       status: 'estable',
-      tooltip: `${clusterName}: Estados incluidos - Aguascalientes, Zacatecas. Capacidad actual suficiente para demanda proyectada.`
+      tooltip: `${clusterName}\n\nEstados incluidos:\n${states}\n\nCapacidad actual suficiente para la demanda proyectada.`
     };
   }
   
@@ -27,14 +53,14 @@ const getStatusInfo = (urgencyLevel: string, finalNeed: number, clusterName: str
         color: 'bg-red-500/20 border-red-500/30',
         dotColor: 'bg-red-500',
         status: 'crítico',
-        tooltip: `${clusterName}: Estados incluidos - Ciudad de México, Estado de México. Déficit crítico que requiere reclutamiento inmediato.`
+        tooltip: `${clusterName}\n\nEstados incluidos:\n${states}\n\nDéficit crítico que requiere reclutamiento inmediato.`
       };
     case 'urgente':
       return {
         color: 'bg-yellow-500/20 border-yellow-500/30',
         dotColor: 'bg-yellow-500',
         status: 'alerta',
-        tooltip: `${clusterName}: Estados incluidos - Jalisco, Michoacán, Colima. Requiere planificación de reclutamiento a corto plazo.`
+        tooltip: `${clusterName}\n\nEstados incluidos:\n${states}\n\nRequiere planificación de reclutamiento a corto plazo.`
       };
     case 'estable':
     default:
@@ -42,7 +68,7 @@ const getStatusInfo = (urgencyLevel: string, finalNeed: number, clusterName: str
         color: 'bg-green-500/20 border-green-500/30',
         dotColor: 'bg-green-500',
         status: 'estable',
-        tooltip: `${clusterName}: Estados incluidos según zona operativa. Capacidad adecuada para demanda actual.`
+        tooltip: `${clusterName}\n\nEstados incluidos:\n${states}\n\nCapacidad adecuada para la demanda actual.`
       };
   }
 };
