@@ -303,19 +303,34 @@ export const calcularDatosRotacionPorCluster = async (nombreCluster: string): Pr
     
     // Agregar datos de todas las ciudades del cluster
     const datosAgregados = trackingData || [];
-    const custodiosActivos = datosAgregados.filter(c => c.estado_actividad === 'activo').length;
-    const custodiosEnRiesgo = datosAgregados.filter(c => c.estado_actividad === 'en_riesgo').length;
-    const custodiosInactivos = datosAgregados.filter(c => c.estado_actividad === 'inactivo').length;
+    
+    // Filtrar solo custodios con actividad en el mes actual
+    const fechaInicioMes = new Date();
+    fechaInicioMes.setDate(1); // Primer día del mes
+    fechaInicioMes.setHours(0, 0, 0, 0);
+    
+    const custodiosActivos = datosAgregados.filter(c => 
+      c.estado_actividad === 'activo' && 
+      (!c.fecha_ultimo_servicio || new Date(c.fecha_ultimo_servicio) >= fechaInicioMes)
+    ).length;
+    
+    const custodiosEnRiesgo = datosAgregados.filter(c => 
+      c.estado_actividad === 'en_riesgo'
+    ).length;
+    
+    const custodiosInactivos = datosAgregados.filter(c => 
+      c.estado_actividad === 'inactivo' && 
+      c.fecha_primera_inactividad && 
+      new Date(c.fecha_primera_inactividad) >= fechaInicioMes
+    ).length;
 
-    console.log(`📈 ${nombreCluster} - Activos: ${custodiosActivos}, En Riesgo: ${custodiosEnRiesgo}, Inactivos: ${custodiosInactivos}`);
+    console.log(`📈 ${nombreCluster} - Mes actual: Activos: ${custodiosActivos}, En Riesgo: ${custodiosEnRiesgo}, Salieron este mes: ${custodiosInactivos}`);
 
-    // Calcular tasa de rotación mensual correctamente
-    // Mi cálculo anterior era de retención, la rotación es 100% - retención
-    const totalCustodios = custodiosActivos + custodiosEnRiesgo + custodiosInactivos;
-    const tasaRetencion = totalCustodios > 0 ? ((custodiosActivos + custodiosEnRiesgo) / totalCustodios) * 100 : 100;
-    const tasaRotacionMensual = 100 - tasaRetencion; // Rotación = 100% - Retención
+    // Calcular tasa de rotación del mes actual únicamente
+    const totalCustodiosInicioMes = custodiosActivos + custodiosEnRiesgo + custodiosInactivos;
+    const tasaRotacionMensual = totalCustodiosInicioMes > 0 ? (custodiosInactivos / totalCustodiosInicioMes) * 100 : 0;
 
-    // Proyección de egresos
+    // Proyección de egresos basada en datos del mes actual
     const proyeccionEgresos30Dias = datosAgregados.filter(c => 
       c.estado_actividad === 'en_riesgo' && (c.dias_sin_servicio || 0) >= 45
     ).length;
@@ -325,7 +340,7 @@ export const calcularDatosRotacionPorCluster = async (nombreCluster: string): Pr
       (c.estado_actividad === 'activo' && (c.dias_sin_servicio || 0) >= 15)
     ).length;
 
-    // Promedio de servicios mensuales
+    // Promedio de servicios mensuales del mes actual
     const totalPromedioServicios = datosAgregados.reduce((sum, c) => sum + (c.promedio_servicios_mes || 0), 0);
     const promedioServiciosMes = datosAgregados.length > 0 ? totalPromedioServicios / datosAgregados.length : 0;
 
