@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -35,6 +35,7 @@ interface LeadsTableProps {
 export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
   // Estados para filtros y UI
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [assignmentFilter, setAssignmentFilter] = useState("all");
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -51,15 +52,25 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     assignment: 'all'
   }));
 
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1); // Reset page when search changes
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   // Preparar filtros para el hook optimizado
   const leadsFilters = useMemo(() => ({
-    searchTerm: searchTerm || undefined,
+    searchTerm: debouncedSearchTerm || undefined,
     status: statusFilter !== 'all' ? statusFilter : undefined,
     assignment: assignmentFilter !== 'all' ? assignmentFilter : undefined,
     dateFrom: advancedFilters.dateFrom || undefined,
     dateTo: advancedFilters.dateTo || undefined,
     source: advancedFilters.source !== 'all' ? advancedFilters.source : undefined,
-  }), [searchTerm, statusFilter, assignmentFilter, advancedFilters]);
+  }), [debouncedSearchTerm, statusFilter, assignmentFilter, advancedFilters]);
 
   // Hook optimizado con filtros en backend y paginación
   const { 
@@ -335,10 +346,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
           <Input
             placeholder="Buscar por nombre, email o teléfono..."
             value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1);
-            }}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-8"
           />
         </div>
