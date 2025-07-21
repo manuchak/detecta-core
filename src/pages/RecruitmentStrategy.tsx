@@ -359,44 +359,81 @@ const RecruitmentStrategy = () => {
             <Card className="p-6">
               <h3 className="text-lg font-semibold mb-4">Impacto de Rotación por Zona Operativa</h3>
               <div className="space-y-4">
-                {deficitConRotacion.map((zona, index) => (
-                  <Card key={index} className="p-4 border-l-4 border-l-orange-500">
-                    <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-                      <div className="md:col-span-2">
-                        <h4 className="font-medium text-base">{zona.zona_nombre}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Urgencia: {zona.urgencia_score}/10
-                        </p>
+                {deficitConRotacion.map((zona, index) => {
+                  // Obtener datos de rotación correspondientes para mostrar custodios actuales
+                  const datosRotacionZona = datosRotacion.find(d => d.zona_id === zona.zona_nombre) || 
+                    { custodiosActivos: 0, custodiosEnRiesgo: 0, tasaRotacionMensual: 0 };
+                  
+                  return (
+                    <Card key={index} className="p-4 border-l-4 border-l-orange-500">
+                      <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+                        <div className="md:col-span-2">
+                          <h4 className="font-medium text-base">{zona.zona_nombre}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Urgencia: {zona.urgencia_score}/10
+                          </p>
+                        </div>
+                        
+                        {/* Custodios Actuales */}
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-green-600">
+                            {datosRotacionZona.custodiosActivos}
+                          </div>
+                          <div className="text-xs text-muted-foreground">Custodios Actuales</div>
+                        </div>
+                        
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-blue-600">
+                            {zona.deficit_total}
+                          </div>
+                          <div className="text-xs text-muted-foreground">Déficit Original</div>
+                        </div>
+                        
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-orange-600">
+                            +{zona.deficit_por_rotacion}
+                          </div>
+                          <div className="text-xs text-muted-foreground">Por Rotación</div>
+                        </div>
+                        
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-red-600">
+                            {zona.deficit_total_con_rotacion}
+                          </div>
+                          <div className="text-xs text-muted-foreground">Total Necesario</div>
+                        </div>
+                        
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-yellow-600">
+                            {zona.custodios_en_riesgo}
+                          </div>
+                          <div className="text-xs text-muted-foreground">En Riesgo</div>
+                        </div>
                       </div>
                       
-                      <div className="text-center">
-                        <div className="text-lg font-bold text-blue-600">
-                          {zona.deficit_total}
+                      {/* Resumen de situación actual */}
+                      <div className="mt-3 p-3 bg-gray-50 rounded border">
+                        <div className="grid grid-cols-3 gap-4 text-center">
+                          <div>
+                            <div className="text-sm font-medium text-gray-700">📊 Situación Actual</div>
+                            <div className="text-lg font-bold text-green-600">
+                              {datosRotacionZona.custodiosActivos} custodios
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-gray-700">🎯 Meta a Alcanzar</div>
+                            <div className="text-lg font-bold text-blue-600">
+                              {datosRotacionZona.custodiosActivos + zona.deficit_total_con_rotacion} custodios
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-gray-700">📈 Crecimiento Requerido</div>
+                            <div className="text-lg font-bold text-purple-600">
+                              +{Math.round(((zona.deficit_total_con_rotacion) / Math.max(datosRotacionZona.custodiosActivos, 1)) * 100)}%
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-xs text-muted-foreground">Déficit Original</div>
                       </div>
-                      
-                      <div className="text-center">
-                        <div className="text-lg font-bold text-orange-600">
-                          +{zona.deficit_por_rotacion}
-                        </div>
-                        <div className="text-xs text-muted-foreground">Por Rotación</div>
-                      </div>
-                      
-                      <div className="text-center">
-                        <div className="text-lg font-bold text-red-600">
-                          {zona.deficit_total_con_rotacion}
-                        </div>
-                        <div className="text-xs text-muted-foreground">Total Necesario</div>
-                      </div>
-                      
-                      <div className="text-center">
-                        <div className="text-lg font-bold text-yellow-600">
-                          {zona.custodios_en_riesgo}
-                        </div>
-                        <div className="text-xs text-muted-foreground">En Riesgo</div>
-                      </div>
-                    </div>
                     
                     {/* Plan de Reclutamiento para 3 Meses */}
                     <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-lg">
@@ -469,8 +506,9 @@ const RecruitmentStrategy = () => {
                         </ul>
                       </div>
                     )}
-                  </Card>
-                ))}
+                   </Card>
+                  );
+                })}
               </div>
             </Card>
 
