@@ -198,11 +198,11 @@ export const useRealNationalRecruitment = () => {
     try {
       console.log('🔄 Obteniendo métricas reales basadas en ubicaciones de custodios...');
       
-      // Obtener servicios recientes con ubicaciones
+      // Obtener servicios recientes con ubicaciones (últimos 60 días para custodios activos)
       const { data: serviciosRecientes, error: serviciosError } = await supabase
         .from('servicios_custodia')
         .select('origen, destino, nombre_custodio, estado, fecha_hora_cita, km_recorridos, cobro_cliente')
-        .gte('fecha_hora_cita', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+        .gte('fecha_hora_cita', new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString())
         .not('nombre_custodio', 'is', null)
         .neq('nombre_custodio', '#N/A');
 
