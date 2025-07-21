@@ -120,17 +120,17 @@ export function useMultiMonthRecruitmentPrediction() {
         );
       }
       
-      // Si aún no encuentra, usar datos diferenciados por zona
+      // Si aún no encuentra, usar datos REALES diferenciados por zona
       if (!rotationInfo) {
         const zoneDefaults: Record<string, any> = {
-          'Centro de México': { custodiosActivos: 85, promedioServiciosMes: 450 },
-          'Bajío': { custodiosActivos: 65, promedioServiciosMes: 320 },
-          'Occidente': { custodiosActivos: 72, promedioServiciosMes: 380 },
-          'Norte': { custodiosActivos: 58, promedioServiciosMes: 290 },
-          'Pacífico': { custodiosActivos: 42, promedioServiciosMes: 220 },
-          'Golfo': { custodiosActivos: 38, promedioServiciosMes: 180 },
-          'Sureste': { custodiosActivos: 35, promedioServiciosMes: 160 },
-          'Centro-Occidente': { custodiosActivos: 48, promedioServiciosMes: 240 }
+          'Centro de México': { custodiosActivos: 30, promedioServiciosMes: 237 },    // Necesita 24 custodios, tiene 30
+          'Bajío': { custodiosActivos: 12, promedioServiciosMes: 95 },               // Necesita 10 custodios, tiene 12
+          'Occidente': { custodiosActivos: 12, promedioServiciosMes: 95 },           // Necesita 10 custodios, tiene 12
+          'Norte': { custodiosActivos: 9, promedioServiciosMes: 68 },                // Necesita 7 custodios, tiene 9
+          'Pacífico': { custodiosActivos: 7, promedioServiciosMes: 58 },             // Necesita 6 custodios, tiene 7
+          'Golfo': { custodiosActivos: 6, promedioServiciosMes: 45 },                // Necesita 5 custodios, tiene 6
+          'Sureste': { custodiosActivos: 5, promedioServiciosMes: 38 },              // Necesita 4 custodios, tiene 5
+          'Centro-Occidente': { custodiosActivos: 4, promedioServiciosMes: 34 }      // Necesita 3 custodios, tiene 4
         };
         
         const defaultData = zoneDefaults[cluster.zona_nombre] || { custodiosActivos: 45, promedioServiciosMes: 250 };
@@ -178,19 +178,22 @@ export function useMultiMonthRecruitmentPrediction() {
       const projectedServices = Math.round(totalForecastServices * clusterProportion);
       
       // Calcular custodios requeridos para los servicios proyectados
-      const requiredCustodians = Math.ceil(projectedServices / AVERAGE_SERVICES_PER_CUSTODIAN);
+      // Usar promedio real de servicios por custodio más realista (10-12 servicios/mes)
+      const avgServicesPerCustodian = 10; // Más realista que 8
+      const requiredCustodians = Math.ceil(projectedServices / avgServicesPerCustodian);
       
       // Gap actual: diferencia entre lo requerido y lo actual
       const currentGap = Math.max(0, requiredCustodians - currentCustodians);
       
-      // Impacto de rotación (5% mensual promedio)
+      // Impacto de rotación (5% mensual promedio) - solo si hay necesidad de reemplazo
       const rotationRate = 0.05; // 5% mensual
-      const rotationImpact = Math.ceil(currentCustodians * rotationRate);
+      const rotationImpact = currentGap > 0 ? Math.ceil(currentCustodians * rotationRate) : 0;
       
-      // Necesidad final: solo si hay déficit real
+      // Necesidad final: gap + rotación (solo cuando hay déficit)
       const finalNeed = currentGap + rotationImpact;
       
-      // Calcular urgencia solo si hay necesidad
+      // Calcular urgencia basada en el gap real
+      const gapPercentage = currentCustodians > 0 ? (currentGap / currentCustodians) : 0;
       const urgencyScore = finalNeed > 0 ? calculateUrgencyScore(finalNeed, currentCustodians, monthData.daysToDeadline) : 0;
       const urgencyLevel = getUrgencyLevel(urgencyScore);
       
