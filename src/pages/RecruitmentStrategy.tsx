@@ -443,37 +443,37 @@ const RecruitmentStrategy = () => {
                         </h5>
                         <Badge 
                           variant={
-                            zona.plan_reclutamiento_3_meses.prioridad_urgencia === 'alta' ? 'destructive' :
-                            zona.plan_reclutamiento_3_meses.prioridad_urgencia === 'media' ? 'default' : 'secondary'
+                            zona.plan_reclutamiento_3_meses?.prioridad_urgencia === 'alta' ? 'destructive' :
+                            zona.plan_reclutamiento_3_meses?.prioridad_urgencia === 'media' ? 'default' : 'secondary'
                           }
                           className="text-xs"
                         >
-                          {zona.plan_reclutamiento_3_meses.prioridad_urgencia.toUpperCase()}
+                          {zona.plan_reclutamiento_3_meses?.prioridad_urgencia?.toUpperCase() || 'PENDIENTE'}
                         </Badge>
                       </div>
                       
                       <div className="grid grid-cols-4 gap-3 mb-3">
                         <div className="text-center p-2 bg-white rounded border">
                           <div className="text-lg font-bold text-blue-600">
-                            {zona.plan_reclutamiento_3_meses.mes_1}
+                            {zona.plan_reclutamiento_3_meses?.mes_1 || 0}
                           </div>
                           <div className="text-xs text-gray-600">Mes 1</div>
                         </div>
                         <div className="text-center p-2 bg-white rounded border">
                           <div className="text-lg font-bold text-green-600">
-                            {zona.plan_reclutamiento_3_meses.mes_2}
+                            {zona.plan_reclutamiento_3_meses?.mes_2 || 0}
                           </div>
                           <div className="text-xs text-gray-600">Mes 2</div>
                         </div>
                         <div className="text-center p-2 bg-white rounded border">
                           <div className="text-lg font-bold text-orange-600">
-                            {zona.plan_reclutamiento_3_meses.mes_3}
+                            {zona.plan_reclutamiento_3_meses?.mes_3 || 0}
                           </div>
                           <div className="text-xs text-gray-600">Mes 3</div>
                         </div>
                         <div className="text-center p-2 bg-gradient-to-r from-blue-100 to-green-100 rounded border-2 border-blue-300">
                           <div className="text-lg font-bold text-blue-800">
-                            {zona.plan_reclutamiento_3_meses.total_3_meses}
+                            {zona.plan_reclutamiento_3_meses?.total_3_meses || 0}
                           </div>
                           <div className="text-xs text-blue-700 font-medium">Total</div>
                         </div>
@@ -481,11 +481,11 @@ const RecruitmentStrategy = () => {
                       
                       <div className="text-xs text-gray-600 bg-white p-2 rounded border">
                         <span className="font-medium">💡 Distribución basada en urgencia:</span>
-                        {zona.plan_reclutamiento_3_meses.prioridad_urgencia === 'alta' && 
+                        {zona.plan_reclutamiento_3_meses?.prioridad_urgencia === 'alta' && 
                           " 60% primer mes, 30% segundo mes, 10% tercer mes"}
-                        {zona.plan_reclutamiento_3_meses.prioridad_urgencia === 'media' && 
+                        {zona.plan_reclutamiento_3_meses?.prioridad_urgencia === 'media' && 
                           " 40% primer mes, 40% segundo mes, 20% tercer mes"}
-                        {zona.plan_reclutamiento_3_meses.prioridad_urgencia === 'baja' && 
+                        {zona.plan_reclutamiento_3_meses?.prioridad_urgencia === 'baja' && 
                           " Distribución uniforme en 3 meses"}
                       </div>
                     </div>
