@@ -627,9 +627,8 @@ export const useRealNationalRecruitment = () => {
   const totalDeficit = metricasReales.reduce((sum, m) => sum + m.deficit_custodios, 0);
   const zonasPrioritarias = metricasReales.filter(m => m.score_urgencia >= 8).length;
   
-  const candidatosActivos = candidatosReales.filter(c => 
-    ['lead', 'contactado', 'entrevista', 'documentacion', 'capacitacion'].includes(c.estado_proceso)
-  ).length;
+  // Calcular custodios activos desde métricas (suma de custodios_activos por zona)
+  const candidatosActivos = metricasReales.reduce((sum, m) => sum + m.custodios_activos, 0);
 
   return {
     // Data real
