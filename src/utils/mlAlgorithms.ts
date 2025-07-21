@@ -80,7 +80,7 @@ export const predictDemandWithML = (
   input: PredictionInput
 ): Prediction => {
   // Validar entradas y modelo
-  if (!model || !model.weights || !input) {
+  if (!model || !input) {
     return { demand: 0, confidence: 0 };
   }
 
@@ -92,78 +92,84 @@ export const predictDemandWithML = (
     days_since_last_service: isNaN(input.days_since_last_service) ? 0 : Math.max(0, input.days_since_last_service)
   };
 
-  // Calcular demanda base según datos históricos
-  const baselineDemand = Math.max(1, Math.round(safeInput.historical_services / 30)); // servicios por mes aproximado
+  // NUEVA LÓGICA BASADA EN EL DOMINIO DEL NEGOCIO
   
-  // Normalizar entradas con validaciones
-  const normalizedFeatures = [
-    Math.log(safeInput.historical_services + 1) / 10,
-    safeInput.avg_revenue / 10000,
-    Math.sin((safeInput.current_month - 1) * Math.PI / 6),
-    Math.tanh(safeInput.days_since_last_service / 30)
-  ];
+  // 1. Calcular servicios promedio diarios por zona basado en históricos
+  const serviciosDiarios = Math.max(1, Math.round(safeInput.historical_services / 30)); // aprox mensual a diario
+  
+  // 2. Determinar tipo de zona y ratio foráneo/local
+  const isZonaCentral = zone?.zona_nombre?.toLowerCase().includes('centro') || 
+                        zone?.zona_nombre?.toLowerCase().includes('méxico') ||
+                        zone?.zona_nombre?.toLowerCase().includes('bajío');
+  
+  const isZonaPuerto = zone?.zona_nombre?.toLowerCase().includes('pacífico') ||
+                       zone?.zona_nombre?.toLowerCase().includes('golfo');
+  
+  const isZonaFrontera = zone?.zona_nombre?.toLowerCase().includes('norte') ||
+                        zone?.zona_nombre?.toLowerCase().includes('frontera');
 
-  // Validar características normalizadas
-  const validFeatures = normalizedFeatures.map(f => 
-    isNaN(f) || !isFinite(f) ? 0 : f
+  // 3. Calcular ratio de servicios foráneos vs locales por tipo de zona
+  let ratioForaneo = 0.7; // Default 70% foráneos
+  if (isZonaCentral) ratioForaneo = 0.8; // Centro: más foráneos (80%)
+  if (isZonaPuerto) ratioForaneo = 0.9; // Puertos: casi todos foráneos (90%)
+  if (isZonaFrontera) ratioForaneo = 0.75; // Frontera: muchos foráneos (75%)
+  
+  const serviciosForaneos = serviciosDiarios * ratioForaneo;
+  const serviciosLocales = serviciosDiarios * (1 - ratioForaneo);
+  
+  // 4. Calcular custodios necesarios basado en disponibilidad real
+  // Foráneos: 1 custodio no disponible por 2 días = disponibilidad 0.5
+  // Locales: 1 custodio trabaja 5/7 días = disponibilidad 0.71
+  const custodiosForaneos = Math.ceil(serviciosForaneos / 0.5); // 2 custodios por servicio foráneo
+  const custodiosLocales = Math.ceil(serviciosLocales / 0.71); // 1.4 custodios por servicio local
+  
+  const custodiosBase = custodiosForaneos + custodiosLocales;
+  
+  // 5. Aplicar factores estacionales y de crecimiento
+  const seasonalMultiplier = getSeasonalMultiplier(safeInput.current_month);
+  const activityFactor = Math.max(0.8, Math.min(1.5, safeInput.avg_revenue / 5000)); // Factor por actividad económica
+  const recentActivityFactor = safeInput.days_since_last_service > 60 ? 0.7 : 1.0; // Reducir si no hay actividad reciente
+  
+  // 6. Cálculo final con todos los factores
+  const demandaPredictiva = Math.round(
+    custodiosBase * seasonalMultiplier * activityFactor * recentActivityFactor
   );
-
-  // Aplicar modelo con validaciones
-  let prediction = 0;
-  for (let i = 0; i < Math.min(validFeatures.length, model.weights.length); i++) {
-    const weight = isNaN(model.weights[i]) ? 0 : model.weights[i];
-    prediction += validFeatures[i] * weight;
-  }
   
-  const bias = isNaN(model.bias) ? 0 : model.bias;
-  prediction += bias;
-
-  // Si el modelo no es confiable, usar predicción basada en datos históricos
-  if (isNaN(prediction) || !isFinite(prediction) || Math.abs(prediction) < 0.1) {
-    // Predicción basada en patrones de demanda histórica
-    const seasonalMultiplier = getSeasonalMultiplier(safeInput.current_month);
-    const recentActivityMultiplier = Math.max(0.5, Math.min(2, 60 / (safeInput.days_since_last_service + 1)));
-    const revenueMultiplier = Math.max(0.8, Math.min(1.5, safeInput.avg_revenue / 5000));
-    
-    const demand = Math.round(baselineDemand * seasonalMultiplier * recentActivityMultiplier * revenueMultiplier);
-    
-    return { 
-      demand: Math.max(1, Math.min(20, demand)), // Clamp entre 1-20
-      confidence: 0.3 + (safeInput.historical_services > 50 ? 0.3 : 0.1) // Más confianza con más datos
-    };
-  }
-
-  // Usar la predicción del modelo pero combinarla con baseline
-  const modelPrediction = Math.abs(prediction);
-  const combinedPrediction = (modelPrediction * 0.6) + (baselineDemand * 0.4);
-  const demand = Math.max(1, Math.round(combinedPrediction));
+  // 7. Aplicar límites realistas por tipo de zona
+  let minCustodios = 5, maxCustodios = 200;
+  if (isZonaCentral) { minCustodios = 15; maxCustodios = 300; }
+  if (isZonaPuerto) { minCustodios = 10; maxCustodios = 150; }
+  if (isZonaFrontera) { minCustodios = 8; maxCustodios = 120; }
   
-  // Calcular confianza basada en R² con validaciones
-  const modelR2 = isNaN(model.r_squared) ? 0 : model.r_squared;
-  const confidence = Math.max(0.2, Math.min(0.95, modelR2 + 0.3)); // Boost de confianza
+  const demandaFinal = Math.max(minCustodios, Math.min(maxCustodios, demandaPredictiva));
+  
+  // 8. Calcular confianza basada en cantidad de datos históricos
+  const dataConfidence = Math.min(0.9, safeInput.historical_services / 100); // Más datos = más confianza
+  const baseConfidence = 0.4; // Confianza base del modelo de negocio
+  const confidence = Math.max(baseConfidence, baseConfidence + dataConfidence);
 
   return { 
-    demand: Math.min(50, demand), // Máximo realista
+    demand: demandaFinal, 
     confidence 
   };
 };
 
-// Función auxiliar para multiplicador estacional
+// Función auxiliar mejorada para multiplicador estacional
 const getSeasonalMultiplier = (month: number): number => {
-  // Patrón estacional típico para servicios de custodia
+  // Patrón estacional para servicios de custodia en México
   const seasonalPattern = [
-    1.1, // Enero - alta demanda post-vacaciones
-    0.9, // Febrero - baja
-    1.0, // Marzo - normal
+    1.1, // Enero - reactivación post-vacaciones
+    1.0, // Febrero - normal
+    1.1, // Marzo - incremento trimestral
     1.0, // Abril - normal
-    1.1, // Mayo - alta
-    0.95, // Junio - algo baja
-    0.8, // Julio - vacaciones
-    0.8, // Agosto - vacaciones
-    1.0, // Septiembre - vuelta a normalidad
-    1.1, // Octubre - alta
-    1.2, // Noviembre - temporada alta
-    1.3  // Diciembre - temporada muy alta
+    1.1, // Mayo - temporada alta comercial
+    1.0, // Junio - normal
+    0.8, // Julio - baja por vacaciones
+    0.8, // Agosto - baja por vacaciones
+    1.0, // Septiembre - reactivación
+    1.1, // Octubre - temporada alta
+    1.2, // Noviembre - temporada alta (Buen Fin)
+    1.3  // Diciembre - pico navideño
   ];
   
   return seasonalPattern[month - 1] || 1.0;
