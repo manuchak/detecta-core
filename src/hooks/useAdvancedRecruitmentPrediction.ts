@@ -281,17 +281,23 @@ export const calcularDatosRotacionPorCluster = async (nombreCluster: string): Pr
     
     const nombreClusterLower = nombreCluster.toLowerCase();
     if (nombreClusterLower.includes('centro') && nombreClusterLower.includes('méxico')) {
-      ciudadesDelCluster = ['CDMX', 'Nacional']; // Centro de México incluye CDMX y zona metropolitana
+      ciudadesDelCluster = ['CDMX', 'Estado de México', 'Hidalgo', 'Morelos', 'Tlaxcala'];
     } else if (nombreClusterLower.includes('occidente')) {
-      ciudadesDelCluster = ['Guadalajara']; // Occidente incluye Guadalajara
+      ciudadesDelCluster = ['Jalisco', 'Colima', 'Nayarit', 'Aguascalientes'];
+    } else if (nombreClusterLower.includes('centro') && nombreClusterLower.includes('occidente')) {
+      ciudadesDelCluster = ['Michoacán', 'Guanajuato'];
     } else if (nombreClusterLower.includes('norte')) {
-      ciudadesDelCluster = ['Monterrey']; // Norte incluye Monterrey
+      ciudadesDelCluster = ['Nuevo León', 'Tamaulipas', 'Coahuila', 'Chihuahua'];
     } else if (nombreClusterLower.includes('bajío')) {
-      ciudadesDelCluster = ['Puebla']; // Bajío incluye Puebla
+      ciudadesDelCluster = ['Querétaro', 'Puebla', 'Guanajuato'];
     } else if (nombreClusterLower.includes('golfo')) {
-      ciudadesDelCluster = ['Tijuana']; // Golfo incluye Tijuana
+      ciudadesDelCluster = ['Veracruz', 'Tabasco', 'Campeche'];
+    } else if (nombreClusterLower.includes('pacífico')) {
+      ciudadesDelCluster = ['Guerrero', 'Oaxaca', 'Chiapas'];
+    } else if (nombreClusterLower.includes('sureste')) {
+      ciudadesDelCluster = ['Yucatán', 'Quintana Roo', 'Campeche', 'Tabasco'];
     } else {
-      ciudadesDelCluster = ['Nacional']; // Otros clusters usan datos nacionales
+      ciudadesDelCluster = [nombreCluster]; // Usar el nombre exacto del cluster
     }
     
     console.log(`🏙️ Cluster "${nombreCluster}" incluye ciudades:`, ciudadesDelCluster);
