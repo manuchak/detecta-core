@@ -165,28 +165,6 @@ export const ScenarioSimulator: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-light text-gray-900">
-            Simulación de Escenarios
-          </h2>
-          <p className="text-sm text-gray-500 mt-1">
-            Modelado y análisis de diferentes estrategias de reclutamiento
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Actualizar
-          </Button>
-          <Button size="sm">
-            <TrendingUp className="w-4 h-4 mr-2" />
-            Analizar
-          </Button>
-        </div>
-      </div>
-
 
       {/* Simulador */}
       <Card className="p-6">
