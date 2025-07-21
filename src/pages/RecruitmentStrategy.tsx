@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNationalRecruitment } from '@/hooks/useNationalRecruitment';
 import { useRealNationalRecruitment } from '@/hooks/useRealNationalRecruitment';
+import { useAdvancedRecruitmentPrediction } from '@/hooks/useAdvancedRecruitmentPrediction';
 import { AlertTriangle, Users, MapPin, TrendingUp, Target, Zap, Database, TestTube } from 'lucide-react';
 import { NationalMap } from '@/components/recruitment/NationalMap';
 import { RealDataMap } from '@/components/recruitment/RealDataMap';
@@ -56,6 +57,15 @@ const RecruitmentStrategy = () => {
     fetchAllReal
   } = useRealNationalRecruitment();
 
+  // Hook para predicciones avanzadas con rotación
+  const {
+    loading: loadingPrediction,
+    kpis: kpisPrediction,
+    deficitConRotacion,
+    datosRotacion,
+    refreshData: refreshPredictionData
+  } = useAdvancedRecruitmentPrediction();
+
   // Usar siempre datos reales
   const loading = loadingReal;
   const alertasCriticas = alertasCriticasReales;
@@ -67,6 +77,7 @@ const RecruitmentStrategy = () => {
 
   const handleRefreshData = () => {
     fetchAllReal();
+    refreshPredictionData();
   };
 
   const handleGenerateAlerts = () => {
@@ -169,11 +180,12 @@ const RecruitmentStrategy = () => {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="mapa" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-8">
+        <TabsList className="grid w-full grid-cols-9">
           <TabsTrigger value="mapa">Mapa Nacional</TabsTrigger>
           <TabsTrigger value="alertas">Sistema de Alertas</TabsTrigger>
           <TabsTrigger value="pipeline">Pipeline de Candidatos</TabsTrigger>
           <TabsTrigger value="metricas">Métricas y Análisis</TabsTrigger>
+          <TabsTrigger value="rotacion">Análisis de Rotación</TabsTrigger>
           <TabsTrigger value="temporal">Patrones Temporales</TabsTrigger>
           <TabsTrigger value="ml">Machine Learning</TabsTrigger>
           <TabsTrigger value="simulation">Simulación</TabsTrigger>
@@ -299,7 +311,165 @@ const RecruitmentStrategy = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="temporal" className="space-y-6">
+        <TabsContent value="rotacion" className="space-y-6">
+          <div className="space-y-4">
+            {/* Header con métricas de rotación */}
+            <Card className="p-6 bg-gradient-to-br from-orange-50 to-red-50">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-orange-800">Análisis de Rotación e Impacto en Reclutamiento</h2>
+                <Badge variant="outline" className="bg-orange-100 text-orange-700">
+                  {datosRotacion.length} Zonas Analizadas
+                </Badge>
+              </div>
+              
+              {/* KPIs de Rotación */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="text-center p-3 bg-white rounded border border-orange-200">
+                  <div className="text-2xl font-bold text-red-600">
+                    {kpisPrediction.custodiosEnRiesgo || 0}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Custodios en Riesgo</div>
+                  <div className="text-xs text-red-600">30-60 días sin servicio</div>
+                </div>
+                <div className="text-center p-3 bg-white rounded border border-orange-200">
+                  <div className="text-2xl font-bold text-orange-600">
+                    {kpisPrediction.rotacionProyectada || 0}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Egresos Proyectados</div>
+                  <div className="text-xs text-orange-600">Próximos 30 días</div>
+                </div>
+                <div className="text-center p-3 bg-white rounded border border-yellow-200">
+                  <div className="text-2xl font-bold text-yellow-600">
+                    {kpisPrediction.tasaRotacionPromedio || 0}%
+                  </div>
+                  <div className="text-sm text-muted-foreground">Tasa Rotación</div>
+                  <div className="text-xs text-yellow-600">Promedio mensual</div>
+                </div>
+                <div className="text-center p-3 bg-white rounded border border-green-200">
+                  <div className="text-2xl font-bold text-green-600">
+                    {kpisPrediction.totalDeficit || 0}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Necesidad Total</div>
+                  <div className="text-xs text-green-600">Con rotación incluida</div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Análisis por zona con impacto de rotación */}
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Impacto de Rotación por Zona Operativa</h3>
+              <div className="space-y-4">
+                {deficitConRotacion.map((zona, index) => (
+                  <Card key={index} className="p-4 border-l-4 border-l-orange-500">
+                    <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                      <div className="md:col-span-2">
+                        <h4 className="font-medium text-base">{zona.zona_nombre}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Urgencia: {zona.urgencia_score}/10
+                        </p>
+                      </div>
+                      
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-blue-600">
+                          {zona.deficit_total}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Déficit Original</div>
+                      </div>
+                      
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-orange-600">
+                          +{zona.deficit_por_rotacion}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Por Rotación</div>
+                      </div>
+                      
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-red-600">
+                          {zona.deficit_total_con_rotacion}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Total Necesario</div>
+                      </div>
+                      
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-yellow-600">
+                          {zona.custodios_en_riesgo}
+                        </div>
+                        <div className="text-xs text-muted-foreground">En Riesgo</div>
+                      </div>
+                    </div>
+                    
+                    {/* Recomendaciones específicas */}
+                    {zona.recomendaciones.length > 0 && (
+                      <div className="mt-3 p-3 bg-orange-50 rounded">
+                        <p className="text-xs font-medium text-orange-800 mb-2">
+                          🎯 Acciones Recomendadas:
+                        </p>
+                        <ul className="text-xs space-y-1">
+                          {zona.recomendaciones.slice(0, 3).map((rec, idx) => (
+                            <li key={idx} className="flex items-start gap-1">
+                              <span className="text-orange-600">•</span>
+                              <span className="text-orange-700">{rec}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            </Card>
+
+            {/* Comparativa antes/después */}
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Comparativa: Modelo Tradicional vs. Con Rotación</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-4 bg-blue-50 rounded">
+                  <h4 className="font-medium text-blue-800 mb-3">Modelo Tradicional (Solo Demanda)</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm">Total de custodios necesarios:</span>
+                      <span className="font-bold text-blue-600">
+                        {deficitConRotacion.reduce((sum, z) => sum + z.deficit_total, 0)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm">Zonas prioritarias:</span>
+                      <span className="font-bold text-blue-600">
+                        {deficitConRotacion.filter(z => z.urgencia_score >= 7).length}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="p-4 bg-green-50 rounded">
+                  <h4 className="font-medium text-green-800 mb-3">Modelo Mejorado (Con Rotación)</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm">Total de custodios necesarios:</span>
+                      <span className="font-bold text-green-600">
+                        {deficitConRotacion.reduce((sum, z) => sum + z.deficit_total_con_rotacion, 0)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm">Adicional por rotación:</span>
+                      <span className="font-bold text-green-600">
+                        +{deficitConRotacion.reduce((sum, z) => sum + z.deficit_por_rotacion, 0)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm">Necesidad retención:</span>
+                      <span className="font-bold text-green-600">
+                        {deficitConRotacion.reduce((sum, z) => sum + z.necesidad_retencion, 0)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="temporal" className="space-y-6">`
           <TemporalPatternsPanel />
         </TabsContent>
 
