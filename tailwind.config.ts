@@ -77,18 +77,21 @@ export default {
 			},
 			fontFamily: {
 				sans: [
+					'Inter', 
 					'-apple-system', 
 					'BlinkMacSystemFont', 
 					'"Segoe UI"', 
 					'Roboto', 
-					'Oxygen', 
-					'Ubuntu', 
-					'Cantarell', 
-					'"Fira Sans"', 
-					'"Droid Sans"', 
-					'"Helvetica Neue"', 
 					'sans-serif'
 				],
+				apple: [
+					'Inter',
+					'-apple-system', 
+					'BlinkMacSystemFont', 
+					'"SF Pro Display"',
+					'"Helvetica Neue"', 
+					'sans-serif'
+				]
 			},
 			boxShadow: {
 				'apple': '0 1px 3px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.03)',

@@ -4,9 +4,9 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { NavigationSidebar } from '@/components/recruitment/ui/NavigationSidebar';
-import { SectionHeader } from '@/components/recruitment/ui/SectionHeader';
-import { MetricCard } from '@/components/recruitment/ui/MetricCard';
-import { ContentGrid } from '@/components/recruitment/ui/ContentGrid';
+import { MinimalSectionHeader } from '@/components/recruitment/ui/MinimalSectionHeader';
+import { MinimalCard } from '@/components/recruitment/ui/MinimalCard';
+import { MinimalGrid } from '@/components/recruitment/ui/MinimalGrid';
 import { useNationalRecruitment } from '@/hooks/useNationalRecruitment';
 import { useRealNationalRecruitment } from '@/hooks/useRealNationalRecruitment';
 import { useAdvancedRecruitmentPrediction } from '@/hooks/useAdvancedRecruitmentPrediction';
@@ -192,33 +192,35 @@ const RecruitmentStrategy = () => {
   const renderSectionMetrics = () => {
     if (loading) {
       return (
-        <ContentGrid columns={4}>
-          {[1, 2, 3, 4].map(i => (
-            <MetricCard
+        <MinimalGrid columns={3}>
+          {[1, 2, 3].map(i => (
+            <MinimalCard
               key={i}
-              title=""
+              title="Cargando"
               value=""
-              icon={Target}
               loading={true}
             />
           ))}
-        </ContentGrid>
+        </MinimalGrid>
       );
     }
 
     switch (activeSection) {
       case 'planificacion':
         return (
-          <ContentGrid columns={4}>
-            <MetricCard
-              title="Necesidad Total"
+          <MinimalGrid columns={3}>
+            <MinimalCard
+              title="Agosto 2025"
               value={multiMonthData?.targetMonth?.totalNeed || totalDeficit}
-              subtitle="Custodios a reclutar"
-              icon={Target}
-              variant="warning"
+              subtitle="Custodios necesarios"
+              preview={{
+                label: "Septiembre",
+                value: multiMonthData?.nextMonth?.totalNeed || 0
+              }}
+              variant="primary"
             />
-            <MetricCard
-              title="Presupuesto Requerido"
+            <MinimalCard
+              title="Presupuesto Total"
               value={multiMonthData?.targetMonth?.totalNeed 
                 ? new Intl.NumberFormat('es-MX', { 
                     style: 'currency', 
@@ -233,59 +235,38 @@ const RecruitmentStrategy = () => {
                     maximumFractionDigits: 0
                   }).format(totalDeficit * baseCostPerCustodian)
               }
-              subtitle={`Base: $${baseCostPerCustodian.toLocaleString()} por custodio`}
-              icon={TrendingUp}
-              variant="info"
+              subtitle={`$${baseCostPerCustodian.toLocaleString()} por custodio`}
             />
-            <MetricCard
-              title="Días para Actuar"
-              value={multiMonthData?.kpis?.daysUntilAction || '--'}
-              subtitle="Tiempo límite"
-              icon={Calendar}
-              variant="warning"
+            <MinimalCard
+              title="Tiempo Disponible"
+              value={multiMonthData?.kpis?.daysUntilAction || '10'}
+              subtitle="días para actuar"
+              variant="subtle"
             />
-            <MetricCard
-              title="Clusters Prioritarios"
-              value={multiMonthData?.kpis?.criticalClusters || alertasCriticas}
-              subtitle="Requieren atención"
-              icon={AlertTriangle}
-              variant="warning"
-            />
-          </ContentGrid>
+          </MinimalGrid>
         );
       
       case 'mapa':
         return (
-          <ContentGrid columns={4}>
-            <MetricCard
+          <MinimalGrid columns={3}>
+            <MinimalCard
               title="Zonas Operativas"
               value={zonasReales.length}
               subtitle="Total activas"
-              icon={MapPin}
-              variant="info"
             />
-            <MetricCard
-              title="Métricas Calculadas"
-              value={metricasReales.length}
-              subtitle="Datos disponibles"
-              icon={BarChart3}
-              variant="success"
-            />
-            <MetricCard
+            <MinimalCard
               title="Alertas Activas"
               value={alertasReales.length}
               subtitle="Requieren atención"
-              icon={AlertTriangle}
-              variant="warning"
+              variant="subtle"
             />
-            <MetricCard
+            <MinimalCard
               title="Cobertura Nacional"
               value="100%"
               subtitle="Zonas monitoreadas"
-              icon={Target}
-              variant="success"
+              variant="primary"
             />
-          </ContentGrid>
+          </MinimalGrid>
         );
 
       case 'pipeline':
@@ -297,36 +278,30 @@ const RecruitmentStrategy = () => {
         };
         
         return (
-          <ContentGrid columns={4}>
-            <MetricCard
+          <MinimalGrid columns={4}>
+            <MinimalCard
               title="Leads"
               value={pipelineStats.lead}
               subtitle="Candidatos nuevos"
-              icon={Users}
-              variant="info"
             />
-            <MetricCard
+            <MinimalCard
               title="Contactados"
               value={pipelineStats.contactado}
               subtitle="En proceso inicial"
-              icon={Users}
-              variant="default"
             />
-            <MetricCard
+            <MinimalCard
               title="En Entrevista"
               value={pipelineStats.entrevista}
               subtitle="Evaluación activa"
-              icon={Users}
-              variant="warning"
+              variant="subtle"
             />
-            <MetricCard
+            <MinimalCard
               title="Aprobados"
               value={pipelineStats.aprobado}
               subtitle="Listos para contratación"
-              icon={Users}
-              variant="success"
+              variant="primary"
             />
-          </ContentGrid>
+          </MinimalGrid>
         );
 
       default:
@@ -464,43 +439,31 @@ const RecruitmentStrategy = () => {
 
       case 'rotacion':
         return (
-          <div className="space-y-6">
-            <Card className="p-6 bg-gradient-to-br from-blue-50 to-orange-50 border-blue-200">
-              <ContentGrid columns={4}>
-                <MetricCard
-                  title="Custodios en Riesgo"
-                  value={kpisPrediction.custodiosEnRiesgo || 0}
-                  subtitle="30-60 días sin servicio"
-                  icon={AlertTriangle}
-                  variant="warning"
-                  size="sm"
-                />
-                <MetricCard
-                  title="Egresos Proyectados"
-                  value={kpisPrediction.rotacionProyectada || 0}
-                  subtitle="Próximos 30 días"
-                  icon={TrendingUp}
-                  variant="warning"
-                  size="sm"
-                />
-                <MetricCard
-                  title="Tasa Rotación"
-                  value={`${kpisPrediction.tasaRotacionPromedio || 0}%`}
-                  subtitle="Promedio mensual"
-                  icon={BarChart3}
-                  variant="info"
-                  size="sm"
-                />
-                <MetricCard
-                  title="Necesidad Total"
-                  value={kpisPrediction.totalDeficit || 0}
-                  subtitle="Con rotación incluida"
-                  icon={Target}
-                  variant="success"
-                  size="sm"
-                />
-              </ContentGrid>
-            </Card>
+          <div className="space-y-8">
+            <MinimalGrid columns={4}>
+              <MinimalCard
+                title="Custodios en Riesgo"
+                value={kpisPrediction.custodiosEnRiesgo || 0}
+                subtitle="30-60 días sin servicio"
+                variant="subtle"
+              />
+              <MinimalCard
+                title="Egresos Proyectados"
+                value={kpisPrediction.rotacionProyectada || 0}
+                subtitle="Próximos 30 días"
+              />
+              <MinimalCard
+                title="Tasa Rotación"
+                value={`${kpisPrediction.tasaRotacionPromedio || 0}%`}
+                subtitle="Promedio mensual"
+              />
+              <MinimalCard
+                title="Necesidad Total"
+                value={kpisPrediction.totalDeficit || 0}
+                subtitle="Con rotación incluida"
+                variant="primary"
+              />
+            </MinimalGrid>
 
             <div className="space-y-4">
               {datosRotacion.map((zona, index) => (
@@ -560,7 +523,7 @@ const RecruitmentStrategy = () => {
   };
 
   return (
-    <div className="h-screen flex w-full bg-background">
+    <div className="h-screen flex w-full bg-gray-50 font-apple">
       {/* Navigation Sidebar */}
       <NavigationSidebar 
         activeSection={activeSection}
@@ -575,13 +538,11 @@ const RecruitmentStrategy = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Content Area */}
         <div className="flex-1 overflow-auto">
-          <div className="p-8 space-y-8">
+          <div className="p-12 space-y-12 max-w-7xl mx-auto">
             {/* Section Header */}
-            <SectionHeader
+            <MinimalSectionHeader
               title={sectionInfo.title}
               description={sectionInfo.description}
-              icon={sectionInfo.icon}
-              breadcrumbs={sectionInfo.breadcrumbs}
               actions={
                 <>
                   <Button
@@ -589,6 +550,7 @@ const RecruitmentStrategy = () => {
                     size="sm"
                     onClick={handleRefreshData}
                     disabled={loading}
+                    className="border-gray-200 text-gray-600 hover:bg-gray-50"
                   >
                     <RefreshCw className={cn("w-4 h-4 mr-2", loading && "animate-spin")} />
                     {loading ? 'Actualizando...' : 'Actualizar'}
@@ -597,6 +559,7 @@ const RecruitmentStrategy = () => {
                     size="sm"
                     onClick={handleGenerateAlerts}
                     disabled={loading}
+                    className="bg-gray-900 hover:bg-gray-800 text-white"
                   >
                     <Zap className="w-4 h-4 mr-2" />
                     Analizar
