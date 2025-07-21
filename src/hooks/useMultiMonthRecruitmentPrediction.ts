@@ -109,12 +109,43 @@ export function useMultiMonthRecruitmentPrediction() {
     console.log('🧮 Calculando necesidades por cluster para:', monthData.monthName);
     
     return deficitConRotacion.map(cluster => {
-      // Buscar datos de rotación para este cluster
-      const rotationInfo = rotationData.find(r => r.zona_id === cluster.zona_id) || {
-        custodiosActivos: 50, // Valor por defecto más realista
-        tasaRotacionMensual: 5,
-        promedioServiciosMes: 300
-      };
+      // Buscar datos de rotación para este cluster - mejorar mapeo
+      let rotationInfo = datosRotacion.find(r => r.zona_id === cluster.zona_id);
+      
+      // Si no encuentra por ID exacto, buscar por nombre similar
+      if (!rotationInfo) {
+        rotationInfo = datosRotacion.find(r => 
+          r.zona_id.toLowerCase().includes(cluster.zona_nombre.toLowerCase()) ||
+          cluster.zona_nombre.toLowerCase().includes(r.zona_id.toLowerCase())
+        );
+      }
+      
+      // Si aún no encuentra, usar datos diferenciados por zona
+      if (!rotationInfo) {
+        const zoneDefaults: Record<string, any> = {
+          'Centro de México': { custodiosActivos: 85, promedioServiciosMes: 450 },
+          'Bajío': { custodiosActivos: 65, promedioServiciosMes: 320 },
+          'Occidente': { custodiosActivos: 72, promedioServiciosMes: 380 },
+          'Norte': { custodiosActivos: 58, promedioServiciosMes: 290 },
+          'Pacífico': { custodiosActivos: 42, promedioServiciosMes: 220 },
+          'Golfo': { custodiosActivos: 38, promedioServiciosMes: 180 },
+          'Sureste': { custodiosActivos: 35, promedioServiciosMes: 160 },
+          'Centro-Occidente': { custodiosActivos: 48, promedioServiciosMes: 240 }
+        };
+        
+        const defaultData = zoneDefaults[cluster.zona_nombre] || { custodiosActivos: 45, promedioServiciosMes: 250 };
+        rotationInfo = {
+          zona_id: cluster.zona_id,
+          custodiosActivos: defaultData.custodiosActivos,
+          custodiosEnRiesgo: 0,
+          custodiosInactivos: 0,
+          tasaRotacionMensual: 5,
+          proyeccionEgresos30Dias: 0,
+          proyeccionEgresos60Dias: 0,
+          promedioServiciosMes: defaultData.promedioServiciosMes,
+          retencionNecesaria: 0
+        };
+      }
       
       console.log(`📊 Cluster ${cluster.zona_nombre}:`, {
         deficit_total: cluster.deficit_total,
@@ -300,6 +331,18 @@ export function useMultiMonthRecruitmentPrediction() {
     
     try {
       setLoading(true);
+      
+      console.log('🔍 Datos disponibles para cálculo:');
+      console.log('- deficitConRotacion:', deficitConRotacion.map(d => ({
+        zona: d.zona_nombre,
+        deficit_total: d.deficit_total,
+        urgencia_score: d.urgencia_score
+      })));
+      console.log('- datosRotacion:', datosRotacion.map(d => ({
+        zona_id: d.zona_id,
+        custodiosActivos: d.custodiosActivos,
+        promedioServiciosMes: d.promedioServiciosMes
+      })));
       
       const monthsInfo = calculateTargetMonths();
       
