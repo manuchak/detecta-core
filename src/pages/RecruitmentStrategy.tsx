@@ -14,6 +14,7 @@ import { AlertsPanel } from '@/components/recruitment/AlertsPanel';
 import { CandidatesPipeline } from '@/components/recruitment/CandidatesPipeline';
 import { MetricsOverview } from '@/components/recruitment/MetricsOverview';
 import FinancialROIDashboard from '@/components/recruitment/FinancialROIDashboard';
+import { TemporalPatternsPanel } from "@/components/recruitment/temporal/TemporalPatternsPanel";
 
 const RecruitmentStrategy = () => {
   const [useRealData, setUseRealData] = useState(true);
@@ -197,11 +198,12 @@ const RecruitmentStrategy = () => {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="mapa" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="mapa">Mapa Nacional</TabsTrigger>
           <TabsTrigger value="alertas">Sistema de Alertas</TabsTrigger>
           <TabsTrigger value="pipeline">Pipeline de Candidatos</TabsTrigger>
           <TabsTrigger value="metricas">Métricas y Análisis</TabsTrigger>
+          <TabsTrigger value="temporal">Patrones Temporales</TabsTrigger>
           <TabsTrigger value="roi">ROI y Presupuestos</TabsTrigger>
         </TabsList>
 
@@ -347,6 +349,10 @@ const RecruitmentStrategy = () => {
               loading={loading}
             />
           )}
+        </TabsContent>
+
+        <TabsContent value="temporal" className="space-y-6">
+          <TemporalPatternsPanel />
         </TabsContent>
 
         <TabsContent value="roi" className="space-y-6">
