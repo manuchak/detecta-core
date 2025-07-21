@@ -26,6 +26,7 @@ import { LeadsMetricsDashboard } from "./LeadsMetricsDashboard";
 import { BulkActionsToolbar } from "./BulkActionsToolbar";
 import { AdvancedFilters, AdvancedFiltersState } from "./AdvancedFilters";
 import { QuickFilters, QuickFilterPreset } from "./QuickFilters";
+import { LeadDetailsDialog } from "./LeadDetailsDialog";
 
 interface LeadsTableProps {
   onEditLead?: (lead: Lead) => void;
@@ -452,6 +453,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex gap-2 justify-end">
+                    <LeadDetailsDialog lead={lead} />
                     {permissions.canEditLeads && (
                       <Button
                         variant={isAssigned ? "secondary" : "default"}
