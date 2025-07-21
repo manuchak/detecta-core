@@ -46,8 +46,15 @@ export const ScenarioSimulationPanel = () => {
   });
 
   const handleRunSimulation = () => {
+    console.log('🚀 handleRunSimulation called');
+    console.log('selectedScenario:', selectedScenario);
+    console.log('runMonteCarloSimulation function:', runMonteCarloSimulation);
+    
     if (selectedScenario) {
+      console.log('✅ Ejecutando simulación para:', selectedScenario.name);
       runMonteCarloSimulation(selectedScenario);
+    } else {
+      console.log('❌ No hay escenario seleccionado');
     }
   };
 
