@@ -16,6 +16,7 @@ import { MetricsOverview } from '@/components/recruitment/MetricsOverview';
 import FinancialROIDashboard from '@/components/recruitment/FinancialROIDashboard';
 import { TemporalPatternsPanel } from "@/components/recruitment/temporal/TemporalPatternsPanel";
 import { MachineLearningPanel } from "@/components/recruitment/ml/MachineLearningPanel";
+import { ScenarioSimulationPanel } from "@/components/recruitment/simulation/ScenarioSimulationPanel";
 
 const RecruitmentStrategy = () => {
   const [useRealData, setUseRealData] = useState(true);
@@ -199,13 +200,14 @@ const RecruitmentStrategy = () => {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="mapa" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="mapa">Mapa Nacional</TabsTrigger>
           <TabsTrigger value="alertas">Sistema de Alertas</TabsTrigger>
           <TabsTrigger value="pipeline">Pipeline de Candidatos</TabsTrigger>
           <TabsTrigger value="metricas">Métricas y Análisis</TabsTrigger>
           <TabsTrigger value="temporal">Patrones Temporales</TabsTrigger>
           <TabsTrigger value="ml">Machine Learning</TabsTrigger>
+          <TabsTrigger value="simulation">Simulación</TabsTrigger>
           <TabsTrigger value="roi">ROI y Presupuestos</TabsTrigger>
         </TabsList>
 
@@ -359,6 +361,10 @@ const RecruitmentStrategy = () => {
 
         <TabsContent value="ml" className="space-y-6">
           <MachineLearningPanel />
+        </TabsContent>
+
+        <TabsContent value="simulation" className="space-y-6">
+          <ScenarioSimulationPanel />
         </TabsContent>
 
         <TabsContent value="roi" className="space-y-6">
