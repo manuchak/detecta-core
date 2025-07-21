@@ -1,4 +1,9 @@
 // Algoritmos de Machine Learning para predicciones de reclutamiento
+import { 
+  calcularDemandaCustodios, 
+  estimarServiciosDiarios, 
+  calcularFactorEstacional 
+} from './businessDemandCalculator';
 
 interface TrainingData {
   fecha_hora_cita: string;
@@ -84,9 +89,6 @@ export const predictDemandWithML = (
     zone: zone ? zone.zona_nombre || zone.nombre : 'null',
     input
   });
-
-  // Importar calculadora de negocio
-  const { calcularDemandaCustodios, estimarServiciosDiarios, calcularFactorEstacional } = require('./businessDemandCalculator');
 
   // Validar entradas
   if (!zone || !input) {
