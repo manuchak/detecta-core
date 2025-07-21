@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { NavigationSidebar } from '@/components/recruitment/ui/NavigationSidebar';
