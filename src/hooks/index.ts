@@ -7,3 +7,4 @@ export { useTestimonials } from './useTestimonials';
 export { useHeroSettings } from './useHeroSettings';
 export { useBenefits } from './useBenefits';
 export { useForecastData } from './useForecastData';
+export { useUnifiedRecruitmentMetrics } from './useUnifiedRecruitmentMetrics';
