@@ -52,7 +52,7 @@ export const ExecutiveDashboard = () => {
     {
       id: 'cpa',
       label: 'Costo por Adquisición',
-      value: `$${realCPA.toLocaleString()}`,
+      value: `$${Math.round(realCPA).toLocaleString()}`,
       icon: DollarSign,
       color: 'text-green-500',
       trend: 3,
@@ -214,7 +214,7 @@ export const ExecutiveDashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold">${realCPA.toLocaleString()}</div>
+                <div className="text-4xl font-bold">${Math.round(realCPA).toLocaleString()}</div>
                 <p className="text-sm text-muted-foreground mt-2">
                   Costo promedio por adquirir un custodio
                 </p>
@@ -230,7 +230,7 @@ export const ExecutiveDashboard = () => {
                 <Badge variant="secondary">Confianza: {ltvConfidence.toFixed(0)}%</Badge>
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold">${ltv.toLocaleString()}</div>
+                <div className="text-4xl font-bold">${Math.round(ltv).toLocaleString()}</div>
                 <p className="text-sm text-muted-foreground mt-2">
                   Ingreso total que genera un custodio durante su tiempo activo
                 </p>
