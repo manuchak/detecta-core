@@ -35,6 +35,7 @@ import { IntelligentAlerts } from '@/components/recruitment/IntelligentAlerts';
 import { IntelligentSimulator } from '@/components/recruitment/IntelligentSimulator';
 import { FinancialTrackingSystem } from '@/components/recruitment/FinancialTrackingSystem';
 import { AIInsightsPanel } from '@/components/recruitment/AIInsightsPanel';
+import { SmartAlertsPanel } from '@/components/recruitment/SmartAlertsPanel';
 import { useUnifiedRecruitmentMetrics } from '@/hooks/useUnifiedRecruitmentMetrics';
 
 const RecruitmentStrategy = () => {
@@ -432,29 +433,7 @@ const RecruitmentStrategy = () => {
         );
       
       case 'alertas':
-        return (
-          <div className="space-y-4">
-            {alertasReales.map((alerta, index) => (
-              <Card key={index} className="p-6">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-2">
-                    <h3 className="font-semibold text-lg">{alerta.titulo}</h3>
-                    <p className="text-muted-foreground">{alerta.descripcion}</p>
-                    <Badge variant={
-                      alerta.tipo_alerta === 'critica' ? 'destructive' :
-                      alerta.tipo_alerta === 'preventiva' ? 'default' : 'secondary'
-                    }>
-                      {alerta.tipo_alerta.toUpperCase()}
-                    </Badge>
-                  </div>
-                  <Badge variant="outline">
-                    Prioridad {alerta.prioridad}
-                  </Badge>
-                </div>
-              </Card>
-            ))}
-          </div>
-        );
+        return <SmartAlertsPanel />;
         
       case 'pipeline':
         return (
