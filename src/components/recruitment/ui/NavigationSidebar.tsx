@@ -214,13 +214,17 @@ export function NavigationSidebar({
   const getDynamicBadge = (sectionId: string) => {
     switch (sectionId) {
       case 'strategy':
-        return totalDeficit > 0 ? totalDeficit.toString() : null;
+        // Solo mostrar si hay déficit crítico (>10)
+        return totalDeficit > 10 ? totalDeficit.toString() : null;
       case 'operations':
+        // Solo mostrar alertas críticas reales
         return criticalAlerts > 0 ? criticalAlerts.toString() : null;
       case 'analytics':
+        // Solo mostrar si hay clusters urgentes reales
         return urgentClusters > 0 ? urgentClusters.toString() : null;
       case 'simulation':
-        return activeCandidates > 0 ? activeCandidates.toString() : null;
+        // No mostrar candidatos como alertas, no tiene sentido
+        return null;
       default:
         return null;
     }
