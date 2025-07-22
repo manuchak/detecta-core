@@ -392,63 +392,63 @@ export const ExecutiveDashboard = () => {
                       </div>
                     </div>
                     
-                    <div className="overflow-x-auto">
-                      <div className="min-w-[500px]">
+                    <div className="space-y-2">
+                      <div className="min-w-full">
                         {/* Header */}
                         <div className="grid grid-cols-7 gap-1 mb-2">
-                          <div className="p-2 text-xs font-medium text-center bg-gray-50 rounded">
+                          <div className="p-1 text-xs font-medium text-center bg-gray-50 rounded">
                             Cohorte
                           </div>
-                          <div className="p-2 text-xs font-medium text-center bg-gray-50 rounded">
+                          <div className="p-1 text-xs font-medium text-center bg-gray-50 rounded">
                             Mes 0
                           </div>
-                          <div className="p-2 text-xs font-medium text-center bg-gray-50 rounded">
+                          <div className="p-1 text-xs font-medium text-center bg-gray-50 rounded">
                             Mes +1
                           </div>
-                          <div className="p-2 text-xs font-medium text-center bg-gray-50 rounded">
+                          <div className="p-1 text-xs font-medium text-center bg-gray-50 rounded">
                             Mes +2
                           </div>
-                          <div className="p-2 text-xs font-medium text-center bg-gray-50 rounded">
+                          <div className="p-1 text-xs font-medium text-center bg-gray-50 rounded">
                             Mes +3
                           </div>
-                          <div className="p-2 text-xs font-medium text-center bg-gray-50 rounded">
+                          <div className="p-1 text-xs font-medium text-center bg-gray-50 rounded">
                             Mes +4
                           </div>
-                          <div className="p-2 text-xs font-medium text-center bg-gray-50 rounded">
+                          <div className="p-1 text-xs font-medium text-center bg-gray-50 rounded">
                             Mes +5
                           </div>
                         </div>
 
-                        {/* Data rows - últimos 6 meses */}
+                        {/* Data rows - últimos 6 meses incluyendo mes actual */}
                         {cohortRetention.length > 0 ? (
                           cohortRetention.slice(-6).map((cohort) => (
                             <div key={cohort.cohort_month} className="grid grid-cols-7 gap-1 mb-1">
-                              <div className="p-2 text-xs font-medium text-center bg-gray-100 rounded">
+                              <div className="p-1 text-xs font-medium text-center bg-gray-100 rounded">
                                 {cohort.cohort_month}
                               </div>
-                              <div className={`p-2 text-xs text-center rounded ${getCohortColor(100)}`}>
-                                {cohort.initial_size}
-                                <div className="text-xs opacity-75">100%</div>
+                              <div className={`p-1 text-xs text-center rounded ${getCohortColor(100)}`}>
+                                <div className="font-semibold text-[10px]">{cohort.initial_size}</div>
+                                <div className="text-[10px] opacity-75">100%</div>
                               </div>
-                              <div className={`p-2 text-xs text-center rounded ${getCohortColor(cohort.month_1 || 0)}`}>
-                                {cohort.month_1 ? Math.round((cohort.month_1 / 100) * cohort.initial_size) : 0}
-                                <div className="text-xs opacity-75">{cohort.month_1?.toFixed(0) || '0'}%</div>
+                              <div className={`p-1 text-xs text-center rounded ${getCohortColor(cohort.month_1 || 0)}`}>
+                                <div className="font-semibold text-[10px]">{cohort.month_1 ? Math.round((cohort.month_1 / 100) * cohort.initial_size) : 0}</div>
+                                <div className="text-[10px] opacity-75">{cohort.month_1?.toFixed(0) || '0'}%</div>
                               </div>
-                              <div className={`p-2 text-xs text-center rounded ${getCohortColor(cohort.month_2 || 0)}`}>
-                                {cohort.month_2 ? Math.round((cohort.month_2 / 100) * cohort.initial_size) : 0}
-                                <div className="text-xs opacity-75">{cohort.month_2?.toFixed(0) || '0'}%</div>
+                              <div className={`p-1 text-xs text-center rounded ${getCohortColor(cohort.month_2 || 0)}`}>
+                                <div className="font-semibold text-[10px]">{cohort.month_2 ? Math.round((cohort.month_2 / 100) * cohort.initial_size) : 0}</div>
+                                <div className="text-[10px] opacity-75">{cohort.month_2?.toFixed(0) || '0'}%</div>
                               </div>
-                              <div className={`p-2 text-xs text-center rounded ${getCohortColor(cohort.month_3 || 0)}`}>
-                                {cohort.month_3 ? Math.round((cohort.month_3 / 100) * cohort.initial_size) : 0}
-                                <div className="text-xs opacity-75">{cohort.month_3?.toFixed(0) || '0'}%</div>
+                              <div className={`p-1 text-xs text-center rounded ${getCohortColor(cohort.month_3 || 0)}`}>
+                                <div className="font-semibold text-[10px]">{cohort.month_3 ? Math.round((cohort.month_3 / 100) * cohort.initial_size) : 0}</div>
+                                <div className="text-[10px] opacity-75">{cohort.month_3?.toFixed(0) || '0'}%</div>
                               </div>
-                              <div className={`p-2 text-xs text-center rounded ${getCohortColor(cohort.month_4 || 0)}`}>
-                                {cohort.month_4 ? Math.round((cohort.month_4 / 100) * cohort.initial_size) : 0}
-                                <div className="text-xs opacity-75">{cohort.month_4?.toFixed(0) || '0'}%</div>
+                              <div className={`p-1 text-xs text-center rounded ${getCohortColor(cohort.month_4 || 0)}`}>
+                                <div className="font-semibold text-[10px]">{cohort.month_4 ? Math.round((cohort.month_4 / 100) * cohort.initial_size) : 0}</div>
+                                <div className="text-[10px] opacity-75">{cohort.month_4?.toFixed(0) || '0'}%</div>
                               </div>
-                              <div className={`p-2 text-xs text-center rounded ${getCohortColor(cohort.month_5 || 0)}`}>
-                                {cohort.month_5 ? Math.round((cohort.month_5 / 100) * cohort.initial_size) : 0}
-                                <div className="text-xs opacity-75">{cohort.month_5?.toFixed(0) || '0'}%</div>
+                              <div className={`p-1 text-xs text-center rounded ${getCohortColor(cohort.month_5 || 0)}`}>
+                                <div className="font-semibold text-[10px]">{cohort.month_5 ? Math.round((cohort.month_5 / 100) * cohort.initial_size) : 0}</div>
+                                <div className="text-[10px] opacity-75">{cohort.month_5?.toFixed(0) || '0'}%</div>
                               </div>
                             </div>
                           ))
