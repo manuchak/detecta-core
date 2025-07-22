@@ -140,24 +140,31 @@ export const useSupplyMetrics = () => {
         avgTimeToContact = totalHours / candidatesWithContact.length;
       }
 
-      // Get unique analysts from database (from notas_recruiter or create a proper analyst assignment system)
+      // Real analysts: Marbelli and Brenda who manage and approve leads
+      const realAnalysts = ['Marbelli', 'Brenda'];
+      
+      // Check if there are analysts assigned in notas_recruiter
       const uniqueAnalysts = new Set<string>();
       candidates.forEach(c => {
-        if (c.notas_recruiter && c.notas_recruiter.includes('Analista')) {
-          const analystMatch = c.notas_recruiter.match(/Analista\s+\w+/);
-          if (analystMatch) uniqueAnalysts.add(analystMatch[0]);
+        if (c.notas_recruiter) {
+          // Check for Marbelli or Brenda mentions
+          if (c.notas_recruiter.toLowerCase().includes('marbelli')) {
+            uniqueAnalysts.add('Marbelli');
+          } else if (c.notas_recruiter.toLowerCase().includes('brenda')) {
+            uniqueAnalysts.add('Brenda');
+          }
         }
       });
 
-      // If no analysts found in notes, create realistic distribution
-      const totalAnalysts = uniqueAnalysts.size > 0 ? uniqueAnalysts.size : 3;
+      // If no specific assignments found, distribute equally between Marbelli and Brenda
+      const totalAnalysts = uniqueAnalysts.size > 0 ? uniqueAnalysts.size : 2;
       const leadsPerAnalyst = candidates.length / totalAnalysts;
 
       // Create analyst performance based on real data distribution
       const analystPerformance = [];
       const analystNames = uniqueAnalysts.size > 0 
         ? Array.from(uniqueAnalysts) 
-        : ['Analista María', 'Analista Carlos', 'Analista Ana'];
+        : realAnalysts;
 
       for (let i = 0; i < analystNames.length; i++) {
         const analystCandidates = Math.floor(candidates.length / analystNames.length);

@@ -22,11 +22,11 @@ export const useLeadsByMonth = () => {
       setLoading(true);
       setError(null);
 
-      // Get leads by month for the last 12 months
+      // Get leads by month for the last 6 months to show meaningful data
       const { data, error } = await supabase
         .from('candidatos_custodios')
         .select('created_at')
-        .gte('created_at', new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString());
+        .gte('created_at', new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString());
 
       if (error) throw error;
 
