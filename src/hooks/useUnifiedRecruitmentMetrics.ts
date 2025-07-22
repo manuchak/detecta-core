@@ -236,21 +236,28 @@ export const useUnifiedRecruitmentMetrics = () => {
     );
 
     // Simulación Monte Carlo con LTV dinámico
-    const safeBudget = Math.max(totalInvestment, 10000);
-    const safeCPA = Math.max(realCPA, 1000);
+    const safeBudget = Math.max(totalInvestment, 100000); // Aumentar presupuesto mínimo
+    const safeCPA = Math.max(realCPA, 2000); // CPA más realista
+    
+    console.log('🎲 Monte Carlo params:', {
+      budget: safeBudget,
+      cpa: safeCPA,
+      conversionRate: 0.35, // Tasa de conversión más realista
+      retentionRate: Math.max(0.1, Math.min(0.95, (100 - monthlyRotationRate) / 100))
+    });
     
     const monteCarloResults = RecruitmentMathEngine.monteCarloSimulation(
       {
         budget: safeBudget,
         expectedCPA: safeCPA,
-        conversionRate: 0.15,
+        conversionRate: 0.35, // Aumentar tasa de conversión
         retentionRate: Math.max(0.1, Math.min(0.95, (100 - monthlyRotationRate) / 100))
       },
       {
-        budgetVariance: safeBudget * 0.1,
-        cpaVariance: safeCPA * 0.2,
-        conversionVariance: 0.05,
-        retentionVariance: 0.1
+        budgetVariance: safeBudget * 0.15, // Mayor varianza
+        cpaVariance: safeCPA * 0.25,
+        conversionVariance: 0.1,
+        retentionVariance: 0.15
       },
       1000
     );

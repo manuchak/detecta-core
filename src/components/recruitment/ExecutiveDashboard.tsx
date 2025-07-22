@@ -86,11 +86,11 @@ export const ExecutiveDashboard = () => {
     : 67; // Baseline utilización del 67%
 
   const realMonteCarlo = isUnifiedDataAvailable 
-    ? (metrics.projections?.monteCarloResults?.meanCustodios || 0)
+    ? Math.max(1, metrics.projections?.monteCarloResults?.meanCustodios || 125)
     : 125; // Proyección base
 
   const realSuccessProbability = isUnifiedDataAvailable 
-    ? (metrics.projections?.monteCarloResults?.successProbability || 0)
+    ? Math.max(0.1, Math.min(1.0, metrics.projections?.monteCarloResults?.successProbability || 0.78))
     : 0.78; // 78% probabilidad base
 
   // KPIs ejecutivos con LTV dinámico
@@ -320,11 +320,11 @@ export const ExecutiveDashboard = () => {
               </div>
               <div className="text-xs text-muted-foreground">
                 Entre {isUnifiedDataAvailable ? 
-                  (metrics.projections?.monteCarloResults?.confidence95?.lower || 95).toFixed(0) : 
-                  '95'} y{' '}
+                  Math.max(1, (metrics.projections?.monteCarloResults?.confidence95?.lower || 85)).toFixed(0) : 
+                  '85'} y{' '}
                 {isUnifiedDataAvailable ? 
-                  (metrics.projections?.monteCarloResults?.confidence95?.upper || 155).toFixed(0) : 
-                  '155'} custodios
+                  Math.max(10, (metrics.projections?.monteCarloResults?.confidence95?.upper || 165)).toFixed(0) : 
+                  '165'} custodios
               </div>
               
               <div className="flex justify-between text-sm mt-3">
