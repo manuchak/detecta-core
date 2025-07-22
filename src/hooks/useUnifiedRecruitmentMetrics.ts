@@ -230,17 +230,20 @@ export const useUnifiedRecruitmentMetrics = () => {
       channels
     );
 
-    // Simulación Monte Carlo
+    // Simulación Monte Carlo con valores seguros
+    const safeBudget = Math.max(totalInvestment, 10000); // Mínimo $10k para la simulación
+    const safeCPA = Math.max(realCPA, 1000); // Mínimo $1k CPA para evitar divisiones por cero
+    
     const monteCarloResults = RecruitmentMathEngine.monteCarloSimulation(
       {
-        budget: totalInvestment,
-        expectedCPA: realCPA,
+        budget: safeBudget,
+        expectedCPA: safeCPA,
         conversionRate: 0.15,
-        retentionRate: 0.85
+        retentionRate: Math.max(0.1, Math.min(0.95, (100 - monthlyRotationRate) / 100))
       },
       {
-        budgetVariance: totalInvestment * 0.1,
-        cpaVariance: realCPA * 0.2,
+        budgetVariance: safeBudget * 0.1,
+        cpaVariance: safeCPA * 0.2,
         conversionVariance: 0.05,
         retentionVariance: 0.1
       },

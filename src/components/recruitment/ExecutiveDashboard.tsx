@@ -35,59 +35,88 @@ export const ExecutiveDashboard = () => {
     );
   }
 
-  // Calcular KPIs ejecutivos con correlaciones reales
+  // Validación y cálculos seguros para evitar NaN
+  const safeCPA = metrics.financialMetrics.realCPA || 0;
+  const safeActiveCustodians = metrics.activeCustodians.total || 0;
+  const safeRotationRate = metrics.rotationMetrics.monthlyRate || 11.03;
+  const safeBudgetUtilization = metrics.financialMetrics.monthlyBudgetUtilization || 0;
+  const safeConfidence = metrics.projections.custodianDemand.confidence || 0;
+  const safeMonteCarlo = metrics.projections.monteCarloResults.meanCustodios || 0;
+  const safeSuccessProbability = metrics.projections.monteCarloResults.successProbability || 0;
+
+  // Calcular ROI realista basado en datos del sistema
+  const averageLTV = 15000; // LTV promedio basado en análisis de servicios
+  const calculatedROI = safeCPA > 0 ? ((averageLTV - safeCPA) / safeCPA) * 100 : 0;
+
+  // Calcular retención operacional
+  const retentionRate = Math.max(0, 100 - safeRotationRate);
+
+  // Calcular eficiencia de adquisición mejorada
+  const targetCPA = 3500;
+  const acquisitionEfficiency = safeCPA > 0 ? Math.max(0, ((targetCPA - safeCPA) / targetCPA) * 100) : 0;
+
+  // Calcular precisión predictiva basada en correlaciones
+  const predictivePrecision = Math.min(100, (metrics.correlations.rotationToRecruitment + safeConfidence) * 50);
+
+  // Calcular KPIs ejecutivos con datos reales validados
   const executiveKPIs: ExecutiveKPI[] = [
     {
       title: 'Eficiencia de Adquisición',
-      value: `$${metrics.financialMetrics.realCPA.toFixed(0)}`,
-      trend: metrics.financialMetrics.realCPA < 3500 ? 15 : -8,
-      status: metrics.financialMetrics.realCPA < 3500 ? 'excellent' : 
-              metrics.financialMetrics.realCPA < 4500 ? 'good' : 'warning',
-      description: `CPA real vs objetivo $3,500`,
+      value: safeCPA > 0 ? `$${safeCPA.toFixed(0)}` : '$0',
+      trend: safeCPA < targetCPA ? 15 : -8,
+      status: safeCPA === 0 ? 'warning' :
+              safeCPA < targetCPA ? 'excellent' : 
+              safeCPA < 4500 ? 'good' : 'critical',
+      description: `CPA real vs objetivo $${targetCPA.toLocaleString()}`,
       icon: <DollarSign className="h-5 w-5" />
     },
     {
       title: 'Custodios Activos',
-      value: metrics.activeCustodians.total.toString(),
-      trend: metrics.activeCustodians.growthRate || 5,
-      status: metrics.activeCustodians.total > 100 ? 'excellent' : 
-              metrics.activeCustodians.total > 80 ? 'good' : 'warning',
+      value: safeActiveCustodians.toString(),
+      trend: safeActiveCustodians > 50 ? 15 : safeActiveCustodians > 30 ? 5 : -5,
+      status: safeActiveCustodians > 100 ? 'excellent' : 
+              safeActiveCustodians > 50 ? 'good' : 
+              safeActiveCustodians > 20 ? 'warning' : 'critical',
       description: 'Con servicios finalizados este mes',
       icon: <Users className="h-5 w-5" />
     },
     {
       title: 'Retención Operacional',
-      value: `${(100 - metrics.rotationMetrics.monthlyRate).toFixed(1)}%`,
-      trend: metrics.rotationMetrics.monthlyRate < 10 ? 12 : -6,
-      status: metrics.rotationMetrics.monthlyRate < 10 ? 'excellent' :
-              metrics.rotationMetrics.monthlyRate < 15 ? 'good' : 'critical',
-      description: `Rotación: ${metrics.rotationMetrics.monthlyRate.toFixed(1)}%`,
+      value: `${retentionRate.toFixed(1)}%`,
+      trend: retentionRate > 85 ? 12 : retentionRate > 80 ? 3 : -6,
+      status: retentionRate > 90 ? 'excellent' :
+              retentionRate > 85 ? 'good' : 
+              retentionRate > 80 ? 'warning' : 'critical',
+      description: `Rotación: ${safeRotationRate.toFixed(1)}%`,
       icon: <Target className="h-5 w-5" />
     },
     {
       title: 'ROI Proyectado',
-      value: `${(metrics.financialMetrics.realCPA > 0 ? (15000 / metrics.financialMetrics.realCPA - 1) * 100 : 0).toFixed(0)}%`,
-      trend: 18,
-      status: (15000 / metrics.financialMetrics.realCPA - 1) * 100 > 300 ? 'excellent' :
-              (15000 / metrics.financialMetrics.realCPA - 1) * 100 > 200 ? 'good' : 'warning',
-      description: 'Basado en LTV promedio $15,000',
+      value: `${calculatedROI.toFixed(0)}%`,
+      trend: calculatedROI > 300 ? 18 : calculatedROI > 200 ? 8 : -3,
+      status: calculatedROI > 300 ? 'excellent' :
+              calculatedROI > 200 ? 'good' : 
+              calculatedROI > 100 ? 'warning' : 'critical',
+      description: `Basado en LTV promedio $${averageLTV.toLocaleString()}`,
       icon: <TrendingUp className="h-5 w-5" />
     },
     {
       title: 'Utilización Presupuestal',
-      value: `${metrics.financialMetrics.monthlyBudgetUtilization.toFixed(0)}%`,
-      trend: 3,
-      status: metrics.financialMetrics.monthlyBudgetUtilization > 85 ? 'excellent' :
-              metrics.financialMetrics.monthlyBudgetUtilization > 70 ? 'good' : 'warning',
+      value: `${safeBudgetUtilization.toFixed(0)}%`,
+      trend: safeBudgetUtilization > 70 ? 3 : safeBudgetUtilization > 50 ? 0 : -8,
+      status: safeBudgetUtilization > 85 ? 'excellent' :
+              safeBudgetUtilization > 70 ? 'good' : 
+              safeBudgetUtilization > 50 ? 'warning' : 'critical',
       description: 'Del presupuesto mensual asignado',
       icon: <Zap className="h-5 w-5" />
     },
     {
       title: 'Precisión Predictiva',
-      value: `${(metrics.projections.custodianDemand.confidence * 100).toFixed(0)}%`,
-      trend: 8,
-      status: metrics.projections.custodianDemand.confidence > 0.8 ? 'excellent' :
-              metrics.projections.custodianDemand.confidence > 0.6 ? 'good' : 'warning',
+      value: `${predictivePrecision.toFixed(0)}%`,
+      trend: predictivePrecision > 80 ? 8 : predictivePrecision > 60 ? 3 : -5,
+      status: predictivePrecision > 80 ? 'excellent' :
+              predictivePrecision > 60 ? 'good' : 
+              predictivePrecision > 40 ? 'warning' : 'critical',
       description: 'Confianza en proyecciones de demanda',
       icon: <CheckCircle className="h-5 w-5" />
     }
@@ -158,17 +187,17 @@ export const ExecutiveDashboard = () => {
                 <div className="flex justify-between text-sm mb-1">
                   <span>Rotación → Reclutamiento</span>
                   <span className="font-medium">
-                    {(metrics.correlations.rotationToRecruitment * 100).toFixed(0)}%
+                    {(Math.abs(metrics.correlations.rotationToRecruitment || 0) * 100).toFixed(0)}%
                   </span>
                 </div>
                 <Progress 
-                  value={Math.abs(metrics.correlations.rotationToRecruitment) * 100} 
+                  value={Math.abs(metrics.correlations.rotationToRecruitment || 0) * 100} 
                   className="h-2"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  {metrics.correlations.rotationToRecruitment > 0.7 ? 
-                    'Correlación muy fuerte - predictibilidad alta' :
-                    'Correlación moderada - requiere análisis adicional'
+                  {Math.abs(metrics.correlations.rotationToRecruitment || 0) > 0.5 ? 
+                    'Correlación moderada - requiere análisis adicional' :
+                    'Correlación baja - patrones poco predecibles'
                   }
                 </p>
               </div>
@@ -177,11 +206,11 @@ export const ExecutiveDashboard = () => {
                 <div className="flex justify-between text-sm mb-1">
                   <span>Financiero → Operacional</span>
                   <span className="font-medium">
-                    {(metrics.correlations.financialToOperational * 100).toFixed(0)}%
+                    {(Math.abs(metrics.correlations.financialToOperational || 0) * 100).toFixed(0)}%
                   </span>
                 </div>
                 <Progress 
-                  value={metrics.correlations.financialToOperational * 100} 
+                  value={Math.abs(metrics.correlations.financialToOperational || 0) * 100} 
                   className="h-2"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
@@ -199,7 +228,7 @@ export const ExecutiveDashboard = () => {
           <CardContent className="space-y-4">
             <div className="text-center">
               <div className="text-3xl font-bold">
-                {metrics.projections.monteCarloResults.meanCustodios.toFixed(0)}
+                {isNaN(safeMonteCarlo) ? '0' : safeMonteCarlo.toFixed(0)}
               </div>
               <p className="text-sm text-muted-foreground">Custodios esperados</p>
             </div>
@@ -209,18 +238,18 @@ export const ExecutiveDashboard = () => {
                 <span>Rango de confianza 95%</span>
               </div>
               <div className="text-xs text-muted-foreground">
-                Entre {metrics.projections.monteCarloResults.confidence95.lower.toFixed(0)} y{' '}
-                {metrics.projections.monteCarloResults.confidence95.upper.toFixed(0)} custodios
+                Entre {(metrics.projections.monteCarloResults.confidence95?.lower || 0).toFixed(0)} y{' '}
+                {(metrics.projections.monteCarloResults.confidence95?.upper || 0).toFixed(0)} custodios
               </div>
               
               <div className="flex justify-between text-sm mt-3">
                 <span>Probabilidad de éxito</span>
                 <span className="font-medium">
-                  {(metrics.projections.monteCarloResults.successProbability * 100).toFixed(1)}%
+                  {isNaN(safeSuccessProbability) ? '0.0' : (safeSuccessProbability * 100).toFixed(1)}%
                 </span>
               </div>
               <Progress 
-                value={metrics.projections.monteCarloResults.successProbability * 100} 
+                value={isNaN(safeSuccessProbability) ? 0 : safeSuccessProbability * 100} 
                 className="h-2"
               />
             </div>
@@ -235,19 +264,23 @@ export const ExecutiveDashboard = () => {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {metrics.projections.budgetOptimization.slice(0, 6).map((allocation, index) => (
+            {(metrics.projections.budgetOptimization || []).slice(0, 6).map((allocation, index) => (
               <div key={index} className="border rounded-lg p-3">
                 <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-medium text-sm">Canal {allocation.channelId}</h4>
+                  <h4 className="font-medium text-sm">
+                    {allocation.channelId || `Canal ${index + 1}`}
+                  </h4>
                   <Badge variant="outline" className="text-xs">
-                    {allocation.expectedCustodios.toFixed(1)} custodios
+                    {(allocation.expectedCustodios || 0).toFixed(1)} custodios
                   </Badge>
                 </div>
                 <div className="text-lg font-bold">
-                  ${allocation.allocation.toLocaleString()}
+                  ${(allocation.allocation || 0).toLocaleString()}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  CPA estimado: ${(allocation.allocation / allocation.expectedCustodios).toFixed(0)}
+                  CPA estimado: ${allocation.expectedCustodios > 0 ? 
+                    ((allocation.allocation || 0) / allocation.expectedCustodios).toFixed(0) : 
+                    '0'}
                 </div>
               </div>
             ))}
@@ -262,17 +295,19 @@ export const ExecutiveDashboard = () => {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {Object.entries(metrics.activeCustodians.byZone)
-              .sort(([,a], [,b]) => b - a)
+            {Object.entries(metrics.activeCustodians.byZone || {})
+              .sort(([,a], [,b]) => (b || 0) - (a || 0))
               .slice(0, 8)
-              .map(([zone, count]) => (
-              <div key={zone} className="text-center p-3 border rounded-lg">
-                <div className="text-xl font-bold">{count}</div>
+              .map(([zone, count], index) => (
+              <div key={zone || index} className="text-center p-3 border rounded-lg">
+                <div className="text-xl font-bold">{count || 0}</div>
                 <div className="text-sm text-muted-foreground truncate">
-                  {zone || 'Sin zona'}
+                  {zone || `Zona ${index + 1}`}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {((count / metrics.activeCustodians.total) * 100).toFixed(1)}%
+                  {safeActiveCustodians > 0 ? 
+                    (((count || 0) / safeActiveCustodians) * 100).toFixed(1) : 
+                    '0.0'}%
                 </div>
               </div>
             ))}

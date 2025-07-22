@@ -183,41 +183,68 @@ export class RecruitmentMathEngine {
     confidence95: { lower: number; upper: number };
     successProbability: number;
   } {
+    // Validaciones para evitar NaN
+    if (!baseScenario.budget || baseScenario.budget <= 0 ||
+        !baseScenario.expectedCPA || baseScenario.expectedCPA <= 0 ||
+        !baseScenario.conversionRate || baseScenario.conversionRate <= 0 ||
+        !baseScenario.retentionRate || baseScenario.retentionRate <= 0) {
+      return {
+        meanCustodios: 0,
+        confidence95: { lower: 0, upper: 0 },
+        successProbability: 0
+      };
+    }
+
     const results: number[] = [];
 
     for (let i = 0; i < iterations; i++) {
       // Generar valores aleatorios basados en distribución normal
-      const randomBudget = this.normalRandom(baseScenario.budget, variability.budgetVariance);
-      const randomCPA = this.normalRandom(baseScenario.expectedCPA, variability.cpaVariance);
-      const randomConversion = Math.max(0, Math.min(1, 
-        this.normalRandom(baseScenario.conversionRate, variability.conversionVariance)
+      const randomBudget = Math.max(1000, this.normalRandom(baseScenario.budget, variability.budgetVariance || 0));
+      const randomCPA = Math.max(500, this.normalRandom(baseScenario.expectedCPA, variability.cpaVariance || 0));
+      const randomConversion = Math.max(0.01, Math.min(1, 
+        this.normalRandom(baseScenario.conversionRate, variability.conversionVariance || 0)
       ));
-      const randomRetention = Math.max(0, Math.min(1,
-        this.normalRandom(baseScenario.retentionRate, variability.retentionVariance)
+      const randomRetention = Math.max(0.1, Math.min(1,
+        this.normalRandom(baseScenario.retentionRate, variability.retentionVariance || 0)
       ));
 
-      // Calcular custodios para esta iteración
+      // Calcular custodios para esta iteración con validaciones
       const potentialCustodios = randomBudget / randomCPA;
       const convertedCustodios = potentialCustodios * randomConversion;
       const retainedCustodios = convertedCustodios * randomRetention;
 
-      results.push(retainedCustodios);
+      // Validar que el resultado no sea NaN o infinito
+      if (isFinite(retainedCustodios) && !isNaN(retainedCustodios)) {
+        results.push(Math.max(0, retainedCustodios));
+      }
+    }
+
+    // Si no hay resultados válidos, retornar valores por defecto
+    if (results.length === 0) {
+      return {
+        meanCustodios: 0,
+        confidence95: { lower: 0, upper: 0 },
+        successProbability: 0
+      };
     }
 
     // Calcular estadísticas
     results.sort((a, b) => a - b);
     const meanCustodios = results.reduce((sum, val) => sum + val, 0) / results.length;
-    const lowerBound = results[Math.floor(0.025 * results.length)];
-    const upperBound = results[Math.floor(0.975 * results.length)];
+    const lowerBound = results[Math.floor(0.025 * results.length)] || 0;
+    const upperBound = results[Math.floor(0.975 * results.length)] || 0;
     
     // Probabilidad de éxito (custodios > 0)
     const successCount = results.filter(r => r > 0).length;
     const successProbability = successCount / results.length;
 
     return {
-      meanCustodios,
-      confidence95: { lower: lowerBound, upper: upperBound },
-      successProbability
+      meanCustodios: isNaN(meanCustodios) ? 0 : meanCustodios,
+      confidence95: { 
+        lower: isNaN(lowerBound) ? 0 : lowerBound, 
+        upper: isNaN(upperBound) ? 0 : upperBound 
+      },
+      successProbability: isNaN(successProbability) ? 0 : successProbability
     };
   }
 
