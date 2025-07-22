@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -5,10 +6,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, Users, DollarSign, Target, AlertTriangle, Activity, Zap, Brain } from 'lucide-react';
 import { useUnifiedRecruitmentMetrics } from '@/hooks/useUnifiedRecruitmentMetrics';
+import { useCohortAnalytics } from '@/hooks/useCohortAnalytics';
 import { BudgetOptimization } from './BudgetOptimization';
 
 export const ExecutiveDashboard = () => {
   const { metrics, loading } = useUnifiedRecruitmentMetrics();
+  const { cohortRetention, isLoading: cohortLoading } = useCohortAnalytics();
 
   const totalCustodians = metrics?.activeCustodians.total || 0;
   const monthlyRotationRate = metrics?.rotationMetrics.monthlyRate || 0;
@@ -99,6 +102,16 @@ export const ExecutiveDashboard = () => {
       { name: 'Pesimista', value: monteCarloLower }
     ];
   }, [monteCarloLower, monteCarloMean, monteCarloUpper]);
+
+  // Cohort retention heatmap color function
+  const getCohortColor = (value: number | null) => {
+    if (value === null || value === 0) return 'bg-gray-100 text-gray-500';
+    if (value >= 80) return 'bg-blue-700 text-white';
+    if (value >= 60) return 'bg-blue-600 text-white';
+    if (value >= 40) return 'bg-blue-500 text-white';
+    if (value >= 20) return 'bg-blue-400 text-white';
+    return 'bg-blue-300 text-gray-900';
+  };
 
   if (loading) {
     return (
@@ -362,31 +375,117 @@ export const ExecutiveDashboard = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Activity className="w-5 h-5" />
-                  Histograma de Custodios por Zona
+                  Análisis de Cohortes de Retención
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={Object.entries(metrics?.activeCustodians.byZone || {
-                      'CDMX': 28,
-                      'Nacional': 73,
-                      'Guadalajara': 12,
-                      'Puebla': 6,
-                      'Tijuana': 1,
-                      'Monterrey': 2
-                    }).map(([zona, count]) => ({ zona, count }))}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="zona" angle={-45} textAnchor="end" height={80} />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="count" fill="#ef4444" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Distribución de custodios activos por zona operativa
-                </p>
+                {cohortLoading ? (
+                  <div className="h-64 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="mb-4">
+                      <h4 className="font-medium mb-2">Retención por Cohorte de Contratación</h4>
+                      <div className="text-sm text-muted-foreground mb-1">
+                        Porcentaje de custodios activos por mes desde contratación
+                      </div>
+                    </div>
+                    
+                    <div className="overflow-x-auto">
+                      <div className="min-w-[500px]">
+                        {/* Header */}
+                        <div className="grid grid-cols-7 gap-1 mb-2">
+                          <div className="p-2 text-xs font-medium text-center bg-gray-50 rounded">
+                            Cohorte
+                          </div>
+                          <div className="p-2 text-xs font-medium text-center bg-gray-50 rounded">
+                            Mes 0
+                          </div>
+                          <div className="p-2 text-xs font-medium text-center bg-gray-50 rounded">
+                            Mes +1
+                          </div>
+                          <div className="p-2 text-xs font-medium text-center bg-gray-50 rounded">
+                            Mes +2
+                          </div>
+                          <div className="p-2 text-xs font-medium text-center bg-gray-50 rounded">
+                            Mes +3
+                          </div>
+                          <div className="p-2 text-xs font-medium text-center bg-gray-50 rounded">
+                            Mes +4
+                          </div>
+                          <div className="p-2 text-xs font-medium text-center bg-gray-50 rounded">
+                            Mes +5
+                          </div>
+                        </div>
+
+                        {/* Data rows */}
+                        {cohortRetention.length > 0 ? (
+                          cohortRetention.map((cohort) => (
+                            <div key={cohort.cohort_month} className="grid grid-cols-7 gap-1 mb-1">
+                              <div className="p-2 text-xs font-medium text-center bg-gray-100 rounded">
+                                {cohort.cohort_month}
+                              </div>
+                              <div className={`p-2 text-xs text-center rounded ${getCohortColor(100)}`}>
+                                {cohort.initial_size}
+                                <div className="text-xs opacity-75">100%</div>
+                              </div>
+                              <div className={`p-2 text-xs text-center rounded ${getCohortColor(cohort.month_1)}`}>
+                                {Math.round((cohort.month_1 / 100) * cohort.initial_size)}
+                                <div className="text-xs opacity-75">{cohort.month_1?.toFixed(0) || '-'}%</div>
+                              </div>
+                              <div className={`p-2 text-xs text-center rounded ${getCohortColor(cohort.month_2)}`}>
+                                {Math.round((cohort.month_2 / 100) * cohort.initial_size)}
+                                <div className="text-xs opacity-75">{cohort.month_2?.toFixed(0) || '-'}%</div>
+                              </div>
+                              <div className={`p-2 text-xs text-center rounded ${getCohortColor(cohort.month_3)}`}>
+                                {Math.round((cohort.month_3 / 100) * cohort.initial_size)}
+                                <div className="text-xs opacity-75">{cohort.month_3?.toFixed(0) || '-'}%</div>
+                              </div>
+                              <div className={`p-2 text-xs text-center rounded ${getCohortColor(cohort.month_4)}`}>
+                                {Math.round((cohort.month_4 / 100) * cohort.initial_size)}
+                                <div className="text-xs opacity-75">{cohort.month_4?.toFixed(0) || '-'}%</div>
+                              </div>
+                              <div className={`p-2 text-xs text-center rounded ${getCohortColor(cohort.month_5)}`}>
+                                {Math.round((cohort.month_5 / 100) * cohort.initial_size)}
+                                <div className="text-xs opacity-75">{cohort.month_5?.toFixed(0) || '-'}%</div>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-center text-muted-foreground py-8">
+                            No hay datos suficientes para mostrar cohortes
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Legend */}
+                    <div className="flex items-center gap-4 text-xs mt-4">
+                      <span className="text-muted-foreground">Retención:</span>
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 bg-blue-700 rounded"></div>
+                        <span>80%+</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 bg-blue-600 rounded"></div>
+                        <span>60-79%</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 bg-blue-500 rounded"></div>
+                        <span>40-59%</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 bg-blue-400 rounded"></div>
+                        <span>20-39%</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 bg-blue-300 rounded"></div>
+                        <span>&lt;20%</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
