@@ -12,7 +12,7 @@ import { ProductivityChart } from './cohort-analytics/ProductivityChart';
 
 export const ExecutiveDashboard = () => {
   const { metrics, loading } = useUnifiedRecruitmentMetrics();
-  const { cohortRetention, isLoading: cohortLoading } = useCohortAnalytics();
+  const { cohortRetention, productivityStats, isLoading: cohortLoading } = useCohortAnalytics();
 
   const totalCustodians = metrics?.activeCustodians.total || 0;
   const monthlyRotationRate = metrics?.rotationMetrics.monthlyRate || 0;
@@ -105,6 +105,35 @@ export const ExecutiveDashboard = () => {
       { name: 'Pesimista', value: monteCarloLower }
     ];
   }, [monteCarloLower, monteCarloMean, monteCarloUpper]);
+
+  // Calcular métricas de performance - filtrar desde marzo 2025
+  const performanceMetrics = useMemo(() => {
+    const filteredData = productivityStats.filter(item => {
+      const itemDate = new Date(item.month_year + '-01');
+      const cutoffDate = new Date('2025-03-01');
+      return itemDate >= cutoffDate;
+    });
+    
+    if (!filteredData.length) return {
+      avgServicios: 0,
+      avgIngresos: 0,
+      latestServicios: 0,
+      latestIngresos: 0
+    };
+    
+    const avgServicios = filteredData.reduce((acc, item) => acc + item.avg_services_per_custodian, 0) / filteredData.length;
+    const avgIngresos = filteredData.reduce((acc, item) => acc + item.avg_income_per_custodian, 0) / filteredData.length;
+    
+    // Obtener los datos más recientes (último mes)
+    const latestData = filteredData[filteredData.length - 1];
+    
+    return {
+      avgServicios: Math.round(avgServicios * 10) / 10,
+      avgIngresos: Math.round(avgIngresos),
+      latestServicios: Math.round(latestData.avg_services_per_custodian * 10) / 10,
+      latestIngresos: Math.round(latestData.avg_income_per_custodian)
+    };
+  }, [productivityStats]);
 
   // Cohort retention heatmap color function
   const getCohortColor = (value: number | null) => {
@@ -315,8 +344,8 @@ export const ExecutiveDashboard = () => {
                   <Activity className="h-4 w-4 text-blue-500" />
                   <CardTitle className="text-sm font-medium">Servicios Promedio</CardTitle>
                 </div>
-                <div className="text-3xl font-bold">3.2</div>
-                <p className="text-xs text-muted-foreground mt-1">Por custodio al mes</p>
+                <div className="text-3xl font-bold">{performanceMetrics.latestServicios}</div>
+                <p className="text-xs text-muted-foreground mt-1">Por custodio al mes (actual)</p>
               </CardContent>
             </Card>
 
@@ -326,8 +355,8 @@ export const ExecutiveDashboard = () => {
                   <DollarSign className="h-4 w-4 text-green-500" />
                   <CardTitle className="text-sm font-medium">Ingresos Promedio</CardTitle>
                 </div>
-                <div className="text-3xl font-bold">$25,400</div>
-                <p className="text-xs text-muted-foreground mt-1">Por custodio al mes</p>
+                <div className="text-3xl font-bold">${performanceMetrics.latestIngresos.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground mt-1">Por custodio al mes (actual)</p>
               </CardContent>
             </Card>
 
@@ -335,10 +364,10 @@ export const ExecutiveDashboard = () => {
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Target className="h-4 w-4 text-purple-500" />
-                  <CardTitle className="text-sm font-medium">Eficiencia</CardTitle>
+                  <CardTitle className="text-sm font-medium">Promedio General</CardTitle>
                 </div>
-                <div className="text-3xl font-bold">87%</div>
-                <p className="text-xs text-muted-foreground mt-1">Servicios completados</p>
+                <div className="text-3xl font-bold">{performanceMetrics.avgServicios}</div>
+                <p className="text-xs text-muted-foreground mt-1">Servicios desde marzo</p>
               </CardContent>
             </Card>
 
@@ -346,10 +375,10 @@ export const ExecutiveDashboard = () => {
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <TrendingUp className="h-4 w-4 text-orange-500" />
-                  <CardTitle className="text-sm font-medium">Crecimiento</CardTitle>
+                  <CardTitle className="text-sm font-medium">Ingresos General</CardTitle>
                 </div>
-                <div className="text-3xl font-bold">+12%</div>
-                <p className="text-xs text-muted-foreground mt-1">Mes sobre mes</p>
+                <div className="text-3xl font-bold">${performanceMetrics.avgIngresos.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground mt-1">Promedio desde marzo</p>
               </CardContent>
             </Card>
           </div>
