@@ -1,441 +1,356 @@
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, DollarSign, Users, Target, Zap } from 'lucide-react';
-import { SupplyTeamMetrics } from './SupplyTeamMetrics';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { TrendingUp, Users, DollarSign, Target, AlertTriangle, Activity, Zap, Brain } from 'lucide-react';
 import { useUnifiedRecruitmentMetrics } from '@/hooks/useUnifiedRecruitmentMetrics';
-import { useSupplyMetrics } from '@/hooks/useSupplyMetrics';
-import { useActiveCustodians } from '@/hooks/useActiveCustodians';
-import { RecruitmentMathEngine } from '@/lib/RecruitmentMathEngine';
-import { 
-  IncomeDistributionHistogram,
-  ActivationMetricsCard,
-  CohortRetentionHeatMap,
-  ProductivityChart
-} from '@/components/recruitment/cohort-analytics';
-
-interface ExecutiveKPI {
-  title: string;
-  value: string;
-  trend: number;
-  status: 'excellent' | 'good' | 'warning' | 'critical';
-  description: string;
-  icon: React.ReactNode;
-}
+import { BudgetOptimization } from './BudgetOptimization';
 
 export const ExecutiveDashboard = () => {
-  const { metrics, loading: unifiedLoading, activeCustodiansCount, ltvMetrics } = useUnifiedRecruitmentMetrics();
-  const { metrics: supplyMetrics, loading: supplyLoading } = useSupplyMetrics();
-  const { activeCustodians30Days, activeCustodians60Days, loading: activeCustodiansLoading } = useActiveCustodians();
+  const { metrics, loading } = useUnifiedRecruitmentMetrics();
 
-  const isUnifiedDataAvailable = metrics && !unifiedLoading;
-  const loading = supplyLoading || activeCustodiansLoading;
+  const totalCustodians = metrics?.activeCustodians.total || 0;
+  const monthlyRotationRate = metrics?.rotationMetrics.monthlyRate || 0;
+  const realCPA = metrics?.financialMetrics.realCPA || 0;
+  const totalInvestment = metrics?.financialMetrics.totalInvestment || 0;
+  const ltv = metrics?.financialMetrics.dynamicLTV || 0;
+  const ltvConfidence = metrics?.financialMetrics.ltvConfidence || 0;
+  const custodianDemandProjection = metrics?.projections.custodianDemand.projection || 0;
+  const budgetOptimization = metrics?.projections.budgetOptimization || [];
+  const monteCarloMean = metrics?.projections.monteCarloResults.meanCustodios || 0;
+  const monteCarloLower = metrics?.projections.monteCarloResults.confidence95.lower || 0;
+  const monteCarloUpper = metrics?.projections.monteCarloResults.confidence95.upper || 0;
+  const monteCarloSuccess = metrics?.projections.monteCarloResults.successProbability || 0;
+
+  const roi = useMemo(() => {
+    if (realCPA <= 0 || ltv <= 0) return 0;
+    return ((ltv - realCPA) / realCPA) * 100;
+  }, [realCPA, ltv]);
+
+  const kpiData = useMemo(() => [
+    {
+      id: 'custodians',
+      label: 'Custodios Activos',
+      value: totalCustodians,
+      icon: Users,
+      color: 'text-blue-500',
+      trend: 5,
+      trendDir: 'up',
+      description: 'Custodios con servicios finalizados este mes'
+    },
+    {
+      id: 'rotation',
+      label: 'Rotación Mensual',
+      value: monthlyRotationRate.toFixed(1) + '%',
+      icon: Activity,
+      color: 'text-orange-500',
+      trend: -2,
+      trendDir: 'down',
+      description: 'Tasa de rotación de custodios este mes'
+    },
+    {
+      id: 'cpa',
+      label: 'Costo por Adquisición',
+      value: `$${realCPA.toLocaleString()}`,
+      icon: DollarSign,
+      color: 'text-green-500',
+      trend: 3,
+      trendDir: 'down',
+      description: 'Costo promedio por adquirir un custodio'
+    },
+    {
+      id: 'roi',
+      label: 'Retorno de Inversión',
+      value: roi.toFixed(0) + '%',
+      icon: TrendingUp,
+      color: 'text-purple-500',
+      trend: 8,
+      trendDir: 'up',
+      description: 'Retorno de inversión en reclutamiento'
+    }
+  ], [totalCustodians, monthlyRotationRate, realCPA, roi]);
+
+  const channelPerformanceData = useMemo(() => {
+    if (!metrics?.financialMetrics.roiByChannel) return [];
+
+    return Object.entries(metrics.financialMetrics.roiByChannel).map(([channel, roi]) => ({
+      channel,
+      roi
+    }));
+  }, [metrics?.financialMetrics.roiByChannel]);
+
+  const demandProjectionData = useMemo(() => {
+    const historicalData = metrics?.rotationData.slice(-6).map((item, index) => ({
+      name: `Mes ${index + 1}`,
+      servicios: item.promedio_servicios_mes || 0
+    })) || [];
+
+    return [
+      ...historicalData,
+      { name: 'Proyección', servicios: custodianDemandProjection }
+    ];
+  }, [metrics?.rotationData, custodianDemandProjection]);
+
+  const riskAssessmentData = useMemo(() => {
+    return [
+      { name: 'Optimista', value: monteCarloUpper },
+      { name: 'Base', value: monteCarloMean },
+      { name: 'Pesimista', value: monteCarloLower }
+    ];
+  }, [monteCarloLower, monteCarloMean, monteCarloUpper]);
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <Card key={i}>
-            <CardContent className="p-6">
-              <div className="animate-pulse space-y-3">
-                <div className="h-4 bg-muted rounded w-3/4"></div>
-                <div className="h-8 bg-muted rounded w-1/2"></div>
-                <div className="h-3 bg-muted rounded w-full"></div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="space-y-6">
+        <div className="animate-pulse">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>
+            ))}
+          </div>
+          <div className="h-96 bg-gray-200 rounded-lg"></div>
+        </div>
       </div>
     );
   }
 
-  // DATOS REALES VALIDADOS con LTV dinámico
-  const realActiveCustodians30Days = activeCustodians30Days || 70;
-  const realActiveCustodians60Days = activeCustodians60Days || 74;
-
-  const realCandidatesApproved = supplyMetrics.candidatesApproved || 0;
-  const realConversionRate = supplyMetrics.conversionRate || 0;
-  const realCPA = isUnifiedDataAvailable && metrics.financialMetrics?.realCPA > 0 
-    ? metrics.financialMetrics.realCPA 
-    : 1830;
-
-  const realRotationRate = isUnifiedDataAvailable 
-    ? (metrics.rotationMetrics?.monthlyRate || 11.03)
-    : 11.03;
-
-  // Usar LTV dinámico en lugar del valor fijo
-  const dynamicLTV = ltvMetrics?.overallLTV > 0 ? ltvMetrics.overallLTV : 15000;
-  const ltvConfidence = ltvMetrics?.confidence || 0;
-  
-  // Calcular ROI con LTV dinámico
-  const calculatedROI = realCPA > 0 ? ((dynamicLTV - realCPA) / realCPA) * 100 : 721;
-
-  // Calcular métricas de rendimiento
-  const retentionRate = Math.max(0, 100 - realRotationRate);
-  const targetCPA = 3500;
-  const acquisitionEfficiency = realCPA > 0 ? Math.max(0, ((targetCPA - realCPA) / targetCPA) * 100) : 47.7;
-  
-  // Precision predictiva usando datos reales disponibles
-  const predictivePrecision = isUnifiedDataAvailable 
-    ? Math.min(100, ((metrics.correlations?.rotationToRecruitment || 0.7) + (metrics.projections?.custodianDemand?.confidence || 0.8)) * 50)
-    : 75; // Baseline precision basada en data histórica
-
-  // Variables necesarias para el resto del componente
-  const realBudgetUtilization = isUnifiedDataAvailable 
-    ? (metrics.financialMetrics?.monthlyBudgetUtilization || 0)
-    : 67; // Baseline utilización del 67%
-
-  const realMonteCarlo = isUnifiedDataAvailable 
-    ? Math.max(1, metrics.projections?.monteCarloResults?.meanCustodios || 125)
-    : 125; // Proyección base
-
-  const realSuccessProbability = isUnifiedDataAvailable 
-    ? Math.max(0.1, Math.min(1.0, metrics.projections?.monteCarloResults?.successProbability || 0.78))
-    : 0.78; // 78% probabilidad base
-
-  // KPIs ejecutivos con LTV dinámico
-  const executiveKPIs: ExecutiveKPI[] = [
-    {
-      title: 'Eficiencia de Adquisición',
-      value: `$${realCPA.toFixed(0)}`,
-      trend: realCPA < targetCPA ? 15 : -8,
-      status: realCPA < targetCPA ? 'excellent' : 
-              realCPA < 4500 ? 'good' : 'critical',
-      description: `CPA real vs objetivo $${targetCPA.toLocaleString()}`,
-      icon: <DollarSign className="h-5 w-5" />
-    },
-    {
-      title: 'Custodios Activos',
-      value: `${realActiveCustodians30Days} (30d) / ${realActiveCustodians60Days} (60d)`,
-      trend: realActiveCustodians60Days > realActiveCustodians30Days ? 
-        Math.round(((realActiveCustodians60Days - realActiveCustodians30Days) / realActiveCustodians30Days) * 100) : 
-        0,
-      status: realActiveCustodians30Days > 60 ? 'excellent' : 
-              realActiveCustodians30Days > 40 ? 'good' : 
-              realActiveCustodians30Days > 20 ? 'warning' : 'critical',
-      description: 'Últimos 30 días vs 60 días',
-      icon: <Users className="h-5 w-5" />
-    },
-    {
-      title: 'Retención Operacional',
-      value: `${retentionRate.toFixed(1)}%`,
-      trend: retentionRate > 85 ? 12 : retentionRate > 80 ? 3 : -6,
-      status: retentionRate > 90 ? 'excellent' :
-              retentionRate > 85 ? 'good' : 
-              retentionRate > 80 ? 'warning' : 'critical',
-      description: `Rotación mensual: ${realRotationRate.toFixed(1)}%`,
-      icon: <Target className="h-5 w-5" />
-    },
-    {
-      title: 'LTV Dinámico',
-      value: `$${Math.round(dynamicLTV).toLocaleString()}`,
-      trend: ltvConfidence > 0.8 ? 15 : ltvConfidence > 0.5 ? 5 : -3,
-      status: dynamicLTV > 100000 ? 'excellent' :
-              dynamicLTV > 50000 ? 'good' : 
-              dynamicLTV > 25000 ? 'warning' : 'critical',
-      description: `Confianza: ${(ltvConfidence * 100).toFixed(0)}% | ${ltvMetrics?.activeCustodians || 0} custodios`,
-      icon: <TrendingUp className="h-5 w-5" />
-    },
-    {
-      title: 'ROI Proyectado',
-      value: `${calculatedROI.toFixed(0)}%`,
-      trend: calculatedROI > 300 ? 18 : calculatedROI > 200 ? 8 : -3,
-      status: calculatedROI > 300 ? 'excellent' :
-              calculatedROI > 200 ? 'good' : 
-              calculatedROI > 100 ? 'warning' : 'critical',
-      description: `Basado en LTV dinámico $${dynamicLTV.toLocaleString()}`,
-      icon: <TrendingUp className="h-5 w-5" />
-    },
-    {
-      title: 'Utilización Presupuestal',
-      value: `${realBudgetUtilization.toFixed(0)}%`,
-      trend: realBudgetUtilization > 70 ? 3 : realBudgetUtilization > 50 ? 0 : -8,
-      status: realBudgetUtilization > 85 ? 'excellent' :
-              realBudgetUtilization > 70 ? 'good' : 
-              realBudgetUtilization > 50 ? 'warning' : 'critical',
-      description: 'Del presupuesto mensual asignado',
-      icon: <Zap className="h-5 w-5" />
-    }
-  ];
-
-  const getStatusColor = (status: ExecutiveKPI['status']) => {
-    switch (status) {
-      case 'excellent': return 'bg-green-500';
-      case 'good': return 'bg-blue-500';
-      case 'warning': return 'bg-yellow-500';
-      case 'critical': return 'bg-red-500';
-    }
-  };
-
-  const getStatusTextColor = (status: ExecutiveKPI['status']) => {
-    switch (status) {
-      case 'excellent': return 'text-green-600';
-      case 'good': return 'text-blue-600';
-      case 'warning': return 'text-yellow-600';
-      case 'critical': return 'text-red-600';
-    }
-  };
-
   return (
     <div className="space-y-6">
-      {/* KPIs Ejecutivos Principales */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {executiveKPIs.map((kpi, index) => (
-          <Card key={index}>
+      {/* KPIs Ejecutivos */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {kpiData.map(kpi => (
+          <Card key={kpi.id}>
             <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className={`p-2 rounded-lg ${getStatusColor(kpi.status)}/10`}>
-                  <div className={getStatusTextColor(kpi.status)}>
-                    {kpi.icon}
-                  </div>
-                </div>
-                <div className="flex items-center text-xs">
-                  {kpi.trend > 0 ? (
-                    <TrendingUp className="h-3 w-3 text-green-500" />
-                  ) : (
-                    <TrendingDown className="h-3 w-3 text-red-500" />
-                  )}
-                  <span className={kpi.trend > 0 ? 'text-green-500' : 'text-red-500'}>
-                    {Math.abs(kpi.trend)}%
-                  </span>
-                </div>
+              <div className="flex items-center gap-2 mb-2">
+                <kpi.icon className="h-4 w-4" style={{ color: kpi.color }} />
+                <CardTitle className="text-sm font-medium">{kpi.label}</CardTitle>
               </div>
-              
-              <div className="space-y-1">
-                <h3 className="font-medium text-sm">{kpi.title}</h3>
-                <div className="text-2xl font-bold">{kpi.value}</div>
-                <p className="text-xs text-muted-foreground">{kpi.description}</p>
-              </div>
+              <div className="text-3xl font-bold">{kpi.value}</div>
+              <p className="text-xs text-muted-foreground mt-1">{kpi.description}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* LTV Analytics Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Análisis de LTV Dinámico</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="text-center p-3 border rounded-lg">
-              <div className="text-xl font-bold">
-                ${Math.round(ltvMetrics?.averageRevenuePerService || 0).toLocaleString()}
-              </div>
-              <div className="text-sm text-muted-foreground">Ingreso promedio por servicio</div>
-            </div>
-            <div className="text-center p-3 border rounded-lg">
-              <div className="text-xl font-bold">
-                {ltvMetrics?.averageServicesPerCustodian?.toFixed(1) || '0'}
-              </div>
-              <div className="text-sm text-muted-foreground">Servicios promedio por custodio</div>
-            </div>
-            <div className="text-center p-3 border rounded-lg">
-              <div className="text-xl font-bold">
-                {ltvMetrics?.averageRetentionMonths?.toFixed(1) || '0'} meses
-              </div>
-              <div className="text-sm text-muted-foreground">Retención promedio</div>
-            </div>
-            <div className="text-center p-3 border rounded-lg">
-              <div className="text-xl font-bold">
-                ${ltvMetrics?.totalRevenue?.toLocaleString() || '0'}
-              </div>
-              <div className="text-sm text-muted-foreground">Ingresos totales históricos</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Dashboard Principal */}
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="overview">Vista General</TabsTrigger>
+          <TabsTrigger value="financial">Análisis Financiero</TabsTrigger>
+          <TabsTrigger value="optimization">Optimización IA</TabsTrigger>
+          <TabsTrigger value="correlations">Correlaciones</TabsTrigger>
+          <TabsTrigger value="projections">Proyecciones</TabsTrigger>
+        </TabsList>
 
-      {/* Análisis de Correlaciones */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Correlaciones Estratégicas</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Rotación → Reclutamiento</span>
-                  <span className="font-medium">
-                    {isUnifiedDataAvailable ? 
-                      (Math.abs(metrics.correlations?.rotationToRecruitment || 0) * 100).toFixed(0) : 
-                      '67'}%
-                  </span>
-                </div>
-                <Progress 
-                  value={isUnifiedDataAvailable ? 
-                    Math.abs(metrics.correlations?.rotationToRecruitment || 0) * 100 : 
-                    67} 
-                  className="h-2"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {(isUnifiedDataAvailable ? 
-                      Math.abs(metrics.correlations?.rotationToRecruitment || 0) : 
-                      0.67) > 0.5 ? 
-                    'Correlación moderada - requiere análisis adicional' :
-                    'Correlación baja - patrones poco predecibles'
-                  }
+        {/* Vista General */}
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Custodios Activos
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold">{totalCustodians}</div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Custodios con al menos un servicio finalizado en el mes actual
                 </p>
-              </div>
+              </CardContent>
+            </Card>
 
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Financiero → Operacional</span>
-                  <span className="font-medium">
-                    {isUnifiedDataAvailable ? 
-                      (Math.abs(metrics.correlations?.financialToOperational || 0) * 100).toFixed(0) : 
-                      '72'}%
-                  </span>
-                </div>
-                <Progress 
-                  value={isUnifiedDataAvailable ? 
-                    Math.abs(metrics.correlations?.financialToOperational || 0) * 100 : 
-                    72} 
-                  className="h-2"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Alineación entre inversión y resultados operacionales
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="w-5 h-5" />
+                  Rotación Mensual
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold">{monthlyRotationRate.toFixed(1)}%</div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Tasa de rotación de custodios en el mes actual
                 </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Simulación Monte Carlo</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-center">
-              <div className="text-3xl font-bold">
-                {realMonteCarlo.toFixed(0)}
-              </div>
-              <p className="text-sm text-muted-foreground">Custodios esperados</p>
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Rango de confianza 95%</span>
-              </div>
-              <div className="text-xs text-muted-foreground">
-                Entre {isUnifiedDataAvailable ? 
-                  Math.max(1, (metrics.projections?.monteCarloResults?.confidence95?.lower || 85)).toFixed(0) : 
-                  '85'} y{' '}
-                {isUnifiedDataAvailable ? 
-                  Math.max(10, (metrics.projections?.monteCarloResults?.confidence95?.upper || 165)).toFixed(0) : 
-                  '165'} custodios
-              </div>
-              
-              <div className="flex justify-between text-sm mt-3">
-                <span>Probabilidad de éxito</span>
-                <span className="font-medium">
-                  {(realSuccessProbability * 100).toFixed(1)}%
-                </span>
-              </div>
-              <Progress 
-                value={realSuccessProbability * 100} 
-                className="h-2"
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Optimización de Presupuesto */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Optimización Inteligente de Presupuesto</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {(isUnifiedDataAvailable ? (metrics.projections?.budgetOptimization || []) : [
-              { channelId: 'Facebook Ads', allocation: 35000, expectedCustodios: 12 },
-              { channelId: 'Google Ads', allocation: 28000, expectedCustodios: 10 },
-              { channelId: 'Referidos', allocation: 15000, expectedCustodios: 8 },
-              { channelId: 'LinkedIn', allocation: 20000, expectedCustodios: 6 },
-              { channelId: 'Indeed', allocation: 12000, expectedCustodios: 5 },
-              { channelId: 'Redes Locales', allocation: 8000, expectedCustodios: 4 }
-            ]).slice(0, 6).map((allocation, index) => (
-              <div key={index} className="border rounded-lg p-3">
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-medium text-sm">
-                    {allocation.channelId || `Canal ${index + 1}`}
-                  </h4>
-                  <Badge variant="outline" className="text-xs">
-                    {(allocation.expectedCustodios || 0).toFixed(1)} custodios
-                  </Badge>
-                </div>
-                <div className="text-lg font-bold">
-                  ${(allocation.allocation || 0).toLocaleString()}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  CPA estimado: ${allocation.expectedCustodios > 0 ? 
-                    ((allocation.allocation || 0) / allocation.expectedCustodios).toFixed(0) : 
-                    '0'}
-                </div>
-              </div>
-            ))}
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Métricas del Equipo de Supply */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Performance del Equipo de Supply</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <SupplyTeamMetrics />
-        </CardContent>
-      </Card>
-
-      {/* Distribución por Zonas */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Distribución Operacional por Zonas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {Object.entries(metrics?.activeCustodians?.byZone || {})
-              .sort(([,a], [,b]) => (b || 0) - (a || 0))
-              .slice(0, 8)
-              .map(([zone, count], index) => (
-              <div key={zone || index} className="text-center p-3 border rounded-lg">
-                <div className="text-xl font-bold">{count || 0}</div>
-                <div className="text-sm text-muted-foreground truncate">
-                  {zone || `Zona ${index + 1}`}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {realActiveCustodians30Days > 0 ? 
-                    (((count || 0) / realActiveCustodians30Days) * 100).toFixed(1) : 
-                    '0.0'}%
-                </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="w-5 h-5" />
+                Rendimiento por Canal
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={channelPerformanceData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="channel" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="roi" fill="hsl(var(--primary))" />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
-            ))}
+              <p className="text-sm text-muted-foreground mt-2">
+                Retorno de inversión por canal de reclutamiento
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Análisis Financiero */}
+        <TabsContent value="financial" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="w-5 h-5" />
+                  Costo por Adquisición (CPA)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold">${realCPA.toLocaleString()}</div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Costo promedio por adquirir un custodio
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5" />
+                  Valor de Vida del Cliente (LTV)
+                </CardTitle>
+                <Badge variant="secondary">Confianza: {ltvConfidence.toFixed(0)}%</Badge>
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold">${ltv.toLocaleString()}</div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Ingreso total que genera un custodio durante su tiempo activo
+                </p>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
-      
-      {/* Análisis de Cohortes y Retención */}
-      <div className="col-span-1 md:col-span-4 mt-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Análisis de Cohortes y Retención
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <IncomeDistributionHistogram />
-              <ActivationMetricsCard />
-              <CohortRetentionHeatMap />
-              <ProductivityChart />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="w-5 h-5" />
+                Análisis de Rentabilidad
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={demandProjectionData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="servicios" stroke="hsl(var(--primary))" activeDot={{ r: 8 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                Proyección de demanda de servicios en los próximos meses
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Optimización Inteligente de Presupuesto */}
+        <TabsContent value="optimization" className="space-y-6">
+          <div className="mb-4">
+            <h3 className="text-xl font-light text-gray-900 flex items-center gap-2">
+              <Brain className="w-5 h-5 text-purple-600" />
+              Optimización Inteligente de Presupuesto
+            </h3>
+            <p className="text-sm text-gray-600 mt-1">
+              Análisis de eficiencia por canal y recomendaciones basadas en IA para maximizar ROI
+            </p>
+          </div>
+          
+          <BudgetOptimization />
+        </TabsContent>
+
+        {/* Correlaciones */}
+        <TabsContent value="correlations" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="w-5 h-5" />
+                Análisis de Correlaciones
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Análisis de correlaciones entre diferentes métricas
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Proyecciones */}
+        <TabsContent value="projections" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5" />
+                  Proyección de Demanda
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{custodianDemandProjection.toFixed(0)}</div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Proyección de demanda de custodios en el próximo mes
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5" />
+                  Análisis de Riesgo (Monte Carlo)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={riskAssessmentData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        fill="#8884d8"
+                        label
+                      >
+                        {riskAssessmentData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={`hsl(var(--${index === 0 ? 'green' : index === 1 ? 'blue' : 'red'}-500))`}/>
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Análisis de riesgo basado en simulación Monte Carlo
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
