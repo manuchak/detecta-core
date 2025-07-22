@@ -165,7 +165,21 @@ Enfócate especialmente en correlaciones no obvias y en identificar factores pre
     if (!response.ok) {
       const errorData = await response.text();
       console.error('❌ OpenAI API Error:', errorData);
-      throw new Error(`OpenAI API error: ${response.status} - ${errorData}`);
+      
+      // Manejar errores específicos de OpenAI
+      if (response.status === 429) {
+        const error = JSON.parse(errorData);
+        if (error.error?.code === 'insufficient_quota') {
+          throw new Error('La API key de OpenAI ha excedido su cuota. Por favor revisa tu plan de facturación en OpenAI.');
+        }
+        throw new Error('Se han excedido los límites de uso de la API de OpenAI. Intenta nuevamente en unos minutos.');
+      }
+      
+      if (response.status === 401) {
+        throw new Error('API key de OpenAI inválida o no configurada correctamente.');
+      }
+      
+      throw new Error(`Error en la API de OpenAI: ${response.status} - ${errorData}`);
     }
 
     const aiResponse = await response.json();
