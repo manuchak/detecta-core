@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Users, Clock, TrendingUp, Phone, CheckCircle, Target } from 'lucide-react';
 import { useSupplyMetrics } from '@/hooks/useSupplyMetrics';
+import { MonthlyLeadsChart } from './MonthlyLeadsChart';
 
 export const SupplyTeamMetrics = () => {
   const { metrics, loading, error } = useSupplyMetrics();
@@ -244,6 +245,9 @@ export const SupplyTeamMetrics = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Gráfico de Leads por Mes */}
+      <MonthlyLeadsChart />
     </div>
   );
 };
