@@ -106,7 +106,7 @@ export const ExecutiveDashboard = () => {
     ];
   }, [monteCarloLower, monteCarloMean, monteCarloUpper]);
 
-  // Calcular métricas de performance - filtrar desde marzo 2025
+  // Calcular métricas de performance - filtrar desde marzo 2025 y usar datos más recientes
   const performanceMetrics = useMemo(() => {
     const filteredData = productivityStats.filter(item => {
       const itemDate = new Date(item.month_year + '-01');
@@ -121,11 +121,16 @@ export const ExecutiveDashboard = () => {
       latestIngresos: 0
     };
     
+    // Ordenar por fecha para obtener los datos más recientes primero
+    const sortedData = filteredData.sort((a, b) => 
+      new Date(b.month_year + '-01').getTime() - new Date(a.month_year + '-01').getTime()
+    );
+    
     const avgServicios = filteredData.reduce((acc, item) => acc + item.avg_services_per_custodian, 0) / filteredData.length;
     const avgIngresos = filteredData.reduce((acc, item) => acc + item.avg_income_per_custodian, 0) / filteredData.length;
     
-    // Obtener los datos más recientes (último mes)
-    const latestData = filteredData[filteredData.length - 1];
+    // Obtener los datos más recientes (primer elemento después del sort)
+    const latestData = sortedData[0];
     
     return {
       avgServicios: Math.round(avgServicios * 10) / 10,
