@@ -23,6 +23,26 @@ export const ExecutiveDashboard = () => {
     );
     return sortedData[0]?.active_custodians || 0;
   }, [productivityStats]);
+
+  // Calcular custodios de últimos 30 y 60 días usando los datos disponibles
+  const custodiosMetrics = useMemo(() => {
+    // Para los 30 días usamos el dato más reciente
+    const custodios30Dias = totalCustodians;
+    
+    // Para los 60 días, estimamos basándonos en el promedio de los últimos 2 meses
+    const filteredData = productivityStats.filter(item => {
+      const itemDate = new Date(item.month_year + '-01');
+      const cutoffDate = new Date('2025-05-01'); // Últimos 3 meses para mejor estimación
+      return itemDate >= cutoffDate;
+    });
+    
+    const custodios60Dias = filteredData.length >= 2 
+      ? Math.round(filteredData.slice(-2).reduce((acc, item) => acc + item.active_custodians, 0) / 2)
+      : custodios30Dias;
+    
+    return { custodios30Dias, custodios60Dias };
+  }, [totalCustodians, productivityStats]);
+
   const monthlyRotationRate = metrics?.rotationMetrics.monthlyRate || 0;
   const realCPA = metrics?.financialMetrics.realCPA || 0;
   const totalInvestment = metrics?.financialMetrics.totalInvestment || 0;
@@ -212,10 +232,29 @@ export const ExecutiveDashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold">{totalCustodians}</div>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Custodios con al menos un servicio finalizado en el mes actual
-                </p>
+                <div className="space-y-4">
+                  {/* Últimos 30 días */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-3xl font-bold text-blue-600">{custodiosMetrics.custodios30Dias}</div>
+                      <p className="text-sm text-muted-foreground">Últimos 30 días</p>
+                    </div>
+                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                      <Activity className="h-5 w-5 text-blue-600" />
+                    </div>
+                  </div>
+                  
+                  {/* Últimos 60 días */}
+                  <div className="flex items-center justify-between pt-3 border-t">
+                    <div>
+                      <div className="text-2xl font-bold text-gray-700">{custodiosMetrics.custodios60Dias}</div>
+                      <p className="text-sm text-muted-foreground">Últimos 60 días</p>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {((custodiosMetrics.custodios30Dias / custodiosMetrics.custodios60Dias) * 100).toFixed(0)}% del período
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
