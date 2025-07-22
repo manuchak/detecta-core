@@ -159,6 +159,12 @@ const navigationItems: NavigationItem[] = [
         icon: TestTube
       },
       {
+        id: 'ai',
+        title: 'Análisis AI',
+        description: 'Insights inteligentes',
+        icon: Bot
+      },
+      {
         id: 'alerts',
         title: 'Alertas IA',
         description: 'Alertas inteligentes',

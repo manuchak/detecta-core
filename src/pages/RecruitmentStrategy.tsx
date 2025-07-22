@@ -34,6 +34,7 @@ import { ExecutiveDashboard } from '@/components/recruitment/ExecutiveDashboard'
 import { IntelligentAlerts } from '@/components/recruitment/IntelligentAlerts';
 import { IntelligentSimulator } from '@/components/recruitment/IntelligentSimulator';
 import { FinancialTrackingSystem } from '@/components/recruitment/FinancialTrackingSystem';
+import { AIInsightsPanel } from '@/components/recruitment/AIInsightsPanel';
 import { useUnifiedRecruitmentMetrics } from '@/hooks/useUnifiedRecruitmentMetrics';
 
 const RecruitmentStrategy = () => {
@@ -217,6 +218,13 @@ const RecruitmentStrategy = () => {
           description: 'Sistema de alertas basado en IA y correlaciones',
           icon: AlertTriangle,
           breadcrumbs: ['Executive', 'Alertas']
+        };
+      case 'ai':
+        return {
+          title: 'Análisis AI',
+          description: 'Insights inteligentes y recomendaciones basadas en IA',
+          icon: Target,
+          breadcrumbs: ['Executive', 'Análisis AI']
         };
       default:
         return {
@@ -589,6 +597,9 @@ const RecruitmentStrategy = () => {
 
       case 'alerts':
         return <IntelligentAlerts />;
+
+      case 'ai':
+        return <AIInsightsPanel />;
         
       default:
         return (
