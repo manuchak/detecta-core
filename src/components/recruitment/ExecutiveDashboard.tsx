@@ -419,9 +419,9 @@ export const ExecutiveDashboard = () => {
                           </div>
                         </div>
 
-                        {/* Data rows */}
+                        {/* Data rows - últimos 6 meses */}
                         {cohortRetention.length > 0 ? (
-                          cohortRetention.map((cohort) => (
+                          cohortRetention.slice(-6).map((cohort) => (
                             <div key={cohort.cohort_month} className="grid grid-cols-7 gap-1 mb-1">
                               <div className="p-2 text-xs font-medium text-center bg-gray-100 rounded">
                                 {cohort.cohort_month}
@@ -430,25 +430,25 @@ export const ExecutiveDashboard = () => {
                                 {cohort.initial_size}
                                 <div className="text-xs opacity-75">100%</div>
                               </div>
-                              <div className={`p-2 text-xs text-center rounded ${getCohortColor(cohort.month_1)}`}>
-                                {Math.round((cohort.month_1 / 100) * cohort.initial_size)}
-                                <div className="text-xs opacity-75">{cohort.month_1?.toFixed(0) || '-'}%</div>
+                              <div className={`p-2 text-xs text-center rounded ${getCohortColor(cohort.month_1 || 0)}`}>
+                                {cohort.month_1 ? Math.round((cohort.month_1 / 100) * cohort.initial_size) : 0}
+                                <div className="text-xs opacity-75">{cohort.month_1?.toFixed(0) || '0'}%</div>
                               </div>
-                              <div className={`p-2 text-xs text-center rounded ${getCohortColor(cohort.month_2)}`}>
-                                {Math.round((cohort.month_2 / 100) * cohort.initial_size)}
-                                <div className="text-xs opacity-75">{cohort.month_2?.toFixed(0) || '-'}%</div>
+                              <div className={`p-2 text-xs text-center rounded ${getCohortColor(cohort.month_2 || 0)}`}>
+                                {cohort.month_2 ? Math.round((cohort.month_2 / 100) * cohort.initial_size) : 0}
+                                <div className="text-xs opacity-75">{cohort.month_2?.toFixed(0) || '0'}%</div>
                               </div>
-                              <div className={`p-2 text-xs text-center rounded ${getCohortColor(cohort.month_3)}`}>
-                                {Math.round((cohort.month_3 / 100) * cohort.initial_size)}
-                                <div className="text-xs opacity-75">{cohort.month_3?.toFixed(0) || '-'}%</div>
+                              <div className={`p-2 text-xs text-center rounded ${getCohortColor(cohort.month_3 || 0)}`}>
+                                {cohort.month_3 ? Math.round((cohort.month_3 / 100) * cohort.initial_size) : 0}
+                                <div className="text-xs opacity-75">{cohort.month_3?.toFixed(0) || '0'}%</div>
                               </div>
-                              <div className={`p-2 text-xs text-center rounded ${getCohortColor(cohort.month_4)}`}>
-                                {Math.round((cohort.month_4 / 100) * cohort.initial_size)}
-                                <div className="text-xs opacity-75">{cohort.month_4?.toFixed(0) || '-'}%</div>
+                              <div className={`p-2 text-xs text-center rounded ${getCohortColor(cohort.month_4 || 0)}`}>
+                                {cohort.month_4 ? Math.round((cohort.month_4 / 100) * cohort.initial_size) : 0}
+                                <div className="text-xs opacity-75">{cohort.month_4?.toFixed(0) || '0'}%</div>
                               </div>
-                              <div className={`p-2 text-xs text-center rounded ${getCohortColor(cohort.month_5)}`}>
-                                {Math.round((cohort.month_5 / 100) * cohort.initial_size)}
-                                <div className="text-xs opacity-75">{cohort.month_5?.toFixed(0) || '-'}%</div>
+                              <div className={`p-2 text-xs text-center rounded ${getCohortColor(cohort.month_5 || 0)}`}>
+                                {cohort.month_5 ? Math.round((cohort.month_5 / 100) * cohort.initial_size) : 0}
+                                <div className="text-xs opacity-75">{cohort.month_5?.toFixed(0) || '0'}%</div>
                               </div>
                             </div>
                           ))
