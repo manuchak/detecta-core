@@ -17,8 +17,6 @@ interface FinancialEntry {
   monto: number;
   categoria_id: string;
   canal_reclutamiento: string;
-  custodios_objetivo: number;
-  custodios_reales: number;
   fecha_gasto: string;
   estado: 'pendiente' | 'aprobado' | 'pagado';
   notas?: string;
@@ -56,8 +54,6 @@ export const FinancialTrackingSystem = () => {
     monto: 0,
     categoria_id: '',
     canal_reclutamiento: '',
-    custodios_objetivo: 0,
-    custodios_reales: 0,
     fecha_gasto: new Date().toISOString().split('T')[0],
     estado: 'pendiente',
     leads_generados: 0,
@@ -121,8 +117,6 @@ export const FinancialTrackingSystem = () => {
         monto: entry.monto || 0,
         categoria_id: entry.categoria_id || '',
         canal_reclutamiento: entry.canal_reclutamiento || '',
-        custodios_objetivo: entry.custodios_objetivo || 0,
-        custodios_reales: entry.custodios_reales || 0,
         fecha_gasto: entry.fecha_gasto || '',
         estado: (entry.estado === 'aprobado' || entry.estado === 'pagado' ? entry.estado : 'pendiente') as 'pendiente' | 'aprobado' | 'pagado',
         notas: entry.notas || '',
@@ -162,14 +156,6 @@ export const FinancialTrackingSystem = () => {
     const totalInvestment = entries.reduce((sum, entry) => 
       entry.estado !== 'pendiente' ? sum + entry.monto : sum, 0
     );
-    
-    const totalCustodiosReales = entries.reduce((sum, entry) => 
-      sum + entry.custodios_reales, 0
-    );
-    
-    const totalCustodiosObjetivo = entries.reduce((sum, entry) => 
-      sum + entry.custodios_objetivo, 0
-    );
 
     // Calcular métricas de candidatos
     const totalLeads = candidatesData.filter(c => c.estado_proceso === 'lead').length;
@@ -182,12 +168,8 @@ export const FinancialTrackingSystem = () => {
     const costPerLead = totalLeads > 0 ? totalInvestment / totalLeads : 0;
 
     // CPA basado en datos reales de candidatos
-    const realCPA = totalActivos > 0 ? totalInvestment / totalActivos : 
-      RecruitmentMathEngine.calculateRealCPA(totalInvestment, totalCustodiosReales, 30);
-
-    const projectedCPA = totalCustodiosObjetivo > 0 ? 
-      totalInvestment / totalCustodiosObjetivo : 0;
-
+    const realCPA = totalActivos > 0 ? totalInvestment / totalActivos : 0;
+    const projectedCPA = totalLeads > 0 ? totalInvestment / totalLeads : 0;
     const efficiency = projectedCPA > 0 ? 
       (projectedCPA - realCPA) / projectedCPA * 100 : 0;
 
@@ -203,7 +185,7 @@ export const FinancialTrackingSystem = () => {
       retention: 0.85, // Estimado
       ltv: estimatedLTV,
       roi: roi,
-      volume: Math.max(totalCustodiosReales, totalActivos)
+      volume: totalActivos
     });
 
     setMetrics({
@@ -240,8 +222,6 @@ export const FinancialTrackingSystem = () => {
           monto: newEntry.monto,
           categoria_id: newEntry.categoria_id || null,
           canal_reclutamiento: newEntry.canal_reclutamiento,
-          custodios_objetivo: newEntry.custodios_objetivo,
-          custodios_reales: newEntry.custodios_reales,
           fecha_gasto: newEntry.fecha_gasto,
           estado: newEntry.estado,
           notas: newEntry.notas,
@@ -266,8 +246,6 @@ export const FinancialTrackingSystem = () => {
         monto: 0,
         categoria_id: '',
         canal_reclutamiento: '',
-        custodios_objetivo: 0,
-        custodios_reales: 0,
         fecha_gasto: new Date().toISOString().split('T')[0],
         estado: 'pendiente',
         leads_generados: 0,
@@ -491,36 +469,25 @@ export const FinancialTrackingSystem = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <Label htmlFor="custodios_objetivo">Custodios Objetivo</Label>
-              <Input
-                id="custodios_objetivo"
-                type="number"
-                value={newEntry.custodios_objetivo}
-                onChange={(e) => setNewEntry(prev => ({ ...prev, custodios_objetivo: parseInt(e.target.value) || 0 }))}
-                placeholder="0"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="custodios_reales">Custodios Contratados</Label>
-              <Input
-                id="custodios_reales"
-                type="number"
-                value={newEntry.custodios_reales}
-                onChange={(e) => setNewEntry(prev => ({ ...prev, custodios_reales: parseInt(e.target.value) || 0 }))}
-                placeholder="0"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="leads_generados">Leads Generados</Label>
+              <Label htmlFor="leads_generados">Leads Esperados</Label>
               <Input
                 id="leads_generados"
                 type="number"
                 value={newEntry.leads_generados || 0}
                 onChange={(e) => setNewEntry(prev => ({ ...prev, leads_generados: parseInt(e.target.value) || 0 }))}
+                placeholder="0"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="entrevistas_realizadas">Entrevistas Esperadas</Label>
+              <Input
+                id="entrevistas_realizadas"
+                type="number"
+                value={newEntry.entrevistas_realizadas || 0}
+                onChange={(e) => setNewEntry(prev => ({ ...prev, entrevistas_realizadas: parseInt(e.target.value) || 0 }))}
                 placeholder="0"
               />
             </div>
