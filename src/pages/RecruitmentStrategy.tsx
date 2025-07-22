@@ -39,6 +39,12 @@ import { SmartAlertsPanel } from '@/components/recruitment/SmartAlertsPanel';
 import { useUnifiedRecruitmentMetrics } from '@/hooks/useUnifiedRecruitmentMetrics';
 import { RecruitmentErrorBoundary } from '@/components/recruitment/ErrorBoundary';
 import { useReliableMetrics } from '@/hooks/useReliableMetrics';
+import { 
+  IncomeDistributionHistogram,
+  ActivationMetricsCard,
+  CohortRetentionHeatMap,
+  ProductivityChart
+} from '@/components/recruitment/cohort-analytics';
 
 const RecruitmentStrategy = () => {
   const [activeSection, setActiveSection] = useState('planificacion');
@@ -241,6 +247,13 @@ const RecruitmentStrategy = () => {
           icon: Target,
           breadcrumbs: ['Executive', 'Análisis AI']
         };
+      case 'cohort':
+        return {
+          title: 'Análisis de Cohortes',
+          description: 'Retención, activación y productividad de custodios por cohortes',
+          icon: BarChart3,
+          breadcrumbs: ['Executive', 'Cohortes']
+        };
       default:
         return {
           title: 'Estrategia Nacional',
@@ -368,6 +381,34 @@ const RecruitmentStrategy = () => {
             />
           </MinimalGrid>
          );
+
+      case 'cohort':
+        return (
+          <MinimalGrid columns={4}>
+            <MinimalCard
+              title="Target 30K+"
+              value="30.9%"
+              subtitle="Custodios que alcanzan objetivo mensual"
+              variant="primary"
+            />
+            <MinimalCard
+              title="Activación Promedio"
+              value="12 días"
+              subtitle="Contrato → Primer servicio"
+              variant="subtle"
+            />
+            <MinimalCard
+              title="Retención Mes 3"
+              value="65%"
+              subtitle="Custodios activos al 3er mes"
+            />
+            <MinimalCard
+              title="Productividad"
+              value="8.5"
+              subtitle="Servicios promedio/custodio/mes"
+            />
+          </MinimalGrid>
+        );
 
       case 'simulation':
         return (
@@ -601,6 +642,20 @@ const RecruitmentStrategy = () => {
 
       case 'ai':
         return <AIInsightsPanel />;
+
+      case 'cohort':
+        return (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <IncomeDistributionHistogram />
+              <ActivationMetricsCard />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <CohortRetentionHeatMap />
+              <ProductivityChart />
+            </div>
+          </div>
+        );
         
       default:
         return (

@@ -6271,6 +6271,17 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_activation_metrics: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          promedio_dias_activacion: number
+          mediana_dias_activacion: number
+          activaciones_rapidas_7d: number
+          activaciones_lentas_14d: number
+          total_activaciones: number
+          tasa_activacion_rapida: number
+        }[]
+      }
       get_active_custodians_60_days: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -6433,6 +6444,19 @@ export type Database = {
           id: string
           nombre: string
           estado_id: string
+        }[]
+      }
+      get_cohort_retention_matrix: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          cohorte_mes: string
+          mes_0: number
+          mes_1: number
+          mes_2: number
+          mes_3: number
+          mes_4: number
+          mes_5: number
+          custodios_iniciales: number
         }[]
       }
       get_current_user_ranking_stats: {
@@ -6640,6 +6664,18 @@ export type Database = {
           services_completed: number
         }[]
       }
+      get_income_distribution_by_threshold: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          nivel: number
+          rango_min: number
+          rango_max: number
+          custodios_count: number
+          porcentaje: number
+          promedio_servicios: number
+          promedio_ingresos: number
+        }[]
+      }
       get_instaladores_disponibles: {
         Args: { p_fecha: string; p_zona?: Json; p_tipo_instalacion?: string }
         Returns: {
@@ -6674,6 +6710,17 @@ export type Database = {
           id: string
           nombre: string
           tipo_vehiculo: string
+        }[]
+      }
+      get_monthly_productivity_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          mes: string
+          custodios_activos: number
+          servicios_promedio: number
+          ingresos_promedio: number
+          servicios_totales: number
+          ingresos_totales: number
         }[]
       }
       get_points_system_config: {

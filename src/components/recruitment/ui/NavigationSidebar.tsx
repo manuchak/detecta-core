@@ -143,6 +143,12 @@ const navigationItems: NavigationItem[] = [
         title: 'Machine Learning',
         description: 'Predicciones avanzadas',
         icon: Database
+      },
+      {
+        id: 'cohort',
+        title: 'Análisis de Cohortes',
+        description: 'Retención y productividad',
+        icon: BarChart3
       }
     ]
   },
