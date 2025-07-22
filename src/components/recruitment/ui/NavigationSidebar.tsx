@@ -43,10 +43,30 @@ interface NavigationSidebarProps {
 
 const navigationItems: NavigationItem[] = [
   {
-    id: 'strategy',
-    title: 'Estrategia',
-    description: 'Planificación y vista general',
+    id: 'dashboard',
+    title: 'Dashboard Ejecutivo',
+    description: 'Vista general y control',
     icon: Target,
+    children: [
+      {
+        id: 'executive',
+        title: 'Dashboard Principal',
+        description: 'Métricas ejecutivas',
+        icon: Target
+      },
+      {
+        id: 'financial',
+        title: 'Control Financiero',
+        description: 'Tracking gastos y ROI',
+        icon: TrendingUp
+      }
+    ]
+  },
+  {
+    id: 'planning',
+    title: 'Planificación',
+    description: 'Estrategia y planificación',
+    icon: Calendar,
     children: [
       {
         id: 'planificacion',
@@ -70,105 +90,85 @@ const navigationItems: NavigationItem[] = [
     children: [
       {
         id: 'alertas',
-        title: 'Alertas',
-        description: 'Sistema de alertas',
+        title: 'Sistema de Alertas',
+        description: 'Alertas operacionales',
         icon: AlertTriangle
       },
       {
         id: 'pipeline',
-        title: 'Pipeline',
-        description: 'Candidatos activos',
+        title: 'Pipeline Candidatos',
+        description: 'Gestión candidatos',
         icon: Users
       },
       {
         id: 'metricas',
-        title: 'Métricas',
-        description: 'KPIs por zona',
+        title: 'Métricas por Zona',
+        description: 'KPIs operacionales',
         icon: BarChart3
       }
     ]
   },
   {
     id: 'analytics',
-    title: 'Análisis',
-    description: 'IA y patrones',
-    icon: Database,
+    title: 'Análisis & IA',
+    description: 'Inteligencia artificial y análisis',
+    icon: Bot,
     children: [
-      {
-        id: 'rotacion',
-        title: 'Rotación',
-        description: 'Análisis de rotación',
-        icon: TrendingUp
-      },
-      {
-        id: 'temporal',
-        title: 'Patrones',
-        description: 'Análisis temporal',
-        icon: BarChart3
-      },
-      {
-        id: 'ml',
-        title: 'Machine Learning',
-        description: 'Predicciones IA',
-        icon: Bot
-      }
-    ]
-  },
-  {
-    id: 'simulation',
-    title: 'Simulación',
-    description: 'Escenarios y ROI',
-    icon: TestTube,
-    children: [
-      {
-        id: 'simulation',
-        title: 'Escenarios',
-        description: 'Simulación',
-        icon: TestTube
-      },
-      {
-        id: 'roi',
-        title: 'ROI',
-        description: 'Análisis financiero',
-        icon: TrendingUp
-      }
-    ]
-  },
-  {
-    id: 'executive',
-    title: 'Executive',
-    description: 'Dashboard ejecutivo y control',
-    icon: Target,
-    children: [
-      {
-        id: 'executive',
-        title: 'Dashboard',
-        description: 'Vista ejecutiva',
-        icon: Target
-      },
-      {
-        id: 'financial',
-        title: 'Financiero',
-        description: 'Tracking gastos',
-        icon: TrendingUp
-      },
-      {
-        id: 'simulator',
-        title: 'Simulador',
-        description: 'Simulador IA',
-        icon: TestTube
-      },
       {
         id: 'ai',
-        title: 'Análisis AI',
+        title: 'Análisis AI Principal',
         description: 'Insights inteligentes',
         icon: Bot
       },
       {
         id: 'alerts',
-        title: 'Alertas IA',
-        description: 'Alertas inteligentes',
+        title: 'Alertas Inteligentes',
+        description: 'Alertas generadas por IA',
         icon: AlertTriangle
+      },
+      {
+        id: 'rotacion',
+        title: 'Análisis de Rotación',
+        description: 'Patrones de rotación',
+        icon: TrendingUp
+      },
+      {
+        id: 'temporal',
+        title: 'Patrones Temporales',
+        description: 'Análisis temporal avanzado',
+        icon: BarChart3
+      },
+      {
+        id: 'ml',
+        title: 'Machine Learning',
+        description: 'Predicciones avanzadas',
+        icon: Database
+      }
+    ]
+  },
+  {
+    id: 'simulation',
+    title: 'Simulación & ROI',
+    description: 'Escenarios y análisis financiero',
+    icon: TestTube,
+    children: [
+      {
+        id: 'simulator',
+        title: 'Simulador Inteligente',
+        description: 'Simulaciones con IA',
+        icon: TestTube
+      },
+      {
+        id: 'simulation',
+        title: 'Escenarios Manuales',
+        description: 'Simulación de escenarios',
+        icon: Target
+      },
+      {
+        id: 'roi',
+        title: 'Análisis ROI',
+        description: 'Retorno de inversión',
+        icon: TrendingUp
       }
     ]
   }
@@ -182,7 +182,7 @@ export function NavigationSidebar({
   totalDeficit = 0,
   activeCandidates = 0
 }: NavigationSidebarProps) {
-  const [expandedSections, setExpandedSections] = useState<string[]>(['strategy']);
+  const [expandedSections, setExpandedSections] = useState<string[]>(['dashboard']);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const toggleSection = (sectionId: string) => {
@@ -199,7 +199,7 @@ export function NavigationSidebar({
         return section.id;
       }
     }
-    return 'strategy';
+    return 'dashboard';
   };
 
   const activeSectionId = getActiveSectionId();
@@ -213,7 +213,7 @@ export function NavigationSidebar({
 
   const getDynamicBadge = (sectionId: string) => {
     switch (sectionId) {
-      case 'strategy':
+      case 'dashboard':
         // Solo mostrar si hay déficit crítico (>10)
         return totalDeficit > 10 ? totalDeficit.toString() : null;
       case 'operations':
@@ -222,9 +222,6 @@ export function NavigationSidebar({
       case 'analytics':
         // Solo mostrar si hay clusters urgentes reales
         return urgentClusters > 0 ? urgentClusters.toString() : null;
-      case 'simulation':
-        // No mostrar candidatos como alertas, no tiene sentido
-        return null;
       default:
         return null;
     }
