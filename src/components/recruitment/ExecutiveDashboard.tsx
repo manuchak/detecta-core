@@ -220,7 +220,7 @@ export const ExecutiveDashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="text-center p-3 border rounded-lg">
               <div className="text-xl font-bold">
-                ${ltvMetrics?.averageRevenuePerService?.toLocaleString() || '0'}
+                ${Math.round(ltvMetrics?.averageRevenuePerService || 0).toLocaleString()}
               </div>
               <div className="text-sm text-muted-foreground">Ingreso promedio por servicio</div>
             </div>
