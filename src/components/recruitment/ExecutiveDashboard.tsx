@@ -28,7 +28,9 @@ export const ExecutiveDashboard = () => {
 
   const roi = useMemo(() => {
     if (realCPA <= 0 || ltv <= 0) return 0;
-    return ((ltv - realCPA) / realCPA) * 100;
+    // ROI más realista: (LTV / CPA - 1) * 100, limitado a un máximo razonable
+    const calculatedROI = ((ltv / realCPA - 1) * 100);
+    return Math.min(calculatedROI, 500); // Limitar a 500% máximo para ser más realista
   }, [realCPA, ltv]);
 
   const kpiData = useMemo(() => [
