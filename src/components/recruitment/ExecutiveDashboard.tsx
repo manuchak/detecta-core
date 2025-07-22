@@ -286,7 +286,7 @@ export const ExecutiveDashboard = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="w-5 h-5" />
-                  Análisis de Cohortes y Retención
+                  Histograma de Ingresos por Custodio
                 </CardTitle>
               </CardHeader>
               <CardContent>
