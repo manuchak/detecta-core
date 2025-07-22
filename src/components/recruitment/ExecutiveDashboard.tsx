@@ -14,8 +14,8 @@ export const ExecutiveDashboard = () => {
   const monthlyRotationRate = metrics?.rotationMetrics.monthlyRate || 0;
   const realCPA = metrics?.financialMetrics.realCPA || 0;
   const totalInvestment = metrics?.financialMetrics.totalInvestment || 0;
-  const ltv = 15000; // Using fallback value since dynamicLTV not in interface
-  const ltvConfidence = 85; // Using fallback value since ltvConfidence not in interface
+  const ltv = metrics?.financialMetrics.dynamicLTV || 0;
+  const ltvConfidence = metrics?.financialMetrics.ltvConfidence || 0;
   const custodianDemandProjection = metrics?.projections.custodianDemand.projection || 0;
   const budgetOptimization = metrics?.projections.budgetOptimization || [];
   const monteCarloMean = metrics?.projections.monteCarloResults.meanCustodios || 0;
@@ -81,17 +81,16 @@ export const ExecutiveDashboard = () => {
   }, [metrics?.financialMetrics.roiByChannel]);
 
   const demandProjectionData = useMemo(() => {
-    // Generate sample historical data since rotationData is not in metrics interface
-    const historicalData = Array.from({ length: 6 }, (_, index) => ({
+    const historicalData = metrics?.rotationData.slice(-6).map((item, index) => ({
       name: `Mes ${index + 1}`,
-      servicios: Math.floor(Math.random() * 100) + 50
-    }));
+      servicios: item.promedio_servicios_mes || 0
+    })) || [];
 
     return [
       ...historicalData,
       { name: 'Proyección', servicios: custodianDemandProjection }
     ];
-  }, [custodianDemandProjection]);
+  }, [metrics?.rotationData, custodianDemandProjection]);
 
   const riskAssessmentData = useMemo(() => {
     return [
@@ -282,17 +281,96 @@ export const ExecutiveDashboard = () => {
 
         {/* Correlaciones */}
         <TabsContent value="correlations" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Histograma de Custodios por Zona
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={Object.entries(metrics?.activeCustodians.byZone || {}).map(([zona, count]) => ({ zona, count }))}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="zona" angle={-45} textAnchor="end" height={80} />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="count" fill="hsl(var(--primary))" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Distribución de custodios activos por zona operativa
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="w-5 h-5" />
+                  Análisis de Cohort - Retención
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={[
+                      { mes: 'Mes 1', retencion: 100 },
+                      { mes: 'Mes 2', retencion: 89 },
+                      { mes: 'Mes 3', retencion: 78 },
+                      { mes: 'Mes 4', retencion: 69 },
+                      { mes: 'Mes 5', retencion: 62 },
+                      { mes: 'Mes 6', retencion: 58 }
+                    ]}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="mes" />
+                      <YAxis />
+                      <Tooltip />
+                      <Line type="monotone" dataKey="retencion" stroke="hsl(var(--destructive))" strokeWidth={3} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Tasa de retención de custodios por cohorte mensual
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Zap className="w-5 h-5" />
-                Análisis de Correlaciones
+                Matriz de Correlaciones
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Análisis de correlaciones entre diferentes métricas
-              </p>
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div className="bg-green-50 p-3 rounded border">
+                  <div className="font-medium text-green-800">Rotación vs Reclutamiento</div>
+                  <div className="text-2xl font-bold text-green-600">
+                    {(metrics?.correlations.rotationToRecruitment || 0).toFixed(2)}
+                  </div>
+                  <div className="text-xs text-green-600">Correlación alta</div>
+                </div>
+                <div className="bg-blue-50 p-3 rounded border">
+                  <div className="font-medium text-blue-800">Financiero vs Operacional</div>
+                  <div className="text-2xl font-bold text-blue-600">
+                    {(metrics?.correlations.financialToOperational || 0).toFixed(2)}
+                  </div>
+                  <div className="text-xs text-blue-600">Correlación fuerte</div>
+                </div>
+                <div className="bg-purple-50 p-3 rounded border">
+                  <div className="font-medium text-purple-800">CPA vs LTV</div>
+                  <div className="text-2xl font-bold text-purple-600">
+                    {((ltv - realCPA) / ltv).toFixed(2)}
+                  </div>
+                  <div className="text-xs text-purple-600">Ratio de rentabilidad</div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

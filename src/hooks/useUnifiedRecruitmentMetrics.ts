@@ -47,6 +47,8 @@ export interface UnifiedMetrics {
     monthlyBudgetUtilization: number;
     roiByChannel: Record<string, number>;
     projectedCosts: number;
+    dynamicLTV: number;
+    ltvConfidence: number;
   };
   
   // Correlaciones matemáticas
@@ -66,6 +68,9 @@ export interface UnifiedMetrics {
       successProbability: number;
     };
   };
+
+  // Datos históricos para visualizaciones
+  rotationData: CustodioRotationData[];
 }
 
 export const useUnifiedRecruitmentMetrics = () => {
@@ -273,7 +278,8 @@ export const useUnifiedRecruitmentMetrics = () => {
       rotationMetrics,
       financialMetrics,
       correlations,
-      projections
+      projections,
+      rotationData
     };
   }, [rotationData, activeCustodiansCurrentMonth, financialSystem.gastos, financialSystem.presupuestos, financialSystem.metricasCanales, ltvMetrics]);
 
