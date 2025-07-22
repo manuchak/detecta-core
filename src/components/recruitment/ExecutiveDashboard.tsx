@@ -2,7 +2,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, DollarSign, Users, Target, Zap } from 'lucide-react';
+import { SupplyTeamMetrics } from './SupplyTeamMetrics';
 import { useUnifiedRecruitmentMetrics } from '@/hooks/useUnifiedRecruitmentMetrics';
+import { useSupplyMetrics } from '@/hooks/useSupplyMetrics';
 import { RecruitmentMathEngine } from '@/lib/RecruitmentMathEngine';
 
 interface ExecutiveKPI {
@@ -16,8 +18,9 @@ interface ExecutiveKPI {
 
 export const ExecutiveDashboard = () => {
   const { metrics, loading } = useUnifiedRecruitmentMetrics();
+  const { metrics: supplyMetrics, loading: supplyLoading } = useSupplyMetrics();
 
-  if (loading) {
+  if (loading || supplyLoading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {Array.from({ length: 8 }).map((_, i) => (
@@ -36,13 +39,13 @@ export const ExecutiveDashboard = () => {
   }
 
   // Validación y cálculos seguros para evitar NaN
-  const safeCPA = metrics.financialMetrics.realCPA || 0;
-  const safeActiveCustodians = metrics.activeCustodians.total || 0;
-  const safeRotationRate = metrics.rotationMetrics.monthlyRate || 11.03;
-  const safeBudgetUtilization = metrics.financialMetrics.monthlyBudgetUtilization || 0;
-  const safeConfidence = metrics.projections.custodianDemand.confidence || 0;
-  const safeMonteCarlo = metrics.projections.monteCarloResults.meanCustodios || 0;
-  const safeSuccessProbability = metrics.projections.monteCarloResults.successProbability || 0;
+  const safeCPA = metrics?.financialMetrics?.realCPA || 0;
+  const safeActiveCustodians = supplyMetrics.candidatesApproved || 0; // Usar candidatos aprobados como custodios activos
+  const safeRotationRate = metrics?.rotationMetrics?.monthlyRate || 11.03;
+  const safeBudgetUtilization = metrics?.financialMetrics?.monthlyBudgetUtilization || 0;
+  const safeConfidence = metrics?.projections?.custodianDemand?.confidence || 0;
+  const safeMonteCarlo = metrics?.projections?.monteCarloResults?.meanCustodios || 0;
+  const safeSuccessProbability = metrics?.projections?.monteCarloResults?.successProbability || 0;
 
   // Calcular ROI realista basado en datos del sistema
   const averageLTV = 15000; // LTV promedio basado en análisis de servicios
@@ -56,7 +59,7 @@ export const ExecutiveDashboard = () => {
   const acquisitionEfficiency = safeCPA > 0 ? Math.max(0, ((targetCPA - safeCPA) / targetCPA) * 100) : 0;
 
   // Calcular precisión predictiva basada en correlaciones
-  const predictivePrecision = Math.min(100, (metrics.correlations.rotationToRecruitment + safeConfidence) * 50);
+  const predictivePrecision = Math.min(100, ((metrics?.correlations?.rotationToRecruitment || 0) + safeConfidence) * 50);
 
   // Calcular KPIs ejecutivos con datos reales validados
   const executiveKPIs: ExecutiveKPI[] = [
@@ -288,6 +291,16 @@ export const ExecutiveDashboard = () => {
         </CardContent>
       </Card>
 
+      {/* Métricas del Equipo de Supply */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Performance del Equipo de Supply</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SupplyTeamMetrics />
+        </CardContent>
+      </Card>
+
       {/* Distribución por Zonas */}
       <Card>
         <CardHeader>
@@ -295,7 +308,7 @@ export const ExecutiveDashboard = () => {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {Object.entries(metrics.activeCustodians.byZone || {})
+            {Object.entries(metrics?.activeCustodians?.byZone || {})
               .sort(([,a], [,b]) => (b || 0) - (a || 0))
               .slice(0, 8)
               .map(([zone, count], index) => (
