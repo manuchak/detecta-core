@@ -7,6 +7,12 @@ import { useUnifiedRecruitmentMetrics } from '@/hooks/useUnifiedRecruitmentMetri
 import { useSupplyMetrics } from '@/hooks/useSupplyMetrics';
 import { useActiveCustodians } from '@/hooks/useActiveCustodians';
 import { RecruitmentMathEngine } from '@/lib/RecruitmentMathEngine';
+import { 
+  IncomeDistributionHistogram,
+  ActivationMetricsCard,
+  CohortRetentionHeatMap,
+  ProductivityChart
+} from '@/components/recruitment/cohort-analytics';
 
 interface ExecutiveKPI {
   title: string;
@@ -410,6 +416,26 @@ export const ExecutiveDashboard = () => {
           </div>
         </CardContent>
       </Card>
+      
+      {/* Análisis de Cohortes y Retención */}
+      <div className="col-span-1 md:col-span-4 mt-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Análisis de Cohortes y Retención
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <IncomeDistributionHistogram />
+              <ActivationMetricsCard />
+              <CohortRetentionHeatMap />
+              <ProductivityChart />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
