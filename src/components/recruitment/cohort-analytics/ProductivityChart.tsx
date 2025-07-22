@@ -37,12 +37,12 @@ export const ProductivityChart = () => {
     .slice()
     .reverse() // Mostrar cronológicamente
     .map(item => ({
-      mes: item.mes,
-      custodios: item.custodios_activos,
-      servicios: item.servicios_promedio,
-      ingresos: item.ingresos_promedio / 1000, // En miles para mejor visualización
-      serviciosTotales: item.servicios_totales,
-      ingresosTotales: item.ingresos_totales
+      mes: item.month_year,
+      custodios: item.active_custodians,
+      servicios: item.avg_services_per_custodian,
+      ingresos: item.avg_income_per_custodian / 1000, // En miles para mejor visualización
+      serviciosTotales: item.total_services,
+      ingresosTotales: item.total_income
     }));
 
   // Calcular promedios

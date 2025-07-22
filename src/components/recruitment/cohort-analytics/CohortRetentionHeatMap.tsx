@@ -67,35 +67,35 @@ export const CohortRetentionHeatMap = () => {
 
             {/* Data rows */}
             {cohortRetention.map((cohort) => (
-              <div key={cohort.cohorte_mes} className="grid grid-cols-8 gap-1 mb-1">
+              <div key={cohort.cohort_month} className="grid grid-cols-8 gap-1 mb-1">
                 {/* Cohorte month */}
                 <div className="p-2 text-sm font-medium text-center bg-muted rounded">
-                  {cohort.cohorte_mes}
+                  {cohort.cohort_month}
                 </div>
                 
                 {/* Initial size */}
                 <div className="p-2 text-sm text-center bg-muted rounded">
-                  {cohort.custodios_iniciales}
+                  {cohort.initial_size}
                 </div>
                 
                 {/* Retention percentages */}
-                <div className={`p-2 text-sm text-center rounded ${getColorIntensity(cohort.mes_0)}`}>
-                  {cohort.mes_0?.toFixed(0)}%
+                <div className={`p-2 text-sm text-center rounded ${getColorIntensity(100)}`}>
+                  100%
                 </div>
-                <div className={`p-2 text-sm text-center rounded ${getColorIntensity(cohort.mes_1)}`}>
-                  {cohort.mes_1?.toFixed(0) || '-'}%
+                <div className={`p-2 text-sm text-center rounded ${getColorIntensity(cohort.month_1)}`}>
+                  {cohort.month_1?.toFixed(0) || '-'}%
                 </div>
-                <div className={`p-2 text-sm text-center rounded ${getColorIntensity(cohort.mes_2)}`}>
-                  {cohort.mes_2?.toFixed(0) || '-'}%
+                <div className={`p-2 text-sm text-center rounded ${getColorIntensity(cohort.month_2)}`}>
+                  {cohort.month_2?.toFixed(0) || '-'}%
                 </div>
-                <div className={`p-2 text-sm text-center rounded ${getColorIntensity(cohort.mes_3)}`}>
-                  {cohort.mes_3?.toFixed(0) || '-'}%
+                <div className={`p-2 text-sm text-center rounded ${getColorIntensity(cohort.month_3)}`}>
+                  {cohort.month_3?.toFixed(0) || '-'}%
                 </div>
-                <div className={`p-2 text-sm text-center rounded ${getColorIntensity(cohort.mes_4)}`}>
-                  {cohort.mes_4?.toFixed(0) || '-'}%
+                <div className={`p-2 text-sm text-center rounded ${getColorIntensity(cohort.month_4)}`}>
+                  {cohort.month_4?.toFixed(0) || '-'}%
                 </div>
-                <div className={`p-2 text-sm text-center rounded ${getColorIntensity(cohort.mes_5)}`}>
-                  {cohort.mes_5?.toFixed(0) || '-'}%
+                <div className={`p-2 text-sm text-center rounded ${getColorIntensity(cohort.month_5)}`}>
+                  {cohort.month_5?.toFixed(0) || '-'}%
                 </div>
               </div>
             ))}

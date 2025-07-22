@@ -36,17 +36,20 @@ export const IncomeDistributionHistogram = () => {
     );
   }
 
-  const chartData = incomeDistribution.map(item => ({
-    nivel: `Nivel ${item.nivel}`,
-    rango: LEVEL_LABELS[item.nivel as keyof typeof LEVEL_LABELS],
-    custodios: item.custodios_count,
-    porcentaje: item.porcentaje,
-    servicios: item.promedio_servicios,
-    ingresos: item.promedio_ingresos,
-    color: LEVEL_COLORS[item.nivel as keyof typeof LEVEL_COLORS]
+  const chartData = incomeDistribution.map((item, index) => ({
+    nivel: item.income_level,
+    rango: item.income_range,
+    custodios: item.custodian_count,
+    porcentaje: item.percentage,
+    servicios: item.avg_services,
+    ingresos: item.avg_income,
+    color: index === 0 ? 'hsl(var(--success))' : 
+           index === 1 ? 'hsl(var(--warning))' : 
+           index === 2 ? 'hsl(var(--warning))' : 
+           index === 3 ? 'hsl(var(--success))' : 'hsl(var(--success))'
   }));
 
-  const targetAchieved = incomeDistribution.find(item => item.nivel === 5)?.porcentaje || 0;
+  const targetAchieved = incomeDistribution.find(item => item.income_level === 'Alto')?.percentage || 0;
 
   return (
     <Card>

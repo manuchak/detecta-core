@@ -128,7 +128,7 @@ export const ExecutiveDashboard = () => {
     },
     {
       title: 'LTV Dinámico',
-      value: `$${dynamicLTV.toLocaleString()}`,
+      value: `$${Math.round(dynamicLTV).toLocaleString()}`,
       trend: ltvConfidence > 0.8 ? 15 : ltvConfidence > 0.5 ? 5 : -3,
       status: dynamicLTV > 100000 ? 'excellent' :
               dynamicLTV > 50000 ? 'good' : 

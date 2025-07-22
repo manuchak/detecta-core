@@ -34,8 +34,8 @@ export const ActivationMetricsCard = () => {
     );
   }
 
-  const isGoodActivation = activationMetrics.promedio_dias_activacion <= 7;
-  const isFastActivation = activationMetrics.tasa_activacion_rapida >= 50;
+  const isGoodActivation = activationMetrics.avg_activation_days <= 7;
+  const isFastActivation = activationMetrics.fast_activation_rate >= 50;
 
   return (
     <Card>
@@ -54,7 +54,7 @@ export const ActivationMetricsCard = () => {
           </div>
           <div className="flex items-center gap-2">
             <span className={`text-lg font-bold ${isGoodActivation ? 'text-success' : 'text-warning'}`}>
-              {activationMetrics.promedio_dias_activacion} días
+              {activationMetrics.avg_activation_days} días
             </span>
             {isGoodActivation ? (
               <TrendingUp className="h-4 w-4 text-success" />
@@ -78,21 +78,21 @@ export const ActivationMetricsCard = () => {
         <div className="grid grid-cols-2 gap-4 pt-2">
           <div className="text-center">
             <div className="text-2xl font-bold text-success">
-              {activationMetrics.activaciones_rapidas_7d}
+              {activationMetrics.fast_activations}
             </div>
             <div className="text-xs text-muted-foreground">Rápidas (≤7 días)</div>
             <div className="text-xs font-medium text-success">
-              {activationMetrics.tasa_activacion_rapida}%
+              {activationMetrics.fast_activation_rate}%
             </div>
           </div>
           
           <div className="text-center">
             <div className="text-2xl font-bold text-destructive">
-              {activationMetrics.activaciones_lentas_14d}
+              {activationMetrics.slow_activations}
             </div>
             <div className="text-xs text-muted-foreground">Lentas (&gt;14 días)</div>
             <div className="text-xs font-medium text-destructive">
-              {((activationMetrics.activaciones_lentas_14d / activationMetrics.total_activaciones) * 100).toFixed(1)}%
+              {((activationMetrics.slow_activations / activationMetrics.total_activations) * 100).toFixed(1)}%
             </div>
           </div>
         </div>
@@ -101,11 +101,11 @@ export const ActivationMetricsCard = () => {
         <div className="pt-2 border-t">
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Mediana:</span>
-            <span className="font-medium">{activationMetrics.mediana_dias_activacion} días</span>
+            <span className="font-medium">{activationMetrics.median_activation_days} días</span>
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Total evaluados:</span>
-            <span className="font-medium">{activationMetrics.total_activaciones}</span>
+            <span className="font-medium">{activationMetrics.total_activations}</span>
           </div>
         </div>
       </CardContent>
