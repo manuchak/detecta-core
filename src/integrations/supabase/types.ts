@@ -6271,6 +6271,13 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_active_custodians_60_days: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          count: number
+          custodians: string[]
+        }[]
+      }
       get_active_custodians_count: {
         Args: Record<PropertyKey, never>
         Returns: {

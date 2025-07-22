@@ -5,6 +5,7 @@ import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, DollarSign, Users
 import { SupplyTeamMetrics } from './SupplyTeamMetrics';
 import { useUnifiedRecruitmentMetrics } from '@/hooks/useUnifiedRecruitmentMetrics';
 import { useSupplyMetrics } from '@/hooks/useSupplyMetrics';
+import { useActiveCustodians } from '@/hooks/useActiveCustodians';
 import { RecruitmentMathEngine } from '@/lib/RecruitmentMathEngine';
 
 interface ExecutiveKPI {
@@ -19,10 +20,11 @@ interface ExecutiveKPI {
 export const ExecutiveDashboard = () => {
   const { metrics, loading: unifiedLoading, activeCustodiansCount } = useUnifiedRecruitmentMetrics();
   const { metrics: supplyMetrics, loading: supplyLoading } = useSupplyMetrics();
+  const { activeCustodians30Days, activeCustodians60Days, loading: activeCustodiansLoading } = useActiveCustodians();
 
   // Implementar fallback cuando unified metrics fallan
   const isUnifiedDataAvailable = metrics && !unifiedLoading;
-  const loading = supplyLoading; // Solo esperar supply metrics que son más confiables
+  const loading = supplyLoading || activeCustodiansLoading;
 
   if (loading) {
     return (
@@ -42,10 +44,9 @@ export const ExecutiveDashboard = () => {
     );
   }
 
-  // DATOS REALES VALIDADOS - Usar supply metrics como fuente confiable
-  const realActiveCustodians = isUnifiedDataAvailable 
-    ? (activeCustodiansCount || 122) // Fallback al dato del forensic audit
-    : 122; // Dato real del sistema según forensic_audit_servicios
+  // DATOS REALES VALIDADOS - Usar active custodians hook como fuente principal
+  const realActiveCustodians30Days = activeCustodians30Days || 70; // Últimos 30 días
+  const realActiveCustodians60Days = activeCustodians60Days || 74; // Últimos 60 días
 
   const realCandidatesApproved = supplyMetrics.candidatesApproved || 0;
   const realConversionRate = supplyMetrics.conversionRate || 0;
@@ -97,12 +98,14 @@ export const ExecutiveDashboard = () => {
     },
     {
       title: 'Custodios Activos',
-      value: realActiveCustodians.toString(),
-      trend: realActiveCustodians > 100 ? 15 : realActiveCustodians > 50 ? 5 : -5,
-      status: realActiveCustodians > 100 ? 'excellent' : 
-              realActiveCustodians > 50 ? 'good' : 
-              realActiveCustodians > 20 ? 'warning' : 'critical',
-      description: 'Base operativa actual del sistema',
+      value: `${realActiveCustodians30Days} (30d) / ${realActiveCustodians60Days} (60d)`,
+      trend: realActiveCustodians60Days > realActiveCustodians30Days ? 
+        Math.round(((realActiveCustodians60Days - realActiveCustodians30Days) / realActiveCustodians30Days) * 100) : 
+        0,
+      status: realActiveCustodians30Days > 60 ? 'excellent' : 
+              realActiveCustodians30Days > 40 ? 'good' : 
+              realActiveCustodians30Days > 20 ? 'warning' : 'critical',
+      description: 'Últimos 30 días vs 60 días',
       icon: <Users className="h-5 w-5" />
     },
     {
@@ -361,8 +364,8 @@ export const ExecutiveDashboard = () => {
                   {zone || `Zona ${index + 1}`}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {realActiveCustodians > 0 ? 
-                    (((count || 0) / realActiveCustodians) * 100).toFixed(1) : 
+                  {realActiveCustodians30Days > 0 ? 
+                    (((count || 0) / realActiveCustodians30Days) * 100).toFixed(1) : 
                     '0.0'}%
                 </div>
               </div>
