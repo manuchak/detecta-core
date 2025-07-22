@@ -30,6 +30,11 @@ import { MachineLearningPanel } from "@/components/recruitment/ml/MachineLearnin
 import { ScenarioSimulationPanel } from "@/components/recruitment/simulation/ScenarioSimulationPanel";
 import { ScenarioSimulator } from '@/components/recruitment/ScenarioSimulator';
 import FinancialROIDashboard from '@/components/recruitment/FinancialROIDashboard';
+import { ExecutiveDashboard } from '@/components/recruitment/ExecutiveDashboard';
+import { IntelligentAlerts } from '@/components/recruitment/IntelligentAlerts';
+import { IntelligentSimulator } from '@/components/recruitment/IntelligentSimulator';
+import { FinancialTrackingSystem } from '@/components/recruitment/FinancialTrackingSystem';
+import { useUnifiedRecruitmentMetrics } from '@/hooks/useUnifiedRecruitmentMetrics';
 
 const RecruitmentStrategy = () => {
   const [activeSection, setActiveSection] = useState('planificacion');
@@ -85,6 +90,13 @@ const RecruitmentStrategy = () => {
     refreshData: refreshMultiMonthData
   } = useMultiMonthRecruitmentPrediction();
 
+  // Unified metrics integration
+  const {
+    metrics: unifiedMetrics,
+    loading: loadingUnified,
+    fetchAll: fetchUnified
+  } = useUnifiedRecruitmentMetrics();
+
   // Usar siempre datos reales
   const loading = loadingReal;
   const alertasCriticas = alertasCriticasReales;
@@ -98,6 +110,7 @@ const RecruitmentStrategy = () => {
     fetchAllReal();
     refreshPredictionData();
     refreshMultiMonthData();
+    fetchUnified();
   };
 
   const handleGenerateAlerts = () => {
@@ -176,6 +189,34 @@ const RecruitmentStrategy = () => {
           description: 'Retorno de inversión y análisis de costos de reclutamiento',
           icon: TrendingUp,
           breadcrumbs: ['Simulación', 'ROI']
+        };
+      case 'executive':
+        return {
+          title: 'Dashboard Ejecutivo',
+          description: 'Vista consolidada para toma de decisiones estratégicas',
+          icon: Target,
+          breadcrumbs: ['Executive', 'Dashboard']
+        };
+      case 'financial':
+        return {
+          title: 'Sistema Financiero',
+          description: 'Seguimiento de gastos y ROI de reclutamiento',
+          icon: TrendingUp,
+          breadcrumbs: ['Executive', 'Financiero']
+        };
+      case 'simulator':
+        return {
+          title: 'Simulador Inteligente',
+          description: 'Simulación avanzada de escenarios de reclutamiento',
+          icon: Target,
+          breadcrumbs: ['Executive', 'Simulador']
+        };
+      case 'alerts':
+        return {
+          title: 'Alertas Inteligentes',
+          description: 'Sistema de alertas basado en IA y correlaciones',
+          icon: AlertTriangle,
+          breadcrumbs: ['Executive', 'Alertas']
         };
       default:
         return {
@@ -536,6 +577,18 @@ const RecruitmentStrategy = () => {
             <FinancialROIDashboard />
           </Card>
         );
+
+      case 'executive':
+        return <ExecutiveDashboard />;
+
+      case 'financial':
+        return <FinancialTrackingSystem />;
+
+      case 'simulator':
+        return <IntelligentSimulator />;
+
+      case 'alerts':
+        return <IntelligentAlerts />;
         
       default:
         return (

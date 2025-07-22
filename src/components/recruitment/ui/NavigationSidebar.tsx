@@ -133,6 +133,38 @@ const navigationItems: NavigationItem[] = [
         icon: TrendingUp
       }
     ]
+  },
+  {
+    id: 'executive',
+    title: 'Executive',
+    description: 'Dashboard ejecutivo y control',
+    icon: Target,
+    children: [
+      {
+        id: 'executive',
+        title: 'Dashboard',
+        description: 'Vista ejecutiva',
+        icon: Target
+      },
+      {
+        id: 'financial',
+        title: 'Financiero',
+        description: 'Tracking gastos',
+        icon: TrendingUp
+      },
+      {
+        id: 'simulator',
+        title: 'Simulador',
+        description: 'Simulador IA',
+        icon: TestTube
+      },
+      {
+        id: 'alerts',
+        title: 'Alertas IA',
+        description: 'Alertas inteligentes',
+        icon: AlertTriangle
+      }
+    ]
   }
 ];
 
