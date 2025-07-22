@@ -8,6 +8,7 @@ import { TrendingUp, Users, DollarSign, Target, AlertTriangle, Activity, Zap, Br
 import { useUnifiedRecruitmentMetrics } from '@/hooks/useUnifiedRecruitmentMetrics';
 import { useCohortAnalytics } from '@/hooks/useCohortAnalytics';
 import { BudgetOptimization } from './BudgetOptimization';
+import { ProductivityChart } from './cohort-analytics/ProductivityChart';
 
 export const ExecutiveDashboard = () => {
   const { metrics, loading } = useUnifiedRecruitmentMetrics();
@@ -154,7 +155,7 @@ export const ExecutiveDashboard = () => {
           <TabsTrigger value="overview">Vista General</TabsTrigger>
           <TabsTrigger value="financial">Análisis Financiero</TabsTrigger>
           <TabsTrigger value="optimization">Optimización IA</TabsTrigger>
-          <TabsTrigger value="correlations">Correlaciones</TabsTrigger>
+          <TabsTrigger value="performance">Performance Custodios</TabsTrigger>
           <TabsTrigger value="projections">Proyecciones</TabsTrigger>
         </TabsList>
 
@@ -294,8 +295,70 @@ export const ExecutiveDashboard = () => {
           <BudgetOptimization />
         </TabsContent>
 
-        {/* Correlaciones */}
-        <TabsContent value="correlations" className="space-y-6">
+        {/* Performance Custodios */}
+        <TabsContent value="performance" className="space-y-6">
+          <div className="mb-4">
+            <h3 className="text-xl font-light text-gray-900 flex items-center gap-2">
+              <Users className="w-5 h-5 text-blue-600" />
+              Performance y Productividad de Custodios
+            </h3>
+            <p className="text-sm text-gray-600 mt-1">
+              Análisis de rendimiento, servicios promedio y generación de ingresos por custodio
+            </p>
+          </div>
+
+          {/* Métricas de Performance */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Activity className="h-4 w-4 text-blue-500" />
+                  <CardTitle className="text-sm font-medium">Servicios Promedio</CardTitle>
+                </div>
+                <div className="text-3xl font-bold">3.2</div>
+                <p className="text-xs text-muted-foreground mt-1">Por custodio al mes</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <DollarSign className="h-4 w-4 text-green-500" />
+                  <CardTitle className="text-sm font-medium">Ingresos Promedio</CardTitle>
+                </div>
+                <div className="text-3xl font-bold">$25,400</div>
+                <p className="text-xs text-muted-foreground mt-1">Por custodio al mes</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Target className="h-4 w-4 text-purple-500" />
+                  <CardTitle className="text-sm font-medium">Eficiencia</CardTitle>
+                </div>
+                <div className="text-3xl font-bold">87%</div>
+                <p className="text-xs text-muted-foreground mt-1">Servicios completados</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className="h-4 w-4 text-orange-500" />
+                  <CardTitle className="text-sm font-medium">Crecimiento</CardTitle>
+                </div>
+                <div className="text-3xl font-bold">+12%</div>
+                <p className="text-xs text-muted-foreground mt-1">Mes sobre mes</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Gráfico de Productividad */}
+          <div className="mb-6">
+            <ProductivityChart />
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
