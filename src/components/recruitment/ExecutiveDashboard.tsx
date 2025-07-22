@@ -419,9 +419,9 @@ export const ExecutiveDashboard = () => {
                           </div>
                         </div>
 
-                        {/* Data rows - últimos 6 meses (febrero a julio) */}
+                        {/* Data rows - febrero a julio 2025 */}
                         {cohortRetention.length > 0 ? (
-                          cohortRetention.slice(-6).reverse().slice(0, 6).map((cohort) => (
+                          cohortRetention.filter(cohort => cohort.cohort_month !== '2025-01').slice(-6).map((cohort) => (
                             <div key={cohort.cohort_month} className="grid grid-cols-7 gap-1 mb-1">
                               <div className="p-1 text-xs font-medium text-center bg-gray-100 rounded">
                                 {cohort.cohort_month}
