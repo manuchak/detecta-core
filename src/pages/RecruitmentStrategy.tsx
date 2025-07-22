@@ -37,6 +37,8 @@ import { FinancialTrackingSystem } from '@/components/recruitment/FinancialTrack
 import { AIInsightsPanel } from '@/components/recruitment/AIInsightsPanel';
 import { SmartAlertsPanel } from '@/components/recruitment/SmartAlertsPanel';
 import { useUnifiedRecruitmentMetrics } from '@/hooks/useUnifiedRecruitmentMetrics';
+import { RecruitmentErrorBoundary } from '@/components/recruitment/ErrorBoundary';
+import { useReliableMetrics } from '@/hooks/useReliableMetrics';
 
 const RecruitmentStrategy = () => {
   const [activeSection, setActiveSection] = useState('planificacion');
@@ -92,12 +94,19 @@ const RecruitmentStrategy = () => {
     refreshData: refreshMultiMonthData
   } = useMultiMonthRecruitmentPrediction();
 
-  // Unified metrics integration
+  // Unified metrics integration with fallback
   const {
     metrics: unifiedMetrics,
     loading: loadingUnified,
     fetchAll: fetchUnified
   } = useUnifiedRecruitmentMetrics();
+
+  // Reliable metrics como fallback
+  const {
+    metrics: reliableMetrics,
+    loading: loadingReliable,
+    reliability
+  } = useReliableMetrics();
 
   // Usar siempre datos reales
   const loading = loadingReal;
@@ -109,10 +118,15 @@ const RecruitmentStrategy = () => {
   const candidatosActivos = candidatosActivosReales;
 
   const handleRefreshData = () => {
-    fetchAllReal();
-    refreshPredictionData();
-    refreshMultiMonthData();
-    fetchUnified();
+    try {
+      fetchAllReal();
+      refreshPredictionData();
+      refreshMultiMonthData();
+      fetchUnified();
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      // El error boundary manejará cualquier falla
+    }
   };
 
   const handleGenerateAlerts = () => {
@@ -432,8 +446,12 @@ const RecruitmentStrategy = () => {
           </Card>
         );
       
-      case 'alertas':
-        return <SmartAlertsPanel />;
+        case 'alertas':
+          return (
+            <RecruitmentErrorBoundary>
+              <SmartAlertsPanel />
+            </RecruitmentErrorBoundary>
+          );
         
       case 'pipeline':
         return (
@@ -565,8 +583,12 @@ const RecruitmentStrategy = () => {
           </Card>
         );
 
-      case 'executive':
-        return <ExecutiveDashboard />;
+        case 'executive':
+          return (
+            <RecruitmentErrorBoundary>
+              <ExecutiveDashboard />
+            </RecruitmentErrorBoundary>
+          );
 
       case 'financial':
         return <FinancialTrackingSystem />;

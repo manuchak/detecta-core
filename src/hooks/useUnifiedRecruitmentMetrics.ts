@@ -266,13 +266,14 @@ export const useUnifiedRecruitmentMetrics = () => {
   }, [rotationData, activeCustodiansCurrentMonth, financialSystem.gastos, financialSystem.presupuestos, financialSystem.metricasCanales]);
 
   const fetchAll = async () => {
+    if (loading) return; // Prevenir requests concurrentes
+    
     setLoading(true);
     try {
       await Promise.allSettled([
         fetchRotationData(),
         fetchActiveCustodiansCurrentMonth(),
-        nationalRecruitment.fetchAll(),
-        // financialSystem ya se carga automáticamente
+        // Evitar nationalRecruitment.fetchAll() aquí para prevenir loops
       ]);
     } finally {
       setLoading(false);
@@ -280,8 +281,33 @@ export const useUnifiedRecruitmentMetrics = () => {
   };
 
   useEffect(() => {
-    fetchAll();
-  }, []);
+    let isMounted = true;
+    
+    const loadDataWithDebounce = async () => {
+      if (!isMounted) return;
+      
+      setLoading(true);
+      try {
+        await Promise.allSettled([
+          fetchRotationData(),
+          fetchActiveCustodiansCurrentMonth(),
+          // Evitar cargar nationalRecruitment aquí para prevenir loops
+        ]);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    // Debounce de 500ms para evitar requests duplicados
+    const timeoutId = setTimeout(loadDataWithDebounce, 500);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, []); // Solo ejecutar una vez al montar
 
   return {
     // Data unificada
