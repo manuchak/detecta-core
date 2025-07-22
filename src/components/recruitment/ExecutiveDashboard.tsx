@@ -14,7 +14,15 @@ export const ExecutiveDashboard = () => {
   const { metrics, loading } = useUnifiedRecruitmentMetrics();
   const { cohortRetention, productivityStats, isLoading: cohortLoading } = useCohortAnalytics();
 
-  const totalCustodians = metrics?.activeCustodians.total || 0;
+  // Usar datos reales de productivityStats para custodios activos
+  const totalCustodians = useMemo(() => {
+    if (!productivityStats.length) return 0;
+    // Obtener el dato más reciente (último mes)
+    const sortedData = productivityStats.sort((a, b) => 
+      new Date(b.month_year + '-01').getTime() - new Date(a.month_year + '-01').getTime()
+    );
+    return sortedData[0]?.active_custodians || 0;
+  }, [productivityStats]);
   const monthlyRotationRate = metrics?.rotationMetrics.monthlyRate || 0;
   const realCPA = metrics?.financialMetrics.realCPA || 0;
   const totalInvestment = metrics?.financialMetrics.totalInvestment || 0;
