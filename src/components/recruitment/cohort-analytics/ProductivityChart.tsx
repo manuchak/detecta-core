@@ -33,7 +33,14 @@ export const ProductivityChart = () => {
     );
   }
 
-  const chartData = productivityStats
+  // Filtrar datos desde marzo 2025
+  const filteredData = productivityStats.filter(item => {
+    const itemDate = new Date(item.month_year + '-01');
+    const cutoffDate = new Date('2025-03-01');
+    return itemDate >= cutoffDate;
+  });
+
+  const chartData = filteredData
     .slice()
     .reverse() // Mostrar cronológicamente
     .map(item => ({
