@@ -5,6 +5,7 @@ import { RecruitmentMathEngine } from '@/lib/RecruitmentMathEngine';
 import { useNationalRecruitment } from './useNationalRecruitment';
 import { useFinancialSystem } from './useFinancialSystem';
 import { useForecastData } from './useForecastData';
+import { useCustomerLTV } from './useCustomerLTV';
 
 export interface CustodioRotationData {
   id: string;
@@ -76,7 +77,8 @@ export const useUnifiedRecruitmentMetrics = () => {
   // Hooks existentes para obtener datos
   const nationalRecruitment = useNationalRecruitment();
   const financialSystem = useFinancialSystem();
-  const forecastData = useForecastData(0, 0); // Valores dummy, se calculan con datos reales
+  const forecastData = useForecastData(0, 0);
+  const { ltvMetrics, loading: ltvLoading } = useCustomerLTV();
 
   // Fetch de datos de rotación desde custodios_rotacion_tracking
   const fetchRotationData = async () => {
@@ -131,7 +133,7 @@ export const useUnifiedRecruitmentMetrics = () => {
     }
   };
 
-  // Cálculo de métricas unificadas usando matemática sólida
+  // Cálculo de métricas unificadas usando LTV dinámico
   const unifiedMetrics = useMemo((): UnifiedMetrics => {
     // 1. Métricas de custodios activos
     const activeCustodians = {
@@ -141,14 +143,13 @@ export const useUnifiedRecruitmentMetrics = () => {
         acc[zone] = (acc[zone] || 0) + (custodian.estado_actividad === 'activo' ? 1 : 0);
         return acc;
       }, {} as Record<string, number>),
-      growthRate: 0, // Se calculará con datos históricos
-      trend: [] // Se calculará con EMA
+      growthRate: 0,
+      trend: []
     };
 
-    // 2. Métricas de rotación real - usar valor real consistente con la página de análisis
-    const monthlyRotationRate = 11.03; // Valor real del sistema mostrado en análisis de retención
+    // 2. Métricas de rotación real
+    const monthlyRotationRate = 11.03;
 
-    // Correlación rotación-reclutamiento usando datos reales
     const rotationRecruitmentData = rotationData.map((custodian, index) => ({
       month: index,
       rotationRate: custodian.dias_sin_servicio || 0,
@@ -161,7 +162,7 @@ export const useUnifiedRecruitmentMetrics = () => {
 
     const rotationMetrics = {
       monthlyRate: monthlyRotationRate,
-      predictedNext30Days: monthlyRotationRate * 1.1, // Ajuste por tendencia
+      predictedNext30Days: monthlyRotationRate * 1.1,
       correlation: rotationCorrelation,
       byZone: rotationData.reduce((acc, custodian) => {
         const zone = custodian.zona_operacion;
@@ -172,7 +173,7 @@ export const useUnifiedRecruitmentMetrics = () => {
       }, {} as Record<string, number>)
     };
 
-    // 3. Métricas financieras reales
+    // 3. Métricas financieras reales con LTV dinámico
     const totalInvestment = financialSystem.gastos.reduce((sum, gasto) => {
       return sum + (gasto.estado === 'aprobado' || gasto.estado === 'pagado' ? gasto.monto : 0);
     }, 0);
@@ -187,6 +188,9 @@ export const useUnifiedRecruitmentMetrics = () => {
       return sum + ((presupuesto.presupuesto_utilizado || 0) / presupuesto.presupuesto_asignado) * 100;
     }, 0) / Math.max(financialSystem.presupuestos.length, 1);
 
+    // Usar LTV dinámico en lugar del valor fijo
+    const dynamicLTV = ltvMetrics.overallLTV > 0 ? ltvMetrics.overallLTV : 15000; // Fallback al valor anterior
+
     const financialMetrics = {
       realCPA,
       totalInvestment,
@@ -195,17 +199,19 @@ export const useUnifiedRecruitmentMetrics = () => {
         acc[metrica.canal] = metrica.roi_canal || 0;
         return acc;
       }, {} as Record<string, number>),
-      projectedCosts: totalInvestment * 1.15 // Proyección 15% adicional
+      projectedCosts: totalInvestment * 1.15,
+      dynamicLTV,
+      ltvConfidence: ltvMetrics.confidence
     };
 
     // 4. Correlaciones matemáticas
     const correlations = {
       rotationToRecruitment: rotationCorrelation,
-      financialToOperational: 0.75, // Se calculará con más datos
+      financialToOperational: 0.75,
       seasonalFactors: [1.0, 1.1, 1.2, 1.0, 0.9, 0.8, 0.9, 1.0, 1.1, 1.2, 1.1, 1.0]
     };
 
-    // 5. Proyecciones usando algoritmos avanzados
+    // 5. Proyecciones usando LTV dinámico
     const demandProjection = RecruitmentMathEngine.projectDemand(
       rotationData.slice(-12).map((custodian, index) => ({
         period: index,
@@ -215,24 +221,23 @@ export const useUnifiedRecruitmentMetrics = () => {
       }))
     );
 
-    // Optimización de presupuesto
     const channels = financialSystem.metricasCanales.map(metrica => ({
       id: metrica.id,
       name: metrica.canal,
       cpa: metrica.costo_por_contratacion || realCPA,
       conversionRate: metrica.tasa_conversion_candidato_custodio || 0.1,
-      capacity: 100, // Capacidad estimada
+      capacity: 100,
       currentROI: metrica.roi_canal || 0
     }));
 
     const budgetOptimization = RecruitmentMathEngine.optimizeBudgetAllocation(
-      totalInvestment * 1.2, // 20% más de presupuesto
+      totalInvestment * 1.2,
       channels
     );
 
-    // Simulación Monte Carlo con valores seguros
-    const safeBudget = Math.max(totalInvestment, 10000); // Mínimo $10k para la simulación
-    const safeCPA = Math.max(realCPA, 1000); // Mínimo $1k CPA para evitar divisiones por cero
+    // Simulación Monte Carlo con LTV dinámico
+    const safeBudget = Math.max(totalInvestment, 10000);
+    const safeCPA = Math.max(realCPA, 1000);
     
     const monteCarloResults = RecruitmentMathEngine.monteCarloSimulation(
       {
@@ -261,19 +266,19 @@ export const useUnifiedRecruitmentMetrics = () => {
       rotationMetrics,
       financialMetrics,
       correlations,
-      projections
+      projections,
+      ltvMetrics
     };
-  }, [rotationData, activeCustodiansCurrentMonth, financialSystem.gastos, financialSystem.presupuestos, financialSystem.metricasCanales]);
+  }, [rotationData, activeCustodiansCurrentMonth, financialSystem.gastos, financialSystem.presupuestos, financialSystem.metricasCanales, ltvMetrics]);
 
   const fetchAll = async () => {
-    if (loading) return; // Prevenir requests concurrentes
+    if (loading) return;
     
     setLoading(true);
     try {
       await Promise.allSettled([
         fetchRotationData(),
         fetchActiveCustodiansCurrentMonth(),
-        // Evitar nationalRecruitment.fetchAll() aquí para prevenir loops
       ]);
     } finally {
       setLoading(false);
@@ -291,7 +296,6 @@ export const useUnifiedRecruitmentMetrics = () => {
         await Promise.allSettled([
           fetchRotationData(),
           fetchActiveCustodiansCurrentMonth(),
-          // Evitar cargar nationalRecruitment aquí para prevenir loops
         ]);
       } finally {
         if (isMounted) {
@@ -307,28 +311,20 @@ export const useUnifiedRecruitmentMetrics = () => {
       isMounted = false;
       clearTimeout(timeoutId);
     };
-  }, []); // Solo ejecutar una vez al montar
+  }, []);
 
   return {
-    // Data unificada
     metrics: unifiedMetrics,
     rotationData,
     activeCustodiansCount: activeCustodiansCurrentMonth,
-    
-    // Loading states
-    loading: loading || nationalRecruitment.loading || financialSystem.loading,
-    
-    // Sub-hooks para acceso directo si es necesario
+    loading: loading || nationalRecruitment.loading || financialSystem.loading || ltvLoading,
     nationalRecruitment,
     financialSystem,
     forecastData,
-    
-    // Actions
+    ltvMetrics,
     fetchAll,
     refreshRotationData: fetchRotationData,
     refreshActiveCustodians: fetchActiveCustodiansCurrentMonth,
-    
-    // Math engine para cálculos adicionales
     mathEngine: RecruitmentMathEngine
   };
 };

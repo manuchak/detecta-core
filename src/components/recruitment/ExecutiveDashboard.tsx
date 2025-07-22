@@ -18,11 +18,10 @@ interface ExecutiveKPI {
 }
 
 export const ExecutiveDashboard = () => {
-  const { metrics, loading: unifiedLoading, activeCustodiansCount } = useUnifiedRecruitmentMetrics();
+  const { metrics, loading: unifiedLoading, activeCustodiansCount, ltvMetrics } = useUnifiedRecruitmentMetrics();
   const { metrics: supplyMetrics, loading: supplyLoading } = useSupplyMetrics();
   const { activeCustodians30Days, activeCustodians60Days, loading: activeCustodiansLoading } = useActiveCustodians();
 
-  // Implementar fallback cuando unified metrics fallan
   const isUnifiedDataAvailable = metrics && !unifiedLoading;
   const loading = supplyLoading || activeCustodiansLoading;
 
@@ -44,23 +43,26 @@ export const ExecutiveDashboard = () => {
     );
   }
 
-  // DATOS REALES VALIDADOS - Usar active custodians hook como fuente principal
-  const realActiveCustodians30Days = activeCustodians30Days || 70; // Últimos 30 días
-  const realActiveCustodians60Days = activeCustodians60Days || 74; // Últimos 60 días
+  // DATOS REALES VALIDADOS con LTV dinámico
+  const realActiveCustodians30Days = activeCustodians30Days || 70;
+  const realActiveCustodians60Days = activeCustodians60Days || 74;
 
   const realCandidatesApproved = supplyMetrics.candidatesApproved || 0;
   const realConversionRate = supplyMetrics.conversionRate || 0;
   const realCPA = isUnifiedDataAvailable && metrics.financialMetrics?.realCPA > 0 
     ? metrics.financialMetrics.realCPA 
-    : 1830; // CPA base validado del sistema
+    : 1830;
 
   const realRotationRate = isUnifiedDataAvailable 
     ? (metrics.rotationMetrics?.monthlyRate || 11.03)
-    : 11.03; // Valor real del análisis de retención
+    : 11.03;
 
-  // Calcular métricas ejecutivas con datos reales
-  const averageLTV = 15000; // LTV promedio del sistema
-  const calculatedROI = realCPA > 0 ? ((averageLTV - realCPA) / realCPA) * 100 : 721; // ROI positivo real
+  // Usar LTV dinámico en lugar del valor fijo
+  const dynamicLTV = ltvMetrics?.overallLTV > 0 ? ltvMetrics.overallLTV : 15000;
+  const ltvConfidence = ltvMetrics?.confidence || 0;
+  
+  // Calcular ROI con LTV dinámico
+  const calculatedROI = realCPA > 0 ? ((dynamicLTV - realCPA) / realCPA) * 100 : 721;
 
   // Calcular métricas de rendimiento
   const retentionRate = Math.max(0, 100 - realRotationRate);
@@ -85,7 +87,7 @@ export const ExecutiveDashboard = () => {
     ? (metrics.projections?.monteCarloResults?.successProbability || 0)
     : 0.78; // 78% probabilidad base
 
-  // KPIs ejecutivos con datos reales y fallbacks confiables
+  // KPIs ejecutivos con LTV dinámico
   const executiveKPIs: ExecutiveKPI[] = [
     {
       title: 'Eficiencia de Adquisición',
@@ -119,13 +121,23 @@ export const ExecutiveDashboard = () => {
       icon: <Target className="h-5 w-5" />
     },
     {
+      title: 'LTV Dinámico',
+      value: `$${dynamicLTV.toLocaleString()}`,
+      trend: ltvConfidence > 0.8 ? 15 : ltvConfidence > 0.5 ? 5 : -3,
+      status: dynamicLTV > 100000 ? 'excellent' :
+              dynamicLTV > 50000 ? 'good' : 
+              dynamicLTV > 25000 ? 'warning' : 'critical',
+      description: `Confianza: ${(ltvConfidence * 100).toFixed(0)}% | ${ltvMetrics?.activeCustodians || 0} custodios`,
+      icon: <TrendingUp className="h-5 w-5" />
+    },
+    {
       title: 'ROI Proyectado',
       value: `${calculatedROI.toFixed(0)}%`,
       trend: calculatedROI > 300 ? 18 : calculatedROI > 200 ? 8 : -3,
       status: calculatedROI > 300 ? 'excellent' :
               calculatedROI > 200 ? 'good' : 
               calculatedROI > 100 ? 'warning' : 'critical',
-      description: `Basado en LTV promedio $${averageLTV.toLocaleString()}`,
+      description: `Basado en LTV dinámico $${dynamicLTV.toLocaleString()}`,
       icon: <TrendingUp className="h-5 w-5" />
     },
     {
@@ -137,16 +149,6 @@ export const ExecutiveDashboard = () => {
               realBudgetUtilization > 50 ? 'warning' : 'critical',
       description: 'Del presupuesto mensual asignado',
       icon: <Zap className="h-5 w-5" />
-    },
-    {
-      title: 'Precisión Predictiva',
-      value: `${predictivePrecision.toFixed(0)}%`,
-      trend: predictivePrecision > 80 ? 8 : predictivePrecision > 60 ? 3 : -5,
-      status: predictivePrecision > 80 ? 'excellent' :
-              predictivePrecision > 60 ? 'good' : 
-              predictivePrecision > 40 ? 'warning' : 'critical',
-      description: 'Confianza en proyecciones de demanda',
-      icon: <CheckCircle className="h-5 w-5" />
     }
   ];
 
@@ -202,6 +204,41 @@ export const ExecutiveDashboard = () => {
           </Card>
         ))}
       </div>
+
+      {/* LTV Analytics Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Análisis de LTV Dinámico</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="text-center p-3 border rounded-lg">
+              <div className="text-xl font-bold">
+                ${ltvMetrics?.averageRevenuePerService?.toLocaleString() || '0'}
+              </div>
+              <div className="text-sm text-muted-foreground">Ingreso promedio por servicio</div>
+            </div>
+            <div className="text-center p-3 border rounded-lg">
+              <div className="text-xl font-bold">
+                {ltvMetrics?.averageServicesPerCustodian?.toFixed(1) || '0'}
+              </div>
+              <div className="text-sm text-muted-foreground">Servicios promedio por custodio</div>
+            </div>
+            <div className="text-center p-3 border rounded-lg">
+              <div className="text-xl font-bold">
+                {ltvMetrics?.averageRetentionMonths?.toFixed(1) || '0'} meses
+              </div>
+              <div className="text-sm text-muted-foreground">Retención promedio</div>
+            </div>
+            <div className="text-center p-3 border rounded-lg">
+              <div className="text-xl font-bold">
+                ${ltvMetrics?.totalRevenue?.toLocaleString() || '0'}
+              </div>
+              <div className="text-sm text-muted-foreground">Ingresos totales históricos</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Análisis de Correlaciones */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
