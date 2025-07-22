@@ -6274,12 +6274,12 @@ export type Database = {
       get_activation_metrics: {
         Args: Record<PropertyKey, never>
         Returns: {
-          promedio_dias_activacion: number
-          mediana_dias_activacion: number
-          activaciones_rapidas_7d: number
-          activaciones_lentas_14d: number
-          total_activaciones: number
-          tasa_activacion_rapida: number
+          avg_activation_days: number
+          median_activation_days: number
+          fast_activations: number
+          slow_activations: number
+          total_activations: number
+          fast_activation_rate: number
         }[]
       }
       get_active_custodians_60_days: {
@@ -6449,14 +6449,14 @@ export type Database = {
       get_cohort_retention_matrix: {
         Args: Record<PropertyKey, never>
         Returns: {
-          cohorte_mes: string
-          mes_0: number
-          mes_1: number
-          mes_2: number
-          mes_3: number
-          mes_4: number
-          mes_5: number
-          custodios_iniciales: number
+          cohort_month: string
+          initial_size: number
+          month_1: number
+          month_2: number
+          month_3: number
+          month_4: number
+          month_5: number
+          month_6: number
         }[]
       }
       get_current_user_ranking_stats: {
@@ -6667,13 +6667,12 @@ export type Database = {
       get_income_distribution_by_threshold: {
         Args: Record<PropertyKey, never>
         Returns: {
-          nivel: number
-          rango_min: number
-          rango_max: number
-          custodios_count: number
-          porcentaje: number
-          promedio_servicios: number
-          promedio_ingresos: number
+          income_level: string
+          income_range: string
+          custodian_count: number
+          percentage: number
+          avg_services: number
+          avg_income: number
         }[]
       }
       get_instaladores_disponibles: {
@@ -6715,12 +6714,12 @@ export type Database = {
       get_monthly_productivity_stats: {
         Args: Record<PropertyKey, never>
         Returns: {
-          mes: string
-          custodios_activos: number
-          servicios_promedio: number
-          ingresos_promedio: number
-          servicios_totales: number
-          ingresos_totales: number
+          month_year: string
+          active_custodians: number
+          avg_services_per_custodian: number
+          total_services: number
+          avg_income_per_custodian: number
+          total_income: number
         }[]
       }
       get_points_system_config: {
