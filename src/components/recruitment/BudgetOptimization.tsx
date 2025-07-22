@@ -212,7 +212,6 @@ export const BudgetOptimization = () => {
                     <Scatter 
                       dataKey="roi" 
                       fill="hsl(var(--primary))"
-                      r={(entry) => Math.max(5, entry.volume / 10)}
                     />
                   </ScatterChart>
                 </ResponsiveContainer>
@@ -371,12 +370,12 @@ export const BudgetOptimization = () => {
                     <XAxis type="number" domain={[-50, 50]} />
                     <YAxis dataKey="name" type="category" width={80} />
                     <Tooltip 
-                      formatter={(value) => [`${value.toFixed(1)}%`, 'Sensibilidad']}
+                      formatter={(value) => [`${typeof value === 'number' ? value.toFixed(1) : value}%`, 'Sensibilidad']}
                       labelFormatter={(label) => `Canal: ${label}`}
                     />
                     <Bar 
                       dataKey="improvement_potential" 
-                      fill={(entry) => entry.improvement_potential > 0 ? '#22c55e' : '#ef4444'}
+                      fill="#3b82f6"
                     />
                   </BarChart>
                 </ResponsiveContainer>
