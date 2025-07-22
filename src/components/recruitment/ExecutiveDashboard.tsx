@@ -286,23 +286,74 @@ export const ExecutiveDashboard = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="w-5 h-5" />
-                  Histograma de Custodios por Zona
+                  Análisis de Cohortes y Retención
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="mb-4">
+                  <h4 className="font-medium mb-2">Distribución de Ingresos Mensuales</h4>
+                  <div className="text-sm text-muted-foreground mb-1">Target 30K+: 37.0%</div>
+                </div>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={Object.entries(metrics?.activeCustodians.byZone || {}).map(([zona, count]) => ({ zona, count }))}>
+                    <BarChart data={[
+                      { nivel: 'Nivel 1', porcentaje: 19.8, custodios: 69 },
+                      { nivel: 'Nivel 2', porcentaje: 15.2, custodios: 53 },
+                      { nivel: 'Nivel 3', porcentaje: 8.6, custodios: 30 },
+                      { nivel: 'Nivel 4', porcentaje: 19.5, custodios: 68 },
+                      { nivel: 'Nivel 5', porcentaje: 37.0, custodios: 129 }
+                    ]}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="zona" angle={-45} textAnchor="end" height={80} />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="count" fill="hsl(var(--primary))" />
+                      <XAxis dataKey="nivel" />
+                      <YAxis label={{ value: 'Custodios (%)', angle: -90, position: 'insideLeft' }} />
+                      <Tooltip 
+                        formatter={(value, name) => [
+                          name === 'porcentaje' ? `${value}%` : value,
+                          name === 'porcentaje' ? 'Porcentaje' : 'Custodios'
+                        ]}
+                        labelFormatter={(label, payload) => {
+                          const data = payload?.[0]?.payload;
+                          return data ? `${data.nivel} - ${data.custodios} custodios` : label;
+                        }}
+                      />
+                      <Bar dataKey="porcentaje">
+                        {[
+                          { nivel: 'Nivel 1', porcentaje: 19.8, custodios: 69 },
+                          { nivel: 'Nivel 2', porcentaje: 15.2, custodios: 53 },
+                          { nivel: 'Nivel 3', porcentaje: 8.6, custodios: 30 },
+                          { nivel: 'Nivel 4', porcentaje: 19.5, custodios: 68 },
+                          { nivel: 'Nivel 5', porcentaje: 37.0, custodios: 129 }
+                        ].map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={index === 0 ? '#ef4444' : '#1f2937'} />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
+                <div className="mt-4 grid grid-cols-5 gap-2 text-xs">
+                  <div className="text-center">
+                    <div className="font-semibold text-red-600">19.8%</div>
+                    <div className="text-muted-foreground">69 custodios</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="font-semibold">15.2%</div>
+                    <div className="text-muted-foreground">53 custodios</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="font-semibold">8.6%</div>
+                    <div className="text-muted-foreground">30 custodios</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="font-semibold">19.5%</div>
+                    <div className="text-muted-foreground">68 custodios</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="font-semibold">37%</div>
+                    <div className="text-muted-foreground">129 custodios</div>
+                  </div>
+                </div>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Distribución de custodios activos por zona operativa
+                  Distribución de custodios por nivel de ingresos mensuales
                 </p>
               </CardContent>
             </Card>
@@ -311,30 +362,30 @@ export const ExecutiveDashboard = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Activity className="w-5 h-5" />
-                  Análisis de Cohort - Retención
+                  Histograma de Custodios por Zona
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={[
-                      { mes: 'Mes 1', retencion: 100 },
-                      { mes: 'Mes 2', retencion: 89 },
-                      { mes: 'Mes 3', retencion: 78 },
-                      { mes: 'Mes 4', retencion: 69 },
-                      { mes: 'Mes 5', retencion: 62 },
-                      { mes: 'Mes 6', retencion: 58 }
-                    ]}>
+                    <BarChart data={Object.entries(metrics?.activeCustodians.byZone || {
+                      'CDMX': 28,
+                      'Nacional': 73,
+                      'Guadalajara': 12,
+                      'Puebla': 6,
+                      'Tijuana': 1,
+                      'Monterrey': 2
+                    }).map(([zona, count]) => ({ zona, count }))}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="mes" />
+                      <XAxis dataKey="zona" angle={-45} textAnchor="end" height={80} />
                       <YAxis />
                       <Tooltip />
-                      <Line type="monotone" dataKey="retencion" stroke="hsl(var(--destructive))" strokeWidth={3} />
-                    </LineChart>
+                      <Bar dataKey="count" fill="#ef4444" />
+                    </BarChart>
                   </ResponsiveContainer>
                 </div>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Tasa de retención de custodios por cohorte mensual
+                  Distribución de custodios activos por zona operativa
                 </p>
               </CardContent>
             </Card>
