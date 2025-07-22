@@ -42,8 +42,7 @@ export const useCustomerLTV = () => {
           nombre_custodio,
           cobro_cliente,
           fecha_hora_cita,
-          estado,
-          zona_operacion
+          estado
         `)
         .in('estado', ['finalizado', 'Finalizado', 'completado', 'Completado'])
         .not('cobro_cliente', 'is', null)
@@ -83,7 +82,7 @@ export const useCustomerLTV = () => {
             revenue: 0,
             firstService: service.fecha_hora_cita,
             lastService: service.fecha_hora_cita,
-            zone: service.zona_operacion || 'Sin zona'
+            zone: 'General'
           };
         }
         acc[custodian].services++;
@@ -120,21 +119,9 @@ export const useCustomerLTV = () => {
       // 5. Calcular LTV total
       const overallLTV = averageRevenuePerService * averageServicesPerCustodian;
 
-      // 6. LTV por zona
-      const ltvByZone = custodianList.reduce((acc, custodian) => {
-        const zone = custodian.zone;
-        if (!acc[zone]) {
-          acc[zone] = { revenue: 0, custodians: 0 };
-        }
-        acc[zone].revenue += custodian.revenue;
-        acc[zone].custodians++;
-        return acc;
-      }, {} as Record<string, { revenue: number; custodians: number }>);
-
-      const ltvByZoneCalculated = Object.entries(ltvByZone).reduce((acc, [zone, data]) => {
-        acc[zone] = data.revenue / data.custodians;
-        return acc;
-      }, {} as Record<string, number>);
+      // 6. LTV por zona (simplificado sin zona específica)
+      const ltvByZone = { 'General': overallLTV };
+      const ltvByZoneCalculated = ltvByZone;
 
       // 7. Calcular tendencia mensual (últimos 12 meses)
       const now = new Date();

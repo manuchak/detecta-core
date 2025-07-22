@@ -266,8 +266,7 @@ export const useUnifiedRecruitmentMetrics = () => {
       rotationMetrics,
       financialMetrics,
       correlations,
-      projections,
-      ltvMetrics
+      projections
     };
   }, [rotationData, activeCustodiansCurrentMonth, financialSystem.gastos, financialSystem.presupuestos, financialSystem.metricasCanales, ltvMetrics]);
 
