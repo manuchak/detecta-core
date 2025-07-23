@@ -133,7 +133,7 @@ export const useConversionRateDetails = (): ConversionRateDetails => {
     allMonths.forEach((month, index) => {
       const leads = leadsPorMes[month] || 0;
       const newCustodians = custodiosNuevosPorMes[month] || 0;
-      const conversionRate = leads > 0 ? (newCustodians / leads) * 100 : 0;
+      const conversionRate = leads > 0 ? Math.round((newCustodians / leads) * 100 * 100) / 100 : 0;
 
       totalLeads += leads;
       totalNewCustodians += newCustodians;
@@ -146,13 +146,13 @@ export const useConversionRateDetails = (): ConversionRateDetails => {
       });
     });
 
-    const overallConversionRate = totalLeads > 0 ? (totalNewCustodians / totalLeads) * 100 : 0;
+    const overallConversionRate = totalLeads > 0 ? Math.round((totalNewCustodians / totalLeads) * 100 * 100) / 100 : 0;
 
     // Datos del mes actual (Julio 2025)
     const currentMonth = '2025-07';
     const currentMonthLeads = leadsPorMes[currentMonth] || 0;
     const currentMonthCustodians = custodiosNuevosPorMes[currentMonth] || 0;
-    const currentMonthConversion = currentMonthLeads > 0 ? (currentMonthCustodians / currentMonthLeads) * 100 : 0;
+    const currentMonthConversion = currentMonthLeads > 0 ? Math.round((currentMonthCustodians / currentMonthLeads) * 100 * 100) / 100 : 0;
 
     return {
       yearlyData: {

@@ -40,7 +40,7 @@ export const ConversionRateTooltip: React.FC<ConversionRateTooltipProps> = ({ da
           </div>
           <div className="flex justify-between pt-1 border-t border-border">
             <span className="text-primary font-medium">Conversión General</span>
-            <span className="font-semibold">{yearlyData.overallConversionRate.toFixed(1)}%</span>
+            <span className="font-semibold">{yearlyData.overallConversionRate.toFixed(2)}%</span>
           </div>
         </div>
       </div>
@@ -59,7 +59,7 @@ export const ConversionRateTooltip: React.FC<ConversionRateTooltipProps> = ({ da
           </div>
           <div className="flex justify-between pt-1 border-t border-border">
             <span className="text-primary font-medium">Conversión del Mes</span>
-            <span className="font-semibold">{currentMonthData.conversionRate.toFixed(1)}%</span>
+            <span className="font-semibold">{currentMonthData.conversionRate.toFixed(2)}%</span>
           </div>
         </div>
       </div>
@@ -74,7 +74,7 @@ export const ConversionRateTooltip: React.FC<ConversionRateTooltipProps> = ({ da
               <div className="flex gap-2">
                 <span className="text-blue-600">{month.leads}L</span>
                 <span className="text-green-600">{month.newCustodians}C</span>
-                <span className="font-medium">{month.conversionRate.toFixed(1)}%</span>
+                <span className="font-medium">{month.conversionRate.toFixed(2)}%</span>
               </div>
             </div>
           ))}
