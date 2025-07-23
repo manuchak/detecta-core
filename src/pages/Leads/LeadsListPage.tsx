@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { LeadsTable } from "@/components/leads/LeadsTable";
 import { EnhancedLeadForm } from "@/components/leads/EnhancedLeadForm";
+import { ZoneNeedsSection } from "@/components/leads/ZoneNeedsSection";
 import { Lead } from "@/types/leadTypes";
 
 const LeadsListPage = () => {
@@ -82,6 +83,9 @@ const LeadsListPage = () => {
           </Button>
         )}
       </div>
+
+      {/* Sección de Necesidades por Zona */}
+      <ZoneNeedsSection />
 
       {showCreateForm ? (
         <Card>
