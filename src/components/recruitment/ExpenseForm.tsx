@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,19 +23,10 @@ interface ExpenseData {
   descripcion: string;
 }
 
-const categories = [
-  { id: 'facebook_ads', name: 'Facebook Ads' },
-  { id: 'indeed', name: 'Indeed' },
-  { id: 'indeed_premium', name: 'Indeed Premium' },
-  { id: 'linkedin_jobs', name: 'LinkedIn Jobs' },
-  { id: 'google_ads', name: 'Google Ads' },
-  { id: 'referidos', name: 'Programa Referidos' },
-  { id: 'examenes_toxicologicos', name: 'Exámenes Toxicológicos' },
-  { id: 'examenes_psicometricos', name: 'Exámenes Psicométricos' },
-  { id: 'gps_financiados', name: 'GPS Financiados' },
-  { id: 'plataforma', name: 'Plataforma' },
-  { id: 'otros', name: 'Otros' }
-];
+interface Category {
+  id: string;
+  nombre: string;
+}
 
 const channels = [
   'Digital',
@@ -49,6 +40,7 @@ const channels = [
 export const ExpenseForm: React.FC = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [formData, setFormData] = useState<ExpenseData>({
     concepto: '',
     monto: 0,
@@ -57,6 +49,21 @@ export const ExpenseForm: React.FC = () => {
     fecha_gasto: undefined,
     descripcion: ''
   });
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data, error } = await supabase
+        .from('categorias_gastos')
+        .select('id, nombre')
+        .order('nombre');
+      
+      if (!error && data) {
+        setCategories(data);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -182,7 +189,7 @@ export const ExpenseForm: React.FC = () => {
                 <SelectContent>
                   {categories.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
+                      {cat.nombre}
                     </SelectItem>
                   ))}
                 </SelectContent>
