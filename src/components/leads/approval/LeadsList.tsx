@@ -1,13 +1,20 @@
-
-import { AssignedLead } from "../../../types/leadTypes";
+import { useMemo } from "react";
+import { AssignedLead } from "@/types/leadTypes";
 import { VapiCallLog } from "@/types/vapiTypes";
 import { ImprovedLeadCard } from "./ImprovedLeadCard";
+import { ApprovalQuickFilters } from "./ApprovalQuickFilters";
+import { ApprovalAdvancedFilters, ApprovalAdvancedFiltersState } from "./ApprovalAdvancedFilters";
 
 interface LeadsListProps {
   leads: AssignedLead[];
   callLogs: VapiCallLog[];
   searchTerm: string;
   activeTab: string;
+  quickFilter?: string | null;
+  advancedFilters?: ApprovalAdvancedFiltersState;
+  onQuickFilterChange?: (filterId: string | null) => void;
+  onAdvancedFiltersChange?: (filters: ApprovalAdvancedFiltersState) => void;
+  onResetAdvancedFilters?: () => void;
   onVapiCall: (lead: AssignedLead) => void;
   onManualInterview: (lead: AssignedLead) => void;
   onEditLead: (lead: AssignedLead) => void;
@@ -24,6 +31,11 @@ export const LeadsList = ({
   callLogs,
   searchTerm,
   activeTab,
+  quickFilter = null,
+  advancedFilters,
+  onQuickFilterChange,
+  onAdvancedFiltersChange,
+  onResetAdvancedFilters,
   onVapiCall,
   onManualInterview,
   onEditLead,
@@ -32,7 +44,7 @@ export const LeadsList = ({
   onSendToSecondInterview,
   onReject,
   onCompleteMissingInfo,
-  onLogCall
+  onLogCall,
 }: LeadsListProps) => {
   const getLeadCallLogs = (leadId: string) => {
     return callLogs.filter(log => log.id === leadId);
@@ -109,28 +121,180 @@ export const LeadsList = ({
     return priority;
   };
 
-  const filteredLeads = leads
-    .filter(lead => {
-      const matchesSearch = lead.lead_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           lead.lead_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           (lead.lead_telefono && lead.lead_telefono.includes(searchTerm));
-      
-      if (activeTab === "pending") {
-        return matchesSearch && 
-               !lead.final_decision && 
-               lead.lead_estado !== 'rechazado' && 
-               lead.lead_estado !== 'aprobado';
-      } else if (activeTab === "approved") {
-        return matchesSearch && 
-               (lead.final_decision === 'approved' || lead.lead_estado === 'aprobado');
-      } else if (activeTab === "rejected") {
-        return matchesSearch && 
-               (lead.final_decision === 'rejected' || lead.lead_estado === 'rechazado');
+  const applyQuickFilter = (leads: AssignedLead[], filterId: string | null): AssignedLead[] => {
+    if (!filterId) return leads;
+    
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const threeDaysAgo = new Date(today.getTime() - (3 * 24 * 60 * 60 * 1000));
+    
+    switch (filterId) {
+      case 'newToday':
+        return leads.filter(lead => {
+          const creationDate = new Date(lead.lead_fecha_creacion);
+          const creationDateOnly = new Date(creationDate.getFullYear(), creationDate.getMonth(), creationDate.getDate());
+          return creationDateOnly.getTime() === today.getTime() && (lead.contact_attempts_count || 0) === 0;
+        });
+        
+      case 'urgentPending':
+        return leads.filter(lead => {
+          const creationDate = new Date(lead.lead_fecha_creacion);
+          return creationDate < threeDaysAgo && (lead.contact_attempts_count || 0) === 0;
+        });
+        
+      case 'failedAttempts':
+        return leads.filter(lead => {
+          const failedOutcomes = ['voicemail', 'no_answer', 'busy', 'wrong_number', 'non_existent_number', 'call_failed'];
+          return lead.last_contact_outcome && failedOutcomes.includes(lead.last_contact_outcome);
+        });
+        
+      case 'successfulCalls':
+        return leads.filter(lead => lead.has_successful_call && !lead.final_decision);
+        
+      case 'scheduledToday':
+        return leads.filter(lead => {
+          if (!lead.scheduled_call_datetime) return false;
+          const scheduledDate = new Date(lead.scheduled_call_datetime);
+          const scheduledDateOnly = new Date(scheduledDate.getFullYear(), scheduledDate.getMonth(), scheduledDate.getDate());
+          return scheduledDateOnly.getTime() === today.getTime();
+        });
+        
+      case 'interruptedInterviews':
+        return leads.filter(lead => lead.interview_interrupted && lead.interview_session_id);
+        
+      case 'missingInfo':
+        return leads.filter(lead => !lead.lead_telefono || !lead.lead_email);
+        
+      case 'multipleFailedAttempts':
+        return leads.filter(lead => (lead.contact_attempts_count || 0) >= 3);
+        
+      default:
+        return leads;
+    }
+  };
+
+  const applyAdvancedFilters = (leads: AssignedLead[], filters: ApprovalAdvancedFiltersState | undefined): AssignedLead[] => {
+    if (!filters) return leads;
+    
+    return leads.filter(lead => {
+      // Filtros por fechas de creación
+      if (filters.creationDateFrom) {
+        const creationDate = new Date(lead.lead_fecha_creacion);
+        const filterDate = new Date(filters.creationDateFrom);
+        if (creationDate < filterDate) return false;
       }
       
-      return matchesSearch;
-    })
-    .sort((a, b) => {
+      if (filters.creationDateTo) {
+        const creationDate = new Date(lead.lead_fecha_creacion);
+        const filterDate = new Date(filters.creationDateTo);
+        if (creationDate > filterDate) return false;
+      }
+      
+      // Filtros por citas programadas
+      if (filters.scheduledCallDateFrom && lead.scheduled_call_datetime) {
+        const scheduledDate = new Date(lead.scheduled_call_datetime);
+        const filterDate = new Date(filters.scheduledCallDateFrom);
+        if (scheduledDate < filterDate) return false;
+      }
+      
+      if (filters.scheduledCallDateTo && lead.scheduled_call_datetime) {
+        const scheduledDate = new Date(lead.scheduled_call_datetime);
+        const filterDate = new Date(filters.scheduledCallDateTo);
+        if (scheduledDate > filterDate) return false;
+      }
+      
+      // Filtros por intentos de contacto
+      if (filters.contactAttempts && filters.contactAttempts !== 'all') {
+        const attempts = lead.contact_attempts_count || 0;
+        switch (filters.contactAttempts) {
+          case '0':
+            if (attempts !== 0) return false;
+            break;
+          case '1-2':
+            if (attempts < 1 || attempts > 2) return false;
+            break;
+          case '3-5':
+            if (attempts < 3 || attempts > 5) return false;
+            break;
+          case '5+':
+            if (attempts < 5) return false;
+            break;
+        }
+      }
+      
+      // Filtros por resultado del último contacto
+      if (filters.lastContactOutcome && filters.lastContactOutcome !== 'all') {
+        if (lead.last_contact_outcome !== filters.lastContactOutcome) return false;
+      }
+      
+      // Filtros por llamada exitosa
+      if (filters.hasSuccessfulCall && filters.hasSuccessfulCall !== 'all') {
+        const hasSuccessful = lead.has_successful_call === true;
+        if (filters.hasSuccessfulCall === 'true' && !hasSuccessful) return false;
+        if (filters.hasSuccessfulCall === 'false' && hasSuccessful) return false;
+      }
+      
+      // Filtros por cita programada
+      if (filters.hasScheduledCall && filters.hasScheduledCall !== 'all') {
+        const hasScheduled = lead.has_scheduled_call === true;
+        if (filters.hasScheduledCall === 'true' && !hasScheduled) return false;
+        if (filters.hasScheduledCall === 'false' && hasScheduled) return false;
+      }
+      
+      // Filtros por entrevista interrumpida
+      if (filters.interviewInterrupted && filters.interviewInterrupted !== 'all') {
+        const isInterrupted = lead.interview_interrupted === true;
+        if (filters.interviewInterrupted === 'true' && !isInterrupted) return false;
+        if (filters.interviewInterrupted === 'false' && isInterrupted) return false;
+      }
+      
+      // Filtros por decisión final
+      if (filters.finalDecision && filters.finalDecision !== 'all') {
+        if (filters.finalDecision === 'pending' && lead.final_decision) return false;
+        if (filters.finalDecision !== 'pending' && lead.final_decision !== filters.finalDecision) return false;
+      }
+      
+      return true;
+    });
+  };
+
+  const filteredAndSortedLeads = useMemo(() => {
+    let filtered = leads;
+
+    // Apply quick filter
+    filtered = applyQuickFilter(filtered, quickFilter);
+    
+    // Apply advanced filters
+    filtered = applyAdvancedFilters(filtered, advancedFilters);
+    
+    // Filter by search term
+    if (searchTerm) {
+      filtered = filtered.filter(lead =>
+        lead.lead_nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.lead_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.lead_telefono?.includes(searchTerm)
+      );
+    }
+
+    // Filter by active tab
+    if (activeTab === "pending") {
+      filtered = filtered.filter(lead => 
+        !lead.final_decision && 
+        lead.lead_estado !== 'rechazado' && 
+        lead.lead_estado !== 'aprobado'
+      );
+    } else if (activeTab === "approved") {
+      filtered = filtered.filter(lead => 
+        lead.final_decision === 'approved' || lead.lead_estado === 'aprobado'
+      );
+    } else if (activeTab === "rejected") {
+      filtered = filtered.filter(lead => 
+        lead.final_decision === 'rejected' || lead.lead_estado === 'rechazado'
+      );
+    }
+
+    // Sort leads
+    const sortedLeads = filtered.sort((a, b) => {
       // Aplicar ordenamiento FIFO inteligente solo en tab "pending"
       if (activeTab === "pending") {
         const priorityA = calculateLeadPriority(a);
@@ -146,36 +310,58 @@ export const LeadsList = ({
       return new Date(a.lead_fecha_creacion).getTime() - new Date(b.lead_fecha_creacion).getTime();
     });
 
-  if (filteredLeads.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">No se encontraron candidatos</p>
-      </div>
-    );
-  }
+    return sortedLeads;
+  }, [leads, searchTerm, activeTab, quickFilter, advancedFilters]);
 
   return (
     <div className="space-y-4">
-      {filteredLeads.map((lead) => {
-        const leadCallLogs = getLeadCallLogs(lead.lead_id);
-        
-        return (
-          <ImprovedLeadCard
-            key={lead.lead_id}
-            lead={lead}
-            callLogs={leadCallLogs}
-            onVapiCall={onVapiCall}
-            onManualInterview={onManualInterview}
-            onEditLead={onEditLead}
-            onViewCallHistory={onViewCallHistory}
-            onApproveLead={onApproveLead}
-            onSendToSecondInterview={onSendToSecondInterview}
-            onReject={onReject}
-            onCompleteMissingInfo={onCompleteMissingInfo}
-            onLogCall={onLogCall}
-          />
-        );
-      })}
+      {/* Filtros inteligentes */}
+      {onQuickFilterChange && (
+        <ApprovalQuickFilters
+          leads={leads}
+          activeFilter={quickFilter}
+          onFilterChange={onQuickFilterChange}
+        />
+      )}
+      
+      {/* Filtros avanzados */}
+      {advancedFilters && onAdvancedFiltersChange && onResetAdvancedFilters && (
+        <ApprovalAdvancedFilters
+          filters={advancedFilters}
+          onFiltersChange={onAdvancedFiltersChange}
+          onResetFilters={onResetAdvancedFilters}
+        />
+      )}
+
+      {filteredAndSortedLeads.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">
+            No se encontraron candidatos que coincidan con los criterios de búsqueda.
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {filteredAndSortedLeads.map((lead) => {
+            const leadCallLogs = getLeadCallLogs(lead.lead_id);
+            return (
+              <ImprovedLeadCard
+                key={lead.lead_id}
+                lead={lead}
+                callLogs={leadCallLogs}
+                onVapiCall={onVapiCall}
+                onManualInterview={onManualInterview}
+                onEditLead={onEditLead}
+                onViewCallHistory={onViewCallHistory}
+                onApproveLead={onApproveLead}
+                onSendToSecondInterview={onSendToSecondInterview}
+                onReject={onReject}
+                onCompleteMissingInfo={onCompleteMissingInfo}
+                onLogCall={onLogCall}
+              />
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

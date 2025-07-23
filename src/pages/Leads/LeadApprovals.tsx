@@ -21,6 +21,7 @@ import { useLeadApprovals } from "@/hooks/useLeadApprovals";
 import { LeadsList } from "@/components/leads/approval/LeadsList";
 import { LeadDialogs } from "@/components/leads/approval/LeadDialogs";
 import { ScheduledCallsView } from "@/components/leads/approval/ScheduledCallsView";
+import { ApprovalAdvancedFiltersState } from "@/components/leads/approval/ApprovalAdvancedFilters";
 
 export const LeadApprovals = () => {
   const {
@@ -44,6 +45,25 @@ export const LeadApprovals = () => {
   const [showCallLogDialog, setShowCallLogDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
+  
+  // Estados para los filtros
+  const [quickFilter, setQuickFilter] = useState<string | null>(null);
+  const [advancedFilters, setAdvancedFilters] = useState<ApprovalAdvancedFiltersState>({
+    creationDateFrom: '',
+    creationDateTo: '',
+    lastContactDateFrom: '',
+    lastContactDateTo: '',
+    scheduledCallDateFrom: '',
+    scheduledCallDateTo: '',
+    contactAttempts: 'all',
+    lastContactOutcome: 'all',
+    approvalStage: 'all',
+    finalDecision: 'all',
+    hasSuccessfulCall: 'all',
+    hasScheduledCall: 'all',
+    interviewInterrupted: 'all',
+    assignedAnalyst: 'all'
+  });
 
   const handleVapiCall = (lead: AssignedLead) => {
     setSelectedLead(lead);
@@ -83,6 +103,25 @@ export const LeadApprovals = () => {
     if (selectedLead) {
       setShowMissingInfoDialog(true);
     }
+  };
+
+  const handleResetAdvancedFilters = () => {
+    setAdvancedFilters({
+      creationDateFrom: '',
+      creationDateTo: '',
+      lastContactDateFrom: '',
+      lastContactDateTo: '',
+      scheduledCallDateFrom: '',
+      scheduledCallDateTo: '',
+      contactAttempts: 'all',
+      lastContactOutcome: 'all',
+      approvalStage: 'all',
+      finalDecision: 'all',
+      hasSuccessfulCall: 'all',
+      hasScheduledCall: 'all',
+      interviewInterrupted: 'all',
+      assignedAnalyst: 'all'
+    });
   };
 
   if (loading) {
@@ -149,6 +188,11 @@ export const LeadApprovals = () => {
                   callLogs={callLogs}
                   searchTerm={searchTerm}
                   activeTab="pending"
+                  quickFilter={quickFilter}
+                  advancedFilters={advancedFilters}
+                  onQuickFilterChange={setQuickFilter}
+                  onAdvancedFiltersChange={setAdvancedFilters}
+                  onResetAdvancedFilters={handleResetAdvancedFilters}
                   onVapiCall={handleVapiCall}
                   onManualInterview={handleManualInterview}
                   onEditLead={handleEditLead}
