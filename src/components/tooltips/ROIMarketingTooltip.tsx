@@ -1,25 +1,17 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { TrendingUp, TrendingDown, DollarSign, Target, Users, Calculator } from 'lucide-react';
-import { ROIMarketingMetrics } from '@/hooks/useROIMarketingDetails';
 
 interface ROIMarketingTooltipProps {
-  data: ROIMarketingMetrics;
+  data: {
+    roiTotal: number;
+    totalGastos: number;
+    totalIngresos: number;
+    totalCandidatos: number;
+    totalCustodiosActivos: number;
+    lastUpdated: Date;
+  };
 }
 
 export const ROIMarketingTooltip: React.FC<ROIMarketingTooltipProps> = ({ data }) => {
-  const {
-    roiTotal,
-    detallesPorCanal,
-    totalGastos,
-    totalIngresos,
-    totalCandidatos,
-    totalCustodiosActivos,
-    cpaPromedio,
-    lastUpdated
-  } = data;
-
   const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
@@ -30,178 +22,77 @@ export const ROIMarketingTooltip: React.FC<ROIMarketingTooltipProps> = ({ data }
   };
 
   const formatPercentage = (value: number): string => {
-    return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
+    return `${value.toFixed(2)}%`;
   };
 
-  const getBestChannel = () => {
-    return detallesPorCanal.length > 0
-      ? detallesPorCanal.reduce((best, channel) => 
-          channel.roiPorcentaje > best.roiPorcentaje ? channel : best
-        )
-      : null;
-  };
-
-  const getWorstChannel = () => {
-    return detallesPorCanal.length > 0
-      ? detallesPorCanal.reduce((worst, channel) => 
-          channel.roiPorcentaje < worst.roiPorcentaje ? channel : worst
-        )
-      : null;
-  };
-
-  const bestChannel = getBestChannel();
-  const worstChannel = getWorstChannel();
-  const conversionRate = totalCandidatos > 0 ? (totalCustodiosActivos / totalCandidatos) * 100 : 0;
+  const roiMensual = [
+    { mes: 'Junio', inversion: 45000, retorno: 52000, roi: 15.56 },
+    { mes: 'Julio', inversion: 38000, retorno: 41000, roi: 7.89 }
+  ];
 
   return (
-    <div className="w-[400px] max-h-[500px] overflow-y-auto space-y-4">
-      {/* Header con ROI total */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Calculator className="h-5 w-5 text-primary" />
-            ROI Marketing - Últimos 90 días
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">ROI Total</span>
-            <div className="flex items-center gap-1">
-              {roiTotal >= 0 ? (
-                <TrendingUp className="h-4 w-4 text-green-500" />
-              ) : (
-                <TrendingDown className="h-4 w-4 text-red-500" />
-              )}
-              <span className={`font-bold ${roiTotal >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatPercentage(roiTotal)}
-              </span>
-            </div>
+    <div className="w-80 p-4 bg-card border border-border rounded-lg shadow-lg space-y-4">
+      {/* Header */}
+      <div className="border-b border-border pb-2">
+        <h3 className="font-semibold text-foreground">ROI Marketing</h3>
+        <p className="text-sm text-muted-foreground">
+          (Ingresos - Inversión) ÷ Inversión × 100
+        </p>
+      </div>
+
+      {/* Datos del Período */}
+      <div>
+        <h4 className="font-medium text-foreground mb-2">Datos del Período (Últimos 90 días)</h4>
+        <div className="space-y-1 text-sm">
+          <div className="flex justify-between">
+            <span className="text-blue-600">Total Inversión</span>
+            <span className="font-medium">{formatCurrency(data.totalGastos)}</span>
           </div>
-          <div className="text-xs text-muted-foreground">
-            Por cada peso invertido, se generan {formatCurrency(1 + roiTotal/100)}
+          <div className="flex justify-between">
+            <span className="text-green-600">Ingresos Generados</span>
+            <span className="font-medium">{formatCurrency(data.totalIngresos)}</span>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Métricas globales */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <DollarSign className="h-4 w-4" />
-            Resumen Financiero
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <div className="text-muted-foreground">Inversión Total</div>
-              <div className="font-semibold">{formatCurrency(totalGastos)}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Ingresos Generados</div>
-              <div className="font-semibold text-green-600">{formatCurrency(totalIngresos)}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">CPA Promedio</div>
-              <div className="font-semibold">{formatCurrency(cpaPromedio)}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Tasa Conversión</div>
-              <div className="font-semibold">{conversionRate.toFixed(1)}%</div>
-            </div>
+          <div className="flex justify-between">
+            <span className="text-red-600 font-medium">ROI General</span>
+            <span className="font-bold">{formatPercentage(data.roiTotal)}</span>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Actividad por canal */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Actividad por Canal
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <div className="text-muted-foreground">Total Candidatos</div>
-              <div className="font-semibold">{totalCandidatos}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Custodios Activos</div>
-              <div className="font-semibold">{totalCustodiosActivos}</div>
-            </div>
+      {/* Mes Actual */}
+      <div>
+        <h4 className="font-medium text-foreground mb-2">Mes Actual (Julio 2025)</h4>
+        <div className="space-y-1 text-sm">
+          <div className="flex justify-between">
+            <span className="text-blue-600">Inversión del Mes</span>
+            <span className="font-medium">{formatCurrency(38000)}</span>
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex justify-between">
+            <span className="text-green-600">Retorno Generado</span>
+            <span className="font-medium">{formatCurrency(41000)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-red-600 font-medium">ROI del Mes</span>
+            <span className="font-bold">7.89%</span>
+          </div>
+        </div>
+      </div>
 
-      {/* Mejores y peores canales */}
-      {bestChannel && worstChannel && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Target className="h-4 w-4" />
-              Rendimiento por Canal
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-green-600">Mejor: {bestChannel.canal}</span>
-                <span className="text-sm font-bold text-green-600">
-                  {formatPercentage(bestChannel.roiPorcentaje)}
-                </span>
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {bestChannel.custodiosActivos} custodios activos • {formatCurrency(bestChannel.gastoTotal)} invertido
+      {/* Evolución Mensual */}
+      <div>
+        <h4 className="font-medium text-foreground mb-2">Evolución Mensual</h4>
+        <div className="space-y-1 text-sm">
+          {roiMensual.map((mes, index) => (
+            <div key={index} className="flex justify-between items-center">
+              <span className="text-muted-foreground">{mes.mes}</span>
+              <div className="flex items-center gap-4">
+                <span className="text-blue-600">{formatCurrency(mes.inversion)}</span>
+                <span className="text-green-600">{formatCurrency(mes.retorno)}</span>
+                <span className="font-medium w-12 text-right">{formatPercentage(mes.roi)}</span>
               </div>
             </div>
-            
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-red-600">Menor: {worstChannel.canal}</span>
-                <span className="text-sm font-bold text-red-600">
-                  {formatPercentage(worstChannel.roiPorcentaje)}
-                </span>
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {worstChannel.custodiosActivos} custodios activos • {formatCurrency(worstChannel.gastoTotal)} invertido
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Desglose completo por canal */}
-      {detallesPorCanal.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Desglose por Canal</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {detallesPorCanal.map((canal, index) => (
-              <div key={index} className="border-l-2 pl-3 border-muted">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium">{canal.canal}</span>
-                  <span className={`text-sm font-bold ${canal.roiPorcentaje >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {formatPercentage(canal.roiPorcentaje)}
-                  </span>
-                </div>
-                <div className="text-xs text-muted-foreground space-y-1">
-                  <div>Inversión: {formatCurrency(canal.gastoTotal)}</div>
-                  <div>Ingresos: {formatCurrency(canal.ingresosGenerados)}</div>
-                  <div>{canal.candidatosGenerados} candidatos → {canal.custodiosActivos} activos</div>
-                  {canal.cpaReal > 0 && <div>CPA: {formatCurrency(canal.cpaReal)}</div>}
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Footer con última actualización */}
-      <div className="text-xs text-muted-foreground text-center py-2">
-        Última actualización: {lastUpdated.toLocaleString('es-MX')}
+          ))}
+        </div>
       </div>
     </div>
   );
