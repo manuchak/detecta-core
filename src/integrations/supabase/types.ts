@@ -6314,15 +6314,13 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
-      get_activation_metrics: {
+      get_activation_metrics_safe: {
         Args: Record<PropertyKey, never>
         Returns: {
-          avg_activation_days: number
+          total_custodians: number
+          activated_custodians: number
+          activation_rate: number
           median_activation_days: number
-          fast_activations: number
-          slow_activations: number
-          total_activations: number
-          fast_activation_rate: number
         }[]
       }
       get_active_custodians_60_days: {
@@ -6796,6 +6794,14 @@ export type Database = {
           phone: string
           photo_url: string | null
           updated_at: string
+        }[]
+      }
+      get_quick_metrics_fallback: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          metric_name: string
+          metric_value: number
+          last_updated: string
         }[]
       }
       get_redemptions_with_custodian_info: {

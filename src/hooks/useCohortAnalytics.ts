@@ -11,12 +11,16 @@ interface IncomeDistribution {
 }
 
 interface ActivationMetrics {
-  avg_activation_days: number;
+  total_custodians: number;
+  activated_custodians: number;
+  activation_rate: number;
   median_activation_days: number;
-  fast_activations: number;
-  slow_activations: number;
-  total_activations: number;
-  fast_activation_rate: number;
+  // Mantener compatibilidad con campos anteriores
+  avg_activation_days?: number;
+  fast_activations?: number;
+  slow_activations?: number;
+  total_activations?: number;
+  fast_activation_rate?: number;
 }
 
 interface CohortRetention {
@@ -165,7 +169,7 @@ export const useCohortAnalytics = () => {
   const activationMetricsQuery = useQuery({
     queryKey: ['cohort-activation-metrics'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_activation_metrics');
+      const { data, error } = await supabase.rpc('get_activation_metrics_safe');
       if (error) throw error;
       return data?.[0] as ActivationMetrics;
     },
