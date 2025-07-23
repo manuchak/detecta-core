@@ -86,7 +86,7 @@ export const RealRotationCard = ({ className }: RealRotationCardProps) => {
           Rotación Real
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Custodios 60-90 días inactivos (con servicio previo 90-120 días)
+          Custodios 60-90 días inactivos con historial de servicios previos
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -162,7 +162,7 @@ export const RealRotationCard = ({ className }: RealRotationCardProps) => {
 
         {/* Contexto metodológico */}
         <div className="text-xs text-muted-foreground pt-2 space-y-1">
-          <p>📊 <strong>Metodología:</strong> Custodios 60-90 días inactivos con servicio previo 90-120 días</p>
+          <p>📊 <strong>Metodología:</strong> Custodios 60-90 días inactivos con historial de servicios previos</p>
           <p>📈 <strong>Base de cálculo:</strong> {realRotation.activeCustodiansBase} custodios activos al inicio del mes</p>
         </div>
       </CardContent>

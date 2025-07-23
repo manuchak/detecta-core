@@ -77,18 +77,21 @@ const calculateRotationMetrics = async (): Promise<RealRotationMetrics> => {
     if (!trackingError && trackingData && trackingData.length > 0) {
       console.log('✅ Datos de tracking encontrados:', trackingData.length, 'registros');
       
-      // Consultar directamente los totales correctos de la base de datos
+      // Consultar custodios activos
       const { data: activesData, error: activesError } = await supabase
         .from('custodios_rotacion_tracking')
         .select('*')
         .eq('estado_actividad', 'activo');
       
+      // Consultar custodios con rotación real: 60-90 días sin servicio
+      // Y que tuvieron actividad previa (total_servicios_historicos > 5)
       const { data: inactivesData, error: inactivesError } = await supabase
         .from('custodios_rotacion_tracking')
         .select('*')
         .eq('estado_actividad', 'inactivo')
         .gte('dias_sin_servicio', 60)
-        .lte('dias_sin_servicio', 90);
+        .lte('dias_sin_servicio', 90)
+        .gt('total_servicios_historicos', 5); // Tuvieron actividad previa significativa
       
       if (!activesError && !inactivesError && activesData && inactivesData) {
         const activeCustodians = activesData.length;
