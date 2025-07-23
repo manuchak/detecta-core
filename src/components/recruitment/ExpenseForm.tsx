@@ -26,6 +26,8 @@ interface ExpenseData {
 interface Category {
   id: string;
   nombre: string;
+  tipo: string;
+  descripcion: string;
 }
 
 const channels = [
@@ -54,8 +56,9 @@ export const ExpenseForm: React.FC = () => {
     const fetchCategories = async () => {
       const { data, error } = await supabase
         .from('categorias_gastos')
-        .select('id, nombre')
-        .order('nombre');
+        .select('id, nombre, tipo, descripcion')
+        .eq('activo', true)
+        .order('tipo, nombre');
       
       if (!error && data) {
         setCategories(data);
@@ -184,14 +187,34 @@ export const ExpenseForm: React.FC = () => {
               <Label className="text-sm font-medium">Categoría</Label>
               <Select onValueChange={(value) => updateField('categoria_id', value)}>
                 <SelectTrigger className="h-10">
-                  <SelectValue placeholder="Selecciona categoría" />
+                  <SelectValue placeholder="Selecciona categoría específica" />
                 </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.nombre}
-                    </SelectItem>
-                  ))}
+                <SelectContent className="max-h-96">
+                  {/* Agrupación por tipo */}
+                  {['marketing', 'tecnologia', 'operaciones', 'personal', 'eventos', 'otros'].map((tipo) => {
+                    const categoriasDelTipo = categories.filter(cat => cat.tipo === tipo);
+                    if (categoriasDelTipo.length === 0) return null;
+                    
+                    return (
+                      <div key={tipo}>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide border-b">
+                          {tipo === 'marketing' ? '🎯 Marketing' :
+                           tipo === 'tecnologia' ? '🛠️ Tecnología' :
+                           tipo === 'operaciones' ? '🔧 Operaciones' :
+                           tipo === 'personal' ? '👥 Personal' :
+                           tipo === 'eventos' ? '🎪 Eventos' : '📋 Otros'}
+                        </div>
+                        {categoriasDelTipo.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id} className="pl-4">
+                            <div className="flex flex-col">
+                              <span className="font-medium">{cat.nombre}</span>
+                              <span className="text-xs text-muted-foreground">{cat.descripcion}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </div>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
