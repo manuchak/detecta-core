@@ -570,7 +570,7 @@ const RecruitmentStrategy = () => {
       case 'rotacion':
         return (
           <div className="space-y-8">
-            <MinimalGrid columns={4}>
+            <MinimalGrid columns={5}>
               <MinimalCard
                 title="Custodios en Riesgo"
                 value={rotationKpis.custodiosEnRiesgo}
