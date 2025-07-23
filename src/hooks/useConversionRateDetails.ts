@@ -26,16 +26,16 @@ export interface ConversionRateDetails {
 }
 
 export const useConversionRateDetails = (): ConversionRateDetails => {
-  // Obtener leads por mes desde metricas_canales (datos reales)
+  // Obtener leads por mes (usando datos reales de la tabla leads)
   const { data: leadsPorMes, isLoading: leadsLoading } = useQuery({
-    queryKey: ['leads-por-mes-metricas'],
+    queryKey: ['leads-por-mes'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('metricas_canales')
-        .select('periodo_inicio, leads_generados')
-        .gte('periodo_inicio', '2025-01-01')
-        .lte('periodo_fin', '2025-05-31')
-        .order('periodo_inicio', { ascending: true });
+        .from('leads')
+        .select('nombre, fecha_creacion')
+        .gte('fecha_creacion', '2025-06-01')  // Período con datos reales
+        .lte('fecha_creacion', '2025-07-31')  // Período con datos reales
+        .order('fecha_creacion', { ascending: true });
 
       if (error) throw error;
       
@@ -43,14 +43,14 @@ export const useConversionRateDetails = (): ConversionRateDetails => {
       const leadsPorMes: { [key: string]: number } = {};
       
       if (data && data.length > 0) {
-        data.forEach(metrica => {
-          const fecha = new Date(metrica.periodo_inicio);
+        data.forEach(lead => {
+          const fecha = new Date(lead.fecha_creacion);
           const yearMonth = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
           
           if (!leadsPorMes[yearMonth]) {
             leadsPorMes[yearMonth] = 0;
           }
-          leadsPorMes[yearMonth] += metrica.leads_generados || 0;
+          leadsPorMes[yearMonth]++;
         });
       }
       
@@ -64,8 +64,8 @@ export const useConversionRateDetails = (): ConversionRateDetails => {
     queryKey: ['custodios-nuevos-conversion'],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_custodios_nuevos_por_mes', {
-        fecha_inicio: '2025-01-01',
-        fecha_fin: '2025-05-31'
+        fecha_inicio: '2025-06-01',
+        fecha_fin: '2025-07-31'
       });
       
       if (error) throw error;
@@ -104,8 +104,8 @@ export const useConversionRateDetails = (): ConversionRateDetails => {
     }
 
     // Obtener todos los meses del período real de datos
-    const allMonths = ['2025-01', '2025-02', '2025-03', '2025-04', '2025-05'];
-    const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo'];
+    const allMonths = ['2025-06', '2025-07'];
+    const monthNames = ['Junio', 'Julio'];
     
     let totalLeads = 0;
     let totalNewCustodians = 0;
@@ -129,8 +129,8 @@ export const useConversionRateDetails = (): ConversionRateDetails => {
 
     const overallConversionRate = totalLeads > 0 ? Math.round((totalNewCustodians / totalLeads) * 100 * 100) / 100 : 0;
 
-    // Datos del mes actual (Mayo 2025 - último mes con datos)
-    const currentMonth = '2025-05';
+    // Datos del mes actual (Julio 2025 - último mes con datos)
+    const currentMonth = '2025-07';
     const currentMonthLeads = leadsPorMes[currentMonth] || 0;
     const currentMonthCustodians = custodiosNuevosPorMes[currentMonth] || 0;
     const currentMonthConversion = currentMonthLeads > 0 ? Math.round((currentMonthCustodians / currentMonthLeads) * 100 * 100) / 100 : 0;
@@ -143,7 +143,7 @@ export const useConversionRateDetails = (): ConversionRateDetails => {
         monthlyBreakdown,
       },
       currentMonthData: {
-        month: 'Mayo 2025',
+        month: 'Julio 2025',
         leads: currentMonthLeads,
         newCustodians: currentMonthCustodians,
         conversionRate: currentMonthConversion,
