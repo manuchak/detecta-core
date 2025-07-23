@@ -61,7 +61,7 @@ export function CPATooltip({ cpaDetails }: CPATooltipProps) {
               <span className="font-medium">{formatCurrency(yearlyBreakdown.costBreakdown.recruitment)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-purple-600">Marketing (Facebook)</span>
+              <span className="text-purple-600">Marketing (Facebook+Indeed)</span>
               <span className="font-medium">{formatCurrency(yearlyBreakdown.costBreakdown.marketing)}</span>
             </div>
           </div>

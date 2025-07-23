@@ -150,6 +150,7 @@ export const useCPADetails = () => {
           costBreakdownTotal.recruitment += monto;
           break;
         case 'FACEBOOK':
+        case 'INDEED':
           gastosPorMes[yearMonth].breakdown.marketing += monto;
           costBreakdownTotal.marketing += monto;
           break;

@@ -159,7 +159,7 @@ export const useExecutiveDashboardKPIs = (): ExecutiveKPIMetrics => {
 
     // Calcular marketing cost total para ROI
     const marketingCost = gastosReales ? 
-      gastosReales.filter(g => g.concepto === 'FACEBOOK').reduce((sum, g) => sum + (Number(g.monto) || 0), 0) : 
+      gastosReales.filter(g => g.concepto === 'FACEBOOK' || g.concepto === 'INDEED').reduce((sum, g) => sum + (Number(g.monto) || 0), 0) : 
       0;
 
     // CRATE: (Número de Nuevos Afiliados / Total de Leads) x 100
