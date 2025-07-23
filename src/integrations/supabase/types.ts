@@ -5377,6 +5377,50 @@ export type Database = {
           },
         ]
       }
+      subcategorias_gastos: {
+        Row: {
+          activo: boolean | null
+          categoria_principal_id: string | null
+          codigo: string | null
+          created_at: string | null
+          descripcion: string | null
+          id: string
+          nombre: string
+          orden: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          categoria_principal_id?: string | null
+          codigo?: string | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre: string
+          orden?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          categoria_principal_id?: string | null
+          codigo?: string | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+          orden?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subcategorias_gastos_categoria_principal_id_fkey"
+            columns: ["categoria_principal_id"]
+            isOneToOne: false
+            referencedRelation: "categorias_principales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       system_limits: {
         Row: {
           created_at: string | null
