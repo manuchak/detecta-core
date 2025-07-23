@@ -46,11 +46,6 @@ interface RealRotationMetrics {
   activeCustodiansBase: number;
   trend: 'up' | 'down' | 'stable';
   trendPercentage: number;
-  redistribucionRegional?: Array<{
-    region: string;
-    custodiosRotados: number;
-    tasaRotacionRegional: number;
-  }>;
 }
 
 // Función separada para calcular rotación real usando criterios específicos
@@ -123,29 +118,13 @@ const calculateRotationMetrics = async (): Promise<RealRotationMetrics> => {
       }
     }
 
-    // 5. Aplicar nueva redistribución regional (Plan: Centro MX 55%, Bajío 30%, Pacífico 13%, Golfo 2%)
-    const redistribucionRegional = {
-      'Centro de México': 0.55,
-      'Bajío': 0.30, 
-      'Pacífico': 0.13,
-      'Golfo': 0.02
-    };
-
-    // Calcular rotación regional usando distribución proporcional
-    const rotacionRegional = Object.entries(redistribucionRegional).map(([region, porcentaje]) => ({
-      region,
-      custodiosRotados: Math.round(retiredCount * porcentaje),
-      tasaRotacionRegional: Math.round(currentMonthRate * porcentaje * 100) / 100
-    }));
-
-    console.log('📊 Rotación calculada con redistribución regional:', {
+    console.log('📊 Rotación calculada:', {
       currentMonthRate: currentMonthRate.toFixed(2),
       historicalAverageRate: historicalAverageRate.toFixed(2),
       retiredCount,
       activeBase,
       trend,
-      trendPercentage: trendPercentage.toFixed(1),
-      redistribucionRegional: rotacionRegional
+      trendPercentage: trendPercentage.toFixed(1)
     });
 
     return {
@@ -154,8 +133,7 @@ const calculateRotationMetrics = async (): Promise<RealRotationMetrics> => {
       retiredCustodiansCount: retiredCount,
       activeCustodiansBase: activeBase,
       trend,
-      trendPercentage: Math.round(trendPercentage * 10) / 10, // 1 decimal
-      redistribucionRegional: rotacionRegional
+      trendPercentage: Math.round(trendPercentage * 10) / 10 // 1 decimal
     };
 
   } catch (error) {

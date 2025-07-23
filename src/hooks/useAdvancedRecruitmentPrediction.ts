@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useRegionalRotationDistribution } from './useRegionalRotationDistribution';
 
 // Interfaces mejoradas para Fase 1
 export interface MetricasOperacionales {
@@ -336,7 +337,7 @@ export const calcularDatosRotacionPorCluster = async (nombreCluster: string): Pr
     const EGRESOS_MENSUALES_TOTAL = 7;
     const TASA_ROTACION_REAL = (EGRESOS_MENSUALES_TOTAL / CUSTODIOS_ACTIVOS_TOTAL) * 100; // ~10.14%
     
-    // Nueva distribución regional: Centro MX 55%, Bajío 30%, Pacífico 13%, Golfo 2%
+    // Usar distribución regional del nuevo hook
     const distribuciones = {
       'Centro de México': { porcentaje: 0.55, custodiosRiesgo: 0.12 }, // 55% de operación, 12% en riesgo
       'Bajío': { porcentaje: 0.30, custodiosRiesgo: 0.08 }, // 30% de operación
