@@ -36,6 +36,7 @@ import { IntelligentAlerts } from '@/components/recruitment/IntelligentAlerts';
 import { IntelligentSimulator } from '@/components/recruitment/IntelligentSimulator';
 import { FinancialTrackingSystem } from '@/components/recruitment/FinancialTrackingSystem';
 import { UnifiedFinancialDashboard } from '@/components/financial/UnifiedFinancialDashboard';
+import { useRealFinancialPerformance } from '@/hooks/useRealFinancialPerformance';
 import { AIInsightsPanel } from '@/components/recruitment/AIInsightsPanel';
 import { SmartAlertsPanel } from '@/components/recruitment/SmartAlertsPanel';
 import { useUnifiedRecruitmentMetrics } from '@/hooks/useUnifiedRecruitmentMetrics';
@@ -52,9 +53,15 @@ import {
 const RecruitmentStrategy = () => {
   const [activeSection, setActiveSection] = useState('planificacion');
   
-  // Costo base actualizado según análisis de mercado
-  const baseCostPerCustodian = 1830; // Costo promedio sin incluir staff
+  // Obtener datos financieros reales para costo por custodio correcto
+  const financialData = useRealFinancialPerformance();
   
+  // Calcular el costo real por custodio usando datos consistentes
+  
+  const realCostPerCustodian = financialData.roiByChannel.length > 0 
+    ? financialData.totalInvestment / Math.max(financialData.roiByChannel.reduce((sum, channel) => sum + channel.custodios, 0), 1)
+    : 4209; // Fallback al valor corregido calculado
+
   // Hooks para datos simulados
   const {
     loading: loadingSimulado,
@@ -318,16 +325,16 @@ const RecruitmentStrategy = () => {
                     style: 'currency', 
                     currency: 'MXN',
                     notation: 'compact',
-                    maximumFractionDigits: 0
-                  }).format((multiMonthData.targetMonth.totalNeed || totalDeficit) * baseCostPerCustodian)
-                : new Intl.NumberFormat('es-MX', { 
-                    style: 'currency', 
-                    currency: 'MXN',
-                    notation: 'compact',
-                    maximumFractionDigits: 0
-                  }).format(totalDeficit * baseCostPerCustodian)
-              }
-              subtitle={`$${baseCostPerCustodian.toLocaleString()} por custodio`}
+                     maximumFractionDigits: 0
+                   }).format((multiMonthData.targetMonth.totalNeed || totalDeficit) * realCostPerCustodian)
+                 : new Intl.NumberFormat('es-MX', { 
+                     style: 'currency', 
+                     currency: 'MXN',
+                     notation: 'compact',
+                     maximumFractionDigits: 0
+                   }).format(totalDeficit * realCostPerCustodian)
+               }
+               subtitle={`$${Math.round(realCostPerCustodian).toLocaleString()} por custodio`}
             />
             <MinimalCard
               title="Tiempo Disponible"
