@@ -77,34 +77,43 @@ const calculateRotationMetrics = async (): Promise<RealRotationMetrics> => {
     if (!trackingError && trackingData && trackingData.length > 0) {
       console.log('✅ Datos de tracking encontrados:', trackingData.length, 'registros');
       
-      // Consultar custodios activos
-      const { data: activesData, error: activesError } = await supabase
-        .from('custodios_rotacion_tracking')
-        .select('*')
-        .eq('estado_actividad', 'activo');
+      // Consultar custodios realmente activos: con servicios en últimos 60 días
+      const { data: activeCustodiansData, error: activeCustodiansError } = await supabase
+        .from('servicios_custodia')
+        .select('nombre_custodio')
+        .gte('fecha_hora_cita', new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString())
+        .not('nombre_custodio', 'is', null)
+        .neq('nombre_custodio', 'Sin Asignar')
+        .neq('nombre_custodio', '#N/A')
+        .neq('nombre_custodio', '');
       
-      // Consultar custodios con rotación real: 60-90 días sin servicio
-      // Y que tuvieron actividad previa (total_servicios_historicos > 5)
+      // Consultar custodios con rotación real: inactivos 60-90 días con historial
       const { data: inactivesData, error: inactivesError } = await supabase
         .from('custodios_rotacion_tracking')
         .select('*')
         .eq('estado_actividad', 'inactivo')
         .gte('dias_sin_servicio', 60)
         .lte('dias_sin_servicio', 90)
-        .gt('total_servicios_historicos', 5); // Tuvieron actividad previa significativa
+        .gt('total_servicios_historicos', 5);
       
-      if (!activesError && !inactivesError && activesData && inactivesData) {
-        const activeCustodians = activesData.length;
+      if (!activeCustodiansError && !inactivesError && activeCustodiansData && inactivesData) {
+        // Contar custodios únicos realmente activos
+        const uniqueActiveCustodians = new Set(
+          activeCustodiansData
+            .map(row => row.nombre_custodio)
+            .filter(name => name && name.trim() !== '')
+        ).size;
+        
         const inactiveCustodians = inactivesData.length;
         
         console.log('📊 Datos reales encontrados:', {
-          activeCustodians,
+          activeCustodians: uniqueActiveCustodians,
           inactiveCustodians,
-          calculatedRate: (inactiveCustodians / activeCustodians * 100).toFixed(2)
+          calculatedRate: uniqueActiveCustodians > 0 ? (inactiveCustodians / uniqueActiveCustodians * 100).toFixed(2) : 'N/A'
         });
         
-        if (activeCustodians > 0) {
-          const realRate = (inactiveCustodians / activeCustodians) * 100;
+        if (uniqueActiveCustodians > 0) {
+          const realRate = (inactiveCustodians / uniqueActiveCustodians) * 100;
           const trend: 'up' | 'down' | 'stable' = realRate > 10 ? 'up' : realRate < 8 ? 'down' : 'stable';
           const trendPercentage = Math.abs(realRate - 9.8);
           
@@ -112,7 +121,7 @@ const calculateRotationMetrics = async (): Promise<RealRotationMetrics> => {
             currentMonthRate: Math.round(realRate * 100) / 100,
             historicalAverageRate: 9.8,
             retiredCustodiansCount: inactiveCustodians,
-            activeCustodiansBase: activeCustodians,
+            activeCustodiansBase: uniqueActiveCustodians,
             trend,
             trendPercentage: Math.round(trendPercentage * 10) / 10
           };
