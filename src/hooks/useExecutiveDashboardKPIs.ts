@@ -29,7 +29,7 @@ export const useExecutiveDashboardKPIs = (): ExecutiveKPIMetrics => {
   const financialSystem = useFinancialSystem();
   const cohortAnalytics = useCohortAnalytics();
 
-  // Obtener gastos reales de la base de datos para calcular CPA
+  // Obtener gastos reales de la base de datos para calcular CPA mensual
   const { data: gastosReales, isLoading: gastosLoading } = useQuery({
     queryKey: ['gastos-reales-cpa'],
     queryFn: async () => {
@@ -46,8 +46,52 @@ export const useExecutiveDashboardKPIs = (): ExecutiveKPIMetrics => {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Obtener custodios que hicieron su primer servicio por mes
+  const { data: custodiosNuevosPorMes, isLoading: custodiosLoading } = useQuery({
+    queryKey: ['custodios-nuevos-por-mes'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('bypass_rls_get_servicios', { max_records: 10000 });
+      
+      if (error) throw error;
+      
+      // Procesar datos para encontrar primer servicio de cada custodio
+      const custodiosPrimerServicio = new Map();
+      
+      if (data && data.length > 0) {
+        // Ordenar por fecha para encontrar el primer servicio de cada custodio
+        const serviciosOrdenados = data
+          .filter(s => s.nombre_custodio && s.fecha_hora_cita)
+          .sort((a, b) => new Date(a.fecha_hora_cita).getTime() - new Date(b.fecha_hora_cita).getTime());
+        
+        serviciosOrdenados.forEach(servicio => {
+          const custodio = servicio.nombre_custodio;
+          if (!custodiosPrimerServicio.has(custodio)) {
+            custodiosPrimerServicio.set(custodio, new Date(servicio.fecha_hora_cita));
+          }
+        });
+      }
+      
+      // Agrupar por mes los custodios que tuvieron su primer servicio
+      const custodiosPorMes = {};
+      
+      custodiosPrimerServicio.forEach((fechaPrimerServicio, custodio) => {
+        if (fechaPrimerServicio >= new Date('2025-01-01') && fechaPrimerServicio <= new Date('2025-05-31')) {
+          const yearMonth = `${fechaPrimerServicio.getFullYear()}-${String(fechaPrimerServicio.getMonth() + 1).padStart(2, '0')}`;
+          
+          if (!custodiosPorMes[yearMonth]) {
+            custodiosPorMes[yearMonth] = [];
+          }
+          custodiosPorMes[yearMonth].push(custodio);
+        }
+      });
+      
+      return custodiosPorMes;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   const kpis = useMemo(() => {
-    if (unifiedLoading || financialSystem.loading || cohortAnalytics.realRotationLoading || gastosLoading) {
+    if (unifiedLoading || financialSystem.loading || cohortAnalytics.realRotationLoading || gastosLoading || custodiosLoading) {
       return {
         cpa: 0,
         crate: 0,
@@ -62,42 +106,65 @@ export const useExecutiveDashboardKPIs = (): ExecutiveKPIMetrics => {
       };
     }
 
-    // Calcular CPA con datos reales de gastos
-    let staffCost = 0;
-    let technologyCost = 0; // GPS + PLATAFORMA
-    let recruitmentCost = 0; // TOXICOLOGÍA + EVALUACIONES
-    let marketingCost = 0; // FACEBOOK
+    // Calcular CPA mensual basado en custodios que hicieron su primer servicio cada mes
+    let cpaPromedioPonderado = 0;
 
-    if (gastosReales && gastosReales.length > 0) {
+    if (gastosReales && gastosReales.length > 0 && custodiosNuevosPorMes) {
+      // Agrupar gastos por mes
+      const gastosPorMes = {};
+      
       gastosReales.forEach(gasto => {
-        const monto = Number(gasto.monto) || 0;
-        switch (gasto.concepto) {
-          case 'STAFF':
-            staffCost += monto;
-            break;
-          case 'GPS':
-          case 'PLATAFORMA':
-            technologyCost += monto;
-            break;
-          case 'TOXICOLOGÍA':
-          case 'EVALUACIONES':
-            recruitmentCost += monto;
-            break;
-          case 'FACEBOOK':
-            marketingCost += monto;
-            break;
+        const fecha = new Date(gasto.fecha_gasto);
+        const yearMonth = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
+        
+        if (!gastosPorMes[yearMonth]) {
+          gastosPorMes[yearMonth] = 0;
+        }
+        gastosPorMes[yearMonth] += Number(gasto.monto) || 0;
+      });
+
+      // Calcular CPA mensual y promedio ponderado
+      let totalCostoPonderado = 0;
+      let totalCustodiosNuevos = 0;
+      let cpaMensual = [];
+
+      Object.keys(gastosPorMes).forEach(mes => {
+        const gastosMes = gastosPorMes[mes];
+        const custodiosNuevosMes = custodiosNuevosPorMes[mes] ? custodiosNuevosPorMes[mes].length : 0;
+        
+        if (custodiosNuevosMes > 0) {
+          const cpaDelMes = gastosMes / custodiosNuevosMes;
+          cpaMensual.push({
+            mes,
+            cpa: cpaDelMes,
+            gastos: gastosMes,
+            custodios: custodiosNuevosMes
+          });
+          
+          totalCostoPonderado += gastosMes;
+          totalCustodiosNuevos += custodiosNuevosMes;
         }
       });
+
+      // CPA promedio ponderado: Total de costos / Total de custodios nuevos
+      cpaPromedioPonderado = totalCustodiosNuevos > 0 ? totalCostoPonderado / totalCustodiosNuevos : 0;
     }
 
-    // CPA: (Costo total de adquisición) / Número de nuevos afiliados
-    const totalAcquisitionCost = staffCost + technologyCost + recruitmentCost + marketingCost;
-    const newAffiliates = unifiedMetrics?.activeCustodians.total || 1;
-    const cpa = totalAcquisitionCost / newAffiliates;
+    const cpa = cpaPromedioPonderado;
+
+    // Calcular total de custodios nuevos para otros cálculos
+    const totalCustodiosNuevos = custodiosNuevosPorMes ? 
+      Object.values(custodiosNuevosPorMes).reduce((total: number, custodios: any) => total + (custodios?.length || 0), 0) : 
+      (unifiedMetrics?.activeCustodians.total || 1);
+
+    // Calcular marketing cost total para ROI
+    const marketingCost = gastosReales ? 
+      gastosReales.filter(g => g.concepto === 'FACEBOOK').reduce((sum, g) => sum + (Number(g.monto) || 0), 0) : 
+      0;
 
     // CRATE: (Número de Nuevos Afiliados / Total de Leads) x 100
     const totalLeads = 500; // Placeholder - debería venir de sistema de leads
-    const crate = (newAffiliates / totalLeads) * 100;
+    const crate = (Number(totalCustodiosNuevos) / totalLeads) * 100;
 
     // LTV: Valor de vida del cliente (ya calculado)  
     const ltv = 135000; // Placeholder - valor estándar desde KPI definición
@@ -112,18 +179,18 @@ export const useExecutiveDashboardKPIs = (): ExecutiveKPIMetrics => {
     const nps = 65; // Placeholder - debería venir de encuestas
 
     // Supply Growth: (Afiliados Nuevos - Afiliados Perdidos) / Afiliados al Inicio del Período x 100
-    const lostAffiliates = cohortAnalytics.realRotation?.retiredCustodiansCount || 0;
+    const lostAffiliates = Number(cohortAnalytics.realRotation?.retiredCustodiansCount) || 0;
     const initialAffiliates = 500; // Placeholder - debería venir de datos históricos
-    const supplyGrowth = ((newAffiliates - lostAffiliates) / initialAffiliates) * 100;
+    const supplyGrowth = ((Number(totalCustodiosNuevos) - lostAffiliates) / initialAffiliates) * 100;
 
     // Engagement: Servicios promedio por custodio por mes
-    const totalServices = unifiedMetrics?.activeCustodians.total * 10 || 0; // Estimación
+    const totalServices = (unifiedMetrics?.activeCustodians.total || 0) * 10; // Estimación
     const activeCustodians = unifiedMetrics?.activeCustodians.total || 1;
     const engagement = totalServices / activeCustodians;
 
     // ROI MKT: (Ingresos generados por marketing - Inversión marketing) / Inversión marketing x 100
-    const marketingRevenue = ltv * newAffiliates * 0.3; // 30% atribuible a marketing
-    const roiMkt = ((marketingRevenue - marketingCost) / marketingCost) * 100;
+    const marketingRevenue = ltv * Number(totalCustodiosNuevos) * 0.3; // 30% atribuible a marketing
+    const roiMkt = marketingCost > 0 ? ((marketingRevenue - marketingCost) / marketingCost) * 100 : 0;
 
     // Onboarding Time: Tiempo promedio de incorporación en días
     const onboardingTime = 5; // Placeholder - debería venir de datos de proceso
@@ -140,11 +207,11 @@ export const useExecutiveDashboardKPIs = (): ExecutiveKPIMetrics => {
       roiMkt: Math.round(roiMkt * 100) / 100,
       onboardingTime: Math.round(onboardingTime * 100) / 100,
     };
-  }, [unifiedMetrics, financialSystem, cohortAnalytics, unifiedLoading, gastosReales]);
+  }, [unifiedMetrics, financialSystem, cohortAnalytics, unifiedLoading, gastosReales, custodiosNuevosPorMes]);
 
   return {
     kpis,
-    loading: unifiedLoading || financialSystem.loading || cohortAnalytics.realRotationLoading || gastosLoading,
+    loading: unifiedLoading || financialSystem.loading || cohortAnalytics.realRotationLoading || gastosLoading || custodiosLoading,
     refreshData: fetchAll,
   };
 };
