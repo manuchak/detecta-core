@@ -2,7 +2,9 @@ import React from 'react';
 import { KPIHeroCard } from './KPIHeroCard';
 import { ExecutiveKPIData } from '@/hooks/useExecutiveDashboardKPIs';
 import { useCPADetails } from '@/hooks/useCPADetails';
+import { useConversionRateDetails } from '@/hooks/useConversionRateDetails';
 import { CPATooltip } from './CPATooltip';
+import { ConversionRateTooltip } from './ConversionRateTooltip';
 
 interface ExecutiveMetricsGridProps {
   kpis: ExecutiveKPIData;
@@ -12,6 +14,7 @@ interface ExecutiveMetricsGridProps {
 
 export function ExecutiveMetricsGrid({ kpis, loading = false, className }: ExecutiveMetricsGridProps) {
   const { cpaDetails, loading: cpaLoading } = useCPADetails();
+  const conversionRateDetails = useConversionRateDetails();
 
   const kpiConfig = [
     {
@@ -23,7 +26,7 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
     },
     {
       title: 'Tasa de Conversión',
-      value: kpis.crate,
+      value: conversionRateDetails.yearlyData.overallConversionRate,
       unit: '%',
       trend: 'up' as const,
       key: 'crate'
@@ -95,8 +98,12 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
           value={kpi.value}
           unit={kpi.unit}
           trend={kpi.trend}
-          loading={loading || (kpi.key === 'cpa' && cpaLoading)}
-          tooltip={kpi.key === 'cpa' && !cpaLoading ? <CPATooltip cpaDetails={cpaDetails} /> : undefined}
+          loading={loading || (kpi.key === 'cpa' && cpaLoading) || (kpi.key === 'crate' && conversionRateDetails.loading)}
+          tooltip={
+            kpi.key === 'cpa' && !cpaLoading ? <CPATooltip cpaDetails={cpaDetails} /> :
+            kpi.key === 'crate' && !conversionRateDetails.loading ? <ConversionRateTooltip data={conversionRateDetails} /> :
+            undefined
+          }
         />
       ))}
     </div>
