@@ -35,7 +35,9 @@ import { ExecutiveDashboard } from '@/components/recruitment/ExecutiveDashboard'
 import { IntelligentAlerts } from '@/components/recruitment/IntelligentAlerts';
 import { IntelligentSimulator } from '@/components/recruitment/IntelligentSimulator';
 import { FinancialTrackingSystem } from '@/components/recruitment/FinancialTrackingSystem';
+import { ExpenseForm } from '@/components/recruitment/ExpenseForm';
 import { UnifiedFinancialDashboard } from '@/components/financial/UnifiedFinancialDashboard';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useRealFinancialPerformance } from '@/hooks/useRealFinancialPerformance';
 import { AIInsightsPanel } from '@/components/recruitment/AIInsightsPanel';
 import { SmartAlertsPanel } from '@/components/recruitment/SmartAlertsPanel';
@@ -678,16 +680,35 @@ const RecruitmentStrategy = () => {
       case 'financial':
         return (
           <div className="space-y-6">
-            <UnifiedFinancialDashboard />
-            <Card className="p-6">
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold">Gestión de Gastos de Reclutamiento</h3>
-                <p className="text-sm text-muted-foreground">
-                  Registra y gestiona los gastos asociados al reclutamiento de custodios
-                </p>
-              </div>
-              <FinancialTrackingSystem />
-            </Card>
+            <Tabs defaultValue="dashboard" className="w-full">
+              <TabsList className="grid w-full grid-cols-3 max-w-[600px]">
+                <TabsTrigger value="dashboard" className="text-sm">
+                  Dashboard Financiero
+                </TabsTrigger>
+                <TabsTrigger value="expenses" className="text-sm">
+                  Registrar Gastos
+                </TabsTrigger>
+                <TabsTrigger value="history" className="text-sm">
+                  Historial
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="dashboard" className="mt-6">
+                <UnifiedFinancialDashboard />
+              </TabsContent>
+              
+              <TabsContent value="expenses" className="mt-6">
+                <div className="max-w-4xl">
+                  <ExpenseForm />
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="history" className="mt-6">
+                <div className="max-w-6xl">
+                  <FinancialTrackingSystem />
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         );
 
