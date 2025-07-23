@@ -167,22 +167,22 @@ export const ZoneNeedsSection: React.FC = () => {
   }
 
   const targetMonth = data.targetMonth;
-  const totalNeed = targetMonth.totalNeed || 0;
-  const totalBudget = targetMonth.clustersNeeds?.reduce((sum, cluster) => sum + (cluster.budgetRequired || 0), 0) || 0;
-  const criticalZones = targetMonth.clustersNeeds?.filter(cluster => 
+  const totalNeed = targetMonth?.totalNeed || 0;
+  const totalBudget = targetMonth?.clustersNeeds?.reduce((sum, cluster) => sum + (cluster.budgetRequired || 0), 0) || 0;
+  const criticalZones = targetMonth?.clustersNeeds?.filter(cluster => 
     cluster.urgencyLevel === 'critico' && cluster.finalNeed > 0
   ).length || 0;
-  const daysRemaining = targetMonth.daysToRecruitmentDeadline || 0;
+  const daysRemaining = targetMonth?.daysToRecruitmentDeadline || 0;
 
   // Solo mostrar zonas que necesitan custodios
-  const zonesWithNeeds = targetMonth.clustersNeeds?.filter(cluster => cluster.finalNeed > 0) || [];
+  const zonesWithNeeds = targetMonth?.clustersNeeds?.filter(cluster => cluster.finalNeed > 0) || [];
 
   return (
     <div className="space-y-6">
       {/* Resumen del Mes Objetivo */}
       <div>
         <h2 className="text-lg font-semibold text-foreground mb-1">
-          Resumen del Mes Objetivo - {targetMonth.monthName} {targetMonth.year}
+          Resumen del Mes Objetivo - {targetMonth?.monthName} {targetMonth?.year}
         </h2>
         <p className="text-sm text-muted-foreground mb-4">
           Metas de reclutamiento para mantener siempre presente durante la gestión de candidatos
@@ -192,7 +192,7 @@ export const ZoneNeedsSection: React.FC = () => {
           <KPIHeroCard
             title="CUSTODIOS NECESARIOS"
             value={totalNeed.toString()}
-            unit={`${targetMonth.monthName} ${targetMonth.year}`}
+            unit={`${targetMonth?.monthName || ''} ${targetMonth?.year || ''}`}
             trend="neutral"
             loading={loading}
           />
@@ -254,7 +254,7 @@ export const ZoneNeedsSection: React.FC = () => {
               ¡Excelente! Capacidad Suficiente
             </h3>
             <p className="text-muted-foreground">
-              Todas las zonas tienen capacidad suficiente para {targetMonth.monthName} {targetMonth.year}
+              Todas las zonas tienen capacidad suficiente para {targetMonth?.monthName} {targetMonth?.year}
             </p>
           </div>
         </Card>
