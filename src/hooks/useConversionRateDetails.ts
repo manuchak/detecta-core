@@ -26,16 +26,16 @@ export interface ConversionRateDetails {
 }
 
 export const useConversionRateDetails = (): ConversionRateDetails => {
-  // Obtener leads por mes (ajustando el período a los datos reales)
+  // Obtener leads por mes desde metricas_canales (datos reales)
   const { data: leadsPorMes, isLoading: leadsLoading } = useQuery({
-    queryKey: ['leads-por-mes'],
+    queryKey: ['leads-por-mes-metricas'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('leads')
-        .select('nombre, fecha_creacion')
-        .gte('fecha_creacion', '2025-01-01')  // Período con datos reales
-        .lte('fecha_creacion', '2025-05-31')  // Período con datos reales
-        .order('fecha_creacion', { ascending: true });
+        .from('metricas_canales')
+        .select('periodo_inicio, leads_generados')
+        .gte('periodo_inicio', '2025-01-01')
+        .lte('periodo_fin', '2025-05-31')
+        .order('periodo_inicio', { ascending: true });
 
       if (error) throw error;
       
@@ -43,14 +43,14 @@ export const useConversionRateDetails = (): ConversionRateDetails => {
       const leadsPorMes: { [key: string]: number } = {};
       
       if (data && data.length > 0) {
-        data.forEach(lead => {
-          const fecha = new Date(lead.fecha_creacion);
+        data.forEach(metrica => {
+          const fecha = new Date(metrica.periodo_inicio);
           const yearMonth = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
           
           if (!leadsPorMes[yearMonth]) {
             leadsPorMes[yearMonth] = 0;
           }
-          leadsPorMes[yearMonth]++;
+          leadsPorMes[yearMonth] += metrica.leads_generados || 0;
         });
       }
       
