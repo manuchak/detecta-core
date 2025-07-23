@@ -77,30 +77,46 @@ const calculateRotationMetrics = async (): Promise<RealRotationMetrics> => {
     if (!trackingError && trackingData && trackingData.length > 0) {
       console.log('✅ Datos de tracking encontrados:', trackingData.length, 'registros');
       
-      // Contar custodios activos e inactivos usando datos reales
-      const activeCustodians = trackingData.filter(c => c.estado_actividad === 'activo').length;
-      const inactiveCustodians = trackingData.filter(c => 
-        c.estado_actividad === 'inactivo' && 
-        c.dias_sin_servicio >= 60 && 
-        c.dias_sin_servicio <= 90
-      ).length;
+      // Consultar directamente los totales correctos de la base de datos
+      const { data: activesData, error: activesError } = await supabase
+        .from('custodios_rotacion_tracking')
+        .select('*')
+        .eq('estado_actividad', 'activo');
       
-      if (activeCustodians > 0) {
-        const realRate = (inactiveCustodians / activeCustodians) * 100;
-        const trend: 'up' | 'down' | 'stable' = realRate > 10 ? 'up' : realRate < 8 ? 'down' : 'stable';
-        const trendPercentage = Math.abs(realRate - 9.8);
+      const { data: inactivesData, error: inactivesError } = await supabase
+        .from('custodios_rotacion_tracking')
+        .select('*')
+        .eq('estado_actividad', 'inactivo')
+        .gte('dias_sin_servicio', 60)
+        .lte('dias_sin_servicio', 90);
+      
+      if (!activesError && !inactivesError && activesData && inactivesData) {
+        const activeCustodians = activesData.length;
+        const inactiveCustodians = inactivesData.length;
         
-        const newMetrics: RealRotationMetrics = {
-          currentMonthRate: Math.round(realRate * 100) / 100,
-          historicalAverageRate: 9.8,
-          retiredCustodiansCount: inactiveCustodians,
-          activeCustodiansBase: activeCustodians,
-          trend,
-          trendPercentage: Math.round(trendPercentage * 10) / 10
-        };
+        console.log('📊 Datos reales encontrados:', {
+          activeCustodians,
+          inactiveCustodians,
+          calculatedRate: (inactiveCustodians / activeCustodians * 100).toFixed(2)
+        });
         
-        baseMetrics = newMetrics;
-        console.log('📊 Métricas calculadas con datos reales:', baseMetrics);
+        if (activeCustodians > 0) {
+          const realRate = (inactiveCustodians / activeCustodians) * 100;
+          const trend: 'up' | 'down' | 'stable' = realRate > 10 ? 'up' : realRate < 8 ? 'down' : 'stable';
+          const trendPercentage = Math.abs(realRate - 9.8);
+          
+          const newMetrics: RealRotationMetrics = {
+            currentMonthRate: Math.round(realRate * 100) / 100,
+            historicalAverageRate: 9.8,
+            retiredCustodiansCount: inactiveCustodians,
+            activeCustodiansBase: activeCustodians,
+            trend,
+            trendPercentage: Math.round(trendPercentage * 10) / 10
+          };
+          
+          baseMetrics = newMetrics;
+          console.log('📊 Métricas calculadas con datos reales:', baseMetrics);
+        }
       }
     } else {
       console.log('⚠️ Usando métricas de fallback por error o falta de datos');
