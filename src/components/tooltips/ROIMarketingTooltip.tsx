@@ -22,7 +22,7 @@ export const ROIMarketingTooltip: React.FC<ROIMarketingTooltipProps> = ({ data }
   };
 
   const formatPercentage = (value: number): string => {
-    return `${value.toFixed(2)}%`;
+    return `${value.toFixed(1)}%`;
   };
 
   const roiMensual = [
