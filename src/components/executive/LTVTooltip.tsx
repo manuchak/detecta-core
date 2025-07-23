@@ -31,7 +31,7 @@ export const LTVTooltip: React.FC<LTVTooltipProps> = ({ data }) => {
       <div className="pb-2 border-b border-border">
         <h4 className="font-semibold text-sm mb-1">Lifetime Value (LTV)</h4>
         <p className="text-xs text-muted-foreground">
-          Ingreso promedio mensual × 12 meses (estimación anual)
+          Ingreso promedio mensual × {data.tiempoVidaPromedio} meses (tiempo de vida promedio)
         </p>
       </div>
 

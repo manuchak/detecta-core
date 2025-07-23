@@ -2,6 +2,9 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
+// Tiempo de vida promedio calculado en análisis de rotación (5.4 meses)
+const TIEMPO_VIDA_PROMEDIO = 5.4;
+
 export interface LTVBreakdown {
   month: string;
   custodiosActivos: number;
@@ -25,6 +28,7 @@ export interface LTVDetails {
     ingresoPromedioPorCustodio: number;
     ltvCalculado: number;
   };
+  tiempoVidaPromedio: number;
   loading: boolean;
 }
 
@@ -98,6 +102,7 @@ export const useLTVDetails = (): LTVDetails => {
           ingresoPromedioPorCustodio: 0,
           ltvCalculado: 0,
         },
+        tiempoVidaPromedio: TIEMPO_VIDA_PROMEDIO,
         loading: true,
       };
     }
@@ -116,8 +121,8 @@ export const useLTVDetails = (): LTVDetails => {
       const ingresoPromedioPorCustodio = monthData.custodiosActivos > 0 ? 
         monthData.ingresos / monthData.custodiosActivos : 0;
       
-      // LTV estimado = Ingreso promedio mensual * 12 meses (asumiendo retención anual)
-      const ltvCalculado = Math.round(ingresoPromedioPorCustodio * 12);
+      // LTV estimado = Ingreso promedio mensual * tiempo de vida promedio (5.4 meses)
+      const ltvCalculado = Math.round(ingresoPromedioPorCustodio * TIEMPO_VIDA_PROMEDIO);
       
       ingresosTotalesAcumulados += monthData.ingresos;
 
@@ -138,15 +143,15 @@ export const useLTVDetails = (): LTVDetails => {
     const ingresoPromedioPorCustodioGeneral = custodiosUnicosCount > 0 ? 
       ingresosTotalesAcumulados / custodiosUnicosCount : 0;
     
-    // LTV general estimado
-    const ltvGeneral = Math.round(ingresoPromedioPorCustodioGeneral * 12);
+    // LTV general estimado usando tiempo de vida promedio
+    const ltvGeneral = Math.round(ingresoPromedioPorCustodioGeneral * TIEMPO_VIDA_PROMEDIO);
 
     // Datos del mes actual (Julio 2025)
     const currentMonth = '2025-07';
     const currentMonthData = serviciosPorMes[currentMonth] || { custodiosActivos: 0, ingresos: 0 };
     const currentIngresoPromedio = currentMonthData.custodiosActivos > 0 ? 
       currentMonthData.ingresos / currentMonthData.custodiosActivos : 0;
-    const currentLTV = Math.round(currentIngresoPromedio * 12);
+    const currentLTV = Math.round(currentIngresoPromedio * TIEMPO_VIDA_PROMEDIO);
 
     return {
       yearlyData: {
@@ -163,6 +168,7 @@ export const useLTVDetails = (): LTVDetails => {
         ingresoPromedioPorCustodio: Math.round(currentIngresoPromedio),
         ltvCalculado: currentLTV,
       },
+      tiempoVidaPromedio: TIEMPO_VIDA_PROMEDIO,
       loading: false,
     };
   }, [serviciosPorMes, serviciosLoading]);
