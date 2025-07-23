@@ -342,6 +342,7 @@ export const useUnifiedRecruitmentMetrics = () => {
     forecastData,
     ltvMetrics,
     realRotation,
+    realRotationLoading,
     fetchAll,
     refreshRotationData: fetchRotationData,
     refreshActiveCustodians: fetchActiveCustodiansCurrentMonth,
