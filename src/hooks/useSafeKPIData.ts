@@ -141,24 +141,17 @@ export const useSafeKPIData = () => {
     retry: false
   });
 
-  // ROI Marketing real data
+  // ROI Marketing real data con función simplificada
   const { data: safeROIMarketing, isLoading: roiMarketingLoading } = useQuery({
-    queryKey: ['safe-roi-marketing'],
+    queryKey: ['safe-roi-marketing-simple'],
     queryFn: () => getMetricSafely(
       async () => {
-        const { data, error } = await supabase.rpc('get_real_marketing_roi_v2', { periodo_dias: 90 });
+        const { data, error } = await supabase.rpc('get_marketing_roi_simple', { periodo_dias: 90 });
         if (error) throw error;
         
-        // Calcular ROI total basado en todos los canales
         if (data && data.length > 0) {
-          const totales = data.reduce((acc, item) => ({
-            gastos: acc.gastos + (Number(item.gasto_total) || 0),
-            ingresos: acc.ingresos + (Number(item.ingresos_generados) || 0)
-          }), { gastos: 0, ingresos: 0 });
-          
-          return totales.gastos > 0 
-            ? ((totales.ingresos - totales.gastos) / totales.gastos) * 100 
-            : 285; // Fallback
+          const result = data[0];
+          return Number(result.roi_porcentaje) || 285; // Fallback
         }
         return 285; // Fallback
       },

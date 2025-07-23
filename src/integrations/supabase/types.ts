@@ -6744,6 +6744,16 @@ export type Database = {
           pais_origen: string
         }[]
       }
+      get_marketing_roi_simple: {
+        Args: { periodo_dias?: number }
+        Returns: {
+          total_gastos_marketing: number
+          total_ingresos_estimados: number
+          roi_porcentaje: number
+          candidatos_totales: number
+          custodios_activos: number
+        }[]
+      }
       get_modelos_por_marca: {
         Args: { p_marca_nombre: string }
         Returns: {

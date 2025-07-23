@@ -114,7 +114,7 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
             kpi.key === 'crate' && !conversionRateDetails.loading ? <ConversionRateTooltip data={conversionRateDetails} /> :
             kpi.key === 'ltv' && !ltvDetails.loading ? <LTVTooltip data={ltvDetails} /> :
             kpi.key === 'rrate' && !retentionDetails.loading ? <RetentionTooltip data={retentionDetails} /> :
-            kpi.key === 'roiMkt' && !roiMarketingDetails.loading ? <ROIMarketingTooltip data={{ ...roiMarketingDetails.metrics, loading: roiMarketingDetails.loading }} /> :
+            kpi.key === 'roiMkt' && !roiMarketingDetails.loading ? <ROIMarketingTooltip data={roiMarketingDetails.metrics} /> :
             undefined
           }
         />
