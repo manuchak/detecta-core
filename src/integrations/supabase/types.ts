@@ -2627,6 +2627,7 @@ export type Database = {
       leads: {
         Row: {
           asignado_a: string | null
+          contact_attempts_count: number | null
           created_at: string
           credenciales_enviadas: boolean | null
           email: string
@@ -2644,6 +2645,8 @@ export type Database = {
           interruption_reason: string | null
           interview_session_id: string | null
           last_autosave_at: string | null
+          last_contact_attempt_at: string | null
+          last_contact_outcome: string | null
           last_interview_data: Json | null
           mensaje: string | null
           motivo_rechazo: string | null
@@ -2654,6 +2657,7 @@ export type Database = {
         }
         Insert: {
           asignado_a?: string | null
+          contact_attempts_count?: number | null
           created_at?: string
           credenciales_enviadas?: boolean | null
           email: string
@@ -2671,6 +2675,8 @@ export type Database = {
           interruption_reason?: string | null
           interview_session_id?: string | null
           last_autosave_at?: string | null
+          last_contact_attempt_at?: string | null
+          last_contact_outcome?: string | null
           last_interview_data?: Json | null
           mensaje?: string | null
           motivo_rechazo?: string | null
@@ -2681,6 +2687,7 @@ export type Database = {
         }
         Update: {
           asignado_a?: string | null
+          contact_attempts_count?: number | null
           created_at?: string
           credenciales_enviadas?: boolean | null
           email?: string
@@ -2698,6 +2705,8 @@ export type Database = {
           interruption_reason?: string | null
           interview_session_id?: string | null
           last_autosave_at?: string | null
+          last_contact_attempt_at?: string | null
+          last_contact_outcome?: string | null
           last_interview_data?: Json | null
           mensaje?: string | null
           motivo_rechazo?: string | null
@@ -7287,6 +7296,10 @@ export type Database = {
         Returns: boolean
       }
       migrate_existing_categories: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      migrate_existing_contact_data: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
