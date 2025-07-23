@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CollapsibleSection } from '@/components/ui/collapsible-section';
 import { useMultiMonthRecruitmentPrediction } from '@/hooks/useMultiMonthRecruitmentPrediction';
+import { useRealFinancialPerformance } from '@/hooks/useRealFinancialPerformance';
 import { Target, AlertTriangle, TrendingUp, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -86,8 +87,9 @@ const CompactZoneCard: React.FC<{ cluster: any }> = ({ cluster }) => {
 
 export const CompactZoneNeedsSection: React.FC = () => {
   const { multiMonthData: data, loading } = useMultiMonthRecruitmentPrediction();
+  const { totalInvestment, loading: financialLoading } = useRealFinancialPerformance();
   
-  if (loading) {
+  if (loading || financialLoading) {
     return (
       <CollapsibleSection
         title="Cargando objetivos..."
@@ -122,7 +124,10 @@ export const CompactZoneNeedsSection: React.FC = () => {
 
   const targetMonth = data.targetMonth;
   const totalNeed = targetMonth?.totalNeed || 0;
-  const totalBudget = targetMonth?.clustersNeeds?.reduce((sum, cluster) => sum + (cluster.budgetRequired || 0), 0) || 0;
+  
+  // Usar datos reales de gastos de marketing en lugar de presupuesto estimado
+  const totalRealBudget = totalInvestment || 0;
+  const totalProjectedBudget = targetMonth?.clustersNeeds?.reduce((sum, cluster) => sum + (cluster.budgetRequired || 0), 0) || 0;
   const criticalZones = targetMonth?.clustersNeeds?.filter(cluster => 
     cluster.urgencyLevel === 'critico' && cluster.finalNeed > 0
   ).length || 0;
@@ -144,6 +149,16 @@ export const CompactZoneNeedsSection: React.FC = () => {
           <span className="text-muted-foreground">críticas</span>
         </div>
       )}
+      <div className="flex items-center gap-1">
+        <TrendingUp className="h-4 w-4 text-blue-500" />
+        <span className="font-medium">{new Intl.NumberFormat('es-MX', { 
+          style: 'currency', 
+          currency: 'MXN',
+          notation: 'compact',
+          maximumFractionDigits: 0
+        }).format(totalRealBudget)}</span>
+        <span className="text-muted-foreground">real</span>
+      </div>
       <div className="flex items-center gap-1">
         <Calendar className="h-4 w-4 text-blue-500" />
         <span className="font-medium">{daysRemaining}</span>
@@ -173,16 +188,30 @@ export const CompactZoneNeedsSection: React.FC = () => {
           />
           
           <CompactKPICard
-            title="Presupuesto"
+            title="Presupuesto Actual"
             value={new Intl.NumberFormat('es-MX', { 
               style: 'currency', 
               currency: 'MXN',
               notation: 'compact',
               maximumFractionDigits: 0
-            }).format(totalBudget)}
-            unit="Inversión"
+            }).format(totalRealBudget)}
+            unit="Invertido (últimos 90 días)"
             icon={<TrendingUp className="h-4 w-4" />}
             trend="neutral"
+            loading={loading || financialLoading}
+          />
+          
+          <CompactKPICard
+            title="Presupuesto Proyectado"
+            value={new Intl.NumberFormat('es-MX', { 
+              style: 'currency', 
+              currency: 'MXN',
+              notation: 'compact',
+              maximumFractionDigits: 0
+            }).format(totalProjectedBudget)}
+            unit="Requerido para objetivos"
+            icon={<Target className="h-4 w-4" />}
+            trend={totalProjectedBudget > totalRealBudget ? "down" : "up"}
             loading={loading}
           />
           
