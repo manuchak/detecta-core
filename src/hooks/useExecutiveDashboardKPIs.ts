@@ -202,7 +202,7 @@ export const useExecutiveDashboardKPIs = (): ExecutiveKPIMetrics => {
       nps: Math.round(nps),
       supplyGrowth: Math.round(supplyGrowth * 100) / 100,
       engagement: Math.round(engagement * 100) / 100,
-      roiMkt: Math.round(roiMkt * 100) / 100,
+      roiMkt: Math.round(roiMkt * 10) / 10,
       onboardingTime: Math.round(onboardingTime * 100) / 100,
     };
   }, [unifiedMetrics, financialSystem, cohortAnalytics, unifiedLoading, gastosReales, custodiosNuevosPorMes, safeKPIs]);
