@@ -90,19 +90,34 @@ export const RealRotationCard = ({ className }: RealRotationCardProps) => {
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Rotación del mes actual */}
-        <div className="flex items-center justify-between">
-          <div>
+        {/* Rotación del mes actual - Cálculo transparente */}
+        <div className="bg-muted/30 p-3 rounded-lg">
+          <div className="flex items-center justify-between mb-2">
             <div className="text-2xl font-bold text-primary">
-              {realRotation.currentMonthRate.toFixed(1)}%
+              {realRotation.currentMonthRate.toFixed(2)}%
             </div>
-            <p className="text-sm text-muted-foreground">Este mes</p>
+            <div className="text-sm text-muted-foreground">Este mes</div>
           </div>
-          <div className="text-right">
-            <div className="text-lg font-medium">
-              {realRotation.retiredCustodiansCount}
+          
+          {/* Desglose del cálculo */}
+          <div className="flex items-center justify-center gap-2 text-sm">
+            <div className="flex items-center gap-1">
+              <span className="font-semibold text-red-600">
+                {realRotation.retiredCustodiansCount}
+              </span>
+              <span className="text-muted-foreground">custodios inactivados</span>
             </div>
-            <p className="text-xs text-muted-foreground">custodios retirados</p>
+            <span className="text-muted-foreground">÷</span>
+            <div className="flex items-center gap-1">
+              <span className="font-semibold text-blue-600">
+                {realRotation.activeCustodiansBase}
+              </span>
+              <span className="text-muted-foreground">custodios activos</span>
+            </div>
+            <span className="text-muted-foreground">=</span>
+            <span className="font-semibold text-primary">
+              {realRotation.currentMonthRate.toFixed(2)}%
+            </span>
           </div>
         </div>
 
@@ -124,6 +139,7 @@ export const RealRotationCard = ({ className }: RealRotationCardProps) => {
           </div>
         </div>
 
+        
         {/* Badge de estado */}
         <div className="pt-2">
           {realRotation.currentMonthRate > 15 ? (
@@ -144,10 +160,11 @@ export const RealRotationCard = ({ className }: RealRotationCardProps) => {
           )}
         </div>
 
-        {/* Contexto adicional */}
-        <p className="text-xs text-muted-foreground pt-2">
-          Base: {realRotation.activeCustodiansBase} custodios activos al inicio del mes
-        </p>
+        {/* Contexto metodológico */}
+        <div className="text-xs text-muted-foreground pt-2 space-y-1">
+          <p>📊 <strong>Metodología:</strong> Custodios 60-90 días inactivos con servicio previo 90-120 días</p>
+          <p>📈 <strong>Base de cálculo:</strong> {realRotation.activeCustodiansBase} custodios activos al inicio del mes</p>
+        </div>
       </CardContent>
     </Card>
   );
