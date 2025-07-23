@@ -1,10 +1,18 @@
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import { KPIHeroCard } from './KPIHeroCard';
-import { useFinancialSystem } from '@/hooks/useFinancialSystem';
+import { useRealFinancialPerformance } from '@/hooks/useRealFinancialPerformance';
 
 export function FinancialPerformancePanel() {
-  const financialSystem = useFinancialSystem();
+  const {
+    totalInvestment,
+    averageROI,
+    budgetEfficiency,
+    mostProfitableChannel,
+    channelDistribution,
+    roiByChannel,
+    loading
+  } = useRealFinancialPerformance();
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-MX', {
@@ -21,39 +29,39 @@ export function FinancialPerformancePanel() {
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-foreground">Performance Financiero</h2>
           <div className="text-sm text-muted-foreground">
-            Últimos 30 días
+            Últimos 90 días
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <KPIHeroCard
             title="Inversión Total MKT"
-            value={formatCurrency(financialSystem.gastosTotales || 0)}
+            value={formatCurrency(totalInvestment)}
             trend="neutral"
-            loading={financialSystem.loading}
+            loading={loading}
           />
           
           <KPIHeroCard
             title="ROI Promedio"
-            value={financialSystem.roiPromedio || 0}
+            value={Math.round(averageROI * 10) / 10}
             unit="%"
-            trend={financialSystem.roiPromedio > 20 ? 'up' : 'down'}
-            loading={financialSystem.loading}
+            trend={averageROI > 20 ? 'up' : 'down'}
+            loading={loading}
           />
           
           <KPIHeroCard
             title="Eficiencia Presupuestaria"
-            value={85}
+            value={Math.round(budgetEfficiency * 10) / 10}
             unit="%"
-            trend="up"
-            loading={financialSystem.loading}
+            trend={budgetEfficiency > 75 ? 'up' : budgetEfficiency > 50 ? 'neutral' : 'down'}
+            loading={loading}
           />
           
           <KPIHeroCard
             title="Canal Más Rentable"
-            value="Digital"
+            value={mostProfitableChannel}
             trend="up"
-            loading={financialSystem.loading}
+            loading={loading}
           />
         </div>
 
@@ -62,12 +70,7 @@ export function FinancialPerformancePanel() {
           <div className="space-y-3">
             <h3 className="text-sm font-medium text-muted-foreground">Distribución de Inversión</h3>
             <div className="space-y-2">
-              {[
-                { name: 'Digital', amount: 180000, percentage: 45 },
-                { name: 'Referidos', amount: 120000, percentage: 30 },
-                { name: 'Eventos', amount: 80000, percentage: 20 },
-                { name: 'Otros', amount: 20000, percentage: 5 }
-              ].map((channel, index) => (
+              {channelDistribution.length > 0 ? channelDistribution.map((channel, index) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                   <span className="text-sm font-medium">{channel.name}</span>
                   <div className="flex items-center gap-2">
@@ -79,7 +82,11 @@ export function FinancialPerformancePanel() {
                     </span>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="text-sm text-muted-foreground p-3">
+                  Sin datos de distribución disponibles
+                </div>
+              )}
             </div>
           </div>
 
@@ -87,12 +94,7 @@ export function FinancialPerformancePanel() {
           <div className="space-y-3">
             <h3 className="text-sm font-medium text-muted-foreground">ROI por Canal</h3>
             <div className="space-y-2">
-              {[
-                { name: 'Digital', roi: 35 },
-                { name: 'Referidos', roi: 28 },
-                { name: 'Eventos', roi: 15 },
-                { name: 'Otros', roi: 8 }
-              ].map((channel, index) => (
+              {roiByChannel.length > 0 ? roiByChannel.map((channel, index) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                   <span className="text-sm font-medium">{channel.name}</span>
                   <div className="flex items-center gap-2">
@@ -107,7 +109,11 @@ export function FinancialPerformancePanel() {
                     }`} />
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="text-sm text-muted-foreground p-3">
+                  Sin datos de ROI disponibles
+                </div>
+              )}
             </div>
           </div>
         </div>
