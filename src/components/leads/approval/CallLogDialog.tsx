@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,15 +18,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Phone, User, Calendar as CalendarIcon, Clock } from "lucide-react";
+import { Phone, User, Calendar as CalendarIcon, Clock, History, MessageSquare } from "lucide-react";
 import { AssignedLead, ManualCallLog } from "@/types/leadTypes";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { ContactHistoryDialog } from "../ContactHistoryDialog";
 
 interface CallLogDialogProps {
   open: boolean;
@@ -48,7 +50,33 @@ export const CallLogDialog = ({
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [contactAttempts, setContactAttempts] = useState(0);
+  const [lastContactOutcome, setLastContactOutcome] = useState<string | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (open && lead.lead_id) {
+      fetchContactSummary();
+    }
+  }, [open, lead.lead_id]);
+
+  const fetchContactSummary = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('manual_call_logs')
+        .select('call_outcome, created_at')
+        .eq('lead_id', lead.lead_id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      setContactAttempts(data?.length || 0);
+      setLastContactOutcome(data?.[0]?.call_outcome || null);
+    } catch (error) {
+      console.error('Error fetching contact summary:', error);
+    }
+  };
 
   const callOutcomeOptions = [
     { value: 'successful', label: 'Llamada exitosa - Candidato disponible', color: 'text-emerald-600' },
@@ -57,6 +85,7 @@ export const CallLogDialog = ({
     { value: 'busy', label: 'Línea ocupada', color: 'text-orange-600' },
     { value: 'voicemail', label: 'Buzón de voz', color: 'text-blue-600' },
     { value: 'wrong_number', label: 'Número equivocado', color: 'text-red-600' },
+    { value: 'non_existent_number', label: 'Número inexistente', color: 'text-red-600' },
     { value: 'call_failed', label: 'Llamada falló', color: 'text-red-600' }
   ];
 
@@ -162,9 +191,28 @@ export const CallLogDialog = ({
 
         <Card className="mb-4">
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Información del Candidato
+            <CardTitle className="text-lg flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Información del Candidato
+              </div>
+              {contactAttempts > 0 && (
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-sm">
+                    {contactAttempts} {contactAttempts === 1 ? 'intento' : 'intentos'}
+                  </Badge>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowHistory(true)}
+                    className="text-sm"
+                  >
+                    <History className="h-4 w-4 mr-1" />
+                    Ver historial
+                  </Button>
+                </div>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -182,6 +230,18 @@ export const CallLogDialog = ({
                 <span className="font-medium">Estado:</span> {lead.lead_estado}
               </div>
             </div>
+            
+            {lastContactOutcome && (
+              <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Último contacto:</span>
+                  <Badge variant="outline" className="text-xs">
+                    {callOutcomeOptions.find(opt => opt.value === lastContactOutcome)?.label || lastContactOutcome}
+                  </Badge>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -329,6 +389,12 @@ export const CallLogDialog = ({
           </div>
         </form>
       </DialogContent>
+      
+      <ContactHistoryDialog
+        open={showHistory}
+        onOpenChange={setShowHistory}
+        lead={lead}
+      />
     </Dialog>
   );
 };
