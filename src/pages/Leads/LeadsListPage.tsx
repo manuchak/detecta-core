@@ -6,7 +6,8 @@ import { Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { LeadsTable } from "@/components/leads/LeadsTable";
 import { EnhancedLeadForm } from "@/components/leads/EnhancedLeadForm";
-import { ZoneNeedsSection } from "@/components/leads/ZoneNeedsSection";
+import { CompactZoneNeedsSection } from "@/components/leads/CompactZoneNeedsSection";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { Lead } from "@/types/leadTypes";
 
 const LeadsListPage = () => {
@@ -68,11 +69,12 @@ const LeadsListPage = () => {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-4 p-6">
+      {/* Header compacto */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Gestión de Candidatos</h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Administra los candidatos y sus asignaciones.
           </p>
         </div>
@@ -84,33 +86,30 @@ const LeadsListPage = () => {
         )}
       </div>
 
-      {/* Sección de Necesidades por Zona */}
-      <ZoneNeedsSection />
+      {/* Sección de Necesidades compacta y colapsable */}
+      <CompactZoneNeedsSection />
 
+      {/* Formulario o Tabla en sección colapsable */}
       {showCreateForm ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {editingLead ? 'Editar Candidato' : 'Crear Nuevo Candidato'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <EnhancedLeadForm
-              editingLead={editingLead}
-              onSuccess={handleCloseForm}
-              onCancel={handleCloseForm}
-            />
-          </CardContent>
-        </Card>
+        <CollapsibleSection
+          title={editingLead ? 'Editar Candidato' : 'Crear Nuevo Candidato'}
+          defaultOpen={true}
+          variant="default"
+        >
+          <EnhancedLeadForm
+            editingLead={editingLead}
+            onSuccess={handleCloseForm}
+            onCancel={handleCloseForm}
+          />
+        </CollapsibleSection>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Lista de Candidatos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <LeadsTable onEditLead={handleEditLead} />
-          </CardContent>
-        </Card>
+        <CollapsibleSection
+          title="Lista de Candidatos"
+          defaultOpen={true}
+          variant="default"
+        >
+          <LeadsTable onEditLead={handleEditLead} />
+        </CollapsibleSection>
       )}
     </div>
   );
