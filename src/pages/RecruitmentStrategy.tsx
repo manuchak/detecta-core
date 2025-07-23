@@ -676,7 +676,20 @@ const RecruitmentStrategy = () => {
           );
 
       case 'financial':
-        return <UnifiedFinancialDashboard />;
+        return (
+          <div className="space-y-6">
+            <UnifiedFinancialDashboard />
+            <Card className="p-6">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold">Gestión de Gastos de Reclutamiento</h3>
+                <p className="text-sm text-muted-foreground">
+                  Registra y gestiona los gastos asociados al reclutamiento de custodios
+                </p>
+              </div>
+              <FinancialTrackingSystem />
+            </Card>
+          </div>
+        );
 
       case 'simulator':
         return <IntelligentSimulator />;
