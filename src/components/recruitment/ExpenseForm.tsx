@@ -27,7 +27,8 @@ interface ExpenseData {
 
 const categories = [
   { id: 'facebook', name: 'Facebook Ads' },
-  { id: 'indeed', name: 'Indeed Premium' },
+  { id: 'indeed', name: 'Indeed' },
+  { id: 'indeed_premium', name: 'Indeed Premium' },
   { id: 'linkedin', name: 'LinkedIn Jobs' },
   { id: 'google', name: 'Google Ads' },
   { id: 'referidos', name: 'Programa Referidos' },
