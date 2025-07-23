@@ -43,46 +43,67 @@ export const LeadsList = ({
     const now = new Date();
     let priority = 0;
     
-    // Verificar si tiene llamada programada o entrevista interrumpida
+    // MÁXIMA PRIORIDAD: Entrevistas interrumpidas (2000 puntos)
     if (lead.interview_interrupted && lead.interview_session_id) {
-      // Máxima prioridad para entrevistas interrumpidas
-      priority += 1000;
+      priority += 2000;
     }
     
-    // Prioridad alta para llamadas programadas
+    // ALTA PRIORIDAD: Citas programadas inminentes (≤1 hora) (1500 puntos)
     if (lead.has_scheduled_call && lead.scheduled_call_datetime) {
       const scheduledDate = new Date(lead.scheduled_call_datetime);
       const hoursUntilCall = (scheduledDate.getTime() - now.getTime()) / (1000 * 60 * 60);
       
-      // Mayor prioridad si la llamada es en las próximas 24 horas
-      if (hoursUntilCall <= 24 && hoursUntilCall >= 0) {
-        priority += 800;
-      } else if (hoursUntilCall < 0) {
-        // Llamada vencida - prioridad muy alta
-        priority += 900;
+      if (hoursUntilCall <= 1 && hoursUntilCall >= 0) {
+        // Cita en la próxima hora - muy alta prioridad
+        priority += 1500;
+      } else if (hoursUntilCall < 0 && hoursUntilCall >= -1) {
+        // Cita vencida por menos de 1 hora - emergencia
+        priority += 1800;
+      } else if (hoursUntilCall > 1) {
+        // Cita programada futura - prioridad media
+        priority += 500;
       }
     }
     
-    // Calcular días transcurridos desde creación
-    const creationDate = new Date(lead.lead_fecha_creacion);
-    const daysSinceCreation = Math.floor((now.getTime() - creationDate.getTime()) / (1000 * 60 * 60 * 24));
-    
-    // Aumentar prioridad por días sin contacto inicial (máximo 500 puntos)
-    priority += Math.min(daysSinceCreation * 10, 500);
-    
-    // Prioridad adicional si no tiene información completa
-    if (!lead.lead_telefono || !lead.lead_email) {
-      priority += 200;
+    // PENALIZACIÓN SEVERA: Leads con intentos fallidos van al final (-1000 a -2000 puntos)
+    const failedOutcomes = ['voicemail', 'no_answer', 'busy', 'wrong_number', 'non_existent_number', 'call_failed'];
+    if (lead.last_contact_outcome && failedOutcomes.includes(lead.last_contact_outcome)) {
+      // Penalización base por intento fallido
+      priority -= 1000;
+      
+      // Penalización progresiva por múltiples intentos fallidos
+      const attempts = lead.contact_attempts_count || 0;
+      priority -= attempts * 200;
+      
+      // Si ya tiene muchos intentos fallidos, va al final absoluto
+      if (attempts >= 3) {
+        priority -= 2000;
+      }
     }
     
-    // Factor de equidad: mayor prioridad a contactos que llevan más tiempo sin gestión
-    if (!lead.has_successful_call && daysSinceCreation > 3) {
+    // ALTA PRIORIDAD: Leads nuevos sin intentos fallidos (1000 puntos)
+    const attempts = lead.contact_attempts_count || 0;
+    if (attempts === 0 && !lead.last_contact_outcome) {
+      priority += 1000;
+    }
+    
+    // PRIORIDAD MEDIA: Información incompleta (300 puntos)
+    if (!lead.lead_telefono || !lead.lead_email) {
       priority += 300;
     }
     
-    // Reducir prioridad si ya tiene llamada exitosa pero no está cerrado
+    // AJUSTE POR TIEMPO: Leads antiguos sin gestión (máximo 200 puntos)
+    const creationDate = new Date(lead.lead_fecha_creacion);
+    const daysSinceCreation = Math.floor((now.getTime() - creationDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Solo si no han tenido intentos fallidos
+    if (!lead.last_contact_outcome || !failedOutcomes.includes(lead.last_contact_outcome)) {
+      priority += Math.min(daysSinceCreation * 5, 200);
+    }
+    
+    // AJUSTE FINAL: Llamadas exitosas pendientes de seguimiento
     if (lead.has_successful_call && !lead.final_decision) {
-      priority -= 50;
+      priority += 100;
     }
     
     return priority;
