@@ -31,6 +31,7 @@ import {
 import { AssignedLead } from "@/types/leadTypes";
 import { VapiCallLog } from "@/types/vapiTypes";
 import { validateLeadForApproval } from "@/utils/leadValidation";
+import { cn } from "@/lib/utils";
 
 interface ImprovedLeadCardProps {
   lead: AssignedLead;
@@ -137,6 +138,22 @@ export const ImprovedLeadCard = ({
                   <Badge variant="outline" className="text-xs px-1.5 py-0.5 text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-950 dark:text-blue-400">
                     <Calendar className="h-2.5 w-2.5 mr-1" />
                     Programada
+                  </Badge>
+                )}
+                {(lead.contact_attempts_count && lead.contact_attempts_count > 0) && (
+                  <Badge 
+                    variant="outline" 
+                    className={cn(
+                      "text-xs px-1.5 py-0.5",
+                      lead.contact_attempts_count >= 3 
+                        ? "text-red-600 border-red-200 bg-red-50 dark:bg-red-950 dark:text-red-400"
+                        : lead.contact_attempts_count >= 2
+                        ? "text-orange-600 border-orange-200 bg-orange-50 dark:bg-orange-950 dark:text-orange-400" 
+                        : "text-gray-600 border-gray-200 bg-gray-50 dark:bg-gray-950 dark:text-gray-400"
+                    )}
+                  >
+                    <PhoneCall className="h-2.5 w-2.5 mr-1" />
+                    {lead.contact_attempts_count} {lead.contact_attempts_count === 1 ? 'intento' : 'intentos'}
                   </Badge>
                 )}
               </div>

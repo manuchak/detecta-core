@@ -6471,6 +6471,12 @@ export type Database = {
           notas: string
           analyst_name: string
           analyst_email: string
+          contact_attempts_count: number
+          last_contact_attempt_at: string
+          last_contact_outcome: string
+          interview_interrupted: boolean
+          interview_session_id: string
+          decision_reason: string
         }[]
       }
       get_available_roles_secure: {

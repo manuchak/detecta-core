@@ -57,7 +57,12 @@ export interface AssignedLead {
   notas?: string; // Campo para almacenar información adicional del candidato
   analyst_name?: string; // Nombre del analista asignado
   analyst_email?: string; // Email del analista asignado
-  last_call_outcome?: string; // Resultado de la última llamada manual
+  
+  // Campos para rastreo de intentos de contacto
+  contact_attempts_count?: number;
+  last_contact_attempt_at?: string | null;
+  last_contact_outcome?: string; // Resultado de la última llamada manual
+  
   has_successful_call?: boolean; // Si ha tenido al menos una llamada exitosa
   has_scheduled_call?: boolean; // Si tiene una llamada reprogramada pendiente
   scheduled_call_datetime?: string; // Fecha y hora de la llamada reprogramada
@@ -73,7 +78,7 @@ export interface ManualCallLog {
   id: string;
   lead_id: string;
   caller_id: string;
-  call_outcome: 'successful' | 'no_answer' | 'busy' | 'voicemail' | 'wrong_number' | 'call_failed' | 'reschedule_requested';
+  call_outcome: 'successful' | 'no_answer' | 'busy' | 'voicemail' | 'wrong_number' | 'non_existent_number' | 'call_failed' | 'reschedule_requested';
   call_notes?: string;
   call_duration_minutes?: number;
   call_datetime: string;
