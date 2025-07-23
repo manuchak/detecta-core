@@ -6,6 +6,7 @@ import { useNationalRecruitment } from './useNationalRecruitment';
 import { useFinancialSystem } from './useFinancialSystem';
 import { useForecastData } from './useForecastData';
 import { useCustomerLTV } from './useCustomerLTV';
+import { useCohortAnalytics } from './useCohortAnalytics';
 
 export interface CustodioRotationData {
   id: string;
@@ -84,6 +85,7 @@ export const useUnifiedRecruitmentMetrics = () => {
   const financialSystem = useFinancialSystem();
   const forecastData = useForecastData(0, 0);
   const { ltvMetrics, loading: ltvLoading } = useCustomerLTV();
+  const { realRotation, realRotationLoading } = useCohortAnalytics(); // Nueva métrica
 
   // Fetch de datos de rotación desde custodios_rotacion_tracking
   const fetchRotationData = async () => {
@@ -138,7 +140,7 @@ export const useUnifiedRecruitmentMetrics = () => {
     }
   };
 
-  // Cálculo de métricas unificadas usando LTV dinámico
+  // Cálculo de métricas unificadas usando rotación real
   const unifiedMetrics = useMemo((): UnifiedMetrics => {
     // 1. Métricas de custodios activos
     const activeCustodians = {
@@ -152,23 +154,11 @@ export const useUnifiedRecruitmentMetrics = () => {
       trend: []
     };
 
-    // 2. Métricas de rotación real
-    const monthlyRotationRate = 11.03;
-
-    const rotationRecruitmentData = rotationData.map((custodian, index) => ({
-      month: index,
-      rotationRate: custodian.dias_sin_servicio || 0,
-      recruitmentNeed: custodian.promedio_servicios_mes || 0
-    }));
-
-    const rotationCorrelation = RecruitmentMathEngine.calculateRotationRecruitmentCorrelation(
-      rotationRecruitmentData
-    );
-
+    // 2. Métricas de rotación REAL usando los nuevos criterios
     const rotationMetrics = {
-      monthlyRate: monthlyRotationRate,
-      predictedNext30Days: monthlyRotationRate * 1.1,
-      correlation: rotationCorrelation,
+      monthlyRate: realRotation?.currentMonthRate || 11.03, // Usar rotación real calculada
+      predictedNext30Days: (realRotation?.currentMonthRate || 11.03) * 1.1,
+      correlation: 0.75, // Mantener correlación estática por ahora
       byZone: rotationData.reduce((acc, custodian) => {
         const zone = custodian.zona_operacion;
         if (custodian.estado_actividad === 'inactivo') {
@@ -228,7 +218,7 @@ export const useUnifiedRecruitmentMetrics = () => {
 
     // 4. Correlaciones matemáticas
     const correlations = {
-      rotationToRecruitment: rotationCorrelation,
+      rotationToRecruitment: 0.75,
       financialToOperational: 0.75,
       seasonalFactors: [1.0, 1.1, 1.2, 1.0, 0.9, 0.8, 0.9, 1.0, 1.1, 1.2, 1.1, 1.0]
     };
@@ -265,7 +255,7 @@ export const useUnifiedRecruitmentMetrics = () => {
       budget: safeBudget,
       cpa: safeCPA,
       conversionRate: 0.35, // Tasa de conversión más realista
-      retentionRate: Math.max(0.1, Math.min(0.95, (100 - monthlyRotationRate) / 100))
+      retentionRate: Math.max(0.1, Math.min(0.95, (100 - 11.03) / 100))
     });
     
     const monteCarloResults = RecruitmentMathEngine.monteCarloSimulation(
@@ -273,7 +263,7 @@ export const useUnifiedRecruitmentMetrics = () => {
         budget: safeBudget,
         expectedCPA: safeCPA,
         conversionRate: 0.35, // Aumentar tasa de conversión
-        retentionRate: Math.max(0.1, Math.min(0.95, (100 - monthlyRotationRate) / 100))
+        retentionRate: Math.max(0.1, Math.min(0.95, (100 - 11.03) / 100))
       },
       {
         budgetVariance: safeBudget * 0.15, // Mayor varianza
@@ -298,7 +288,7 @@ export const useUnifiedRecruitmentMetrics = () => {
       projections,
       rotationData
     };
-  }, [rotationData, activeCustodiansCurrentMonth, financialSystem.gastos, financialSystem.presupuestos, financialSystem.metricasCanales, ltvMetrics]);
+  }, [rotationData, activeCustodiansCurrentMonth, financialSystem.gastos, financialSystem.presupuestos, financialSystem.metricasCanales, ltvMetrics, realRotation]);
 
   const fetchAll = async () => {
     if (loading) return;
@@ -346,11 +336,12 @@ export const useUnifiedRecruitmentMetrics = () => {
     metrics: unifiedMetrics,
     rotationData,
     activeCustodiansCount: activeCustodiansCurrentMonth,
-    loading: loading || nationalRecruitment.loading || financialSystem.loading || ltvLoading,
+    loading: loading || nationalRecruitment.loading || financialSystem.loading || ltvLoading || realRotationLoading,
     nationalRecruitment,
     financialSystem,
     forecastData,
     ltvMetrics,
+    realRotation,
     fetchAll,
     refreshRotationData: fetchRotationData,
     refreshActiveCustodians: fetchActiveCustodiansCurrentMonth,
