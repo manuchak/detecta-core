@@ -35,6 +35,7 @@ import { ExecutiveDashboard } from '@/components/recruitment/ExecutiveDashboard'
 import { IntelligentAlerts } from '@/components/recruitment/IntelligentAlerts';
 import { IntelligentSimulator } from '@/components/recruitment/IntelligentSimulator';
 import { FinancialTrackingSystem } from '@/components/recruitment/FinancialTrackingSystem';
+import { UnifiedFinancialDashboard } from '@/components/financial/UnifiedFinancialDashboard';
 import { AIInsightsPanel } from '@/components/recruitment/AIInsightsPanel';
 import { SmartAlertsPanel } from '@/components/recruitment/SmartAlertsPanel';
 import { useUnifiedRecruitmentMetrics } from '@/hooks/useUnifiedRecruitmentMetrics';
@@ -655,7 +656,7 @@ const RecruitmentStrategy = () => {
           );
 
       case 'financial':
-        return <FinancialTrackingSystem />;
+        return <UnifiedFinancialDashboard />;
 
       case 'simulator':
         return <IntelligentSimulator />;
