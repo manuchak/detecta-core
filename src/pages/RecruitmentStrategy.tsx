@@ -39,6 +39,7 @@ import { SmartAlertsPanel } from '@/components/recruitment/SmartAlertsPanel';
 import { useUnifiedRecruitmentMetrics } from '@/hooks/useUnifiedRecruitmentMetrics';
 import { RecruitmentErrorBoundary } from '@/components/recruitment/ErrorBoundary';
 import { useReliableMetrics } from '@/hooks/useReliableMetrics';
+import { useRotationAnalysisPage } from '@/hooks/useRotationAnalysisPage';
 import { 
   IncomeDistributionHistogram,
   ActivationMetricsCard,
@@ -113,6 +114,14 @@ const RecruitmentStrategy = () => {
     loading: loadingReliable,
     reliability
   } = useReliableMetrics();
+
+  // Hook específico para Análisis de Rotación (NUEVO - no afecta nada más)
+  const {
+    loading: rotationAnalysisLoading,
+    kpis: rotationKpis,
+    datosRotacion: rotationData,
+    refreshData: refreshRotationAnalysis
+  } = useRotationAnalysisPage();
 
   // Usar siempre datos reales
   const loading = loadingReal;
@@ -560,30 +569,30 @@ const RecruitmentStrategy = () => {
             <MinimalGrid columns={4}>
               <MinimalCard
                 title="Custodios en Riesgo"
-                value={kpisPrediction.custodiosEnRiesgo || 0}
+                value={rotationKpis.custodiosEnRiesgo}
                 subtitle="30-60 días sin servicio"
                 variant="subtle"
               />
               <MinimalCard
                 title="Egresos Proyectados"
-                value={kpisPrediction.rotacionProyectada || 0}
+                value={rotationKpis.rotacionProyectada}
                 subtitle="Próximos 30 días"
               />
               <MinimalCard
                 title="Tasa Rotación"
-                value={`${kpisPrediction.tasaRotacionPromedio || 0}%`}
+                value={`${rotationKpis.tasaRotacionPromedio}%`}
                 subtitle="Promedio mensual"
               />
               <MinimalCard
                 title="Necesidad Total"
-                value={kpisPrediction.totalDeficit || 0}
+                value={rotationKpis.totalDeficit}
                 subtitle="Con rotación incluida"
                 variant="primary"
               />
             </MinimalGrid>
 
             <div className="space-y-4">
-              {datosRotacion.map((zona, index) => (
+              {rotationData.map((zona, index) => (
                 <Card key={index} className="p-6">
                   <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                     <div>
@@ -603,7 +612,7 @@ const RecruitmentStrategy = () => {
                       <div className="text-xs text-muted-foreground">Rotación</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-lg font-bold text-orange-600">{zona.proyeccionEgresos30Dias}</div>
+                      <div className="text-lg font-bold text-orange-600">{zona.egresosProyectados30Dias}</div>
                       <div className="text-xs text-muted-foreground">Egresos 30d</div>
                     </div>
                     <div className="text-center">
