@@ -71,12 +71,13 @@ const calculateRealRotationForAnalysis = async (): Promise<{
       currentMonthRate: currentMonthRate.toFixed(2)
     });
 
-    // 3. Aplicar NUEVA distribución regional
+    // 3. Aplicar distribución regional proporcional a los datos reales
     const zonasData: RotationAnalysisData[] = Object.entries(REGIONAL_REDISTRIBUTION).map(([zona, porcentaje]) => {
       const custodiosActivosZona = Math.round(activeBase * porcentaje);
-      const custodiosEnRiesgoZona = Math.round(retiredCount * porcentaje * 1.5); // 1.5x factor de riesgo
-      const tasaRotacionZona = Math.round(currentMonthRate * 100) / 100; // Usar tasa real sin ajustes artificiales
-      const egresosProyectadosZona = Math.round(retiredCount * porcentaje);
+      const custodiosInactivosZona = Math.round(retiredCount * porcentaje); // Distribución proporcional real
+      const custodiosEnRiesgoZona = Math.round(custodiosInactivosZona * 1.5); // Factor de riesgo basado en inactivos reales
+      const tasaRotacionZona = Math.round(currentMonthRate * 100) / 100; // Usar tasa real consistente
+      const egresosProyectadosZona = custodiosInactivosZona; // Egresos = inactivos reales por zona
       const retencionZona = Math.round(custodiosEnRiesgoZona * 0.3); // 30% necesita retención
 
       return {
