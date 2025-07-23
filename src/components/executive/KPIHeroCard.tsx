@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface KPIHeroCardProps {
   title: string;
@@ -9,6 +10,7 @@ interface KPIHeroCardProps {
   trendValue?: number;
   className?: string;
   loading?: boolean;
+  tooltip?: React.ReactNode;
 }
 
 export function KPIHeroCard({ 
@@ -18,7 +20,8 @@ export function KPIHeroCard({
   trend = 'neutral', 
   trendValue,
   className,
-  loading = false 
+  loading = false,
+  tooltip
 }: KPIHeroCardProps) {
   if (loading) {
     return (
@@ -64,7 +67,7 @@ export function KPIHeroCard({
     return value;
   };
 
-  return (
+  const cardContent = (
     <div className={cn(
       "bg-card border border-border/50 rounded-xl p-6 hover-lift",
       "shadow-apple hover:shadow-apple-md transition-all duration-200",
@@ -102,4 +105,21 @@ export function KPIHeroCard({
       </div>
     </div>
   );
+
+  if (tooltip) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {cardContent}
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-md">
+            {tooltip}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  return cardContent;
 }

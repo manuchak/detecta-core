@@ -1,6 +1,8 @@
 import React from 'react';
 import { KPIHeroCard } from './KPIHeroCard';
 import { ExecutiveKPIData } from '@/hooks/useExecutiveDashboardKPIs';
+import { useCPADetails } from '@/hooks/useCPADetails';
+import { CPATooltip } from './CPATooltip';
 
 interface ExecutiveMetricsGridProps {
   kpis: ExecutiveKPIData;
@@ -9,6 +11,8 @@ interface ExecutiveMetricsGridProps {
 }
 
 export function ExecutiveMetricsGrid({ kpis, loading = false, className }: ExecutiveMetricsGridProps) {
+  const { cpaDetails, loading: cpaLoading } = useCPADetails();
+
   const kpiConfig = [
     {
       title: 'Costo de Adquisición',
@@ -91,9 +95,10 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
           value={kpi.value}
           unit={kpi.unit}
           trend={kpi.trend}
-          loading={loading}
+          loading={loading || (kpi.key === 'cpa' && cpaLoading)}
+          tooltip={kpi.key === 'cpa' && !cpaLoading ? <CPATooltip cpaDetails={cpaDetails} /> : undefined}
         />
       ))}
     </div>
   );
-}
+};
