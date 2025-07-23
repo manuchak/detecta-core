@@ -25,7 +25,9 @@ export const useSafeKPIData = () => {
           .from('gastos_externos')
           .select('monto')
           .gte('fecha_gasto', '2025-01-01')
-          .lte('fecha_gasto', '2025-05-31');
+          .lte('fecha_gasto', '2025-05-31')
+          .neq('concepto', 'STAFF')
+          .eq('estado', 'aprobado');
 
         const { data: custodios } = await supabase.rpc('get_custodios_nuevos_por_mes', {
           fecha_inicio: '2025-01-01',

@@ -41,6 +41,7 @@ export function useRealFinancialPerformance(): RealFinancialMetrics {
           .from('gastos_externos')
           .select('*')
           .eq('estado', 'aprobado')
+          .neq('concepto', 'STAFF')
           .gte('fecha_gasto', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
 
         if (gastosError) throw gastosError;
