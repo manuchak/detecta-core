@@ -52,6 +52,11 @@ export function UnifiedFinancialDashboard() {
   // Calculate monthly approval rate (conversion from leads to active custodians)
   const monthlyApprovalRate = conversionRate;
 
+  // Calculate cost per custodian (total budget / active custodians)
+  const costPerCustodian = roiMetrics?.totalCustodiosActivos > 0 
+    ? totalInvestment / roiMetrics.totalCustodiosActivos 
+    : 0;
+
   // Calculate validation score based on ROI performance
   const validationScore = averageROI > 50 ? 85 : averageROI > 20 ? 75 : 60;
   const validationStatus = validationScore >= 80 ? 'Excelente' : validationScore >= 70 ? 'Bueno' : 'Revisar';
@@ -88,7 +93,7 @@ export function UnifiedFinancialDashboard() {
       </div>
 
       {/* Main KPI Cards - Top Row */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         <KPIHeroCard
           title="CPA Real"
           value={formatCurrency(cpa)}
@@ -148,6 +153,25 @@ export function UnifiedFinancialDashboard() {
               <p>ROI calculado basado en ingresos estimados vs gastos</p>
               <p className="text-sm text-muted-foreground">
                 {averageROI > 100 ? 'Excelente' : averageROI > 50 ? 'En desarrollo' : 'Revisar estrategia'}
+              </p>
+            </div>
+          }
+        />
+
+        <KPIHeroCard
+          title="Presupuesto Total"
+          value={formatCurrency(totalInvestment)}
+          trend="neutral"
+          loading={loading}
+          tooltip={
+            <div className="space-y-2">
+              <p className="font-semibold">Presupuesto Total de Marketing</p>
+              <p>Inversión total en los últimos 90 días</p>
+              <p className="text-sm text-muted-foreground">
+                {formatCurrency(costPerCustodian)} por custodio activo
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {roiMetrics?.totalCustodiosActivos || 0} custodios activos
               </p>
             </div>
           }
