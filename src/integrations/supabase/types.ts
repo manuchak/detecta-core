@@ -6615,6 +6615,14 @@ export type Database = {
           total_servicios: number
         }[]
       }
+      get_custodios_nuevos_por_mes: {
+        Args: { fecha_inicio: string; fecha_fin: string }
+        Returns: {
+          mes: string
+          custodios_nuevos: number
+          nombres_custodios: string[]
+        }[]
+      }
       get_estados_safe: {
         Args: Record<PropertyKey, never>
         Returns: {

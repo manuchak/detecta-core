@@ -50,40 +50,21 @@ export const useExecutiveDashboardKPIs = (): ExecutiveKPIMetrics => {
   const { data: custodiosNuevosPorMes, isLoading: custodiosLoading } = useQuery({
     queryKey: ['custodios-nuevos-por-mes'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('bypass_rls_get_servicios', { max_records: 10000 });
+      const { data, error } = await supabase.rpc('get_custodios_nuevos_por_mes', {
+        fecha_inicio: '2025-01-01',
+        fecha_fin: '2025-05-31'
+      });
       
       if (error) throw error;
       
-      // Procesar datos para encontrar primer servicio de cada custodio
-      const custodiosPrimerServicio = new Map();
-      
-      if (data && data.length > 0) {
-        // Ordenar por fecha para encontrar el primer servicio de cada custodio
-        const serviciosOrdenados = data
-          .filter(s => s.nombre_custodio && s.fecha_hora_cita)
-          .sort((a, b) => new Date(a.fecha_hora_cita).getTime() - new Date(b.fecha_hora_cita).getTime());
-        
-        serviciosOrdenados.forEach(servicio => {
-          const custodio = servicio.nombre_custodio;
-          if (!custodiosPrimerServicio.has(custodio)) {
-            custodiosPrimerServicio.set(custodio, new Date(servicio.fecha_hora_cita));
-          }
-        });
-      }
-      
-      // Agrupar por mes los custodios que tuvieron su primer servicio
+      // Convertir a formato esperado por el resto del código
       const custodiosPorMes = {};
       
-      custodiosPrimerServicio.forEach((fechaPrimerServicio, custodio) => {
-        if (fechaPrimerServicio >= new Date('2025-01-01') && fechaPrimerServicio <= new Date('2025-05-31')) {
-          const yearMonth = `${fechaPrimerServicio.getFullYear()}-${String(fechaPrimerServicio.getMonth() + 1).padStart(2, '0')}`;
-          
-          if (!custodiosPorMes[yearMonth]) {
-            custodiosPorMes[yearMonth] = [];
-          }
-          custodiosPorMes[yearMonth].push(custodio);
-        }
-      });
+      if (data && data.length > 0) {
+        data.forEach(item => {
+          custodiosPorMes[item.mes] = item.nombres_custodios;
+        });
+      }
       
       return custodiosPorMes;
     },
