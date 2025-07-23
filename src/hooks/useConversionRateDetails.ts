@@ -33,8 +33,8 @@ export const useConversionRateDetails = (): ConversionRateDetails => {
       const { data, error } = await supabase
         .from('leads')
         .select('nombre, fecha_creacion')
-        .gte('fecha_creacion', '2025-06-01')  // Ajustado al período real
-        .lte('fecha_creacion', '2025-07-31')  // Ajustado al período real
+        .gte('fecha_creacion', '2025-01-01')  // Período con datos reales
+        .lte('fecha_creacion', '2025-05-31')  // Período con datos reales
         .order('fecha_creacion', { ascending: true });
 
       if (error) throw error;
@@ -59,44 +59,25 @@ export const useConversionRateDetails = (): ConversionRateDetails => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Obtener custodios con primer servicio por mes (reutilizando lógica existente)
+  // Obtener custodios con primer servicio por mes usando función optimizada
   const { data: custodiosNuevosPorMes, isLoading: custodiosLoading } = useQuery({
     queryKey: ['custodios-nuevos-conversion'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('bypass_rls_get_servicios', { max_records: 10000 });
+      const { data, error } = await supabase.rpc('get_custodios_nuevos_por_mes', {
+        fecha_inicio: '2025-01-01',
+        fecha_fin: '2025-05-31'
+      });
       
       if (error) throw error;
       
-      // Procesar datos para encontrar primer servicio de cada custodio
-      const custodiosPrimerServicio = new Map();
-      
-      if (data && data.length > 0) {
-        // Ordenar por fecha para encontrar el primer servicio de cada custodio
-        const serviciosOrdenados = data
-          .filter(s => s.nombre_custodio && s.fecha_hora_cita)
-          .sort((a, b) => new Date(a.fecha_hora_cita).getTime() - new Date(b.fecha_hora_cita).getTime());
-        
-        serviciosOrdenados.forEach(servicio => {
-          const custodio = servicio.nombre_custodio;
-          if (!custodiosPrimerServicio.has(custodio)) {
-            custodiosPrimerServicio.set(custodio, new Date(servicio.fecha_hora_cita));
-          }
-        });
-      }
-      
-      // Agrupar por mes los custodios que tuvieron su primer servicio
+      // Convertir a formato esperado (cantidad por mes)
       const custodiosPorMes: { [key: string]: number } = {};
       
-      custodiosPrimerServicio.forEach((fechaPrimerServicio, custodio) => {
-        if (fechaPrimerServicio >= new Date('2025-06-01') && fechaPrimerServicio <= new Date('2025-07-31')) {
-          const yearMonth = `${fechaPrimerServicio.getFullYear()}-${String(fechaPrimerServicio.getMonth() + 1).padStart(2, '0')}`;
-          
-          if (!custodiosPorMes[yearMonth]) {
-            custodiosPorMes[yearMonth] = 0;
-          }
-          custodiosPorMes[yearMonth]++;
-        }
-      });
+      if (data && data.length > 0) {
+        data.forEach(item => {
+          custodiosPorMes[item.mes] = item.custodios_nuevos;
+        });
+      }
       
       return custodiosPorMes;
     },
@@ -123,8 +104,8 @@ export const useConversionRateDetails = (): ConversionRateDetails => {
     }
 
     // Obtener todos los meses del período real de datos
-    const allMonths = ['2025-06', '2025-07'];
-    const monthNames = ['Junio', 'Julio'];
+    const allMonths = ['2025-01', '2025-02', '2025-03', '2025-04', '2025-05'];
+    const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo'];
     
     let totalLeads = 0;
     let totalNewCustodians = 0;
@@ -148,8 +129,8 @@ export const useConversionRateDetails = (): ConversionRateDetails => {
 
     const overallConversionRate = totalLeads > 0 ? Math.round((totalNewCustodians / totalLeads) * 100 * 100) / 100 : 0;
 
-    // Datos del mes actual (Julio 2025)
-    const currentMonth = '2025-07';
+    // Datos del mes actual (Mayo 2025 - último mes con datos)
+    const currentMonth = '2025-05';
     const currentMonthLeads = leadsPorMes[currentMonth] || 0;
     const currentMonthCustodians = custodiosNuevosPorMes[currentMonth] || 0;
     const currentMonthConversion = currentMonthLeads > 0 ? Math.round((currentMonthCustodians / currentMonthLeads) * 100 * 100) / 100 : 0;
@@ -162,7 +143,7 @@ export const useConversionRateDetails = (): ConversionRateDetails => {
         monthlyBreakdown,
       },
       currentMonthData: {
-        month: 'Julio 2025',
+        month: 'Mayo 2025',
         leads: currentMonthLeads,
         newCustodians: currentMonthCustodians,
         conversionRate: currentMonthConversion,
