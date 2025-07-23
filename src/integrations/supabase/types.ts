@@ -3157,6 +3157,45 @@ export type Database = {
           },
         ]
       }
+      metricas_retencion_mensual: {
+        Row: {
+          created_at: string
+          custodios_mes_actual: number
+          custodios_mes_anterior: number
+          custodios_nuevos: number
+          custodios_perdidos: number
+          custodios_retenidos: number
+          id: string
+          mes: string
+          tasa_retencion: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          custodios_mes_actual?: number
+          custodios_mes_anterior?: number
+          custodios_nuevos?: number
+          custodios_perdidos?: number
+          custodios_retenidos?: number
+          id?: string
+          mes: string
+          tasa_retencion?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          custodios_mes_actual?: number
+          custodios_mes_anterior?: number
+          custodios_nuevos?: number
+          custodios_perdidos?: number
+          custodios_retenidos?: number
+          id?: string
+          mes?: string
+          tasa_retencion?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ml_model_configurations: {
         Row: {
           created_at: string
@@ -6031,6 +6070,10 @@ export type Database = {
         Args: { total_points: number }
         Returns: number
       }
+      calculate_monthly_retention: {
+        Args: { target_month: string }
+        Returns: undefined
+      }
       calculate_points_with_validation: {
         Args: {
           p_km_recorridos: number
@@ -7216,6 +7259,10 @@ export type Database = {
       parse_tiempo_retraso: {
         Args: { tiempo_str: string }
         Returns: unknown
+      }
+      populate_historical_retention_data: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       procesar_bono_referido: {
         Args: { p_referido_id: string }

@@ -4,9 +4,11 @@ import { ExecutiveKPIData } from '@/hooks/useExecutiveDashboardKPIs';
 import { useCPADetails } from '@/hooks/useCPADetails';
 import { useConversionRateDetails } from '@/hooks/useConversionRateDetails';
 import { useLTVDetails } from '@/hooks/useLTVDetails';
+import { useRetentionDetails } from '@/hooks/useRetentionDetails';
 import { CPATooltip } from './CPATooltip';
 import { ConversionRateTooltip } from './ConversionRateTooltip';
 import { LTVTooltip } from './LTVTooltip';
+import { RetentionTooltip } from './RetentionTooltip';
 
 interface ExecutiveMetricsGridProps {
   kpis: ExecutiveKPIData;
@@ -18,6 +20,7 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
   const { cpaDetails, loading: cpaLoading } = useCPADetails();
   const conversionRateDetails = useConversionRateDetails();
   const ltvDetails = useLTVDetails();
+  const retentionDetails = useRetentionDetails();
 
   const kpiConfig = [
     {
@@ -43,9 +46,10 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
     },
     {
       title: 'Retención',
-      value: kpis.rrate,
+      value: retentionDetails.yearlyData.retentionPromedio,
       unit: '%',
-      trend: 'up' as const,
+      trend: retentionDetails.yearlyData.retentionPromedio >= 90 ? 'up' as const : 
+             retentionDetails.yearlyData.retentionPromedio >= 80 ? 'neutral' as const : 'down' as const,
       key: 'rrate'
     },
     {
@@ -101,11 +105,12 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
           value={kpi.value}
           unit={kpi.unit}
           trend={kpi.trend}
-          loading={loading || (kpi.key === 'cpa' && cpaLoading) || (kpi.key === 'crate' && conversionRateDetails.loading) || (kpi.key === 'ltv' && ltvDetails.loading)}
+          loading={loading || (kpi.key === 'cpa' && cpaLoading) || (kpi.key === 'crate' && conversionRateDetails.loading) || (kpi.key === 'ltv' && ltvDetails.loading) || (kpi.key === 'rrate' && retentionDetails.loading)}
           tooltip={
             kpi.key === 'cpa' && !cpaLoading ? <CPATooltip cpaDetails={cpaDetails} /> :
             kpi.key === 'crate' && !conversionRateDetails.loading ? <ConversionRateTooltip data={conversionRateDetails} /> :
             kpi.key === 'ltv' && !ltvDetails.loading ? <LTVTooltip data={ltvDetails} /> :
+            kpi.key === 'rrate' && !retentionDetails.loading ? <RetentionTooltip data={retentionDetails} /> :
             undefined
           }
         />
