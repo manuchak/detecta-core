@@ -76,9 +76,22 @@ const calculateRealRotationForAnalysis = async (): Promise<{
       const custodiosActivosZona = Math.round(activeBase * porcentaje);
       const custodiosInactivosZona = Math.round(retiredCount * porcentaje); // Distribución proporcional real
       const custodiosEnRiesgoZona = Math.round(custodiosInactivosZona * 1.5); // Factor de riesgo basado en inactivos reales
-      const tasaRotacionZona = Math.round(currentMonthRate * 100) / 100; // Usar tasa real consistente
+      
+      // Calcular tasa de rotación específica por zona: inactivos/activos de esa zona
+      const tasaRotacionZona = custodiosActivosZona > 0 
+        ? Math.round((custodiosInactivosZona / custodiosActivosZona) * 100 * 100) / 100 
+        : 0;
+      
       const egresosProyectadosZona = custodiosInactivosZona; // Egresos = inactivos reales por zona
       const retencionZona = Math.round(custodiosEnRiesgoZona * 0.3); // 30% necesita retención
+
+      console.log(`📊 [${zona}]:`, {
+        porcentaje,
+        activos: custodiosActivosZona,
+        inactivos: custodiosInactivosZona,
+        tasaRotacion: tasaRotacionZona,
+        enRiesgo: custodiosEnRiesgoZona
+      });
 
       return {
         zona_id: zona,
@@ -118,14 +131,25 @@ const calculateRealRotationForAnalysis = async (): Promise<{
     console.error('❌ [Análisis de Rotación] Error en cálculos:', error);
     
     // Fallback con datos realistas usando nueva distribución
-    const fallbackZonas: RotationAnalysisData[] = Object.entries(REGIONAL_REDISTRIBUTION).map(([zona, porcentaje]) => ({
-      zona_id: zona,
-      custodiosActivos: Math.round(75 * porcentaje),
-      custodiosEnRiesgo: Math.round(19 * porcentaje * 1.5),
-      tasaRotacionMensual: 25.33, // Usar tasa real consistente
-      egresosProyectados30Dias: Math.round(19 * porcentaje),
-      retencionNecesaria: Math.round(19 * porcentaje * 0.3)
-    }));
+    const fallbackZonas: RotationAnalysisData[] = Object.entries(REGIONAL_REDISTRIBUTION).map(([zona, porcentaje]) => {
+      const custodiosActivosZona = Math.round(75 * porcentaje);
+      const custodiosInactivosZona = Math.round(19 * porcentaje);
+      const custodiosEnRiesgoZona = Math.round(custodiosInactivosZona * 1.5);
+      
+      // Calcular tasa por zona específica
+      const tasaRotacionZona = custodiosActivosZona > 0 
+        ? Math.round((custodiosInactivosZona / custodiosActivosZona) * 100 * 100) / 100 
+        : 0;
+      
+      return {
+        zona_id: zona,
+        custodiosActivos: custodiosActivosZona,
+        custodiosEnRiesgo: custodiosEnRiesgoZona,
+        tasaRotacionMensual: tasaRotacionZona,
+        egresosProyectados30Dias: custodiosInactivosZona,
+        retencionNecesaria: Math.round(custodiosEnRiesgoZona * 0.3)
+      };
+    });
 
     return {
       kpis: {
