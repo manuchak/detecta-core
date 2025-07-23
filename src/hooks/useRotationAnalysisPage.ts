@@ -83,14 +83,20 @@ const calculateRealRotationForAnalysis = async (): Promise<{
         : 0;
       
       const egresosProyectadosZona = custodiosInactivosZona; // Egresos = inactivos reales por zona
-      const retencionZona = Math.round(custodiosEnRiesgoZona * 0.3); // 30% necesita retención
+      
+      // Calcular porcentaje de retención: (custodios retenidos / custodios en riesgo) * 100
+      // Si no hay custodios en riesgo, retención es 0%
+      const porcentajeRetencion = custodiosEnRiesgoZona > 0 
+        ? Math.round((custodiosInactivosZona / custodiosEnRiesgoZona) * 100 * 100) / 100
+        : 0;
 
       console.log(`📊 [${zona}]:`, {
         porcentaje,
         activos: custodiosActivosZona,
         inactivos: custodiosInactivosZona,
         tasaRotacion: tasaRotacionZona,
-        enRiesgo: custodiosEnRiesgoZona
+        enRiesgo: custodiosEnRiesgoZona,
+        retencion: porcentajeRetencion
       });
 
       return {
@@ -99,7 +105,7 @@ const calculateRealRotationForAnalysis = async (): Promise<{
         custodiosEnRiesgo: custodiosEnRiesgoZona,
         tasaRotacionMensual: tasaRotacionZona,
         egresosProyectados30Dias: egresosProyectadosZona,
-        retencionNecesaria: retencionZona
+        retencionNecesaria: porcentajeRetencion
       };
     });
 
@@ -141,13 +147,18 @@ const calculateRealRotationForAnalysis = async (): Promise<{
         ? Math.round((custodiosInactivosZona / custodiosActivosZona) * 100 * 100) / 100 
         : 0;
       
+      // Calcular porcentaje de retención para fallback
+      const porcentajeRetencionFallback = custodiosEnRiesgoZona > 0 
+        ? Math.round((custodiosInactivosZona / custodiosEnRiesgoZona) * 100 * 100) / 100
+        : 0;
+      
       return {
         zona_id: zona,
         custodiosActivos: custodiosActivosZona,
         custodiosEnRiesgo: custodiosEnRiesgoZona,
         tasaRotacionMensual: tasaRotacionZona,
         egresosProyectados30Dias: custodiosInactivosZona,
-        retencionNecesaria: Math.round(custodiosEnRiesgoZona * 0.3)
+        retencionNecesaria: porcentajeRetencionFallback
       };
     });
 
