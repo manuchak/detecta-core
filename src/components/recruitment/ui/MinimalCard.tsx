@@ -11,6 +11,10 @@ interface MinimalCardProps {
     label: string;
     value: string | number;
   };
+  breakdown?: {
+    activos: number;
+    inactivos: number;
+  };
   variant?: 'default' | 'primary' | 'subtle';
   className?: string;
   loading?: boolean;
@@ -27,6 +31,7 @@ export function MinimalCard({
   value,
   subtitle,
   preview,
+  breakdown,
   variant = 'default',
   className,
   loading = false
@@ -80,6 +85,36 @@ export function MinimalCard({
               <span className="text-lg font-medium text-gray-600">
                 {preview.value}
               </span>
+            </div>
+          </div>
+        )}
+
+        {/* Breakdown of activos/inactivos */}
+        {breakdown && (
+          <div className="pt-4 border-t border-gray-100">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                  <span className="text-xs font-medium text-blue-700 uppercase tracking-wide">
+                    Activos
+                  </span>
+                </div>
+                <span className="text-lg font-semibold text-blue-800">
+                  {breakdown.activos}
+                </span>
+              </div>
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <div className="h-2 w-2 rounded-full bg-red-500"></div>
+                  <span className="text-xs font-medium text-red-700 uppercase tracking-wide">
+                    Inactivos
+                  </span>
+                </div>
+                <span className="text-lg font-semibold text-red-800">
+                  {breakdown.inactivos}
+                </span>
+              </div>
             </div>
           </div>
         )}

@@ -11,6 +11,7 @@ import { useNationalRecruitment } from '@/hooks/useNationalRecruitment';
 import { useRealNationalRecruitment } from '@/hooks/useRealNationalRecruitment';
 import { useAdvancedRecruitmentPrediction } from '@/hooks/useAdvancedRecruitmentPrediction';
 import { useMultiMonthRecruitmentPrediction } from '@/hooks/useMultiMonthRecruitmentPrediction';
+import { useRegionalRotationDistribution } from '@/hooks/useRegionalRotationDistribution';
 import { 
   AlertTriangle, 
   Users, 
@@ -122,6 +123,9 @@ const RecruitmentStrategy = () => {
     datosRotacion: rotationData,
     refreshData: refreshRotationAnalysis
   } = useRotationAnalysisPage();
+
+  // Hook para datos de rotación regional
+  const { regionalData } = useRegionalRotationDistribution();
 
   // Usar siempre datos reales
   const loading = loadingReal;
@@ -582,6 +586,10 @@ const RecruitmentStrategy = () => {
                 title="Tasa Rotación"
                 value={`${rotationKpis.tasaRotacionPromedio}%`}
                 subtitle="Promedio mensual"
+                breakdown={regionalData ? {
+                  activos: regionalData.rotacionTotal.activeCustodiansBase,
+                  inactivos: regionalData.rotacionTotal.retiredCustodiansCount
+                } : undefined}
               />
               <MinimalCard
                 title="Necesidad Total"
