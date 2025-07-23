@@ -122,13 +122,33 @@ export const useSafeKPIData = () => {
     retry: false
   });
 
+  // Supply Growth seguro con datos reales
+  const { data: safeSupplyGrowth, isLoading: supplyGrowthLoading } = useQuery({
+    queryKey: ['safe-supply-growth'],
+    queryFn: () => getMetricSafely(
+      async () => {
+        const { data, error } = await supabase.rpc('get_supply_growth_metrics', {
+          fecha_inicio: '2025-01-01',
+          fecha_fin: new Date().toISOString().split('T')[0]
+        });
+        if (error) throw error;
+        return data?.[0]?.supply_growth_rate || 12.5;
+      },
+      12.5,
+      'Supply Growth'
+    ),
+    staleTime: 10 * 60 * 1000,
+    retry: false
+  });
+
   return {
     cpa: safeCPA || FALLBACK_VALUES.cpa,
     conversionRate: safeConversionRate || FALLBACK_VALUES.conversionRate,
     activationRate: safeActivationMetrics?.activation_rate || FALLBACK_VALUES.activationRate,
     retentionRate: safeRetentionRate || FALLBACK_VALUES.retentionRate,
     ltv: FALLBACK_VALUES.ltv,
-    loading: cpaLoading || conversionLoading || activationLoading || retentionLoading || isRetrying,
+    supplyGrowth: safeSupplyGrowth || 12.5,
+    loading: cpaLoading || conversionLoading || activationLoading || retentionLoading || supplyGrowthLoading || isRetrying,
     isRetrying
   };
 };

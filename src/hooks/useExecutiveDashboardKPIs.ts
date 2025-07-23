@@ -83,7 +83,7 @@ export const useExecutiveDashboardKPIs = (): ExecutiveKPIMetrics => {
         rrate: safeKPIs.retentionRate,
         arate: safeKPIs.activationRate,
         nps: 65,
-        supplyGrowth: 12.5,
+        supplyGrowth: safeKPIs.supplyGrowth || 12.5,
         engagement: 8.2,
         roiMkt: 285,
         onboardingTime: 5,

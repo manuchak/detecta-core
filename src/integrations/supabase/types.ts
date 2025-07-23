@@ -6967,6 +6967,19 @@ export type Database = {
         Args: { servicio_uuid: string }
         Returns: Json
       }
+      get_supply_growth_metrics: {
+        Args: { fecha_inicio?: string; fecha_fin?: string }
+        Returns: {
+          period_start: string
+          period_end: string
+          custodios_nuevos: number
+          custodios_perdidos: number
+          custodios_activos_inicio: number
+          custodios_activos_fin: number
+          supply_growth_rate: number
+          supply_growth_absolute: number
+        }[]
+      }
       get_user_confirmation_status: {
         Args: Record<PropertyKey, never>
         Returns: {
