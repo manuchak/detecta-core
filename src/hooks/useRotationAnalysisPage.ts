@@ -23,6 +23,7 @@ export interface RotationAnalysisKPIs {
   rotacionProyectada: number;
   tasaRotacionPromedio: number;
   totalDeficit: number;
+  tiempoVidaPromedio: number; // En meses
 }
 
 // Función para calcular rotación SOLO usando criterios específicos (60-90 días inactivo)
@@ -120,12 +121,18 @@ const calculateRealRotationForAnalysis = async (): Promise<{
     const totalEgresosProyectados = zonasData.reduce((sum, zona) => sum + zona.egresosProyectados30Dias, 0);
     const promedioTasaRotacion = Math.round(currentMonthRate * 100) / 100; // Usar tasa real directamente
     const deficitTotal = totalEgresosProyectados + Math.round(totalCustodiosEnRiesgo * 0.4); // Factor de conversión
+    
+    // 5. Calcular tiempo de vida promedio (simulado basado en retención)
+    // Estimación: si retención mensual es 83%, tiempo promedio = -1/ln(0.83) ≈ 5.4 meses
+    const retencionPromedio = 0.83; // 83% retención promedio estimada
+    const tiempoVidaPromedio = Math.round(-1 / Math.log(retencionPromedio) * 100) / 100;
 
     const kpis: RotationAnalysisKPIs = {
       custodiosEnRiesgo: totalCustodiosEnRiesgo,
       rotacionProyectada: totalEgresosProyectados,
       tasaRotacionPromedio: Math.round(promedioTasaRotacion * 100) / 100,
-      totalDeficit: deficitTotal
+      totalDeficit: deficitTotal,
+      tiempoVidaPromedio: tiempoVidaPromedio
     };
 
     console.log('📈 [Análisis de Rotación] Resultado final:', {
@@ -175,7 +182,8 @@ const calculateRealRotationForAnalysis = async (): Promise<{
         custodiosEnRiesgo: 29, // 19 * 1.5
         rotacionProyectada: 19,
         tasaRotacionPromedio: 25.33,
-        totalDeficit: 31 // 19 + (29 * 0.4)
+        totalDeficit: 31, // 19 + (29 * 0.4)
+        tiempoVidaPromedio: 5.4 // Fallback estimado
       },
       datosRotacion: fallbackZonas
     };
@@ -188,7 +196,8 @@ export const useRotationAnalysisPage = () => {
     custodiosEnRiesgo: 0,
     rotacionProyectada: 0,
     tasaRotacionPromedio: 0,
-    totalDeficit: 0
+    totalDeficit: 0,
+    tiempoVidaPromedio: 0
   });
   const [datosRotacion, setDatosRotacion] = useState<RotationAnalysisData[]>([]);
 

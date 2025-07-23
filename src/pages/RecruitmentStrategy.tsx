@@ -597,6 +597,12 @@ const RecruitmentStrategy = () => {
                 subtitle="Con rotación incluida"
                 variant="primary"
               />
+              <MinimalCard
+                title="Tiempo de Vida"
+                value={`${rotationKpis.tiempoVidaPromedio} meses`}
+                subtitle="Promedio custodios"
+                variant="subtle"
+              />
             </MinimalGrid>
 
             <div className="space-y-4">
