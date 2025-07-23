@@ -2,25 +2,18 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Minus, Users, AlertTriangle } from "lucide-react";
-
-interface RealRotationData {
-  currentMonthRate: number;
-  historicalAverageRate: number;
-  retiredCustodiansCount: number;
-  activeCustodiansBase: number;
-  trend: 'up' | 'down' | 'stable';
-  trendPercentage: number;
-}
+import { useCohortAnalytics } from "@/hooks/useCohortAnalytics";
 
 interface RealRotationCardProps {
-  data?: RealRotationData;
-  loading?: boolean;
+  className?: string;
 }
 
-export const RealRotationCard = ({ data, loading }: RealRotationCardProps) => {
-  if (loading) {
+export const RealRotationCard = ({ className }: RealRotationCardProps) => {
+  const { realRotation, realRotationLoading } = useCohortAnalytics();
+
+  if (realRotationLoading) {
     return (
-      <Card>
+      <Card className={className}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
@@ -36,9 +29,9 @@ export const RealRotationCard = ({ data, loading }: RealRotationCardProps) => {
     );
   }
 
-  if (!data) {
+  if (!realRotation) {
     return (
-      <Card>
+      <Card className={className}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
@@ -53,7 +46,7 @@ export const RealRotationCard = ({ data, loading }: RealRotationCardProps) => {
   }
 
   const getTrendIcon = () => {
-    switch (data.trend) {
+    switch (realRotation.trend) {
       case 'up':
         return <TrendingUp className="h-4 w-4 text-red-500" />;
       case 'down':
@@ -64,7 +57,7 @@ export const RealRotationCard = ({ data, loading }: RealRotationCardProps) => {
   };
 
   const getTrendColor = () => {
-    switch (data.trend) {
+    switch (realRotation.trend) {
       case 'up':
         return 'text-red-600';
       case 'down':
@@ -75,18 +68,18 @@ export const RealRotationCard = ({ data, loading }: RealRotationCardProps) => {
   };
 
   const getTrendText = () => {
-    switch (data.trend) {
+    switch (realRotation.trend) {
       case 'up':
-        return `+${data.trendPercentage}% vs promedio`;
+        return `+${realRotation.trendPercentage}% vs promedio`;
       case 'down':
-        return `-${data.trendPercentage}% vs promedio`;
+        return `-${realRotation.trendPercentage}% vs promedio`;
       default:
         return 'Sin cambio significativo';
     }
   };
 
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Users className="h-5 w-5" />
@@ -101,13 +94,13 @@ export const RealRotationCard = ({ data, loading }: RealRotationCardProps) => {
         <div className="flex items-center justify-between">
           <div>
             <div className="text-2xl font-bold text-primary">
-              {data.currentMonthRate.toFixed(1)}%
+              {realRotation.currentMonthRate.toFixed(1)}%
             </div>
             <p className="text-sm text-muted-foreground">Este mes</p>
           </div>
           <div className="text-right">
             <div className="text-lg font-medium">
-              {data.retiredCustodiansCount}
+              {realRotation.retiredCustodiansCount}
             </div>
             <p className="text-xs text-muted-foreground">custodios retirados</p>
           </div>
@@ -118,7 +111,7 @@ export const RealRotationCard = ({ data, loading }: RealRotationCardProps) => {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-lg font-medium text-gray-700">
-                {data.historicalAverageRate.toFixed(1)}%
+                {realRotation.historicalAverageRate.toFixed(1)}%
               </div>
               <p className="text-sm text-muted-foreground">Promedio 3 meses</p>
             </div>
@@ -133,12 +126,12 @@ export const RealRotationCard = ({ data, loading }: RealRotationCardProps) => {
 
         {/* Badge de estado */}
         <div className="pt-2">
-          {data.currentMonthRate > 15 ? (
+          {realRotation.currentMonthRate > 15 ? (
             <Badge variant="destructive" className="flex items-center gap-1">
               <AlertTriangle className="h-3 w-3" />
               Rotación Alta
             </Badge>
-          ) : data.currentMonthRate > 10 ? (
+          ) : realRotation.currentMonthRate > 10 ? (
             <Badge variant="secondary" className="flex items-center gap-1">
               <AlertTriangle className="h-3 w-3" />
               Rotación Moderada
@@ -153,7 +146,7 @@ export const RealRotationCard = ({ data, loading }: RealRotationCardProps) => {
 
         {/* Contexto adicional */}
         <p className="text-xs text-muted-foreground pt-2">
-          Base: {data.activeCustodiansBase} custodios activos al inicio del mes
+          Base: {realRotation.activeCustodiansBase} custodios activos al inicio del mes
         </p>
       </CardContent>
     </Card>
