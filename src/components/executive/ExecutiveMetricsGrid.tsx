@@ -3,8 +3,10 @@ import { KPIHeroCard } from './KPIHeroCard';
 import { ExecutiveKPIData } from '@/hooks/useExecutiveDashboardKPIs';
 import { useCPADetails } from '@/hooks/useCPADetails';
 import { useConversionRateDetails } from '@/hooks/useConversionRateDetails';
+import { useLTVDetails } from '@/hooks/useLTVDetails';
 import { CPATooltip } from './CPATooltip';
 import { ConversionRateTooltip } from './ConversionRateTooltip';
+import { LTVTooltip } from './LTVTooltip';
 
 interface ExecutiveMetricsGridProps {
   kpis: ExecutiveKPIData;
@@ -15,6 +17,7 @@ interface ExecutiveMetricsGridProps {
 export function ExecutiveMetricsGrid({ kpis, loading = false, className }: ExecutiveMetricsGridProps) {
   const { cpaDetails, loading: cpaLoading } = useCPADetails();
   const conversionRateDetails = useConversionRateDetails();
+  const ltvDetails = useLTVDetails();
 
   const kpiConfig = [
     {
@@ -33,8 +36,8 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
     },
     {
       title: 'Lifetime Value',
-      value: kpis.ltv,
-      unit: 'MXN',
+      value: ltvDetails.yearlyData.ltvGeneral / 1000, // Convertir a K para mostrar como 135.0K
+      unit: 'K MXN',
       trend: 'up' as const,
       key: 'ltv'
     },
@@ -98,10 +101,11 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
           value={kpi.value}
           unit={kpi.unit}
           trend={kpi.trend}
-          loading={loading || (kpi.key === 'cpa' && cpaLoading) || (kpi.key === 'crate' && conversionRateDetails.loading)}
+          loading={loading || (kpi.key === 'cpa' && cpaLoading) || (kpi.key === 'crate' && conversionRateDetails.loading) || (kpi.key === 'ltv' && ltvDetails.loading)}
           tooltip={
             kpi.key === 'cpa' && !cpaLoading ? <CPATooltip cpaDetails={cpaDetails} /> :
             kpi.key === 'crate' && !conversionRateDetails.loading ? <ConversionRateTooltip data={conversionRateDetails} /> :
+            kpi.key === 'ltv' && !ltvDetails.loading ? <LTVTooltip data={ltvDetails} /> :
             undefined
           }
         />
