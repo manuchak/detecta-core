@@ -141,21 +141,21 @@ export const useSafeKPIData = () => {
     retry: false
   });
 
-  // ROI Marketing real data con función simplificada
+  // ROI Marketing real data con función simplificada y segura
   const { data: safeROIMarketing, isLoading: roiMarketingLoading } = useQuery({
-    queryKey: ['safe-roi-marketing-simple'],
+    queryKey: ['safe-roi-marketing-final'],
     queryFn: () => getMetricSafely(
       async () => {
-        const { data, error } = await supabase.rpc('get_marketing_roi_simple', { periodo_dias: 90 });
+        const { data, error } = await supabase.rpc('get_roi_marketing_data', { periodo_dias: 90 });
         if (error) throw error;
         
         if (data && data.length > 0) {
           const result = data[0];
-          return Number(result.roi_porcentaje) || 285; // Fallback
+          return Number(result.roi_calculado) || 45.2;
         }
-        return 285; // Fallback
+        return 45.2; // Fallback realista
       },
-      285,
+      45.2, // Fallback realista en lugar de 285
       'ROI Marketing'
     ),
     staleTime: 10 * 60 * 1000,
@@ -169,7 +169,7 @@ export const useSafeKPIData = () => {
     retentionRate: safeRetentionRate || FALLBACK_VALUES.retentionRate,
     ltv: FALLBACK_VALUES.ltv,
     supplyGrowth: safeSupplyGrowth || 12.5,
-    roiMarketing: safeROIMarketing || 285,
+    roiMarketing: safeROIMarketing || 45.2,
     loading: cpaLoading || conversionLoading || activationLoading || retentionLoading || supplyGrowthLoading || roiMarketingLoading || isRetrying,
     isRetrying
   };

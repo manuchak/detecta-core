@@ -6744,16 +6744,6 @@ export type Database = {
           pais_origen: string
         }[]
       }
-      get_marketing_roi_simple: {
-        Args: { periodo_dias?: number }
-        Returns: {
-          total_gastos_marketing: number
-          total_ingresos_estimados: number
-          roi_porcentaje: number
-          candidatos_totales: number
-          custodios_activos: number
-        }[]
-      }
       get_modelos_por_marca: {
         Args: { p_marca_nombre: string }
         Returns: {
@@ -6909,6 +6899,16 @@ export type Database = {
           category_name: string
           category_color: string
           category_icon: string
+        }[]
+      }
+      get_roi_marketing_data: {
+        Args: { periodo_dias?: number }
+        Returns: {
+          gastos_totales: number
+          ingresos_estimados: number
+          roi_calculado: number
+          num_candidatos: number
+          num_custodios_activos: number
         }[]
       }
       get_services_by_exact_phone: {

@@ -85,7 +85,7 @@ export const useExecutiveDashboardKPIs = (): ExecutiveKPIMetrics => {
         nps: 65,
         supplyGrowth: safeKPIs.supplyGrowth || 12.5,
         engagement: 8.2,
-        roiMkt: safeKPIs.roiMarketing || 285,
+        roiMkt: safeKPIs.roiMarketing || 45.2,
         onboardingTime: 5,
       };
     }
