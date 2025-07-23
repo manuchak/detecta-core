@@ -20,17 +20,20 @@ interface ExpenseData {
   categoria_id: string;
   canal_reclutamiento: string;
   fecha_gasto: Date | undefined;
-  custodios_reales: number;
   descripcion: string;
 }
 
 const categories = [
-  { id: 'facebook', name: 'Facebook Ads' },
+  { id: 'facebook_ads', name: 'Facebook Ads' },
   { id: 'indeed', name: 'Indeed' },
   { id: 'indeed_premium', name: 'Indeed Premium' },
-  { id: 'linkedin', name: 'LinkedIn Jobs' },
-  { id: 'google', name: 'Google Ads' },
+  { id: 'linkedin_jobs', name: 'LinkedIn Jobs' },
+  { id: 'google_ads', name: 'Google Ads' },
   { id: 'referidos', name: 'Programa Referidos' },
+  { id: 'examenes_toxicologicos', name: 'Exámenes Toxicológicos' },
+  { id: 'examenes_psicometricos', name: 'Exámenes Psicométricos' },
+  { id: 'gps_financiados', name: 'GPS Financiados' },
+  { id: 'plataforma', name: 'Plataforma' },
   { id: 'otros', name: 'Otros' }
 ];
 
@@ -52,7 +55,6 @@ export const ExpenseForm: React.FC = () => {
     categoria_id: '',
     canal_reclutamiento: '',
     fecha_gasto: undefined,
-    custodios_reales: 0,
     descripcion: ''
   });
 
@@ -81,7 +83,6 @@ export const ExpenseForm: React.FC = () => {
           categoria_id: formData.categoria_id || null,
           canal_reclutamiento: formData.canal_reclutamiento || null,
           fecha_gasto: formData.fecha_gasto.toISOString().split('T')[0],
-          custodios_reales: formData.custodios_reales || 0,
           descripcion: formData.descripcion || null,
           estado: 'pendiente',
           registrado_por: userData.user?.id
@@ -101,7 +102,6 @@ export const ExpenseForm: React.FC = () => {
         categoria_id: '',
         canal_reclutamiento: '',
         fecha_gasto: undefined,
-        custodios_reales: 0,
         descripcion: ''
       });
       
@@ -206,53 +206,37 @@ export const ExpenseForm: React.FC = () => {
             </div>
           </div>
 
-          {/* Fecha y métricas */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Fecha del Gasto *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "h-10 w-full justify-start text-left font-normal",
-                      !formData.fecha_gasto && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.fecha_gasto ? (
-                      format(formData.fecha_gasto, "PPP", { locale: es })
-                    ) : (
-                      <span>Seleccionar fecha</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={formData.fecha_gasto}
-                    onSelect={(date) => updateField('fecha_gasto', date)}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+          {/* Fecha del gasto */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Fecha del Gasto *</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "h-10 w-full justify-start text-left font-normal",
+                    !formData.fecha_gasto && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {formData.fecha_gasto ? (
+                    format(formData.fecha_gasto, "PPP", { locale: es })
+                  ) : (
+                    <span>Seleccionar fecha</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={formData.fecha_gasto}
+                  onSelect={(date) => updateField('fecha_gasto', date)}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
             
-            <div className="space-y-2">
-              <Label htmlFor="custodios" className="text-sm font-medium">
-                Custodios Contratados
-              </Label>
-              <Input
-                id="custodios"
-                type="number"
-                min="0"
-                value={formData.custodios_reales || ''}
-                onChange={(e) => updateField('custodios_reales', parseInt(e.target.value) || 0)}
-                placeholder="0"
-                className="h-10"
-              />
-            </div>
           </div>
 
           {/* Descripción */}
