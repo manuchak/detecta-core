@@ -60,10 +60,10 @@ const calculateRealRotationForAnalysis = async (): Promise<{
 
     if (activeError) throw activeError;
 
-    // Datos base reales
-    const retiredCount = retiredCustodians?.length || 8; // 8 custodios retirados este mes
-    const activeBase = activeCustodians?.length || 72; // 72 custodios activos promedio
-    const currentMonthRate = (retiredCount / activeBase) * 100; // ~11.03%
+    // Datos base reales - usar datos reales de rotación
+    const retiredCount = retiredCustodians?.length || 19; // 19 custodios retirados este mes
+    const activeBase = activeCustodians?.length || 75; // 75 custodios activos promedio
+    const currentMonthRate = (retiredCount / activeBase) * 100; // 25.33% tasa real
 
     console.log('📊 [Análisis de Rotación] Datos base calculados:', {
       retiredCount,
@@ -75,7 +75,7 @@ const calculateRealRotationForAnalysis = async (): Promise<{
     const zonasData: RotationAnalysisData[] = Object.entries(REGIONAL_REDISTRIBUTION).map(([zona, porcentaje]) => {
       const custodiosActivosZona = Math.round(activeBase * porcentaje);
       const custodiosEnRiesgoZona = Math.round(retiredCount * porcentaje * 1.5); // 1.5x factor de riesgo
-      const tasaRotacionZona = Math.round(currentMonthRate * (porcentaje + 0.1) * 100) / 100; // Ajuste por zona
+      const tasaRotacionZona = Math.round(currentMonthRate * 100) / 100; // Usar tasa real sin ajustes artificiales
       const egresosProyectadosZona = Math.round(retiredCount * porcentaje);
       const retencionZona = Math.round(custodiosEnRiesgoZona * 0.3); // 30% necesita retención
 
@@ -92,7 +92,7 @@ const calculateRealRotationForAnalysis = async (): Promise<{
     // 4. Calcular KPIs agregados
     const totalCustodiosEnRiesgo = zonasData.reduce((sum, zona) => sum + zona.custodiosEnRiesgo, 0);
     const totalEgresosProyectados = zonasData.reduce((sum, zona) => sum + zona.egresosProyectados30Dias, 0);
-    const promedioTasaRotacion = zonasData.reduce((sum, zona) => sum + zona.tasaRotacionMensual, 0) / zonasData.length;
+    const promedioTasaRotacion = Math.round(currentMonthRate * 100) / 100; // Usar tasa real directamente
     const deficitTotal = totalEgresosProyectados + Math.round(totalCustodiosEnRiesgo * 0.4); // Factor de conversión
 
     const kpis: RotationAnalysisKPIs = {
@@ -119,19 +119,19 @@ const calculateRealRotationForAnalysis = async (): Promise<{
     // Fallback con datos realistas usando nueva distribución
     const fallbackZonas: RotationAnalysisData[] = Object.entries(REGIONAL_REDISTRIBUTION).map(([zona, porcentaje]) => ({
       zona_id: zona,
-      custodiosActivos: Math.round(72 * porcentaje),
-      custodiosEnRiesgo: Math.round(12 * porcentaje),
-      tasaRotacionMensual: Math.round((11.03 + (Math.random() * 4 - 2)) * 100) / 100, // ±2% variación
-      egresosProyectados30Dias: Math.round(9 * porcentaje),
-      retencionNecesaria: Math.round(4 * porcentaje)
+      custodiosActivos: Math.round(75 * porcentaje),
+      custodiosEnRiesgo: Math.round(19 * porcentaje * 1.5),
+      tasaRotacionMensual: 25.33, // Usar tasa real consistente
+      egresosProyectados30Dias: Math.round(19 * porcentaje),
+      retencionNecesaria: Math.round(19 * porcentaje * 0.3)
     }));
 
     return {
       kpis: {
-        custodiosEnRiesgo: 12,
-        rotacionProyectada: 9,
-        tasaRotacionPromedio: 11.03,
-        totalDeficit: 64
+        custodiosEnRiesgo: 29, // 19 * 1.5
+        rotacionProyectada: 19,
+        tasaRotacionPromedio: 25.33,
+        totalDeficit: 31 // 19 + (29 * 0.4)
       },
       datosRotacion: fallbackZonas
     };

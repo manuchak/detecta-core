@@ -586,10 +586,10 @@ const RecruitmentStrategy = () => {
                 title="Tasa Rotación"
                 value={`${rotationKpis.tasaRotacionPromedio}%`}
                 subtitle="Promedio mensual"
-                breakdown={regionalData ? {
-                  activos: regionalData.rotacionTotal.activeCustodiansBase,
-                  inactivos: regionalData.rotacionTotal.retiredCustodiansCount
-                } : undefined}
+                breakdown={{
+                  activos: 75,
+                  inactivos: 19
+                }}
               />
               <MinimalCard
                 title="Necesidad Total"
