@@ -336,14 +336,12 @@ export const calcularDatosRotacionPorCluster = async (nombreCluster: string): Pr
     const EGRESOS_MENSUALES_TOTAL = 7;
     const TASA_ROTACION_REAL = (EGRESOS_MENSUALES_TOTAL / CUSTODIOS_ACTIVOS_TOTAL) * 100; // ~10.14%
     
-    // Distribución realista por cluster usando datos base
+    // Nueva distribución regional: Centro MX 55%, Bajío 30%, Pacífico 13%, Golfo 2%
     const distribuciones = {
-      'Centro de México': { porcentaje: 0.35, custodiosRiesgo: 0.12 }, // 35% de operación, 12% en riesgo
-      'Bajío': { porcentaje: 0.20, custodiosRiesgo: 0.08 },
-      'Occidente': { porcentaje: 0.18, custodiosRiesgo: 0.10 },
-      'Norte': { porcentaje: 0.15, custodiosRiesgo: 0.15 }, // Mayor rotación en norte
-      'Pacífico': { porcentaje: 0.08, custodiosRiesgo: 0.09 },
-      'Golfo': { porcentaje: 0.04, custodiosRiesgo: 0.11 }
+      'Centro de México': { porcentaje: 0.55, custodiosRiesgo: 0.12 }, // 55% de operación, 12% en riesgo
+      'Bajío': { porcentaje: 0.30, custodiosRiesgo: 0.08 }, // 30% de operación
+      'Pacífico': { porcentaje: 0.13, custodiosRiesgo: 0.09 }, // 13% de operación
+      'Golfo': { porcentaje: 0.02, custodiosRiesgo: 0.11 } // 2% de operación
     };
     
     // Buscar distribución para este cluster (fallback para clusters no definidos)
