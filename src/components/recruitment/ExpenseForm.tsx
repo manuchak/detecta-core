@@ -12,7 +12,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 interface ExpenseData {
   concepto: string;
@@ -20,7 +20,6 @@ interface ExpenseData {
   categoria_id: string;
   canal_reclutamiento: string;
   fecha_gasto: Date | undefined;
-  leads_generados: number;
   custodios_reales: number;
   descripcion: string;
 }
@@ -45,6 +44,7 @@ const channels = [
 ];
 
 export const ExpenseForm: React.FC = () => {
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<ExpenseData>({
     concepto: '',
@@ -52,7 +52,6 @@ export const ExpenseForm: React.FC = () => {
     categoria_id: '',
     canal_reclutamiento: '',
     fecha_gasto: undefined,
-    leads_generados: 0,
     custodios_reales: 0,
     descripcion: ''
   });
@@ -61,7 +60,11 @@ export const ExpenseForm: React.FC = () => {
     e.preventDefault();
     
     if (!formData.concepto || !formData.monto || !formData.fecha_gasto) {
-      toast.error('Por favor completa los campos obligatorios');
+      toast({
+        title: "Error",
+        description: "Por favor completa los campos obligatorios",
+        variant: "destructive"
+      });
       return;
     }
 
@@ -78,7 +81,6 @@ export const ExpenseForm: React.FC = () => {
           categoria_id: formData.categoria_id || null,
           canal_reclutamiento: formData.canal_reclutamiento || null,
           fecha_gasto: formData.fecha_gasto.toISOString().split('T')[0],
-          leads_generados: formData.leads_generados || 0,
           custodios_reales: formData.custodios_reales || 0,
           descripcion: formData.descripcion || null,
           estado: 'pendiente',
@@ -87,7 +89,10 @@ export const ExpenseForm: React.FC = () => {
 
       if (error) throw error;
 
-      toast.success('Gasto registrado correctamente');
+      toast({
+        title: "Éxito",
+        description: "Gasto registrado correctamente"
+      });
       
       // Reset form
       setFormData({
@@ -96,14 +101,17 @@ export const ExpenseForm: React.FC = () => {
         categoria_id: '',
         canal_reclutamiento: '',
         fecha_gasto: undefined,
-        leads_generados: 0,
         custodios_reales: 0,
         descripcion: ''
       });
       
     } catch (error) {
       console.error('Error:', error);
-      toast.error('Error al registrar el gasto');
+      toast({
+        title: "Error",
+        description: "Error al registrar el gasto",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -199,7 +207,7 @@ export const ExpenseForm: React.FC = () => {
           </div>
 
           {/* Fecha y métricas */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label className="text-sm font-medium">Fecha del Gasto *</Label>
               <Popover>
@@ -229,21 +237,6 @@ export const ExpenseForm: React.FC = () => {
                   />
                 </PopoverContent>
               </Popover>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="leads" className="text-sm font-medium">
-                Leads Generados
-              </Label>
-              <Input
-                id="leads"
-                type="number"
-                min="0"
-                value={formData.leads_generados || ''}
-                onChange={(e) => updateField('leads_generados', parseInt(e.target.value) || 0)}
-                placeholder="0"
-                className="h-10"
-              />
             </div>
             
             <div className="space-y-2">
