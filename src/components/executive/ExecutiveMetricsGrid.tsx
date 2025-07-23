@@ -5,10 +5,12 @@ import { useCPADetails } from '@/hooks/useCPADetails';
 import { useConversionRateDetails } from '@/hooks/useConversionRateDetails';
 import { useLTVDetails } from '@/hooks/useLTVDetails';
 import { useRetentionDetails } from '@/hooks/useRetentionDetails';
+import { useROIMarketingDetails } from '@/hooks/useROIMarketingDetails';
 import { CPATooltip } from './CPATooltip';
 import { ConversionRateTooltip } from './ConversionRateTooltip';
 import { LTVTooltip } from './LTVTooltip';
 import { RetentionTooltip } from './RetentionTooltip';
+import { ROIMarketingTooltip } from '../tooltips/ROIMarketingTooltip';
 
 interface ExecutiveMetricsGridProps {
   kpis: ExecutiveKPIData;
@@ -21,6 +23,7 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
   const conversionRateDetails = useConversionRateDetails();
   const ltvDetails = useLTVDetails();
   const retentionDetails = useRetentionDetails();
+  const roiMarketingDetails = useROIMarketingDetails();
 
   const kpiConfig = [
     {
@@ -105,12 +108,13 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
           value={kpi.value}
           unit={kpi.unit}
           trend={kpi.trend}
-          loading={loading || (kpi.key === 'cpa' && cpaLoading) || (kpi.key === 'crate' && conversionRateDetails.loading) || (kpi.key === 'ltv' && ltvDetails.loading) || (kpi.key === 'rrate' && retentionDetails.loading)}
+          loading={loading || (kpi.key === 'cpa' && cpaLoading) || (kpi.key === 'crate' && conversionRateDetails.loading) || (kpi.key === 'ltv' && ltvDetails.loading) || (kpi.key === 'rrate' && retentionDetails.loading) || (kpi.key === 'roiMkt' && roiMarketingDetails.loading)}
           tooltip={
             kpi.key === 'cpa' && !cpaLoading ? <CPATooltip cpaDetails={cpaDetails} /> :
             kpi.key === 'crate' && !conversionRateDetails.loading ? <ConversionRateTooltip data={conversionRateDetails} /> :
             kpi.key === 'ltv' && !ltvDetails.loading ? <LTVTooltip data={ltvDetails} /> :
             kpi.key === 'rrate' && !retentionDetails.loading ? <RetentionTooltip data={retentionDetails} /> :
+            kpi.key === 'roiMkt' && !roiMarketingDetails.loading ? <ROIMarketingTooltip data={{ ...roiMarketingDetails.metrics, loading: roiMarketingDetails.loading }} /> :
             undefined
           }
         />

@@ -6817,6 +6817,20 @@ export type Database = {
           roi_total_marketing: number
         }[]
       }
+      get_real_marketing_roi_v2: {
+        Args: { periodo_dias?: number }
+        Returns: {
+          canal: string
+          gasto_total: number
+          candidatos_generados: number
+          custodios_activos: number
+          cpa_real: number
+          ingresos_generados: number
+          roi_porcentaje: number
+          roi_total_marketing: number
+          desglose_calculo: Json
+        }[]
+      }
       get_redemptions_with_custodian_info: {
         Args: Record<PropertyKey, never>
         Returns: {
