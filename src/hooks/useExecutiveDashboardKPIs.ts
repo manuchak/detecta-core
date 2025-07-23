@@ -85,7 +85,7 @@ export const useExecutiveDashboardKPIs = (): ExecutiveKPIMetrics => {
         nps: 65,
         supplyGrowth: safeKPIs.supplyGrowth || 12.5,
         engagement: 8.2,
-        roiMkt: 285,
+        roiMkt: safeKPIs.roiMarketing || 285,
         onboardingTime: 5,
       };
     }
@@ -187,9 +187,8 @@ export const useExecutiveDashboardKPIs = (): ExecutiveKPIMetrics => {
     const activeCustodians = unifiedMetrics?.activeCustodians.total || 1;
     const engagement = totalServices / activeCustodians;
 
-    // ROI MKT: (Ingresos generados por marketing - Inversión marketing) / Inversión marketing x 100
-    const marketingRevenue = ltv * Number(totalCustodiosNuevos) * 0.3; // 30% atribuible a marketing
-    const roiMkt = marketingCost > 0 ? ((marketingRevenue - marketingCost) / marketingCost) * 100 : 0;
+    // ROI MKT: Usar datos reales de la función SQL
+    const roiMkt = safeKPIs.roiMarketing || 285;
 
     // Onboarding Time: Tiempo promedio de incorporación en días
     const onboardingTime = 5; // Placeholder - debería venir de datos de proceso

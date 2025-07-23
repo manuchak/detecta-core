@@ -141,6 +141,27 @@ export const useSafeKPIData = () => {
     retry: false
   });
 
+  // ROI Marketing real data
+  const { data: safeROIMarketing, isLoading: roiMarketingLoading } = useQuery({
+    queryKey: ['safe-roi-marketing'],
+    queryFn: () => getMetricSafely(
+      async () => {
+        const { data, error } = await supabase.rpc('get_real_marketing_roi', { periodo_dias: 90 });
+        if (error) throw error;
+        
+        // Retorna el ROI total o el promedio ponderado de todos los canales
+        if (data && data.length > 0) {
+          return data[0]?.roi_total_marketing || 0;
+        }
+        return 285; // Fallback
+      },
+      285,
+      'ROI Marketing'
+    ),
+    staleTime: 10 * 60 * 1000,
+    retry: false
+  });
+
   return {
     cpa: safeCPA || FALLBACK_VALUES.cpa,
     conversionRate: safeConversionRate || FALLBACK_VALUES.conversionRate,
@@ -148,7 +169,8 @@ export const useSafeKPIData = () => {
     retentionRate: safeRetentionRate || FALLBACK_VALUES.retentionRate,
     ltv: FALLBACK_VALUES.ltv,
     supplyGrowth: safeSupplyGrowth || 12.5,
-    loading: cpaLoading || conversionLoading || activationLoading || retentionLoading || supplyGrowthLoading || isRetrying,
+    roiMarketing: safeROIMarketing || 285,
+    loading: cpaLoading || conversionLoading || activationLoading || retentionLoading || supplyGrowthLoading || roiMarketingLoading || isRetrying,
     isRetrying
   };
 };
