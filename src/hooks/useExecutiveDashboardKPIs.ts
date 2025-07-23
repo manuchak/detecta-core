@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useUnifiedRecruitmentMetrics } from './useUnifiedRecruitmentMetrics';
 import { useFinancialSystem } from './useFinancialSystem';
 import { useCohortAnalytics } from './useCohortAnalytics';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface ExecutiveKPIData {
   cpa: number;
@@ -27,8 +29,25 @@ export const useExecutiveDashboardKPIs = (): ExecutiveKPIMetrics => {
   const financialSystem = useFinancialSystem();
   const cohortAnalytics = useCohortAnalytics();
 
+  // Obtener gastos reales de la base de datos para calcular CPA
+  const { data: gastosReales, isLoading: gastosLoading } = useQuery({
+    queryKey: ['gastos-reales-cpa'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('gastos_externos')
+        .select('concepto, monto, fecha_gasto')
+        .gte('fecha_gasto', '2025-01-01')
+        .lte('fecha_gasto', '2025-05-31')
+        .order('fecha_gasto', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   const kpis = useMemo(() => {
-    if (unifiedLoading || financialSystem.loading || cohortAnalytics.realRotationLoading) {
+    if (unifiedLoading || financialSystem.loading || cohortAnalytics.realRotationLoading || gastosLoading) {
       return {
         cpa: 0,
         crate: 0,
@@ -43,12 +62,38 @@ export const useExecutiveDashboardKPIs = (): ExecutiveKPIMetrics => {
       };
     }
 
-    // CPA: (Costo de staff + costo de activos + costo de MKT) / Número de nuevos afiliados
-    const staffCost = 150000; // Placeholder - debería venir de datos reales
-    const assetsCost = 50000; // Placeholder - debería venir de datos reales
-    const marketingCost = financialSystem.gastosTotales || 0;
+    // Calcular CPA con datos reales de gastos
+    let staffCost = 0;
+    let technologyCost = 0; // GPS + PLATAFORMA
+    let recruitmentCost = 0; // TOXICOLOGÍA + EVALUACIONES
+    let marketingCost = 0; // FACEBOOK
+
+    if (gastosReales && gastosReales.length > 0) {
+      gastosReales.forEach(gasto => {
+        const monto = Number(gasto.monto) || 0;
+        switch (gasto.concepto) {
+          case 'STAFF':
+            staffCost += monto;
+            break;
+          case 'GPS':
+          case 'PLATAFORMA':
+            technologyCost += monto;
+            break;
+          case 'TOXICOLOGÍA':
+          case 'EVALUACIONES':
+            recruitmentCost += monto;
+            break;
+          case 'FACEBOOK':
+            marketingCost += monto;
+            break;
+        }
+      });
+    }
+
+    // CPA: (Costo total de adquisición) / Número de nuevos afiliados
+    const totalAcquisitionCost = staffCost + technologyCost + recruitmentCost + marketingCost;
     const newAffiliates = unifiedMetrics?.activeCustodians.total || 1;
-    const cpa = (staffCost + assetsCost + marketingCost) / newAffiliates;
+    const cpa = totalAcquisitionCost / newAffiliates;
 
     // CRATE: (Número de Nuevos Afiliados / Total de Leads) x 100
     const totalLeads = 500; // Placeholder - debería venir de sistema de leads
@@ -95,11 +140,11 @@ export const useExecutiveDashboardKPIs = (): ExecutiveKPIMetrics => {
       roiMkt: Math.round(roiMkt * 100) / 100,
       onboardingTime: Math.round(onboardingTime * 100) / 100,
     };
-  }, [unifiedMetrics, financialSystem, cohortAnalytics, unifiedLoading]);
+  }, [unifiedMetrics, financialSystem, cohortAnalytics, unifiedLoading, gastosReales]);
 
   return {
     kpis,
-    loading: unifiedLoading || financialSystem.loading || cohortAnalytics.realRotationLoading,
+    loading: unifiedLoading || financialSystem.loading || cohortAnalytics.realRotationLoading || gastosLoading,
     refreshData: fetchAll,
   };
 };
