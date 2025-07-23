@@ -26,15 +26,15 @@ export interface ConversionRateDetails {
 }
 
 export const useConversionRateDetails = (): ConversionRateDetails => {
-  // Obtener leads por mes
+  // Obtener leads por mes (ajustando el período a los datos reales)
   const { data: leadsPorMes, isLoading: leadsLoading } = useQuery({
     queryKey: ['leads-por-mes'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('leads')
         .select('nombre, fecha_creacion')
-        .gte('fecha_creacion', '2025-01-01')
-        .lte('fecha_creacion', '2025-05-31')
+        .gte('fecha_creacion', '2025-06-01')  // Ajustado al período real
+        .lte('fecha_creacion', '2025-07-31')  // Ajustado al período real
         .order('fecha_creacion', { ascending: true });
 
       if (error) throw error;
@@ -88,7 +88,7 @@ export const useConversionRateDetails = (): ConversionRateDetails => {
       const custodiosPorMes: { [key: string]: number } = {};
       
       custodiosPrimerServicio.forEach((fechaPrimerServicio, custodio) => {
-        if (fechaPrimerServicio >= new Date('2025-01-01') && fechaPrimerServicio <= new Date('2025-05-31')) {
+        if (fechaPrimerServicio >= new Date('2025-06-01') && fechaPrimerServicio <= new Date('2025-07-31')) {
           const yearMonth = `${fechaPrimerServicio.getFullYear()}-${String(fechaPrimerServicio.getMonth() + 1).padStart(2, '0')}`;
           
           if (!custodiosPorMes[yearMonth]) {
@@ -122,9 +122,9 @@ export const useConversionRateDetails = (): ConversionRateDetails => {
       };
     }
 
-    // Obtener todos los meses del período
-    const allMonths = ['2025-01', '2025-02', '2025-03', '2025-04', '2025-05'];
-    const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo'];
+    // Obtener todos los meses del período real de datos
+    const allMonths = ['2025-06', '2025-07'];
+    const monthNames = ['Junio', 'Julio'];
     
     let totalLeads = 0;
     let totalNewCustodians = 0;
@@ -148,8 +148,8 @@ export const useConversionRateDetails = (): ConversionRateDetails => {
 
     const overallConversionRate = totalLeads > 0 ? (totalNewCustodians / totalLeads) * 100 : 0;
 
-    // Datos del mes actual (Mayo 2025)
-    const currentMonth = '2025-05';
+    // Datos del mes actual (Julio 2025)
+    const currentMonth = '2025-07';
     const currentMonthLeads = leadsPorMes[currentMonth] || 0;
     const currentMonthCustodians = custodiosNuevosPorMes[currentMonth] || 0;
     const currentMonthConversion = currentMonthLeads > 0 ? (currentMonthCustodians / currentMonthLeads) * 100 : 0;
@@ -162,7 +162,7 @@ export const useConversionRateDetails = (): ConversionRateDetails => {
         monthlyBreakdown,
       },
       currentMonthData: {
-        month: 'Mayo 2025',
+        month: 'Julio 2025',
         leads: currentMonthLeads,
         newCustodians: currentMonthCustodians,
         conversionRate: currentMonthConversion,
