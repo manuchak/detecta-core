@@ -56,11 +56,24 @@ const RecruitmentStrategy = () => {
   // Obtener datos financieros reales para costo por custodio correcto
   const financialData = useRealFinancialPerformance();
   
-  // Calcular el costo real por custodio usando datos consistentes
-  
-  const realCostPerCustodian = financialData.roiByChannel.length > 0 
-    ? financialData.totalInvestment / Math.max(financialData.roiByChannel.reduce((sum, channel) => sum + channel.custodios, 0), 1)
-    : 4209; // Fallback al valor corregido calculado
+  // Calcular el costo real por custodio usando datos consistentes y seguros
+  const realCostPerCustodian = React.useMemo(() => {
+    if (financialData.loading) return 4209; // Valor mientras carga
+    
+    const totalCustodios = financialData.roiByChannel.reduce((sum, channel) => sum + (channel.custodios || 0), 0);
+    const calculatedCost = financialData.totalInvestment > 0 && totalCustodios > 0 
+      ? Math.round(financialData.totalInvestment / totalCustodios)
+      : 4209;
+      
+    console.log('💰 Cost per custodian calculation:', {
+      totalInvestment: financialData.totalInvestment,
+      totalCustodios,
+      calculatedCost,
+      loading: financialData.loading
+    });
+    
+    return calculatedCost;
+  }, [financialData]);
 
   // Hooks para datos simulados
   const {
