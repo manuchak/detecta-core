@@ -159,7 +159,7 @@ export function UnifiedFinancialDashboard() {
         />
 
         <KPIHeroCard
-          title="Presupuesto Total"
+          title="PRESUPUESTO TOTAL"
           value={formatCurrency(totalInvestment)}
           trend="neutral"
           loading={loading}
