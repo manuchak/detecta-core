@@ -705,9 +705,8 @@ const RecruitmentStrategy = () => {
               </TabsContent>
               
               <TabsContent value="history" className="mt-6">
-                <div className="max-w-6xl space-y-6">
+                <div className="max-w-6xl">
                   <ExpensesList />
-                  <FinancialTrackingSystem />
                 </div>
               </TabsContent>
             </Tabs>
