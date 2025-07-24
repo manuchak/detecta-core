@@ -83,9 +83,9 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
     },
     {
       title: 'Engagement',
-      value: engagementDetails.engagementDetails?.overallEngagement || kpis.engagement,
+      value: engagementDetails.engagementDetails?.currentMonthData?.engagement || kpis.engagement,
       unit: 'servicios/mes',
-      trend: (engagementDetails.engagementDetails?.overallEngagement || kpis.engagement) > 10 ? 'up' as const : 'down' as const,
+      trend: (engagementDetails.engagementDetails?.currentMonthData?.engagement || kpis.engagement) > 10 ? 'up' as const : 'down' as const,
       key: 'engagement'
     },
     {
