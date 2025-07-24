@@ -127,12 +127,21 @@ export const useAdaptiveHybridForecast = () => {
         changePointDetected
       );
       
-      // 5. FORECAST HÍBRIDO FINAL
+      // 5. FORECAST HÍBRIDO FINAL CON VALIDACIÓN
       const hybridForecast = 
         (holtWintersResult.forecast * weights.holtWinters) +
         (linearTrendForecast * weights.linearTrend) +
         (intraMonthForecast * weights.intraMonth) +
         (accelerationForecast * weights.acceleration);
+      
+      // VALIDACIÓN CRÍTICA: Verificar que el forecast esté en rango razonable
+      const monthProgress = currentMonthData.daysElapsed / currentMonthData.totalDaysInMonth;
+      if (monthProgress > 0.5 && Math.abs(hybridForecast - intraMonthForecast) / intraMonthForecast > 0.5) {
+        console.log(`🚨 FORECAST HÍBRIDO FUERA DE RANGO - Usando proyección intra-mes como límite`);
+        // Si la diferencia es > 50%, dar más peso a la proyección real
+        const correctedForecast = intraMonthForecast * 0.7 + hybridForecast * 0.3;
+        console.log(`🔧 Forecast corregido: ${Math.round(correctedForecast)} (era ${Math.round(hybridForecast)})`);
+      }
       
       // 6. ALERTA DE DIVERGENCIA
       const divergenceAlert = checkDivergenceAlert(

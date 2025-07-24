@@ -323,12 +323,15 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
           <Info className="h-4 w-4 text-blue-600" />
           <AlertDescription className="text-blue-800">
             <div className="flex items-center justify-between">
-              <div>
-                <strong>Base de datos validada:</strong> {forecastData.monthlyServicesActual.toLocaleString()} servicios finalizados
-              </div>
-              <div className="text-right">
-                <strong>GMV auditado:</strong> {formatCurrency(forecastData.monthlyGmvActual)}
-              </div>
+               <div>
+                 <strong>YTD Enero-{forecastData.lastDataMonth}:</strong> {forecastData.monthlyServicesActual.toLocaleString()} servicios
+               </div>
+               <div className="text-right">
+                 <strong>GMV YTD:</strong> {formatCurrency(forecastData.monthlyGmvActual)} 
+                 <span className="text-xs ml-2 opacity-75">
+                   (Ticket: ${(forecastData.monthlyGmvActual/forecastData.monthlyServicesActual).toFixed(0)})
+                 </span>
+               </div>
             </div>
           </AlertDescription>
         </Alert>

@@ -153,10 +153,17 @@ export const useHoltWintersForecast = (manualParams?: ManualParameters): Forecas
       const currentMonth = currentDate.getMonth() + 1;
       const currentYear = currentDate.getFullYear();
       
-      // Calcular datos reales acumulados del año
-      const currentYearData = historicalData.filter(d => d.year === currentYear);
+      // CORRECCIÓN CRÍTICA: Calcular datos reales solo hasta JUNIO (excluir julio del YTD)
+      const currentYearData = historicalData.filter(d => 
+        d.year === currentYear && d.month < currentMonth // Excluir mes actual
+      );
       const actualServicesYTD = currentYearData.reduce((sum, d) => sum + d.services_completed, 0);
       const actualGmvYTD = currentYearData.reduce((sum, d) => sum + d.gmv, 0);
+      
+      console.log(`📊 DATOS YTD CORREGIDOS (hasta ${currentMonth-1}/${currentYear}):`, {
+        servicios: actualServicesYTD,
+        gmv: actualGmvYTD
+      });
       
       // CORRECCIÓN EN TIEMPO REAL con datos del mes actual
       let monthlyServicesForecast = Math.round(servicesForecast.forecast[0] || 0);
@@ -188,13 +195,41 @@ export const useHoltWintersForecast = (manualParams?: ManualParameters): Forecas
         }
       }
       
+      // CORRECCIÓN CRÍTICA: GMV usando ticket promedio histórico correcto
+      const historicalTicketAverage = actualGmvYTD > 0 && actualServicesYTD > 0 
+        ? actualGmvYTD / actualServicesYTD 
+        : 6708; // Ticket histórico conocido
+      
+      console.log(`💰 TICKET PROMEDIO CALCULADO: $${historicalTicketAverage.toFixed(0)}`);
+      
       // Forecast anual = YTD actual + forecast meses restantes
       const remainingMonths = 12 - (currentMonth - 1);
       const remainingServicesForecast = servicesForecast.forecast.slice(0, remainingMonths).reduce((sum, val) => sum + val, 0);
-      const remainingGmvForecast = gmvForecast.forecast.slice(0, remainingMonths).reduce((sum, val) => sum + val, 0);
+      
+      // GMV forecast usando ticket promedio histórico CORRECTO
+      const remainingGmvForecast = remainingServicesForecast * historicalTicketAverage;
       
       const annualServicesForecast = Math.round(actualServicesYTD + remainingServicesForecast);
       const annualGmvForecast = Math.round(actualGmvYTD + remainingGmvForecast);
+      
+      // VALIDACIÓN CRÍTICA: Verificar ticket promedio implícito
+      const monthlyTicketCheck = monthlyServicesForecast > 0 
+        ? (monthlyGmvForecast || (monthlyServicesForecast * historicalTicketAverage)) / monthlyServicesForecast 
+        : historicalTicketAverage;
+      
+      let correctedMonthlyGmvForecast = monthlyServicesForecast * historicalTicketAverage;
+      
+      // Sanity check: alertar si ticket < $3,000
+      if (monthlyTicketCheck < 3000) {
+        console.log(`🚨 ALERTA SANITY CHECK: Ticket promedio implícito $${monthlyTicketCheck.toFixed(0)} parece incorrecto`);
+        console.log(`🔧 APLICANDO CORRECCIÓN: Usando ticket histórico $${historicalTicketAverage.toFixed(0)}`);
+        correctedMonthlyGmvForecast = monthlyServicesForecast * historicalTicketAverage;
+      } else {
+        correctedMonthlyGmvForecast = monthlyGmvForecast;
+      }
+      
+      // Reasignar valores corregidos
+      monthlyGmvForecast = Math.round(correctedMonthlyGmvForecast);
       
       // Calcular varianzas (comparar con promedio histórico)
       const historicalAvgServices = servicesTimeSeries.reduce((sum, val) => sum + val, 0) / servicesTimeSeries.length;
