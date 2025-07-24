@@ -9,6 +9,16 @@ import { Check, X, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import { format, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
 
+// Helper function for currency formatting
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(amount);
+};
+
 // Función helper para formatear fechas de forma segura
 const safeFormatDate = (dateValue: string | null | undefined, formatString: string = 'dd/MM/yyyy', options = { locale: es }): string => {
   if (!dateValue) return 'Fecha no disponible';
@@ -137,6 +147,14 @@ export const ExpensesList = () => {
     );
   };
 
+  // Cálculos de métricas financieras
+  const totalInvestment = gastos
+    .filter(gasto => gasto.estado === 'aprobado')
+    .reduce((sum, gasto) => sum + gasto.monto, 0);
+
+  const totalCustodians = gastos
+    .reduce((sum, gasto) => sum + (gasto.custodios_reales || 0), 0);
+
   const pendingGastos = gastos.filter(g => g.estado === 'pendiente');
   const allSelected = selectedGastos.length === pendingGastos.length && pendingGastos.length > 0;
 
@@ -145,168 +163,222 @@ export const ExpensesList = () => {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>Gastos Recientes</CardTitle>
-          {pendingGastos.length > 0 && (
-            <div className="flex items-center gap-2">
-              <Checkbox
-                checked={allSelected}
-                onCheckedChange={handleSelectAll}
-                id="select-all"
-              />
-              <label htmlFor="select-all" className="text-sm cursor-pointer">
-                Seleccionar todos los pendientes ({pendingGastos.length})
-              </label>
+    <div className="space-y-6">
+      {/* Métricas financieras */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Invertido
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="text-2xl font-bold">
+              {formatCurrency(totalInvestment)}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Gastos aprobados
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Custodios Obtenidos
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="text-2xl font-bold">
+              {totalCustodians}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Total registrado
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Costo Promedio
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="text-2xl font-bold">
+              {totalCustodians > 0 ? formatCurrency(totalInvestment / totalCustodians) : '$0'}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Por custodio
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Lista de gastos */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Gastos Recientes</CardTitle>
+            {pendingGastos.length > 0 && (
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  checked={allSelected}
+                  onCheckedChange={handleSelectAll}
+                  id="select-all"
+                />
+                <label htmlFor="select-all" className="text-sm cursor-pointer">
+                  Seleccionar todos los pendientes ({pendingGastos.length})
+                </label>
+              </div>
+            )}
+          </div>
+          
+          {selectedGastos.length > 0 && (
+            <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+              <span className="text-sm">{selectedGastos.length} gasto(s) seleccionado(s)</span>
+              <Button
+                size="sm"
+                onClick={() => handleApprove(selectedGastos, 'aprobar')}
+                disabled={processingIds.some(id => selectedGastos.includes(id))}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Check className="w-4 h-4 mr-1" />
+                Aprobar Seleccionados
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => handleApprove(selectedGastos, 'rechazar')}
+                disabled={processingIds.some(id => selectedGastos.includes(id))}
+              >
+                <X className="w-4 h-4 mr-1" />
+                Rechazar Seleccionados
+              </Button>
             </div>
           )}
-        </div>
+        </CardHeader>
         
-        {selectedGastos.length > 0 && (
-          <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-            <span className="text-sm">{selectedGastos.length} gasto(s) seleccionado(s)</span>
-            <Button
-              size="sm"
-              onClick={() => handleApprove(selectedGastos, 'aprobar')}
-              disabled={processingIds.some(id => selectedGastos.includes(id))}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <Check className="w-4 h-4 mr-1" />
-              Aprobar Seleccionados
-            </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={() => handleApprove(selectedGastos, 'rechazar')}
-              disabled={processingIds.some(id => selectedGastos.includes(id))}
-            >
-              <X className="w-4 h-4 mr-1" />
-              Rechazar Seleccionados
-            </Button>
-          </div>
-        )}
-      </CardHeader>
-      
-      <CardContent className="space-y-4">
-        {gastos.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8">No hay gastos registrados</p>
-        ) : (
-          gastos.map((gasto) => (
-            <div
-              key={gasto.id}
-              className="border rounded-lg p-4 space-y-3 hover:bg-muted/50 transition-colors"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-3">
-                  {gasto.estado === 'pendiente' && (
-                    <Checkbox
-                      checked={selectedGastos.includes(gasto.id)}
-                      onCheckedChange={(checked) => {
-                        setSelectedGastos(prev => 
-                          checked 
-                            ? [...prev, gasto.id]
-                            : prev.filter(id => id !== gasto.id)
-                        );
-                      }}
-                    />
-                  )}
-                  
-                  <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium">{gasto.concepto}</h3>
-                      {getStatusBadge(gasto.estado)}
-                    </div>
+        <CardContent className="space-y-4">
+          {gastos.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No hay gastos registrados</p>
+          ) : (
+            gastos.map((gasto) => (
+              <div
+                key={gasto.id}
+                className="border rounded-lg p-4 space-y-3 hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    {gasto.estado === 'pendiente' && (
+                      <Checkbox
+                        checked={selectedGastos.includes(gasto.id)}
+                        onCheckedChange={(checked) => {
+                          setSelectedGastos(prev => 
+                            checked 
+                              ? [...prev, gasto.id]
+                              : prev.filter(id => id !== gasto.id)
+                          );
+                        }}
+                      />
+                    )}
                     
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-muted-foreground">
-                      <div>
-                        <span className="font-medium text-foreground">
-                          ${gasto.monto.toLocaleString('es-MX')}
-                        </span>
+                    <div className="space-y-2 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-medium">{gasto.concepto}</h3>
+                        {getStatusBadge(gasto.estado)}
                       </div>
-                      <div>{safeFormatDate(gasto.fecha)}</div>
-                      <div>
-                        {gasto.categoria_principal?.nombre} - {gasto.subcategoria?.nombre}
-                      </div>
-                      <div>
-                        <Badge variant="outline" className="text-xs">
-                          {gasto.canal_reclutamiento?.nombre}
-                        </Badge>
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-muted-foreground">
+                        <div>
+                          <span className="font-medium text-foreground">
+                            ${gasto.monto.toLocaleString('es-MX')}
+                          </span>
+                        </div>
+                        <div>{safeFormatDate(gasto.fecha)}</div>
+                        <div>
+                          {gasto.categoria_principal?.nombre} - {gasto.subcategoria?.nombre}
+                        </div>
+                        <div>
+                          <Badge variant="outline" className="text-xs">
+                            {gasto.canal_reclutamiento?.nombre}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
                   </div>
+
+                  <div className="flex items-center gap-2">
+                    {gasto.estado === 'pendiente' && (
+                      <>
+                        <Button
+                          size="sm"
+                          onClick={() => handleApprove([gasto.id], 'aprobar')}
+                          disabled={processingIds.includes(gasto.id)}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <Check className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleApprove([gasto.id], 'rechazar')}
+                          disabled={processingIds.includes(gasto.id)}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </>
+                    )}
+                    
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setExpandedGasto(
+                        expandedGasto === gasto.id ? null : gasto.id
+                      )}
+                    >
+                      {expandedGasto === gasto.id ? (
+                        <ChevronUp className="w-4 h-4" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  {gasto.estado === 'pendiente' && (
-                    <>
-                      <Button
-                        size="sm"
-                        onClick={() => handleApprove([gasto.id], 'aprobar')}
-                        disabled={processingIds.includes(gasto.id)}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <Check className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleApprove([gasto.id], 'rechazar')}
-                        disabled={processingIds.includes(gasto.id)}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </>
-                  )}
-                  
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setExpandedGasto(
-                      expandedGasto === gasto.id ? null : gasto.id
+                {expandedGasto === gasto.id && (
+                  <div className="pt-3 border-t space-y-2 text-sm">
+                    {gasto.descripcion && (
+                      <div>
+                        <span className="font-medium">Descripción: </span>
+                        {gasto.descripcion}
+                      </div>
                     )}
-                  >
-                    {expandedGasto === gasto.id ? (
-                      <ChevronUp className="w-4 h-4" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4" />
+                    {gasto.aprobado_en && (
+                      <div className="text-green-600">
+                        <span className="font-medium">Aprobado: </span>
+                        {safeFormatDate(gasto.aprobado_en, 'dd/MM/yyyy HH:mm')}
+                      </div>
                     )}
-                  </Button>
-                </div>
+                    {gasto.rechazado_en && (
+                      <div className="text-red-600">
+                        <span className="font-medium">Rechazado: </span>
+                        {safeFormatDate(gasto.rechazado_en, 'dd/MM/yyyy HH:mm')}
+                      </div>
+                    )}
+                    {gasto.notas_aprobacion && (
+                      <div>
+                        <span className="font-medium">Notas: </span>
+                        {gasto.notas_aprobacion}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-
-              {expandedGasto === gasto.id && (
-                <div className="pt-3 border-t space-y-2 text-sm">
-                  {gasto.descripcion && (
-                    <div>
-                      <span className="font-medium">Descripción: </span>
-                      {gasto.descripcion}
-                    </div>
-                  )}
-                  {gasto.aprobado_en && (
-                    <div className="text-green-600">
-                      <span className="font-medium">Aprobado: </span>
-                      {safeFormatDate(gasto.aprobado_en, 'dd/MM/yyyy HH:mm')}
-                    </div>
-                  )}
-                  {gasto.rechazado_en && (
-                    <div className="text-red-600">
-                      <span className="font-medium">Rechazado: </span>
-                      {safeFormatDate(gasto.rechazado_en, 'dd/MM/yyyy HH:mm')}
-                    </div>
-                  )}
-                  {gasto.notas_aprobacion && (
-                    <div>
-                      <span className="font-medium">Notas: </span>
-                      {gasto.notas_aprobacion}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))
-        )}
-      </CardContent>
-    </Card>
+            ))
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
