@@ -580,6 +580,36 @@ export type Database = {
         }
         Relationships: []
       }
+      canales_reclutamiento: {
+        Row: {
+          activo: boolean | null
+          created_at: string | null
+          descripcion: string | null
+          id: string
+          nombre: string
+          orden: number | null
+          tipo: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre: string
+          orden?: number | null
+          tipo?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+          orden?: number | null
+          tipo?: string | null
+        }
+        Relationships: []
+      }
       candidatos_custodios: {
         Row: {
           calificacion_inicial: number | null
@@ -1708,7 +1738,9 @@ export type Database = {
         Row: {
           aprobado_por: string | null
           canal_reclutamiento: string | null
+          canal_reclutamiento_id: string | null
           categoria_id: string | null
+          categoria_principal_id: string | null
           comprobante_url: string | null
           concepto: string
           created_at: string | null
@@ -1733,7 +1765,9 @@ export type Database = {
         Insert: {
           aprobado_por?: string | null
           canal_reclutamiento?: string | null
+          canal_reclutamiento_id?: string | null
           categoria_id?: string | null
+          categoria_principal_id?: string | null
           comprobante_url?: string | null
           concepto: string
           created_at?: string | null
@@ -1758,7 +1792,9 @@ export type Database = {
         Update: {
           aprobado_por?: string | null
           canal_reclutamiento?: string | null
+          canal_reclutamiento_id?: string | null
           categoria_id?: string | null
+          categoria_principal_id?: string | null
           comprobante_url?: string | null
           concepto?: string
           created_at?: string | null
@@ -1782,10 +1818,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "gastos_externos_canal_reclutamiento_id_fkey"
+            columns: ["canal_reclutamiento_id"]
+            isOneToOne: false
+            referencedRelation: "canales_reclutamiento"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "gastos_externos_categoria_id_fkey"
             columns: ["categoria_id"]
             isOneToOne: false
             referencedRelation: "categorias_gastos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gastos_externos_categoria_principal_id_fkey"
+            columns: ["categoria_principal_id"]
+            isOneToOne: false
+            referencedRelation: "categorias_principales"
             referencedColumns: ["id"]
           },
           {

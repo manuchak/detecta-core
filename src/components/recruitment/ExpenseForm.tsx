@@ -17,64 +17,118 @@ import { useToast } from '@/hooks/use-toast';
 interface ExpenseData {
   concepto: string;
   monto: number;
-  categoria_id: string;
-  canal_reclutamiento: string;
+  categoria_principal_id: string;
+  subcategoria_id: string;
+  canal_reclutamiento_id: string;
   fecha_gasto: Date | undefined;
   descripcion: string;
 }
 
-interface Category {
+interface CategoriaPrincipal {
   id: string;
   nombre: string;
-  tipo: string;
   descripcion: string;
+  icono: string;
+  color: string;
 }
 
-const channels = [
-  'Digital',
-  'Referidos',
-  'Directo',
-  'Agencias',
-  'Eventos',
-  'Otros'
-];
+interface Subcategoria {
+  id: string;
+  categoria_principal_id: string;
+  nombre: string;
+  descripcion: string;
+  codigo: string;
+}
+
+interface Canal {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  tipo: string;
+}
 
 export const ExpenseForm: React.FC = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriasPrincipales, setCategoriasPrincipales] = useState<CategoriaPrincipal[]>([]);
+  const [subcategorias, setSubcategorias] = useState<Subcategoria[]>([]);
+  const [canales, setCanales] = useState<Canal[]>([]);
+  const [subcategoriasFiltradas, setSubcategoriasFiltradas] = useState<Subcategoria[]>([]);
+  
   const [formData, setFormData] = useState<ExpenseData>({
     concepto: '',
     monto: 0,
-    categoria_id: '',
-    canal_reclutamiento: '',
+    categoria_principal_id: '',
+    subcategoria_id: '',
+    canal_reclutamiento_id: '',
     fecha_gasto: undefined,
     descripcion: ''
   });
 
   useEffect(() => {
-    const fetchCategories = async () => {
-      const { data, error } = await supabase
-        .from('categorias_gastos')
-        .select('id, nombre, tipo, descripcion')
+    const fetchData = async () => {
+      // Cargar categorías principales
+      const { data: categoriasData, error: categoriasError } = await supabase
+        .from('categorias_principales')
+        .select('id, nombre, descripcion, icono, color')
         .eq('activo', true)
-        .order('tipo, nombre');
+        .order('orden');
       
-      if (!error && data) {
-        setCategories(data);
+      if (!categoriasError && categoriasData) {
+        setCategoriasPrincipales(categoriasData);
+      }
+
+      // Cargar subcategorías
+      const { data: subcategoriasData, error: subcategoriasError } = await supabase
+        .from('subcategorias_gastos')
+        .select('id, categoria_principal_id, nombre, descripcion, codigo')
+        .eq('activo', true)
+        .order('orden');
+      
+      if (!subcategoriasError && subcategoriasData) {
+        setSubcategorias(subcategoriasData);
+      }
+
+      // Cargar canales
+      const { data: canalesData, error: canalesError } = await supabase
+        .from('canales_reclutamiento')
+        .select('id, nombre, descripcion, tipo')
+        .eq('activo', true)
+        .order('orden');
+      
+      if (!canalesError && canalesData) {
+        setCanales(canalesData);
       }
     };
 
-    fetchCategories();
+    fetchData();
   }, []);
+
+  // Filtrar subcategorías cuando cambia la categoría principal
+  useEffect(() => {
+    if (formData.categoria_principal_id) {
+      const filtered = subcategorias.filter(
+        sub => sub.categoria_principal_id === formData.categoria_principal_id
+      );
+      setSubcategoriasFiltradas(filtered);
+      // Limpiar subcategoría si no coincide con la nueva categoría principal
+      if (formData.subcategoria_id && !filtered.some(sub => sub.id === formData.subcategoria_id)) {
+        setFormData(prev => ({ ...prev, subcategoria_id: '' }));
+      }
+    } else {
+      setSubcategoriasFiltradas([]);
+      setFormData(prev => ({ ...prev, subcategoria_id: '' }));
+    }
+  }, [formData.categoria_principal_id, subcategorias]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.concepto || !formData.monto || !formData.fecha_gasto) {
+    if (!formData.concepto || !formData.monto || !formData.fecha_gasto || 
+        !formData.categoria_principal_id || !formData.subcategoria_id || !formData.canal_reclutamiento_id) {
       toast({
         title: "Error",
-        description: "Por favor completa los campos obligatorios",
+        description: "Por favor completa todos los campos obligatorios",
         variant: "destructive"
       });
       return;
@@ -90,8 +144,9 @@ export const ExpenseForm: React.FC = () => {
         .insert([{
           concepto: formData.concepto,
           monto: formData.monto,
-          categoria_id: formData.categoria_id || null,
-          canal_reclutamiento: formData.canal_reclutamiento || null,
+          categoria_principal_id: formData.categoria_principal_id,
+          subcategoria_id: formData.subcategoria_id,
+          canal_reclutamiento_id: formData.canal_reclutamiento_id,
           fecha_gasto: formData.fecha_gasto.toISOString().split('T')[0],
           descripcion: formData.descripcion || null,
           estado: 'pendiente',
@@ -109,8 +164,9 @@ export const ExpenseForm: React.FC = () => {
       setFormData({
         concepto: '',
         monto: 0,
-        categoria_id: '',
-        canal_reclutamiento: '',
+        categoria_principal_id: '',
+        subcategoria_id: '',
+        canal_reclutamiento_id: '',
         fecha_gasto: undefined,
         descripcion: ''
       });
@@ -181,56 +237,85 @@ export const ExpenseForm: React.FC = () => {
             </div>
           </div>
 
-          {/* Categorización */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Sistema jerárquico de categorización */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Categoría</Label>
-              <Select onValueChange={(value) => updateField('categoria_id', value)}>
+              <Label className="text-sm font-medium">Categoría Principal *</Label>
+              <Select onValueChange={(value) => updateField('categoria_principal_id', value)}>
                 <SelectTrigger className="h-10">
-                  <SelectValue placeholder="Selecciona categoría específica" />
+                  <SelectValue placeholder="Selecciona categoría" />
                 </SelectTrigger>
-                <SelectContent className="max-h-96">
+                <SelectContent className="z-50 bg-background border border-border shadow-lg">
+                  {categoriasPrincipales.map((categoria) => (
+                    <SelectItem key={categoria.id} value={categoria.id}>
+                      <div className="flex items-center gap-2">
+                        <span>{categoria.icono}</span>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{categoria.nombre}</span>
+                          <span className="text-xs text-muted-foreground">{categoria.descripcion}</span>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Subcategoría *</Label>
+              <Select 
+                onValueChange={(value) => updateField('subcategoria_id', value)}
+                disabled={!formData.categoria_principal_id}
+                value={formData.subcategoria_id}
+              >
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Selecciona subcategoría" />
+                </SelectTrigger>
+                <SelectContent className="z-50 bg-background border border-border shadow-lg">
+                  {subcategoriasFiltradas.map((subcategoria) => (
+                    <SelectItem key={subcategoria.id} value={subcategoria.id}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{subcategoria.nombre}</span>
+                        <span className="text-xs text-muted-foreground">{subcategoria.descripcion}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Canal de Reclutamiento *</Label>
+              <Select onValueChange={(value) => updateField('canal_reclutamiento_id', value)}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Selecciona canal" />
+                </SelectTrigger>
+                <SelectContent className="z-50 bg-background border border-border shadow-lg max-h-96">
                   {/* Agrupación por tipo */}
-                  {['marketing', 'tecnologia', 'operaciones', 'personal', 'eventos', 'otros'].map((tipo) => {
-                    const categoriasDelTipo = categories.filter(cat => cat.tipo === tipo);
-                    if (categoriasDelTipo.length === 0) return null;
+                  {['digital', 'referidos', 'directo', 'agencias', 'eventos', 'tradicional'].map((tipo) => {
+                    const canalesDelTipo = canales.filter(canal => canal.tipo === tipo);
+                    if (canalesDelTipo.length === 0) return null;
                     
                     return (
                       <div key={tipo}>
                         <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide border-b">
-                          {tipo === 'marketing' ? '🎯 Marketing' :
-                           tipo === 'tecnologia' ? '🛠️ Tecnología' :
-                           tipo === 'operaciones' ? '🔧 Operaciones' :
-                           tipo === 'personal' ? '👥 Personal' :
-                           tipo === 'eventos' ? '🎪 Eventos' : '📋 Otros'}
+                          {tipo === 'digital' ? '💻 Digital' :
+                           tipo === 'referidos' ? '👥 Referidos' :
+                           tipo === 'directo' ? '🎯 Directo' :
+                           tipo === 'agencias' ? '🏢 Agencias' :
+                           tipo === 'eventos' ? '🎪 Eventos' : '📻 Tradicional'}
                         </div>
-                        {categoriasDelTipo.map((cat) => (
-                          <SelectItem key={cat.id} value={cat.id} className="pl-4">
+                        {canalesDelTipo.map((canal) => (
+                          <SelectItem key={canal.id} value={canal.id} className="pl-4">
                             <div className="flex flex-col">
-                              <span className="font-medium">{cat.nombre}</span>
-                              <span className="text-xs text-muted-foreground">{cat.descripcion}</span>
+                              <span className="font-medium">{canal.nombre}</span>
+                              <span className="text-xs text-muted-foreground">{canal.descripcion}</span>
                             </div>
                           </SelectItem>
                         ))}
                       </div>
                     );
                   })}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Canal de Reclutamiento</Label>
-              <Select onValueChange={(value) => updateField('canal_reclutamiento', value)}>
-                <SelectTrigger className="h-10">
-                  <SelectValue placeholder="Selecciona canal" />
-                </SelectTrigger>
-                <SelectContent>
-                  {channels.map((channel) => (
-                    <SelectItem key={channel} value={channel}>
-                      {channel}
-                    </SelectItem>
-                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -256,7 +341,7 @@ export const ExpenseForm: React.FC = () => {
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
+              <PopoverContent className="w-auto p-0 z-50 bg-background border border-border shadow-lg" align="start">
                 <Calendar
                   mode="single"
                   selected={formData.fecha_gasto}
