@@ -6,11 +6,13 @@ import { useConversionRateDetails } from '@/hooks/useConversionRateDetails';
 import { useLTVDetails } from '@/hooks/useLTVDetails';
 import { useRetentionDetails } from '@/hooks/useRetentionDetails';
 import { useROIMarketingDetails } from '@/hooks/useROIMarketingDetails';
+import { useEngagementDetails } from '@/hooks/useEngagementDetails';
 import { CPATooltip } from './CPATooltip';
 import { ConversionRateTooltip } from './ConversionRateTooltip';
 import { LTVTooltip } from './LTVTooltip';
 import { RetentionTooltip } from './RetentionTooltip';
 import { ROIMarketingTooltip } from '../tooltips/ROIMarketingTooltip';
+import { EngagementTooltip } from './EngagementTooltip';
 
 interface ExecutiveMetricsGridProps {
   kpis: ExecutiveKPIData;
@@ -24,6 +26,7 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
   const ltvDetails = useLTVDetails();
   const retentionDetails = useRetentionDetails();
   const roiMarketingDetails = useROIMarketingDetails();
+  const engagementDetails = useEngagementDetails();
 
   const kpiConfig = [
     {
@@ -80,9 +83,9 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
     },
     {
       title: 'Engagement',
-      value: kpis.engagement,
+      value: engagementDetails.engagementDetails?.overallEngagement || kpis.engagement,
       unit: 'servicios/mes',
-      trend: kpis.engagement > 10 ? 'up' as const : 'down' as const,
+      trend: (engagementDetails.engagementDetails?.overallEngagement || kpis.engagement) > 10 ? 'up' as const : 'down' as const,
       key: 'engagement'
     },
     {
@@ -110,13 +113,14 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
           value={kpi.value}
           unit={kpi.unit}
           trend={kpi.trend}
-          loading={loading || (kpi.key === 'cpa' && cpaLoading) || (kpi.key === 'crate' && conversionRateDetails.loading) || (kpi.key === 'ltv' && ltvDetails.loading) || (kpi.key === 'rrate' && retentionDetails.loading) || (kpi.key === 'roiMkt' && roiMarketingDetails.loading)}
+          loading={loading || (kpi.key === 'cpa' && cpaLoading) || (kpi.key === 'crate' && conversionRateDetails.loading) || (kpi.key === 'ltv' && ltvDetails.loading) || (kpi.key === 'rrate' && retentionDetails.loading) || (kpi.key === 'roiMkt' && roiMarketingDetails.loading) || (kpi.key === 'engagement' && engagementDetails.loading)}
           tooltip={
             kpi.key === 'cpa' && !cpaLoading ? <CPATooltip cpaDetails={cpaDetails} /> :
             kpi.key === 'crate' && !conversionRateDetails.loading ? <ConversionRateTooltip data={conversionRateDetails} /> :
             kpi.key === 'ltv' && !ltvDetails.loading ? <LTVTooltip data={ltvDetails} /> :
             kpi.key === 'rrate' && !retentionDetails.loading ? <RetentionTooltip data={retentionDetails} /> :
             kpi.key === 'roiMkt' && !roiMarketingDetails.loading ? <ROIMarketingTooltip data={roiMarketingDetails.metrics} /> :
+            kpi.key === 'engagement' && !engagementDetails.loading ? <EngagementTooltip data={engagementDetails.engagementDetails} /> :
             undefined
           }
         />
