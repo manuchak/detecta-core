@@ -245,15 +245,12 @@ export const ExpenseForm: React.FC = () => {
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Selecciona categoría" />
                 </SelectTrigger>
-                <SelectContent className="z-50 bg-background border border-border shadow-lg">
+                <SelectContent>
                   {categoriasPrincipales.map((categoria) => (
                     <SelectItem key={categoria.id} value={categoria.id}>
                       <div className="flex items-center gap-2">
                         <span>{categoria.icono}</span>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{categoria.nombre}</span>
-                          <span className="text-xs text-muted-foreground">{categoria.descripcion}</span>
-                        </div>
+                        <span>{categoria.nombre}</span>
                       </div>
                     </SelectItem>
                   ))}
@@ -271,13 +268,10 @@ export const ExpenseForm: React.FC = () => {
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Selecciona subcategoría" />
                 </SelectTrigger>
-                <SelectContent className="z-50 bg-background border border-border shadow-lg">
+                <SelectContent>
                   {subcategoriasFiltradas.map((subcategoria) => (
                     <SelectItem key={subcategoria.id} value={subcategoria.id}>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{subcategoria.nombre}</span>
-                        <span className="text-xs text-muted-foreground">{subcategoria.descripcion}</span>
-                      </div>
+                      {subcategoria.nombre}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -290,15 +284,14 @@ export const ExpenseForm: React.FC = () => {
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Selecciona canal" />
                 </SelectTrigger>
-                <SelectContent className="z-50 bg-background border border-border shadow-lg max-h-96">
-                  {/* Agrupación por tipo */}
+                <SelectContent className="max-h-80">
                   {['digital', 'referidos', 'directo', 'agencias', 'eventos', 'tradicional'].map((tipo) => {
                     const canalesDelTipo = canales.filter(canal => canal.tipo === tipo);
                     if (canalesDelTipo.length === 0) return null;
                     
                     return (
                       <div key={tipo}>
-                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide border-b">
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide bg-muted/30">
                           {tipo === 'digital' ? '💻 Digital' :
                            tipo === 'referidos' ? '👥 Referidos' :
                            tipo === 'directo' ? '🎯 Directo' :
@@ -307,10 +300,7 @@ export const ExpenseForm: React.FC = () => {
                         </div>
                         {canalesDelTipo.map((canal) => (
                           <SelectItem key={canal.id} value={canal.id} className="pl-4">
-                            <div className="flex flex-col">
-                              <span className="font-medium">{canal.nombre}</span>
-                              <span className="text-xs text-muted-foreground">{canal.descripcion}</span>
-                            </div>
+                            {canal.nombre}
                           </SelectItem>
                         ))}
                       </div>

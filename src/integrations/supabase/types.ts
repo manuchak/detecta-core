@@ -1758,6 +1758,7 @@ export type Database = {
           numero_factura: string | null
           proveedor: string | null
           registrado_por: string
+          subcategoria_id: string | null
           tags: string[] | null
           updated_at: string | null
           zona_id: string | null
@@ -1785,6 +1786,7 @@ export type Database = {
           numero_factura?: string | null
           proveedor?: string | null
           registrado_por: string
+          subcategoria_id?: string | null
           tags?: string[] | null
           updated_at?: string | null
           zona_id?: string | null
@@ -1812,6 +1814,7 @@ export type Database = {
           numero_factura?: string | null
           proveedor?: string | null
           registrado_por?: string
+          subcategoria_id?: string | null
           tags?: string[] | null
           updated_at?: string | null
           zona_id?: string | null
@@ -1836,6 +1839,13 @@ export type Database = {
             columns: ["categoria_principal_id"]
             isOneToOne: false
             referencedRelation: "categorias_principales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gastos_externos_subcategoria_id_fkey"
+            columns: ["subcategoria_id"]
+            isOneToOne: false
+            referencedRelation: "subcategorias_gastos"
             referencedColumns: ["id"]
           },
           {
