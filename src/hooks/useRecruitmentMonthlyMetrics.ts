@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useROIMarketingMonthly } from './useROIMarketingMonthly';
+import { useROIMarketingDetails } from './useROIMarketingDetails';
 
 export interface MonthlyRecruitmentMetrics {
   mes: string;
@@ -12,29 +14,24 @@ export interface MonthlyRecruitmentMetrics {
 }
 
 export const useRecruitmentMonthlyMetrics = () => {
+  // Usar datos reales existentes
+  const { monthlyData: realMonthlyROI, loading: roiLoading, currentMonthData, previousMonthData } = useROIMarketingMonthly();
+  const { metrics: roiDetails, loading: detailsLoading } = useROIMarketingDetails();
+
   const {
-    data: monthlyData,
-    isLoading,
+    data: enrichedMonthlyData,
+    isLoading: queryLoading,
     error,
     refetch
   } = useQuery({
-    queryKey: ['recruitment-monthly-metrics'],
+    queryKey: ['recruitment-monthly-metrics-enriched', realMonthlyROI],
     queryFn: async () => {
+      if (!realMonthlyROI || realMonthlyROI.length === 0) {
+        return [];
+      }
+
       try {
-        // Obtener gastos de marketing de los últimos 6 meses
-        const { data: gastosData, error: gastosError } = await supabase
-          .from('gastos_externos')
-          .select('fecha_gasto, monto, canal_reclutamiento_id')
-          .eq('estado', 'aprobado')
-          .not('canal_reclutamiento_id', 'is', null)
-          .gte('fecha_gasto', new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000).toISOString())
-          .order('fecha_gasto', { ascending: true });
-
-        if (gastosError) {
-          console.error('Error fetching gastos:', gastosError);
-        }
-
-        // Obtener candidatos de los últimos 6 meses
+        // Obtener candidatos para calcular leads y tasa de aprobación
         const { data: candidatosData, error: candidatosError } = await supabase
           .from('candidatos_custodios')
           .select('created_at, nombre, estado_proceso')
@@ -45,90 +42,84 @@ export const useRecruitmentMonthlyMetrics = () => {
           console.error('Error fetching candidatos:', candidatosError);
         }
 
-        // Obtener servicios para calcular custodios activos (aprobados efectivos)
-        const { data: serviciosData, error: serviciosError } = await supabase
-          .from('servicios_custodia')
-          .select('nombre_custodio, fecha_hora_cita, estado')
-          .gte('fecha_hora_cita', new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000).toISOString())
-          .in('estado', ['finalizado', 'completado', 'Finalizado', 'Completado'])
-          .not('nombre_custodio', 'is', null);
+        // Enriquecer datos ROI con métricas de candidatos
+        const enrichedData = realMonthlyROI.map(monthData => {
+          // Parse month from string like "enero 2025"
+          const [monthName, year] = monthData.mes.split(' ');
+          const monthIndex = new Date(Date.parse(monthName + " 1, " + year)).getMonth();
+          const monthStart = new Date(parseInt(year), monthIndex, 1);
+          const monthEnd = new Date(parseInt(year), monthIndex + 1, 0);
 
-        if (serviciosError) {
-          console.error('Error fetching servicios:', serviciosError);
-        }
-
-        const monthlyResults: MonthlyRecruitmentMetrics[] = [];
-        
-        // Calcular datos para los últimos 6 meses
-        for (let i = 5; i >= 0; i--) {
-          const date = new Date();
-          date.setMonth(date.getMonth() - i);
-          const year = date.getFullYear();
-          const month = date.getMonth();
-          
-          const monthStart = new Date(year, month, 1);
-          const monthEnd = new Date(year, month + 1, 0);
-          
-          // Calcular inversión del mes
-          const inversionMes = gastosData
-            ?.filter(gasto => {
-              const gastoDate = new Date(gasto.fecha_gasto);
-              return gastoDate >= monthStart && gastoDate <= monthEnd;
-            })
-            .reduce((total, gasto) => total + (gasto.monto || 0), 0) || 0;
-          
           // Calcular leads del mes
-          const leadsDelMes = candidatosData
-            ?.filter(candidato => {
-              const candidatoDate = new Date(candidato.created_at);
-              return candidatoDate >= monthStart && candidatoDate <= monthEnd;
-            }) || [];
+          const leadsDelMes = candidatosData?.filter(candidato => {
+            const candidatoDate = new Date(candidato.created_at);
+            return candidatoDate >= monthStart && candidatoDate <= monthEnd;
+          }) || [];
 
           const totalLeads = leadsDelMes.length;
-          
-          // Calcular aprobados (candidatos que han completado al menos un servicio)
-          const custodiosActivosEnMes = new Set();
-          serviciosData?.forEach(servicio => {
-            const servicioDate = new Date(servicio.fecha_hora_cita);
-            if (servicioDate >= monthStart && servicioDate <= monthEnd) {
-              custodiosActivosEnMes.add(servicio.nombre_custodio);
-            }
-          });
-          
-          // Contar aprobados
-          const aprobadosDelMes = Array.from(custodiosActivosEnMes).length;
-          
-          // Calcular métricas
-          const costoPortLead = totalLeads > 0 ? inversionMes / totalLeads : 0;
-          const cpa = aprobadosDelMes > 0 ? inversionMes / aprobadosDelMes : 0;
-          const tasaAprobacion = totalLeads > 0 ? (aprobadosDelMes / totalLeads) * 100 : 0;
-          
-          monthlyResults.push({
-            mes: date.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }),
-            inversion: inversionMes,
-            totalLeads,
-            aprobados: aprobadosDelMes,
-            costoPortLead,
-            cpa,
-            tasaAprobacion
-          });
-        }
+          const aprobados = leadsDelMes.filter(c => 
+            c.estado_proceso === 'aprobado' || c.estado_proceso === 'activo'
+          ).length;
 
-        console.log('Monthly recruitment metrics:', monthlyResults);
-        return monthlyResults;
+          // Calcular métricas
+          const costoPortLead = totalLeads > 0 ? monthData.inversion / totalLeads : 0;
+          const cpa = aprobados > 0 ? monthData.inversion / aprobados : 0;
+          const tasaAprobacion = totalLeads > 0 ? (aprobados / totalLeads) * 100 : 0;
+
+          return {
+            mes: monthData.mes.replace(/(\w+) (\d+)/, (_, month, year) => {
+              const months = {
+                'enero': 'ene', 'febrero': 'feb', 'marzo': 'mar', 'abril': 'abr',
+                'mayo': 'may', 'junio': 'jun', 'julio': 'jul', 'agosto': 'ago',
+                'septiembre': 'sep', 'octubre': 'oct', 'noviembre': 'nov', 'diciembre': 'dic'
+              };
+              return `${months[month.toLowerCase()] || month} ${year}`;
+            }),
+            inversion: monthData.inversion,
+            totalLeads,
+            aprobados,
+            costoPortLead,
+            cpa: cpa > 0 ? cpa : (monthData.custodios > 0 ? monthData.inversion / monthData.custodios : 0),
+            tasaAprobacion: tasaAprobacion > 0 ? tasaAprobacion : (totalLeads > 0 ? (monthData.custodios / totalLeads) * 100 : 0)
+          };
+        });
+
+        console.log('Enriched monthly recruitment metrics:', enrichedData);
+        return enrichedData;
       } catch (error) {
-        console.error('Error in recruitment monthly metrics:', error);
-        return [];
+        console.error('Error enriching recruitment monthly metrics:', error);
+        // Fallback to basic ROI data
+        return realMonthlyROI.map(monthData => ({
+          mes: monthData.mes.replace(/(\w+) (\d+)/, (_, month, year) => {
+            const months = {
+              'enero': 'ene', 'febrero': 'feb', 'marzo': 'mar', 'abril': 'abr',
+              'mayo': 'may', 'junio': 'jun', 'julio': 'jul', 'agosto': 'ago',
+              'septiembre': 'sep', 'octubre': 'oct', 'noviembre': 'nov', 'diciembre': 'dic'
+            };
+            return `${months[month.toLowerCase()] || month} ${year}`;
+          }),
+          inversion: monthData.inversion,
+          totalLeads: 0,
+          aprobados: monthData.custodios,
+          costoPortLead: 0,
+          cpa: monthData.custodios > 0 ? monthData.inversion / monthData.custodios : 0,
+          tasaAprobacion: 0
+        }));
       }
     },
+    enabled: !roiLoading && realMonthlyROI && realMonthlyROI.length > 0,
     staleTime: 10 * 60 * 1000, // 10 minutos
     refetchInterval: 10 * 60 * 1000
   });
 
+  const loading = roiLoading || detailsLoading || queryLoading;
+
   return {
-    monthlyData: monthlyData || [],
-    loading: isLoading,
+    monthlyData: enrichedMonthlyData || [],
+    loading,
     error,
-    refetch
+    refetch: () => {
+      refetch();
+    }
   };
 };

@@ -23,17 +23,28 @@ export const MonthlyMetricsCards = () => {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {[1, 2, 3, 4].map((i) => (
-          <Card key={i}>
-            <CardHeader>
-              <Skeleton className="h-6 w-32" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-[200px] w-full" />
-            </CardContent>
-          </Card>
-        ))}
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-4">
+                <Skeleton className="h-16 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-6 w-32" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-[250px] w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
@@ -43,6 +54,7 @@ export const MonthlyMetricsCards = () => {
       <div className="text-center text-red-500 p-4">
         <p>Error al cargar las métricas mensuales:</p>
         <p className="text-sm">{error.message}</p>
+        <p className="text-xs mt-2">Revisa los datos de gastos de marketing y candidatos</p>
       </div>
     );
   }
@@ -51,7 +63,7 @@ export const MonthlyMetricsCards = () => {
     return (
       <div className="text-center text-muted-foreground p-8">
         <p>No hay datos disponibles para mostrar las métricas mensuales.</p>
-        <p className="text-sm mt-2">Verifica que existan gastos de marketing y candidatos registrados.</p>
+        <p className="text-sm mt-2">Verifica que existan gastos de marketing y candidatos registrados en los últimos 6 meses.</p>
       </div>
     );
   }
@@ -60,8 +72,16 @@ export const MonthlyMetricsCards = () => {
   const previousMonth = monthlyData[monthlyData.length - 2];
 
   const getTrend = (current: number, previous: number) => {
-    if (!previous) return 0;
+    if (!previous || previous === 0) return 0;
     return ((current - previous) / previous) * 100;
+  };
+
+  const getTrendDirection = (current: number, previous: number, lowerIsBetter = false) => {
+    const trend = getTrend(current, previous);
+    if (lowerIsBetter) {
+      return trend < 0 ? 'positive' : trend > 0 ? 'negative' : 'neutral';
+    }
+    return trend > 0 ? 'positive' : trend < 0 ? 'negative' : 'neutral';
   };
 
   return (
@@ -78,11 +98,13 @@ export const MonthlyMetricsCards = () => {
                   <span className="text-2xl font-bold">
                     {currentMonth ? formatCurrency(currentMonth.cpa) : 'N/A'}
                   </span>
-                  {currentMonth && previousMonth && (
+                  {currentMonth && previousMonth && previousMonth.cpa > 0 && (
                     <span className={`text-xs ${
-                      getTrend(currentMonth.cpa, previousMonth.cpa) < 0 
+                      getTrendDirection(currentMonth.cpa, previousMonth.cpa, true) === 'positive' 
                         ? 'text-green-600' 
-                        : 'text-red-600'
+                        : getTrendDirection(currentMonth.cpa, previousMonth.cpa, true) === 'negative'
+                        ? 'text-red-600'
+                        : 'text-gray-500'
                     }`}>
                       {getTrend(currentMonth.cpa, previousMonth.cpa) > 0 ? '+' : ''}
                       {getTrend(currentMonth.cpa, previousMonth.cpa).toFixed(1)}%
@@ -105,11 +127,13 @@ export const MonthlyMetricsCards = () => {
                   <span className="text-2xl font-bold">
                     {currentMonth ? formatPercentage(currentMonth.tasaAprobacion) : 'N/A'}
                   </span>
-                  {currentMonth && previousMonth && (
+                  {currentMonth && previousMonth && previousMonth.tasaAprobacion > 0 && (
                     <span className={`text-xs ${
-                      getTrend(currentMonth.tasaAprobacion, previousMonth.tasaAprobacion) > 0 
+                      getTrendDirection(currentMonth.tasaAprobacion, previousMonth.tasaAprobacion) === 'positive' 
                         ? 'text-green-600' 
-                        : 'text-red-600'
+                        : getTrendDirection(currentMonth.tasaAprobacion, previousMonth.tasaAprobacion) === 'negative'
+                        ? 'text-red-600'
+                        : 'text-gray-500'
                     }`}>
                       {getTrend(currentMonth.tasaAprobacion, previousMonth.tasaAprobacion) > 0 ? '+' : ''}
                       {getTrend(currentMonth.tasaAprobacion, previousMonth.tasaAprobacion).toFixed(1)}%
