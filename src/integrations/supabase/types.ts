@@ -1295,6 +1295,51 @@ export type Database = {
         }
         Relationships: []
       }
+      custodios_roi_tracking: {
+        Row: {
+          activo: boolean | null
+          canal_adquisicion: string | null
+          created_at: string | null
+          custodio_id: string
+          fecha_contratacion: string
+          id: string
+          ingresos_generados: number | null
+          inversion_asociada: number | null
+          nombre_custodio: string
+          servicios_completados: number | null
+          ultima_actualizacion: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          canal_adquisicion?: string | null
+          created_at?: string | null
+          custodio_id: string
+          fecha_contratacion: string
+          id?: string
+          ingresos_generados?: number | null
+          inversion_asociada?: number | null
+          nombre_custodio: string
+          servicios_completados?: number | null
+          ultima_actualizacion?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          canal_adquisicion?: string | null
+          created_at?: string | null
+          custodio_id?: string
+          fecha_contratacion?: string
+          id?: string
+          ingresos_generados?: number | null
+          inversion_asociada?: number | null
+          nombre_custodio?: string
+          servicios_completados?: number | null
+          ultima_actualizacion?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       custodios_rotacion_tracking: {
         Row: {
           created_at: string
@@ -7133,6 +7178,20 @@ export type Database = {
           roi_calculado: number
           num_candidatos: number
           num_custodios_activos: number
+        }[]
+      }
+      get_roi_marketing_real_data: {
+        Args: { periodo_dias?: number }
+        Returns: {
+          roi_calculado: number
+          inversion_total: number
+          ingresos_reales: number
+          custodios_contratados: number
+          custodios_activos: number
+          servicios_completados: number
+          ingresos_por_custodio: number
+          cpa_real: number
+          detalles_por_canal: Json
         }[]
       }
       get_services_by_exact_phone: {

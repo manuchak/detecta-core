@@ -29,6 +29,9 @@ export interface ROIMarketingMetrics {
   cpaPromedio: number;
   loading: boolean;
   lastUpdated: Date;
+  cpaReal?: number;
+  ingresosPorCustodio?: number;
+  serviciosCompletados?: number;
 }
 
 export const useROIMarketingDetails = () => {
@@ -38,33 +41,85 @@ export const useROIMarketingDetails = () => {
     error,
     refetch
   } = useQuery({
-    queryKey: ['roi-marketing-details'],
+    queryKey: ['roi-marketing-real-details'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_roi_marketing_data', { 
+      const { data, error } = await supabase.rpc('get_roi_marketing_real_data', { 
         periodo_dias: 90 
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching ROI data:', error);
+        // Fallback a datos por defecto si hay error
+        return {
+          roiTotal: 0,
+          totalGastos: 0,
+          totalIngresos: 0,
+          totalCandidatos: 0,
+          totalCustodiosActivos: 0,
+          lastUpdated: new Date(),
+          detallesPorCanal: [],
+          cpaReal: 0,
+          ingresosPorCustodio: 0,
+          serviciosCompletados: 0
+        };
+      }
       
       if (!data || data.length === 0) {
         return {
-          roiTotal: 45.2,
-          totalGastos: 25000,
-          totalIngresos: 36300,
-          totalCandidatos: 12,
-          totalCustodiosActivos: 5,
-          lastUpdated: new Date()
+          roiTotal: 0,
+          totalGastos: 0,
+          totalIngresos: 0,
+          totalCandidatos: 0,
+          totalCustodiosActivos: 0,
+          lastUpdated: new Date(),
+          detallesPorCanal: [],
+          cpaReal: 0,
+          ingresosPorCustodio: 0,
+          serviciosCompletados: 0
         };
       }
 
       const result = data[0];
+      
+      // Procesar detalles por canal
+      let detallesPorCanal: ROIMarketingDetails[] = [];
+      
+      try {
+        if (result.detalles_por_canal && Array.isArray(result.detalles_por_canal)) {
+          detallesPorCanal = result.detalles_por_canal.map((canal: any) => ({
+            canal: canal.canal,
+            gastoTotal: Number(canal.inversion) || 0,
+            candidatosGenerados: Number(canal.custodios) || 0,
+            custodiosActivos: Number(canal.custodios) || 0,
+            cpaReal: Number(canal.custodios) > 0 ? Number(canal.inversion) / Number(canal.custodios) : 0,
+            ingresosGenerados: Number(canal.ingresos) || 0,
+            roiPorcentaje: Number(canal.roi) || 0,
+            desglose: {
+              gastos: Number(canal.inversion) || 0,
+              ingresos: Number(canal.ingresos) || 0,
+              candidatos: Number(canal.custodios) || 0,
+              custodios_activos: Number(canal.custodios) || 0,
+              periodo_dias: 90,
+              fecha_limite: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
+            }
+          }));
+        }
+      } catch (e) {
+        console.warn('Error parsing detalles_por_canal:', e);
+        detallesPorCanal = [];
+      }
+
       return {
-        roiTotal: Number(result.roi_calculado) || 45.2,
-        totalGastos: Number(result.gastos_totales) || 25000,
-        totalIngresos: Number(result.ingresos_estimados) || 36300,
-        totalCandidatos: Number(result.num_candidatos) || 12,
-        totalCustodiosActivos: Number(result.num_custodios_activos) || 5,
-        lastUpdated: new Date()
+        roiTotal: Number(result.roi_calculado) || 0,
+        totalGastos: Number(result.inversion_total) || 0,
+        totalIngresos: Number(result.ingresos_reales) || 0,
+        totalCandidatos: Number(result.custodios_contratados) || 0,
+        totalCustodiosActivos: Number(result.custodios_activos) || 0,
+        lastUpdated: new Date(),
+        detallesPorCanal,
+        cpaReal: Number(result.cpa_real) || 0,
+        ingresosPorCustodio: Number(result.ingresos_por_custodio) || 0,
+        serviciosCompletados: Number(result.servicios_completados) || 0
       };
     },
     staleTime: 5 * 60 * 1000,
@@ -73,12 +128,18 @@ export const useROIMarketingDetails = () => {
 
   return {
     metrics: roiMarketingData || {
-      roiTotal: 45.2,
-      totalGastos: 25000,
-      totalIngresos: 36300,
-      totalCandidatos: 12,
-      totalCustodiosActivos: 5,
-      lastUpdated: new Date()
+      roiTotal: 0,
+      totalGastos: 0,
+      totalIngresos: 0,
+      totalCandidatos: 0,
+      totalCustodiosActivos: 0,
+      cpaPromedio: 0,
+      lastUpdated: new Date(),
+      detallesPorCanal: [],
+      cpaReal: 0,
+      ingresosPorCustodio: 0,
+      serviciosCompletados: 0,
+      loading: false
     },
     loading: isLoading,
     error,
