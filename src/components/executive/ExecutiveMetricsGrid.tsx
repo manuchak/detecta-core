@@ -90,9 +90,9 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
     },
     {
       title: 'ROI MKT',
-      value: kpis.roiMkt,
+      value: roiMarketingDetails.metrics?.roiTotal || kpis.roiMkt,
       unit: '%',
-      trend: kpis.roiMkt > 0 ? 'up' as const : 'down' as const,
+      trend: (roiMarketingDetails.metrics?.roiTotal || kpis.roiMkt) > 0 ? 'up' as const : 'down' as const,
       key: 'roiMkt'
     },
     {

@@ -9,3 +9,5 @@ export { useForecastData } from './useForecastData';
 export { useUnifiedRecruitmentMetrics } from './useUnifiedRecruitmentMetrics';
 export { useActiveCustodians } from './useActiveCustodians';
 export { useCustomerLTV } from './useCustomerLTV';
+export { useROIMarketingDetails } from './useROIMarketingDetails';
+export { useROIMarketingMonthly } from './useROIMarketingMonthly';
