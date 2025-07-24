@@ -19,6 +19,8 @@ const formatPercentage = (value: number) => {
 export const MonthlyMetricsCards = () => {
   const { monthlyData, loading, error } = useRecruitmentMonthlyMetrics();
 
+  console.log('MonthlyMetricsCards - Loading:', loading, 'Error:', error, 'Data:', monthlyData);
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -39,7 +41,17 @@ export const MonthlyMetricsCards = () => {
   if (error) {
     return (
       <div className="text-center text-red-500 p-4">
-        Error al cargar las métricas mensuales
+        <p>Error al cargar las métricas mensuales:</p>
+        <p className="text-sm">{error.message}</p>
+      </div>
+    );
+  }
+
+  if (!monthlyData || monthlyData.length === 0) {
+    return (
+      <div className="text-center text-muted-foreground p-8">
+        <p>No hay datos disponibles para mostrar las métricas mensuales.</p>
+        <p className="text-sm mt-2">Verifica que existan gastos de marketing y candidatos registrados.</p>
       </div>
     );
   }
