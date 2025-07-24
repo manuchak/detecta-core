@@ -28,7 +28,9 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
   const kpiConfig = [
     {
       title: 'Costo de Adquisición',
-      value: kpis.cpa,
+      value: cpaDetails?.currentMonthData?.newCustodians > 0 ? 
+        cpaDetails.currentMonthData.cpa : 
+        kpis.cpa,
       unit: 'MXN',
       trend: 'neutral' as const,
       key: 'cpa'
