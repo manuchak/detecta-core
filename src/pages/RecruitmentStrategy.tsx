@@ -36,6 +36,7 @@ import { IntelligentAlerts } from '@/components/recruitment/IntelligentAlerts';
 import { IntelligentSimulator } from '@/components/recruitment/IntelligentSimulator';
 import { FinancialTrackingSystem } from '@/components/recruitment/FinancialTrackingSystem';
 import { ExpenseForm } from '@/components/recruitment/ExpenseForm';
+import { ExpensesList } from '@/components/recruitment/ExpensesList';
 import { UnifiedFinancialDashboard } from '@/components/financial/UnifiedFinancialDashboard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useRealFinancialPerformance } from '@/hooks/useRealFinancialPerformance';
@@ -704,7 +705,8 @@ const RecruitmentStrategy = () => {
               </TabsContent>
               
               <TabsContent value="history" className="mt-6">
-                <div className="max-w-6xl">
+                <div className="max-w-6xl space-y-6">
+                  <ExpensesList />
                   <FinancialTrackingSystem />
                 </div>
               </TabsContent>

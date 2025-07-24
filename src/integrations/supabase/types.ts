@@ -1736,6 +1736,7 @@ export type Database = {
       }
       gastos_externos: {
         Row: {
+          aprobado_en: string | null
           aprobado_por: string | null
           canal_reclutamiento: string | null
           canal_reclutamiento_id: string | null
@@ -1755,8 +1756,10 @@ export type Database = {
           moneda: string | null
           monto: number
           notas: string | null
+          notas_aprobacion: string | null
           numero_factura: string | null
           proveedor: string | null
+          rechazado_en: string | null
           registrado_por: string
           subcategoria_id: string | null
           tags: string[] | null
@@ -1764,6 +1767,7 @@ export type Database = {
           zona_id: string | null
         }
         Insert: {
+          aprobado_en?: string | null
           aprobado_por?: string | null
           canal_reclutamiento?: string | null
           canal_reclutamiento_id?: string | null
@@ -1783,8 +1787,10 @@ export type Database = {
           moneda?: string | null
           monto: number
           notas?: string | null
+          notas_aprobacion?: string | null
           numero_factura?: string | null
           proveedor?: string | null
+          rechazado_en?: string | null
           registrado_por: string
           subcategoria_id?: string | null
           tags?: string[] | null
@@ -1792,6 +1798,7 @@ export type Database = {
           zona_id?: string | null
         }
         Update: {
+          aprobado_en?: string | null
           aprobado_por?: string | null
           canal_reclutamiento?: string | null
           canal_reclutamiento_id?: string | null
@@ -1811,8 +1818,10 @@ export type Database = {
           moneda?: string | null
           monto?: number
           notas?: string | null
+          notas_aprobacion?: string | null
           numero_factura?: string | null
           proveedor?: string | null
+          rechazado_en?: string | null
           registrado_por?: string
           subcategoria_id?: string | null
           tags?: string[] | null
