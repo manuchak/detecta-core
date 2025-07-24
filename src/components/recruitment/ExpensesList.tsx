@@ -6,8 +6,22 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Check, X, Clock, ChevronDown, ChevronUp } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
+
+// Función helper para formatear fechas de forma segura
+const safeFormatDate = (dateValue: string | null | undefined, formatString: string = 'dd/MM/yyyy', options = { locale: es }): string => {
+  if (!dateValue) return 'Fecha no disponible';
+  
+  try {
+    const date = new Date(dateValue);
+    if (!isValid(date)) return 'Fecha inválida';
+    return format(date, formatString, options);
+  } catch (error) {
+    console.warn('Error formatting date:', dateValue, error);
+    return 'Fecha inválida';
+  }
+};
 
 interface Gasto {
   id: string;
@@ -210,7 +224,7 @@ export const ExpensesList = () => {
                           ${gasto.monto.toLocaleString('es-MX')}
                         </span>
                       </div>
-                      <div>{format(new Date(gasto.fecha), 'dd/MM/yyyy', { locale: es })}</div>
+                      <div>{safeFormatDate(gasto.fecha)}</div>
                       <div>
                         {gasto.categoria_principal?.nombre} - {gasto.subcategoria?.nombre}
                       </div>
@@ -272,13 +286,13 @@ export const ExpensesList = () => {
                   {gasto.aprobado_en && (
                     <div className="text-green-600">
                       <span className="font-medium">Aprobado: </span>
-                      {format(new Date(gasto.aprobado_en), 'dd/MM/yyyy HH:mm', { locale: es })}
+                      {safeFormatDate(gasto.aprobado_en, 'dd/MM/yyyy HH:mm')}
                     </div>
                   )}
                   {gasto.rechazado_en && (
                     <div className="text-red-600">
                       <span className="font-medium">Rechazado: </span>
-                      {format(new Date(gasto.rechazado_en), 'dd/MM/yyyy HH:mm', { locale: es })}
+                      {safeFormatDate(gasto.rechazado_en, 'dd/MM/yyyy HH:mm')}
                     </div>
                   )}
                   {gasto.notas_aprobacion && (
