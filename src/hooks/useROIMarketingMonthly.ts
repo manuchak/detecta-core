@@ -24,7 +24,7 @@ export const useROIMarketingMonthly = () => {
         .from('gastos_externos')
         .select('*')
         .eq('estado', 'aprobado')
-        .not('canal_reclutamiento', 'is', null)
+        .not('canal_reclutamiento_id', 'is', null)
         .gte('fecha_gasto', new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000).toISOString())
         .order('fecha_gasto', { ascending: true });
 
@@ -74,10 +74,6 @@ export const useROIMarketingMonthly = () => {
           })
           .reduce((total, gasto) => total + (gasto.monto || 0), 0) || 0;
         
-        // Si no hay inversión registrada, usar un valor mínimo para evitar ROI infinito
-        if (inversionMes === 0 && ingresosMes > 0) {
-          inversionMes = 20000; // Valor mínimo estimado de inversión mensual
-        }
         const custodiosUnicos = new Set(serviciosDelMes.map(s => s.nombre_custodio).filter(Boolean)).size;
         const serviciosCount = serviciosDelMes.length;
         
