@@ -2,7 +2,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFormatters } from "@/hooks/useFormatters";
 import { useHoltWintersForecast } from "@/hooks/useHoltWintersForecast";
-import { TrendingUp, TrendingDown, BarChart3, DollarSign, Calendar, Target, Info, Database, Loader2, AlertTriangle, Activity, Zap, Brain, Settings, RefreshCcw, ChevronDown, ChevronUp } from "lucide-react";
+import { useAdaptiveHybridForecast } from "@/hooks/useAdaptiveHybridForecast";
+import { TrendingUp, TrendingDown, BarChart3, DollarSign, Calendar, Target, Info, Database, Loader2, AlertTriangle, Activity, Zap, Brain, Settings, RefreshCcw, ChevronDown, ChevronUp, CalendarDays } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -105,7 +106,10 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
     updateGlobalConfig({ show_advanced: value });
   }, [updateGlobalConfig]);
 
-  // Hook de forecast con parámetros opcionales
+  // Hook de forecast híbrido adaptativo
+  const hybridForecast = useAdaptiveHybridForecast();
+  
+  // Hook de forecast tradicional con parámetros opcionales
   const forecastData = useHoltWintersForecast(
     useManualParams ? {
       alpha: manualAlpha,

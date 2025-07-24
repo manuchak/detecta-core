@@ -85,24 +85,56 @@ export const useHoltWintersForecast = (manualParams?: ManualParameters): Forecas
         services_completed: d.services_completed
       }));
     },
-    staleTime: 10 * 60 * 1000, // 10 minutos
+    staleTime: 1 * 60 * 1000, // 1 minuto para datos más frescos
     retry: 2
   });
 
+  // Obtener datos del mes actual para corrección en tiempo real
+  const { data: currentMonthData } = useQuery({
+    queryKey: ['current-month-real-time'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('forensic_audit_servicios_enero_actual');
+      if (error) throw error;
+      
+      const currentDate = new Date();
+      const daysElapsed = currentDate.getDate();
+      const totalDaysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+      const currentServices = data?.[0]?.servicios_unicos_id || 0;
+      
+      return {
+        currentServices,
+        daysElapsed,
+        totalDaysInMonth,
+        projectedMonthEnd: Math.round((currentServices / daysElapsed) * totalDaysInMonth)
+      };
+    },
+    staleTime: 1 * 60 * 1000, // 1 minuto
+    retry: 1
+  });
+
   return useMemo(() => {
-    if (isLoading || error || !historicalData || historicalData.length < 24) {
+    if (isLoading || error || !historicalData || historicalData.length < 12) {
       console.warn('❌ HOLT-WINTERS: Datos insuficientes para el modelo');
       return getDefaultForecastData();
     }
 
     try {
-      console.log('🧮 HOLT-WINTERS: INICIANDO CÁLCULOS');
+      console.log('🧮 HOLT-WINTERS ADAPTATIVO: INICIANDO CÁLCULOS');
       
       // Preparar series de tiempo
       const servicesTimeSeries = historicalData.map(d => d.services_completed);
       const gmvTimeSeries = historicalData.map(d => d.gmv);
       
-      // Aplicar Holt-Winters a servicios y GMV
+      // DETECCIÓN DE CAMBIOS RECIENTES
+      const recent3Months = servicesTimeSeries.slice(-3);
+      const previous3Months = servicesTimeSeries.slice(-6, -3);
+      const recentGrowth = calculateRecentGrowth(recent3Months, previous3Months);
+      const isAccelerating = recentGrowth > 0.15; // 15% de crecimiento
+      
+      console.log(`📈 CRECIMIENTO RECIENTE DETECTADO: ${(recentGrowth * 100).toFixed(1)}%`);
+      if (isAccelerating) console.log('🚀 ACELERACIÓN DETECTADA - AJUSTANDO PARÁMETROS');
+      
+      // Aplicar Holt-Winters a servicios y GMV con parámetros adaptativos
       let servicesForecast, gmvForecast;
       
       if (manualParams?.useManual && manualParams.alpha && manualParams.beta !== undefined && manualParams.gamma) {
@@ -111,9 +143,9 @@ export const useHoltWintersForecast = (manualParams?: ManualParameters): Forecas
         servicesForecast = holtWintersCalculation(servicesTimeSeries, 12, 12, manualParams.alpha, manualParams.beta, manualParams.gamma);
         gmvForecast = holtWintersCalculation(gmvTimeSeries, 12, 12, manualParams.alpha, manualParams.beta, manualParams.gamma);
       } else {
-        // Usar optimización automática
-        servicesForecast = holtWintersOptimized(servicesTimeSeries, 12, 12);
-        gmvForecast = holtWintersOptimized(gmvTimeSeries, 12, 12);
+        // Usar optimización automática ADAPTATIVA
+        servicesForecast = holtWintersOptimizedAdaptive(servicesTimeSeries, 12, 12, recentGrowth, isAccelerating);
+        gmvForecast = holtWintersOptimizedAdaptive(gmvTimeSeries, 12, 12, recentGrowth, isAccelerating);
       }
       
       // Datos actuales (hasta junio 2025)
@@ -126,9 +158,35 @@ export const useHoltWintersForecast = (manualParams?: ManualParameters): Forecas
       const actualServicesYTD = currentYearData.reduce((sum, d) => sum + d.services_completed, 0);
       const actualGmvYTD = currentYearData.reduce((sum, d) => sum + d.gmv, 0);
       
-      // Forecast para el mes actual y anual
-      const monthlyServicesForecast = Math.round(servicesForecast.forecast[0] || 0);
-      const monthlyGmvForecast = Math.round(gmvForecast.forecast[0] || 0);
+      // CORRECCIÓN EN TIEMPO REAL con datos del mes actual
+      let monthlyServicesForecast = Math.round(servicesForecast.forecast[0] || 0);
+      let monthlyGmvForecast = Math.round(gmvForecast.forecast[0] || 0);
+      
+      // Si tenemos datos del mes actual, aplicar corrección híbrida
+      if (currentMonthData && currentMonthData.daysElapsed > 5) {
+        const monthProgress = currentMonthData.daysElapsed / currentMonthData.totalDaysInMonth;
+        const intraMonthProjection = currentMonthData.projectedMonthEnd;
+        
+        // Peso híbrido: más peso a datos reales conforme avanza el mes
+        const realDataWeight = Math.min(0.7, monthProgress * 1.2);
+        const forecastWeight = 1 - realDataWeight;
+        
+        monthlyServicesForecast = Math.round(
+          (intraMonthProjection * realDataWeight) + (monthlyServicesForecast * forecastWeight)
+        );
+        
+        console.log(`🔄 CORRECCIÓN HÍBRIDA APLICADA:`);
+        console.log(`├─ Progreso del mes: ${(monthProgress * 100).toFixed(1)}%`);
+        console.log(`├─ Proyección intra-mes: ${intraMonthProjection} servicios`);
+        console.log(`├─ Peso datos reales: ${(realDataWeight * 100).toFixed(1)}%`);
+        console.log(`└─ Forecast corregido: ${monthlyServicesForecast} servicios`);
+        
+        // Alerta de divergencia
+        const divergence = Math.abs(intraMonthProjection - servicesForecast.forecast[0]) / servicesForecast.forecast[0];
+        if (divergence > 0.15) {
+          console.log(`🚨 ALERTA DE DIVERGENCIA: ${(divergence * 100).toFixed(1)}% entre forecast y realidad`);
+        }
+      }
       
       // Forecast anual = YTD actual + forecast meses restantes
       const remainingMonths = 12 - (currentMonth - 1);
@@ -198,33 +256,47 @@ export const useHoltWintersForecast = (manualParams?: ManualParameters): Forecas
       return result;
       
     } catch (error) {
-      console.error('❌ Error en Holt-Winters:', error);
+      console.error('❌ Error en Holt-Winters Adaptativo:', error);
       return getDefaultForecastData();
     }
-  }, [historicalData, isLoading, error, manualParams]);
+  }, [historicalData, currentMonthData, isLoading, error, manualParams]);
 };
 
-// Implementación optimizada de Holt-Winters
-function holtWintersOptimized(data: number[], seasonLength: number, forecastPeriods: number): HoltWintersResult {
-  if (data.length < seasonLength * 2) {
+// Implementación optimizada de Holt-Winters ADAPTATIVA
+function holtWintersOptimizedAdaptive(
+  data: number[], 
+  seasonLength: number, 
+  forecastPeriods: number, 
+  recentGrowth: number,
+  isAccelerating: boolean
+): HoltWintersResult {
+  if (data.length < seasonLength) {
     throw new Error('Datos insuficientes para Holt-Winters');
   }
   
   // Limpiar y validar datos
   const cleanData = data.map(d => Math.max(0, d || 0));
   
-  // Optimizar parámetros usando grid search más fino y amplio
+  // Optimizar parámetros usando grid search ADAPTATIVO
   let bestMAPE = Infinity;
-  let bestParams = { alpha: 0.3, beta: 0.1, gamma: 0.1 };
+  let bestParams = { alpha: 0.7, beta: 0.4, gamma: 0.3 }; // Parámetros base más agresivos
   let bestResult: HoltWintersResult | null = null;
   
-  // Grid search optimizado basado en mejores prácticas
-  // Alpha: 0.1-0.9 (nivel/smoothing principal)
-  // Beta: 0.0-0.5 (tendencia)  
-  // Gamma: 0.1-0.9 (estacionalidad)
-  const alphaValues = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
-  const betaValues = [0.0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5];
-  const gammaValues = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
+  // Grid search ADAPTATIVO basado en crecimiento detectado
+  let alphaValues, betaValues, gammaValues;
+  
+  if (isAccelerating) {
+    // Parámetros más agresivos para capturar aceleración
+    console.log('🚀 USANDO PARÁMETROS AGRESIVOS PARA ACELERACIÓN');
+    alphaValues = [0.6, 0.7, 0.8, 0.9]; // Mayor peso en datos recientes
+    betaValues = [0.3, 0.4, 0.5, 0.6, 0.7]; // Mayor sensibilidad a tendencias
+    gammaValues = [0.2, 0.3, 0.4, 0.5]; // Estacionalidad moderada
+  } else {
+    // Parámetros estándar mejorados
+    alphaValues = [0.4, 0.5, 0.6, 0.7, 0.8];
+    betaValues = [0.1, 0.2, 0.3, 0.4, 0.5];
+    gammaValues = [0.1, 0.2, 0.3, 0.4, 0.5];
+  }
   
   for (const alpha of alphaValues) {
     for (const beta of betaValues) {
@@ -243,9 +315,9 @@ function holtWintersOptimized(data: number[], seasonLength: number, forecastPeri
     }
   }
   
-  console.log(`🎯 HOLT-WINTERS: Mejores parámetros encontrados - α:${bestParams.alpha}, β:${bestParams.beta}, γ:${bestParams.gamma}, MAPE:${bestMAPE.toFixed(2)}%`);
+  console.log(`🎯 HOLT-WINTERS ADAPTATIVO: Mejores parámetros - α:${bestParams.alpha}, β:${bestParams.beta}, γ:${bestParams.gamma}, MAPE:${bestMAPE.toFixed(2)}%`);
   
-  return bestResult || holtWintersCalculation(cleanData, seasonLength, forecastPeriods, 0.3, 0.1, 0.1);
+  return bestResult || holtWintersCalculation(cleanData, seasonLength, forecastPeriods, bestParams.alpha, bestParams.beta, bestParams.gamma);
 }
 
 function holtWintersCalculation(
@@ -371,6 +443,17 @@ function holtWintersCalculation(
     seasonal: seasonal.slice(0, seasonLength),
     parameters: { alpha, beta, gamma, mape }
   };
+}
+
+// === FUNCIONES AUXILIARES ADAPTATIVAS ===
+
+function calculateRecentGrowth(recent: number[], previous: number[]): number {
+  if (recent.length === 0 || previous.length === 0) return 0;
+  
+  const recentAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
+  const previousAvg = previous.reduce((a, b) => a + b, 0) / previous.length;
+  
+  return previousAvg > 0 ? (recentAvg - previousAvg) / previousAvg : 0;
 }
 
 function getDefaultForecastData(): ForecastData {
