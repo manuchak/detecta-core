@@ -32,6 +32,7 @@ import { ScenarioSimulationPanel } from "@/components/recruitment/simulation/Sce
 import { ScenarioSimulator } from '@/components/recruitment/ScenarioSimulator';
 import FinancialROIDashboard from '@/components/recruitment/FinancialROIDashboard';
 import { ExecutiveDashboard } from '@/components/recruitment/ExecutiveDashboard';
+import { MonthlyMetricsCards } from '@/components/recruitment/MonthlyMetricsCards';
 import { IntelligentAlerts } from '@/components/recruitment/IntelligentAlerts';
 import { IntelligentSimulator } from '@/components/recruitment/IntelligentSimulator';
 import { FinancialTrackingSystem } from '@/components/recruitment/FinancialTrackingSystem';
@@ -290,6 +291,13 @@ const RecruitmentStrategy = () => {
           description: 'Retención, activación y productividad de custodios por cohortes',
           icon: BarChart3,
           breadcrumbs: ['Executive', 'Cohortes']
+        };
+      case 'monthly-metrics':
+        return {
+          title: 'Métricas Mensuales',
+          description: 'Evolución de CPA, tasa de aprobación, inversión y costo por lead',
+          icon: TrendingUp,
+          breadcrumbs: ['Executive', 'Métricas Mensuales']
         };
       default:
         return {
@@ -733,6 +741,13 @@ const RecruitmentStrategy = () => {
               <CohortRetentionHeatMap />
               <ProductivityChart />
             </div>
+          </div>
+        );
+
+      case 'monthly-metrics':
+        return (
+          <div className="space-y-6">
+            <MonthlyMetricsCards />
           </div>
         );
         

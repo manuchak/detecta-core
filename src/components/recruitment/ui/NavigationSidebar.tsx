@@ -55,6 +55,12 @@ const navigationItems: NavigationItem[] = [
         icon: Target
       },
       {
+        id: 'monthly-metrics',
+        title: 'Métricas Mensuales',
+        description: 'CPA, Aprobación, Inversión',
+        icon: TrendingUp
+      },
+      {
         id: 'financial',
         title: 'Control Financiero',
         description: 'Tracking gastos y ROI',
