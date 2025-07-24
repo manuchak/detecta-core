@@ -110,6 +110,23 @@ export const useLeadApprovals = () => {
   };
 
   const handleApproveLead = async (lead: AssignedLead) => {
+    // Verificar que hay una llamada exitosa registrada
+    const { data: successfulCall } = await supabase
+      .from('manual_call_logs')
+      .select('*')
+      .eq('lead_id', lead.lead_id)
+      .eq('call_outcome', 'successful')
+      .limit(1);
+
+    if (!successfulCall || successfulCall.length === 0) {
+      toast({
+        title: "Llamada requerida",
+        description: "Debes registrar una llamada exitosa antes de aprobar el candidato.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // Validar que todos los campos requeridos estén completos
     const validation = validateLeadForApproval(lead);
     
@@ -157,9 +174,9 @@ export const useLeadApprovals = () => {
           analyst_id: user.id,
           current_stage: 'approved',
           interview_method: 'manual',
-          phone_interview_notes: 'Aprobado directamente por el analista',
+          phone_interview_notes: 'Aprobado después de llamada exitosa',
           final_decision: 'approved',
-          decision_reason: 'Candidato calificado - aprobación directa',
+          decision_reason: 'Candidato calificado - aprobación después de entrevista telefónica',
           phone_interview_completed: true,
           second_interview_required: false,
           updated_at: new Date().toISOString()
@@ -188,10 +205,10 @@ export const useLeadApprovals = () => {
 
       toast({
         title: "Candidato aprobado",
-        description: "El candidato ha sido aprobado directamente.",
+        description: "El candidato ha sido aprobado exitosamente.",
       });
 
-      fetchAssignedLeads();
+      await refreshAfterCall();
     } catch (error) {
       console.error('Error completo al aprobar lead:', error);
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
