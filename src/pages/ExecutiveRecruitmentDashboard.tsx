@@ -1,6 +1,7 @@
 import React from 'react';
 import { ExecutiveDashboard } from '@/components/recruitment/ExecutiveDashboard';
 import { IntelligentAlerts } from '@/components/recruitment/IntelligentAlerts';
+import { MonthlyMetricsCards } from '@/components/recruitment/MonthlyMetricsCards';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -15,13 +16,18 @@ const ExecutiveRecruitmentDashboard = () => {
       </div>
 
       <Tabs defaultValue="dashboard" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="dashboard">Dashboard Ejecutivo</TabsTrigger>
+          <TabsTrigger value="monthly">Métricas Mensuales</TabsTrigger>
           <TabsTrigger value="alerts">Alertas Inteligentes</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="space-y-6">
           <ExecutiveDashboard />
+        </TabsContent>
+
+        <TabsContent value="monthly" className="space-y-6">
+          <MonthlyMetricsCards />
         </TabsContent>
 
         <TabsContent value="alerts" className="space-y-6">

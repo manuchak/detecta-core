@@ -11,3 +11,4 @@ export { useActiveCustodians } from './useActiveCustodians';
 export { useCustomerLTV } from './useCustomerLTV';
 export { useROIMarketingDetails } from './useROIMarketingDetails';
 export { useROIMarketingMonthly } from './useROIMarketingMonthly';
+export { useRecruitmentMonthlyMetrics } from './useRecruitmentMonthlyMetrics';
