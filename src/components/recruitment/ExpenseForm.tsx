@@ -241,11 +241,14 @@ export const ExpenseForm: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-2">
               <Label className="text-sm font-medium">Categoría Principal *</Label>
-              <Select onValueChange={(value) => updateField('categoria_principal_id', value)}>
+              <Select 
+                onValueChange={(value) => updateField('categoria_principal_id', value)}
+                value={formData.categoria_principal_id}
+              >
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Selecciona categoría" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-50 bg-background/95 backdrop-blur-sm border shadow-lg">
                   {categoriasPrincipales.map((categoria) => (
                     <SelectItem key={categoria.id} value={categoria.id}>
                       <div className="flex items-center gap-2">
@@ -264,11 +267,12 @@ export const ExpenseForm: React.FC = () => {
                 onValueChange={(value) => updateField('subcategoria_id', value)}
                 disabled={!formData.categoria_principal_id}
                 value={formData.subcategoria_id}
+                key={`subcategoria-${formData.categoria_principal_id}`}
               >
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Selecciona subcategoría" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-50 bg-background/95 backdrop-blur-sm border shadow-lg">
                   {subcategoriasFiltradas.map((subcategoria) => (
                     <SelectItem key={subcategoria.id} value={subcategoria.id}>
                       {subcategoria.nombre}
@@ -280,11 +284,14 @@ export const ExpenseForm: React.FC = () => {
 
             <div className="space-y-2">
               <Label className="text-sm font-medium">Canal de Reclutamiento *</Label>
-              <Select onValueChange={(value) => updateField('canal_reclutamiento_id', value)}>
+              <Select 
+                onValueChange={(value) => updateField('canal_reclutamiento_id', value)}
+                value={formData.canal_reclutamiento_id}
+              >
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Selecciona canal" />
                 </SelectTrigger>
-                <SelectContent className="max-h-80">
+                <SelectContent className="z-50 bg-background/95 backdrop-blur-sm border shadow-lg max-h-80">
                   {['digital', 'referidos', 'directo', 'agencias', 'eventos', 'tradicional'].map((tipo) => {
                     const canalesDelTipo = canales.filter(canal => canal.tipo === tipo);
                     if (canalesDelTipo.length === 0) return null;
