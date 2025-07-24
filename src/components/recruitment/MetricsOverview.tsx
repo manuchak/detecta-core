@@ -23,6 +23,7 @@ import {
   DEFAULT_CAPACITY_CONFIG 
 } from '@/utils/predictionAlgorithms';
 import type { MetricaDemandaZona, ZonaOperacion } from '@/hooks/useNationalRecruitment';
+import { DeficitProgressTracker } from './DeficitProgressTracker';
 
 interface MetricsOverviewProps {
   metricas: MetricaDemandaZona[];
@@ -346,14 +347,30 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({ metricas, zona
         </CardContent>
       </Card>
 
+      {/* Tracking de Déficit Dinámico */}
+      <Card className="p-6">
+        <CardHeader className="px-0 pt-0">
+          <CardTitle className="flex items-center gap-2">
+            <RefreshCcw className="w-5 h-5" />
+            Déficit Dinámico en Tiempo Real
+            <Badge variant="outline" className="text-xs bg-green-100 text-green-700">
+              NUEVO - Tracking Automático
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-0">
+          <DeficitProgressTracker />
+        </CardContent>
+      </Card>
+
       {/* Footer con información del algoritmo */}
       <Card className="p-4 bg-blue-50">
         <div className="flex items-center gap-2 text-sm text-blue-800">
           <Target className="w-4 h-4" />
-          <span className="font-medium">Algoritmo Fase 1:</span>
+          <span className="font-medium">Algoritmo Avanzado:</span>
           <span>
-            Incorpora ratio de rechazo 25%, duraciones diferenciadas (6h local, 14h foráneo, 4h express) 
-            y eficiencia operacional 85%
+            Incorpora ratio de rechazo 25%, duraciones diferenciadas por servicio, 
+            eficiencia operacional 85% y déficit dinámico con tracking automático de incorporaciones
           </span>
         </div>
       </Card>

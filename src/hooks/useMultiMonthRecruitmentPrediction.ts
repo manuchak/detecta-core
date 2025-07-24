@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAdvancedRecruitmentPrediction } from './useAdvancedRecruitmentPrediction';
 import { useForecastData } from './useForecastData';
 import { useRealNationalRecruitment } from './useRealNationalRecruitment';
+import { useDynamicDeficitTracking } from './useDynamicDeficitTracking';
 
 export interface MonthlyNeed {
   month: number;
@@ -66,6 +67,12 @@ export function useMultiMonthRecruitmentPrediction() {
     loading: advancedLoading 
   } = useAdvancedRecruitmentPrediction();
   
+  // Hook para déficit dinámico
+  const { 
+    deficitData: dynamicDeficitData, 
+    loading: dynamicLoading 
+  } = useDynamicDeficitTracking();
+  
   const forecastData = useForecastData(0, 0);
   
   const { 
@@ -104,9 +111,10 @@ export function useMultiMonthRecruitmentPrediction() {
     };
   }, []);
 
-  // Calcular necesidades por cluster usando datos reales
+  // Calcular necesidades por cluster usando datos reales y déficit dinámico
   const calculateClusterNeeds = useCallback((monthData: any, rotationData: any[]): ClusterNeed[] => {
     console.log('🧮 Calculando necesidades por cluster para:', monthData.monthName);
+    console.log('📊 Usando déficit dinámico:', dynamicDeficitData);
     
     return deficitConRotacion.map(cluster => {
       // Buscar datos de rotación para este cluster - mejorar mapeo
@@ -163,9 +171,24 @@ export function useMultiMonthRecruitmentPrediction() {
         promedioServiciosMes: rotationInfo.promedioServiciosMes
       });
       
-      // Usar datos reales del cluster
+      // Usar datos reales del cluster con ajuste dinámico
       const currentCustodians = rotationInfo.custodiosActivos;
-      const currentDeficit = cluster.deficit_total || 0;
+      
+      // Buscar déficit dinámico para esta zona
+      const dynamicDeficit = dynamicDeficitData.find(dd => 
+        dd.zona_operacion === cluster.zona_nombre
+      );
+      
+      // Usar déficit ajustado dinámico si está disponible, sino usar estático
+      const currentDeficit = dynamicDeficit?.deficit_ajustado || cluster.deficit_total || 0;
+      
+      console.log(`📈 Déficit para ${cluster.zona_nombre}:`, {
+        deficit_estatico: cluster.deficit_total,
+        deficit_dinamico: dynamicDeficit?.deficit_ajustado,
+        deficit_usado: currentDeficit,
+        incorporaciones_recientes: dynamicDeficit?.nuevos_custodios_incorporados || 0,
+        progreso: dynamicDeficit?.porcentaje_progreso || 0
+      });
       
       // USAR DATOS REALES DE FORECAST (~643 servicios/mes promedio basado en 4502 servicios YTD)
       const totalForecastServices = forecastData?.monthlyServicesForecast || 643;
@@ -353,7 +376,7 @@ export function useMultiMonthRecruitmentPrediction() {
 
   // Función principal para calcular todo
   const calculateMultiMonthPrediction = useCallback(async () => {
-    if (advancedLoading || realDataLoading || deficitConRotacion.length === 0) {
+    if (advancedLoading || realDataLoading || dynamicLoading || deficitConRotacion.length === 0) {
       return;
     }
     
@@ -423,7 +446,9 @@ export function useMultiMonthRecruitmentPrediction() {
   }, [
     advancedLoading,
     realDataLoading,
+    dynamicLoading,
     deficitConRotacion,
+    dynamicDeficitData,
     zonasReales,
     metricasReales,
     calculateTargetMonths,

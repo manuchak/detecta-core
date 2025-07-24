@@ -1250,6 +1250,51 @@ export type Database = {
         }
         Relationships: []
       }
+      custodios_primer_servicio_zona: {
+        Row: {
+          created_at: string
+          custodio_id: string
+          destino: string | null
+          fecha_primer_servicio: string
+          id: string
+          km_recorridos: number | null
+          nombre_custodio: string
+          origen: string | null
+          servicio_id: string
+          tipo_servicio: string | null
+          updated_at: string
+          zona_operacion: string
+        }
+        Insert: {
+          created_at?: string
+          custodio_id: string
+          destino?: string | null
+          fecha_primer_servicio: string
+          id?: string
+          km_recorridos?: number | null
+          nombre_custodio: string
+          origen?: string | null
+          servicio_id: string
+          tipo_servicio?: string | null
+          updated_at?: string
+          zona_operacion: string
+        }
+        Update: {
+          created_at?: string
+          custodio_id?: string
+          destino?: string | null
+          fecha_primer_servicio?: string
+          id?: string
+          km_recorridos?: number | null
+          nombre_custodio?: string
+          origen?: string | null
+          servicio_id?: string
+          tipo_servicio?: string | null
+          updated_at?: string
+          zona_operacion?: string
+        }
+        Relationships: []
+      }
       custodios_rotacion_tracking: {
         Row: {
           created_at: string
@@ -6192,6 +6237,21 @@ export type Database = {
         Args: { p_producto_id: string }
         Returns: number
       }
+      calcular_deficit_dinamico_por_zona: {
+        Args: {
+          p_zona_operacion: string
+          p_fecha_desde?: string
+          p_fecha_hasta?: string
+        }
+        Returns: {
+          zona_operacion: string
+          deficit_inicial: number
+          nuevos_custodios_incorporados: number
+          deficit_ajustado: number
+          porcentaje_progreso: number
+          fecha_calculo: string
+        }[]
+      }
       calcular_puntos_viaje: {
         Args: { km_viaje: number; estado_viaje: string }
         Returns: number
@@ -7455,6 +7515,18 @@ export type Database = {
       migrate_roles_to_skills: {
         Args: Record<PropertyKey, never>
         Returns: number
+      }
+      obtener_deficit_dinamico_nacional: {
+        Args: { p_fecha_desde?: string; p_fecha_hasta?: string }
+        Returns: {
+          zona_operacion: string
+          deficit_inicial: number
+          nuevos_custodios_incorporados: number
+          deficit_ajustado: number
+          porcentaje_progreso: number
+          estado_progreso: string
+          fecha_calculo: string
+        }[]
       }
       obtener_estadisticas_custodio: {
         Args: { custodio_id: string }
