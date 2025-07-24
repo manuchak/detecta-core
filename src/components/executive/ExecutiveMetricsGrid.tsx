@@ -6,6 +6,7 @@ import { useConversionRateDetails } from '@/hooks/useConversionRateDetails';
 import { useLTVDetails } from '@/hooks/useLTVDetails';
 import { useRetentionDetails } from '@/hooks/useRetentionDetails';
 import { useROIMarketingDetails } from '@/hooks/useROIMarketingDetails';
+import { useROIMarketingMonthly } from '@/hooks/useROIMarketingMonthly';
 import { useEngagementDetails } from '@/hooks/useEngagementDetails';
 import { CPATooltip } from './CPATooltip';
 import { ConversionRateTooltip } from './ConversionRateTooltip';
@@ -26,6 +27,7 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
   const ltvDetails = useLTVDetails();
   const retentionDetails = useRetentionDetails();
   const roiMarketingDetails = useROIMarketingDetails();
+  const roiMarketingMonthly = useROIMarketingMonthly();
   const engagementDetails = useEngagementDetails();
 
   const kpiConfig = [
@@ -90,9 +92,9 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
     },
     {
       title: 'ROI MKT',
-      value: roiMarketingDetails.metrics?.roiTotal || kpis.roiMkt,
+      value: roiMarketingMonthly.currentMonthData?.roi || kpis.roiMkt,
       unit: '%',
-      trend: (roiMarketingDetails.metrics?.roiTotal || kpis.roiMkt) > 0 ? 'up' as const : 'down' as const,
+      trend: (roiMarketingMonthly.currentMonthData?.roi || kpis.roiMkt) > 0 ? 'up' as const : 'down' as const,
       key: 'roiMkt'
     },
     {
@@ -113,13 +115,13 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
           value={kpi.value}
           unit={kpi.unit}
           trend={kpi.trend}
-          loading={loading || (kpi.key === 'cpa' && cpaLoading) || (kpi.key === 'crate' && conversionRateDetails.loading) || (kpi.key === 'ltv' && ltvDetails.loading) || (kpi.key === 'rrate' && retentionDetails.loading) || (kpi.key === 'roiMkt' && roiMarketingDetails.loading) || (kpi.key === 'engagement' && engagementDetails.loading)}
+          loading={loading || (kpi.key === 'cpa' && cpaLoading) || (kpi.key === 'crate' && conversionRateDetails.loading) || (kpi.key === 'ltv' && ltvDetails.loading) || (kpi.key === 'rrate' && retentionDetails.loading) || (kpi.key === 'roiMkt' && roiMarketingMonthly.loading) || (kpi.key === 'engagement' && engagementDetails.loading)}
           tooltip={
             kpi.key === 'cpa' && !cpaLoading ? <CPATooltip cpaDetails={cpaDetails} /> :
             kpi.key === 'crate' && !conversionRateDetails.loading ? <ConversionRateTooltip data={conversionRateDetails} /> :
             kpi.key === 'ltv' && !ltvDetails.loading ? <LTVTooltip data={ltvDetails} /> :
             kpi.key === 'rrate' && !retentionDetails.loading ? <RetentionTooltip data={retentionDetails} /> :
-            kpi.key === 'roiMkt' && !roiMarketingDetails.loading ? <ROIMarketingTooltip data={roiMarketingDetails.metrics} /> :
+            kpi.key === 'roiMkt' && !roiMarketingMonthly.loading ? <ROIMarketingTooltip data={roiMarketingDetails.metrics} /> :
             kpi.key === 'engagement' && !engagementDetails.loading ? <EngagementTooltip data={engagementDetails.engagementDetails} /> :
             undefined
           }

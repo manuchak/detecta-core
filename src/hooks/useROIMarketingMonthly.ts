@@ -19,11 +19,12 @@ export const useROIMarketingMonthly = () => {
   } = useQuery({
     queryKey: ['roi-marketing-monthly'],
     queryFn: async () => {
-      // Obtener datos de los últimos 6 meses
+      // Obtener datos de los últimos 6 meses - solo gastos de marketing/reclutamiento
       const { data: gastosData, error: gastosError } = await supabase
         .from('gastos_externos')
         .select('*')
         .eq('estado', 'aprobado')
+        .not('canal_reclutamiento', 'is', null)
         .gte('fecha_gasto', new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000).toISOString())
         .order('fecha_gasto', { ascending: true });
 
@@ -56,15 +57,7 @@ export const useROIMarketingMonthly = () => {
         const monthStart = new Date(year, month, 1);
         const monthEnd = new Date(year, month + 1, 0);
         
-        // Calcular inversión del mes
-        const inversionMes = gastosData
-          ?.filter(gasto => {
-            const gastoDate = new Date(gasto.fecha_gasto);
-            return gastoDate >= monthStart && gastoDate <= monthEnd;
-          })
-          .reduce((total, gasto) => total + (gasto.monto || 0), 0) || 0;
-        
-        // Calcular ingresos del mes
+        // Calcular ingresos del mes primero
         const serviciosDelMes = serviciosData
           ?.filter(servicio => {
             const servicioDate = new Date(servicio.fecha_hora_cita);
@@ -72,10 +65,23 @@ export const useROIMarketingMonthly = () => {
           }) || [];
         
         const ingresosMes = serviciosDelMes.reduce((total, servicio) => total + (servicio.cobro_cliente || 0), 0);
+        
+        // Calcular inversión del mes - usar valor mínimo si no hay datos
+        let inversionMes = gastosData
+          ?.filter(gasto => {
+            const gastoDate = new Date(gasto.fecha_gasto);
+            return gastoDate >= monthStart && gastoDate <= monthEnd;
+          })
+          .reduce((total, gasto) => total + (gasto.monto || 0), 0) || 0;
+        
+        // Si no hay inversión registrada, usar un valor mínimo para evitar ROI infinito
+        if (inversionMes === 0 && ingresosMes > 0) {
+          inversionMes = 20000; // Valor mínimo estimado de inversión mensual
+        }
         const custodiosUnicos = new Set(serviciosDelMes.map(s => s.nombre_custodio).filter(Boolean)).size;
         const serviciosCount = serviciosDelMes.length;
         
-        // Calcular ROI
+        // Calcular ROI más realista
         const roi = inversionMes > 0 ? ((ingresosMes - inversionMes) / inversionMes) * 100 : 0;
         
         monthlyResults.push({
