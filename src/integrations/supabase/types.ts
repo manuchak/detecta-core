@@ -6139,12 +6139,12 @@ export type Database = {
       award_points: {
         Args: {
           p_user_id: string
-          p_trip_id: string
+          p_service_id: string
           p_points: number
-          p_type: string
-          p_description?: string
+          p_point_type: string
+          p_description: string
         }
-        Returns: number
+        Returns: undefined
       }
       bypass_rls_get_servicios: {
         Args: { max_records?: number }
@@ -6326,7 +6326,7 @@ export type Database = {
         }[]
       }
       calculate_custodian_level: {
-        Args: { total_points: number }
+        Args: { points: number }
         Returns: number
       }
       calculate_custodian_level_dynamic: {
@@ -6456,6 +6456,10 @@ export type Database = {
         }
         Returns: string
       }
+      create_new_role: {
+        Args: { new_role: string }
+        Returns: undefined
+      }
       create_redemptions_bypass_rls: {
         Args: { redemptions_data: Json }
         Returns: {
@@ -6497,6 +6501,10 @@ export type Database = {
       delete_reward_bypass_rls: {
         Args: { reward_id: string }
         Returns: boolean
+      }
+      delete_role: {
+        Args: { target_role: string }
+        Returns: undefined
       }
       detect_suspicious_patterns: {
         Args: Record<PropertyKey, never>
@@ -7796,6 +7804,10 @@ export type Database = {
           reward_featured: boolean
         }
         Returns: string
+      }
+      update_role_name: {
+        Args: { old_role: string; new_role: string }
+        Returns: undefined
       }
       update_role_permission_secure: {
         Args: { p_permission_id: string; p_allowed: boolean }
