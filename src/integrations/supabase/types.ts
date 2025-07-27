@@ -6394,6 +6394,15 @@ export type Database = {
           latest_date: string
         }[]
       }
+      check_pending_referral_bonuses: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          custodio_id: string
+          custodio_email: string
+          pending_bonuses: number
+          total_amount: number
+        }[]
+      }
       check_user_role: {
         Args: { user_id: string; role_name: string }
         Returns: boolean
@@ -6874,6 +6883,28 @@ export type Database = {
           level_5_count: number
         }[]
       }
+      get_custodio_referidos: {
+        Args: { p_custodio_id: string }
+        Returns: {
+          referido_id: string
+          candidato_nombre: string
+          candidato_email: string
+          estado_referido: string
+          fecha_referencia: string
+          fecha_activacion: string
+          bono_otorgado: boolean
+          monto_bono: number
+        }[]
+      }
+      get_custodio_referral_stats: {
+        Args: { p_custodio_id: string }
+        Returns: {
+          total_referidos: number
+          referidos_activos: number
+          bonos_ganados: number
+          ultimo_bono_fecha: string
+        }[]
+      }
       get_custodios_activos_safe: {
         Args: { search_term?: string }
         Returns: {
@@ -7194,6 +7225,18 @@ export type Database = {
           detalles_por_canal: Json
         }[]
       }
+      get_role_permissions_secure: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          role: string
+          permission_type: string
+          permission_id: string
+          allowed: boolean
+          created_at: string
+          updated_at: string
+        }[]
+      }
       get_services_by_exact_phone: {
         Args: { p_phone: string }
         Returns: {
@@ -7473,6 +7516,10 @@ export type Database = {
         Args: Record<PropertyKey, never> | { user_id: string }
         Returns: boolean
       }
+      is_admin_bypass_rls: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       is_admin_email_secure: {
         Args: Record<PropertyKey, never>
         Returns: boolean
@@ -7683,6 +7730,15 @@ export type Database = {
           sample_data: Json
         }[]
       }
+      transaction_crear_aprobacion_coordinador: {
+        Args: {
+          p_servicio_id: string
+          p_coordinador_id: string
+          p_estado_aprobacion: string
+          p_aprobacion_data: Json
+        }
+        Returns: string
+      }
       update_all_custodian_levels: {
         Args: Record<PropertyKey, never>
         Returns: number
@@ -7828,7 +7884,7 @@ export type Database = {
         Returns: boolean
       }
       verificar_cumplimiento_referido: {
-        Args: { referido_id: string }
+        Args: { p_referido_id: string }
         Returns: boolean
       }
       verify_admin_email: {
