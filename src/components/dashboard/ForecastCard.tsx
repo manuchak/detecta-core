@@ -134,24 +134,8 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
     } : undefined
   );
   
-  // Mapear datos del motor mejorado al formato esperado por la UI
-  const forecastData = forecastEngine.error ? legacyForecastData : {
-    monthlyServicesForecast: forecastEngine.monthlyServices,
-    monthlyGmvForecast: forecastEngine.monthlyGMV,
-    annualServicesForecast: forecastEngine.annualServices,
-    annualGmvForecast: forecastEngine.annualGMV,
-    monthlyServicesActual: legacyForecastData.monthlyServicesActual,
-    monthlyGmvActual: legacyForecastData.monthlyGmvActual,
-    annualServicesActual: legacyForecastData.annualServicesActual,
-    annualGmvActual: legacyForecastData.annualGmvActual,
-    monthlyServicesVariance: legacyForecastData.monthlyServicesVariance,
-    monthlyGmvVariance: legacyForecastData.monthlyGmvVariance,
-    annualServicesVariance: legacyForecastData.annualServicesVariance,
-    annualGmvVariance: legacyForecastData.annualGmvVariance,
-    lastDataMonth: legacyForecastData.lastDataMonth,
-    forecastMonth: legacyForecastData.forecastMonth,
-    accuracy: forecastEngine.accuracy
-  };
+  // El useForecastEngine está devolviendo valores incorrectos, usar holtWintersData como principal
+  const forecastData = holtWintersData;
   
   // Reset a valores optimizados
   const handleResetToOptimal = useCallback(() => {
