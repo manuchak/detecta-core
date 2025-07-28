@@ -33,7 +33,7 @@ const fetchAvailableRoles = async (): Promise<Role[]> => {
       ];
     }
     
-    return (data || []).map((item: { role: string }) => item.role as Role);
+    return (data || []) as Role[];
   } catch (err) {
     console.error('Error in fetchAvailableRoles:', err);
     return [

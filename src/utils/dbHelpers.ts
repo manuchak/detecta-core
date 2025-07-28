@@ -36,8 +36,8 @@ export const fetchUserRoles = async (): Promise<Role[]> => {
       ];
     }
     
-    // Map the returned data to Role type safely
-    return (data || []).map((item: { role: string }) => item.role as Role);
+    // Return the data directly as it's now an array of strings
+    return (data || []) as Role[];
   } catch (err) {
     console.error('Error in fetchUserRoles:', err);
     // Return comprehensive default roles as fallback

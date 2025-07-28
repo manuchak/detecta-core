@@ -86,7 +86,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     clearCache
   } = useSimpleLeads({
     filters: leadsFilters,
-    pagination: { page: currentPage, pageSize: 50 },
+    pagination: { page: currentPage, pageSize: 1000 }, // Aumentado para mostrar más candidatos
     enableCache: true
   });
 
