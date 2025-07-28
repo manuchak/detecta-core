@@ -24,7 +24,7 @@ export const useRecruitmentMonthlyMetrics = () => {
     error,
     refetch
   } = useQuery({
-    queryKey: ['recruitment-monthly-metrics-enriched', realMonthlyROI],
+    queryKey: ['recruitment-monthly-metrics-enriched', realMonthlyROI?.length?.toString() || '0'],
     queryFn: async () => {
       if (!realMonthlyROI || realMonthlyROI.length === 0) {
         return [];
