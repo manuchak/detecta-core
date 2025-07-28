@@ -79,8 +79,8 @@ export const useRecruitmentMonthlyMetrics = () => {
             totalLeads,
             aprobados,
             costoPortLead,
-            cpa: cpa > 0 ? cpa : (monthData.custodios > 0 ? monthData.inversion / monthData.custodios : 0),
-            tasaAprobacion: tasaAprobacion > 0 ? tasaAprobacion : (totalLeads > 0 ? (monthData.custodios / totalLeads) * 100 : 0)
+            cpa,
+            tasaAprobacion
           };
         });
 
