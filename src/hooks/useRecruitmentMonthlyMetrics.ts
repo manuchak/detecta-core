@@ -55,32 +55,44 @@ export const useRecruitmentMonthlyMetrics = () => {
 
         // Enriquecer datos ROI con métricas reales de leads y custodios
         const enrichedData = realMonthlyROI.map(monthData => {
-          // Parse month from string like "enero 2025" o "jun 2025"
-          const [monthName, year] = monthData.mes.split(' ');
+          // Parse month from string like "enero 2025", "febrero de 2025", etc.
+          const mesPartes = monthData.mes.toLowerCase().replace(' de ', ' ').split(' ');
+          const monthName = mesPartes[0];
+          const year = mesPartes[1];
+          
           const monthNames = {
             'enero': 0, 'febrero': 1, 'marzo': 2, 'abril': 3, 'mayo': 4, 'junio': 5,
             'julio': 6, 'agosto': 7, 'septiembre': 8, 'octubre': 9, 'noviembre': 10, 'diciembre': 11,
             'ene': 0, 'feb': 1, 'mar': 2, 'abr': 3, 'may': 4, 'jun': 5,
             'jul': 6, 'ago': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dic': 11
           };
-          const monthIndex = monthNames[monthName.toLowerCase()] ?? new Date(Date.parse(monthName + " 1, " + year)).getMonth();
-          const monthStart = new Date(parseInt(year), monthIndex, 1);
-          const monthEnd = new Date(parseInt(year), monthIndex + 1, 0, 23, 59, 59, 999);
-
-          console.log(`Processing month: ${monthData.mes}, parsed as: ${monthIndex} (${monthStart.toISOString()} - ${monthEnd.toISOString()})`);
+          
+          const monthIndex = monthNames[monthName];
+          
+          console.log(`Processing month: ${monthData.mes}, monthName: ${monthName}, year: ${year}, monthIndex: ${monthIndex}`);
 
           // Calcular leads reales del mes (de la tabla leads)
           const leadsDelMes = leadsData?.filter(lead => {
             const leadDate = new Date(lead.fecha_creacion);
             const leadMonth = leadDate.getMonth();
             const leadYear = leadDate.getFullYear();
-            return leadMonth === monthIndex && leadYear === parseInt(year);
+            const matches = leadMonth === monthIndex && leadYear === parseInt(year);
+            if (monthData.mes.includes('julio') || monthData.mes.includes('junio')) {
+              console.log(`Lead: ${lead.fecha_creacion}, leadMonth: ${leadMonth}, leadYear: ${leadYear}, matches: ${matches}`);
+            }
+            return matches;
           }) || [];
 
           // Calcular custodios que hicieron primer servicio en el mes (para CPA)
           const custodiosNuevosDelMes = custodiosPrimerServicioData?.filter(custodio => {
             const servicioDate = new Date(custodio.fecha_primer_servicio);
-            return servicioDate >= monthStart && servicioDate <= monthEnd;
+            const servicioMonth = servicioDate.getMonth();
+            const servicioYear = servicioDate.getFullYear();
+            const matches = servicioMonth === monthIndex && servicioYear === parseInt(year);
+            if (monthData.mes.includes('julio') || monthData.mes.includes('junio')) {
+              console.log(`Custodio: ${custodio.fecha_primer_servicio}, servicioMonth: ${servicioMonth}, servicioYear: ${servicioYear}, matches: ${matches}`);
+            }
+            return matches;
           }) || [];
 
           const totalLeads = leadsDelMes.length;
