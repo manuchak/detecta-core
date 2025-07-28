@@ -4,6 +4,7 @@ import { useFormatters } from "@/hooks/useFormatters";
 import { useForecastData } from "@/hooks/useForecastData";
 import { useHoltWintersForecast } from "@/hooks/useHoltWintersForecast";
 import { useAdaptiveHybridForecast } from "@/hooks/useAdaptiveHybridForecast";
+import { useForecastEngine } from "@/hooks/useForecastEngine";
 import { TrendingUp, TrendingDown, BarChart3, DollarSign, Calendar, Target, Info, Database, Loader2, AlertTriangle, Activity, Zap, Brain, Settings, RefreshCcw, ChevronDown, ChevronUp, CalendarDays } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -110,10 +111,20 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
   // Hook de forecast híbrido adaptativo
   const hybridForecast = useAdaptiveHybridForecast();
   
-  // Hook de forecast con datos forenses corregidos
-  const forecastData = useForecastData(0, 0);
+  // Hook de forecast con datos forenses corregidos (para referencia)
+  const legacyForecastData = useForecastData(0, 0);
   
-  // Hook de forecast tradicional con parámetros opcionales (para referencia)
+  // Usar el motor de forecast mejorado
+  const forecastEngine = useForecastEngine(
+    useManualParams ? {
+      alpha: manualAlpha,
+      beta: manualBeta,
+      gamma: manualGamma,
+      useManual: true
+    } : undefined
+  );
+  
+  // Hook de forecast tradicional con parámetros opcionales (para compatibilidad)
   const holtWintersData = useHoltWintersForecast(
     useManualParams ? {
       alpha: manualAlpha,
@@ -122,6 +133,25 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
       useManual: true
     } : undefined
   );
+  
+  // Mapear datos del motor mejorado al formato esperado por la UI
+  const forecastData = forecastEngine.error ? legacyForecastData : {
+    monthlyServicesForecast: forecastEngine.monthlyServices,
+    monthlyGmvForecast: forecastEngine.monthlyGMV,
+    annualServicesForecast: forecastEngine.annualServices,
+    annualGmvForecast: forecastEngine.annualGMV,
+    monthlyServicesActual: legacyForecastData.monthlyServicesActual,
+    monthlyGmvActual: legacyForecastData.monthlyGmvActual,
+    annualServicesActual: legacyForecastData.annualServicesActual,
+    annualGmvActual: legacyForecastData.annualGmvActual,
+    monthlyServicesVariance: legacyForecastData.monthlyServicesVariance,
+    monthlyGmvVariance: legacyForecastData.monthlyGmvVariance,
+    annualServicesVariance: legacyForecastData.annualServicesVariance,
+    annualGmvVariance: legacyForecastData.annualGmvVariance,
+    lastDataMonth: legacyForecastData.lastDataMonth,
+    forecastMonth: legacyForecastData.forecastMonth,
+    accuracy: forecastEngine.accuracy
+  };
   
   // Reset a valores optimizados
   const handleResetToOptimal = useCallback(() => {
@@ -134,7 +164,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
   const currentYear = new Date().getFullYear();
   
   // Si hay error en los datos del forecast
-  if (error) {
+  if (error || forecastEngine.error) {
     return (
       <Card className="bg-gradient-to-br from-red-50 via-red-50 to-red-100 border-red-200 shadow-lg">
         <CardHeader className="pb-4">
@@ -165,7 +195,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
   }
 
   // Si está cargando
-  if (isLoading) {
+  if (isLoading || forecastEngine.isLoading) {
     return (
       <Card className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border-0 shadow-xl">
         <CardHeader className="pb-4">
