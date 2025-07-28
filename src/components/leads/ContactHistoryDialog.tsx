@@ -48,7 +48,8 @@ export const ContactHistoryDialog = ({
     'voicemail': 'bg-blue-100 text-blue-800',
     'wrong_number': 'bg-red-100 text-red-800',
     'non_existent_number': 'bg-red-100 text-red-800',
-    'call_failed': 'bg-red-100 text-red-800'
+    'call_failed': 'bg-red-100 text-red-800',
+    'numero_no_disponible': 'bg-gray-100 text-gray-800'
   };
 
   const outcomeLabels = {
@@ -59,7 +60,8 @@ export const ContactHistoryDialog = ({
     'voicemail': 'Buzón de voz',
     'wrong_number': 'Número equivocado',
     'non_existent_number': 'Número inexistente',
-    'call_failed': 'Llamada falló'
+    'call_failed': 'Llamada falló',
+    'numero_no_disponible': 'Número no disponible'
   };
 
   useEffect(() => {

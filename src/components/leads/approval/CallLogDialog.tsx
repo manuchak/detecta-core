@@ -86,6 +86,7 @@ export const CallLogDialog = ({
     { value: 'voicemail', label: 'Buzón de voz', color: 'text-blue-600' },
     { value: 'wrong_number', label: 'Número equivocado', color: 'text-red-600' },
     { value: 'non_existent_number', label: 'Número inexistente', color: 'text-red-600' },
+    { value: 'numero_no_disponible', label: 'Número no disponible', color: 'text-gray-600' },
     { value: 'out_of_service', label: 'Número fuera de servicio', color: 'text-red-600' },
     { value: 'call_failed', label: 'Llamada falló', color: 'text-red-600' }
   ];
