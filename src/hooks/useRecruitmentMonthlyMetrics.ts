@@ -65,14 +65,16 @@ export const useRecruitmentMonthlyMetrics = () => {
           };
           const monthIndex = monthNames[monthName.toLowerCase()] ?? new Date(Date.parse(monthName + " 1, " + year)).getMonth();
           const monthStart = new Date(parseInt(year), monthIndex, 1);
-          const monthEnd = new Date(parseInt(year), monthIndex + 1, 0);
+          const monthEnd = new Date(parseInt(year), monthIndex + 1, 0, 23, 59, 59, 999);
 
           console.log(`Processing month: ${monthData.mes}, parsed as: ${monthIndex} (${monthStart.toISOString()} - ${monthEnd.toISOString()})`);
 
           // Calcular leads reales del mes (de la tabla leads)
           const leadsDelMes = leadsData?.filter(lead => {
             const leadDate = new Date(lead.fecha_creacion);
-            return leadDate >= monthStart && leadDate <= monthEnd;
+            const leadMonth = leadDate.getMonth();
+            const leadYear = leadDate.getFullYear();
+            return leadMonth === monthIndex && leadYear === parseInt(year);
           }) || [];
 
           // Calcular custodios que hicieron primer servicio en el mes (para CPA)
