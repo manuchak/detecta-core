@@ -1,9 +1,12 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { DollarSign, Users, CheckCircle, Target } from 'lucide-react';
+import { DollarSign, Users, CheckCircle, Target, Phone, PhoneCall, UserCheck, TrendingUp } from 'lucide-react';
 import { useRecruitmentMonthlyMetrics } from '@/hooks/useRecruitmentMonthlyMetrics';
+import { useCallCenterMetrics } from '@/hooks/useCallCenterMetrics';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('es-MX', {
@@ -16,10 +19,85 @@ const formatPercentage = (value: number) => {
   return `${value.toFixed(1)}%`;
 };
 
+// Hook para obtener métricas de call center mensuales
+const useMonthlyCallCenterData = () => {
+  return useQuery({
+    queryKey: ['monthly-call-center-metrics'],
+    queryFn: async () => {
+      const { data: callLogs, error } = await supabase
+        .from('manual_call_logs')
+        .select('*')
+        .gte('created_at', new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000).toISOString())
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching call logs:', error);
+        return [];
+      }
+
+      if (!callLogs || callLogs.length === 0) {
+        return [];
+      }
+
+      // Agrupar por mes
+      const monthlyCallData = callLogs.reduce((acc, log) => {
+        const logDate = new Date(log.created_at);
+        const monthKey = `${logDate.getFullYear()}-${String(logDate.getMonth() + 1).padStart(2, '0')}`;
+        const monthLabel = logDate.toLocaleDateString('es-ES', { 
+          month: 'short', 
+          year: 'numeric' 
+        });
+
+        if (!acc[monthKey]) {
+          acc[monthKey] = {
+            mes: monthLabel,
+            totalLlamadas: 0,
+            contactosEfectivos: 0,
+            agentesUnicos: new Set(),
+            leadsUnicos: new Set()
+          };
+        }
+
+        acc[monthKey].totalLlamadas++;
+        
+        if (log.call_outcome === 'successful' || log.call_outcome === 'reschedule_requested') {
+          acc[monthKey].contactosEfectivos++;
+        }
+        
+        if (log.caller_id) {
+          acc[monthKey].agentesUnicos.add(log.caller_id);
+        }
+        
+        if (log.lead_id) {
+          acc[monthKey].leadsUnicos.add(log.lead_id);
+        }
+
+        return acc;
+      }, {});
+
+      // Convertir a array y calcular métricas
+      return Object.values(monthlyCallData).map((monthData: any) => ({
+        mes: monthData.mes,
+        totalLlamadas: monthData.totalLlamadas,
+        contactosEfectivos: monthData.contactosEfectivos,
+        contactabilidad: monthData.totalLlamadas > 0 
+          ? Math.round((monthData.contactosEfectivos / monthData.totalLlamadas) * 100) 
+          : 0,
+        agentesActivos: monthData.agentesUnicos.size,
+        leadsUnicos: monthData.leadsUnicos.size
+      })).sort((a, b) => new Date(a.mes).getTime() - new Date(b.mes).getTime());
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 10 * 60 * 1000
+  });
+};
+
 export const MonthlyMetricsCards = () => {
   const { monthlyData, loading, error } = useRecruitmentMonthlyMetrics();
+  const { data: callCenterData, isLoading: callCenterLoading } = useMonthlyCallCenterData();
 
   console.log('MonthlyMetricsCards - Loading:', loading, 'Error:', error, 'Data:', monthlyData);
+  console.log('CallCenter data:', callCenterData);
 
   if (loading) {
     return (
@@ -83,6 +161,10 @@ export const MonthlyMetricsCards = () => {
     }
     return trend > 0 ? 'positive' : trend < 0 ? 'negative' : 'neutral';
   };
+
+  // Call Center metrics calculations
+  const currentCallCenterMonth = callCenterData && callCenterData.length > 0 ? callCenterData[callCenterData.length - 1] : null;
+  const previousCallCenterMonth = callCenterData && callCenterData.length > 1 ? callCenterData[callCenterData.length - 2] : null;
 
   return (
     <div className="space-y-6">
@@ -198,6 +280,140 @@ export const MonthlyMetricsCards = () => {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Segunda fila: Métricas de Call Center */}
+      <div className="space-y-2">
+        <h3 className="text-lg font-semibold text-foreground">Métricas de Call Center</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Contactabilidad */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <Phone className={`h-4 w-4 ${
+                  currentCallCenterMonth && currentCallCenterMonth.contactabilidad >= 25 
+                    ? 'text-green-600' 
+                    : 'text-red-600'
+                }`} />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Contactabilidad</p>
+                  <div className="flex items-center space-x-2">
+                    <span className={`text-2xl font-bold ${
+                      currentCallCenterMonth && currentCallCenterMonth.contactabilidad >= 25 
+                        ? 'text-green-600' 
+                        : 'text-red-600'
+                    }`}>
+                      {callCenterLoading ? '...' : 
+                        currentCallCenterMonth ? `${currentCallCenterMonth.contactabilidad}%` : 'N/A'
+                      }
+                    </span>
+                    {currentCallCenterMonth && previousCallCenterMonth && (
+                      <span className={`text-xs ${
+                        getTrend(currentCallCenterMonth.contactabilidad, previousCallCenterMonth.contactabilidad) > 0 
+                          ? 'text-green-600' 
+                          : 'text-red-600'
+                      }`}>
+                        {getTrend(currentCallCenterMonth.contactabilidad, previousCallCenterMonth.contactabilidad) > 0 ? '+' : ''}
+                        {getTrend(currentCallCenterMonth.contactabilidad, previousCallCenterMonth.contactabilidad).toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">de llamadas efectivas</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Llamadas Totales */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <PhoneCall className="h-4 w-4 text-blue-600" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Llamadas Mes</p>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-2xl font-bold text-blue-600">
+                      {callCenterLoading ? '...' : 
+                        currentCallCenterMonth ? currentCallCenterMonth.totalLlamadas : 'N/A'
+                      }
+                    </span>
+                    {currentCallCenterMonth && previousCallCenterMonth && (
+                      <span className={`text-xs ${
+                        getTrend(currentCallCenterMonth.totalLlamadas, previousCallCenterMonth.totalLlamadas) > 0 
+                          ? 'text-green-600' 
+                          : 'text-red-600'
+                      }`}>
+                        {getTrend(currentCallCenterMonth.totalLlamadas, previousCallCenterMonth.totalLlamadas) > 0 ? '+' : ''}
+                        {getTrend(currentCallCenterMonth.totalLlamadas, previousCallCenterMonth.totalLlamadas).toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">total realizadas</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Contactos Efectivos */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Contactos Efectivos</p>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-2xl font-bold text-green-600">
+                      {callCenterLoading ? '...' : 
+                        currentCallCenterMonth ? currentCallCenterMonth.contactosEfectivos : 'N/A'
+                      }
+                    </span>
+                    {currentCallCenterMonth && previousCallCenterMonth && (
+                      <span className={`text-xs ${
+                        getTrend(currentCallCenterMonth.contactosEfectivos, previousCallCenterMonth.contactosEfectivos) > 0 
+                          ? 'text-green-600' 
+                          : 'text-red-600'
+                      }`}>
+                        {getTrend(currentCallCenterMonth.contactosEfectivos, previousCallCenterMonth.contactosEfectivos) > 0 ? '+' : ''}
+                        {getTrend(currentCallCenterMonth.contactosEfectivos, previousCallCenterMonth.contactosEfectivos).toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">exitosos en el mes</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Agentes Activos */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <UserCheck className="h-4 w-4 text-purple-600" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Agentes Activos</p>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-2xl font-bold text-purple-600">
+                      {callCenterLoading ? '...' : 
+                        currentCallCenterMonth ? currentCallCenterMonth.agentesActivos : 'N/A'
+                      }
+                    </span>
+                    {currentCallCenterMonth && previousCallCenterMonth && (
+                      <span className={`text-xs ${
+                        getTrend(currentCallCenterMonth.agentesActivos, previousCallCenterMonth.agentesActivos) > 0 
+                          ? 'text-green-600' 
+                          : 'text-red-600'
+                      }`}>
+                        {getTrend(currentCallCenterMonth.agentesActivos, previousCallCenterMonth.agentesActivos) > 0 ? '+' : ''}
+                        {getTrend(currentCallCenterMonth.agentesActivos, previousCallCenterMonth.agentesActivos).toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">agentes únicos</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Gráficos detallados */}
@@ -345,6 +561,79 @@ export const MonthlyMetricsCards = () => {
                   fill="hsl(var(--primary))"
                   radius={[4, 4, 0, 0]}
                   name="Aprobados"
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Gráfico Evolución Call Center - Contactabilidad */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Phone className="h-5 w-5" />
+              Evolución Contactabilidad
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={callCenterData || []}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="mes" 
+                  tick={{ fontSize: 12 }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip 
+                  formatter={(value: number) => [`${value}%`, 'Contactabilidad']}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="contactabilidad" 
+                  stroke="hsl(var(--chart-1))" 
+                  strokeWidth={3}
+                  dot={{ fill: 'hsl(var(--chart-1))', strokeWidth: 2, r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Gráfico Call Center - Volumen de Llamadas */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <PhoneCall className="h-5 w-5" />
+              Volumen de Llamadas Mensual
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={callCenterData || []}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="mes" 
+                  tick={{ fontSize: 12 }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Bar 
+                  dataKey="totalLlamadas" 
+                  fill="hsl(var(--chart-2))"
+                  radius={[4, 4, 0, 0]}
+                  name="Total Llamadas"
+                />
+                <Bar 
+                  dataKey="contactosEfectivos" 
+                  fill="hsl(var(--chart-3))"
+                  radius={[4, 4, 0, 0]}
+                  name="Contactos Efectivos"
                 />
               </BarChart>
             </ResponsiveContainer>
