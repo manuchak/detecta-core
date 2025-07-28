@@ -78,7 +78,7 @@ export interface ManualCallLog {
   id: string;
   lead_id: string;
   caller_id: string;
-  call_outcome: 'successful' | 'no_answer' | 'busy' | 'voicemail' | 'wrong_number' | 'non_existent_number' | 'call_failed' | 'reschedule_requested';
+  call_outcome: 'successful' | 'no_answer' | 'busy' | 'voicemail' | 'wrong_number' | 'non_existent_number' | 'call_failed' | 'reschedule_requested' | 'numero_no_disponible';
   call_notes?: string;
   call_duration_minutes?: number;
   call_datetime: string;
