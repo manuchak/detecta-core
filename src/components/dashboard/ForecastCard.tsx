@@ -1,6 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFormatters } from "@/hooks/useFormatters";
+import { useForecastData } from "@/hooks/useForecastData";
 import { useHoltWintersForecast } from "@/hooks/useHoltWintersForecast";
 import { useAdaptiveHybridForecast } from "@/hooks/useAdaptiveHybridForecast";
 import { TrendingUp, TrendingDown, BarChart3, DollarSign, Calendar, Target, Info, Database, Loader2, AlertTriangle, Activity, Zap, Brain, Settings, RefreshCcw, ChevronDown, ChevronUp, CalendarDays } from "lucide-react";
@@ -109,8 +110,11 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
   // Hook de forecast híbrido adaptativo
   const hybridForecast = useAdaptiveHybridForecast();
   
-  // Hook de forecast tradicional con parámetros opcionales
-  const forecastData = useHoltWintersForecast(
+  // Hook de forecast con datos forenses corregidos
+  const forecastData = useForecastData(0, 0);
+  
+  // Hook de forecast tradicional con parámetros opcionales (para referencia)
+  const holtWintersData = useHoltWintersForecast(
     useManualParams ? {
       alpha: manualAlpha,
       beta: manualBeta,
@@ -304,13 +308,13 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
                   <Brain className="h-3 w-3 mr-1" />
                   Holt-Winters
                 </Badge>
-                <Badge variant="outline" className="text-slate-600">
-                  <Activity className="h-3 w-3 mr-1" />
-                  MAPE: {forecastData.accuracy.serviceMAPE.toFixed(1)}%
-                </Badge>
-                <Badge variant="outline" className="text-slate-600">
-                  Confianza: {forecastData.accuracy.confidence}
-                </Badge>
+                 <Badge variant="outline" className="text-slate-600">
+                   <Activity className="h-3 w-3 mr-1" />
+                   MAPE: {holtWintersData.accuracy.serviceMAPE.toFixed(1)}%
+                 </Badge>
+                 <Badge variant="outline" className="text-slate-600">
+                   Confianza: {holtWintersData.accuracy.confidence}
+                 </Badge>
               </div>
             </div>
           </div>
@@ -432,7 +436,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
               <div className="w-3 h-3 bg-purple-500 rounded-full flex-shrink-0"></div>
               <div className="text-sm">
                 <div className="font-medium text-gray-900">Precisión MAPE</div>
-                <div className="text-gray-600">{forecastData.accuracy.serviceMAPE.toFixed(1)}% servicios</div>
+                <div className="text-gray-600">{holtWintersData.accuracy.serviceMAPE.toFixed(1)}% servicios</div>
               </div>
             </div>
             
@@ -440,7 +444,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
               <div className="w-3 h-3 bg-orange-500 rounded-full flex-shrink-0"></div>
               <div className="text-sm">
                 <div className="font-medium text-gray-900">Confianza</div>
-                <div className="text-gray-600">{forecastData.accuracy.confidence}</div>
+                <div className="text-gray-600">{holtWintersData.accuracy.confidence}</div>
               </div>
             </div>
           </div>
