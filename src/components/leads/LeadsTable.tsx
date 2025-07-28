@@ -321,7 +321,11 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
   // MAIN RENDER
   return (
     <div className="space-y-4">
-      <LeadsMetricsDashboard leads={leads || []} />
+      <LeadsMetricsDashboard 
+        leads={leads || []} 
+        dateFrom={advancedFilters.dateFrom || undefined}
+        dateTo={advancedFilters.dateTo || undefined}
+      />
 
       <QuickFilters 
         onApplyFilter={handleQuickFilter}

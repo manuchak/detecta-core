@@ -1,15 +1,24 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, UserCheck, UserX, Clock, TrendingUp, Database } from "lucide-react";
+import { Users, UserCheck, UserX, Clock, TrendingUp, Database, Phone, PhoneCall, CheckCircle, Target } from "lucide-react";
 import { Lead } from "@/types/leadTypes";
 import { useMemo } from "react";
+import { useCallCenterMetrics } from "@/hooks/useCallCenterMetrics";
 
 interface LeadsMetricsDashboardProps {
   leads: Lead[];
+  dateFrom?: string;
+  dateTo?: string;
 }
 
-export const LeadsMetricsDashboard = ({ leads }: LeadsMetricsDashboardProps) => {
+export const LeadsMetricsDashboard = ({ leads, dateFrom, dateTo }: LeadsMetricsDashboardProps) => {
+  // Hook para métricas de call center
+  const { metrics: callCenterMetrics, isLoading: callCenterLoading } = useCallCenterMetrics({
+    dateFrom,
+    dateTo,
+    enabled: true
+  });
   const metrics = useMemo(() => {
     // Validar que leads sea un array válido
     if (!Array.isArray(leads)) {
@@ -25,20 +34,37 @@ export const LeadsMetricsDashboard = ({ leads }: LeadsMetricsDashboardProps) => 
       };
     }
 
-    const total = leads.length;
-    const assigned = leads.filter(lead => lead?.asignado_a).length;
+    // Filtrar leads por rango de fechas si se proporcionan
+    let filteredLeads = leads;
+    if (dateFrom || dateTo) {
+      filteredLeads = leads.filter(lead => {
+        if (!lead.fecha_creacion) return false;
+        
+        const leadDate = new Date(lead.fecha_creacion);
+        const fromDate = dateFrom ? new Date(dateFrom) : new Date('1900-01-01');
+        const toDate = dateTo ? new Date(dateTo) : new Date('2100-12-31');
+        
+        // Incluir todo el día final
+        toDate.setHours(23, 59, 59, 999);
+        
+        return leadDate >= fromDate && leadDate <= toDate;
+      });
+    }
+
+    const total = filteredLeads.length;
+    const assigned = filteredLeads.filter(lead => lead?.asignado_a).length;
     const unassigned = total - assigned;
-    const newLeads = leads.filter(lead => lead?.estado === 'nuevo').length;
-    const inProcess = leads.filter(lead => lead?.estado === 'en_revision').length;
-    const approved = leads.filter(lead => lead?.estado === 'aprobado').length;
+    const newLeads = filteredLeads.filter(lead => lead?.estado === 'nuevo').length;
+    const inProcess = filteredLeads.filter(lead => lead?.estado === 'en_revision').length;
+    const approved = filteredLeads.filter(lead => lead?.estado === 'aprobado').length;
     
     // Calcular tiempo promedio entre creación y asignación en horas
-    const assignedLeads = leads.filter(lead => lead && lead.asignado_a && lead.fecha_creacion);
+    const assignedLeads = filteredLeads.filter(lead => lead && lead.asignado_a && lead.fecha_creacion);
     
-    console.log('📊 Debug - Total leads:', leads.length);
-    console.log('📊 Debug - Leads asignados (con asignado_a):', leads.filter(lead => lead?.asignado_a).length);
-    console.log('📊 Debug - Leads con fecha_creacion:', leads.filter(lead => lead?.fecha_creacion).length);
-    console.log('📊 Debug - Leads con fecha_contacto:', leads.filter(lead => lead?.fecha_contacto).length);
+    console.log('📊 Debug - Total leads filtrados:', filteredLeads.length);
+    console.log('📊 Debug - Leads asignados (con asignado_a):', filteredLeads.filter(lead => lead?.asignado_a).length);
+    console.log('📊 Debug - Leads con fecha_creacion:', filteredLeads.filter(lead => lead?.fecha_creacion).length);
+    console.log('📊 Debug - Leads con fecha_contacto:', filteredLeads.filter(lead => lead?.fecha_contacto).length);
     console.log('📊 Debug - Leads asignados válidos para cálculo:', assignedLeads.length);
     
     let avgHoursToAssignment = 0;
@@ -88,10 +114,12 @@ export const LeadsMetricsDashboard = ({ leads }: LeadsMetricsDashboardProps) => 
       avgHoursToAssignment,
       assignmentRate
     };
-  }, [leads]); // Solo depende del array de leads
+  }, [leads, dateFrom, dateTo]); // Depende de leads y filtros de fecha
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+    <div className="space-y-6 mb-6">
+      {/* Primera fila: Métricas de Leads */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Candidatos</CardTitle>
@@ -176,6 +204,85 @@ export const LeadsMetricsDashboard = ({ leads }: LeadsMetricsDashboardProps) => 
           </div>
         </CardContent>
       </Card>
+      </div>
+
+      {/* Segunda fila: Métricas de Call Center */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Contactabilidad</CardTitle>
+            <Phone className={`h-4 w-4 ${callCenterMetrics.contactabilidad >= 25 ? 'text-green-600' : 'text-red-600'}`} />
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${callCenterMetrics.contactabilidad >= 25 ? 'text-green-600' : 'text-red-600'}`}>
+              {callCenterLoading ? '...' : `${callCenterMetrics.contactabilidad}%`}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              de llamadas efectivas
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Llamadas/Día</CardTitle>
+            <PhoneCall className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">
+              {callCenterLoading ? '...' : callCenterMetrics.llamadasPromedioDia}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              promedio por día
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Contactos Efectivos/Día</CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {callCenterLoading ? '...' : callCenterMetrics.contactosEfectivosDia}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              contactos exitosos/día
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Agentes Activos</CardTitle>
+            <Users className="h-4 w-4 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600">
+              {callCenterLoading ? '...' : callCenterMetrics.agentesActivos}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              agentes únicos activos
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Leads Únicos Contactados</CardTitle>
+            <Target className="h-4 w-4 text-orange-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">
+              {callCenterLoading ? '...' : callCenterMetrics.leadsUnicosContactados}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              leads únicos alcanzados
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

@@ -12,3 +12,4 @@ export { useCustomerLTV } from './useCustomerLTV';
 export { useROIMarketingDetails } from './useROIMarketingDetails';
 export { useROIMarketingMonthly } from './useROIMarketingMonthly';
 export { useRecruitmentMonthlyMetrics } from './useRecruitmentMonthlyMetrics';
+export { useCallCenterMetrics } from './useCallCenterMetrics';
