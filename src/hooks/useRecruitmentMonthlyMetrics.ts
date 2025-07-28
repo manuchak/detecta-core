@@ -31,18 +31,29 @@ export const useRecruitmentMonthlyMetrics = () => {
       }
 
       try {
-        // Obtener candidatos para calcular leads y tasa de aprobación
-        const { data: candidatosData, error: candidatosError } = await supabase
-          .from('candidatos_custodios')
-          .select('created_at, nombre, estado_proceso')
-          .gte('created_at', new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000).toISOString())
-          .order('created_at', { ascending: true });
+        // Obtener leads reales de la tabla leads
+        const { data: leadsData, error: leadsError } = await supabase
+          .from('leads')
+          .select('fecha_creacion')
+          .gte('fecha_creacion', new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000).toISOString())
+          .order('fecha_creacion', { ascending: true });
 
-        if (candidatosError) {
-          console.error('Error fetching candidatos:', candidatosError);
+        if (leadsError) {
+          console.error('Error fetching leads:', leadsError);
         }
 
-        // Enriquecer datos ROI con métricas de candidatos
+        // Obtener custodios que hicieron su primer servicio (datos reales para CPA)
+        const { data: custodiosPrimerServicioData, error: custodiosError } = await supabase
+          .from('custodios_primer_servicio_zona')
+          .select('fecha_primer_servicio, custodio_id')
+          .gte('fecha_primer_servicio', new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000).toISOString())
+          .order('fecha_primer_servicio', { ascending: true });
+
+        if (custodiosError) {
+          console.error('Error fetching custodios primer servicio:', custodiosError);
+        }
+
+        // Enriquecer datos ROI con métricas reales de leads y custodios
         const enrichedData = realMonthlyROI.map(monthData => {
           // Parse month from string like "enero 2025"
           const [monthName, year] = monthData.mes.split(' ');
@@ -50,21 +61,25 @@ export const useRecruitmentMonthlyMetrics = () => {
           const monthStart = new Date(parseInt(year), monthIndex, 1);
           const monthEnd = new Date(parseInt(year), monthIndex + 1, 0);
 
-          // Calcular leads del mes
-          const leadsDelMes = candidatosData?.filter(candidato => {
-            const candidatoDate = new Date(candidato.created_at);
-            return candidatoDate >= monthStart && candidatoDate <= monthEnd;
+          // Calcular leads reales del mes (de la tabla leads)
+          const leadsDelMes = leadsData?.filter(lead => {
+            const leadDate = new Date(lead.fecha_creacion);
+            return leadDate >= monthStart && leadDate <= monthEnd;
+          }) || [];
+
+          // Calcular custodios que hicieron primer servicio en el mes (para CPA)
+          const custodiosNuevosDelMes = custodiosPrimerServicioData?.filter(custodio => {
+            const servicioDate = new Date(custodio.fecha_primer_servicio);
+            return servicioDate >= monthStart && servicioDate <= monthEnd;
           }) || [];
 
           const totalLeads = leadsDelMes.length;
-          const aprobados = leadsDelMes.filter(c => 
-            c.estado_proceso === 'aprobado' || c.estado_proceso === 'activo'
-          ).length;
+          const custodiosNuevos = custodiosNuevosDelMes.length;
 
-          // Calcular métricas
+          // Calcular métricas correctas
           const costoPortLead = totalLeads > 0 ? monthData.inversion / totalLeads : 0;
-          const cpa = aprobados > 0 ? monthData.inversion / aprobados : 0;
-          const tasaAprobacion = totalLeads > 0 ? (aprobados / totalLeads) * 100 : 0;
+          const cpa = custodiosNuevos > 0 ? monthData.inversion / custodiosNuevos : 0;
+          const tasaAprobacion = totalLeads > 0 ? (custodiosNuevos / totalLeads) * 100 : 0;
 
           return {
             mes: monthData.mes.replace(/(\w+) (\d+)/, (_, month, year) => {
@@ -77,7 +92,7 @@ export const useRecruitmentMonthlyMetrics = () => {
             }),
             inversion: monthData.inversion,
             totalLeads,
-            aprobados,
+            aprobados: custodiosNuevos,
             costoPortLead,
             cpa,
             tasaAprobacion
