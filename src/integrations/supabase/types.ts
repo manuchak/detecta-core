@@ -6761,9 +6761,7 @@ export type Database = {
       }
       get_available_roles_secure: {
         Args: Record<PropertyKey, never>
-        Returns: {
-          role: string
-        }[]
+        Returns: string[]
       }
       get_ciudades_safe: {
         Args: { estado_uuid: string }
