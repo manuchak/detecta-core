@@ -48,6 +48,7 @@ import ExecutiveRecruitmentDashboard from '@/pages/ExecutiveRecruitmentDashboard
 import SupplyDashboardExtended from '@/pages/supply/SupplyDashboardExtended';
 import SIERCPPage from '@/pages/evaluation/SIERCPPage';
 import SIERCPMethodologyPage from '@/pages/evaluation/SIERCPMethodologyPage';
+import ServiceWorkflowDocumentation from '@/pages/Documentation/ServiceWorkflowDocumentation';
 
 import DuplicateCleanupPage from '@/pages/Maintenance/DuplicateCleanupPage';
 
@@ -447,10 +448,22 @@ function App() {
                   path="/evaluation/siercp/methodology"
                   element={
                     <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin']}>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'jefe_seguridad', 'analista_seguridad']}>
                         <DashboardLayout>
                           <SIERCPMethodologyPage />
                         </DashboardLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Service Workflow Documentation Route */}
+                <Route
+                  path="/documentation/workflow"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'coordinador_operaciones', 'jefe_seguridad', 'analista_seguridad']}>
+                        <ServiceWorkflowDocumentation />
                       </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
