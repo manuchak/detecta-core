@@ -55,11 +55,19 @@ export const useRecruitmentMonthlyMetrics = () => {
 
         // Enriquecer datos ROI con métricas reales de leads y custodios
         const enrichedData = realMonthlyROI.map(monthData => {
-          // Parse month from string like "enero 2025"
+          // Parse month from string like "enero 2025" o "jun 2025"
           const [monthName, year] = monthData.mes.split(' ');
-          const monthIndex = new Date(Date.parse(monthName + " 1, " + year)).getMonth();
+          const monthNames = {
+            'enero': 0, 'febrero': 1, 'marzo': 2, 'abril': 3, 'mayo': 4, 'junio': 5,
+            'julio': 6, 'agosto': 7, 'septiembre': 8, 'octubre': 9, 'noviembre': 10, 'diciembre': 11,
+            'ene': 0, 'feb': 1, 'mar': 2, 'abr': 3, 'may': 4, 'jun': 5,
+            'jul': 6, 'ago': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dic': 11
+          };
+          const monthIndex = monthNames[monthName.toLowerCase()] ?? new Date(Date.parse(monthName + " 1, " + year)).getMonth();
           const monthStart = new Date(parseInt(year), monthIndex, 1);
           const monthEnd = new Date(parseInt(year), monthIndex + 1, 0);
+
+          console.log(`Processing month: ${monthData.mes}, parsed as: ${monthIndex} (${monthStart.toISOString()} - ${monthEnd.toISOString()})`);
 
           // Calcular leads reales del mes (de la tabla leads)
           const leadsDelMes = leadsData?.filter(lead => {
@@ -75,6 +83,8 @@ export const useRecruitmentMonthlyMetrics = () => {
 
           const totalLeads = leadsDelMes.length;
           const custodiosNuevos = custodiosNuevosDelMes.length;
+
+          console.log(`Month ${monthData.mes}: totalLeads=${totalLeads}, custodiosNuevos=${custodiosNuevos}, inversion=${monthData.inversion}`);
 
           // Calcular métricas correctas
           const costoPortLead = totalLeads > 0 ? monthData.inversion / totalLeads : 0;
