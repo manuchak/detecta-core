@@ -434,10 +434,13 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
   const annualGMVProgress = annualGMV > 0 ? (actualAnnualGMV / annualGMV) * 100 : 0;
   
   // Calculate specific variances for each metric
+  // Monthly: Compare actual monthly vs forecast monthly (both for current month)
   const monthlyServicesVariance = currentMonthServices > 0 && forecastData.monthlyServices?.actual ? 
     ((forecastData.monthlyServices.actual - currentMonthServices) / currentMonthServices) * 100 : 0;
   const monthlyGMVVariance = currentMonthGMV > 0 && forecastData.monthlyGMV?.actual ? 
     ((forecastData.monthlyGMV.actual - currentMonthGMV) / currentMonthGMV) * 100 : 0;
+  
+  // Annual: Compare YTD actual vs annual forecast (progress-based comparison)
   const annualServicesVariance = annualServices > 0 ? 
     ((actualAnnualServices - annualServices) / annualServices) * 100 : 0;
   const annualGMVVariance = annualGMV > 0 ? 
