@@ -15,6 +15,7 @@ import {
   Battery
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { AddGL320MGModelButton } from './AddGL320MGModelButton';
 
 export const AddGL320MGButton = () => {
   const [isAdding, setIsAdding] = useState(false);
@@ -239,6 +240,14 @@ export const AddGL320MGButton = () => {
                 <li>• Stock inicial: 0 unidades</li>
               </ul>
             </div>
+          </div>
+          
+          {/* Botón para agregar también al catálogo de modelos */}
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-700 mb-2">
+              <strong>Siguiente paso:</strong> Para que aparezca en el dropdown "Modelo GPS" del formulario:
+            </p>
+            <AddGL320MGModelButton />
           </div>
         </CardContent>
       </Card>
