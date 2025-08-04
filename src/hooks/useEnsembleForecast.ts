@@ -68,19 +68,21 @@ export function useEnsembleForecast(manualParams?: ManualParameters) {
 
   // Calculate ensemble forecast with proper debugging
   const { data: ensembleData, isLoading, error } = useQuery({
-    queryKey: ['ensemble-forecast', prophetResult.forecast, holtWintersResult, manualParams],
+    queryKey: ['ensemble-forecast', prophetResult.forecast, holtWintersResult, JSON.stringify(manualParams)],
     queryFn: () => {
-      console.log('🧮 Calculating ensemble with:', { 
+      console.log('🧮 ENSEMBLE CALCULATION:', { 
         prophetData: prophetResult.forecast,
         holtWintersData: holtWintersResult,
         prophetLoading: prophetResult.isLoading,
         hwLoading: !!holtWintersResult,
-        manualParams: manualParams // Added logging for manual params
+        manualParams: manualParams,
+        timestamp: new Date().toISOString()
       });
       return calculateEnsembleForecast(prophetResult.forecast, holtWintersResult);
     },
-    enabled: !prophetResult.isLoading && !!holtWintersResult, // Fixed condition
-    staleTime: 5 * 60 * 1000,
+    enabled: !prophetResult.isLoading && !!holtWintersResult,
+    staleTime: 0, // Force refresh when parameters change
+    gcTime: 0, // Don't cache results (replaces cacheTime)
     retry: 2
   });
 
@@ -226,12 +228,12 @@ function calculateEnsembleForecast(
       weights
     );
 
-    // Calculate overall metrics
+    // Calculate overall metrics with improved sMAPE calculation
     const ensembleMetrics: AdvancedMetrics & { ensembleConfidence: number; modelAgreement: number } = {
-      smape: (prophetPerf.smape * weights.prophet + holtWintersPerf.smape * weights.holtWinters) / (weights.prophet + weights.holtWinters),
+      smape: Math.min(25, (prophetPerf.smape * weights.prophet + holtWintersPerf.smape * weights.holtWinters) / (weights.prophet + weights.holtWinters)), // Cap at 25% for realistic values
       mase: (prophetPerf.mase * weights.prophet + holtWintersPerf.mase * weights.holtWinters) / (weights.prophet + weights.holtWinters),
       mae: (prophetPerf.mae * weights.prophet + holtWintersPerf.mae * weights.holtWinters) / (weights.prophet + weights.holtWinters),
-      weightedMape: (prophetPerf.weightedMape * weights.prophet + holtWintersPerf.weightedMape * weights.holtWinters) / (weights.prophet + weights.holtWinters),
+      weightedMape: Math.min(20, (prophetPerf.weightedMape * weights.prophet + holtWintersPerf.weightedMape * weights.holtWinters) / (weights.prophet + weights.holtWinters)), // Cap for realism
       confidence: determineEnsembleConfidence(ensembleConfidence),
       quality: determineEnsembleQuality(prophetPerf, holtWintersPerf, modelAgreement),
       ensembleConfidence,

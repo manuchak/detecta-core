@@ -83,21 +83,25 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
   }, [canModify, updateConfig]);
 
   const handleUseManualChange = useCallback((value: boolean) => {
+    console.log('🔄 MANUAL MODE CHANGE:', value);
     setUseManualParams(value);
     updateGlobalConfig({ use_manual: value });
   }, [updateGlobalConfig]);
 
   const handleAlphaChange = useCallback((value: number) => {
+    console.log('🔄 ALPHA CHANGE:', value);
     setManualAlpha(value);
     updateGlobalConfig({ alpha: value });
   }, [updateGlobalConfig]);
 
   const handleBetaChange = useCallback((value: number) => {
+    console.log('🔄 BETA CHANGE:', value);
     setManualBeta(value);
     updateGlobalConfig({ beta: value });
   }, [updateGlobalConfig]);
 
   const handleGammaChange = useCallback((value: number) => {
+    console.log('🔄 GAMMA CHANGE:', value);
     setManualGamma(value);
     updateGlobalConfig({ gamma: value });
   }, [updateGlobalConfig]);
