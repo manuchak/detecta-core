@@ -36,7 +36,7 @@ export const useProductosInventario = () => {
       if (error) throw error;
 
       // Crear registro inicial de stock
-      await supabase
+      const { error: stockError } = await supabase
         .from('stock_productos')
         .insert({
           producto_id: data.id,
@@ -45,6 +45,11 @@ export const useProductosInventario = () => {
           cantidad_transito: 0,
           valor_inventario: 0
         });
+
+      if (stockError) {
+        console.error('Error creating stock record:', stockError);
+        throw stockError;
+      }
 
       return data;
     },
