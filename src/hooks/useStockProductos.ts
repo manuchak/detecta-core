@@ -124,11 +124,17 @@ export const useStockProductos = () => {
     mutationFn: async ({ 
       producto_id, 
       nueva_cantidad, 
-      motivo 
+      motivo,
+      seriales
     }: { 
       producto_id: string; 
       nueva_cantidad: number; 
       motivo: string; 
+      seriales?: Array<{
+        numero_serie: string;
+        imei?: string;
+        mac_address?: string;
+      }>;
     }) => {
       // Obtener cantidad actual
       const { data: stockActual } = await supabase
@@ -171,6 +177,28 @@ export const useStockProductos = () => {
         });
 
       if (movError) throw movError;
+
+      // Si hay seriales para registrar (para entradas de productos serializados)
+      if (seriales && seriales.length > 0 && diferencia > 0) {
+        const serialesParaInsertar = seriales.map(serial => ({
+          producto_id,
+          numero_serie: serial.numero_serie.trim(),
+          imei: serial.imei?.trim() || null,
+          mac_address: serial.mac_address?.trim() || null,
+          estado: 'disponible',
+          fecha_ingreso: new Date().toISOString(),
+          // orden_compra_id se puede agregar después si es necesario
+        }));
+
+        const { error: serialesError } = await supabase
+          .from('productos_serie')
+          .insert(serialesParaInsertar);
+
+        if (serialesError) {
+          console.error('Error inserting serials:', serialesError);
+          throw new Error(`Error al registrar números de serie: ${serialesError.message}`);
+        }
+      }
 
       return { producto_id, nueva_cantidad, diferencia };
     },
