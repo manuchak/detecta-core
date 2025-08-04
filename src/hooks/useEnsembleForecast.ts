@@ -251,7 +251,7 @@ function calculateEnsembleForecast(
       // Primary forecasts - match ForecastCard expectations
       monthlyServices: {
         forecast: ensembleServices,
-        actual: getActualMonthlyServices() // Use real current month data
+        actual: ytdServiciosReales // YTD 2025 real data
       },
       annualServices: {
         forecast: ytdServiciosReales + ensembleServices * 5, // YTD 2025 real + 5 meses restantes
@@ -259,7 +259,7 @@ function calculateEnsembleForecast(
       },
       monthlyGMV: {
         forecast: ensembleGMV,
-        actual: getActualMonthlyGMV() // Use real current month data
+        actual: ytdGMVReal // YTD 2025 real data
       },
       annualGMV: {
         forecast: ytdGMVReal + ensembleGMV * 5, // YTD 2025 real + 5 meses restantes
