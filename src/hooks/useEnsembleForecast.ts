@@ -74,7 +74,8 @@ export function useEnsembleForecast(manualParams?: ManualParameters) {
         prophetData: prophetResult.forecast,
         holtWintersData: holtWintersResult,
         prophetLoading: prophetResult.isLoading,
-        hwLoading: !!holtWintersResult
+        hwLoading: !!holtWintersResult,
+        manualParams: manualParams // Added logging for manual params
       });
       return calculateEnsembleForecast(prophetResult.forecast, holtWintersResult);
     },

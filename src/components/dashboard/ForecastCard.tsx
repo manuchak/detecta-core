@@ -123,13 +123,22 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
 
   // PHASE 1: DEBUG LOGGING - Monitor data flow with deep analysis
   console.log('🔍 ForecastCard Deep Debug:', {
+    useManualParams: useManualParams,
+    manualParams: manualParams,
     ensembleAvailable: !!ensembleForecast.forecast,
     ensembleLoading: ensembleForecast.isLoading,
     ensembleError: !!ensembleForecast.error,
     ensembleErrorDetails: ensembleForecast.error,
     holtWintersAvailable: !!holtWintersResult,
     priorityUsed: ensembleForecast.forecast ? 'ENSEMBLE' : 'HOLT-WINTERS',
-    rawEnsembleData: ensembleForecast.rawModels
+    rawEnsembleData: ensembleForecast.rawModels,
+    parameterFlow: {
+      localAlpha: manualAlpha,
+      localBeta: manualBeta,
+      localGamma: manualGamma,
+      useManual: useManualParams,
+      effectiveParams: manualParams
+    }
   });
 
   // DEEP DEBUG: Check Prophet hook directly to isolate the issue
