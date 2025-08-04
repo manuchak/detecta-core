@@ -7754,24 +7754,15 @@ export type Database = {
         Returns: number
       }
       update_approval_process: {
-        Args:
-          | {
-              p_lead_id: string
-              p_stage: string
-              p_interview_method: string
-              p_notes: string
-              p_decision?: string
-              p_decision_reason?: string
-            }
-          | {
-              p_lead_id: string
-              p_stage: string
-              p_interview_method?: string
-              p_notes?: string
-              p_decision?: string
-              p_decision_reason?: string
-            }
-        Returns: boolean
+        Args: {
+          p_lead_id: string
+          p_stage: string
+          p_interview_method?: string
+          p_notes?: string
+          p_decision?: string
+          p_decision_reason?: string
+        }
+        Returns: undefined
       }
       update_last_login: {
         Args: Record<PropertyKey, never>
