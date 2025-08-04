@@ -428,6 +428,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
   const varianceServices = getNumericValue(forecastData.variance);
   
   // Fix: Progress should be (actual_ytd / annual_forecast) * 100, not monthly * 12
+  // Force rebuild to clear cached reference to monthlyGMVProgress
   const actualAnnualServices = typeof forecastData.annualServices === 'object' ? forecastData.annualServices.actual : 5238; // YTD real
   const actualAnnualGMV = typeof forecastData.annualGMV === 'object' ? forecastData.annualGMV.actual : 33266311; // YTD real
   
