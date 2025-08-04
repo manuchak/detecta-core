@@ -194,25 +194,32 @@ export const useHoltWintersForecast = (manualParams?: ManualParameters): Forecas
       // CORRECCIÓN CRÍTICA: Si tenemos datos del mes actual, aplicar corrección híbrida
       if (currentMonthData && currentMonthData.daysElapsed > 5) {
         const monthProgress = currentMonthData.daysElapsed / currentMonthData.totalDaysInMonth;
+        
+        // Usar datos históricos para un forecast más realista
+        // Promedio histórico de julio de años anteriores
+        const julyHistorical = historicalData.filter(d => d.month === 7);
+        const avgJulyServices = julyHistorical.length > 0 
+          ? julyHistorical.reduce((sum, d) => sum + d.services_completed, 0) / julyHistorical.length
+          : monthlyServicesForecast;
+        
+        console.log(`📊 JULIO HISTÓRICO: ${julyHistorical.length} años, promedio: ${Math.round(avgJulyServices)} servicios`);
+        
+        // Usar el promedio histórico de julio como base realista
+        const realisticJulyForecast = Math.round(avgJulyServices);
+        
+        // Si tenemos progreso del mes, hacer proyección híbrida
         const intraMonthProjection = currentMonthData.projectedMonthEnd;
         
-        // VALIDACIÓN CRÍTICA: Verificar que la proyección intra-mes sea razonable
-        if (intraMonthProjection > 2000) {
-          console.log(`🚨 PROYECCIÓN INTRA-MES IRREAL: ${intraMonthProjection} servicios`);
-          console.log(`🔧 USANDO PROYECCIÓN CONSERVADORA BASADA EN DATOS DASHBOARD`);
-          // Usar proyección más conservadora basada en datos reales
-          const conservativeProjection = Math.min(intraMonthProjection, 850); // Límite razonable
-          
+        if (intraMonthProjection > 300 && intraMonthProjection < 1500) {
+          // Usar proyección intra-mes si es razonable
+          const realDataWeight = Math.min(0.6, monthProgress * 1.5);
           monthlyServicesForecast = Math.round(
-            (conservativeProjection * 0.8) + (monthlyServicesForecast * 0.2)
+            (intraMonthProjection * realDataWeight) + (realisticJulyForecast * (1 - realDataWeight))
           );
         } else {
-          // Peso híbrido: más peso a datos reales conforme avanza el mes
-          const realDataWeight = Math.min(0.7, monthProgress * 1.2);
-          const forecastWeight = 1 - realDataWeight;
-          
+          // Usar forecast histórico de julio más peso del Holt-Winters
           monthlyServicesForecast = Math.round(
-            (intraMonthProjection * realDataWeight) + (monthlyServicesForecast * forecastWeight)
+            (realisticJulyForecast * 0.7) + (monthlyServicesForecast * 0.3)
           );
         }
         

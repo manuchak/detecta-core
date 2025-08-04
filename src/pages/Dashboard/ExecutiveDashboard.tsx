@@ -5,7 +5,7 @@ import { MetricsCards } from "@/components/dashboard/MetricsCards";
 import { GmvAnalysisChart } from "@/components/dashboard/GmvAnalysisChart";
 import { ServiceStatusChart } from "@/components/dashboard/ServiceStatusChart";
 import { SecondaryCharts } from "@/components/dashboard/SecondaryCharts";
-import { EnhancedForecastDashboard } from "@/components/EnhancedForecastDashboard";
+import { ForecastCard } from "@/components/dashboard/ForecastCard";
 import WorkflowBanner from "@/components/dashboard/WorkflowBanner";
 import { DashboardFilters, TimeframeOption, ServiceTypeOption } from "@/components/dashboard/DashboardFilters";
 import ConditionalRender from "@/components/ConditionalRender";
@@ -136,8 +136,11 @@ const ExecutiveDashboard = () => {
           }
         >
           <div className="mb-10">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-6">Pronósticos y Proyecciones Mejorados</h2>
-            <EnhancedForecastDashboard />
+            <h2 className="text-2xl font-semibold text-gray-800 mb-6">Pronósticos y Proyecciones</h2>
+            <ForecastCard 
+              isLoading={isLoading}
+              error={error}
+            />
           </div>
         </ConditionalRender>
 
