@@ -162,12 +162,21 @@ export const ProductoFormMejorado = ({ open, onOpenChange, producto, onClose }: 
   }, [isGPSCategory, setValue]);
 
   const onSubmit = (data: ProductoInventario) => {
+    // Limpiar campos UUID vacíos convirtiéndolos a null
+    const cleanedData = {
+      ...data,
+      proveedor_id: data.proveedor_id || null,
+      categoria_id: data.categoria_id || null,
+      marca_gps_id: data.marca_gps_id || null,
+      modelo_gps_id: data.modelo_gps_id || null,
+    };
+
     if (producto) {
-      updateProducto.mutate({ ...data, id: producto.id }, {
+      updateProducto.mutate({ ...cleanedData, id: producto.id }, {
         onSuccess: () => onClose()
       });
     } else {
-      createProducto.mutate(data, {
+      createProducto.mutate(cleanedData, {
         onSuccess: () => onClose()
       });
     }
