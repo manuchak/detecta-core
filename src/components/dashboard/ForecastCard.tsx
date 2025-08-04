@@ -14,6 +14,14 @@ import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useState, useCallback, useEffect } from "react";
 import { useForecastConfig, useUpdateForecastConfig, useCanModifyForecastConfig } from "@/hooks/useForecastConfig";
+import { 
+  calculateMonthlyVariance, 
+  calculateAnnualVariance, 
+  calculateAnnualProgress,
+  getCurrentMonthData,
+  getActualValues,
+  formatMetricValue 
+} from '@/utils/forecastCalculations';
 
 interface ForecastCardProps {
   isLoading?: boolean;
@@ -355,7 +363,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
     title: string; 
     actual: number; 
     forecast: number; 
-    variance: number; 
+    variance: { variance: number; label: string }; 
     icon: any; 
     isGMV?: boolean;
     period: 'monthly' | 'annual';
@@ -376,8 +384,8 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
           </div>
         </div>
         <VarianceIndicator 
-          variance={variance} 
-          label={period === 'monthly' ? "vs promedio" : "proyectado"}
+          variance={variance.variance} 
+          label={variance.label}
         />
       </div>
       
@@ -393,7 +401,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-600">
-            Real (YTD):
+            {period === 'monthly' ? 'Mes anterior:' : 'Real (YTD):'}
           </span>
           <span className="font-semibold text-gray-900">
             {isGMV ? formatCurrency(actual) : actual.toLocaleString()}
@@ -425,9 +433,19 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
   const currentMonthGMV = getNumericValue(forecastData.monthlyGMV);
   const annualServices = getNumericValue(forecastData.annualServices);
   const annualGMV = getNumericValue(forecastData.annualGMV);
-  const varianceServices = getNumericValue(forecastData.variance);
   
-  const monthlyServicesProgress = annualServices > 0 ? (currentMonthServices / annualServices) * 100 * 12 : 0;
+  // Get actual values for display
+  const actualValues = getActualValues();
+  
+  // Calculate proper variances using real historical data
+  const monthlyServicesVariance = calculateMonthlyVariance(currentMonthServices, 'vs_2024_avg', false);
+  const monthlyGMVVariance = calculateMonthlyVariance(currentMonthGMV, 'vs_2024_avg', true);
+  const annualServicesVariance = calculateAnnualVariance(annualServices, false);
+  const annualGMVVariance = calculateAnnualVariance(annualGMV, true);
+  
+  // Calculate realistic annual progress (YTD / Annual Projection)
+  const annualServicesProgress = calculateAnnualProgress(annualServices, false);
+  const annualGMVProgress = calculateAnnualProgress(annualGMV, true);
   const monthlyGMVProgress = annualGMV > 0 ? (currentMonthGMV / annualGMV) * 100 * 12 : 0;
   
   return (
@@ -499,17 +517,17 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <ForecastMetricCard
               title="Servicios del Mes"
-              actual={forecastData.monthlyServices?.actual || 0}
-              forecast={forecastData.monthlyServices?.forecast || 0}
-              variance={varianceServices}
+              actual={actualValues.monthlyServices}
+              forecast={currentMonthServices}
+              variance={monthlyServicesVariance}
               icon={BarChart3}
               period="monthly"
             />
             <ForecastMetricCard
               title="GMV del Mes"
-              actual={forecastData.monthlyGMV?.actual || 0}
-              forecast={forecastData.monthlyGMV?.forecast || 0}
-              variance={varianceServices}
+              actual={actualValues.monthlyGMV}
+              forecast={currentMonthGMV}
+              variance={monthlyGMVVariance}
               icon={DollarSign}
               isGMV={true}
               period="monthly"
@@ -531,22 +549,22 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <ForecastMetricCard
               title="Servicios Anuales"
-              actual={forecastData.annualServices?.actual || 0}
-              forecast={forecastData.annualServices?.forecast || 0}
-              variance={varianceServices}
+              actual={actualValues.annualServicesYTD}
+              forecast={annualServices}
+              variance={annualServicesVariance}
               icon={BarChart3}
               period="annual"
-              progress={monthlyServicesProgress}
+              progress={annualServicesProgress}
             />
             <ForecastMetricCard
               title="GMV Anual"
-              actual={forecastData.annualGMV?.actual || 0}
-              forecast={forecastData.annualGMV?.forecast || 0}
-              variance={varianceServices}
+              actual={actualValues.annualGMVYTD}
+              forecast={annualGMV}
+              variance={annualGMVVariance}
               icon={DollarSign}
               isGMV={true}
               period="annual"
-              progress={monthlyGMVProgress}
+              progress={annualGMVProgress}
             />
           </div>
         </div>
