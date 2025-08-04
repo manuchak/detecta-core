@@ -3,8 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFormatters } from "@/hooks/useFormatters";
 import { useForecastData } from "@/hooks/useForecastData";
 import { useEnsembleForecast } from "@/hooks/useEnsembleForecast";
-import { useProphetForecast } from "@/hooks/useProphetForecast";
-import { useHoltWintersForecastCorrected } from "@/hooks/useHoltWintersForecastCorrected";
+import { useHoltWintersForecast } from "@/hooks/useHoltWintersForecast";
 import { TrendingUp, TrendingDown, BarChart3, DollarSign, Calendar, Target, Info, Database, Loader2, AlertTriangle, Activity, Zap, Brain, Settings, RefreshCcw, ChevronDown, ChevronUp, CalendarDays } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -111,8 +110,62 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
   // Nuevo sistema de ensemble mejorado
   const ensembleForecast = useEnsembleForecast();
   
-  // Usar el forecast ensemble como principal (mejor precisión)
-  const forecastData = ensembleForecast.forecast;
+  // Fallback a Holt-Winters tradicional para compatibilidad
+  const holtWintersResult = useHoltWintersForecast(
+    useManualParams ? {
+      alpha: manualAlpha,
+      beta: manualBeta,
+      gamma: manualGamma,
+      useManual: true
+    } : undefined
+  );
+  
+  // Normalizar datos del forecast (compatible con ambos tipos)
+  const normalizedForecastData = (() => {
+    const ensembleData = ensembleForecast.forecast;
+    const hwData = holtWintersResult.forecast;
+    
+    if (ensembleData) {
+      return {
+        monthlyServices: ensembleData.monthlyServices,
+        annualServices: ensembleData.annualServices,
+        monthlyGMV: ensembleData.monthlyGMV,
+        annualGMV: ensembleData.annualGMV,
+        variance: ((ensembleData.monthlyServices - 1000) / 1000) * 100, // Estimación
+        metrics: ensembleData.metrics,
+        currentMonthName: getCurrentMonthName()
+      };
+    } else if (hwData) {
+      return {
+        monthlyServices: hwData.monthlyServices,
+        annualServices: hwData.annualServices,
+        monthlyGMV: hwData.monthlyGMV,
+        annualGMV: hwData.annualGMV,
+        variance: hwData.variance,
+        metrics: hwData.metrics,
+        currentMonthName: hwData.currentMonthName
+      };
+    }
+    
+    return {
+      monthlyServices: 0,
+      annualServices: 0,
+      monthlyGMV: 0,
+      annualGMV: 0,
+      variance: 0,
+      metrics: { smape: 100, confidence: 'Baja' },
+      currentMonthName: getCurrentMonthName()
+    };
+  })();
+  
+  const forecastData = normalizedForecastData;
+  
+  // Helper function para obtener mes actual
+  function getCurrentMonthName(): string {
+    const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 
+                       'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    return monthNames[new Date().getMonth()] || 'desconocido';
+  }
   
   // Reset a valores optimizados
   const handleResetToOptimal = useCallback(() => {
@@ -125,7 +178,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
   const currentYear = new Date().getFullYear();
   
   // Si hay error en los datos del forecast
-  if (error || forecastEngine.error) {
+  if (error || ensembleForecast.error || holtWintersResult.error) {
     return (
       <Card className="bg-gradient-to-br from-red-50 via-red-50 to-red-100 border-red-200 shadow-lg">
         <CardHeader className="pb-4">
@@ -156,7 +209,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
   }
 
   // Si está cargando
-  if (isLoading || forecastEngine.isLoading) {
+  if (isLoading || ensembleForecast.isLoading || holtWintersResult.isLoading) {
     return (
       <Card className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border-0 shadow-xl">
         <CardHeader className="pb-4">
@@ -235,7 +288,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
           <div>
             <h4 className="font-semibold text-gray-900">{title}</h4>
             <p className="text-sm text-gray-500">
-              {period === 'monthly' ? `${forecastData.forecastMonth} ${currentYear}` : `Año ${currentYear}`}
+              {period === 'monthly' ? `${forecastData.currentMonthName} ${currentYear}` : `Año ${currentYear}`}
             </p>
           </div>
         </div>
@@ -257,7 +310,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-600">
-            Real (Ene-{forecastData.lastDataMonth}):
+            Real (YTD):
           </span>
           <span className="font-semibold text-gray-900">
             {isGMV ? formatCurrency(actual) : actual.toLocaleString()}
@@ -278,9 +331,11 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
     </div>
   );
 
-  // Calculate progress percentages
-  const monthlyServicesProgress = (forecastData.monthlyServicesActual / forecastData.annualServicesForecast) * 100;
-  const monthlyGMVProgress = (forecastData.monthlyGmvActual / forecastData.annualGmvForecast) * 100;
+  // Calculate progress percentages (usa valores del forecast disponible)
+  const currentMonthServices = forecastData.monthlyServices;
+  const currentMonthGMV = forecastData.monthlyGMV;
+  const monthlyServicesProgress = forecastData.annualServices > 0 ? (currentMonthServices / forecastData.annualServices) * 100 * 12 : 0;
+  const monthlyGMVProgress = forecastData.annualGMV > 0 ? (currentMonthGMV / forecastData.annualGMV) * 100 * 12 : 0;
   
   return (
     <Card className="bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 border-0 shadow-xl">
@@ -301,10 +356,10 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
                 </Badge>
                  <Badge variant="outline" className="text-slate-600">
                    <Activity className="h-3 w-3 mr-1" />
-                   MAPE: {holtWintersData?.accuracy?.serviceMAPE?.toFixed(1) || '0.0'}%
+                   sMAPE: {forecastData.metrics.smape.toFixed(1)}%
                  </Badge>
                  <Badge variant="outline" className="text-slate-600">
-                   Confianza: {holtWintersData?.accuracy?.confidence || 'Calculando...'}
+                   Confianza: {forecastData.metrics.confidence}
                  </Badge>
               </div>
             </div>
@@ -319,12 +374,12 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
           <AlertDescription className="text-blue-800">
             <div className="flex items-center justify-between">
                <div>
-                 <strong>YTD Enero-{forecastData.lastDataMonth}:</strong> {forecastData.monthlyServicesActual.toLocaleString()} servicios
+                 <strong>Servicios {forecastData.currentMonthName}:</strong> {forecastData.monthlyServices.toLocaleString()} servicios
                </div>
                <div className="text-right">
-                 <strong>GMV YTD:</strong> {formatCurrency(forecastData.monthlyGmvActual)} 
+                 <strong>GMV {forecastData.currentMonthName}:</strong> {formatCurrency(forecastData.monthlyGMV)} 
                  <span className="text-xs ml-2 opacity-75">
-                   (Ticket: ${(forecastData.monthlyGmvActual/forecastData.monthlyServicesActual).toFixed(0)})
+                   (Ticket: ${forecastData.monthlyServices > 0 ? (forecastData.monthlyGMV / forecastData.monthlyServices).toFixed(0) : '0'})
                  </span>
                </div>
             </div>
@@ -338,24 +393,24 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
               <Calendar className="h-5 w-5 text-purple-600" />
             </div>
             <h3 className="text-xl font-bold text-slate-800">
-              Forecast de {forecastData.forecastMonth} {currentYear}
+              Forecast de {forecastData.currentMonthName} {currentYear}
             </h3>
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <ForecastMetricCard
               title="Servicios del Mes"
-              actual={forecastData.monthlyServicesActual}
-              forecast={forecastData.monthlyServicesForecast}
-              variance={forecastData.monthlyServicesVariance}
+              actual={forecastData.monthlyServices}
+              forecast={forecastData.monthlyServices}
+              variance={forecastData.variance}
               icon={BarChart3}
               period="monthly"
             />
             <ForecastMetricCard
               title="GMV del Mes"
-              actual={forecastData.monthlyGmvActual}
-              forecast={forecastData.monthlyGmvForecast}
-              variance={forecastData.monthlyGmvVariance}
+              actual={forecastData.monthlyGMV}
+              forecast={forecastData.monthlyGMV}
+              variance={forecastData.variance}
               icon={DollarSign}
               isGMV={true}
               period="monthly"
@@ -377,18 +432,18 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <ForecastMetricCard
               title="Servicios Anuales"
-              actual={forecastData.annualServicesActual}
-              forecast={forecastData.annualServicesForecast}
-              variance={forecastData.annualServicesVariance}
+              actual={forecastData.annualServices}
+              forecast={forecastData.annualServices}
+              variance={forecastData.variance}
               icon={BarChart3}
               period="annual"
               progress={monthlyServicesProgress}
             />
             <ForecastMetricCard
               title="GMV Anual"
-              actual={forecastData.annualGmvActual}
-              forecast={forecastData.annualGmvForecast}
-              variance={forecastData.annualGmvVariance}
+              actual={forecastData.annualGMV}
+              forecast={forecastData.annualGMV}
+              variance={forecastData.variance}
               icon={DollarSign}
               isGMV={true}
               period="annual"
@@ -426,8 +481,8 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
             <div className="flex items-center gap-3 bg-white rounded-lg p-3 border border-gray-100">
               <div className="w-3 h-3 bg-purple-500 rounded-full flex-shrink-0"></div>
               <div className="text-sm">
-                <div className="font-medium text-gray-900">Precisión MAPE</div>
-                <div className="text-gray-600">{holtWintersData?.accuracy?.serviceMAPE?.toFixed(1) || '0.0'}% servicios</div>
+                 <div className="font-medium text-gray-900">Precisión sMAPE</div>
+                 <div className="text-gray-600">{forecastData.metrics.smape.toFixed(1)}% servicios</div>
               </div>
             </div>
             
@@ -435,7 +490,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
               <div className="w-3 h-3 bg-orange-500 rounded-full flex-shrink-0"></div>
               <div className="text-sm">
                 <div className="font-medium text-gray-900">Confianza</div>
-                <div className="text-gray-600">{holtWintersData?.accuracy?.confidence || 'Calculando...'}</div>
+                <div className="text-gray-600">{forecastData.metrics.confidence}</div>
               </div>
             </div>
           </div>
