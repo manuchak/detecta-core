@@ -6799,6 +6799,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_current_user_role_safe: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_current_user_roles_safe: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -7754,8 +7758,8 @@ export type Database = {
           | {
               p_lead_id: string
               p_stage: string
-              p_interview_method?: string
-              p_notes?: string
+              p_interview_method: string
+              p_notes: string
               p_decision?: string
               p_decision_reason?: string
             }
@@ -7767,7 +7771,7 @@ export type Database = {
               p_decision?: string
               p_decision_reason?: string
             }
-        Returns: undefined
+        Returns: boolean
       }
       update_last_login: {
         Args: Record<PropertyKey, never>
