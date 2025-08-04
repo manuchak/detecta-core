@@ -300,7 +300,7 @@ export const useLeadApprovals = () => {
     }
   };
 
-  const handleReject = async (lead: AssignedLead, rejectionReasons: string[] = [], customReason: string = "") => {
+  const handleRejectWithReasons = async (lead: AssignedLead, rejectionReasons: string[] = [], customReason: string = "") => {
     // Para rechazar no se requiere validación de campos completos
     try {
       console.log('Iniciando proceso de rechazo para lead:', lead.lead_id);
@@ -426,6 +426,6 @@ export const useLeadApprovals = () => {
     refreshAfterCall,
     handleApproveLead,
     handleSendToSecondInterview,
-    handleReject
+    handleRejectWithReasons
   };
 };

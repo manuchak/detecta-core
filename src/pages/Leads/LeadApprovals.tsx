@@ -33,7 +33,7 @@ export const LeadApprovals = () => {
     refreshAfterCall,
     handleApproveLead,
     handleSendToSecondInterview,
-    handleReject
+    handleRejectWithReasons
   } = useLeadApprovals();
 
   const [selectedLead, setSelectedLead] = useState<AssignedLead | null>(null);
@@ -103,7 +103,7 @@ export const LeadApprovals = () => {
 
   const handleConfirmReject = (reasons: string[], customReason: string) => {
     if (selectedLead) {
-      handleReject(selectedLead, reasons, customReason);
+      handleRejectWithReasons(selectedLead, reasons, customReason);
     }
   };
 
