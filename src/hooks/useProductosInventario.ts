@@ -100,6 +100,26 @@ export const useProductosInventario = () => {
 
   const deleteProducto = useMutation({
     mutationFn: async (id: string) => {
+      // Verificar si el producto tiene movimientos de inventario
+      const { data: movimientos } = await supabase
+        .from('movimientos_inventario')
+        .select('id')
+        .eq('producto_id', id);
+
+      if (movimientos && movimientos.length > 0) {
+        throw new Error(`No se puede eliminar este producto porque tiene ${movimientos.length} movimiento(s) de inventario registrado(s). Los productos con historial de movimientos no pueden ser eliminados por motivos de auditoría.`);
+      }
+
+      // Verificar si el producto tiene números de serie registrados
+      const { data: seriales } = await supabase
+        .from('productos_serie')
+        .select('id')
+        .eq('producto_id', id);
+
+      if (seriales && seriales.length > 0) {
+        throw new Error(`No se puede eliminar este producto porque tiene ${seriales.length} número(s) de serie registrado(s). Debe eliminar primero todos los números de serie asociados.`);
+      }
+
       // Obtener datos del producto antes de eliminarlo para el log
       const { data: producto } = await supabase
         .from('productos_inventario')
@@ -134,14 +154,20 @@ export const useProductosInventario = () => {
             motivo: 'Eliminación de producto desde interfaz WMS'
           });
       }
-
-      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['productos-inventario'] });
       toast({
         title: "Producto eliminado",
         description: "El producto ha sido eliminado del inventario.",
+      });
+    },
+    onError: (error) => {
+      console.error('Error deleting product:', error);
+      toast({
+        title: "Error al eliminar producto",
+        description: error.message || "No se pudo eliminar el producto. Verifique que no tenga registros relacionados.",
+        variant: "destructive",
       });
     }
   });
