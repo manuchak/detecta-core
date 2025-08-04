@@ -61,10 +61,17 @@ export const useProductosInventario = () => {
         description: "El producto ha sido registrado en el inventario.",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error('Error creating product:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
       toast({
         title: "Error",
-        description: "No se pudo crear el producto.",
+        description: `No se pudo crear el producto. ${error.message || ''}`,
         variant: "destructive",
       });
     }
