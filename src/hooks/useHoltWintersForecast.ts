@@ -60,7 +60,7 @@ interface ForecastData {
   };
 }
 
-interface ManualParameters {
+export interface ManualParameters {
   alpha?: number;
   beta?: number;
   gamma?: number;

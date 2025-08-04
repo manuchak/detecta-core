@@ -107,18 +107,19 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
     updateGlobalConfig({ show_advanced: value });
   }, [updateGlobalConfig]);
 
+  // Manual parameters for both hooks
+  const manualParams = useManualParams ? {
+    alpha: manualAlpha,
+    beta: manualBeta,
+    gamma: manualGamma,
+    useManual: true
+  } : undefined;
+
   // PHASE 1: DEBUG - Nuevo sistema de ensemble mejorado
-  const ensembleForecast = useEnsembleForecast();
+  const ensembleForecast = useEnsembleForecast(manualParams);
   
   // PHASE 1: DEBUG - Fallback a Holt-Winters tradicional para compatibilidad
-  const holtWintersResult = useHoltWintersForecast(
-    useManualParams ? {
-      alpha: manualAlpha,
-      beta: manualBeta,
-      gamma: manualGamma,
-      useManual: true
-    } : undefined
-  );
+  const holtWintersResult = useHoltWintersForecast(manualParams);
 
   // PHASE 1: DEBUG LOGGING - Monitor data flow with deep analysis
   console.log('🔍 ForecastCard Deep Debug:', {

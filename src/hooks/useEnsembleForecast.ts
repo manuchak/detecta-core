@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useProphetForecast } from './useProphetForecast';
-import { useHoltWintersForecast } from './useHoltWintersForecast';
+import { useHoltWintersForecast, ManualParameters } from './useHoltWintersForecast';
 import { calculateAdvancedMetrics, AdvancedMetrics } from '@/utils/advancedMetrics';
 
 export interface EnsembleForecastData {
@@ -61,14 +61,14 @@ export interface EnsembleForecastData {
   recommendedActions: string[];
 }
 
-export function useEnsembleForecast() {
+export function useEnsembleForecast(manualParams?: ManualParameters) {
   // Get individual model forecasts
   const prophetResult = useProphetForecast();
-  const holtWintersResult = useHoltWintersForecast();
+  const holtWintersResult = useHoltWintersForecast(manualParams);
 
   // Calculate ensemble forecast with proper debugging
   const { data: ensembleData, isLoading, error } = useQuery({
-    queryKey: ['ensemble-forecast', prophetResult.forecast, holtWintersResult],
+    queryKey: ['ensemble-forecast', prophetResult.forecast, holtWintersResult, manualParams],
     queryFn: () => {
       console.log('🧮 Calculating ensemble with:', { 
         prophetData: prophetResult.forecast,
