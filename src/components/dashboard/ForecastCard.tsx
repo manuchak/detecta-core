@@ -172,7 +172,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
     });
     
     // FORCE ENSEMBLE ONLY - Remove Holt-Winters fallback temporarily
-    if (ensembleData || !ensembleForecast.isLoading) {
+    if (ensembleData && typeof ensembleData === 'object') {
       // PHASE 3: SAFE DATA EXTRACTION - Handle both number and object structures
       const safeGetValue = (data: any, field: 'forecast' | 'actual'): number => {
         if (!data) return 0;
@@ -189,6 +189,13 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
       const monthlyGMVActual = safeGetValue(ensembleData.monthlyGMV, 'actual');
       const annualGMVForecast = safeGetValue(ensembleData.annualGMV, 'forecast');
       const annualGMVActual = safeGetValue(ensembleData.annualGMV, 'actual');
+      
+      console.log('✅ ENSEMBLE DATA EXTRACTED:', {
+        monthlyServicesForecast,
+        monthlyServicesActual,
+        annualServicesForecast,
+        metrics: ensembleData.metrics
+      });
       
       return {
         monthlyServices: {
