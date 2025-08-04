@@ -4087,6 +4087,7 @@ export type Database = {
       productos_inventario: {
         Row: {
           activo: boolean | null
+          archivado_por: string | null
           categoria_id: string | null
           certificaciones: string[] | null
           codigo_barras: string | null
@@ -4099,6 +4100,8 @@ export type Database = {
           dimensiones: string | null
           es_serializado: boolean | null
           especificaciones: Json | null
+          estado_producto: string | null
+          fecha_archivado: string | null
           foto_url: string | null
           frecuencia_transmision_hz: number | null
           garantia_meses: number | null
@@ -4107,6 +4110,7 @@ export type Database = {
           marca_gps_id: string | null
           modelo: string | null
           modelo_gps_id: string | null
+          motivo_archivado: string | null
           nombre: string
           peso_kg: number | null
           precio_compra_promedio: number | null
@@ -4124,6 +4128,7 @@ export type Database = {
         }
         Insert: {
           activo?: boolean | null
+          archivado_por?: string | null
           categoria_id?: string | null
           certificaciones?: string[] | null
           codigo_barras?: string | null
@@ -4136,6 +4141,8 @@ export type Database = {
           dimensiones?: string | null
           es_serializado?: boolean | null
           especificaciones?: Json | null
+          estado_producto?: string | null
+          fecha_archivado?: string | null
           foto_url?: string | null
           frecuencia_transmision_hz?: number | null
           garantia_meses?: number | null
@@ -4144,6 +4151,7 @@ export type Database = {
           marca_gps_id?: string | null
           modelo?: string | null
           modelo_gps_id?: string | null
+          motivo_archivado?: string | null
           nombre: string
           peso_kg?: number | null
           precio_compra_promedio?: number | null
@@ -4161,6 +4169,7 @@ export type Database = {
         }
         Update: {
           activo?: boolean | null
+          archivado_por?: string | null
           categoria_id?: string | null
           certificaciones?: string[] | null
           codigo_barras?: string | null
@@ -4173,6 +4182,8 @@ export type Database = {
           dimensiones?: string | null
           es_serializado?: boolean | null
           especificaciones?: Json | null
+          estado_producto?: string | null
+          fecha_archivado?: string | null
           foto_url?: string | null
           frecuencia_transmision_hz?: number | null
           garantia_meses?: number | null
@@ -4181,6 +4192,7 @@ export type Database = {
           marca_gps_id?: string | null
           modelo?: string | null
           modelo_gps_id?: string | null
+          motivo_archivado?: string | null
           nombre?: string
           peso_kg?: number | null
           precio_compra_promedio?: number | null
@@ -6131,6 +6143,10 @@ export type Database = {
         Args: { user_id: string }
         Returns: undefined
       }
+      archivar_producto: {
+        Args: { p_producto_id: string; p_motivo?: string }
+        Returns: boolean
+      }
       assign_initial_owner: {
         Args: { target_email: string }
         Returns: boolean
@@ -7619,6 +7635,10 @@ export type Database = {
         Args: { user_email: string }
         Returns: boolean
       }
+      marcar_producto_inactivo: {
+        Args: { p_producto_id: string; p_motivo?: string }
+        Returns: boolean
+      }
       mark_interview_interrupted: {
         Args: { p_lead_id: string; p_session_id: string; p_reason: string }
         Returns: boolean
@@ -7710,6 +7730,10 @@ export type Database = {
       redeem_points: {
         Args: { p_user_id: string; p_reward_id: string; p_quantity?: number }
         Returns: string
+      }
+      restaurar_producto: {
+        Args: { p_producto_id: string }
+        Returns: boolean
       }
       review_flagged_service: {
         Args: {

@@ -18,6 +18,7 @@ export const useProductosInventario = () => {
           categoria:categorias_productos(*),
           stock:stock_productos(*)
         `)
+        .eq('estado_producto', 'activo') // Solo mostrar productos activos
         .order('nombre', { ascending: true });
 
       if (error) throw error;

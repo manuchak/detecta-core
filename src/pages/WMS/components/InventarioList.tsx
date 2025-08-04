@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ProductoInventario } from '@/types/wms';
 import { ProductoDialog } from './ProductoDialog';
 import { AuditLogDialog } from './AuditLogDialog';
+import { ProductoDeletionDialog } from './ProductoDeletionDialog';
 
 interface InventarioListProps {
   productos: ProductoInventario[];
@@ -41,6 +42,8 @@ export const InventarioList = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [showAuditLog, setShowAuditLog] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [showDeletionDialog, setShowDeletionDialog] = useState(false);
+  const [selectedProducto, setSelectedProducto] = useState<ProductoInventario | null>(null);
   
   const filteredProductos = productos.filter(producto => {
     const matchesSearch = producto.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -83,6 +86,11 @@ export const InventarioList = ({
     } else {
       return { status: 'normal', label: 'En Stock', color: 'success' };
     }
+  };
+
+  const handleDeleteClick = (producto: ProductoInventario) => {
+    setSelectedProducto(producto);
+    setShowDeletionDialog(true);
   };
 
   return (
@@ -226,7 +234,7 @@ export const InventarioList = ({
                           <Button 
                             variant="ghost" 
                             size="sm" 
-                            onClick={() => onDeleteProduct(producto.id)}
+                            onClick={() => handleDeleteClick(producto)}
                             className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -264,6 +272,13 @@ export const InventarioList = ({
       <AuditLogDialog 
         open={showAuditLog}
         onOpenChange={setShowAuditLog}
+      />
+      
+      {/* Dialog de opciones de eliminación */}
+      <ProductoDeletionDialog
+        open={showDeletionDialog}
+        onOpenChange={setShowDeletionDialog}
+        producto={selectedProducto}
       />
     </div>
   );
