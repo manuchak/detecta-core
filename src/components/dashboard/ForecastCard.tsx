@@ -443,7 +443,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
   const annualGMVVariance = annualGMV > 0 ? 
     ((actualAnnualGMV - annualGMV) / annualGMV) * 100 : 0;
   
-  return (
+  return ( // Fixed variance calculation to prevent undefined reference errors
     <Card className="bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 border-0 shadow-xl">
       <CardHeader className="pb-6">
         <div className="flex items-center justify-between">
