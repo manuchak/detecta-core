@@ -17,6 +17,7 @@ import {
   Zap
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { AddGL320MGButton } from './AddGL320MGButton';
 
 interface DeviceResult {
   id: string;
@@ -117,6 +118,9 @@ export const GPSResearchTab = () => {
           </div>
         </div>
       </div>
+
+      {/* Botón para agregar GL320MG directamente */}
+      <AddGL320MGButton />
 
       {/* Formulario de búsqueda */}
       <Card>
