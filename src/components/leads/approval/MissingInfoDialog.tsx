@@ -41,6 +41,7 @@ interface MissingInfoDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdate: () => void;
+  onReject: (lead: AssignedLead) => void;
 }
 
 interface FormDataInterface {
@@ -100,7 +101,8 @@ export const MissingInfoDialog = ({
   lead,
   open,
   onOpenChange,
-  onUpdate
+  onUpdate,
+  onReject
 }: MissingInfoDialogProps) => {
   const [formData, setFormData] = useState<FormDataInterface>({
     // Campos básicos
@@ -387,113 +389,10 @@ export const MissingInfoDialog = ({
 
   const handleReject = async () => {
     if (!lead) return;
-
-    try {
-      setLoading(true);
-
-      // Primero guardar toda la información actualizada del formulario
-      const notesData = {
-        datos_personales: {
-          edad: formData.edad,
-          direccion: formData.direccion,
-          estado_id: formData.estado_id,
-          ciudad_id: formData.ciudad_id,
-          zona_trabajo_id: formData.zona_trabajo_id
-        },
-        tipo_custodio: formData.tipo_custodio,
-        vehiculo: {
-          marca_vehiculo: formData.marca_vehiculo,
-          modelo_vehiculo: formData.modelo_vehiculo,
-          año_vehiculo: formData.año_vehiculo,
-          placas: formData.placas,
-          color_vehiculo: formData.color_vehiculo,
-          tipo_vehiculo: formData.tipo_vehiculo,
-          seguro_vigente: formData.seguro_vigente
-        },
-        seguridad_armada: {
-          licencia_armas: formData.licencia_armas,
-          experiencia_militar: formData.experiencia_militar,
-          años_experiencia_armada: formData.años_experiencia_armada
-        },
-        custodio_abordo: {
-          especialidad_abordo: formData.especialidad_abordo
-        },
-        experiencia: {
-          experiencia_custodia: formData.experiencia_custodia,
-          años_experiencia: formData.años_experiencia,
-          empresas_anteriores: formData.empresas_anteriores,
-          licencia_conducir: formData.licencia_conducir,
-          tipo_licencia: formData.tipo_licencia,
-          antecedentes_penales: formData.antecedentes_penales,
-          institucion_publica: formData.institucion_publica,
-          baja_institucion: formData.baja_institucion,
-          referencias: formData.referencias,
-          mensaje: formData.mensaje
-        },
-        disponibilidad: {
-          horario: formData.horario,
-          dias: formData.dias
-        },
-        empresa: formData.empresa,
-        notas_adicionales: formData.notas,
-        rechazo_con_informacion: true, // Marcar que fue rechazado pero con información completa
-        fecha_rechazo: new Date().toISOString()
-      };
-
-      // Actualizar el lead con toda la información Y el estado de rechazo
-      const { error: leadError } = await supabase
-        .from('leads')
-        .update({
-          nombre: formData.nombre,
-          email: formData.email,
-          telefono: formData.telefono,
-          empresa: formData.empresa,
-          notas: JSON.stringify(notesData),
-          estado: 'rechazado',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', lead.lead_id);
-
-      if (leadError) throw leadError;
-
-      // Actualizar el proceso de aprobación
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        await supabase
-          .from('lead_approval_process')
-          .upsert({
-            lead_id: lead.lead_id,
-            analyst_id: user?.id,
-            current_stage: 'rejected',
-            interview_method: 'manual',
-            phone_interview_notes: 'Candidato rechazado después de completar información',
-            final_decision: 'rejected',
-            decision_reason: 'No cumple con el perfil requerido - información guardada',
-            phone_interview_completed: true,
-            second_interview_required: false,
-            updated_at: new Date().toISOString()
-          });
-      } catch (approvalError) {
-        console.warn('No se pudo actualizar el proceso de aprobación:', approvalError);
-      }
-
-      toast({
-        title: "Candidato rechazado",
-        description: "El candidato ha sido rechazado y su información ha sido guardada para referencia futura.",
-      });
-
-      onUpdate();
-      onOpenChange(false);
-    } catch (error) {
-      console.error('Error rejecting lead:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo rechazar al candidato.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    
+    // En lugar de rechazar directamente, llamar al sistema de razones de rechazo
+    onOpenChange(false); // Cerrar este diálogo primero
+    onReject(lead); // Abrir el diálogo de razones de rechazo
   };
 
   const isFormValid = missingFields.length === 0;

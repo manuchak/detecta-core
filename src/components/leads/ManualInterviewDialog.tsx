@@ -19,16 +19,17 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Phone, CheckCircle, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 interface ManualInterviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   lead: any;
   onComplete: () => void;
+  onReject?: (lead: any) => void;
 }
 
-export const ManualInterviewDialog = ({ open, onOpenChange, lead, onComplete }: ManualInterviewDialogProps) => {
+export const ManualInterviewDialog = ({ open, onOpenChange, lead, onComplete, onReject }: ManualInterviewDialogProps) => {
   const [interviewNotes, setInterviewNotes] = useState('');
   const [decision, setDecision] = useState('');
   const [decisionReason, setDecisionReason] = useState('');
@@ -38,6 +39,16 @@ export const ManualInterviewDialog = ({ open, onOpenChange, lead, onComplete }: 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Si la decisión es rechazar, abrir el diálogo de razones de rechazo
+    if (decision === 'rejected') {
+      if (onReject && lead) {
+        onOpenChange(false); // Cerrar este diálogo
+        onReject(lead); // Abrir el diálogo de razones de rechazo
+        return;
+      }
+    }
+    
     setLoading(true);
 
     try {
@@ -47,10 +58,7 @@ export const ManualInterviewDialog = ({ open, onOpenChange, lead, onComplete }: 
       if (decision === 'approved') {
         stage = 'approved';
         finalDecision = 'approved';
-      } else if (decision === 'rejected') {
-        stage = 'rejected';
-        finalDecision = 'rejected';
-      } else if (secondInterviewRequired) {
+      } else if (decision === 'second_interview') {
         stage = 'second_interview';
       }
 
@@ -66,12 +74,12 @@ export const ManualInterviewDialog = ({ open, onOpenChange, lead, onComplete }: 
 
       if (approvalError) throw approvalError;
 
-      // Actualizar el estado del lead si fue aprobado o rechazado
-      if (finalDecision) {
+      // Actualizar el estado del lead si fue aprobado
+      if (finalDecision === 'approved') {
         const { error: leadError } = await supabase
           .from('leads')
           .update({
-            estado: finalDecision === 'approved' ? 'aprobado' : 'rechazado',
+            estado: 'aprobado',
             updated_at: new Date().toISOString()
           })
           .eq('id', lead.lead_id);

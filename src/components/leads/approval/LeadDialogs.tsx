@@ -81,6 +81,10 @@ export const LeadDialogs = ({
         onOpenChange={onManualDialogChange}
         lead={selectedLead}
         onComplete={onUpdate}
+        onReject={(lead) => {
+          onManualDialogChange(false);
+          setTimeout(() => onRejectionDialogChange(true), 100);
+        }}
       />
       
       <CallHistoryDialog
@@ -95,6 +99,10 @@ export const LeadDialogs = ({
         onOpenChange={onMissingInfoDialogChange}
         lead={selectedLead}
         onUpdate={onUpdate}
+        onReject={(lead) => {
+          onMissingInfoDialogChange(false);
+          setTimeout(() => onRejectionDialogChange(true), 100);
+        }}
       />
 
       <CallLogDialog
