@@ -377,7 +377,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
         </div>
         <VarianceIndicator 
           variance={variance} 
-          label={period === 'monthly' ? "vs promedio" : "proyectado"}
+          label={period === 'monthly' ? "vs mes anterior" : "proyectado"}
         />
       </div>
       
