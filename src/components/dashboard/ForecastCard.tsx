@@ -366,15 +366,16 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
                 </Badge>
                  <Badge variant="outline" className="text-slate-600">
                    <Activity className="h-3 w-3 mr-1" />
-                    sMAPE: {(() => {
-                      const metrics = forecastData.metrics;
-                      if ('smape' in metrics) return metrics.smape.toFixed(1);
-                      if ('mape' in metrics) return metrics.mape.toFixed(1);
-                      return '50.0';
-                    })()}%
-                 </Badge>
-                 <Badge variant="outline" className="text-slate-600">
-                   Confianza: {forecastData.metrics.confidence}
+                     sMAPE: {(() => {
+                       const metrics = forecastData.metrics;
+                       if (!metrics) return '50.0';
+                       if ('smape' in metrics && metrics.smape != null) return metrics.smape.toFixed(1);
+                       if ('mape' in metrics && metrics.mape != null) return metrics.mape.toFixed(1);
+                       return '50.0';
+                     })()}%
+                  </Badge>
+                  <Badge variant="outline" className="text-slate-600">
+                    Confianza: {forecastData.metrics?.confidence || 'Baja'}
                  </Badge>
               </div>
             </div>
@@ -497,20 +498,21 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
               <div className="w-3 h-3 bg-purple-500 rounded-full flex-shrink-0"></div>
               <div className="text-sm">
                  <div className="font-medium text-gray-900">Precisión sMAPE</div>
-                 <div className="text-gray-600">{(() => {
-                      const metrics = forecastData.metrics;
-                      if ('smape' in metrics) return metrics.smape.toFixed(1);
-                      if ('mape' in metrics) return metrics.mape.toFixed(1);
-                      return '50.0';
-                    })()}% servicios</div>
+                  <div className="text-gray-600">{(() => {
+                       const metrics = forecastData.metrics;
+                       if (!metrics) return '50.0';
+                       if ('smape' in metrics && metrics.smape != null) return metrics.smape.toFixed(1);
+                       if ('mape' in metrics && metrics.mape != null) return metrics.mape.toFixed(1);
+                       return '50.0';
+                     })()}% servicios</div>
               </div>
             </div>
             
             <div className="flex items-center gap-3 bg-white rounded-lg p-3 border border-gray-100">
               <div className="w-3 h-3 bg-orange-500 rounded-full flex-shrink-0"></div>
               <div className="text-sm">
-                <div className="font-medium text-gray-900">Confianza</div>
-                <div className="text-gray-600">{forecastData.metrics.confidence}</div>
+                 <div className="font-medium text-gray-900">Confianza</div>
+                 <div className="text-gray-600">{forecastData.metrics?.confidence || 'Baja'}</div>
               </div>
             </div>
           </div>
