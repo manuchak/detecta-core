@@ -2,9 +2,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFormatters } from "@/hooks/useFormatters";
 import { useForecastData } from "@/hooks/useForecastData";
-import { useHoltWintersForecast } from "@/hooks/useHoltWintersForecast";
-import { useAdaptiveHybridForecast } from "@/hooks/useAdaptiveHybridForecast";
-import { useForecastEngine } from "@/hooks/useForecastEngine";
+import { useEnsembleForecast } from "@/hooks/useEnsembleForecast";
+import { useProphetForecast } from "@/hooks/useProphetForecast";
+import { useHoltWintersForecastCorrected } from "@/hooks/useHoltWintersForecastCorrected";
 import { TrendingUp, TrendingDown, BarChart3, DollarSign, Calendar, Target, Info, Database, Loader2, AlertTriangle, Activity, Zap, Brain, Settings, RefreshCcw, ChevronDown, ChevronUp, CalendarDays } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -108,34 +108,11 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
     updateGlobalConfig({ show_advanced: value });
   }, [updateGlobalConfig]);
 
-  // Hook de forecast híbrido adaptativo
-  const hybridForecast = useAdaptiveHybridForecast();
+  // Nuevo sistema de ensemble mejorado
+  const ensembleForecast = useEnsembleForecast();
   
-  // Hook de forecast con datos forenses corregidos (para referencia)
-  const legacyForecastData = useForecastData(0, 0);
-  
-  // Usar el motor de forecast mejorado
-  const forecastEngine = useForecastEngine(
-    useManualParams ? {
-      alpha: manualAlpha,
-      beta: manualBeta,
-      gamma: manualGamma,
-      useManual: true
-    } : undefined
-  );
-  
-  // Hook de forecast tradicional con parámetros opcionales (para compatibilidad)
-  const holtWintersData = useHoltWintersForecast(
-    useManualParams ? {
-      alpha: manualAlpha,
-      beta: manualBeta,
-      gamma: manualGamma,
-      useManual: true
-    } : undefined
-  );
-  
-  // El useForecastEngine está devolviendo valores incorrectos, usar holtWintersData como principal
-  const forecastData = holtWintersData;
+  // Usar el forecast ensemble como principal (mejor precisión)
+  const forecastData = ensembleForecast.forecast;
   
   // Reset a valores optimizados
   const handleResetToOptimal = useCallback(() => {
