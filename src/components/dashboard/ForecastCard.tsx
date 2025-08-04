@@ -425,15 +425,23 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
   const currentMonthGMV = getNumericValue(forecastData.monthlyGMV);
   const annualServices = getNumericValue(forecastData.annualServices);
   const annualGMV = getNumericValue(forecastData.annualGMV);
-  const varianceServices = getNumericValue(forecastData.variance);
   
   // Fix: Progress should be (actual_ytd / annual_forecast) * 100, not monthly * 12
-  // Force rebuild to clear cached reference to monthlyGMVProgress
   const actualAnnualServices = typeof forecastData.annualServices === 'object' ? forecastData.annualServices.actual : 5238; // YTD real
   const actualAnnualGMV = typeof forecastData.annualGMV === 'object' ? forecastData.annualGMV.actual : 33266311; // YTD real
   
   const annualServicesProgress = annualServices > 0 ? (actualAnnualServices / annualServices) * 100 : 0;
   const annualGMVProgress = annualGMV > 0 ? (actualAnnualGMV / annualGMV) * 100 : 0;
+  
+  // Calculate specific variances for each metric
+  const monthlyServicesVariance = currentMonthServices > 0 && forecastData.monthlyServices?.actual ? 
+    ((forecastData.monthlyServices.actual - currentMonthServices) / currentMonthServices) * 100 : 0;
+  const monthlyGMVVariance = currentMonthGMV > 0 && forecastData.monthlyGMV?.actual ? 
+    ((forecastData.monthlyGMV.actual - currentMonthGMV) / currentMonthGMV) * 100 : 0;
+  const annualServicesVariance = annualServices > 0 ? 
+    ((actualAnnualServices - annualServices) / annualServices) * 100 : 0;
+  const annualGMVVariance = annualGMV > 0 ? 
+    ((actualAnnualGMV - annualGMV) / annualGMV) * 100 : 0;
   
   return (
     <Card className="bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 border-0 shadow-xl">
@@ -506,7 +514,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
               title="Servicios del Mes"
               actual={forecastData.monthlyServices?.actual || 0}
               forecast={forecastData.monthlyServices?.forecast || 0}
-              variance={varianceServices}
+              variance={monthlyServicesVariance}
               icon={BarChart3}
               period="monthly"
             />
@@ -514,7 +522,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
               title="GMV del Mes"
               actual={forecastData.monthlyGMV?.actual || 0}
               forecast={forecastData.monthlyGMV?.forecast || 0}
-              variance={varianceServices}
+              variance={monthlyGMVVariance}
               icon={DollarSign}
               isGMV={true}
               period="monthly"
@@ -538,7 +546,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
               title="Servicios Anuales"
               actual={forecastData.annualServices?.actual || 0}
               forecast={forecastData.annualServices?.forecast || 0}
-              variance={varianceServices}
+              variance={annualServicesVariance}
               icon={BarChart3}
               period="annual"
               progress={annualServicesProgress}
@@ -547,7 +555,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
               title="GMV Anual"
               actual={forecastData.annualGMV?.actual || 0}
               forecast={forecastData.annualGMV?.forecast || 0}
-              variance={varianceServices}
+              variance={annualGMVVariance}
               icon={DollarSign}
               isGMV={true}
               period="annual"
