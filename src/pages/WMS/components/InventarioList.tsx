@@ -16,8 +16,11 @@ import {
   TrendingUp,
   Eye,
   DollarSign,
-  Shield
+  Shield,
+  Filter,
+  ChevronDown
 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ProductoInventario } from '@/types/wms';
 import { ProductoDialog } from './ProductoDialog';
 import { AuditLogDialog } from './AuditLogDialog';
@@ -37,12 +40,35 @@ export const InventarioList = ({
 }: InventarioListProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAuditLog, setShowAuditLog] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   
-  const filteredProductos = productos.filter(producto =>
-    producto.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    producto.codigo_producto.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    producto.categoria?.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProductos = productos.filter(producto => {
+    const matchesSearch = producto.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      producto.codigo_producto.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      producto.categoria?.nombre.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesCategory = selectedCategory === 'all' || producto.categoria?.id === selectedCategory;
+    
+    return matchesSearch && matchesCategory;
+  });
+
+  // Agrupar productos por categoría
+  const productsByCategory = filteredProductos.reduce((acc, producto) => {
+    const categoryId = producto.categoria?.id || 'sin-categoria';
+    const categoryName = producto.categoria?.nombre || 'Sin categoría';
+    
+    if (!acc[categoryId]) {
+      acc[categoryId] = {
+        name: categoryName,
+        productos: []
+      };
+    }
+    acc[categoryId].productos.push(producto);
+    return acc;
+  }, {} as Record<string, { name: string; productos: ProductoInventario[] }>);
+
+  // Obtener categorías únicas para el filtro
+  const categories = Array.from(new Set(productos.map(p => p.categoria).filter(Boolean)));
 
   const getStockStatus = (producto: ProductoInventario) => {
     const stock = producto.stock?.[0];
@@ -81,9 +107,23 @@ export const InventarioList = ({
                 placeholder="Buscar productos..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full sm:w-80 bg-background/80 backdrop-blur-sm border-border/50"
+                className="pl-10 w-full sm:w-64 bg-background/80 backdrop-blur-sm border-border/50"
               />
             </div>
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-full sm:w-48 bg-background/80 backdrop-blur-sm">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Filtrar por categoría" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las categorías</SelectItem>
+                {categories.map((categoria) => (
+                  <SelectItem key={categoria.id} value={categoria.id}>
+                    {categoria.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button 
               variant="outline"
               onClick={() => setShowAuditLog(true)}
@@ -103,117 +143,110 @@ export const InventarioList = ({
         </div>
       </div>
 
-      {/* Grid mejorado de productos */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {filteredProductos.map((producto) => {
-          const stockStatus = getStockStatus(producto);
-          const stock = producto.stock?.[0];
-          
-          return (
-            <Card 
-              key={producto.id} 
-              className="group relative overflow-hidden border border-border/50 bg-gradient-to-br from-card to-card/50 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1"
-            >
-              {/* Indicador de stock como barra lateral */}
-              <div className={`absolute left-0 top-0 h-full w-1 ${
-                stockStatus.status === 'agotado' ? 'bg-destructive' :
-                stockStatus.status === 'bajo' ? 'bg-warning' : 'bg-success'
-              }`} />
-              
-              <CardHeader className="pb-4 relative">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2 flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                        <Cpu className="h-4 w-4" />
-                      </div>
-                      <Badge 
-                        variant={stockStatus.color as any}
-                        className="text-xs font-medium"
-                      >
-                        {stockStatus.label}
-                      </Badge>
-                    </div>
-                    <CardTitle className="text-lg font-bold leading-tight truncate">
-                      {producto.nombre}
-                    </CardTitle>
-                    <p className="text-sm text-muted-foreground font-mono">
-                      {producto.codigo_producto}
-                    </p>
-                  </div>
-                </div>
-              </CardHeader>
-              
-              <CardContent className="space-y-4">
-                {/* Información principal con iconos */}
-                <div className="grid grid-cols-1 gap-3">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                    <div className="flex items-center gap-2">
-                      <Package className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Categoría</span>
-                    </div>
-                    <span className="text-sm font-medium">
-                      {producto.categoria?.nombre || 'Sin categoría'}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                    <div className="flex items-center gap-2">
-                      <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Stock</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-lg font-bold">
-                        {stock?.cantidad_disponible || 0}
-                      </span>
-                      <span className="text-xs text-muted-foreground ml-1">
-                        piezas
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Precio</span>
-                    </div>
-                    <span className="text-lg font-bold text-success">
-                      ${producto.precio_venta_sugerido?.toLocaleString() || 'N/A'}
-                    </span>
-                  </div>
-                </div>
+      {/* Lista agrupada por categorías */}
+      <div className="space-y-6">
+        {Object.entries(productsByCategory).map(([categoryId, category]) => (
+          <div key={categoryId} className="space-y-4">
+            {/* Header de categoría */}
+            <div className="flex items-center gap-3 pb-2 border-b border-border/50">
+              <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                <Package className="h-5 w-5" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground">
+                {category.name}
+              </h3>
+              <Badge variant="secondary" className="ml-auto">
+                {category.productos.length} producto{category.productos.length !== 1 ? 's' : ''}
+              </Badge>
+            </div>
 
-                {/* Botones de acción mejorados */}
-                <div className="flex items-center gap-2 pt-4 border-t border-border/50">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => onEditProduct(producto)}
-                    className="flex-1 hover:bg-primary/10 hover:text-primary hover:border-primary/50 transition-colors"
+            {/* Lista compacta de productos */}
+            <div className="space-y-2">
+              {category.productos.map((producto) => {
+                const stockStatus = getStockStatus(producto);
+                const stock = producto.stock?.[0];
+                
+                return (
+                  <Card 
+                    key={producto.id} 
+                    className="hover:shadow-md transition-all duration-200 hover:bg-accent/5"
                   >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Editar
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => onDeleteProduct(producto.id)}
-                    className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50 transition-colors"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="hover:bg-accent/10 hover:text-accent-foreground hover:border-accent transition-colors"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-4">
+                        {/* Indicador de stock */}
+                        <div className={`w-1 h-12 rounded-full ${
+                          stockStatus.status === 'agotado' ? 'bg-destructive' :
+                          stockStatus.status === 'bajo' ? 'bg-warning' : 'bg-success'
+                        }`} />
+                        
+                        {/* Información del producto */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-semibold text-foreground truncate">
+                              {producto.nombre}
+                            </h4>
+                            <Badge 
+                              variant={stockStatus.color as any}
+                              className="text-xs"
+                            >
+                              {stockStatus.label}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground font-mono">
+                            {producto.codigo_producto}
+                          </p>
+                        </div>
+
+                        {/* Datos de stock y precio */}
+                        <div className="flex items-center gap-6 text-sm">
+                          <div className="text-center">
+                            <p className="text-muted-foreground">Stock</p>
+                            <p className="font-bold text-lg">
+                              {stock?.cantidad_disponible || 0}
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-muted-foreground">Precio</p>
+                            <p className="font-bold text-success">
+                              ${producto.precio_venta_sugerido?.toLocaleString() || 'N/A'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Botones de acción compactos */}
+                        <div className="flex items-center gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => onEditProduct(producto)}
+                            className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => onDeleteProduct(producto.id)}
+                            className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="h-8 w-8 p-0 hover:bg-accent/10"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Estado cuando no hay productos filtrados */}
