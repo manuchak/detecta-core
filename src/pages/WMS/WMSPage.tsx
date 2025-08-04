@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Package, ShoppingCart, Users, BarChart3, Truck, Settings, Smartphone, ArrowRight, Lock } from 'lucide-react';
+import { Package, ShoppingCart, Users, BarChart3, Truck, Settings, Smartphone, ArrowRight, Lock, Search } from 'lucide-react';
 import { useWMSAccess } from '@/hooks/useWMSAccess';
 import { InventarioTab } from './components/InventarioTab';
 import { StockTab } from './components/StockTab';
@@ -12,6 +12,7 @@ import { ProveedoresTab } from './components/ProveedoresTab';
 import { RecepcionTab } from './components/RecepcionTab';
 import { CatalogoGPSTab } from './components/CatalogoGPSTab';
 import { ConfiguracionTab } from './components/ConfiguracionTab';
+import { GPSResearchTab } from './components/GPSResearchTab';
 
 interface EmptyModuleCardProps {
   title: string;
@@ -89,7 +90,7 @@ export const WMSPage = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7 h-12">
+        <TabsList className="grid w-full grid-cols-8 h-12">
           <TabsTrigger value="inventario" className="flex items-center gap-2">
             <Package className="h-4 w-4" />
             Inventario
@@ -113,6 +114,10 @@ export const WMSPage = () => {
           <TabsTrigger value="catalogo" className="flex items-center gap-2">
             <Smartphone className="h-4 w-4" />
             Catálogo GPS
+          </TabsTrigger>
+          <TabsTrigger value="research" className="flex items-center gap-2">
+            <Search className="h-4 w-4" />
+            Investigación
           </TabsTrigger>
           <TabsTrigger value="configuracion" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
@@ -143,6 +148,11 @@ export const WMSPage = () => {
         <TabsContent value="catalogo">
           <CatalogoGPSTab />
         </TabsContent>
+        
+        <TabsContent value="research">
+          <GPSResearchTab />
+        </TabsContent>
+        
         <TabsContent value="configuracion">
           <ConfiguracionTab />
         </TabsContent>
