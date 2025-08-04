@@ -427,8 +427,12 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
   const annualGMV = getNumericValue(forecastData.annualGMV);
   const varianceServices = getNumericValue(forecastData.variance);
   
-  const monthlyServicesProgress = annualServices > 0 ? (currentMonthServices / annualServices) * 100 * 12 : 0;
-  const monthlyGMVProgress = annualGMV > 0 ? (currentMonthGMV / annualGMV) * 100 * 12 : 0;
+  // Fix: Progress should be (actual_ytd / annual_forecast) * 100, not monthly * 12
+  const actualAnnualServices = typeof forecastData.annualServices === 'object' ? forecastData.annualServices.actual : 5238; // YTD real
+  const actualAnnualGMV = typeof forecastData.annualGMV === 'object' ? forecastData.annualGMV.actual : 33266311; // YTD real
+  
+  const annualServicesProgress = annualServices > 0 ? (actualAnnualServices / annualServices) * 100 : 0;
+  const annualGMVProgress = annualGMV > 0 ? (actualAnnualGMV / annualGMV) * 100 : 0;
   
   return (
     <Card className="bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 border-0 shadow-xl">
@@ -536,7 +540,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
               variance={varianceServices}
               icon={BarChart3}
               period="annual"
-              progress={monthlyServicesProgress}
+              progress={annualServicesProgress}
             />
             <ForecastMetricCard
               title="GMV Anual"
@@ -546,7 +550,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
               icon={DollarSign}
               isGMV={true}
               period="annual"
-              progress={monthlyGMVProgress}
+              progress={annualGMVProgress}
             />
           </div>
         </div>
