@@ -300,7 +300,7 @@ export const useLeadApprovals = () => {
     }
   };
 
-  const handleReject = async (lead: AssignedLead) => {
+  const handleReject = async (lead: AssignedLead, rejectionReasons: string[] = [], customReason: string = "") => {
     // Para rechazar no se requiere validación de campos completos
     try {
       console.log('Iniciando proceso de rechazo para lead:', lead.lead_id);
@@ -328,6 +328,22 @@ export const useLeadApprovals = () => {
       console.log('Lead asignado a:', leadData?.asignado_a);
       console.log('Usuario actual:', user.id);
       
+      // Construir el motivo de rechazo completo
+      let fullRejectionReason = "";
+      if (rejectionReasons.length > 0) {
+        fullRejectionReason = rejectionReasons.join("; ");
+      }
+      if (customReason.trim()) {
+        if (fullRejectionReason) {
+          fullRejectionReason += "; " + customReason.trim();
+        } else {
+          fullRejectionReason = customReason.trim();
+        }
+      }
+      
+      // Si no hay razones específicas, usar mensaje genérico
+      const finalReason = fullRejectionReason || "No cumple con los requisitos";
+      
       // Primero intentar crear/actualizar el proceso de aprobación
       const { error: approvalError } = await supabase
         .from('lead_approval_process')
@@ -338,7 +354,7 @@ export const useLeadApprovals = () => {
           interview_method: 'manual',
           phone_interview_notes: 'Rechazado por el analista',
           final_decision: 'rejected',
-          decision_reason: 'No cumple con los requisitos',
+          decision_reason: finalReason,
           phone_interview_completed: true,
           second_interview_required: false,
           updated_at: new Date().toISOString()
@@ -349,11 +365,12 @@ export const useLeadApprovals = () => {
         throw new Error(`Error en proceso de aprobación: ${approvalError.message}`);
       }
 
-      // Luego actualizar el lead
+      // Luego actualizar el lead con el motivo de rechazo
       const { error: leadError } = await supabase
         .from('leads')
         .update({
           estado: 'rechazado',
+          motivo_rechazo: finalReason,
           updated_at: new Date().toISOString()
         })
         .eq('id', lead.lead_id);
@@ -367,7 +384,7 @@ export const useLeadApprovals = () => {
 
       toast({
         title: "Candidato rechazado",
-        description: "El candidato ha sido rechazado.",
+        description: "El candidato ha sido rechazado con las razones especificadas.",
       });
 
       fetchAssignedLeads();

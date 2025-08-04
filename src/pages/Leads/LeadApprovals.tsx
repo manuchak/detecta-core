@@ -43,6 +43,7 @@ export const LeadApprovals = () => {
   const [showCallHistory, setShowCallHistory] = useState(false);
   const [showMissingInfoDialog, setShowMissingInfoDialog] = useState(false);
   const [showCallLogDialog, setShowCallLogDialog] = useState(false);
+  const [showRejectionDialog, setShowRejectionDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
   
@@ -93,6 +94,17 @@ export const LeadApprovals = () => {
   const handleLogCall = (lead: AssignedLead) => {
     setSelectedLead(lead);
     setShowCallLogDialog(true);
+  };
+
+  const handleRejectWithReason = (lead: AssignedLead) => {
+    setSelectedLead(lead);
+    setShowRejectionDialog(true);
+  };
+
+  const handleConfirmReject = (reasons: string[], customReason: string) => {
+    if (selectedLead) {
+      handleReject(selectedLead, reasons, customReason);
+    }
   };
 
   const handleCallComplete = () => {
@@ -199,7 +211,7 @@ export const LeadApprovals = () => {
                   onViewCallHistory={handleViewCallHistory}
                   onApproveLead={handleApproveLead}
                   onSendToSecondInterview={handleSendToSecondInterview}
-                  onReject={handleReject}
+                  onReject={handleRejectWithReason}
                   onCompleteMissingInfo={handleCompleteMissingInfo}
                   onLogCall={handleLogCall}
                 />
@@ -217,7 +229,7 @@ export const LeadApprovals = () => {
                   onViewCallHistory={handleViewCallHistory}
                   onApproveLead={handleApproveLead}
                   onSendToSecondInterview={handleSendToSecondInterview}
-                  onReject={handleReject}
+                  onReject={handleRejectWithReason}
                   onCompleteMissingInfo={handleCompleteMissingInfo}
                   onLogCall={handleLogCall}
                 />
@@ -235,7 +247,7 @@ export const LeadApprovals = () => {
                   onViewCallHistory={handleViewCallHistory}
                   onApproveLead={handleApproveLead}
                   onSendToSecondInterview={handleSendToSecondInterview}
-                  onReject={handleReject}
+                  onReject={handleRejectWithReason}
                   onCompleteMissingInfo={handleCompleteMissingInfo}
                   onLogCall={handleLogCall}
                 />
@@ -256,6 +268,7 @@ export const LeadApprovals = () => {
           showCallHistory={showCallHistory}
           showMissingInfoDialog={showMissingInfoDialog}
           showCallLogDialog={showCallLogDialog}
+          showRejectionDialog={showRejectionDialog}
           callLogs={callLogs}
           onEditDialogChange={setShowEditDialog}
           onVapiDialogChange={setShowVapiDialog}
@@ -263,9 +276,11 @@ export const LeadApprovals = () => {
           onCallHistoryChange={setShowCallHistory}
           onMissingInfoDialogChange={setShowMissingInfoDialog}
           onCallLogDialogChange={setShowCallLogDialog}
+          onRejectionDialogChange={setShowRejectionDialog}
           onUpdate={fetchAssignedLeads}
           onCallComplete={handleCallComplete}
           onOpenCompleteInfo={handleOpenCompleteInfo}
+          onConfirmReject={handleConfirmReject}
         />
       </div>
     </TooltipProvider>

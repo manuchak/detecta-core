@@ -7,6 +7,7 @@ import { ManualInterviewDialog } from "@/components/leads/ManualInterviewDialog"
 import { CallHistoryDialog } from "@/components/leads/CallHistoryDialog";
 import { MissingInfoDialog } from "./MissingInfoDialog";
 import { CallLogDialog } from "./CallLogDialog";
+import { RejectionReasonDialog } from "./RejectionReasonDialog";
 
 interface LeadDialogsProps {
   selectedLead: AssignedLead | null;
@@ -16,6 +17,7 @@ interface LeadDialogsProps {
   showCallHistory: boolean;
   showMissingInfoDialog: boolean;
   showCallLogDialog: boolean;
+  showRejectionDialog: boolean;
   callLogs: VapiCallLog[];
   onEditDialogChange: (open: boolean) => void;
   onVapiDialogChange: (open: boolean) => void;
@@ -23,9 +25,11 @@ interface LeadDialogsProps {
   onCallHistoryChange: (open: boolean) => void;
   onMissingInfoDialogChange: (open: boolean) => void;
   onCallLogDialogChange: (open: boolean) => void;
+  onRejectionDialogChange: (open: boolean) => void;
   onUpdate: () => void;
   onCallComplete: () => void;
   onOpenCompleteInfo: () => void;
+  onConfirmReject: (reasons: string[], customReason: string) => void;
 }
 
 export const LeadDialogs = ({
@@ -36,6 +40,7 @@ export const LeadDialogs = ({
   showCallHistory,
   showMissingInfoDialog,
   showCallLogDialog,
+  showRejectionDialog,
   callLogs,
   onEditDialogChange,
   onVapiDialogChange,
@@ -43,9 +48,11 @@ export const LeadDialogs = ({
   onCallHistoryChange,
   onMissingInfoDialogChange,
   onCallLogDialogChange,
+  onRejectionDialogChange,
   onUpdate,
   onCallComplete,
-  onOpenCompleteInfo
+  onOpenCompleteInfo,
+  onConfirmReject
 }: LeadDialogsProps) => {
   if (!selectedLead) return null;
 
@@ -96,6 +103,13 @@ export const LeadDialogs = ({
         lead={selectedLead}
         onCallLogged={onUpdate}
         onOpenCompleteInfo={onOpenCompleteInfo}
+      />
+
+      <RejectionReasonDialog
+        open={showRejectionDialog}
+        onOpenChange={onRejectionDialogChange}
+        lead={selectedLead}
+        onConfirmReject={onConfirmReject}
       />
     </>
   );
