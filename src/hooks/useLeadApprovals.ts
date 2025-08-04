@@ -324,10 +324,6 @@ export const useLeadApprovals = () => {
         throw new Error(`No se pudo verificar el lead: ${leadCheckError.message}`);
       }
 
-      console.log('Lead data:', leadData);
-      console.log('Lead asignado a:', leadData?.asignado_a);
-      console.log('Usuario actual:', user.id);
-      
       // Construir el motivo de rechazo completo
       let fullRejectionReason = "";
       if (rejectionReasons.length > 0) {
@@ -344,21 +340,15 @@ export const useLeadApprovals = () => {
       // Si no hay razones específicas, usar mensaje genérico
       const finalReason = fullRejectionReason || "No cumple con los requisitos";
       
-      // Primero intentar crear/actualizar el proceso de aprobación
-      const { error: approvalError } = await supabase
-        .from('lead_approval_process')
-        .upsert({
-          lead_id: lead.lead_id,
-          analyst_id: user.id,
-          current_stage: 'rejected',
-          interview_method: 'manual',
-          phone_interview_notes: 'Rechazado por el analista',
-          final_decision: 'rejected',
-          decision_reason: finalReason,
-          phone_interview_completed: true,
-          second_interview_required: false,
-          updated_at: new Date().toISOString()
-        });
+      // Usar la nueva función de base de datos en lugar del upsert directo
+      const { error: approvalError } = await supabase.rpc('update_approval_process', {
+        p_lead_id: lead.lead_id,
+        p_stage: 'rejected',
+        p_interview_method: 'manual',
+        p_notes: 'Rechazado por el analista',
+        p_decision: 'rejected',
+        p_decision_reason: finalReason
+      });
 
       if (approvalError) {
         console.error('Error en lead_approval_process:', approvalError);
