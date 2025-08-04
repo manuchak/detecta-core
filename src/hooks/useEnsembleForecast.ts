@@ -4,11 +4,29 @@ import { useHoltWintersForecast } from './useHoltWintersForecast';
 import { calculateAdvancedMetrics, AdvancedMetrics } from '@/utils/advancedMetrics';
 
 export interface EnsembleForecastData {
-  // Final ensemble results
-  monthlyServices: number;
-  annualServices: number;
-  monthlyGMV: number;
-  annualGMV: number;
+  // Final ensemble results - structured for ForecastCard compatibility
+  monthlyServices: {
+    forecast: number;
+    actual: number;
+  };
+  annualServices: {
+    forecast: number;
+    actual: number;
+  };
+  monthlyGMV: {
+    forecast: number;
+    actual: number;
+  };
+  annualGMV: {
+    forecast: number;
+    actual: number;
+  };
+  
+  // Add variance for display
+  variance: {
+    services: number;
+    gmv: number;
+  };
   
   // Enhanced metrics
   metrics: AdvancedMetrics & {
@@ -48,11 +66,19 @@ export function useEnsembleForecast() {
   const prophetResult = useProphetForecast();
   const holtWintersResult = useHoltWintersForecast();
 
-  // Calculate ensemble forecast
+  // Calculate ensemble forecast with proper debugging
   const { data: ensembleData, isLoading, error } = useQuery({
     queryKey: ['ensemble-forecast', prophetResult.forecast, holtWintersResult],
-    queryFn: () => calculateEnsembleForecast(prophetResult.forecast, holtWintersResult),
-    enabled: !prophetResult.isLoading && !holtWintersResult,
+    queryFn: () => {
+      console.log('🧮 Calculating ensemble with:', { 
+        prophetData: prophetResult.forecast,
+        holtWintersData: holtWintersResult,
+        prophetLoading: prophetResult.isLoading,
+        hwLoading: !!holtWintersResult
+      });
+      return calculateEnsembleForecast(prophetResult.forecast, holtWintersResult);
+    },
+    enabled: !prophetResult.isLoading && !!holtWintersResult, // Fixed condition
     staleTime: 5 * 60 * 1000,
     retry: 2
   });
@@ -77,11 +103,20 @@ function calculateEnsembleForecast(
   }
 
   try {
-    // Extract individual model predictions
+    // Extract individual model predictions with proper field mapping
     const prophetServices = prophetData.monthlyServices || 0;
-    const holtWintersServices = holtWintersData.monthlyServices || 0;
+    const holtWintersServices = holtWintersData.monthlyServicesForecast || holtWintersData.monthlyServices || 0; // Fix field name
     const prophetGMV = prophetData.monthlyGMV || 0;
-    const holtWintersGMV = holtWintersData.monthlyGMV || 0;
+    const holtWintersGMV = holtWintersData.monthlyGmvForecast || holtWintersData.monthlyGMV || 0; // Fix field name
+
+    console.log('🔧 ENSEMBLE DATA EXTRACTION:', {
+      prophetServices,
+      holtWintersServices,
+      prophetGMV,
+      holtWintersGMV,
+      prophetRaw: prophetData,
+      holtWintersRaw: holtWintersData
+    });
 
     // Calculate simple linear regression forecast for third model
     const linearServices = calculateLinearForecast([prophetServices, holtWintersServices]);
@@ -142,11 +177,33 @@ function calculateEnsembleForecast(
       modelAgreement
     );
 
+    // Build ensemble forecast data with comprehensive metrics and proper structure
     return {
-      monthlyServices: ensembleServices,
-      annualServices: ensembleServices * 12,
-      monthlyGMV: ensembleGMV,
-      annualGMV: ensembleGMV * 12,
+      // Primary forecasts - match ForecastCard expectations
+      monthlyServices: {
+        forecast: ensembleServices,
+        actual: holtWintersData.monthlyServicesActual || holtWintersData.monthlyServices || 0
+      },
+      annualServices: {
+        forecast: ensembleServices * 12,
+        actual: (holtWintersData.monthlyServicesActual || holtWintersData.monthlyServices || 0) * 12
+      },
+      monthlyGMV: {
+        forecast: ensembleGMV,
+        actual: holtWintersData.monthlyGmvActual || holtWintersData.monthlyGMV || 0
+      },
+      annualGMV: {
+        forecast: ensembleGMV * 12,
+        actual: (holtWintersData.monthlyGmvActual || holtWintersData.monthlyGMV || 0) * 12
+      },
+      
+      // Add variance calculation
+      variance: {
+        services: holtWintersData.monthlyServicesActual > 0 ? 
+          ((ensembleServices - holtWintersData.monthlyServicesActual) / holtWintersData.monthlyServicesActual * 100) : 0,
+        gmv: holtWintersData.monthlyGmvActual > 0 ?
+          ((ensembleGMV - holtWintersData.monthlyGmvActual) / holtWintersData.monthlyGmvActual * 100) : 0
+      },
       
       metrics: ensembleMetrics,
       
@@ -310,10 +367,11 @@ function getDefaultMetrics(): AdvancedMetrics {
 
 function getDefaultEnsembleData(): EnsembleForecastData {
   return {
-    monthlyServices: 0,
-    annualServices: 0,
-    monthlyGMV: 0,
-    annualGMV: 0,
+    monthlyServices: { forecast: 0, actual: 0 },
+    annualServices: { forecast: 0, actual: 0 },
+    monthlyGMV: { forecast: 0, actual: 0 },
+    annualGMV: { forecast: 0, actual: 0 },
+    variance: { services: 0, gmv: 0 },
     metrics: {
       smape: 100,
       mase: 10,
