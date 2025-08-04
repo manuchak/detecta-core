@@ -123,7 +123,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
   // Normalizar datos del forecast (compatible con ambos tipos)
   const normalizedForecastData = (() => {
     const ensembleData = ensembleForecast.forecast;
-    const hwData = holtWintersResult.forecast;
+    const hwData = holtWintersResult;
     
     if (ensembleData) {
       return {
@@ -137,13 +137,13 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
       };
     } else if (hwData) {
       return {
-        monthlyServices: hwData.monthlyServices,
-        annualServices: hwData.annualServices,
-        monthlyGMV: hwData.monthlyGMV,
-        annualGMV: hwData.annualGMV,
-        variance: hwData.variance,
-        metrics: hwData.metrics,
-        currentMonthName: hwData.currentMonthName
+        monthlyServices: { forecast: hwData.monthlyServicesForecast, actual: hwData.monthlyServicesActual },
+        annualServices: { forecast: hwData.annualServicesForecast, actual: hwData.annualServicesActual },
+        monthlyGMV: { forecast: hwData.monthlyGmvForecast, actual: hwData.monthlyGmvActual },
+        annualGMV: { forecast: hwData.annualGmvForecast, actual: hwData.annualGmvActual },
+        variance: { services: hwData.monthlyServicesVariance, gmv: hwData.monthlyGmvVariance },
+        metrics: { mape: hwData.accuracy.serviceMAPE, confidence: hwData.accuracy.confidence },
+        currentMonthName: hwData.forecastMonth
       };
     }
     
@@ -178,7 +178,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
   const currentYear = new Date().getFullYear();
   
   // Si hay error en los datos del forecast
-  if (error || ensembleForecast.error || holtWintersResult.error) {
+  if (error || ensembleForecast.error) {
     return (
       <Card className="bg-gradient-to-br from-red-50 via-red-50 to-red-100 border-red-200 shadow-lg">
         <CardHeader className="pb-4">
@@ -209,7 +209,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
   }
 
   // Si está cargando
-  if (isLoading || ensembleForecast.isLoading || holtWintersResult.isLoading) {
+  if (isLoading || ensembleForecast.isLoading) {
     return (
       <Card className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border-0 shadow-xl">
         <CardHeader className="pb-4">
@@ -331,11 +331,21 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
     </div>
   );
 
-  // Calculate progress percentages (usa valores del forecast disponible)
-  const currentMonthServices = forecastData.monthlyServices;
-  const currentMonthGMV = forecastData.monthlyGMV;
-  const monthlyServicesProgress = forecastData.annualServices > 0 ? (currentMonthServices / forecastData.annualServices) * 100 * 12 : 0;
-  const monthlyGMVProgress = forecastData.annualGMV > 0 ? (currentMonthGMV / forecastData.annualGMV) * 100 * 12 : 0;
+  // Extract numeric values for calculations
+  const getNumericValue = (value: any): number => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'object' && value?.forecast) return value.forecast;
+    return 0;
+  };
+  
+  const currentMonthServices = getNumericValue(forecastData.monthlyServices);
+  const currentMonthGMV = getNumericValue(forecastData.monthlyGMV);
+  const annualServices = getNumericValue(forecastData.annualServices);
+  const annualGMV = getNumericValue(forecastData.annualGMV);
+  const varianceServices = getNumericValue(forecastData.variance);
+  
+  const monthlyServicesProgress = annualServices > 0 ? (currentMonthServices / annualServices) * 100 * 12 : 0;
+  const monthlyGMVProgress = annualGMV > 0 ? (currentMonthGMV / annualGMV) * 100 * 12 : 0;
   
   return (
     <Card className="bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 border-0 shadow-xl">
@@ -356,7 +366,12 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
                 </Badge>
                  <Badge variant="outline" className="text-slate-600">
                    <Activity className="h-3 w-3 mr-1" />
-                   sMAPE: {forecastData.metrics.smape.toFixed(1)}%
+                    sMAPE: {(() => {
+                      const metrics = forecastData.metrics;
+                      if ('smape' in metrics) return metrics.smape.toFixed(1);
+                      if ('mape' in metrics) return metrics.mape.toFixed(1);
+                      return '50.0';
+                    })()}%
                  </Badge>
                  <Badge variant="outline" className="text-slate-600">
                    Confianza: {forecastData.metrics.confidence}
@@ -374,13 +389,13 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
           <AlertDescription className="text-blue-800">
             <div className="flex items-center justify-between">
                <div>
-                 <strong>Servicios {forecastData.currentMonthName}:</strong> {forecastData.monthlyServices.toLocaleString()} servicios
+                 <strong>Servicios {forecastData.currentMonthName}:</strong> {currentMonthServices.toLocaleString()} servicios
                </div>
                <div className="text-right">
-                 <strong>GMV {forecastData.currentMonthName}:</strong> {formatCurrency(forecastData.monthlyGMV)} 
-                 <span className="text-xs ml-2 opacity-75">
-                   (Ticket: ${forecastData.monthlyServices > 0 ? (forecastData.monthlyGMV / forecastData.monthlyServices).toFixed(0) : '0'})
-                 </span>
+                  <strong>GMV {forecastData.currentMonthName}:</strong> {formatCurrency(currentMonthGMV)} 
+                  <span className="text-xs ml-2 opacity-75">
+                    (Ticket: ${currentMonthServices > 0 ? (currentMonthGMV / currentMonthServices).toFixed(0) : '0'})
+                  </span>
                </div>
             </div>
           </AlertDescription>
@@ -400,17 +415,17 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <ForecastMetricCard
               title="Servicios del Mes"
-              actual={forecastData.monthlyServices}
-              forecast={forecastData.monthlyServices}
-              variance={forecastData.variance}
+              actual={currentMonthServices}
+              forecast={currentMonthServices}
+              variance={varianceServices}
               icon={BarChart3}
               period="monthly"
             />
             <ForecastMetricCard
               title="GMV del Mes"
-              actual={forecastData.monthlyGMV}
-              forecast={forecastData.monthlyGMV}
-              variance={forecastData.variance}
+              actual={currentMonthGMV}
+              forecast={currentMonthGMV}
+              variance={varianceServices}
               icon={DollarSign}
               isGMV={true}
               period="monthly"
@@ -432,18 +447,18 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <ForecastMetricCard
               title="Servicios Anuales"
-              actual={forecastData.annualServices}
-              forecast={forecastData.annualServices}
-              variance={forecastData.variance}
+              actual={annualServices}
+              forecast={annualServices}
+              variance={varianceServices}
               icon={BarChart3}
               period="annual"
               progress={monthlyServicesProgress}
             />
             <ForecastMetricCard
               title="GMV Anual"
-              actual={forecastData.annualGMV}
-              forecast={forecastData.annualGMV}
-              variance={forecastData.variance}
+              actual={annualGMV}
+              forecast={annualGMV}
+              variance={varianceServices}
               icon={DollarSign}
               isGMV={true}
               period="annual"
@@ -482,7 +497,12 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
               <div className="w-3 h-3 bg-purple-500 rounded-full flex-shrink-0"></div>
               <div className="text-sm">
                  <div className="font-medium text-gray-900">Precisión sMAPE</div>
-                 <div className="text-gray-600">{forecastData.metrics.smape.toFixed(1)}% servicios</div>
+                 <div className="text-gray-600">{(() => {
+                      const metrics = forecastData.metrics;
+                      if ('smape' in metrics) return metrics.smape.toFixed(1);
+                      if ('mape' in metrics) return metrics.mape.toFixed(1);
+                      return '50.0';
+                    })()}% servicios</div>
               </div>
             </div>
             
