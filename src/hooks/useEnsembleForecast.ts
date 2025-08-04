@@ -143,10 +143,10 @@ function calculateEnsembleForecast(
     let adjustedProphetGMV = prophetGMV;
     let adjustedHoltWintersGMV = holtWintersGMV;
 
-    // YTD context: Datos reales 2024 completo
-    const ytdServiciosReales = 10714; // Servicios YTD 2024 reales
-    const ytdGMVReal = 63637025; // GMV YTD 2024 real
-    const aovPromedio = 5939; // AOV YTD 2024 real
+    // YTD context: Datos reales 2025 YTD
+    const ytdServiciosReales = 5238; // Servicios YTD 2025 reales
+    const ytdGMVReal = 33266311; // GMV YTD 2025 real (incluye todos los registros)
+    const aovPromedio = 6350; // AOV YTD 2025 real
 
     // Current month projection: Agosto 2025
     const currentMonthProjectedServices = 736; // Basado en 95 servicios en 4 días
@@ -155,12 +155,12 @@ function calculateEnsembleForecast(
     // If predictions are unrealistic, use seasonal adjusted forecasts
     if (!isValidServices(prophetServices)) {
       console.log('🔄 Adjusting Prophet services using seasonal patterns');
-      adjustedProphetServices = Math.round(ytdServiciosReales / 12 * 1.08); // Crecimiento 8% sobre promedio
+      adjustedProphetServices = Math.round(ytdServiciosReales / 7 * 1.1); // YTD/7 meses con crecimiento 10%
     }
     
     if (!isValidServices(holtWintersServices)) {
       console.log('🔄 Adjusting HW services using seasonal patterns');
-      adjustedHoltWintersServices = Math.round(ytdServiciosReales / 12 * 1.05); // Crecimiento 5% sobre promedio
+      adjustedHoltWintersServices = Math.round(ytdServiciosReales / 7 * 1.05); // YTD/7 meses con crecimiento 5%
     }
 
     if (!isValidGMV(prophetGMV)) {
@@ -254,16 +254,16 @@ function calculateEnsembleForecast(
         actual: getActualMonthlyServices() // Use real current month data
       },
       annualServices: {
-        forecast: 10714 + ensembleServices * 1, // YTD 2024 real + agosto proyectado
-        actual: 10714 // YTD 2024 real
+        forecast: ytdServiciosReales + ensembleServices * 5, // YTD 2025 real + 5 meses restantes
+        actual: ytdServiciosReales // YTD 2025 real
       },
       monthlyGMV: {
         forecast: ensembleGMV,
         actual: getActualMonthlyGMV() // Use real current month data
       },
       annualGMV: {
-        forecast: 63637025 + ensembleGMV * 1, // YTD 2024 real + agosto proyectado
-        actual: 63637025 // YTD 2024 real
+        forecast: ytdGMVReal + ensembleGMV * 5, // YTD 2025 real + 5 meses restantes
+        actual: ytdGMVReal // YTD 2025 real
       },
       
       // Add variance calculation using YTD projections
@@ -433,16 +433,19 @@ function getDefaultMetrics(): AdvancedMetrics {
 }
 
 function getActualMonthlyServices(): number {
-  // Agosto 2025: proyección basada en datos de primeros días del mes
-  // Para efectos de demo, usar el promedio del 2024
-  return Math.round(10714 / 12); // Promedio mensual 2024
+  // Agosto 2025: proyección basada en datos de primeros 4 días del mes
+  const currentDay = 4; 
+  const totalDaysInMonth = 31;
+  const servicesTo4thAugust = 95; // Del forensic audit
+  
+  return Math.round((servicesTo4thAugust / currentDay) * totalDaysInMonth); // 736 servicios proyectados
 }
 
 function getActualMonthlyGMV(): number {
-  // Usar AOV real del 2024 para proyección
-  const avgServicesMonth = Math.round(10714 / 12);
-  const aovReal = 5939;
-  return Math.round(avgServicesMonth * aovReal);
+  // Usar AOV real del 2025 YTD para proyección agosto
+  const projectedServices = getActualMonthlyServices();
+  const aovReal = 6350; // AOV YTD 2025 real
+  return Math.round(projectedServices * aovReal);
 }
 
 function calculateVariance(forecast: number, actual: number): number {
