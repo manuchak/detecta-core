@@ -117,9 +117,9 @@ function calculateEnsembleForecast(
 
     // Extract individual model predictions with proper field mapping
     const prophetServices = prophetData.monthlyServices || 0;
-    const holtWintersServices = holtWintersData.monthlyServices || 0;
+    const holtWintersServices = holtWintersData.monthlyServicesForecast || 0; // Correct field name
     const prophetGMV = prophetData.monthlyGMV || 0;
-    const holtWintersGMV = holtWintersData.monthlyGMV || 0;
+    const holtWintersGMV = holtWintersData.monthlyGmvForecast || 0; // Correct field name
 
     console.log('🔧 ENSEMBLE DATA EXTRACTION:', {
       prophetServices,
