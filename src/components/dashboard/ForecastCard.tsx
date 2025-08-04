@@ -160,13 +160,19 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
     return value;
   };
 
-  // PHASE 2: PRIORITY FIX - Ensemble FIRST, Holt-Winters as fallback
+  // FORCE ENSEMBLE - No fallback to Holt-Winters to test the new system
   const normalizedForecastData = (() => {
     const ensembleData = ensembleForecast.forecast;
-    const hwData = holtWintersResult;
     
-    // PRIORITY 1: Use ensemble forecast (new advanced system)
-    if (ensembleData) {
+    console.log('🚀 FORCING ENSEMBLE USAGE:', {
+      available: !!ensembleData,
+      loading: ensembleForecast.isLoading,
+      error: ensembleForecast.error,
+      data: ensembleData
+    });
+    
+    // FORCE ENSEMBLE ONLY - Remove Holt-Winters fallback temporarily
+    if (ensembleData || !ensembleForecast.isLoading) {
       // PHASE 3: SAFE DATA EXTRACTION - Handle both number and object structures
       const safeGetValue = (data: any, field: 'forecast' | 'actual'): number => {
         if (!data) return 0;
@@ -206,30 +212,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
         currentMonthName: getCurrentMonthName()
       };
     } 
-    // PRIORITY 2: Fallback to Holt-Winters (legacy system)
-    else if (hwData) {
-      return {
-        monthlyServices: { 
-          forecast: validateForecast(hwData.monthlyServicesForecast, hwData.monthlyServicesActual, 'HW_monthlyServices'), 
-          actual: hwData.monthlyServicesActual 
-        },
-        annualServices: { 
-          forecast: validateForecast(hwData.annualServicesForecast, hwData.annualServicesActual, 'HW_annualServices'), 
-          actual: hwData.annualServicesActual 
-        },
-        monthlyGMV: { 
-          forecast: validateForecast(hwData.monthlyGmvForecast, hwData.monthlyGmvActual, 'HW_monthlyGMV'), 
-          actual: hwData.monthlyGmvActual 
-        },
-        annualGMV: { 
-          forecast: validateForecast(hwData.annualGmvForecast, hwData.annualGmvActual, 'HW_annualGMV'), 
-          actual: hwData.annualGmvActual 
-        },
-        variance: { services: hwData.monthlyServicesVariance, gmv: hwData.monthlyGmvVariance },
-        metrics: { mape: hwData.accuracy?.serviceMAPE || 50, confidence: hwData.accuracy?.confidence || 'Media' },
-        currentMonthName: hwData.forecastMonth || getCurrentMonthName()
-      };
-    }
+    // FALLBACK DISABLED: Testing Ensemble only
     
     // PRIORITY 3: Emergency fallback with reasonable defaults
     return {
@@ -451,13 +434,13 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
                  </Badge>
                  <Badge variant="outline" className="text-slate-600">
                    <Activity className="h-3 w-3 mr-1" />
-                     sMAPE: {(() => {
-                       const metrics = forecastData.metrics;
-                       if (!metrics) return '50.0';
-                       if ('smape' in metrics && metrics.smape != null) return metrics.smape.toFixed(1);
-                       if ('mape' in metrics && metrics.mape != null) return metrics.mape.toFixed(1);
-                       return '50.0';
-                     })()}%
+                      sMAPE: {(() => {
+                        const metrics = forecastData.metrics;
+                        if (!metrics) return '50.0';
+                        if ('smape' in metrics && typeof metrics.smape === 'number') return metrics.smape.toFixed(1);
+                        if ('mape' in metrics && typeof metrics.mape === 'number') return metrics.mape.toFixed(1);
+                        return '50.0';
+                      })()}%
                   </Badge>
                   <Badge variant="outline" className="text-slate-600">
                     Confianza: {forecastData.metrics?.confidence || 'Baja'}
@@ -583,13 +566,13 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
               <div className="w-3 h-3 bg-purple-500 rounded-full flex-shrink-0"></div>
               <div className="text-sm">
                  <div className="font-medium text-gray-900">Precisión sMAPE</div>
-                  <div className="text-gray-600">{(() => {
-                       const metrics = forecastData.metrics;
-                       if (!metrics) return '50.0';
-                       if ('smape' in metrics && metrics.smape != null) return metrics.smape.toFixed(1);
-                       if ('mape' in metrics && metrics.mape != null) return metrics.mape.toFixed(1);
-                       return '50.0';
-                     })()}% servicios</div>
+                   <div className="text-gray-600">{(() => {
+                        const metrics = forecastData.metrics;
+                        if (!metrics) return '50.0';
+                        if ('smape' in metrics && typeof metrics.smape === 'number') return metrics.smape.toFixed(1);
+                        if ('mape' in metrics && typeof metrics.mape === 'number') return metrics.mape.toFixed(1);
+                        return '50.0';
+                      })()}% servicios</div>
               </div>
             </div>
             
