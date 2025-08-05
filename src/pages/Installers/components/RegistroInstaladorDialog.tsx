@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useInstaladores } from '@/hooks/useInstaladores';
+import { useInstaladorData } from '@/hooks/useInstaladorData';
 
 const schema = z.object({
   nombre_completo: z.string().min(1, 'Nombre completo es requerido'),
@@ -35,7 +35,7 @@ export const RegistroInstaladorDialog: React.FC<RegistroInstaladorDialogProps> =
   open,
   onOpenChange
 }) => {
-  const { createInstalador } = useInstaladores();
+  const { createInstalador } = useInstaladorData();
 
   const {
     register,
@@ -66,7 +66,7 @@ export const RegistroInstaladorDialog: React.FC<RegistroInstaladorDialogProps> =
         titular: formData.titular
       } : undefined;
 
-      await createInstalador.mutateAsync({
+      await createInstalador({
         nombre_completo: formData.nombre_completo,
         telefono: formData.telefono,
         email: formData.email,
