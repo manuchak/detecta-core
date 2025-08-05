@@ -281,7 +281,7 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
       title: "Instalaciones",
       icon: Wrench,
       subItems: [
-        { title: "Mi Portal", path: "/installers/portal" },
+        { title: "Control Instaladores", path: "/installers/portal" },
         { title: "Programación", path: "/installers/schedule" },
         { title: "Calendario", path: "/installers/calendar" },
       ]
