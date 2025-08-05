@@ -294,12 +294,44 @@ export const useProgramacionInstalaciones = () => {
     }
   });
 
+  // Actualizar programación completa
+  const updateProgramacion = useMutation({
+    mutationFn: async (data: any) => {
+      const { data: result, error } = await supabase
+        .from('programacion_instalaciones')
+        .update({
+          fecha_programada: data.fecha_programada,
+          direccion_instalacion: data.direccion_instalacion,
+          contacto_cliente: data.contacto_cliente,
+          telefono_contacto: data.telefono_contacto,
+          observaciones_cliente: data.observaciones_cliente,
+          tiempo_estimado: data.tiempo_estimado,
+          instalador_id: data.instalador_id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', data.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['programacion-instalaciones'] });
+      toast({
+        title: "Programación actualizada",
+        description: "Los datos de la instalación han sido actualizados correctamente.",
+      });
+    }
+  });
+
   return {
     programaciones,
     isLoading,
     error,
     createProgramacion,
     updateEstadoInstalacion,
+    updateProgramacion,
     asignarInstalador,
     desasignarInstalador
   };

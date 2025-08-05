@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, CheckCircle, Map, Timer, XCircle, Clock, MapPin, Phone, User, AlertTriangle, FileText } from "lucide-react";
+import { Calendar, CheckCircle, Map, Timer, XCircle, Clock, MapPin, Phone, User, AlertTriangle, FileText, Edit } from "lucide-react";
 import { useProgramacionInstalaciones } from "@/hooks/useProgramacionInstalaciones";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -25,6 +25,7 @@ import { ProcesoInstalacionDialog } from "@/components/instalacion/ProcesoInstal
 import { useToast } from "@/hooks/use-toast";
 import { FiltrosInteligentes } from "@/components/instalaciones/FiltrosInteligentes";
 import { useAuth } from "@/contexts/AuthContext";
+import { AsignarInstaladorDialog } from "@/components/instalaciones/AsignarInstaladorDialog";
 
 export const InstallerPortal = () => {
   const { programaciones, isLoading, updateEstadoInstalacion, desasignarInstalador } = useProgramacionInstalaciones();
@@ -32,6 +33,8 @@ export const InstallerPortal = () => {
   const [instalacionSeleccionada, setInstalacionSeleccionada] = useState<string | null>(null);
   const [showProcesoDialog, setShowProcesoDialog] = useState(false);
   const [instalacionesFiltradas, setInstalacionesFiltradas] = useState<any[]>([]);
+  const [showAsignarDialog, setShowAsignarDialog] = useState(false);
+  const [instalacionParaAsignar, setInstalacionParaAsignar] = useState<any>(null);
   const { toast } = useToast();
 
   // Use filtered installations for calculations
@@ -141,18 +144,51 @@ export const InstallerPortal = () => {
     setInstalacionSeleccionada(null);
   };
 
+  const handleAsignarInstalador = (instalacion: any) => {
+    setInstalacionParaAsignar(instalacion);
+    setShowAsignarDialog(true);
+  };
+
   const renderAccionButton = (instalacion: any) => {
+    // Verificar si el usuario es coordinador o administrador
+    const isCoordinator = userRole === 'coordinador_operaciones' || userRole === 'admin' || userRole === 'owner';
+    
     if (instalacion.estado === 'programada') {
       return (
         <div className="flex gap-1">
-          <Button 
-            size="sm" 
-            variant="outline"
-            onClick={() => handleConfirmarInstalacion(instalacion.id)}
-            disabled={updateEstadoInstalacion.isPending}
-          >
-            Confirmar
-          </Button>
+          {/* Si no tiene instalador asignado y el usuario es coordinador */}
+          {!instalacion.instalador && isCoordinator ? (
+            <Button 
+              size="sm" 
+              variant="default"
+              onClick={() => handleAsignarInstalador(instalacion)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Asignar
+            </Button>
+          ) : (
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => handleConfirmarInstalacion(instalacion.id)}
+              disabled={updateEstadoInstalacion.isPending}
+            >
+              Confirmar
+            </Button>
+          )}
+          
+          {/* Botón de editar para coordinadores */}
+          {isCoordinator && (
+            <Button 
+              size="sm" 
+              variant="ghost"
+              onClick={() => handleAsignarInstalador(instalacion)}
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+          )}
+          
           <Button 
             size="sm" 
             variant="ghost"
@@ -175,6 +211,16 @@ export const InstallerPortal = () => {
           >
             Iniciar
           </Button>
+          {isCoordinator && (
+            <Button 
+              size="sm" 
+              variant="ghost"
+              onClick={() => handleAsignarInstalador(instalacion)}
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+          )}
           <Button 
             size="sm" 
             variant="ghost"
@@ -405,6 +451,14 @@ export const InstallerPortal = () => {
           programacionId={instalacionSeleccionada}
           onCerrar={handleCerrarProceso}
           onInstalacionCompleta={handleInstalacionCompleta}
+        />
+      )}
+
+      {instalacionParaAsignar && (
+        <AsignarInstaladorDialog
+          open={showAsignarDialog}
+          onOpenChange={setShowAsignarDialog}
+          instalacion={instalacionParaAsignar}
         />
       )}
     </>
