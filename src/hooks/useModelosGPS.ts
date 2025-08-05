@@ -8,7 +8,7 @@ export const useModelosGPS = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: modelos, isLoading, error } = useQuery({
+  const { data: modelos, isLoading, error, refetch } = useQuery({
     queryKey: ['modelos-gps'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -22,7 +22,8 @@ export const useModelosGPS = () => {
 
       if (error) throw error;
       return data as ModeloGPS[];
-    }
+    },
+    staleTime: 1000 * 60 * 5 // 5 minutes
   });
 
   const getModelosByMarca = useQuery({
@@ -103,7 +104,12 @@ export const useModelosGPS = () => {
     }
   });
 
-  // Removed initializeModelosGPS since data is now pre-loaded in database
+  // Función para invalidar cache y refrescar datos
+  const refreshModelos = () => {
+    queryClient.invalidateQueries({ queryKey: ['modelos-gps'] });
+    queryClient.invalidateQueries({ queryKey: ['modelos-gps-by-marca'] });
+    refetch();
+  };
 
   return {
     modelos,
@@ -111,6 +117,7 @@ export const useModelosGPS = () => {
     isLoading,
     error,
     createModelo,
-    updateModelo
+    updateModelo,
+    refreshModelos
   };
 };
