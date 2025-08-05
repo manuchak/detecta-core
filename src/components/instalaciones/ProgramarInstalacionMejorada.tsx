@@ -1016,20 +1016,27 @@ export const ProgramarInstalacionMejorada = ({
                           <SelectValue placeholder="Seleccionar tarjeta SIM" />
                         </SelectTrigger>
                         <SelectContent className="bg-white z-50">
-                           {productos
-                             ?.filter(p => (p.categoria?.nombre?.toLowerCase().includes('sim') || 
-                                           p.categoria?.codigo?.toLowerCase().includes('sim') ||
-                                           p.categoria?.nombre?.toLowerCase() === 'sim cards') && 
-                                          (p.stock?.cantidad_disponible || 0) > 0)
-                            ?.map(producto => (
+                          {(() => {
+                            const simProducts = productos
+                              ?.filter(p => (p.categoria?.nombre?.toLowerCase().includes('sim') || 
+                                            p.categoria?.codigo?.toLowerCase().includes('sim') ||
+                                            p.categoria?.nombre?.toLowerCase() === 'sim cards') && 
+                                           (p.stock?.cantidad_disponible || 0) > 0);
+                            
+                            console.log('All productos:', productos);
+                            console.log('SIM products found:', simProducts);
+                            console.log('Products categories:', productos?.map(p => ({ name: p.categoria?.nombre, code: p.categoria?.codigo, stock: p.stock?.cantidad_disponible })));
+                            
+                            return simProducts?.map(producto => (
                               <SelectItem key={producto.id} value={producto.id}>
                                 {producto.marca} - {producto.nombre}
                                 <span className="text-xs text-gray-500 ml-2">
                                   (Stock: {producto.stock?.cantidad_disponible || 0})
                                 </span>
                               </SelectItem>
-                            ))}
-                           {(!productos?.filter(p => (p.categoria?.nombre?.toLowerCase().includes('sim') || 
+                            ));
+                          })()}
+                          {(!productos?.filter(p => (p.categoria?.nombre?.toLowerCase().includes('sim') || 
                                                           p.categoria?.codigo?.toLowerCase().includes('sim') ||
                                                           p.categoria?.nombre?.toLowerCase() === 'sim cards') && 
                                                          (p.stock?.cantidad_disponible || 0) > 0)?.length) && (
