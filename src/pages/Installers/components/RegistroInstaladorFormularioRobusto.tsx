@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useInstaladorData } from '@/hooks/useInstaladorData';
+import { useEstadosYCiudades } from '@/hooks/useEstadosYCiudades';
 import { 
   MapPin, 
   Clock, 
@@ -129,6 +130,7 @@ export const RegistroInstaladorFormularioRobusto: React.FC<RegistroInstaladorFor
   onOpenChange
 }) => {
   const { createInstalador } = useInstaladorData();
+  const { estados, ciudadesFiltradas, loading: loadingEstados, getCiudadesByEstado, getEstadoById, getCiudadById } = useEstadosYCiudades();
   const [nuevaZona, setNuevaZona] = useState('');
 
   const {
@@ -163,10 +165,20 @@ export const RegistroInstaladorFormularioRobusto: React.FC<RegistroInstaladorFor
   });
 
   const tieneTaller = watch('tiene_taller');
+  const estadoSeleccionado = watch('estado_trabajo');
   const zonasSeleccionadas = watch('zonas_trabajo') || [];
   const especialidadesSeleccionadas = watch('especialidades') || [];
   const herramientasSeleccionadas = watch('herramientas_disponibles') || [];
   const vehiculosSeleccionados = watch('capacidad_vehiculos') || [];
+
+  // Efecto para cargar ciudades cuando cambia el estado
+  useEffect(() => {
+    if (estadoSeleccionado) {
+      getCiudadesByEstado(estadoSeleccionado);
+      // Limpiar ciudad seleccionada cuando cambia el estado
+      setValue('ciudad_trabajo', '');
+    }
+  }, [estadoSeleccionado, getCiudadesByEstado, setValue]);
 
   const agregarZona = () => {
     if (nuevaZona.trim() && !zonasSeleccionadas.includes(nuevaZona.trim())) {
@@ -209,6 +221,9 @@ export const RegistroInstaladorFormularioRobusto: React.FC<RegistroInstaladorFor
         titular: data.titular
       } : undefined;
 
+      const estadoData = getEstadoById(data.estado_trabajo);
+      const ciudadData = getCiudadById(data.ciudad_trabajo);
+
       await createInstalador({
         nombre_completo: data.nombre_completo,
         telefono: data.telefono,
@@ -218,8 +233,8 @@ export const RegistroInstaladorFormularioRobusto: React.FC<RegistroInstaladorFor
         vehiculo_propio: data.vehiculo_propio,
         banco_datos: bancoData,
         // Nuevos campos
-        estado_trabajo: data.estado_trabajo,
-        ciudad_trabajo: data.ciudad_trabajo,
+        estado_trabajo: estadoData?.nombre || data.estado_trabajo,
+        ciudad_trabajo: ciudadData?.nombre || data.ciudad_trabajo,
         zonas_trabajo: data.zonas_trabajo,
         tiene_taller: data.tiene_taller,
         direccion_taller: data.direccion_taller,
@@ -321,14 +336,14 @@ export const RegistroInstaladorFormularioRobusto: React.FC<RegistroInstaladorFor
                     name="estado_trabajo"
                     control={control}
                     render={({ field }) => (
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={loadingEstados}>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecciona el estado" />
                         </SelectTrigger>
                         <SelectContent>
-                          {estadosDesMexico.map((estado) => (
-                            <SelectItem key={estado} value={estado}>
-                              {estado}
+                          {estados.map((estado) => (
+                            <SelectItem key={estado.id} value={estado.id}>
+                              {estado.nombre}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -341,10 +356,32 @@ export const RegistroInstaladorFormularioRobusto: React.FC<RegistroInstaladorFor
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="ciudad_trabajo">Ciudad Principal *</Label>
-                  <Input
-                    {...register('ciudad_trabajo')}
-                    placeholder="Ciudad donde trabaja principalmente"
+                  <Label>Ciudad Principal *</Label>
+                  <Controller
+                    name="ciudad_trabajo"
+                    control={control}
+                    render={({ field }) => (
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value} 
+                        disabled={!estadoSeleccionado || loadingEstados}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={
+                            !estadoSeleccionado 
+                              ? "Primero selecciona un estado" 
+                              : "Selecciona la ciudad"
+                          } />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ciudadesFiltradas.map((ciudad) => (
+                            <SelectItem key={ciudad.id} value={ciudad.id}>
+                              {ciudad.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   />
                   {errors.ciudad_trabajo && (
                     <p className="text-sm text-destructive">{errors.ciudad_trabajo.message}</p>
