@@ -2447,6 +2447,9 @@ export type Database = {
       }
       instaladores: {
         Row: {
+          acepta_pagos_cheque: boolean | null
+          acepta_pagos_efectivo: boolean | null
+          acepta_pagos_transferencia: boolean | null
           banco_datos: Json | null
           calificacion_promedio: number | null
           capacidad_vehiculos: string[] | null
@@ -2469,7 +2472,19 @@ export type Database = {
           id: string
           nombre_completo: string
           observaciones_adicionales: string | null
+          porcentaje_anticipo: number | null
+          requiere_anticipo: boolean | null
           servicios_completados: number | null
+          tarifa_boton_panico: number | null
+          tarifa_camara_seguridad: number | null
+          tarifa_gps_personal: number | null
+          tarifa_gps_vehicular: number | null
+          tarifa_instalacion_basica: number | null
+          tarifa_instalacion_compleja: number | null
+          tarifa_kilometraje: number | null
+          tarifa_mantenimiento: number | null
+          tarifa_sensor_combustible: number | null
+          tarifa_sensor_temperatura: number | null
           telefono: string
           tiene_taller: boolean | null
           tipo_servicios_preferidos: string[] | null
@@ -2480,6 +2495,9 @@ export type Database = {
           zonas_trabajo: string[] | null
         }
         Insert: {
+          acepta_pagos_cheque?: boolean | null
+          acepta_pagos_efectivo?: boolean | null
+          acepta_pagos_transferencia?: boolean | null
           banco_datos?: Json | null
           calificacion_promedio?: number | null
           capacidad_vehiculos?: string[] | null
@@ -2502,7 +2520,19 @@ export type Database = {
           id?: string
           nombre_completo: string
           observaciones_adicionales?: string | null
+          porcentaje_anticipo?: number | null
+          requiere_anticipo?: boolean | null
           servicios_completados?: number | null
+          tarifa_boton_panico?: number | null
+          tarifa_camara_seguridad?: number | null
+          tarifa_gps_personal?: number | null
+          tarifa_gps_vehicular?: number | null
+          tarifa_instalacion_basica?: number | null
+          tarifa_instalacion_compleja?: number | null
+          tarifa_kilometraje?: number | null
+          tarifa_mantenimiento?: number | null
+          tarifa_sensor_combustible?: number | null
+          tarifa_sensor_temperatura?: number | null
           telefono: string
           tiene_taller?: boolean | null
           tipo_servicios_preferidos?: string[] | null
@@ -2513,6 +2543,9 @@ export type Database = {
           zonas_trabajo?: string[] | null
         }
         Update: {
+          acepta_pagos_cheque?: boolean | null
+          acepta_pagos_efectivo?: boolean | null
+          acepta_pagos_transferencia?: boolean | null
           banco_datos?: Json | null
           calificacion_promedio?: number | null
           capacidad_vehiculos?: string[] | null
@@ -2535,7 +2568,19 @@ export type Database = {
           id?: string
           nombre_completo?: string
           observaciones_adicionales?: string | null
+          porcentaje_anticipo?: number | null
+          requiere_anticipo?: boolean | null
           servicios_completados?: number | null
+          tarifa_boton_panico?: number | null
+          tarifa_camara_seguridad?: number | null
+          tarifa_gps_personal?: number | null
+          tarifa_gps_vehicular?: number | null
+          tarifa_instalacion_basica?: number | null
+          tarifa_instalacion_compleja?: number | null
+          tarifa_kilometraje?: number | null
+          tarifa_mantenimiento?: number | null
+          tarifa_sensor_combustible?: number | null
+          tarifa_sensor_temperatura?: number | null
           telefono?: string
           tiene_taller?: boolean | null
           tipo_servicios_preferidos?: string[] | null
