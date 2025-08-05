@@ -3,11 +3,12 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, MapPin, User, Phone, Settings } from 'lucide-react';
+import { Calendar, Clock, MapPin, User, Phone, Settings, Wrench, Zap } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { ProgramacionInstalacion } from '@/types/instaladores';
 import { AsignarInstaladorDialog } from './AsignarInstaladorDialog';
+import { EditInstallationDialog } from './EditInstallationDialog';
 
 interface InstallationCardProps {
   programacion: ProgramacionInstalacion;
@@ -21,6 +22,7 @@ export const InstallationCard: React.FC<InstallationCardProps> = ({
   getPrioridadColor
 }) => {
   const [showAsignarDialog, setShowAsignarDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
   return (
     <>
@@ -89,6 +91,31 @@ export const InstallationCard: React.FC<InstallationCardProps> = ({
                 <span>Sin asignar</span>
               </div>
             )}
+
+            {/* Información adicional */}
+            <div className="flex items-center gap-2 text-sm text-blue-600">
+              <Zap className="h-4 w-4" />
+              <span className="capitalize">{programacion.tipo_instalacion.replace('_', ' ')}</span>
+            </div>
+
+            {(programacion.herramientas_especiales?.length > 0 || 
+              programacion.requiere_vehiculo_elevado || 
+              programacion.acceso_restringido) && (
+              <div className="flex items-start gap-2 text-sm text-amber-600">
+                <Wrench className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <div className="space-y-1">
+                  {programacion.herramientas_especiales?.length > 0 && (
+                    <div>Herramientas: {programacion.herramientas_especiales.join(', ')}</div>
+                  )}
+                  {programacion.requiere_vehiculo_elevado && (
+                    <div>Requiere vehículo elevado</div>
+                  )}
+                  {programacion.acceso_restringido && (
+                    <div>Acceso restringido</div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2 pt-2">
@@ -102,7 +129,11 @@ export const InstallationCard: React.FC<InstallationCardProps> = ({
               </Button>
             )}
             
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowEditDialog(true)}
+            >
               <Settings className="h-4 w-4" />
             </Button>
           </div>
@@ -120,6 +151,12 @@ export const InstallationCard: React.FC<InstallationCardProps> = ({
       <AsignarInstaladorDialog
         open={showAsignarDialog}
         onOpenChange={setShowAsignarDialog}
+        programacion={programacion}
+      />
+
+      <EditInstallationDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
         programacion={programacion}
       />
     </>
