@@ -6344,14 +6344,6 @@ export type Database = {
         }
         Relationships: []
       }
-      vista_instalaciones_dashboard: {
-        Row: {
-          recommendation: string | null
-          status: string | null
-          updated_at: string | null
-        }
-        Relationships: []
-      }
     }
     Functions: {
       actualizar_roi_custodios: {
