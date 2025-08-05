@@ -282,6 +282,7 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
       icon: Wrench,
       subItems: [
         { title: "Control Instaladores", path: "/installers/portal" },
+        { title: "Registro Instaladores", path: "/installers/registro" },
         { title: "Programación", path: "/installers/schedule" },
         { title: "Calendario", path: "/installers/calendar" },
       ]

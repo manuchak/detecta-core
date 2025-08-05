@@ -550,6 +550,74 @@ export type Database = {
         }
         Relationships: []
       }
+      auditoria_instalaciones: {
+        Row: {
+          aspectos_mejora: string[] | null
+          aspectos_positivos: string[] | null
+          auditor_id: string
+          created_at: string | null
+          estado_auditoria: string
+          fecha_auditoria: string | null
+          fecha_resolucion: string | null
+          id: string
+          instalador_id: string
+          observaciones: string | null
+          programacion_id: string
+          puntuacion_documentacion: number | null
+          puntuacion_evidencias: number | null
+          puntuacion_general: number | null
+          puntuacion_tecnica: number | null
+          requiere_seguimiento: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          aspectos_mejora?: string[] | null
+          aspectos_positivos?: string[] | null
+          auditor_id: string
+          created_at?: string | null
+          estado_auditoria?: string
+          fecha_auditoria?: string | null
+          fecha_resolucion?: string | null
+          id?: string
+          instalador_id: string
+          observaciones?: string | null
+          programacion_id: string
+          puntuacion_documentacion?: number | null
+          puntuacion_evidencias?: number | null
+          puntuacion_general?: number | null
+          puntuacion_tecnica?: number | null
+          requiere_seguimiento?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          aspectos_mejora?: string[] | null
+          aspectos_positivos?: string[] | null
+          auditor_id?: string
+          created_at?: string | null
+          estado_auditoria?: string
+          fecha_auditoria?: string | null
+          fecha_resolucion?: string | null
+          id?: string
+          instalador_id?: string
+          observaciones?: string | null
+          programacion_id?: string
+          puntuacion_documentacion?: number | null
+          puntuacion_evidencias?: number | null
+          puntuacion_general?: number | null
+          puntuacion_tecnica?: number | null
+          requiere_seguimiento?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auditoria_instalaciones_instalador_id_fkey"
+            columns: ["instalador_id"]
+            isOneToOne: false
+            referencedRelation: "instaladores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       benefits: {
         Row: {
           created_at: string
@@ -1776,6 +1844,62 @@ export type Database = {
           },
         ]
       }
+      evidencias_instalacion: {
+        Row: {
+          archivo_url: string
+          created_at: string | null
+          descripcion: string | null
+          fecha_verificacion: string | null
+          id: string
+          instalador_id: string
+          observaciones_verificacion: string | null
+          programacion_id: string
+          timestamp_captura: string | null
+          tipo_evidencia: string
+          ubicacion_gps: unknown | null
+          verificado: boolean | null
+          verificado_por: string | null
+        }
+        Insert: {
+          archivo_url: string
+          created_at?: string | null
+          descripcion?: string | null
+          fecha_verificacion?: string | null
+          id?: string
+          instalador_id: string
+          observaciones_verificacion?: string | null
+          programacion_id: string
+          timestamp_captura?: string | null
+          tipo_evidencia: string
+          ubicacion_gps?: unknown | null
+          verificado?: boolean | null
+          verificado_por?: string | null
+        }
+        Update: {
+          archivo_url?: string
+          created_at?: string | null
+          descripcion?: string | null
+          fecha_verificacion?: string | null
+          id?: string
+          instalador_id?: string
+          observaciones_verificacion?: string | null
+          programacion_id?: string
+          timestamp_captura?: string | null
+          tipo_evidencia?: string
+          ubicacion_gps?: unknown | null
+          verificado?: boolean | null
+          verificado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidencias_instalacion_instalador_id_fkey"
+            columns: ["instalador_id"]
+            isOneToOne: false
+            referencedRelation: "instaladores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       flagged_services: {
         Row: {
           admin_notes: string | null
@@ -2389,6 +2513,89 @@ export type Database = {
           zona_cobertura?: Json | null
         }
         Relationships: []
+      }
+      instaladores_datos_fiscales: {
+        Row: {
+          banco: string | null
+          ciudad_fiscal: string
+          clabe_interbancaria: string | null
+          codigo_postal_fiscal: string
+          created_at: string | null
+          cuenta_bancaria: string | null
+          direccion_fiscal: string
+          documentos_fiscales: Json | null
+          email_facturacion: string
+          estado_fiscal: string
+          fecha_verificacion: string | null
+          id: string
+          instalador_id: string
+          observaciones_verificacion: string | null
+          razon_social: string
+          regimen_fiscal: string
+          rfc: string
+          telefono_facturacion: string | null
+          titular_cuenta: string | null
+          updated_at: string | null
+          verificado: boolean | null
+          verificado_por: string | null
+        }
+        Insert: {
+          banco?: string | null
+          ciudad_fiscal: string
+          clabe_interbancaria?: string | null
+          codigo_postal_fiscal: string
+          created_at?: string | null
+          cuenta_bancaria?: string | null
+          direccion_fiscal: string
+          documentos_fiscales?: Json | null
+          email_facturacion: string
+          estado_fiscal: string
+          fecha_verificacion?: string | null
+          id?: string
+          instalador_id: string
+          observaciones_verificacion?: string | null
+          razon_social: string
+          regimen_fiscal: string
+          rfc: string
+          telefono_facturacion?: string | null
+          titular_cuenta?: string | null
+          updated_at?: string | null
+          verificado?: boolean | null
+          verificado_por?: string | null
+        }
+        Update: {
+          banco?: string | null
+          ciudad_fiscal?: string
+          clabe_interbancaria?: string | null
+          codigo_postal_fiscal?: string
+          created_at?: string | null
+          cuenta_bancaria?: string | null
+          direccion_fiscal?: string
+          documentos_fiscales?: Json | null
+          email_facturacion?: string
+          estado_fiscal?: string
+          fecha_verificacion?: string | null
+          id?: string
+          instalador_id?: string
+          observaciones_verificacion?: string | null
+          razon_social?: string
+          regimen_fiscal?: string
+          rfc?: string
+          telefono_facturacion?: string | null
+          titular_cuenta?: string | null
+          updated_at?: string | null
+          verificado?: boolean | null
+          verificado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instaladores_datos_fiscales_instalador_id_fkey"
+            columns: ["instalador_id"]
+            isOneToOne: false
+            referencedRelation: "instaladores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       inventario_gps: {
         Row: {
