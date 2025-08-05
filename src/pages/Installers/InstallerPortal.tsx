@@ -326,7 +326,7 @@ export const InstallerPortal = () => {
                             <Phone className="h-3 w-3" />
                             {instalacion.telefono_contacto}
                           </div>
-                          {instalacion.prioridad !== 'normal' && (
+                          {instalacion.prioridad && instalacion.prioridad !== 'normal' && (
                             <div className={`text-xs font-medium ${getPrioridadColor(instalacion.prioridad)}`}>
                               {instalacion.prioridad.toUpperCase()}
                             </div>
@@ -354,7 +354,7 @@ export const InstallerPortal = () => {
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         <Badge variant="outline" className="text-xs">
-                          {instalacion.tipo_instalacion?.replace('_', ' ').toUpperCase()}
+                          {instalacion.tipo_instalacion?.replace('_', ' ').toUpperCase() || 'GPS'}
                         </Badge>
                       </TableCell>
                       <TableCell>
