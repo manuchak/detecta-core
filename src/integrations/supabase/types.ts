@@ -5222,6 +5222,42 @@ export type Database = {
         }
         Relationships: []
       }
+      security_audit_log: {
+        Row: {
+          action: string
+          created_at: string | null
+          id: string
+          ip_address: unknown | null
+          new_value: Json | null
+          old_value: Json | null
+          target_user_id: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          new_value?: Json | null
+          old_value?: Json | null
+          target_user_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          new_value?: Json | null
+          old_value?: Json | null
+          target_user_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       seguimiento_instalaciones: {
         Row: {
           calificacion_cliente: number | null
@@ -6439,6 +6475,14 @@ export type Database = {
       }
       assign_initial_owner: {
         Args: { target_email: string }
+        Returns: boolean
+      }
+      assign_role_secure: {
+        Args: {
+          target_user_id: string
+          new_role: string
+          audit_reason?: string
+        }
         Returns: boolean
       }
       assign_user_role: {
@@ -7844,6 +7888,10 @@ export type Database = {
           descripcion: string
         }[]
       }
+      has_management_role: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       has_role: {
         Args: { user_uid: string; required_role: string }
         Returns: boolean
@@ -7873,7 +7921,7 @@ export type Database = {
         Returns: boolean
       }
       is_admin_secure: {
-        Args: { user_id: string }
+        Args: Record<PropertyKey, never> | { user_id: string }
         Returns: boolean
       }
       is_admin_user: {
@@ -8207,6 +8255,10 @@ export type Database = {
       validate_input_text: {
         Args: { input_text: string; max_length?: number }
         Returns: string
+      }
+      validate_role_input: {
+        Args: { role_name: string }
+        Returns: boolean
       }
       validate_service_distance: {
         Args: {
