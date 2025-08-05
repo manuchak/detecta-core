@@ -3,13 +3,14 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, MapPin, User, Phone, Settings, Wrench, Zap, CheckCircle, XCircle, Play, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, MapPin, User, Phone, Settings, Wrench, Zap, CheckCircle, XCircle, Play, AlertCircle, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { ProgramacionInstalacion } from '@/types/instaladores';
 import { useProgramacionInstalaciones } from '@/hooks/useProgramacionInstalaciones';
 import { AsignarInstaladorDialog } from './AsignarInstaladorDialog';
 import { EditInstallationDialog } from './EditInstallationDialog';
+import { ProcesoInstalacionDialog } from '@/components/instalacion/ProcesoInstalacionDialog';
 
 interface InstallationCardProps {
   programacion: ProgramacionInstalacion;
@@ -24,6 +25,7 @@ export const InstallationCard: React.FC<InstallationCardProps> = ({
 }) => {
   const [showAsignarDialog, setShowAsignarDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showProcesoInstalacion, setShowProcesoInstalacion] = useState(false);
   const { updateEstadoInstalacion } = useProgramacionInstalaciones();
 
   const handleStatusChange = async (newStatus: string) => {
@@ -36,6 +38,11 @@ export const InstallationCard: React.FC<InstallationCardProps> = ({
     } catch (error) {
       console.error('Error updating status:', error);
     }
+  };
+
+  const handleInstalacionCompleta = async () => {
+    await handleStatusChange('completada');
+    setShowProcesoInstalacion(false);
   };
 
   const getStatusActions = () => {
@@ -74,10 +81,23 @@ export const InstallationCard: React.FC<InstallationCardProps> = ({
     if (programacion.estado === 'en_proceso') {
       actions.push(
         <Button
+          key="document"
+          size="sm"
+          variant="outline"
+          onClick={() => setShowProcesoInstalacion(true)}
+          className="text-purple-700 border-purple-200 hover:bg-purple-50 flex items-center gap-1"
+        >
+          <FileText className="h-3 w-3" />
+          Documentar
+        </Button>
+      );
+      
+      actions.push(
+        <Button
           key="complete"
           size="sm"
           variant="outline"
-          onClick={() => handleStatusChange('completada')}
+          onClick={() => setShowProcesoInstalacion(true)}
           className="text-green-700 border-green-200 hover:bg-green-50 flex items-center gap-1"
         >
           <CheckCircle className="h-3 w-3" />
@@ -248,6 +268,14 @@ export const InstallationCard: React.FC<InstallationCardProps> = ({
         open={showEditDialog}
         onOpenChange={setShowEditDialog}
         programacion={programacion}
+      />
+
+      <ProcesoInstalacionDialog
+        open={showProcesoInstalacion}
+        onOpenChange={setShowProcesoInstalacion}
+        programacionId={programacion.id}
+        onCerrar={() => setShowProcesoInstalacion(false)}
+        onInstalacionCompleta={handleInstalacionCompleta}
       />
     </>
   );
