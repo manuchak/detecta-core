@@ -1698,6 +1698,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "evaluaciones_instaladores_instalacion_id_fkey"
+            columns: ["instalacion_id"]
+            isOneToOne: false
+            referencedRelation: "vista_instalaciones_dashboard"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "evaluaciones_instaladores_instalador_id_fkey"
             columns: ["instalador_id"]
             isOneToOne: false
@@ -1758,6 +1765,13 @@ export type Database = {
             columns: ["instalacion_id"]
             isOneToOne: false
             referencedRelation: "programacion_instalaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluaciones_normas_instalacion_id_fkey"
+            columns: ["instalacion_id"]
+            isOneToOne: false
+            referencedRelation: "vista_instalaciones_dashboard"
             referencedColumns: ["id"]
           },
           {
@@ -2040,6 +2054,13 @@ export type Database = {
             referencedRelation: "programacion_instalaciones"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "instalacion_documentacion_programacion_id_fkey"
+            columns: ["programacion_id"]
+            isOneToOne: false
+            referencedRelation: "vista_instalaciones_dashboard"
+            referencedColumns: ["id"]
+          },
         ]
       }
       instalacion_reporte_final: {
@@ -2093,6 +2114,13 @@ export type Database = {
             referencedRelation: "programacion_instalaciones"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "instalacion_reporte_final_programacion_id_fkey"
+            columns: ["programacion_id"]
+            isOneToOne: false
+            referencedRelation: "vista_instalaciones_dashboard"
+            referencedColumns: ["id"]
+          },
         ]
       }
       instalacion_validaciones: {
@@ -2132,6 +2160,13 @@ export type Database = {
             columns: ["programacion_id"]
             isOneToOne: false
             referencedRelation: "programacion_instalaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instalacion_validaciones_programacion_id_fkey"
+            columns: ["programacion_id"]
+            isOneToOne: false
+            referencedRelation: "vista_instalaciones_dashboard"
             referencedColumns: ["id"]
           },
         ]
@@ -2595,6 +2630,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "inventario_microsd_instalacion_asignada_fkey"
+            columns: ["instalacion_asignada"]
+            isOneToOne: false
+            referencedRelation: "vista_instalaciones_dashboard"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "inventario_microsd_proveedor_id_fkey"
             columns: ["proveedor_id"]
             isOneToOne: false
@@ -2671,6 +2713,13 @@ export type Database = {
             columns: ["instalacion_asignada"]
             isOneToOne: false
             referencedRelation: "programacion_instalaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventario_sim_instalacion_asignada_fkey"
+            columns: ["instalacion_asignada"]
+            isOneToOne: false
+            referencedRelation: "vista_instalaciones_dashboard"
             referencedColumns: ["id"]
           },
         ]
@@ -2769,10 +2818,101 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "kits_instalacion_programacion_id_fkey"
+            columns: ["programacion_id"]
+            isOneToOne: true
+            referencedRelation: "vista_instalaciones_dashboard"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "kits_instalacion_sim_id_fkey"
             columns: ["sim_id"]
             isOneToOne: true
             referencedRelation: "inventario_sim"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kits_instalacion_asignados: {
+        Row: {
+          created_at: string | null
+          estado_kit: string | null
+          fecha_asignacion: string | null
+          fecha_instalacion: string | null
+          gps_producto_id: string | null
+          id: string
+          justificacion_seleccion: Json | null
+          microsd_producto_id: string | null
+          numero_serie_kit: string | null
+          programacion_id: string
+          score_recomendacion: number | null
+          sim_producto_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          estado_kit?: string | null
+          fecha_asignacion?: string | null
+          fecha_instalacion?: string | null
+          gps_producto_id?: string | null
+          id?: string
+          justificacion_seleccion?: Json | null
+          microsd_producto_id?: string | null
+          numero_serie_kit?: string | null
+          programacion_id: string
+          score_recomendacion?: number | null
+          sim_producto_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          estado_kit?: string | null
+          fecha_asignacion?: string | null
+          fecha_instalacion?: string | null
+          gps_producto_id?: string | null
+          id?: string
+          justificacion_seleccion?: Json | null
+          microsd_producto_id?: string | null
+          numero_serie_kit?: string | null
+          programacion_id?: string
+          score_recomendacion?: number | null
+          sim_producto_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kits_instalacion_asignados_gps_producto_id_fkey"
+            columns: ["gps_producto_id"]
+            isOneToOne: false
+            referencedRelation: "productos_inventario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kits_instalacion_asignados_microsd_producto_id_fkey"
+            columns: ["microsd_producto_id"]
+            isOneToOne: false
+            referencedRelation: "productos_inventario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kits_instalacion_asignados_programacion_id_fkey"
+            columns: ["programacion_id"]
+            isOneToOne: false
+            referencedRelation: "programacion_instalaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kits_instalacion_asignados_programacion_id_fkey"
+            columns: ["programacion_id"]
+            isOneToOne: false
+            referencedRelation: "vista_instalaciones_dashboard"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kits_instalacion_asignados_sim_producto_id_fkey"
+            columns: ["sim_producto_id"]
+            isOneToOne: false
+            referencedRelation: "productos_inventario"
             referencedColumns: ["id"]
           },
         ]
@@ -4339,6 +4479,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "productos_serie_instalacion_asignada_fkey"
+            columns: ["instalacion_asignada"]
+            isOneToOne: false
+            referencedRelation: "vista_instalaciones_dashboard"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "productos_serie_orden_compra_id_fkey"
             columns: ["orden_compra_id"]
             isOneToOne: false
@@ -4401,11 +4548,14 @@ export type Database = {
         Row: {
           acceso_restringido: boolean | null
           activo_id: string | null
+          auto_asignacion_completada: boolean | null
+          configuracion_sensores: Json | null
           contacto_cliente: string
           coordenadas_instalacion: Json | null
           created_at: string | null
           direccion_instalacion: string
           equipos_requeridos: Json | null
+          es_electrico: boolean | null
           estado: string | null
           fecha_estimada_fin: string | null
           fecha_programada: string
@@ -4413,23 +4563,32 @@ export type Database = {
           id: string
           instalador_id: string | null
           instrucciones_especiales: string | null
+          kit_asignado_id: string | null
           observaciones_cliente: string | null
           prioridad: string | null
           requiere_vehiculo_elevado: boolean | null
+          scoring_recomendacion: Json | null
           servicio_id: string
           telefono_contacto: string
           tiempo_estimado: number | null
+          tipo_combustible: string | null
           tipo_instalacion: string
           updated_at: string | null
+          vehiculo_año: number | null
+          vehiculo_marca: string | null
+          vehiculo_modelo: string | null
         }
         Insert: {
           acceso_restringido?: boolean | null
           activo_id?: string | null
+          auto_asignacion_completada?: boolean | null
+          configuracion_sensores?: Json | null
           contacto_cliente: string
           coordenadas_instalacion?: Json | null
           created_at?: string | null
           direccion_instalacion: string
           equipos_requeridos?: Json | null
+          es_electrico?: boolean | null
           estado?: string | null
           fecha_estimada_fin?: string | null
           fecha_programada: string
@@ -4437,23 +4596,32 @@ export type Database = {
           id?: string
           instalador_id?: string | null
           instrucciones_especiales?: string | null
+          kit_asignado_id?: string | null
           observaciones_cliente?: string | null
           prioridad?: string | null
           requiere_vehiculo_elevado?: boolean | null
+          scoring_recomendacion?: Json | null
           servicio_id: string
           telefono_contacto: string
           tiempo_estimado?: number | null
+          tipo_combustible?: string | null
           tipo_instalacion: string
           updated_at?: string | null
+          vehiculo_año?: number | null
+          vehiculo_marca?: string | null
+          vehiculo_modelo?: string | null
         }
         Update: {
           acceso_restringido?: boolean | null
           activo_id?: string | null
+          auto_asignacion_completada?: boolean | null
+          configuracion_sensores?: Json | null
           contacto_cliente?: string
           coordenadas_instalacion?: Json | null
           created_at?: string | null
           direccion_instalacion?: string
           equipos_requeridos?: Json | null
+          es_electrico?: boolean | null
           estado?: string | null
           fecha_estimada_fin?: string | null
           fecha_programada?: string
@@ -4461,14 +4629,20 @@ export type Database = {
           id?: string
           instalador_id?: string | null
           instrucciones_especiales?: string | null
+          kit_asignado_id?: string | null
           observaciones_cliente?: string | null
           prioridad?: string | null
           requiere_vehiculo_elevado?: boolean | null
+          scoring_recomendacion?: Json | null
           servicio_id?: string
           telefono_contacto?: string
           tiempo_estimado?: number | null
+          tipo_combustible?: string | null
           tipo_instalacion?: string
           updated_at?: string | null
+          vehiculo_año?: number | null
+          vehiculo_marca?: string | null
+          vehiculo_modelo?: string | null
         }
         Relationships: [
           {
@@ -5073,6 +5247,13 @@ export type Database = {
             columns: ["instalacion_id"]
             isOneToOne: false
             referencedRelation: "programacion_instalaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seguimiento_instalaciones_instalacion_id_fkey"
+            columns: ["instalacion_id"]
+            isOneToOne: false
+            referencedRelation: "vista_instalaciones_dashboard"
             referencedColumns: ["id"]
           },
           {
@@ -6165,6 +6346,40 @@ export type Database = {
         }
         Relationships: []
       }
+      vista_instalaciones_dashboard: {
+        Row: {
+          auto_asignacion_completada: boolean | null
+          direccion_instalacion: string | null
+          estado: string | null
+          estado_kit: string | null
+          fecha_programada: string | null
+          gps_asignado: number | null
+          id: string | null
+          instalador_nombre: string | null
+          instalador_telefono: string | null
+          microsd_asignado: number | null
+          nombre_cliente: string | null
+          numero_serie_kit: string | null
+          numero_servicio: string | null
+          score_recomendacion: number | null
+          servicio_id: string | null
+          sim_asignado: number | null
+          stock_gps_status: string | null
+          tipo_instalacion: string | null
+          vehiculo_año: number | null
+          vehiculo_marca: string | null
+          vehiculo_modelo: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "programacion_instalaciones_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_monitoreo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       actualizar_roi_custodios: {
@@ -6190,6 +6405,15 @@ export type Database = {
       assign_user_role: {
         Args: { target_user_id: string; new_role: string }
         Returns: boolean
+      }
+      auto_asignar_kit_instalacion: {
+        Args: {
+          p_programacion_id: string
+          p_tipo_vehiculo?: string
+          p_sensores_requeridos?: string[]
+          p_forzar_asignacion?: boolean
+        }
+        Returns: Json
       }
       award_points: {
         Args: {
