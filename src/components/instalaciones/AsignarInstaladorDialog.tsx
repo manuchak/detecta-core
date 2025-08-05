@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,7 +49,22 @@ export const AsignarInstaladorDialog = ({
   const [observaciones, setObservaciones] = useState<string>(instalacion?.observaciones_cliente || '');
   const [tiempoEstimado, setTiempoEstimado] = useState<string>(instalacion?.tiempo_estimado?.toString() || '120');
 
+  // Reset state when dialog opens or installation changes
+  useEffect(() => {
+    if (open) {
+      setSelectedInstalador('');
+      setFechaCita(instalacion?.fecha_programada ? new Date(instalacion.fecha_programada) : undefined);
+      setHoraCita(instalacion?.fecha_programada ? format(new Date(instalacion.fecha_programada), 'HH:mm') : '09:00');
+      setDireccion(instalacion?.direccion_instalacion || '');
+      setContacto(instalacion?.contacto_cliente || '');
+      setTelefono(instalacion?.telefono_contacto || '');
+      setObservaciones(instalacion?.observaciones_cliente || '');
+      setTiempoEstimado(instalacion?.tiempo_estimado?.toString() || '120');
+    }
+  }, [open, instalacion]);
+
   const handleAsignar = async () => {
+    console.log('DEBUG: selectedInstalador value:', selectedInstalador);
     if (!selectedInstalador) {
       toast({
         title: "Error",
