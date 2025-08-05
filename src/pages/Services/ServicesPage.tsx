@@ -211,7 +211,14 @@ export const ServicesPage = () => {
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="instalaciones">Instalaciones GPS</TabsTrigger>
+              <TabsTrigger value="instalaciones" className="relative">
+                Instalaciones GPS
+                {((instalacionesCount['programada'] || 0) + (instalacionesCount['confirmada'] || 0)) > 0 && (
+                  <Badge className="ml-2 bg-orange-500 text-white text-xs px-1 py-0">
+                    {(instalacionesCount['programada'] || 0) + (instalacionesCount['confirmada'] || 0)}
+                  </Badge>
+                )}
+              </TabsTrigger>
             </TabsList>
             
             <TabsContent value="servicios" className="mt-6">

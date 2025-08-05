@@ -14,58 +14,79 @@ export const useProgramacionInstalaciones = () => {
     queryFn: async () => {
       console.log('Fetching programaciones...');
       
-      // Primero obtener las programaciones básicas
-      const { data: programacionesData, error: programacionesError } = await supabase
-        .from('programacion_instalaciones')
-        .select('*')
-        .order('fecha_programada', { ascending: true });
+      try {
+        // Primero obtener las programaciones básicas
+        const { data: programacionesData, error: programacionesError } = await supabase
+          .from('programacion_instalaciones')
+          .select('*')
+          .order('fecha_programada', { ascending: true });
 
-      if (programacionesError) {
-        console.error('Error fetching programaciones:', programacionesError);
-        throw programacionesError;
-      }
+        if (programacionesError) {
+          console.error('Error fetching programaciones:', programacionesError);
+          throw programacionesError;
+        }
 
-      // Luego hacer queries separadas para los datos relacionados si es necesario
-      const programacionesWithRelations = await Promise.all(
-        (programacionesData || []).map(async (programacion) => {
-          try {
-            // Obtener datos del servicio
-            const { data: servicio } = await supabase
-              .from('servicios_monitoreo')
-              .select('id, numero_servicio, nombre_cliente')
-              .eq('id', programacion.servicio_id)
-              .single();
+        // Luego hacer queries separadas para los datos relacionados si es necesario
+        const programacionesWithRelations = await Promise.all(
+          (programacionesData || []).map(async (programacion) => {
+            try {
+              // Obtener datos del servicio de forma segura
+              let servicio = null;
+              try {
+                const { data: servicioData } = await supabase
+                  .from('servicios_monitoreo')
+                  .select('id, numero_servicio, nombre_cliente')
+                  .eq('id', programacion.servicio_id)
+                  .single();
+                servicio = servicioData;
+              } catch (servicioError) {
+                console.warn('Error fetching servicio for programacion:', programacion.id, servicioError);
+              }
 
-            // Obtener datos del instalador si existe
-            let instalador = null;
-            if (programacion.instalador_id) {
-              const { data: instaladorData } = await supabase
-                .from('instaladores')
-                .select('id, nombre_completo, telefono, calificacion_promedio')
-                .eq('id', programacion.instalador_id)
-                .single();
-              instalador = instaladorData;
+              // Obtener datos del instalador si existe de forma segura
+              let instalador = null;
+              if (programacion.instalador_id) {
+                try {
+                  const { data: instaladorData } = await supabase
+                    .from('instaladores')
+                    .select('id, nombre_completo, telefono, calificacion_promedio')
+                    .eq('id', programacion.instalador_id)
+                    .single();
+                  instalador = instaladorData;
+                } catch (instaladorError) {
+                  console.warn('Error fetching instalador for programacion:', programacion.id, instaladorError);
+                }
+              }
+
+              return {
+                ...programacion,
+                servicio,
+                instalador
+              };
+            } catch (error) {
+              console.error('Error fetching related data for programacion:', programacion.id, error);
+              return {
+                ...programacion,
+                servicio: null,
+                instalador: null
+              };
             }
+          })
+        );
 
-            return {
-              ...programacion,
-              servicio,
-              instalador
-            };
-          } catch (error) {
-            console.error('Error fetching related data for programacion:', programacion.id, error);
-            return {
-              ...programacion,
-              servicio: null,
-              instalador: null
-            };
-          }
-        })
-      );
-
-      console.log('Programaciones fetched:', programacionesWithRelations);
-      return programacionesWithRelations as ProgramacionInstalacion[];
-    }
+        console.log('Programaciones fetched:', programacionesWithRelations);
+        return programacionesWithRelations as ProgramacionInstalacion[];
+      } catch (error) {
+        console.error('Error in programaciones queryFn:', error);
+        // En caso de error, retornar un array vacío en lugar de fallar completamente
+        // Esto permite que la página funcione aunque haya problemas con las programaciones
+        return [] as ProgramacionInstalacion[];
+      }
+    },
+    // Agregar configuración para manejar errores de forma más elegante
+    retry: 1,
+    retryDelay: 1000,
+    staleTime: 30000 // 30 segundos
   });
 
   // Mapeo de estados de instalación a estados de servicio
