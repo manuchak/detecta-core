@@ -31,7 +31,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { useInstaladores } from '@/hooks/useInstaladores';
-import { RegistroInstaladorDialog } from './components/RegistroInstaladorDialog';
+import { RegistroInstaladorFormularioRobusto } from './components/RegistroInstaladorFormularioRobusto';
 
 const InstallerManagement = () => {
   const { instaladores, isLoadingInstaladores, cambiarEstadoAfiliacion } = useInstaladores();
@@ -377,7 +377,7 @@ const InstallerManagement = () => {
       </Card>
 
       {/* Dialogs */}
-      <RegistroInstaladorDialog
+      <RegistroInstaladorFormularioRobusto
         open={showRegistroDialog}
         onOpenChange={setShowRegistroDialog}
       />

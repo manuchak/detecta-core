@@ -2449,68 +2449,101 @@ export type Database = {
         Row: {
           banco_datos: Json | null
           calificacion_promedio: number | null
+          capacidad_vehiculos: string[] | null
           cedula_profesional: string | null
           certificaciones: string[] | null
+          ciudad_trabajo: string | null
           created_at: string | null
           datos_vehiculo: Json | null
+          direccion_taller: string | null
           disponibilidad_horaria: Json | null
           documentacion_completa: boolean | null
           email: string
           especialidades: string[] | null
           estado_afiliacion: string | null
+          estado_trabajo: string | null
+          experiencia_especifica: Json | null
           fecha_afiliacion: string | null
+          herramientas_disponibles: string[] | null
+          horario_atencion: Json | null
           id: string
           nombre_completo: string
+          observaciones_adicionales: string | null
           servicios_completados: number | null
           telefono: string
+          tiene_taller: boolean | null
+          tipo_servicios_preferidos: string[] | null
           updated_at: string | null
           user_id: string | null
           vehiculo_propio: boolean | null
           zona_cobertura: Json | null
+          zonas_trabajo: string[] | null
         }
         Insert: {
           banco_datos?: Json | null
           calificacion_promedio?: number | null
+          capacidad_vehiculos?: string[] | null
           cedula_profesional?: string | null
           certificaciones?: string[] | null
+          ciudad_trabajo?: string | null
           created_at?: string | null
           datos_vehiculo?: Json | null
+          direccion_taller?: string | null
           disponibilidad_horaria?: Json | null
           documentacion_completa?: boolean | null
           email: string
           especialidades?: string[] | null
           estado_afiliacion?: string | null
+          estado_trabajo?: string | null
+          experiencia_especifica?: Json | null
           fecha_afiliacion?: string | null
+          herramientas_disponibles?: string[] | null
+          horario_atencion?: Json | null
           id?: string
           nombre_completo: string
+          observaciones_adicionales?: string | null
           servicios_completados?: number | null
           telefono: string
+          tiene_taller?: boolean | null
+          tipo_servicios_preferidos?: string[] | null
           updated_at?: string | null
           user_id?: string | null
           vehiculo_propio?: boolean | null
           zona_cobertura?: Json | null
+          zonas_trabajo?: string[] | null
         }
         Update: {
           banco_datos?: Json | null
           calificacion_promedio?: number | null
+          capacidad_vehiculos?: string[] | null
           cedula_profesional?: string | null
           certificaciones?: string[] | null
+          ciudad_trabajo?: string | null
           created_at?: string | null
           datos_vehiculo?: Json | null
+          direccion_taller?: string | null
           disponibilidad_horaria?: Json | null
           documentacion_completa?: boolean | null
           email?: string
           especialidades?: string[] | null
           estado_afiliacion?: string | null
+          estado_trabajo?: string | null
+          experiencia_especifica?: Json | null
           fecha_afiliacion?: string | null
+          herramientas_disponibles?: string[] | null
+          horario_atencion?: Json | null
           id?: string
           nombre_completo?: string
+          observaciones_adicionales?: string | null
           servicios_completados?: number | null
           telefono?: string
+          tiene_taller?: boolean | null
+          tipo_servicios_preferidos?: string[] | null
           updated_at?: string | null
           user_id?: string | null
           vehiculo_propio?: boolean | null
           zona_cobertura?: Json | null
+          zonas_trabajo?: string[] | null
         }
         Relationships: []
       }

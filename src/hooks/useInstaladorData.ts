@@ -34,7 +34,27 @@ export const useInstaladorData = () => {
     try {
       const { data: newInstalador, error } = await supabase
         .from('instaladores')
-        .insert([data])
+        .insert([{
+          ...data,
+          // Asegurar valores por defecto para nuevos campos
+          zonas_trabajo: data.zonas_trabajo || [],
+          herramientas_disponibles: data.herramientas_disponibles || [],
+          capacidad_vehiculos: data.capacidad_vehiculos || [],
+          horario_atencion: data.horario_atencion || {
+            lunes: true, martes: true, miercoles: true, jueves: true, 
+            viernes: true, sabado: false, domingo: false
+          },
+          experiencia_especifica: data.experiencia_especifica || {},
+          tiene_taller: data.tiene_taller || false,
+          activo: true,
+          estado_afiliacion: 'pendiente',
+          calificacion_promedio: 0,
+          servicios_completados: 0,
+          fecha_afiliacion: new Date().toISOString(),
+          documentacion_completa: false,
+          certificaciones: [],
+          vehiculo_propio: data.vehiculo_propio || false
+        }])
         .select()
         .single();
 

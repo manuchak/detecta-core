@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useInstaladorData } from '@/hooks/useInstaladorData';
 import { InstaladorCard } from './components/InstaladorCard';
-import { RegistroInstaladorDialog } from './components/RegistroInstaladorDialog';
+import { RegistroInstaladorFormularioRobusto } from './components/RegistroInstaladorFormularioRobusto';
 import { DatosFiscalesDialog } from './components/DatosFiscalesDialog';
 import { PagosInstaladorDialog } from './components/PagosInstaladorDialog';
 import { AuditoriaDialog } from './components/AuditoriaDialog';
@@ -229,7 +229,7 @@ export const RegistroInstaladores = () => {
       )}
 
       {/* Diálogos */}
-      <RegistroInstaladorDialog
+      <RegistroInstaladorFormularioRobusto
         open={showRegistroDialog}
         onOpenChange={setShowRegistroDialog}
       />
