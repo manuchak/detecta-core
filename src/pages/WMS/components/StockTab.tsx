@@ -64,7 +64,12 @@ export const StockTab = () => {
   const valorTotal = stock?.reduce((sum, s) => {
     const precio = s.producto?.precio_venta_sugerido || 0;
     const cantidad = s.cantidad_disponible || 0;
-    return sum + (precio * cantidad);
+    const subtotal = precio * cantidad;
+    
+    // Debug temporal
+    console.log(`Producto: ${s.producto?.nombre}, Precio: $${precio}, Cantidad: ${cantidad}, Subtotal: $${subtotal}`);
+    
+    return sum + subtotal;
   }, 0) || 0;
 
   return (

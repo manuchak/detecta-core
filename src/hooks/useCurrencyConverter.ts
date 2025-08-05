@@ -34,7 +34,7 @@ export const useCurrencyConverter = () => {
       if (error) throw error;
       return data as CurrencyConfig;
     },
-    staleTime: 1000 * 60 * 30, // 30 minutes
+    staleTime: 0 // Force fresh data
   });
 
   // Convert USD to MXN if needed
