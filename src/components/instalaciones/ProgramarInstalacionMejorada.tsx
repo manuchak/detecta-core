@@ -313,7 +313,9 @@ export const ProgramarInstalacionMejorada = ({
       ) || [];
       
       const simDisponibles = productos?.filter(p => 
-        p.categoria?.nombre?.toLowerCase().includes('sim') && 
+        (p.categoria?.nombre?.toLowerCase().includes('sim') || 
+         p.categoria?.codigo?.toLowerCase().includes('sim') ||
+         p.categoria?.nombre?.toLowerCase() === 'sim cards') && 
         (p.stock?.cantidad_disponible || 0) > 0
       ) || [];
       
@@ -1014,8 +1016,11 @@ export const ProgramarInstalacionMejorada = ({
                           <SelectValue placeholder="Seleccionar tarjeta SIM" />
                         </SelectTrigger>
                         <SelectContent className="bg-white z-50">
-                          {productos
-                            ?.filter(p => p.categoria?.nombre?.toLowerCase().includes('sim') && (p.stock?.cantidad_disponible || 0) > 0)
+                           {productos
+                             ?.filter(p => (p.categoria?.nombre?.toLowerCase().includes('sim') || 
+                                           p.categoria?.codigo?.toLowerCase().includes('sim') ||
+                                           p.categoria?.nombre?.toLowerCase() === 'sim cards') && 
+                                          (p.stock?.cantidad_disponible || 0) > 0)
                             ?.map(producto => (
                               <SelectItem key={producto.id} value={producto.id}>
                                 {producto.marca} - {producto.nombre}
@@ -1024,7 +1029,10 @@ export const ProgramarInstalacionMejorada = ({
                                 </span>
                               </SelectItem>
                             ))}
-                          {(!productos?.filter(p => p.categoria?.nombre?.toLowerCase().includes('sim') && (p.stock?.cantidad_disponible || 0) > 0)?.length) && (
+                           {(!productos?.filter(p => (p.categoria?.nombre?.toLowerCase().includes('sim') || 
+                                                          p.categoria?.codigo?.toLowerCase().includes('sim') ||
+                                                          p.categoria?.nombre?.toLowerCase() === 'sim cards') && 
+                                                         (p.stock?.cantidad_disponible || 0) > 0)?.length) && (
                             <SelectItem value="no-sim-stock" disabled>
                               No hay tarjetas SIM en stock
                             </SelectItem>
