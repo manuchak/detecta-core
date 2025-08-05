@@ -75,6 +75,17 @@ export const AsignarInstaladorDialog = ({
       const [horas, minutos] = horaCita.split(':');
       fechaCompleta.setHours(parseInt(horas), parseInt(minutos));
 
+      console.log('Asignando instalador:', {
+        instalacionId: instalacion.id,
+        selectedInstalador,
+        fechaCompleta: fechaCompleta.toISOString(),
+        direccion,
+        contacto,
+        telefono,
+        observaciones,
+        tiempoEstimado: parseInt(tiempoEstimado)
+      });
+
       // Actualizar todos los datos de la instalación
       await updateProgramacion.mutateAsync({
         id: instalacion.id,
