@@ -22,7 +22,9 @@ import {
   Building, 
   CheckCircle,
   Plus,
-  X
+  X,
+  DollarSign,
+  CreditCard
 } from 'lucide-react';
 
 const especialidadesDisponibles = [
@@ -115,7 +117,24 @@ const schema = z.object({
   titular: z.string().optional(),
   
   // Observaciones
-  observaciones_adicionales: z.string().optional()
+  observaciones_adicionales: z.string().optional(),
+  
+  // Pretensiones económicas
+  tarifa_instalacion_basica: z.number().min(0, 'La tarifa debe ser mayor a 0').optional(),
+  tarifa_gps_vehicular: z.number().min(0, 'La tarifa debe ser mayor a 0').optional(),
+  tarifa_gps_personal: z.number().min(0, 'La tarifa debe ser mayor a 0').optional(),
+  tarifa_camara_seguridad: z.number().min(0, 'La tarifa debe ser mayor a 0').optional(),
+  tarifa_sensor_combustible: z.number().min(0, 'La tarifa debe ser mayor a 0').optional(),
+  tarifa_boton_panico: z.number().min(0, 'La tarifa debe ser mayor a 0').optional(),
+  tarifa_sensor_temperatura: z.number().min(0, 'La tarifa debe ser mayor a 0').optional(),
+  tarifa_instalacion_compleja: z.number().min(0, 'La tarifa debe ser mayor a 0').optional(),
+  tarifa_mantenimiento: z.number().min(0, 'La tarifa debe ser mayor a 0').optional(),
+  tarifa_kilometraje: z.number().min(0, 'La tarifa debe ser mayor a 0').optional(),
+  acepta_pagos_efectivo: z.boolean().optional(),
+  acepta_pagos_transferencia: z.boolean().optional(),
+  acepta_pagos_cheque: z.boolean().optional(),
+  requiere_anticipo: z.boolean().optional(),
+  porcentaje_anticipo: z.number().min(0).max(100).optional()
 });
 
 type FormData = z.infer<typeof schema>;
@@ -165,6 +184,7 @@ export const RegistroInstaladorFormularioRobusto: React.FC<RegistroInstaladorFor
   });
 
   const tieneTaller = watch('tiene_taller');
+  const requiereAnticipo = watch('requiere_anticipo');
   const estadoSeleccionado = watch('estado_trabajo');
   const zonasSeleccionadas = watch('zonas_trabajo') || [];
   const especialidadesSeleccionadas = watch('especialidades') || [];
@@ -242,7 +262,23 @@ export const RegistroInstaladorFormularioRobusto: React.FC<RegistroInstaladorFor
         experiencia_especifica: data.experiencia_especifica,
         herramientas_disponibles: data.herramientas_disponibles,
         capacidad_vehiculos: data.capacidad_vehiculos,
-        observaciones_adicionales: data.observaciones_adicionales
+        observaciones_adicionales: data.observaciones_adicionales,
+        // Pretensiones económicas
+        tarifa_instalacion_basica: data.tarifa_instalacion_basica,
+        tarifa_gps_vehicular: data.tarifa_gps_vehicular,
+        tarifa_gps_personal: data.tarifa_gps_personal,
+        tarifa_camara_seguridad: data.tarifa_camara_seguridad,
+        tarifa_sensor_combustible: data.tarifa_sensor_combustible,
+        tarifa_boton_panico: data.tarifa_boton_panico,
+        tarifa_sensor_temperatura: data.tarifa_sensor_temperatura,
+        tarifa_instalacion_compleja: data.tarifa_instalacion_compleja,
+        tarifa_mantenimiento: data.tarifa_mantenimiento,
+        tarifa_kilometraje: data.tarifa_kilometraje,
+        acepta_pagos_efectivo: data.acepta_pagos_efectivo,
+        acepta_pagos_transferencia: data.acepta_pagos_transferencia,
+        acepta_pagos_cheque: data.acepta_pagos_cheque,
+        requiere_anticipo: data.requiere_anticipo,
+        porcentaje_anticipo: data.porcentaje_anticipo
       });
       
       reset();
@@ -593,6 +629,251 @@ export const RegistroInstaladorFormularioRobusto: React.FC<RegistroInstaladorFor
                   )}
                 />
                 <Label htmlFor="vehiculo_propio">Cuenta con vehículo propio</Label>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Pretensiones Económicas */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                Pretensiones Económicas
+              </CardTitle>
+              <CardDescription>
+                Especifica tus tarifas por diferentes tipos de instalación y servicios
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Tarifas por tipo de instalación */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                  Tarifas por Instalación (MXN)
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="tarifa_instalacion_basica">Instalación Básica GPS</Label>
+                    <Input
+                      {...register('tarifa_instalacion_basica', { valueAsNumber: true })}
+                      type="number"
+                      min="0"
+                      step="50"
+                      placeholder="ej. 800"
+                    />
+                    <p className="text-xs text-muted-foreground">GPS básico sin sensores adicionales</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="tarifa_gps_vehicular">GPS Vehicular Avanzado</Label>
+                    <Input
+                      {...register('tarifa_gps_vehicular', { valueAsNumber: true })}
+                      type="number"
+                      min="0"
+                      step="50"
+                      placeholder="ej. 1200"
+                    />
+                    <p className="text-xs text-muted-foreground">Con corta corriente y sensores</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="tarifa_gps_personal">GPS Personal</Label>
+                    <Input
+                      {...register('tarifa_gps_personal', { valueAsNumber: true })}
+                      type="number"
+                      min="0"
+                      step="50"
+                      placeholder="ej. 400"
+                    />
+                    <p className="text-xs text-muted-foreground">Dispositivos portátiles</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="tarifa_instalacion_compleja">Instalación Compleja</Label>
+                    <Input
+                      {...register('tarifa_instalacion_compleja', { valueAsNumber: true })}
+                      type="number"
+                      min="0"
+                      step="100"
+                      placeholder="ej. 2000"
+                    />
+                    <p className="text-xs text-muted-foreground">Vehículos comerciales/blindados</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tarifas por componentes adicionales */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                  Componentes Adicionales (MXN)
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="tarifa_camara_seguridad">Cámara de Seguridad</Label>
+                    <Input
+                      {...register('tarifa_camara_seguridad', { valueAsNumber: true })}
+                      type="number"
+                      min="0"
+                      step="50"
+                      placeholder="ej. 600"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="tarifa_sensor_combustible">Sensor de Combustible</Label>
+                    <Input
+                      {...register('tarifa_sensor_combustible', { valueAsNumber: true })}
+                      type="number"
+                      min="0"
+                      step="50"
+                      placeholder="ej. 400"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="tarifa_boton_panico">Botón de Pánico</Label>
+                    <Input
+                      {...register('tarifa_boton_panico', { valueAsNumber: true })}
+                      type="number"
+                      min="0"
+                      step="50"
+                      placeholder="ej. 300"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="tarifa_sensor_temperatura">Sensor de Temperatura</Label>
+                    <Input
+                      {...register('tarifa_sensor_temperatura', { valueAsNumber: true })}
+                      type="number"
+                      min="0"
+                      step="50"
+                      placeholder="ej. 350"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Servicios adicionales */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                  Servicios Adicionales (MXN)
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="tarifa_mantenimiento">Mantenimiento/Revisión</Label>
+                    <Input
+                      {...register('tarifa_mantenimiento', { valueAsNumber: true })}
+                      type="number"
+                      min="0"
+                      step="50"
+                      placeholder="ej. 200"
+                    />
+                    <p className="text-xs text-muted-foreground">Por visita de mantenimiento</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="tarifa_kilometraje">Viáticos por KM</Label>
+                    <Input
+                      {...register('tarifa_kilometraje', { valueAsNumber: true })}
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="ej. 8"
+                    />
+                    <p className="text-xs text-muted-foreground">Costo por kilómetro de traslado</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Formas de pago y condiciones */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                  Formas de Pago y Condiciones
+                </h4>
+                
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Acepta pagos en:</Label>
+                    <div className="flex flex-wrap gap-4">
+                      <div className="flex items-center space-x-2">
+                        <Controller
+                          name="acepta_pagos_efectivo"
+                          control={control}
+                          render={({ field }) => (
+                            <Checkbox
+                              id="efectivo"
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          )}
+                        />
+                        <Label htmlFor="efectivo" className="text-sm">Efectivo</Label>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <Controller
+                          name="acepta_pagos_transferencia"
+                          control={control}
+                          render={({ field }) => (
+                            <Checkbox
+                              id="transferencia"
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          )}
+                        />
+                        <Label htmlFor="transferencia" className="text-sm">Transferencia</Label>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <Controller
+                          name="acepta_pagos_cheque"
+                          control={control}
+                          render={({ field }) => (
+                            <Checkbox
+                              id="cheque"
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          )}
+                        />
+                        <Label htmlFor="cheque" className="text-sm">Cheque</Label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Controller
+                        name="requiere_anticipo"
+                        control={control}
+                        render={({ field }) => (
+                          <Switch
+                            id="requiere_anticipo"
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        )}
+                      />
+                      <Label htmlFor="requiere_anticipo">Requiere anticipo</Label>
+                    </div>
+
+                    {requiereAnticipo && (
+                      <div className="ml-6 space-y-2">
+                        <Label htmlFor="porcentaje_anticipo">Porcentaje de anticipo (%)</Label>
+                        <Input
+                          {...register('porcentaje_anticipo', { valueAsNumber: true })}
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="5"
+                          placeholder="ej. 50"
+                          className="w-32"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
