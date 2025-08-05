@@ -15,7 +15,7 @@ export const useProgramacionInstalaciones = () => {
       console.log('Fetching programaciones...');
       
       try {
-        // Consulta simplificada sin joins complejos
+        // Consulta con JOIN para incluir información del instalador
         const { data: programacionesData, error: programacionesError } = await supabase
           .from('programacion_instalaciones')
           .select(`
@@ -33,8 +33,16 @@ export const useProgramacionInstalaciones = () => {
             herramientas_especiales,
             requiere_vehiculo_elevado,
             acceso_restringido,
+            instalador_id,
             created_at,
-            updated_at
+            updated_at,
+            instaladores (
+              id,
+              nombre_completo,
+              telefono,
+              calificacion_promedio,
+              especialidades
+            )
           `)
           .order('fecha_programada', { ascending: true });
 
@@ -45,7 +53,7 @@ export const useProgramacionInstalaciones = () => {
 
         console.log('Programaciones fetched successfully:', programacionesData?.length || 0);
         
-        // Retornar los datos básicos sin joins por ahora  
+        // Mapear los datos incluyendo la información del instalador
         return (programacionesData || []).map(programacion => ({
           id: programacion.id,
           servicio_id: programacion.servicio_id,
@@ -61,10 +69,17 @@ export const useProgramacionInstalaciones = () => {
           herramientas_especiales: programacion.herramientas_especiales || [],
           requiere_vehiculo_elevado: programacion.requiere_vehiculo_elevado || false,
           acceso_restringido: programacion.acceso_restringido || false,
+          instalador_id: programacion.instalador_id,
           created_at: programacion.created_at,
           updated_at: programacion.updated_at,
           servicio: null, // Temporalmente null
-          instalador: null // Temporalmente null
+          instalador: programacion.instaladores ? {
+            id: programacion.instaladores.id,
+            nombre_completo: programacion.instaladores.nombre_completo,
+            telefono: programacion.instaladores.telefono,
+            calificacion_promedio: programacion.instaladores.calificacion_promedio,
+            especialidades: programacion.instaladores.especialidades
+          } : null
         })) as ProgramacionInstalacion[];
         
       } catch (error) {

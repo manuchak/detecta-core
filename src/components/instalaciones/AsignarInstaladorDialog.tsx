@@ -64,7 +64,6 @@ export const AsignarInstaladorDialog = ({
   }, [open, instalacion]);
 
   const handleAsignar = async () => {
-    console.log('DEBUG: selectedInstalador value:', selectedInstalador);
     if (!selectedInstalador) {
       toast({
         title: "Error",
