@@ -82,6 +82,15 @@ export const ProgramarInstalacionMejorada = ({
     numero_serie: string;
   } | null>(null);
 
+  const [recomendacionPendiente, setRecomendacionPendiente] = useState<{
+    gps: any;
+    sim: any;
+    microsd: any;
+    justificacion: string;
+    advertencias: string[];
+    stockDisponible: boolean;
+  } | null>(null);
+
   const [kitMode, setKitMode] = useState<'auto' | 'manual'>('auto');
   const [manualKit, setManualKit] = useState({
     gps_id: '',
@@ -291,30 +300,123 @@ export const ProgramarInstalacionMejorada = ({
 
   const handleAutoAssignKit = async () => {
     try {
-      // Simular asignación automática del kit
+      // Simular obtención de recomendación inteligente con validaciones de inventario
+      const tipoVehiculo = `${formData.vehiculo_marca} ${formData.vehiculo_modelo}`;
+      
+      // Validar inventario disponible
+      const gpsDisponibles = productos?.filter(p => 
+        p.categoria?.nombre?.toLowerCase().includes('gps') && 
+        (p.stock?.cantidad_disponible || 0) > 0
+      ) || [];
+      
+      const simDisponibles = productos?.filter(p => 
+        p.categoria?.nombre?.toLowerCase().includes('sim') && 
+        (p.stock?.cantidad_disponible || 0) > 0
+      ) || [];
+      
+      const microsdDisponibles = productos?.filter(p => 
+        p.categoria?.nombre?.toLowerCase().includes('microsd') && 
+        (p.stock?.cantidad_disponible || 0) > 0
+      ) || [];
+
+      // Verificar disponibilidad de stock
+      const advertencias: string[] = [];
+      const stockDisponible = gpsDisponibles.length > 0 && simDisponibles.length > 0;
+      
+      if (gpsDisponibles.length === 0) {
+        advertencias.push('⚠️ No hay dispositivos GPS disponibles en stock');
+      }
+      
+      if (simDisponibles.length === 0) {
+        advertencias.push('⚠️ No hay tarjetas SIM disponibles en stock');
+      }
+      
+      const requiereMicroSD = formData.sensores_requeridos.includes('Cámara de seguridad');
+      if (requiereMicroSD && microsdDisponibles.length === 0) {
+        advertencias.push('⚠️ Se requiere MicroSD para la cámara pero no hay stock disponible');
+      }
+
+      // Seleccionar productos recomendados
+      const gpsRecomendado = gpsDisponibles.find(p => p.modelo?.includes('JC261')) || gpsDisponibles[0];
+      const simRecomendada = simDisponibles.find(p => p.marca?.toLowerCase().includes('telcel')) || simDisponibles[0];
+      const microsdRecomendada = requiereMicroSD ? microsdDisponibles[0] : null;
+
+      // Crear justificación
+      let justificacion = `Recomendación para ${tipoVehiculo}:\n\n`;
+      justificacion += `• GPS: ${gpsRecomendado?.nombre || 'No disponible'} - Compatibilidad alta con ${formData.vehiculo_marca}\n`;
+      justificacion += `• SIM: ${simRecomendada?.nombre || 'No disponible'} - Cobertura nacional óptima\n`;
+      
+      if (requiereMicroSD) {
+        justificacion += `• MicroSD: ${microsdRecomendada?.nombre || 'No disponible'} - Requerido para grabación de cámara\n`;
+      } else {
+        justificacion += `• MicroSD: No requerido para esta configuración\n`;
+      }
+      
+      justificacion += `\nSensores solicitados: ${formData.sensores_requeridos.join(', ') || 'Básicos'}`;
+
+      const recomendacion = {
+        gps: gpsRecomendado ? `${gpsRecomendado.marca} ${gpsRecomendado.modelo} - ${gpsRecomendado.nombre}` : 'No disponible',
+        sim: simRecomendada ? `${simRecomendada.marca} - ${simRecomendada.nombre}` : 'No disponible',
+        microsd: microsdRecomendada ? `${microsdRecomendada.marca} ${microsdRecomendada.modelo} - ${microsdRecomendada.nombre}` : 'No incluido',
+        justificacion,
+        advertencias,
+        stockDisponible
+      };
+
+      setRecomendacionPendiente(recomendacion);
+      
+    } catch (error) {
+      console.error('Error generating recommendation:', error);
+      toast({
+        title: "Error al generar recomendación",
+        description: "No se pudo analizar el inventario disponible",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleApproveRecommendation = async () => {
+    try {
+      if (!recomendacionPendiente) return;
+
+      // Generar número de serie único
       const timestamp = Date.now();
       const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
       const numeroSerie = `AUTO-${timestamp}-${randomSuffix}`;
 
       const kitResult = {
-        gps: 'JC261 - GPS + Cámara HD',
-        sim: 'SIM Telcel - Cobertura Nacional', 
-        microsd: formData.sensores_requeridos.includes('Cámara de seguridad') ? 'MicroSD 64GB - Estándar' : 'No incluido',
+        gps: recomendacionPendiente.gps,
+        sim: recomendacionPendiente.sim,
+        microsd: recomendacionPendiente.microsd,
         numero_serie: numeroSerie
       };
 
       setKitAsignado(kitResult);
+      setRecomendacionPendiente(null);
       
       // Llamar a la función para crear la programación con el kit asignado
       await handleKitAssignmentComplete();
-    } catch (error) {
-      console.error('Error auto-assigning kit:', error);
+      
       toast({
-        title: "Error al asignar kit",
-        description: "No se pudo asignar el kit automáticamente",
+        title: "Kit asignado exitosamente",
+        description: "La recomendación ha sido aprobada y el kit fue asignado",
+      });
+    } catch (error) {
+      console.error('Error approving recommendation:', error);
+      toast({
+        title: "Error al aprobar recomendación",
+        description: "No se pudo finalizar la asignación del kit",
         variant: "destructive",
       });
     }
+  };
+
+  const handleRejectRecommendation = () => {
+    setRecomendacionPendiente(null);
+    toast({
+      title: "Recomendación rechazada",
+      description: "Puedes intentar con selección manual o generar una nueva recomendación",
+    });
   };
 
   const handleManualKitAssign = async () => {
@@ -679,7 +781,87 @@ export const ProgramarInstalacionMejorada = ({
                       </>
                     )}
                   </Button>
+                
+                  {/* Vista previa de recomendación pendiente */}
+                  {recomendacionPendiente && (
+                    <div className="space-y-4 p-4 border border-orange-300 rounded-lg bg-orange-50">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-5 w-5 text-orange-600" />
+                        <h3 className="font-semibold text-orange-800">Revisión de Recomendación Automática</h3>
+                      </div>
 
+                      {/* Advertencias de stock si las hay */}
+                      {recomendacionPendiente.advertencias.length > 0 && (
+                        <Alert className="border-red-200 bg-red-50">
+                          <AlertTriangle className="h-4 w-4 text-red-600" />
+                          <AlertDescription className="text-red-800">
+                            <div className="space-y-1">
+                              {recomendacionPendiente.advertencias.map((advertencia, index) => (
+                                <div key={index}>{advertencia}</div>
+                              ))}
+                            </div>
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
+                      {/* Componentes recomendados */}
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="text-center p-3 bg-white rounded border">
+                          <Cpu className="h-6 w-6 mx-auto text-blue-600 mb-2" />
+                          <div className="font-medium text-sm text-blue-700">GPS Principal</div>
+                          <div className="text-xs text-gray-600 mt-1">{recomendacionPendiente.gps}</div>
+                        </div>
+                        
+                        <div className="text-center p-3 bg-white rounded border">
+                          <CreditCard className="h-6 w-6 mx-auto text-orange-600 mb-2" />
+                          <div className="font-medium text-sm text-orange-700">Tarjeta SIM</div>
+                          <div className="text-xs text-gray-600 mt-1">{recomendacionPendiente.sim}</div>
+                        </div>
+                        
+                        <div className="text-center p-3 bg-white rounded border">
+                          <HardDrive className="h-6 w-6 mx-auto text-purple-600 mb-2" />
+                          <div className="font-medium text-sm text-purple-700">MicroSD</div>
+                          <div className="text-xs text-gray-600 mt-1">{recomendacionPendiente.microsd}</div>
+                        </div>
+                      </div>
+
+                      {/* Justificación */}
+                      <div className="bg-white p-3 rounded border">
+                        <div className="font-medium text-sm text-gray-700 mb-2">Justificación:</div>
+                        <div className="text-xs text-gray-600 whitespace-pre-line">
+                          {recomendacionPendiente.justificacion}
+                        </div>
+                      </div>
+
+                      {/* Botones de aprobación */}
+                      <div className="flex gap-3">
+                        <Button 
+                          onClick={handleApproveRecommendation}
+                          disabled={!recomendacionPendiente.stockDisponible}
+                          className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Aprobar y Asignar Kit
+                        </Button>
+                        
+                        <Button 
+                          onClick={handleRejectRecommendation}
+                          variant="outline" 
+                          className="flex-1 border-red-300 text-red-700 hover:bg-red-50"
+                        >
+                          <X className="h-4 w-4 mr-2" />
+                          Rechazar Recomendación
+                        </Button>
+                      </div>
+
+                      {!recomendacionPendiente.stockDisponible && (
+                        <div className="text-xs text-red-600 text-center">
+                          ⚠️ No se puede proceder debido a problemas de stock. Contacta al almacén.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                
                   {kitAsignado && (
                     <div className="bg-white p-4 rounded-lg border border-green-200">
                       <h4 className="font-semibold text-green-700 mb-3 flex items-center gap-2">
