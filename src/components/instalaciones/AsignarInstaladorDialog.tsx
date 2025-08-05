@@ -28,13 +28,12 @@ export const AsignarInstaladorDialog = ({
   const { toast } = useToast();
   const { updateProgramacion } = useProgramacionInstalaciones();
   
-  // Mock de instaladores - en producción vendría de una API
+  // Instaladores disponibles - usar el hook useInstaladores para obtener datos reales
   const instaladores = [
-    { id: '550e8400-e29b-41d4-a716-446655440001', nombre: 'Juan Pérez', telefono: '555-0001', especialidad: 'GPS Vehicular' },
-    { id: '550e8400-e29b-41d4-a716-446655440002', nombre: 'María García', telefono: '555-0002', especialidad: 'Sistemas Avanzados' },
-    { id: '550e8400-e29b-41d4-a716-446655440003', nombre: 'Carlos López', telefono: '555-0003', especialidad: 'Flotas Comerciales' },
-    { id: '550e8400-e29b-41d4-a716-446655440004', nombre: 'Ana Rodríguez', telefono: '555-0004', especialidad: 'GPS Básico' },
-    { id: '550e8400-e29b-41d4-a716-446655440005', nombre: 'Roberto Silva', telefono: '555-0005', especialidad: 'Instalaciones Especiales' }
+    { id: '94e75a42-aedd-40ab-a8e7-19cfad9c4711', nombre: 'Juan Carlos Rodríguez', telefono: '5512345678', especialidad: 'GPS Vehicular, Alarmas, Cámaras' },
+    { id: '02bec485-74cd-4c3f-bd30-8c84a3386ac4', nombre: 'María Elena Sánchez', telefono: '5587654321', especialidad: 'GPS Personal, GPS Vehicular, Botones de Pánico' },
+    { id: '122a3ef5-189d-47c1-8dba-f6d68e81369e', nombre: 'Roberto Méndez Torres', telefono: '5543218765', especialidad: 'GPS Vehicular, Sistemas de Rastreo' },
+    { id: 'cde091eb-0902-41f5-8cf5-501ed321db18', nombre: 'Ana Laura Jiménez', telefono: '5598765432', especialidad: 'Cámaras, Alarmas, GPS Personal' }
   ];
 
   const [selectedInstalador, setSelectedInstalador] = useState<string>('');
