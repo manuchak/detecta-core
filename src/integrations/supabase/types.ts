@@ -1698,13 +1698,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "evaluaciones_instaladores_instalacion_id_fkey"
-            columns: ["instalacion_id"]
-            isOneToOne: false
-            referencedRelation: "vista_instalaciones_dashboard"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "evaluaciones_instaladores_instalador_id_fkey"
             columns: ["instalador_id"]
             isOneToOne: false
@@ -1765,13 +1758,6 @@ export type Database = {
             columns: ["instalacion_id"]
             isOneToOne: false
             referencedRelation: "programacion_instalaciones"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "evaluaciones_normas_instalacion_id_fkey"
-            columns: ["instalacion_id"]
-            isOneToOne: false
-            referencedRelation: "vista_instalaciones_dashboard"
             referencedColumns: ["id"]
           },
           {
@@ -2054,13 +2040,6 @@ export type Database = {
             referencedRelation: "programacion_instalaciones"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "instalacion_documentacion_programacion_id_fkey"
-            columns: ["programacion_id"]
-            isOneToOne: false
-            referencedRelation: "vista_instalaciones_dashboard"
-            referencedColumns: ["id"]
-          },
         ]
       }
       instalacion_reporte_final: {
@@ -2114,13 +2093,6 @@ export type Database = {
             referencedRelation: "programacion_instalaciones"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "instalacion_reporte_final_programacion_id_fkey"
-            columns: ["programacion_id"]
-            isOneToOne: false
-            referencedRelation: "vista_instalaciones_dashboard"
-            referencedColumns: ["id"]
-          },
         ]
       }
       instalacion_validaciones: {
@@ -2160,13 +2132,6 @@ export type Database = {
             columns: ["programacion_id"]
             isOneToOne: false
             referencedRelation: "programacion_instalaciones"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "instalacion_validaciones_programacion_id_fkey"
-            columns: ["programacion_id"]
-            isOneToOne: false
-            referencedRelation: "vista_instalaciones_dashboard"
             referencedColumns: ["id"]
           },
         ]
@@ -2630,13 +2595,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "inventario_microsd_instalacion_asignada_fkey"
-            columns: ["instalacion_asignada"]
-            isOneToOne: false
-            referencedRelation: "vista_instalaciones_dashboard"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "inventario_microsd_proveedor_id_fkey"
             columns: ["proveedor_id"]
             isOneToOne: false
@@ -2713,13 +2671,6 @@ export type Database = {
             columns: ["instalacion_asignada"]
             isOneToOne: false
             referencedRelation: "programacion_instalaciones"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "inventario_sim_instalacion_asignada_fkey"
-            columns: ["instalacion_asignada"]
-            isOneToOne: false
-            referencedRelation: "vista_instalaciones_dashboard"
             referencedColumns: ["id"]
           },
         ]
@@ -2818,13 +2769,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "kits_instalacion_programacion_id_fkey"
-            columns: ["programacion_id"]
-            isOneToOne: true
-            referencedRelation: "vista_instalaciones_dashboard"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "kits_instalacion_sim_id_fkey"
             columns: ["sim_id"]
             isOneToOne: true
@@ -2899,13 +2843,6 @@ export type Database = {
             columns: ["programacion_id"]
             isOneToOne: false
             referencedRelation: "programacion_instalaciones"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "kits_instalacion_asignados_programacion_id_fkey"
-            columns: ["programacion_id"]
-            isOneToOne: false
-            referencedRelation: "vista_instalaciones_dashboard"
             referencedColumns: ["id"]
           },
           {
@@ -4479,13 +4416,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "productos_serie_instalacion_asignada_fkey"
-            columns: ["instalacion_asignada"]
-            isOneToOne: false
-            referencedRelation: "vista_instalaciones_dashboard"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "productos_serie_orden_compra_id_fkey"
             columns: ["orden_compra_id"]
             isOneToOne: false
@@ -5322,13 +5252,6 @@ export type Database = {
             columns: ["instalacion_id"]
             isOneToOne: false
             referencedRelation: "programacion_instalaciones"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "seguimiento_instalaciones_instalacion_id_fkey"
-            columns: ["instalacion_id"]
-            isOneToOne: false
-            referencedRelation: "vista_instalaciones_dashboard"
             referencedColumns: ["id"]
           },
           {
@@ -6423,37 +6346,11 @@ export type Database = {
       }
       vista_instalaciones_dashboard: {
         Row: {
-          auto_asignacion_completada: boolean | null
-          direccion_instalacion: string | null
-          estado: string | null
-          estado_kit: string | null
-          fecha_programada: string | null
-          gps_asignado: number | null
-          id: string | null
-          instalador_nombre: string | null
-          instalador_telefono: string | null
-          microsd_asignado: number | null
-          nombre_cliente: string | null
-          numero_serie_kit: string | null
-          numero_servicio: string | null
-          score_recomendacion: number | null
-          servicio_id: string | null
-          sim_asignado: number | null
-          stock_gps_status: string | null
-          tipo_instalacion: string | null
-          vehiculo_año: number | null
-          vehiculo_marca: string | null
-          vehiculo_modelo: string | null
+          recommendation: string | null
+          status: string | null
+          updated_at: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "programacion_instalaciones_servicio_id_fkey"
-            columns: ["servicio_id"]
-            isOneToOne: false
-            referencedRelation: "servicios_monitoreo"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Functions: {
