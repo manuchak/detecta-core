@@ -56,14 +56,18 @@ export const useProgramacionInstalaciones = () => {
         // Obtener información de instaladores si hay IDs
         let instaladoresMap = new Map();
         if (instaladorIds.length > 0) {
+          console.log('Fetching instaladores for IDs:', instaladorIds);
           try {
-            const { data: instaladoresData } = await supabase
+            const { data: instaladoresData, error: instaladoresError } = await supabase
               .from('instaladores')
               .select('id, nombre_completo, telefono, calificacion_promedio, especialidades')
               .in('id', instaladorIds);
             
-            if (instaladoresData) {
-              instaladoresData.forEach(instalador => {
+            if (instaladoresError) {
+              console.error('Error fetching instaladores:', instaladoresError);
+            } else {
+              console.log('Instaladores fetched:', instaladoresData);
+              instaladoresData?.forEach(instalador => {
                 instaladoresMap.set(instalador.id, instalador);
               });
             }
