@@ -75,16 +75,28 @@ export const AsignarInstaladorDialog = ({
       const [horas, minutos] = horaCita.split(':');
       fechaCompleta.setHours(parseInt(horas), parseInt(minutos));
 
-      console.log('Asignando instalador:', {
-        instalacionId: instalacion.id,
-        selectedInstalador,
-        fechaCompleta: fechaCompleta.toISOString(),
-        direccion,
-        contacto,
-        telefono,
-        observaciones,
-        tiempoEstimado: parseInt(tiempoEstimado)
-      });
+      // Validar que la fecha sea futura y en día laborable
+      const ahora = new Date();
+      const horasAnticipacion = (fechaCompleta.getTime() - ahora.getTime()) / (1000 * 60 * 60);
+      const diaSemana = fechaCompleta.getDay(); // 0=domingo, 6=sábado
+      
+      if (horasAnticipacion < 72) {
+        toast({
+          title: "Fecha inválida",
+          description: "La instalación debe programarse con al menos 72 horas de anticipación",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (diaSemana === 0 || diaSemana === 6) {
+        toast({
+          title: "Día no laborable",
+          description: "Las instalaciones solo se pueden programar de lunes a viernes",
+          variant: "destructive",
+        });
+        return;
+      }
 
       // Actualizar todos los datos de la instalación
       await updateProgramacion.mutateAsync({

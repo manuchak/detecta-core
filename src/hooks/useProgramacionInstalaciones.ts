@@ -316,8 +316,6 @@ export const useProgramacionInstalaciones = () => {
   // Actualizar programación completa
   const updateProgramacion = useMutation({
     mutationFn: async (data: any) => {
-      console.log('updateProgramacion - datos recibidos:', data);
-      
       const updateData: any = {
         direccion_instalacion: data.direccion_instalacion,
         contacto_cliente: data.contacto_cliente,
@@ -332,12 +330,8 @@ export const useProgramacionInstalaciones = () => {
         updateData.fecha_programada = data.fecha_programada;
       }
       if (data.instalador_id) {
-        // Verificar que el instalador_id sea un UUID válido
-        console.log('Instalador ID recibido:', data.instalador_id, 'tipo:', typeof data.instalador_id);
         updateData.instalador_id = data.instalador_id;
       }
-
-      console.log('updateProgramacion - datos finales para DB:', updateData);
 
       const { data: result, error } = await supabase
         .from('programacion_instalaciones')
