@@ -68,9 +68,9 @@ export const useCurrencyConverter = () => {
 
   // Auto-detect currency based on amount range (USD prices typically lower)
   const autoConvertToMXN = (amount: number): ConversionResult => {
-    // Heuristic: if amount is less than 500, assume it's USD
-    // Most GPS devices cost $50-400 USD, but would be 1000-8000+ MXN
-    if (amount > 0 && amount < 500) {
+    // Heuristic: if amount is less than 1000, assume it's USD
+    // Most GPS devices cost $50-800 USD, but would be 1000-16000+ MXN
+    if (amount > 0 && amount < 1000) {
       return convertCurrency(amount, 'USD');
     }
     return convertCurrency(amount, 'MXN');

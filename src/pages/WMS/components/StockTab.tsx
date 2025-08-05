@@ -112,8 +112,11 @@ export const StockTab = () => {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {formatCurrencyWithConversion(valorTotal, true)}
+            <div className="flex flex-col">
+              <div className="text-2xl font-bold text-green-600">
+                {formatCurrencyWithConversion(valorTotal, true)}
+              </div>
+              <p className="text-xs text-muted-foreground">Valor en Pesos Mexicanos (MXN)</p>
             </div>
           </CardContent>
         </Card>
