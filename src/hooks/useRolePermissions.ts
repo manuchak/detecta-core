@@ -58,34 +58,18 @@ const fetchAvailableRoles = async (): Promise<Role[]> => {
   }
 };
 
-// Helper function to fetch permissions safely using direct table access with admin validation
+// Helper function to fetch permissions safely using secure database function
 const fetchRolePermissions = async (): Promise<Permission[]> => {
   try {
-    // First verify admin access using the secure function
-    const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_user_secure');
+    // Use secure function to get role permissions
+    const { data, error } = await supabase.rpc('get_role_permissions_secure');
     
-    if (adminError) {
-      console.error('Error checking admin status:', adminError);
-      throw new Error('No se pudo verificar los permisos de administrador');
-    }
-
-    if (!isAdminData) {
-      throw new Error('Sin permisos para acceder a esta información');
-    }
-
-    // Now fetch permissions directly from table
-    const { data, error } = await supabase
-      .from('role_permissions')
-      .select('id, role, permission_type, permission_id, allowed, created_at, updated_at')
-      .order('role', { ascending: true })
-      .order('permission_type', { ascending: true });
-      
     if (error) {
-      console.error('Error fetching permissions:', error);
+      console.error('Error fetching role permissions:', error);
       throw error;
     }
     
-    return data.map((p: any) => ({
+    return (data || []).map((p: any) => ({
       id: p.id,
       role: p.role as Role,
       permission_type: p.permission_type,

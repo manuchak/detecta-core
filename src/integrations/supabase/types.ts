@@ -5153,6 +5153,45 @@ export type Database = {
           },
         ]
       }
+      role_change_audit: {
+        Row: {
+          approved_by: string | null
+          change_reason: string | null
+          changed_by: string
+          created_at: string | null
+          id: string
+          new_role: string
+          old_role: string | null
+          target_user_email: string
+          target_user_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          approved_by?: string | null
+          change_reason?: string | null
+          changed_by: string
+          created_at?: string | null
+          id?: string
+          new_role: string
+          old_role?: string | null
+          target_user_email: string
+          target_user_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          approved_by?: string | null
+          change_reason?: string | null
+          changed_by?: string
+          created_at?: string | null
+          id?: string
+          new_role?: string
+          old_role?: string | null
+          target_user_email?: string
+          target_user_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       role_permissions: {
         Row: {
           allowed: boolean
@@ -6404,6 +6443,14 @@ export type Database = {
       }
       assign_user_role: {
         Args: { target_user_id: string; new_role: string }
+        Returns: boolean
+      }
+      assign_user_role_secure: {
+        Args: {
+          target_user_id: string
+          new_role: string
+          change_reason?: string
+        }
         Returns: boolean
       }
       auto_asignar_kit_instalacion: {
@@ -8157,6 +8204,10 @@ export type Database = {
         Args: { url: string }
         Returns: boolean
       }
+      validate_input_text: {
+        Args: { input_text: string; max_length?: number }
+        Returns: string
+      }
       validate_service_distance: {
         Args: {
           p_km_recorridos: number
@@ -8170,6 +8221,10 @@ export type Database = {
           flag_reason: string
           should_flag: boolean
         }[]
+      }
+      validate_user_session: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
       }
       verificar_admin_seguro: {
         Args: { check_user_id: string }

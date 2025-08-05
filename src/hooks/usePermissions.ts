@@ -15,11 +15,12 @@ export const usePermissions = () => {
 
   // Verificar si tiene un permiso específico
   const hasPermission = (permissionType: string, permissionId: string): boolean => {
-    // Admin siempre tiene todos los permisos
-    if (userRole === 'admin' || userRole === 'owner') {
-      return true;
+    // Validar entrada
+    if (!permissionType || !permissionId || !userRole || !userPermissions) {
+      return false;
     }
 
+    // Verificar permiso específico en la base de datos - sin bypasses hardcodeados
     const permission = userPermissions.find(
       p => p.permission_type === permissionType && p.permission_id === permissionId
     );

@@ -104,26 +104,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return null;
       }
 
-      // Intentar obtener rol usando la función principal
-      const { data, error } = await (supabase as any).rpc('get_current_user_role');
+      // Use secure function to get user role
+      const { data, error } = await supabase.rpc('get_current_user_role');
 
       if (error) {
         console.error('Error fetching user role:', error);
-        
-        // Fallback: intentar verificar si es supply_admin directamente
-        try {
-          const { data: session } = await supabase.auth.getSession();
-          if (session?.session?.user?.email) {
-            const email = session.session.user.email;
-            if (email === 'brenda.jimenez@detectasecurity.io' || email === 'marbelli.casillas@detectasecurity.io') {
-              console.log('Fallback: Setting supply_admin role for', email);
-              return 'supply_admin';
-            }
-          }
-        } catch (fallbackError) {
-          console.error('Fallback role detection failed:', fallbackError);
-        }
-        
         return 'unverified';
       }
 
@@ -131,21 +116,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return data || 'unverified';
     } catch (err) {
       console.error('Error in fetchUserRole:', err);
-      
-      // Último recurso: verificar email directamente
-      try {
-        const { data: session } = await supabase.auth.getSession();
-        if (session?.session?.user?.email) {
-          const email = session.session.user.email;
-          if (email === 'admin@admin.com') return 'admin';
-          if (email === 'brenda.jimenez@detectasecurity.io' || email === 'marbelli.casillas@detectasecurity.io') {
-            return 'supply_admin';
-          }
-        }
-      } catch (lastResortError) {
-        console.error('Last resort role detection failed:', lastResortError);
-      }
-      
       return 'unverified';
     }
   };
@@ -154,9 +124,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log(`Assigning role ${role} to user ${userId}`);
       
-      const { data, error } = await (supabase as any).rpc('update_user_role_secure', {
-        p_user_id: userId,
-        p_role: role
+      const { data, error } = await supabase.rpc('assign_user_role_secure', {
+        target_user_id: userId,
+        new_role: role,
+        change_reason: 'Role assignment via admin interface'
       });
       
       if (error) {
@@ -164,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error(`Error asignando rol: ${error.message}`);
       }
       
-      console.log('Role assigned successfully');
+      console.log('Role assigned successfully with audit trail');
       return true;
     } catch (error) {
       console.error('Error in assignRole:', error);
@@ -214,40 +185,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         console.log("Auth state changed:", event, currentSession?.user?.email);
         
-        // Batch state updates to prevent multiple renders
+        // Secure role fetching - no hardcoded email bypasses
         if (currentSession?.user) {
-          // Immediate role detection for supply_admin emails
-          const email = currentSession.user.email;
-          let immediateRole = null;
-          if (email === 'brenda.jimenez@detectasecurity.io' || email === 'marbelli.casillas@detectasecurity.io') {
-            immediateRole = 'supply_admin';
-          } else if (email === 'admin@admin.com') {
-            immediateRole = 'admin';
-          }
-          
-          // Update all states at once - permissions will be computed via useMemo
           setSession(currentSession);
           setUser(currentSession.user);
-          setUserRole(immediateRole);
+          setUserRole(null); // Reset role
           
-          // Fetch confirmed role only if not already set
-          if (!immediateRole) {
-            setTimeout(async () => {
-              if (mounted) {
-                try {
-                  const role = await fetchUserRole();
-                  if (mounted) {
-                    setUserRole(role);
-                  }
-                } catch (error) {
-                  console.error('Error fetching user role:', error);
-                  if (mounted) {
-                    setUserRole('unverified');
-                  }
+          // Always fetch role from database securely
+          setTimeout(async () => {
+            if (mounted) {
+              try {
+                const role = await fetchUserRole();
+                if (mounted) {
+                  setUserRole(role);
+                }
+              } catch (error) {
+                console.error('Error fetching user role:', error);
+                if (mounted) {
+                  setUserRole('unverified');
                 }
               }
-            }, 50);
-          }
+            }
+          }, 50);
         } else {
           setSession(currentSession);
           setUser(null);
