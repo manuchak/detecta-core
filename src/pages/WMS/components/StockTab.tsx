@@ -59,7 +59,11 @@ export const StockTab = () => {
 
   const stockBajo = stock?.filter(s => s.cantidad_disponible <= (s.producto?.stock_minimo || 0)).length || 0;
   const sinStock = stock?.filter(s => s.cantidad_disponible === 0).length || 0;
-  const valorTotal = stock?.reduce((sum, s) => sum + s.valor_inventario, 0) || 0;
+  const valorTotal = stock?.reduce((sum, s) => {
+    const precio = s.producto?.precio_venta_sugerido || 0;
+    const cantidad = s.cantidad_disponible || 0;
+    return sum + (precio * cantidad);
+  }, 0) || 0;
 
   return (
     <div className="space-y-6">
