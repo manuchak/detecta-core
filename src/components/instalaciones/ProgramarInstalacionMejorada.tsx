@@ -332,7 +332,7 @@ export const ProgramarInstalacionMejorada = ({
       const kitResult = {
         gps: gpsProduct ? `${gpsProduct.marca} ${gpsProduct.modelo} - ${gpsProduct.nombre}` : manualKit.gps_id,
         sim: simProduct ? `${simProduct.marca} - ${simProduct.nombre}` : manualKit.sim_id || 'No incluido',
-        microsd: microsdProduct ? `${microsdProduct.marca} ${microsdProduct.modelo} - ${microsdProduct.nombre}` : 'No incluido',
+        microsd: (microsdProduct && manualKit.microsd_id !== 'no-microsd') ? `${microsdProduct.marca} ${microsdProduct.modelo} - ${microsdProduct.nombre}` : 'No incluido',
         numero_serie: numeroSerie
       };
 
@@ -760,7 +760,7 @@ export const ProgramarInstalacionMejorada = ({
                               </SelectItem>
                             ))}
                           {(!productos?.filter(p => p.categoria?.nombre?.toLowerCase().includes('gps') && (p.stock?.cantidad_disponible || 0) > 0)?.length) && (
-                            <SelectItem value="" disabled>
+                            <SelectItem value="no-gps-stock" disabled>
                               No hay productos GPS en stock
                             </SelectItem>
                           )}
@@ -786,7 +786,7 @@ export const ProgramarInstalacionMejorada = ({
                               </SelectItem>
                             ))}
                           {(!productos?.filter(p => p.categoria?.nombre?.toLowerCase().includes('sim') && (p.stock?.cantidad_disponible || 0) > 0)?.length) && (
-                            <SelectItem value="" disabled>
+                            <SelectItem value="no-sim-stock" disabled>
                               No hay tarjetas SIM en stock
                             </SelectItem>
                           )}
@@ -810,7 +810,7 @@ export const ProgramarInstalacionMejorada = ({
                           <SelectValue placeholder="Seleccionar MicroSD (opcional)" />
                         </SelectTrigger>
                         <SelectContent className="bg-white z-50">
-                          <SelectItem value="">No incluir MicroSD</SelectItem>
+                          <SelectItem value="no-microsd">No incluir MicroSD</SelectItem>
                           {productos
                             ?.filter(p => p.categoria?.nombre?.toLowerCase().includes('microsd') && (p.stock?.cantidad_disponible || 0) > 0)
                             ?.map(producto => (
@@ -822,7 +822,7 @@ export const ProgramarInstalacionMejorada = ({
                               </SelectItem>
                             ))}
                           {(!productos?.filter(p => p.categoria?.nombre?.toLowerCase().includes('microsd') && (p.stock?.cantidad_disponible || 0) > 0)?.length) && (
-                            <SelectItem value="no-stock" disabled>
+                            <SelectItem value="no-microsd-stock" disabled>
                               No hay MicroSD en stock
                             </SelectItem>
                           )}
