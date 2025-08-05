@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,7 +24,11 @@ import {
   Settings,
   CheckCircle,
   XCircle,
-  Clock
+  Clock,
+  FileText,
+  DollarSign,
+  UserCheck,
+  ArrowRight
 } from 'lucide-react';
 import { useInstaladores } from '@/hooks/useInstaladores';
 import { RegistroInstaladorDialog } from './components/RegistroInstaladorDialog';
@@ -87,13 +92,105 @@ const InstallerManagement = () => {
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gestión de Instaladores</h1>
-          <p className="text-gray-600 mt-1">Administra los instaladores certificados</p>
+          <h1 className="text-3xl font-bold text-gray-900">Control de Instaladores</h1>
+          <p className="text-gray-600 mt-1">Administra los instaladores certificados y sus operaciones</p>
         </div>
-        <Button onClick={() => setShowRegistroDialog(true)}>
-          <UserPlus className="h-4 w-4 mr-2" />
-          Registrar Instalador
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setShowRegistroDialog(true)}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Registrar Instalador
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/installers/registro">
+              <FileText className="h-4 w-4 mr-2" />
+              Sistema Registro
+            </Link>
+          </Button>
+        </div>
+      </div>
+
+      {/* Enlaces de acceso rápido */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <UserCheck className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Registro Completo</CardTitle>
+                  <CardDescription>Gestión integral de instaladores</CardDescription>
+                </div>
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <p className="text-sm text-muted-foreground mb-3">
+              Datos fiscales, pagos, evidencias y auditorías
+            </p>
+            <Button asChild variant="outline" className="w-full">
+              <Link to="/installers/registro">
+                Acceder al Sistema
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <DollarSign className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Gestión de Pagos</CardTitle>
+                  <CardDescription>Pagos y comisiones</CardDescription>
+                </div>
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <p className="text-sm text-muted-foreground mb-3">
+              Administra pagos y aprobaciones de instaladores
+            </p>
+            <Button asChild variant="outline" className="w-full">
+              <Link to="/installers/registro">
+                Ver Pagos
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <FileText className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Auditorías</CardTitle>
+                  <CardDescription>Control de calidad</CardDescription>
+                </div>
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <p className="text-sm text-muted-foreground mb-3">
+              Seguimiento y evaluación de instalaciones
+            </p>
+            <Button asChild variant="outline" className="w-full">
+              <Link to="/installers/registro">
+                Ver Auditorías
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Estadísticas */}
