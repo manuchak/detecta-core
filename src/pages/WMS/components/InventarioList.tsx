@@ -74,14 +74,14 @@ export const InventarioList = ({
   const categories = Array.from(new Set(productos.map(p => p.categoria).filter(Boolean)));
 
   const getStockStatus = (producto: ProductoInventario) => {
-    const stock = producto.stock?.[0];
+    const stock = Array.isArray(producto.stock) ? producto.stock[0] : producto.stock;
     if (!stock) return { status: 'sin-datos', label: 'Sin datos', color: 'secondary' };
     
-    const { cantidad_disponible } = stock;
+    const cantidad_disponible = stock.cantidad_disponible || 0;
     
     if (cantidad_disponible === 0) {
       return { status: 'agotado', label: 'Agotado', color: 'destructive' };
-    } else if (cantidad_disponible <= producto.stock_minimo) {
+    } else if (cantidad_disponible <= (producto.stock_minimo || 5)) {
       return { status: 'bajo', label: 'Stock Bajo', color: 'warning' };
     } else {
       return { status: 'normal', label: 'En Stock', color: 'success' };
@@ -172,7 +172,7 @@ export const InventarioList = ({
             <div className="space-y-2">
               {category.productos.map((producto) => {
                 const stockStatus = getStockStatus(producto);
-                const stock = producto.stock?.[0];
+                const stock = Array.isArray(producto.stock) ? producto.stock[0] : producto.stock;
                 
                 return (
                   <Card 
@@ -210,7 +210,7 @@ export const InventarioList = ({
                           <div className="text-center">
                             <p className="text-muted-foreground">Stock</p>
                             <p className="font-bold text-lg">
-                              {stock?.cantidad_disponible || 0}
+                              {stock?.cantidad_disponible ?? 0}
                             </p>
                           </div>
                           <div className="text-center">
