@@ -53,15 +53,13 @@ export const useProgramacionInstalaciones = () => {
             .map(p => p.instalador_id)
         )].filter(Boolean);
 
-        // Obtener información de instaladores si hay IDs
+        // Obtener información de instaladores usando la función segura
         let instaladoresMap = new Map();
         if (instaladorIds.length > 0) {
           console.log('Fetching instaladores for IDs:', instaladorIds);
           try {
             const { data: instaladoresData, error: instaladoresError } = await supabase
-              .from('instaladores')
-              .select('id, nombre_completo, telefono, calificacion_promedio, especialidades')
-              .in('id', instaladorIds);
+              .rpc('get_instaladores_for_programacion', { instalador_ids: instaladorIds });
             
             if (instaladoresError) {
               console.error('Error fetching instaladores:', instaladoresError);

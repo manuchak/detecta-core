@@ -7305,6 +7305,16 @@ export type Database = {
           disponible: boolean
         }[]
       }
+      get_instaladores_for_programacion: {
+        Args: { instalador_ids: string[] }
+        Returns: {
+          id: string
+          nombre_completo: string
+          telefono: string
+          calificacion_promedio: number
+          especialidades: string[]
+        }[]
+      }
       get_marcas_vehiculos_safe: {
         Args: Record<PropertyKey, never>
         Returns: {
