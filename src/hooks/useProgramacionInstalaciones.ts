@@ -8,17 +8,30 @@ export const useProgramacionInstalaciones = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Obtener programaciones de instalación
+  // Obtener programaciones de instalación (versión simplificada)
   const { data: programaciones, isLoading, error } = useQuery({
     queryKey: ['programacion-instalaciones'],
     queryFn: async () => {
       console.log('Fetching programaciones...');
       
       try {
-        // Primero obtener las programaciones básicas
+        // Consulta simplificada sin joins complejos
         const { data: programacionesData, error: programacionesError } = await supabase
           .from('programacion_instalaciones')
-          .select('*')
+          .select(`
+            id,
+            servicio_id,
+            tipo_instalacion,
+            fecha_programada,
+            estado,
+            contacto_cliente,
+            telefono_contacto,
+            direccion_instalacion,
+            tiempo_estimado,
+            observaciones_cliente,
+            created_at,
+            updated_at
+          `)
           .order('fecha_programada', { ascending: true });
 
         if (programacionesError) {
@@ -26,67 +39,25 @@ export const useProgramacionInstalaciones = () => {
           throw programacionesError;
         }
 
-        // Luego hacer queries separadas para los datos relacionados si es necesario
-        const programacionesWithRelations = await Promise.all(
-          (programacionesData || []).map(async (programacion) => {
-            try {
-              // Obtener datos del servicio de forma segura
-              let servicio = null;
-              try {
-                const { data: servicioData } = await supabase
-                  .from('servicios_monitoreo')
-                  .select('id, numero_servicio, nombre_cliente')
-                  .eq('id', programacion.servicio_id)
-                  .single();
-                servicio = servicioData;
-              } catch (servicioError) {
-                console.warn('Error fetching servicio for programacion:', programacion.id, servicioError);
-              }
-
-              // Obtener datos del instalador si existe de forma segura
-              let instalador = null;
-              if (programacion.instalador_id) {
-                try {
-                  const { data: instaladorData } = await supabase
-                    .from('instaladores')
-                    .select('id, nombre_completo, telefono, calificacion_promedio')
-                    .eq('id', programacion.instalador_id)
-                    .single();
-                  instalador = instaladorData;
-                } catch (instaladorError) {
-                  console.warn('Error fetching instalador for programacion:', programacion.id, instaladorError);
-                }
-              }
-
-              return {
-                ...programacion,
-                servicio,
-                instalador
-              };
-            } catch (error) {
-              console.error('Error fetching related data for programacion:', programacion.id, error);
-              return {
-                ...programacion,
-                servicio: null,
-                instalador: null
-              };
-            }
-          })
-        );
-
-        console.log('Programaciones fetched:', programacionesWithRelations);
-        return programacionesWithRelations as ProgramacionInstalacion[];
+        console.log('Programaciones fetched successfully:', programacionesData?.length || 0);
+        
+        // Retornar los datos básicos sin joins por ahora
+        return (programacionesData || []).map(programacion => ({
+          ...programacion,
+          servicio: null, // Temporalmente null
+          instalador: null // Temporalmente null
+        })) as ProgramacionInstalacion[];
+        
       } catch (error) {
         console.error('Error in programaciones queryFn:', error);
-        // En caso de error, retornar un array vacío en lugar de fallar completamente
-        // Esto permite que la página funcione aunque haya problemas con las programaciones
+        // En caso de error, retornar un array vacío
         return [] as ProgramacionInstalacion[];
       }
     },
-    // Agregar configuración para manejar errores de forma más elegante
-    retry: 1,
-    retryDelay: 1000,
-    staleTime: 30000 // 30 segundos
+    // Configuración más agresiva para debugging
+    retry: 0, // No reintentar por ahora
+    staleTime: 0, // Siempre fresh
+    refetchOnWindowFocus: true
   });
 
   // Mapeo de estados de instalación a estados de servicio
