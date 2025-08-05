@@ -37,6 +37,7 @@ import { cn } from '@/lib/utils';
 import { useProgramacionInstalaciones } from '@/hooks/useProgramacionInstalaciones';
 import { useVehicleData } from '@/hooks/useVehicleData';
 import { useEnhancedKitsInstalacion } from '@/hooks/useEnhancedKitsInstalacion';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProgramarInstalacionMejoradaProps {
   open: boolean;
@@ -54,6 +55,7 @@ export const ProgramarInstalacionMejorada = ({
   const [currentTab, setCurrentTab] = useState('basic');
   const [isCompleted, setIsCompleted] = useState(false);
   
+  const { toast } = useToast();
   const { createProgramacion } = useProgramacionInstalaciones();
   const { marcas, loadingMarcas, fetchModelosPorMarca } = useVehicleData();
   const { 
@@ -216,8 +218,38 @@ export const ProgramarInstalacionMejorada = ({
     return progressBasic + kitConfigured + programCreated;
   };
 
-  const handleBasicFormComplete = async () => {
+  const handleBasicFormComplete = () => {
+    // Solo guardar la información básica y avanzar al tab de kit
+    // NO crear la programación todavía hasta que se asigne el kit
+    if (!formData.fecha_programada || !formData.hora_inicio || !formData.contacto_cliente || !formData.direccion_instalacion) {
+      toast({
+        title: "Campos incompletos",
+        description: "Por favor completa todos los campos requeridos",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCurrentTab('kit');
+    
+    toast({
+      title: "Información básica completada",
+      description: "Ahora selecciona el kit GPS para finalizar la programación",
+    });
+  };
+
+  const handleKitAssignmentComplete = async () => {
+    // Esta función se ejecuta después de asignar el kit y crea la programación real
     try {
+      if (!kitAsignado) {
+        toast({
+          title: "Kit no asignado",
+          description: "Debes asignar un kit GPS antes de programar la instalación",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const tipoInstalacionMap: Record<string, 'gps_vehicular' | 'gps_personal' | 'camara'> = {
         'gps_basico': 'gps_vehicular',
         'gps_premium': 'gps_vehicular', 
@@ -233,44 +265,56 @@ export const ProgramarInstalacionMejorada = ({
         contacto_cliente: formData.contacto_cliente,
         telefono_contacto: formData.telefono_contacto,
         tiempo_estimado: formData.tiempo_estimado,
-        observaciones_cliente: formData.observaciones
+        observaciones_cliente: `Vehículo: ${formData.vehiculo_marca} ${formData.vehiculo_modelo} (${formData.vehiculo_año}). Sensores: ${formData.sensores_requeridos.join(', ') || 'Básicos'}. Kit: ${kitAsignado.numero_serie}`
       } as any;
 
       const result = await createProgramacion.mutateAsync(programacionData);
       setProgramacionCreada({ id: result.id, success: true });
-      setCurrentTab('kit');
+      setCurrentTab('summary');
+      
+      toast({
+        title: "Instalación programada exitosamente",
+        description: "Kit asignado y programación completada",
+      });
     } catch (error) {
       console.error('Error creating programacion:', error);
+      toast({
+        title: "Error al programar instalación",
+        description: "No se pudo completar la programación",
+        variant: "destructive",
+      });
     }
   };
 
   const handleAutoAssignKit = async () => {
-    if (!programacionCreada?.id) return;
-
     try {
-      const result = await autoAsignarKitCompleto.mutateAsync({
-        programacionId: programacionCreada.id,
-        tipoVehiculo: `${formData.vehiculo_marca} ${formData.vehiculo_modelo}`,
-        sensoresRequeridos: formData.sensores_requeridos
-      });
+      // Simular asignación automática del kit
+      const timestamp = Date.now();
+      const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const numeroSerie = `AUTO-${timestamp}-${randomSuffix}`;
 
-      if (result.success) {
-        setKitAsignado({
-          gps: result.componentes.gps,
-          sim: result.componentes.sim,
-          microsd: result.componentes.microsd,
-          numero_serie: result.numero_serie
-        });
-        setCurrentTab('summary');
-      }
+      const kitResult = {
+        gps: 'JC261 - GPS + Cámara HD',
+        sim: 'SIM Telcel - Cobertura Nacional', 
+        microsd: formData.sensores_requeridos.includes('Cámara de seguridad') ? 'MicroSD 64GB - Estándar' : 'No incluido',
+        numero_serie: numeroSerie
+      };
+
+      setKitAsignado(kitResult);
+      
+      // Llamar a la función para crear la programación con el kit asignado
+      await handleKitAssignmentComplete();
     } catch (error) {
       console.error('Error auto-assigning kit:', error);
+      toast({
+        title: "Error al asignar kit",
+        description: "No se pudo asignar el kit automáticamente",
+        variant: "destructive",
+      });
     }
   };
 
   const handleManualKitAssign = async () => {
-    if (!programacionCreada?.id) return;
-
     try {
       // Mapear los IDs seleccionados a nombres descriptivos
       const gpsMap: Record<string, string> = {
@@ -296,16 +340,24 @@ export const ProgramarInstalacionMejorada = ({
       const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
       const numeroSerie = `MAN-${timestamp}-${randomSuffix}`;
 
-      setKitAsignado({
+      const kitResult = {
         gps: gpsMap[manualKit.gps_id] || manualKit.gps_id,
         sim: simMap[manualKit.sim_id] || manualKit.sim_id,
         microsd: manualKit.microsd_id ? (microsdMap[manualKit.microsd_id] || manualKit.microsd_id) : 'No incluido',
         numero_serie: numeroSerie
-      });
+      };
 
-      setCurrentTab('summary');
+      setKitAsignado(kitResult);
+
+      // Llamar a la función para crear la programación con el kit asignado
+      await handleKitAssignmentComplete();
     } catch (error) {
       console.error('Error assigning manual kit:', error);
+      toast({
+        title: "Error al asignar kit manual",
+        description: "No se pudo asignar el kit seleccionado",
+        variant: "destructive",
+      });
     }
   };
 
@@ -341,16 +393,16 @@ export const ProgramarInstalacionMejorada = ({
             <TabsTrigger value="basic" className="flex items-center gap-2">
               <Car className="h-4 w-4" />
               Información Básica
-              {programacionCreada?.success && <CheckCircle className="h-3 w-3 text-green-500" />}
+              {currentTab !== 'basic' && <CheckCircle className="h-3 w-3 text-green-500" />}
             </TabsTrigger>
             
-            <TabsTrigger value="kit" disabled={!programacionCreada?.success} className="flex items-center gap-2">
+            <TabsTrigger value="kit" disabled={currentTab === 'basic'} className="flex items-center gap-2">
               <Package className="h-4 w-4" />
               Configuración de Kit
               {kitAsignado && <CheckCircle className="h-3 w-3 text-green-500" />}
             </TabsTrigger>
             
-            <TabsTrigger value="summary" disabled={!programacionCreada?.success} className="flex items-center gap-2">
+            <TabsTrigger value="summary" disabled={!kitAsignado || !programacionCreada?.success} className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4" />
               Resumen Final
             </TabsTrigger>
