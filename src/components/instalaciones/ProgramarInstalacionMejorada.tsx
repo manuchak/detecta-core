@@ -37,6 +37,7 @@ import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useProgramacionInstalaciones } from '@/hooks/useProgramacionInstalaciones';
 import { useVehicleData } from '@/hooks/useVehicleData';
+import { useProductosInventario } from '@/hooks/useProductosInventario';
 import { useEnhancedKitsInstalacion } from '@/hooks/useEnhancedKitsInstalacion';
 import { useToast } from '@/hooks/use-toast';
 
@@ -59,6 +60,7 @@ export const ProgramarInstalacionMejorada = ({
   const { toast } = useToast();
   const { createProgramacion } = useProgramacionInstalaciones();
   const { marcas, loadingMarcas, fetchModelosPorMarca } = useVehicleData();
+  const { productos, isLoading: loadingProductos } = useProductosInventario();
   const { 
     obtenerRecomendacionesInteligentes, 
     autoAsignarKitCompleto,
@@ -317,24 +319,10 @@ export const ProgramarInstalacionMejorada = ({
 
   const handleManualKitAssign = async () => {
     try {
-      // Mapear los IDs seleccionados a nombres descriptivos
-      const gpsMap: Record<string, string> = {
-        'gps-jc200': 'JC200 - GPS Básico',
-        'gps-jc261': 'JC261 - GPS + Cámara',
-        'gps-jc400': 'JC400 - GPS Avanzado'
-      };
-
-      const simMap: Record<string, string> = {
-        'sim-telcel': 'SIM Telcel - Nacional',
-        'sim-att': 'SIM AT&T - Internacional', 
-        'sim-movistar': 'SIM Movistar - Ilimitado'
-      };
-
-      const microsdMap: Record<string, string> = {
-        'microsd-32gb': 'MicroSD 32GB',
-        'microsd-64gb': 'MicroSD 64GB',
-        'microsd-128gb': 'MicroSD 128GB'
-      };
+      // Obtener los productos seleccionados para mostrar nombres descriptivos
+      const gpsProduct = productos?.find(p => p.id === manualKit.gps_id);
+      const simProduct = productos?.find(p => p.id === manualKit.sim_id);
+      const microsdProduct = productos?.find(p => p.id === manualKit.microsd_id);
 
       // Generar número de serie único para kit manual
       const timestamp = Date.now();
@@ -342,9 +330,9 @@ export const ProgramarInstalacionMejorada = ({
       const numeroSerie = `MAN-${timestamp}-${randomSuffix}`;
 
       const kitResult = {
-        gps: gpsMap[manualKit.gps_id] || manualKit.gps_id,
-        sim: simMap[manualKit.sim_id] || manualKit.sim_id,
-        microsd: manualKit.microsd_id ? (microsdMap[manualKit.microsd_id] || manualKit.microsd_id) : 'No incluido',
+        gps: gpsProduct ? `${gpsProduct.marca} ${gpsProduct.modelo} - ${gpsProduct.nombre}` : manualKit.gps_id,
+        sim: simProduct ? `${simProduct.marca} - ${simProduct.nombre}` : manualKit.sim_id || 'No incluido',
+        microsd: microsdProduct ? `${microsdProduct.marca} ${microsdProduct.modelo} - ${microsdProduct.nombre}` : 'No incluido',
         numero_serie: numeroSerie
       };
 
@@ -760,10 +748,22 @@ export const ProgramarInstalacionMejorada = ({
                         <SelectTrigger className="border-blue-200">
                           <SelectValue placeholder="Seleccionar dispositivo GPS" />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="gps-jc200">JC200 - GPS Básico (Vehículos estándar)</SelectItem>
-                          <SelectItem value="gps-jc261">JC261 - GPS + Cámara (Requiere MicroSD)</SelectItem>
-                          <SelectItem value="gps-jc400">JC400 - GPS Avanzado (Para flotillas)</SelectItem>
+                        <SelectContent className="bg-white z-50">
+                          {productos
+                            ?.filter(p => p.categoria?.nombre?.toLowerCase().includes('gps') && (p.stock?.cantidad_disponible || 0) > 0)
+                            ?.map(producto => (
+                              <SelectItem key={producto.id} value={producto.id}>
+                                {producto.marca} {producto.modelo} - {producto.nombre}
+                                <span className="text-xs text-gray-500 ml-2">
+                                  (Stock: {producto.stock?.cantidad_disponible || 0})
+                                </span>
+                              </SelectItem>
+                            ))}
+                          {(!productos?.filter(p => p.categoria?.nombre?.toLowerCase().includes('gps') && (p.stock?.cantidad_disponible || 0) > 0)?.length) && (
+                            <SelectItem value="" disabled>
+                              No hay productos GPS en stock
+                            </SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -774,10 +774,22 @@ export const ProgramarInstalacionMejorada = ({
                         <SelectTrigger className="border-blue-200">
                           <SelectValue placeholder="Seleccionar tarjeta SIM" />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="sim-telcel">SIM Telcel - Cobertura Nacional</SelectItem>
-                          <SelectItem value="sim-att">SIM AT&T - Roaming Internacional</SelectItem>
-                          <SelectItem value="sim-movistar">SIM Movistar - Datos Ilimitados</SelectItem>
+                        <SelectContent className="bg-white z-50">
+                          {productos
+                            ?.filter(p => p.categoria?.nombre?.toLowerCase().includes('sim') && (p.stock?.cantidad_disponible || 0) > 0)
+                            ?.map(producto => (
+                              <SelectItem key={producto.id} value={producto.id}>
+                                {producto.marca} - {producto.nombre}
+                                <span className="text-xs text-gray-500 ml-2">
+                                  (Stock: {producto.stock?.cantidad_disponible || 0})
+                                </span>
+                              </SelectItem>
+                            ))}
+                          {(!productos?.filter(p => p.categoria?.nombre?.toLowerCase().includes('sim') && (p.stock?.cantidad_disponible || 0) > 0)?.length) && (
+                            <SelectItem value="" disabled>
+                              No hay tarjetas SIM en stock
+                            </SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -797,10 +809,23 @@ export const ProgramarInstalacionMejorada = ({
                         <SelectTrigger className="border-blue-200">
                           <SelectValue placeholder="Seleccionar MicroSD (opcional)" />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="microsd-32gb">MicroSD 32GB - Básico</SelectItem>
-                          <SelectItem value="microsd-64gb">MicroSD 64GB - Estándar</SelectItem>
-                          <SelectItem value="microsd-128gb">MicroSD 128GB - Extendido</SelectItem>
+                        <SelectContent className="bg-white z-50">
+                          <SelectItem value="">No incluir MicroSD</SelectItem>
+                          {productos
+                            ?.filter(p => p.categoria?.nombre?.toLowerCase().includes('microsd') && (p.stock?.cantidad_disponible || 0) > 0)
+                            ?.map(producto => (
+                              <SelectItem key={producto.id} value={producto.id}>
+                                {producto.marca} {producto.modelo} - {producto.nombre}
+                                <span className="text-xs text-gray-500 ml-2">
+                                  (Stock: {producto.stock?.cantidad_disponible || 0})
+                                </span>
+                              </SelectItem>
+                            ))}
+                          {(!productos?.filter(p => p.categoria?.nombre?.toLowerCase().includes('microsd') && (p.stock?.cantidad_disponible || 0) > 0)?.length) && (
+                            <SelectItem value="no-stock" disabled>
+                              No hay MicroSD en stock
+                            </SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                       {(formData.sensores_requeridos.includes('Cámara de seguridad') || manualKit.gps_id === 'gps-jc261') && (
