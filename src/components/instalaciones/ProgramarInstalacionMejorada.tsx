@@ -953,27 +953,51 @@ export const ProgramarInstalacionMejorada = ({
                           <strong>⚠️ Se detectó cámara en sensores:</strong> MicroSD es obligatorio para grabación de video.
                         </span>
                       )}
+                      {manualKit.gps_id && productos?.find(p => p.id === manualKit.gps_id)?.especificaciones?.tipo_dispositivo === 'dashcam' && (
+                        <span className="block mt-1">
+                          <strong>📹 Cámara GPS seleccionada:</strong> Se requiere MicroSD obligatoriamente para grabación.
+                        </span>
+                      )}
                     </AlertDescription>
                   </Alert>
 
                   <div className="space-y-4">
                     <div>
-                      <Label className="text-blue-700 font-semibold">Dispositivo GPS Principal *</Label>
+                      <Label className="text-blue-700 font-semibold">Dispositivo Principal *</Label>
                       <Select value={manualKit.gps_id} onValueChange={(value) => setManualKit(prev => ({ ...prev, gps_id: value }))}>
                         <SelectTrigger className="border-blue-200">
-                          <SelectValue placeholder="Seleccionar dispositivo GPS" />
+                          <SelectValue placeholder="Seleccionar dispositivo" />
                         </SelectTrigger>
                         <SelectContent className="bg-white z-50">
                           {productos
                             ?.filter(p => p.categoria?.nombre?.toLowerCase().includes('gps') && (p.stock?.cantidad_disponible || 0) > 0)
-                            ?.map(producto => (
-                              <SelectItem key={producto.id} value={producto.id}>
-                                {producto.marca} {producto.modelo} - {producto.nombre}
-                                <span className="text-xs text-gray-500 ml-2">
-                                  (Stock: {producto.stock?.cantidad_disponible || 0})
-                                </span>
-                              </SelectItem>
-                            ))}
+                            ?.map(producto => {
+                              // Detectar si es cámara basándose en el tipo_dispositivo del modelo GPS
+                              const esCamera = producto.especificaciones?.tipo_dispositivo === 'dashcam' || 
+                                              producto.modelo?.toLowerCase().includes('jc261') ||
+                                              producto.especificaciones?.tipo_dispositivo?.toLowerCase().includes('dashcam');
+                              const tipoDispositivo = esCamera ? 'Cámara' : 'GPS';
+                              const iconoColor = esCamera ? 'text-purple-600' : 'text-blue-600';
+                              
+                              return (
+                                <SelectItem key={producto.id} value={producto.id}>
+                                  <div className="flex items-center gap-2 w-full">
+                                    {esCamera ? (
+                                      <Camera className={`h-4 w-4 ${iconoColor} flex-shrink-0`} />
+                                    ) : (
+                                      <Cpu className={`h-4 w-4 ${iconoColor} flex-shrink-0`} />
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                      <span className="font-medium text-sm">{tipoDispositivo}:</span>
+                                      <span className="ml-1">{producto.marca} {producto.modelo} - {producto.nombre}</span>
+                                      <span className="text-xs text-gray-500 ml-2">
+                                        (Stock: {producto.stock?.cantidad_disponible || 0})
+                                      </span>
+                                    </div>
+                                  </div>
+                                </SelectItem>
+                              );
+                            })}
                           {(!productos?.filter(p => p.categoria?.nombre?.toLowerCase().includes('gps') && (p.stock?.cantidad_disponible || 0) > 0)?.length) && (
                             <SelectItem value="no-gps-stock" disabled>
                               No hay productos GPS en stock
