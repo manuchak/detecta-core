@@ -30,11 +30,11 @@ export const AsignarInstaladorDialog = ({
   
   // Mock de instaladores - en producción vendría de una API
   const instaladores = [
-    { id: '1', nombre: 'Juan Pérez', telefono: '555-0001', especialidad: 'GPS Vehicular' },
-    { id: '2', nombre: 'María García', telefono: '555-0002', especialidad: 'Sistemas Avanzados' },
-    { id: '3', nombre: 'Carlos López', telefono: '555-0003', especialidad: 'Flotas Comerciales' },
-    { id: '4', nombre: 'Ana Rodríguez', telefono: '555-0004', especialidad: 'GPS Básico' },
-    { id: '5', nombre: 'Roberto Silva', telefono: '555-0005', especialidad: 'Instalaciones Especiales' }
+    { id: '550e8400-e29b-41d4-a716-446655440001', nombre: 'Juan Pérez', telefono: '555-0001', especialidad: 'GPS Vehicular' },
+    { id: '550e8400-e29b-41d4-a716-446655440002', nombre: 'María García', telefono: '555-0002', especialidad: 'Sistemas Avanzados' },
+    { id: '550e8400-e29b-41d4-a716-446655440003', nombre: 'Carlos López', telefono: '555-0003', especialidad: 'Flotas Comerciales' },
+    { id: '550e8400-e29b-41d4-a716-446655440004', nombre: 'Ana Rodríguez', telefono: '555-0004', especialidad: 'GPS Básico' },
+    { id: '550e8400-e29b-41d4-a716-446655440005', nombre: 'Roberto Silva', telefono: '555-0005', especialidad: 'Instalaciones Especiales' }
   ];
 
   const [selectedInstalador, setSelectedInstalador] = useState<string>('');
