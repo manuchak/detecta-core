@@ -20,7 +20,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { X } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { X, DollarSign, CreditCard } from 'lucide-react';
 import { useEmpresasInstaladora } from '@/hooks/useEmpresasInstaladora';
 
 const schema = z.object({
@@ -35,6 +39,35 @@ const schema = z.object({
   años_experiencia: z.number().min(0, 'Años de experiencia debe ser positivo').optional(),
   capacidad_instaladores: z.number().min(1, 'Capacidad debe ser al menos 1').optional(),
   observaciones: z.string().optional(),
+  
+  // Tarifas por instalación
+  tarifa_instalacion_basica: z.number().min(0, 'La tarifa debe ser mayor a 0').optional(),
+  tarifa_gps_vehicular: z.number().min(0, 'La tarifa debe ser mayor a 0').optional(),
+  tarifa_gps_personal: z.number().min(0, 'La tarifa debe ser mayor a 0').optional(),
+  tarifa_instalacion_compleja: z.number().min(0, 'La tarifa debe ser mayor a 0').optional(),
+  
+  // Componentes adicionales
+  tarifa_camara_seguridad: z.number().min(0, 'La tarifa debe ser mayor a 0').optional(),
+  tarifa_sensor_combustible: z.number().min(0, 'La tarifa debe ser mayor a 0').optional(),
+  tarifa_boton_panico: z.number().min(0, 'La tarifa debe ser mayor a 0').optional(),
+  tarifa_sensor_temperatura: z.number().min(0, 'La tarifa debe ser mayor a 0').optional(),
+  
+  // Servicios adicionales
+  tarifa_mantenimiento: z.number().min(0, 'La tarifa debe ser mayor a 0').optional(),
+  tarifa_kilometraje: z.number().min(0, 'La tarifa debe ser mayor a 0').optional(),
+  
+  // Formas de pago
+  acepta_pagos_efectivo: z.boolean().optional(),
+  acepta_pagos_transferencia: z.boolean().optional(),
+  acepta_pagos_cheque: z.boolean().optional(),
+  requiere_anticipo: z.boolean().optional(),
+  porcentaje_anticipo: z.number().min(0).max(100).optional(),
+  
+  // Datos bancarios
+  banco: z.string().optional(),
+  cuenta: z.string().optional(),
+  clabe: z.string().optional(),
+  titular: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -66,11 +99,40 @@ export const RegistroEmpresaDialog: React.FC<RegistroEmpresaDialogProps> = ({
       años_experiencia: undefined,
       capacidad_instaladores: undefined,
       observaciones: '',
+      acepta_pagos_efectivo: false,
+      acepta_pagos_transferencia: true,
+      acepta_pagos_cheque: false,
+      requiere_anticipo: false,
     },
   });
 
   const onSubmit = async (data: FormData) => {
     try {
+      // Crear objeto de tarifas negociadas con todos los valores de cobro
+      const tarifasNegociadas = {
+        tarifa_instalacion_basica: data.tarifa_instalacion_basica,
+        tarifa_gps_vehicular: data.tarifa_gps_vehicular,
+        tarifa_gps_personal: data.tarifa_gps_personal,
+        tarifa_instalacion_compleja: data.tarifa_instalacion_compleja,
+        tarifa_camara_seguridad: data.tarifa_camara_seguridad,
+        tarifa_sensor_combustible: data.tarifa_sensor_combustible,
+        tarifa_boton_panico: data.tarifa_boton_panico,
+        tarifa_sensor_temperatura: data.tarifa_sensor_temperatura,
+        tarifa_mantenimiento: data.tarifa_mantenimiento,
+        tarifa_kilometraje: data.tarifa_kilometraje,
+        acepta_pagos_efectivo: data.acepta_pagos_efectivo,
+        acepta_pagos_transferencia: data.acepta_pagos_transferencia,
+        acepta_pagos_cheque: data.acepta_pagos_cheque,
+        requiere_anticipo: data.requiere_anticipo,
+        porcentaje_anticipo: data.porcentaje_anticipo,
+        datos_bancarios: {
+          banco: data.banco,
+          cuenta: data.cuenta,
+          clabe: data.clabe,
+          titular: data.titular,
+        }
+      };
+
       await createEmpresa.mutateAsync({
         razon_social: data.razon_social,
         nombre_comercial: data.nombre_comercial,
@@ -80,7 +142,7 @@ export const RegistroEmpresaDialog: React.FC<RegistroEmpresaDialogProps> = ({
         direccion_fiscal: data.direccion_fiscal,
         cobertura_geografica: coberturaItems,
         especialidades: especialidadItems,
-        tarifas_negociadas: {},
+        tarifas_negociadas: tarifasNegociadas,
         certificaciones: [],
         años_experiencia: data.años_experiencia,
         capacidad_instaladores: data.capacidad_instaladores,
@@ -344,6 +406,408 @@ export const RegistroEmpresaDialog: React.FC<RegistroEmpresaDialogProps> = ({
                 )}
               />
             </div>
+
+            {/* Tarifas y Datos de Cobro */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5" />
+                  Tarifas y Datos de Cobro
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Tarifas por tipo de instalación */}
+                <div className="space-y-4">
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                    Tarifas por Instalación (MXN)
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="tarifa_instalacion_basica"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Instalación Básica GPS</FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              type="number" 
+                              placeholder="800"
+                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            />
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground">GPS básico sin sensores adicionales</p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="tarifa_gps_vehicular"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>GPS Vehicular Avanzado</FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              type="number" 
+                              placeholder="1200"
+                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            />
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground">Con corta corriente y sensores</p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="tarifa_gps_personal"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>GPS Personal</FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              type="number" 
+                              placeholder="400"
+                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            />
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground">Dispositivos portátiles</p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="tarifa_instalacion_compleja"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Instalación Compleja</FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              type="number" 
+                              placeholder="2000"
+                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            />
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground">Vehículos comerciales/blindados</p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* Componentes adicionales */}
+                <div className="space-y-4">
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                    Componentes Adicionales (MXN)
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="tarifa_camara_seguridad"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Cámara de Seguridad</FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              type="number" 
+                              placeholder="600"
+                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="tarifa_sensor_combustible"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Sensor de Combustible</FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              type="number" 
+                              placeholder="400"
+                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="tarifa_boton_panico"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Botón de Pánico</FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              type="number" 
+                              placeholder="300"
+                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="tarifa_sensor_temperatura"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Sensor de Temperatura</FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              type="number" 
+                              placeholder="350"
+                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* Servicios adicionales */}
+                <div className="space-y-4">
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                    Servicios Adicionales (MXN)
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="tarifa_mantenimiento"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Mantenimiento/Revisión</FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              type="number" 
+                              placeholder="200"
+                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            />
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground">Por visita de mantenimiento</p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="tarifa_kilometraje"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Viáticos por KM</FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              type="number" 
+                              placeholder="8"
+                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            />
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground">Costo por kilómetro de traslado</p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* Formas de pago y condiciones */}
+                <div className="space-y-4">
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                    Formas de Pago y Condiciones
+                  </h4>
+                  
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Acepta pagos en:</Label>
+                      <div className="flex flex-wrap gap-4">
+                        <FormField
+                          control={form.control}
+                          name="acepta_pagos_efectivo"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center space-x-2">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                              <FormLabel className="text-sm">Efectivo</FormLabel>
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="acepta_pagos_transferencia"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center space-x-2">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                              <FormLabel className="text-sm">Transferencia</FormLabel>
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="acepta_pagos_cheque"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center space-x-2">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                              <FormLabel className="text-sm">Cheque</FormLabel>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+
+                    <FormField
+                      control={form.control}
+                      name="requiere_anticipo"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center space-x-2">
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <FormLabel>Requiere anticipo</FormLabel>
+                        </FormItem>
+                      )}
+                    />
+
+                    {form.watch('requiere_anticipo') && (
+                      <FormField
+                        control={form.control}
+                        name="porcentaje_anticipo"
+                        render={({ field }) => (
+                          <FormItem className="ml-6">
+                            <FormLabel>Porcentaje de anticipo (%)</FormLabel>
+                            <FormControl>
+                              <Input 
+                                {...field} 
+                                type="number" 
+                                placeholder="50"
+                                className="w-32"
+                                onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Datos Bancarios */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Datos Bancarios (Opcional)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="banco"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Banco</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Nombre del banco" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="cuenta"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Número de Cuenta</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Número de cuenta" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="clabe"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>CLABE</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="CLABE interbancaria" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="titular"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Titular</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Nombre del titular" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Botones */}
             <div className="flex justify-end gap-4">
