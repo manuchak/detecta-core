@@ -26,7 +26,7 @@ export const AsignarInstaladorDialog = ({
   instalacion 
 }: AsignarInstaladorDialogProps) => {
   const { toast } = useToast();
-  const { asignarInstalador, updateEstadoInstalacion, updateProgramacion: updateProgramacionMutation } = useProgramacionInstalaciones();
+  const { updateProgramacion } = useProgramacionInstalaciones();
   
   // Mock de instaladores - en producción vendría de una API
   const instaladores = [
@@ -76,7 +76,7 @@ export const AsignarInstaladorDialog = ({
       fechaCompleta.setHours(parseInt(horas), parseInt(minutos));
 
       // Actualizar todos los datos de la instalación
-      await updateProgramacion({
+      await updateProgramacion.mutateAsync({
         id: instalacion.id,
         fecha_programada: fechaCompleta.toISOString(),
         direccion_instalacion: direccion,
@@ -103,10 +103,6 @@ export const AsignarInstaladorDialog = ({
     }
   };
 
-  // Función para actualizar programación
-  const updateProgramacion = async (data: any) => {
-    await updateProgramacionMutation.mutateAsync(data);
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -262,10 +258,10 @@ export const AsignarInstaladorDialog = ({
           <div className="flex gap-3 pt-4">
             <Button
               onClick={handleAsignar}
-              disabled={asignarInstalador.isPending}
+              disabled={updateProgramacion.isPending}
               className="flex-1"
             >
-              {asignarInstalador.isPending ? 'Asignando...' : 'Asignar Instalador y Guardar'}
+              {updateProgramacion.isPending ? 'Asignando...' : 'Asignar Instalador y Guardar'}
             </Button>
             <Button
               variant="outline"

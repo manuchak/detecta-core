@@ -29,6 +29,10 @@ export const useProgramacionInstalaciones = () => {
             direccion_instalacion,
             tiempo_estimado,
             observaciones_cliente,
+            prioridad,
+            herramientas_especiales,
+            requiere_vehiculo_elevado,
+            acceso_restringido,
             created_at,
             updated_at
           `)
@@ -41,9 +45,24 @@ export const useProgramacionInstalaciones = () => {
 
         console.log('Programaciones fetched successfully:', programacionesData?.length || 0);
         
-        // Retornar los datos básicos sin joins por ahora
+        // Retornar los datos básicos sin joins por ahora  
         return (programacionesData || []).map(programacion => ({
-          ...programacion,
+          id: programacion.id,
+          servicio_id: programacion.servicio_id,
+          tipo_instalacion: programacion.tipo_instalacion,
+          fecha_programada: programacion.fecha_programada,
+          estado: programacion.estado,
+          contacto_cliente: programacion.contacto_cliente,
+          telefono_contacto: programacion.telefono_contacto,
+          direccion_instalacion: programacion.direccion_instalacion,
+          tiempo_estimado: programacion.tiempo_estimado,
+          observaciones_cliente: programacion.observaciones_cliente,
+          prioridad: programacion.prioridad || 'normal',
+          herramientas_especiales: programacion.herramientas_especiales || [],
+          requiere_vehiculo_elevado: programacion.requiere_vehiculo_elevado || false,
+          acceso_restringido: programacion.acceso_restringido || false,
+          created_at: programacion.created_at,
+          updated_at: programacion.updated_at,
           servicio: null, // Temporalmente null
           instalador: null // Temporalmente null
         })) as ProgramacionInstalacion[];
@@ -297,18 +316,26 @@ export const useProgramacionInstalaciones = () => {
   // Actualizar programación completa
   const updateProgramacion = useMutation({
     mutationFn: async (data: any) => {
+      const updateData: any = {
+        direccion_instalacion: data.direccion_instalacion,
+        contacto_cliente: data.contacto_cliente,
+        telefono_contacto: data.telefono_contacto,
+        observaciones_cliente: data.observaciones_cliente,
+        tiempo_estimado: data.tiempo_estimado,
+        updated_at: new Date().toISOString()
+      };
+
+      // Solo agregar campos si están presentes
+      if (data.fecha_programada) {
+        updateData.fecha_programada = data.fecha_programada;
+      }
+      if (data.instalador_id) {
+        updateData.instalador_id = data.instalador_id;
+      }
+
       const { data: result, error } = await supabase
         .from('programacion_instalaciones')
-        .update({
-          fecha_programada: data.fecha_programada,
-          direccion_instalacion: data.direccion_instalacion,
-          contacto_cliente: data.contacto_cliente,
-          telefono_contacto: data.telefono_contacto,
-          observaciones_cliente: data.observaciones_cliente,
-          tiempo_estimado: data.tiempo_estimado,
-          instalador_id: data.instalador_id,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', data.id)
         .select()
         .single();
