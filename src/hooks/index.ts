@@ -15,3 +15,4 @@ export { useRecruitmentMonthlyMetrics } from './useRecruitmentMonthlyMetrics';
 export { useCallCenterMetrics } from './useCallCenterMetrics';
 export { useCurrencyConverter } from './useCurrencyConverter';
 export { useProgramacionInstalaciones } from './useProgramacionInstalaciones';
+export { useEmpresasInstaladora } from './useEmpresasInstaladora';

@@ -1,10 +1,15 @@
-
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
 import { 
   Table, 
   TableBody, 
@@ -14,373 +19,243 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { 
-  User, 
-  UserPlus, 
-  Search, 
-  Star, 
-  Phone, 
-  Mail, 
-  MapPin,
-  Settings,
-  CheckCircle,
-  XCircle,
-  Clock,
-  FileText,
-  DollarSign,
-  UserCheck,
-  ArrowRight
+  Users, 
+  UserCheck, 
+  Clock, 
+  UserX, 
+  Plus, 
+  Search,
+  ExternalLink,
+  Shield,
+  CreditCard,
+  ClipboardList,
+  Building
 } from 'lucide-react';
 import { useInstaladores } from '@/hooks/useInstaladores';
+import { useEmpresasInstaladora } from '@/hooks/useEmpresasInstaladora';
 import { RegistroInstaladorFormularioRobusto } from './components/RegistroInstaladorFormularioRobusto';
+import { RegistroEmpresaDialog } from './components/RegistroEmpresaDialog';
 
 const InstallerManagement = () => {
-  const { instaladores, isLoadingInstaladores, cambiarEstadoAfiliacion } = useInstaladores();
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [showRegistroDialog, setShowRegistroDialog] = useState(false);
-  const [filtroEstado, setFiltroEstado] = useState<string>('todos');
+  const [showRegistroEmpresaDialog, setShowRegistroEmpresaDialog] = useState(false);
+  const [vistaActual, setVistaActual] = useState<'instaladores' | 'empresas'>('instaladores');
 
-  const instaladoresFiltrados = instaladores?.filter(instalador => {
+  const { instaladores, isLoadingInstaladores } = useInstaladores();
+  const { empresas, isLoadingEmpresas } = useEmpresasInstaladora();
+
+  const filteredInstaladores = instaladores?.filter(instalador => {
     const matchesSearch = instalador.nombre_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          instalador.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          instalador.telefono.includes(searchTerm);
     
-    const matchesEstado = filtroEstado === 'todos' || instalador.estado_afiliacion === filtroEstado;
+    const matchesStatus = selectedStatus === 'all' || instalador.estado_afiliacion === selectedStatus;
     
-    return matchesSearch && matchesEstado;
+    return matchesSearch && matchesStatus;
   }) || [];
 
   const getEstadoColor = (estado: string) => {
     switch (estado) {
-      case 'activo': return 'bg-green-100 text-green-800';
-      case 'pendiente': return 'bg-yellow-100 text-yellow-800';
-      case 'suspendido': return 'bg-red-100 text-red-800';
-      case 'inactivo': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'activo': return 'default';
+      case 'pendiente': return 'secondary';
+      case 'suspendido': return 'destructive';
+      default: return 'outline';
     }
   };
 
   const getEstadoIcon = (estado: string) => {
     switch (estado) {
-      case 'activo': return <CheckCircle className="h-4 w-4" />;
-      case 'pendiente': return <Clock className="h-4 w-4" />;
-      case 'suspendido': return <XCircle className="h-4 w-4" />;
-      case 'inactivo': return <XCircle className="h-4 w-4" />;
-      default: return <Clock className="h-4 w-4" />;
+      case 'activo': return <UserCheck className="h-3 w-3" />;
+      case 'pendiente': return <Clock className="h-3 w-3" />;
+      case 'suspendido': return <UserX className="h-3 w-3" />;
+      default: return null;
     }
   };
 
-  const estadisticas = {
-    total: instaladores?.length || 0,
-    activos: instaladores?.filter(i => i.estado_afiliacion === 'activo').length || 0,
-    pendientes: instaladores?.filter(i => i.estado_afiliacion === 'pendiente').length || 0,
-    suspendidos: instaladores?.filter(i => i.estado_afiliacion === 'suspendido').length || 0
-  };
-
-  if (isLoadingInstaladores) {
+  if (isLoadingInstaladores || isLoadingEmpresas) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Cargando instaladores...</p>
+      <div className="container mx-auto py-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-muted-foreground">Cargando datos...</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto py-6 space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Control de Instaladores</h1>
-          <p className="text-gray-600 mt-1">Administra los instaladores certificados y sus operaciones</p>
+          <h1 className="text-3xl font-bold tracking-tight">Gestión de Instaladores</h1>
+          <p className="text-muted-foreground">
+            Administra instaladores individuales y empresas integradoras
+          </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setShowRegistroDialog(true)}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            Registrar Instalador
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/installers/registro">
-              <FileText className="h-4 w-4 mr-2" />
-              Sistema Registro
-            </Link>
-          </Button>
+          <Select value={vistaActual} onValueChange={(value: 'instaladores' | 'empresas') => setVistaActual(value)}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="instaladores">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Instaladores
+                </div>
+              </SelectItem>
+              <SelectItem value="empresas">
+                <div className="flex items-center gap-2">
+                  <Building className="h-4 w-4" />
+                  Empresas
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          
+          {vistaActual === 'instaladores' ? (
+            <Button 
+              onClick={() => setShowRegistroDialog(true)}
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Registrar Instalador
+            </Button>
+          ) : (
+            <Button 
+              onClick={() => setShowRegistroEmpresaDialog(true)}
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Registrar Empresa
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Enlaces de acceso rápido */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <UserCheck className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">Registro Completo</CardTitle>
-                  <CardDescription>Gestión integral de instaladores</CardDescription>
-                </div>
+      {/* Statistics Cards */}
+      {vistaActual === 'instaladores' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{instaladores?.length || 0}</div>
+              <p className="text-xs text-muted-foreground">instaladores registrados</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Activos</CardTitle>
+              <UserCheck className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {instaladores?.filter(i => i.estado_afiliacion === 'activo').length || 0}
               </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <p className="text-sm text-muted-foreground mb-3">
-              Datos fiscales, pagos, evidencias y auditorías
-            </p>
-            <Button asChild variant="outline" className="w-full">
-              <Link to="/installers/registro">
-                Acceder al Sistema
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
+              <p className="text-xs text-muted-foreground">instaladores activos</p>
+            </CardContent>
+          </Card>
 
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <DollarSign className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">Gestión de Pagos</CardTitle>
-                  <CardDescription>Pagos y comisiones</CardDescription>
-                </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pendientes</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {instaladores?.filter(i => i.estado_afiliacion === 'pendiente').length || 0}
               </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <p className="text-sm text-muted-foreground mb-3">
-              Administra pagos y aprobaciones de instaladores
-            </p>
-            <Button asChild variant="outline" className="w-full">
-              <Link to="/installers/registro">
-                Ver Pagos
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
+              <p className="text-xs text-muted-foreground">en revisión</p>
+            </CardContent>
+          </Card>
 
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <FileText className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">Auditorías</CardTitle>
-                  <CardDescription>Control de calidad</CardDescription>
-                </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Suspendidos</CardTitle>
+              <UserX className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {instaladores?.filter(i => i.estado_afiliacion === 'suspendido').length || 0}
               </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <p className="text-sm text-muted-foreground mb-3">
-              Seguimiento y evaluación de instalaciones
-            </p>
-            <Button asChild variant="outline" className="w-full">
-              <Link to="/installers/registro">
-                Ver Auditorías
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+              <p className="text-xs text-muted-foreground">suspendidos</p>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total</CardTitle>
+              <Building className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{empresas?.length || 0}</div>
+              <p className="text-xs text-muted-foreground">empresas registradas</p>
+            </CardContent>
+          </Card>
 
-      {/* Estadísticas */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Instaladores</CardTitle>
-            <User className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{estadisticas.total}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Activos</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{estadisticas.activos}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pendientes</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{estadisticas.pendientes}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Suspendidos</CardTitle>
-            <XCircle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{estadisticas.suspendidos}</div>
-          </CardContent>
-        </Card>
-      </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Activas</CardTitle>
+              <UserCheck className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {empresas?.filter(e => e.estado_contrato === 'activo').length || 0}
+              </div>
+              <p className="text-xs text-muted-foreground">empresas activas</p>
+            </CardContent>
+          </Card>
 
-      {/* Filtros y búsqueda */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex gap-4 items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nombre, email o teléfono..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8"
-              />
-            </div>
-            
-            <div className="flex gap-2">
-              {['todos', 'activo', 'pendiente', 'suspendido', 'inactivo'].map((estado) => (
-                <Button
-                  key={estado}
-                  variant={filtroEstado === estado ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setFiltroEstado(estado)}
-                >
-                  {estado.charAt(0).toUpperCase() + estado.slice(1)}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Inactivas</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {empresas?.filter(e => e.estado_contrato === 'inactivo').length || 0}
+              </div>
+              <p className="text-xs text-muted-foreground">en pausa</p>
+            </CardContent>
+          </Card>
 
-      {/* Tabla de instaladores */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Instaladores Registrados</CardTitle>
-          <CardDescription>
-            {instaladoresFiltrados.length} instaladores encontrados
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Instalador</TableHead>
-                <TableHead>Contacto</TableHead>
-                <TableHead>Especialidades</TableHead>
-                <TableHead>Calificación</TableHead>
-                <TableHead>Servicios</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {instaladoresFiltrados.map((instalador) => (
-                <TableRow key={instalador.id}>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="font-medium">{instalador.nombre_completo}</div>
-                      {instalador.cedula_profesional && (
-                        <div className="text-sm text-gray-500">
-                          Cédula: {instalador.cedula_profesional}
-                        </div>
-                      )}
-                      {instalador.vehiculo_propio && (
-                        <Badge variant="secondary" className="text-xs">
-                          Vehículo propio
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1 text-sm">
-                        <Phone className="h-3 w-3" />
-                        {instalador.telefono}
-                      </div>
-                      <div className="flex items-center gap-1 text-sm">
-                        <Mail className="h-3 w-3" />
-                        {instalador.email}
-                      </div>
-                    </div>
-                  </TableCell>
-                  
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {instalador.especialidades.slice(0, 2).map((esp, index) => (
-                        <Badge key={index} variant="outline" className="text-xs">
-                          {esp}
-                        </Badge>
-                      ))}
-                      {instalador.especialidades.length > 2 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{instalador.especialidades.length - 2}
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4 text-yellow-500" />
-                      <span className="font-medium">
-                        {instalador.calificacion_promedio.toFixed(1)}
-                      </span>
-                    </div>
-                  </TableCell>
-                  
-                  <TableCell>
-                    <span className="font-medium">{instalador.servicios_completados}</span>
-                  </TableCell>
-                  
-                  <TableCell>
-                    <Badge className={getEstadoColor(instalador.estado_afiliacion)}>
-                      <div className="flex items-center gap-1">
-                        {getEstadoIcon(instalador.estado_afiliacion)}
-                        {instalador.estado_afiliacion}
-                      </div>
-                    </Badge>
-                  </TableCell>
-                  
-                  <TableCell>
-                    <Button variant="outline" size="sm">
-                      <Settings className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          
-          {instaladoresFiltrados.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              <User className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-              <p>No se encontraron instaladores</p>
-              <p className="text-sm">Ajusta los filtros o registra un nuevo instalador</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Suspendidas</CardTitle>
+              <UserX className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {empresas?.filter(e => e.estado_contrato === 'suspendido').length || 0}
+              </div>
+              <p className="text-xs text-muted-foreground">suspendidas</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
-      {/* Dialogs */}
-      <RegistroInstaladorFormularioRobusto
-        open={showRegistroDialog}
-        onOpenChange={setShowRegistroDialog}
-      />
+      {/* Registration Dialogs */}
+      {showRegistroDialog && (
+        <RegistroInstaladorFormularioRobusto
+          open={showRegistroDialog}
+          onOpenChange={setShowRegistroDialog}
+        />
+      )}
+      
+      {showRegistroEmpresaDialog && (
+        <RegistroEmpresaDialog
+          open={showRegistroEmpresaDialog}
+          onOpenChange={setShowRegistroEmpresaDialog}
+        />
+      )}
     </div>
   );
 };

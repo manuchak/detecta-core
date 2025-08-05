@@ -1237,6 +1237,59 @@ export type Database = {
           },
         ]
       }
+      contactos_empresa: {
+        Row: {
+          activo: boolean | null
+          cargo: string
+          created_at: string
+          email: string
+          empresa_id: string
+          es_contacto_principal: boolean | null
+          id: string
+          nombre_completo: string
+          permisos_acceso: string[] | null
+          rol_contacto: string
+          telefono: string
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean | null
+          cargo: string
+          created_at?: string
+          email: string
+          empresa_id: string
+          es_contacto_principal?: boolean | null
+          id?: string
+          nombre_completo: string
+          permisos_acceso?: string[] | null
+          rol_contacto?: string
+          telefono: string
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean | null
+          cargo?: string
+          created_at?: string
+          email?: string
+          empresa_id?: string
+          es_contacto_principal?: boolean | null
+          id?: string
+          nombre_completo?: string
+          permisos_acceso?: string[] | null
+          rol_contacto?: string
+          telefono?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contactos_empresa_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas_instaladoras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       criterios_evaluacion_financiera: {
         Row: {
           activo: boolean | null
@@ -1686,6 +1739,69 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      empresas_instaladoras: {
+        Row: {
+          años_experiencia: number | null
+          capacidad_instaladores: number | null
+          certificaciones: string[] | null
+          cobertura_geografica: string[] | null
+          created_at: string
+          direccion_fiscal: string | null
+          documentacion_completa: boolean | null
+          email_principal: string
+          especialidades: string[] | null
+          estado_contrato: string
+          id: string
+          nombre_comercial: string | null
+          observaciones: string | null
+          razon_social: string
+          rfc: string
+          tarifas_negociadas: Json | null
+          telefono_principal: string
+          updated_at: string
+        }
+        Insert: {
+          años_experiencia?: number | null
+          capacidad_instaladores?: number | null
+          certificaciones?: string[] | null
+          cobertura_geografica?: string[] | null
+          created_at?: string
+          direccion_fiscal?: string | null
+          documentacion_completa?: boolean | null
+          email_principal: string
+          especialidades?: string[] | null
+          estado_contrato?: string
+          id?: string
+          nombre_comercial?: string | null
+          observaciones?: string | null
+          razon_social: string
+          rfc: string
+          tarifas_negociadas?: Json | null
+          telefono_principal: string
+          updated_at?: string
+        }
+        Update: {
+          años_experiencia?: number | null
+          capacidad_instaladores?: number | null
+          certificaciones?: string[] | null
+          cobertura_geografica?: string[] | null
+          created_at?: string
+          direccion_fiscal?: string | null
+          documentacion_completa?: boolean | null
+          email_principal?: string
+          especialidades?: string[] | null
+          estado_contrato?: string
+          id?: string
+          nombre_comercial?: string | null
+          observaciones?: string | null
+          razon_social?: string
+          rfc?: string
+          tarifas_negociadas?: Json | null
+          telefono_principal?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       estados: {
         Row: {
@@ -2450,6 +2566,7 @@ export type Database = {
           acepta_pagos_cheque: boolean | null
           acepta_pagos_efectivo: boolean | null
           acepta_pagos_transferencia: boolean | null
+          activo_empresa: boolean | null
           banco_datos: Json | null
           calificacion_promedio: number | null
           capacidad_vehiculos: string[] | null
@@ -2462,6 +2579,7 @@ export type Database = {
           disponibilidad_horaria: Json | null
           documentacion_completa: boolean | null
           email: string
+          empresa_id: string | null
           especialidades: string[] | null
           estado_afiliacion: string | null
           estado_trabajo: string | null
@@ -2487,6 +2605,7 @@ export type Database = {
           tarifa_sensor_temperatura: number | null
           telefono: string
           tiene_taller: boolean | null
+          tipo_instalador: string
           tipo_servicios_preferidos: string[] | null
           updated_at: string | null
           user_id: string | null
@@ -2498,6 +2617,7 @@ export type Database = {
           acepta_pagos_cheque?: boolean | null
           acepta_pagos_efectivo?: boolean | null
           acepta_pagos_transferencia?: boolean | null
+          activo_empresa?: boolean | null
           banco_datos?: Json | null
           calificacion_promedio?: number | null
           capacidad_vehiculos?: string[] | null
@@ -2510,6 +2630,7 @@ export type Database = {
           disponibilidad_horaria?: Json | null
           documentacion_completa?: boolean | null
           email: string
+          empresa_id?: string | null
           especialidades?: string[] | null
           estado_afiliacion?: string | null
           estado_trabajo?: string | null
@@ -2535,6 +2656,7 @@ export type Database = {
           tarifa_sensor_temperatura?: number | null
           telefono: string
           tiene_taller?: boolean | null
+          tipo_instalador?: string
           tipo_servicios_preferidos?: string[] | null
           updated_at?: string | null
           user_id?: string | null
@@ -2546,6 +2668,7 @@ export type Database = {
           acepta_pagos_cheque?: boolean | null
           acepta_pagos_efectivo?: boolean | null
           acepta_pagos_transferencia?: boolean | null
+          activo_empresa?: boolean | null
           banco_datos?: Json | null
           calificacion_promedio?: number | null
           capacidad_vehiculos?: string[] | null
@@ -2558,6 +2681,7 @@ export type Database = {
           disponibilidad_horaria?: Json | null
           documentacion_completa?: boolean | null
           email?: string
+          empresa_id?: string | null
           especialidades?: string[] | null
           estado_afiliacion?: string | null
           estado_trabajo?: string | null
@@ -2583,6 +2707,7 @@ export type Database = {
           tarifa_sensor_temperatura?: number | null
           telefono?: string
           tiene_taller?: boolean | null
+          tipo_instalador?: string
           tipo_servicios_preferidos?: string[] | null
           updated_at?: string | null
           user_id?: string | null
@@ -2590,7 +2715,15 @@ export type Database = {
           zona_cobertura?: Json | null
           zonas_trabajo?: string[] | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "instaladores_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas_instaladoras"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       instaladores_datos_fiscales: {
         Row: {
