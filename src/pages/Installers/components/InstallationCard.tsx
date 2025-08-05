@@ -3,10 +3,11 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, MapPin, User, Phone, Settings, Wrench, Zap } from 'lucide-react';
+import { Calendar, Clock, MapPin, User, Phone, Settings, Wrench, Zap, CheckCircle, XCircle, Play, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { ProgramacionInstalacion } from '@/types/instaladores';
+import { useProgramacionInstalaciones } from '@/hooks/useProgramacionInstalaciones';
 import { AsignarInstaladorDialog } from './AsignarInstaladorDialog';
 import { EditInstallationDialog } from './EditInstallationDialog';
 
@@ -23,10 +24,94 @@ export const InstallationCard: React.FC<InstallationCardProps> = ({
 }) => {
   const [showAsignarDialog, setShowAsignarDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const { updateEstadoInstalacion } = useProgramacionInstalaciones();
+
+  const handleStatusChange = async (newStatus: string) => {
+    try {
+      await updateEstadoInstalacion.mutateAsync({
+        id: programacion.id,
+        estado: newStatus,
+        observaciones: programacion.observaciones_cliente
+      });
+    } catch (error) {
+      console.error('Error updating status:', error);
+    }
+  };
+
+  const getStatusActions = () => {
+    const actions = [];
+    
+    if (programacion.estado === 'programada') {
+      actions.push(
+        <Button
+          key="confirm"
+          size="sm"
+          variant="outline"
+          onClick={() => handleStatusChange('confirmada')}
+          className="text-green-700 border-green-200 hover:bg-green-50 flex items-center gap-1"
+        >
+          <CheckCircle className="h-3 w-3" />
+          Confirmar
+        </Button>
+      );
+    }
+    
+    if (['programada', 'confirmada'].includes(programacion.estado)) {
+      actions.push(
+        <Button
+          key="start"
+          size="sm"
+          variant="outline"
+          onClick={() => handleStatusChange('en_proceso')}
+          className="text-blue-700 border-blue-200 hover:bg-blue-50 flex items-center gap-1"
+        >
+          <Play className="h-3 w-3" />
+          Iniciar
+        </Button>
+      );
+    }
+    
+    if (programacion.estado === 'en_proceso') {
+      actions.push(
+        <Button
+          key="complete"
+          size="sm"
+          variant="outline"
+          onClick={() => handleStatusChange('completada')}
+          className="text-green-700 border-green-200 hover:bg-green-50 flex items-center gap-1"
+        >
+          <CheckCircle className="h-3 w-3" />
+          Completar
+        </Button>
+      );
+    }
+    
+    if (!['completada', 'cancelada'].includes(programacion.estado)) {
+      actions.push(
+        <Button
+          key="cancel"
+          size="sm"
+          variant="outline"
+          onClick={() => handleStatusChange('cancelada')}
+          className="text-red-700 border-red-200 hover:bg-red-50 flex items-center gap-1"
+        >
+          <XCircle className="h-3 w-3" />
+          Cancelar
+        </Button>
+      );
+    }
+    
+    return actions;
+  };
 
   return (
     <>
-      <Card className="hover:shadow-md transition-shadow">
+      <Card className="hover:shadow-lg transition-all duration-200 border-l-4 border-l-primary/20"
+            style={{ borderLeftColor: programacion.estado === 'completada' ? '#22c55e' : 
+                                      programacion.estado === 'en_proceso' ? '#f59e0b' :
+                                      programacion.estado === 'confirmada' ? '#3b82f6' :
+                                      programacion.estado === 'cancelada' ? '#ef4444' : '#6b7280' }}
+      >
         <CardHeader className="pb-3">
           <div className="flex justify-between items-start">
             <div className="space-y-1">
@@ -118,21 +203,26 @@ export const InstallationCard: React.FC<InstallationCardProps> = ({
             )}
           </div>
 
-          <div className="flex gap-2 pt-2">
+          {/* Status Action Buttons */}
+          <div className="flex flex-wrap gap-2 pt-3 border-t bg-gray-50/50 -mx-6 -mb-6 px-6 py-3 rounded-b-lg">
+            {getStatusActions()}
+            
             {!programacion.instalador_id && programacion.estado === 'programada' && (
               <Button 
                 size="sm" 
                 onClick={() => setShowAsignarDialog(true)}
-                className="flex-1"
+                className="bg-primary hover:bg-primary/90 text-white flex items-center gap-1"
               >
+                <User className="h-3 w-3" />
                 Asignar Instalador
               </Button>
             )}
             
             <Button 
-              variant="outline" 
+              variant="ghost" 
               size="sm"
               onClick={() => setShowEditDialog(true)}
+              className="ml-auto text-gray-500 hover:text-gray-700"
             >
               <Settings className="h-4 w-4" />
             </Button>
