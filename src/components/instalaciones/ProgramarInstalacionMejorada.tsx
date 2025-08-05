@@ -15,6 +15,7 @@ import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useProgramacionInstalaciones } from '@/hooks/useProgramacionInstalaciones';
 import { useVehicleData } from '@/hooks/useVehicleData';
+import { useEnhancedKitsInstalacion } from '@/hooks/useEnhancedKitsInstalacion';
 import { AsignacionGPSDialog } from '@/components/kits/AsignacionGPSDialog';
 
 interface ProgramarInstalacionMejoradaProps {
@@ -33,6 +34,12 @@ export const ProgramarInstalacionMejorada = ({
   const [currentStep, setCurrentStep] = useState(1);
   const { createProgramacion } = useProgramacionInstalaciones();
   const { marcas, loadingMarcas, fetchModelosPorMarca } = useVehicleData();
+  const { 
+    obtenerRecomendacionesInteligentes, 
+    autoAsignarKitCompleto,
+    stockStats,
+    isLoading: isLoadingKits 
+  } = useEnhancedKitsInstalacion();
   const [modelos, setModelos] = useState<any[]>([]);
   const [loadingModelos, setLoadingModelos] = useState(false);
   
@@ -298,7 +305,7 @@ export const ProgramarInstalacionMejorada = ({
       console.log('✅ Installation scheduled successfully');
       console.log('🔍 Result from createProgramacion:', result);
       
-      // Configurar datos para el paso 5 (asignación GPS)
+      // Configurar datos para el paso 5 (asignación GPS con WMS mejorado)
       const sensoresRequeridos = formData.sensores_adicionales;
       const gpsDialogData = {
         id: result.id,
@@ -306,11 +313,24 @@ export const ProgramarInstalacionMejorada = ({
         sensores_requeridos: sensoresRequeridos
       };
       
-      console.log('📋 Setting programacion data for GPS assignment:', gpsDialogData);
+      console.log('📋 Setting programacion data for enhanced GPS assignment:', gpsDialogData);
       setProgramacionCreada(gpsDialogData);
       
-      // Ir al paso 5 (asignación GPS) en lugar de cerrar el diálogo
-      console.log('🎯 Moving to GPS assignment step...');
+      // Auto-asignar kit usando WMS inteligente
+      try {
+        console.log('🤖 Starting intelligent kit auto-assignment...');
+        await autoAsignarKitCompleto.mutateAsync({
+          programacionId: result.id,
+          tipoVehiculo: formData.marca_vehiculo + ' ' + formData.modelo_vehiculo,
+          sensoresRequeridos: sensoresRequeridos
+        });
+        console.log('✅ Intelligent kit auto-assignment completed');
+      } catch (autoAssignError) {
+        console.warn('⚠️ Auto-assignment failed, will use manual selection:', autoAssignError);
+      }
+      
+      // Ir al paso 5 (asignación GPS) 
+      console.log('🎯 Moving to enhanced GPS assignment step...');
       setCurrentStep(5);
       
     } catch (error) {
@@ -453,6 +473,39 @@ export const ProgramarInstalacionMejorada = ({
       case 2:
         return (
           <div className="space-y-6">
+            {/* Stock Status Card - WMS Enhancement */}
+            {stockStats && (
+              <Card className="border-2 border-green-200 bg-gradient-to-r from-green-50 to-emerald-50">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-green-900 text-lg flex items-center gap-2">
+                    <Settings className="h-5 w-5" />
+                    Estado del Inventario WMS
+                    <Badge className="bg-green-600 text-white">MEJORADO</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">{stockStats.instalaciones_pendientes}</div>
+                      <div className="text-sm text-green-700">Instalaciones Pendientes</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">{stockStats.kits_asignados}</div>
+                      <div className="text-sm text-blue-700">Kits Asignados</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-orange-600">{stockStats.stock_critico}</div>
+                      <div className="text-sm text-orange-700">Stock Crítico</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-purple-600">{stockStats.score_promedio.toFixed(1)}</div>
+                      <div className="text-sm text-purple-700">Score Promedio</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
