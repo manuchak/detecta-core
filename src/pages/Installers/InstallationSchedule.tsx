@@ -127,7 +127,10 @@ const InstallationSchedule = () => {
           <TabsTrigger value="programadas" className="relative">
             Programadas
             {programacionesPorEstado.programadas.length > 0 && (
-              <Badge className="ml-2 h-5 w-5 rounded-full p-0 text-xs">
+              <Badge 
+                variant="secondary" 
+                className="ml-2 bg-gray-100 text-gray-700 hover:bg-gray-200 min-w-[20px] h-5 rounded-full px-1.5 text-xs font-medium"
+              >
                 {programacionesPorEstado.programadas.length}
               </Badge>
             )}
@@ -135,7 +138,10 @@ const InstallationSchedule = () => {
           <TabsTrigger value="confirmadas" className="relative">
             Confirmadas
             {programacionesPorEstado.confirmadas.length > 0 && (
-              <Badge className="ml-2 h-5 w-5 rounded-full p-0 text-xs">
+              <Badge 
+                variant="secondary" 
+                className="ml-2 bg-blue-100 text-blue-700 hover:bg-blue-200 min-w-[20px] h-5 rounded-full px-1.5 text-xs font-medium"
+              >
                 {programacionesPorEstado.confirmadas.length}
               </Badge>
             )}
@@ -143,7 +149,10 @@ const InstallationSchedule = () => {
           <TabsTrigger value="en_proceso" className="relative">
             En Proceso
             {programacionesPorEstado.en_proceso.length > 0 && (
-              <Badge className="ml-2 h-5 w-5 rounded-full p-0 text-xs">
+              <Badge 
+                variant="secondary" 
+                className="ml-2 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 min-w-[20px] h-5 rounded-full px-1.5 text-xs font-medium"
+              >
                 {programacionesPorEstado.en_proceso.length}
               </Badge>
             )}
@@ -151,7 +160,10 @@ const InstallationSchedule = () => {
           <TabsTrigger value="completadas" className="relative">
             Completadas
             {programacionesPorEstado.completadas.length > 0 && (
-              <Badge className="ml-2 h-5 w-5 rounded-full p-0 text-xs">
+              <Badge 
+                variant="secondary" 
+                className="ml-2 bg-green-100 text-green-700 hover:bg-green-200 min-w-[20px] h-5 rounded-full px-1.5 text-xs font-medium"
+              >
                 {programacionesPorEstado.completadas.length}
               </Badge>
             )}
