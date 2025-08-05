@@ -64,12 +64,7 @@ export const StockTab = () => {
   const valorTotal = stock?.reduce((sum, s) => {
     const precio = s.producto?.precio_venta_sugerido || 0;
     const cantidad = s.cantidad_disponible || 0;
-    const subtotal = precio * cantidad;
-    
-    // Debug temporal
-    console.log(`Producto: ${s.producto?.nombre}, Precio: $${precio}, Cantidad: ${cantidad}, Subtotal: $${subtotal}`);
-    
-    return sum + subtotal;
+    return sum + (precio * cantidad);
   }, 0) || 0;
 
   return (
@@ -117,11 +112,14 @@ export const StockTab = () => {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col">
-              <div className="text-2xl font-bold text-green-600">
-                {formatCurrencyWithConversion(valorTotal, true)}
+            <div className="flex flex-col space-y-1">
+              <div className="text-3xl font-bold text-green-600">
+                {formatCurrencyWithConversion(valorTotal, false)}
               </div>
-              <p className="text-xs text-muted-foreground">Valor en Pesos Mexicanos (MXN)</p>
+              <div className="text-sm text-muted-foreground">
+                ≈ ${(valorTotal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+              </div>
+              <p className="text-xs text-muted-foreground opacity-75">Valor en Pesos Mexicanos</p>
             </div>
           </CardContent>
         </Card>

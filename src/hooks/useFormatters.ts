@@ -19,9 +19,6 @@ export const useFormatters = () => {
     const conversion = autoConvertToMXN(value);
     const formatted = formatCurrency(conversion.convertedAmount);
     
-    // Debug temporal
-    console.log(`formatCurrencyWithConversion - Input: $${value}, Converted: $${conversion.convertedAmount}, Was converted: ${conversion.wasConverted}, Exchange rate: ${conversion.exchangeRate}`);
-    
     if (showConversionInfo && conversion.wasConverted) {
       return `${formatted} (≈ $${conversion.originalAmount.toFixed(2)} USD)`;
     }
