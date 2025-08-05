@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   Search, 
   Plus, 
@@ -18,7 +19,8 @@ import {
   DollarSign,
   Shield,
   Filter,
-  ChevronDown
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ProductoInventario } from '@/types/wms';
@@ -45,6 +47,7 @@ export const InventarioList = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showDeletionDialog, setShowDeletionDialog] = useState(false);
   const [selectedProducto, setSelectedProducto] = useState<ProductoInventario | null>(null);
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const { formatCurrencyWithConversion } = useFormatters();
   
   const filteredProductos = productos.filter(producto => {
@@ -93,6 +96,16 @@ export const InventarioList = ({
   const handleDeleteClick = (producto: ProductoInventario) => {
     setSelectedProducto(producto);
     setShowDeletionDialog(true);
+  };
+
+  const toggleCategory = (categoryId: string) => {
+    const newCollapsed = new Set(collapsedCategories);
+    if (newCollapsed.has(categoryId)) {
+      newCollapsed.delete(categoryId);
+    } else {
+      newCollapsed.add(categoryId);
+    }
+    setCollapsedCategories(newCollapsed);
   };
 
   return (
@@ -153,110 +166,130 @@ export const InventarioList = ({
         </div>
       </div>
 
-      {/* Lista agrupada por categorías */}
-      <div className="space-y-6">
-        {Object.entries(productsByCategory).map(([categoryId, category]) => (
-          <div key={categoryId} className="space-y-4">
-            {/* Header de categoría */}
-            <div className="flex items-center gap-3 pb-2 border-b border-border/50">
-              <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                <Package className="h-5 w-5" />
-              </div>
-              <h3 className="text-lg font-semibold text-foreground">
-                {category.name}
-              </h3>
-              <Badge variant="secondary" className="ml-auto">
-                {category.productos.length} producto{category.productos.length !== 1 ? 's' : ''}
-              </Badge>
-            </div>
+      {/* Lista agrupada por categorías colapsables */}
+      <div className="space-y-4">
+        {Object.entries(productsByCategory).map(([categoryId, category]) => {
+          const isCollapsed = collapsedCategories.has(categoryId);
+          
+          return (
+            <Collapsible
+              key={categoryId}
+              open={!isCollapsed}
+              onOpenChange={() => toggleCategory(categoryId)}
+            >
+              <Card className="overflow-hidden">
+                <CollapsibleTrigger asChild>
+                  <div className="flex items-center gap-3 p-4 hover:bg-accent/50 cursor-pointer transition-colors">
+                    <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                      <Package className="h-5 w-5" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-foreground flex-1">
+                      {category.name}
+                    </h3>
+                    <Badge variant="secondary">
+                      {category.productos.length} producto{category.productos.length !== 1 ? 's' : ''}
+                    </Badge>
+                    {isCollapsed ? (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </div>
+                </CollapsibleTrigger>
 
-            {/* Lista compacta de productos */}
-            <div className="space-y-2">
-              {category.productos.map((producto) => {
-                const stockStatus = getStockStatus(producto);
-                const stock = Array.isArray(producto.stock) ? producto.stock[0] : producto.stock;
-                
-                return (
-                  <Card 
-                    key={producto.id} 
-                    className="hover:shadow-md transition-all duration-200 hover:bg-accent/5"
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-4">
-                        {/* Indicador de stock */}
-                        <div className={`w-1 h-12 rounded-full ${
-                          stockStatus.status === 'agotado' ? 'bg-destructive' :
-                          stockStatus.status === 'bajo' ? 'bg-warning' : 'bg-success'
-                        }`} />
+                <CollapsibleContent>
+                  <div className="border-t border-border/50">
+                    {/* Lista compacta de productos */}
+                    <div className="p-4 pt-0 space-y-2">
+                      {category.productos.map((producto) => {
+                        const stockStatus = getStockStatus(producto);
+                        const stock = Array.isArray(producto.stock) ? producto.stock[0] : producto.stock;
                         
-                        {/* Información del producto */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold text-foreground truncate">
-                              {producto.nombre}
-                            </h4>
-                            <Badge 
-                              variant={stockStatus.color as any}
-                              className="text-xs"
-                            >
-                              {stockStatus.label}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground font-mono">
-                            {producto.codigo_producto}
-                          </p>
-                        </div>
+                        return (
+                          <Card 
+                            key={producto.id} 
+                            className="hover:shadow-md transition-all duration-200 hover:bg-accent/5 mt-2 first:mt-4"
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-center gap-4">
+                                {/* Indicador de stock */}
+                                <div className={`w-1 h-12 rounded-full ${
+                                  stockStatus.status === 'agotado' ? 'bg-destructive' :
+                                  stockStatus.status === 'bajo' ? 'bg-warning' : 'bg-success'
+                                }`} />
+                                
+                                {/* Información del producto */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h4 className="font-semibold text-foreground truncate">
+                                      {producto.nombre}
+                                    </h4>
+                                    <Badge 
+                                      variant={stockStatus.color as any}
+                                      className="text-xs"
+                                    >
+                                      {stockStatus.label}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-sm text-muted-foreground font-mono">
+                                    {producto.codigo_producto}
+                                  </p>
+                                </div>
 
-                        {/* Datos de stock y precio */}
-                        <div className="flex items-center gap-6 text-sm">
-                          <div className="text-center">
-                            <p className="text-muted-foreground">Stock</p>
-                            <p className="font-bold text-lg">
-                              {stock?.cantidad_disponible ?? 0}
-                            </p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-muted-foreground">Precio</p>
-                            <p className="font-bold text-success">
-                              {producto.precio_venta_sugerido ? formatCurrencyWithConversion(producto.precio_venta_sugerido) : 'N/A'}
-                            </p>
-                          </div>
-                        </div>
+                                {/* Datos de stock y precio */}
+                                <div className="flex items-center gap-6 text-sm">
+                                  <div className="text-center">
+                                    <p className="text-muted-foreground">Stock</p>
+                                    <p className="font-bold text-lg">
+                                      {stock?.cantidad_disponible ?? 0}
+                                    </p>
+                                  </div>
+                                  <div className="text-center">
+                                    <p className="text-muted-foreground">Precio</p>
+                                    <p className="font-bold text-success">
+                                      {producto.precio_venta_sugerido ? formatCurrencyWithConversion(producto.precio_venta_sugerido) : 'N/A'}
+                                    </p>
+                                  </div>
+                                </div>
 
-                        {/* Botones de acción compactos */}
-                        <div className="flex items-center gap-1">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => onEditProduct(producto)}
-                            className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => handleDeleteClick(producto)}
-                            className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            className="h-8 w-8 p-0 hover:bg-accent/10"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+                                {/* Botones de acción compactos */}
+                                <div className="flex items-center gap-1">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => onEditProduct(producto)}
+                                    className="h-8 w-8 p-0 hover:bg-primary/10 hover:text-primary"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => handleDeleteClick(producto)}
+                                    className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    className="h-8 w-8 p-0 hover:bg-accent/10"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          );
+        })}
       </div>
 
       {/* Estado cuando no hay productos filtrados */}
