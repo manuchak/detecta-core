@@ -392,7 +392,7 @@ export const InstallerPortal = () => {
                           {format(new Date(instalacion.fecha_programada), 'dd/MM/yyyy', { locale: es })}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {format(new Date(instalacion.fecha_programada), 'HH:mm')}
+                          {instalacion.hora_programada || format(new Date(instalacion.fecha_programada), 'HH:mm')}
                         </div>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell text-sm">
