@@ -1,7 +1,10 @@
 
 // Utility hooks for formatting data in the dashboard
+import { useCurrencyConverter } from './useCurrencyConverter';
 
 export const useFormatters = () => {
+  const { autoConvertToMXN } = useCurrencyConverter();
+
   // Format currency for display
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-MX', {
@@ -9,6 +12,18 @@ export const useFormatters = () => {
       currency: 'MXN',
       maximumFractionDigits: 0
     }).format(value);
+  };
+
+  // Format currency with automatic USD to MXN conversion
+  const formatCurrencyWithConversion = (value: number, showConversionInfo: boolean = false) => {
+    const conversion = autoConvertToMXN(value);
+    const formatted = formatCurrency(conversion.convertedAmount);
+    
+    if (showConversionInfo && conversion.wasConverted) {
+      return `${formatted} (≈ $${conversion.originalAmount.toFixed(2)} USD)`;
+    }
+    
+    return formatted;
   };
 
   // Format date in Spanish
@@ -33,6 +48,7 @@ export const useFormatters = () => {
 
   return {
     formatCurrency,
+    formatCurrencyWithConversion,
     formatDate,
     formatTime
   };

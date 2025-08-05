@@ -15,6 +15,7 @@ import { Package, AlertTriangle, TrendingUp, TrendingDown, Edit } from 'lucide-r
 import { useStockProductos } from '@/hooks/useStockProductos';
 import { useWMSAccess } from '@/hooks/useWMSAccess';
 import { EditStockDialog } from './EditStockDialog';
+import { useFormatters } from '@/hooks/useFormatters';
 import type { StockProducto } from '@/types/wms';
 
 export const StockTab = () => {
@@ -22,6 +23,7 @@ export const StockTab = () => {
   const [selectedStockItem, setSelectedStockItem] = useState<StockProducto | null>(null);
   const { stock, movimientos, isLoading, isLoadingMovimientos, error } = useStockProductos();
   const { userRole } = useWMSAccess();
+  const { formatCurrencyWithConversion } = useFormatters();
 
   // Verificar si el usuario puede editar stock
   const canEditStock = userRole === 'owner' || userRole === 'admin' || userRole === 'coordinador_operaciones';
@@ -110,8 +112,8 @@ export const StockTab = () => {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              ${valorTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+            <div className="text-2xl font-bold text-green-600">
+              {formatCurrencyWithConversion(valorTotal, true)}
             </div>
           </CardContent>
         </Card>

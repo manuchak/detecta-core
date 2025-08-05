@@ -25,6 +25,7 @@ import { ProductoInventario } from '@/types/wms';
 import { ProductoDialog } from './ProductoDialog';
 import { AuditLogDialog } from './AuditLogDialog';
 import { ProductoDeletionDialog } from './ProductoDeletionDialog';
+import { useFormatters } from '@/hooks/useFormatters';
 
 interface InventarioListProps {
   productos: ProductoInventario[];
@@ -44,6 +45,7 @@ export const InventarioList = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showDeletionDialog, setShowDeletionDialog] = useState(false);
   const [selectedProducto, setSelectedProducto] = useState<ProductoInventario | null>(null);
+  const { formatCurrencyWithConversion } = useFormatters();
   
   const filteredProductos = productos.filter(producto => {
     const matchesSearch = producto.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -216,7 +218,7 @@ export const InventarioList = ({
                           <div className="text-center">
                             <p className="text-muted-foreground">Precio</p>
                             <p className="font-bold text-success">
-                              ${producto.precio_venta_sugerido?.toLocaleString() || 'N/A'}
+                              {producto.precio_venta_sugerido ? formatCurrencyWithConversion(producto.precio_venta_sugerido) : 'N/A'}
                             </p>
                           </div>
                         </div>

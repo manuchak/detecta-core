@@ -853,6 +853,42 @@ export type Database = {
         }
         Relationships: []
       }
+      configuracion_moneda: {
+        Row: {
+          activo: boolean
+          actualizado_por: string | null
+          created_at: string
+          fecha_actualizacion: string
+          id: string
+          moneda_base: string
+          moneda_destino: string
+          tipo_cambio: number
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          actualizado_por?: string | null
+          created_at?: string
+          fecha_actualizacion?: string
+          id?: string
+          moneda_base?: string
+          moneda_destino?: string
+          tipo_cambio?: number
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          actualizado_por?: string | null
+          created_at?: string
+          fecha_actualizacion?: string
+          id?: string
+          moneda_base?: string
+          moneda_destino?: string
+          tipo_cambio?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       configuracion_monitoreo: {
         Row: {
           alertas_activadas: boolean | null
