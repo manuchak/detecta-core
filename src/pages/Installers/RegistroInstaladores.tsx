@@ -20,6 +20,7 @@ import {
 import { useInstaladorData } from '@/hooks/useInstaladorData';
 import { InstaladorCard } from './components/InstaladorCard';
 import { RegistroInstaladorFormularioRobusto } from './components/RegistroInstaladorFormularioRobusto';
+import { RegistroEmpresaDialog } from './components/RegistroEmpresaDialog';
 import { DatosFiscalesDialog } from './components/DatosFiscalesDialog';
 import { PagosInstaladorDialog } from './components/PagosInstaladorDialog';
 import { AuditoriaDialog } from './components/AuditoriaDialog';
@@ -29,6 +30,7 @@ export const RegistroInstaladores = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('todos');
   const [showRegistroDialog, setShowRegistroDialog] = useState(false);
+  const [showRegistroEmpresaDialog, setShowRegistroEmpresaDialog] = useState(false);
   const [showDatosFiscalesDialog, setShowDatosFiscalesDialog] = useState(false);
   const [showPagosDialog, setShowPagosDialog] = useState(false);
   const [showAuditoriaDialog, setShowAuditoriaDialog] = useState(false);
@@ -91,10 +93,16 @@ export const RegistroInstaladores = () => {
             Gestiona el registro completo de instaladores, datos fiscales, pagos y auditorías
           </p>
         </div>
-        <Button onClick={() => setShowRegistroDialog(true)}>
-          <UserPlus className="h-4 w-4 mr-2" />
-          Registrar Instalador
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setShowRegistroDialog(true)}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Registrar Instalador
+          </Button>
+          <Button variant="outline" onClick={() => setShowRegistroEmpresaDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Registrar Empresa
+          </Button>
+        </div>
       </div>
 
       {/* Métricas */}
@@ -232,6 +240,11 @@ export const RegistroInstaladores = () => {
       <RegistroInstaladorFormularioRobusto
         open={showRegistroDialog}
         onOpenChange={setShowRegistroDialog}
+      />
+
+      <RegistroEmpresaDialog
+        open={showRegistroEmpresaDialog}
+        onOpenChange={setShowRegistroEmpresaDialog}
       />
 
       <DatosFiscalesDialog
