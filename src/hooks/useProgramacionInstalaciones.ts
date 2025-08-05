@@ -15,7 +15,7 @@ export const useProgramacionInstalaciones = () => {
       console.log('Fetching programaciones...');
       
       try {
-        // Consulta con JOIN para incluir información del instalador
+        // Primero obtener programaciones básicas
         const { data: programacionesData, error: programacionesError } = await supabase
           .from('programacion_instalaciones')
           .select(`
@@ -35,14 +35,7 @@ export const useProgramacionInstalaciones = () => {
             acceso_restringido,
             instalador_id,
             created_at,
-            updated_at,
-            instaladores (
-              id,
-              nombre_completo,
-              telefono,
-              calificacion_promedio,
-              especialidades
-            )
+            updated_at
           `)
           .order('fecha_programada', { ascending: true });
 
@@ -52,6 +45,33 @@ export const useProgramacionInstalaciones = () => {
         }
 
         console.log('Programaciones fetched successfully:', programacionesData?.length || 0);
+        
+        // Obtener IDs únicos de instaladores
+        const instaladorIds = [...new Set(
+          programacionesData
+            ?.filter(p => p.instalador_id)
+            .map(p => p.instalador_id)
+        )].filter(Boolean);
+
+        // Obtener información de instaladores si hay IDs
+        let instaladoresMap = new Map();
+        if (instaladorIds.length > 0) {
+          try {
+            const { data: instaladoresData } = await supabase
+              .from('instaladores')
+              .select('id, nombre_completo, telefono, calificacion_promedio, especialidades')
+              .in('id', instaladorIds);
+            
+            if (instaladoresData) {
+              instaladoresData.forEach(instalador => {
+                instaladoresMap.set(instalador.id, instalador);
+              });
+            }
+          } catch (instaladorError) {
+            console.error('Error fetching instaladores:', instaladorError);
+            // Continuar sin datos de instaladores
+          }
+        }
         
         // Mapear los datos incluyendo la información del instalador
         return (programacionesData || []).map(programacion => ({
@@ -73,13 +93,9 @@ export const useProgramacionInstalaciones = () => {
           created_at: programacion.created_at,
           updated_at: programacion.updated_at,
           servicio: null, // Temporalmente null
-          instalador: programacion.instaladores ? {
-            id: programacion.instaladores.id,
-            nombre_completo: programacion.instaladores.nombre_completo,
-            telefono: programacion.instaladores.telefono,
-            calificacion_promedio: programacion.instaladores.calificacion_promedio,
-            especialidades: programacion.instaladores.especialidades
-          } : null
+          instalador: programacion.instalador_id && instaladoresMap.has(programacion.instalador_id) 
+            ? instaladoresMap.get(programacion.instalador_id)
+            : null
         })) as ProgramacionInstalacion[];
         
       } catch (error) {
