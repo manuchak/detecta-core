@@ -29,7 +29,8 @@ import {
   Clock,
   MapPin,
   User,
-  X
+  X,
+  Camera
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { format, addDays, isWeekend } from 'date-fns';
@@ -80,6 +81,7 @@ export const ProgramarInstalacionMejorada = ({
     sim: any;
     microsd: any;
     numero_serie: string;
+    tipoDispositivo?: 'gps' | 'camera';
   } | null>(null);
 
   const [recomendacionPendiente, setRecomendacionPendiente] = useState<{
@@ -89,6 +91,7 @@ export const ProgramarInstalacionMejorada = ({
     justificacion: string;
     advertencias: string[];
     stockDisponible: boolean;
+    tipoDispositivo?: 'gps' | 'camera';
   } | null>(null);
 
   const [kitMode, setKitMode] = useState<'auto' | 'manual'>('auto');
@@ -341,13 +344,19 @@ export const ProgramarInstalacionMejorada = ({
       const simRecomendada = simDisponibles.find(p => p.marca?.toLowerCase().includes('telcel')) || simDisponibles[0];
       const microsdRecomendada = requiereMicroSD ? microsdDisponibles[0] : null;
 
+      // Detectar si el GPS recomendado es una cámara basándose en especificaciones o modelo
+      const esCamera = gpsRecomendado?.especificaciones?.tipo_dispositivo === 'dashcam' || 
+                      gpsRecomendado?.modelo?.toLowerCase().includes('jc261') ||
+                      gpsRecomendado?.especificaciones?.tipo_dispositivo?.toLowerCase().includes('dashcam');
+
       // Crear justificación
       let justificacion = `Recomendación para ${tipoVehiculo}:\n\n`;
-      justificacion += `• GPS: ${gpsRecomendado?.nombre || 'No disponible'} - Compatibilidad alta con ${formData.vehiculo_marca}\n`;
+      const tipoDispositivo = esCamera ? 'Cámara GPS' : 'GPS';
+      justificacion += `• ${tipoDispositivo}: ${gpsRecomendado?.nombre || 'No disponible'} - Compatibilidad alta con ${formData.vehiculo_marca}\n`;
       justificacion += `• SIM: ${simRecomendada?.nombre || 'No disponible'} - Cobertura nacional óptima\n`;
       
-      if (requiereMicroSD) {
-        justificacion += `• MicroSD: ${microsdRecomendada?.nombre || 'No disponible'} - Requerido para grabación de cámara\n`;
+      if (requiereMicroSD || esCamera) {
+        justificacion += `• MicroSD: ${microsdRecomendada?.nombre || 'No disponible'} - ${esCamera ? 'Obligatorio para grabación de video' : 'Requerido para grabación de cámara'}\n`;
       } else {
         justificacion += `• MicroSD: No requerido para esta configuración\n`;
       }
@@ -360,7 +369,8 @@ export const ProgramarInstalacionMejorada = ({
         microsd: microsdRecomendada ? `${microsdRecomendada.marca} ${microsdRecomendada.modelo} - ${microsdRecomendada.nombre}` : 'No incluido',
         justificacion,
         advertencias,
-        stockDisponible
+        stockDisponible,
+        tipoDispositivo: esCamera ? ('camera' as const) : ('gps' as const)
       };
 
       setRecomendacionPendiente(recomendacion);
@@ -388,7 +398,8 @@ export const ProgramarInstalacionMejorada = ({
         gps: recomendacionPendiente.gps,
         sim: recomendacionPendiente.sim,
         microsd: recomendacionPendiente.microsd,
-        numero_serie: numeroSerie
+        numero_serie: numeroSerie,
+        tipoDispositivo: recomendacionPendiente.tipoDispositivo
       };
 
       setKitAsignado(kitResult);
@@ -426,6 +437,11 @@ export const ProgramarInstalacionMejorada = ({
       const simProduct = productos?.find(p => p.id === manualKit.sim_id);
       const microsdProduct = productos?.find(p => p.id === manualKit.microsd_id);
 
+      // Detectar si el GPS seleccionado es una cámara
+      const esCamera = gpsProduct?.especificaciones?.tipo_dispositivo === 'dashcam' || 
+                      gpsProduct?.modelo?.toLowerCase().includes('jc261') ||
+                      gpsProduct?.especificaciones?.tipo_dispositivo?.toLowerCase().includes('dashcam');
+
       // Generar número de serie único para kit manual
       const timestamp = Date.now();
       const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -435,7 +451,8 @@ export const ProgramarInstalacionMejorada = ({
         gps: gpsProduct ? `${gpsProduct.marca} ${gpsProduct.modelo} - ${gpsProduct.nombre}` : manualKit.gps_id,
         sim: simProduct ? `${simProduct.marca} - ${simProduct.nombre}` : manualKit.sim_id || 'No incluido',
         microsd: (microsdProduct && manualKit.microsd_id !== 'no-microsd') ? `${microsdProduct.marca} ${microsdProduct.modelo} - ${microsdProduct.nombre}` : 'No incluido',
-        numero_serie: numeroSerie
+        numero_serie: numeroSerie,
+        tipoDispositivo: esCamera ? ('camera' as const) : ('gps' as const)
       };
 
       setKitAsignado(kitResult);
@@ -806,9 +823,15 @@ export const ProgramarInstalacionMejorada = ({
 
                       {/* Componentes recomendados */}
                       <div className="grid grid-cols-3 gap-4">
-                        <div className="text-center p-3 bg-white rounded border">
-                          <Cpu className="h-6 w-6 mx-auto text-blue-600 mb-2" />
-                          <div className="font-medium text-sm text-blue-700">GPS Principal</div>
+                         <div className="text-center p-3 bg-white rounded border">
+                          {recomendacionPendiente.tipoDispositivo === 'camera' ? (
+                            <Camera className="h-6 w-6 mx-auto text-purple-600 mb-2" />
+                          ) : (
+                            <Cpu className="h-6 w-6 mx-auto text-blue-600 mb-2" />
+                          )}
+                          <div className={`font-medium text-sm ${recomendacionPendiente.tipoDispositivo === 'camera' ? 'text-purple-700' : 'text-blue-700'}`}>
+                            {recomendacionPendiente.tipoDispositivo === 'camera' ? 'Cámara GPS' : 'GPS Principal'}
+                          </div>
                           <div className="text-xs text-gray-600 mt-1">{recomendacionPendiente.gps}</div>
                         </div>
                         
@@ -870,10 +893,20 @@ export const ProgramarInstalacionMejorada = ({
                       </h4>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="text-center p-3 bg-blue-50 rounded">
-                          <Cpu className="h-6 w-6 text-blue-600 mx-auto mb-1" />
-                          <div className="font-medium text-blue-700">GPS Principal</div>
-                          <div className="text-sm text-blue-600">{kitAsignado.gps}</div>
-                          <div className="text-xs text-blue-500 mt-1">Compatibilidad: 98%</div>
+                          {kitAsignado.tipoDispositivo === 'camera' ? (
+                            <Camera className="h-6 w-6 text-purple-600 mx-auto mb-1" />
+                          ) : (
+                            <Cpu className="h-6 w-6 text-blue-600 mx-auto mb-1" />
+                          )}
+                          <div className={`font-medium ${kitAsignado.tipoDispositivo === 'camera' ? 'text-purple-700' : 'text-blue-700'}`}>
+                            {kitAsignado.tipoDispositivo === 'camera' ? 'Cámara GPS' : 'GPS Principal'}
+                          </div>
+                          <div className={`text-sm ${kitAsignado.tipoDispositivo === 'camera' ? 'text-purple-600' : 'text-blue-600'}`}>
+                            {kitAsignado.gps}
+                          </div>
+                          <div className={`text-xs mt-1 ${kitAsignado.tipoDispositivo === 'camera' ? 'text-purple-500' : 'text-blue-500'}`}>
+                            {kitAsignado.tipoDispositivo === 'camera' ? 'Con grabación de video' : 'Compatibilidad: 98%'}
+                          </div>
                         </div>
                         <div className="text-center p-3 bg-orange-50 rounded">
                           <CreditCard className="h-6 w-6 text-orange-600 mx-auto mb-1" />
