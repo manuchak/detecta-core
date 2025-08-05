@@ -75,7 +75,37 @@ export const useProgramacionInstalaciones = () => {
           }
         }
         
-        // Mapear los datos incluyendo la información del instalador
+        // Obtener IDs únicos de servicios para obtener información adicional
+        const servicioIds = [...new Set(
+          programacionesData
+            ?.map(p => p.servicio_id)
+        )].filter(Boolean);
+
+        // Obtener información de servicios
+        let serviciosMap = new Map();
+        if (servicioIds.length > 0) {
+          console.log('Fetching servicios for IDs:', servicioIds);
+          try {
+            const { data: serviciosData, error: serviciosError } = await supabase
+              .from('servicios_monitoreo')
+              .select('id, numero_servicio, nombre_cliente, telefono_contacto, email_contacto')
+              .in('id', servicioIds);
+            
+            if (serviciosError) {
+              console.error('Error fetching servicios:', serviciosError);
+            } else {
+              console.log('Servicios fetched:', serviciosData);
+              serviciosData?.forEach(servicio => {
+                serviciosMap.set(servicio.id, servicio);
+              });
+            }
+          } catch (servicioError) {
+            console.error('Error fetching servicios:', servicioError);
+            // Continuar sin datos de servicios
+          }
+        }
+        
+        // Mapear los datos incluyendo la información del instalador y servicio
         return (programacionesData || []).map(programacion => ({
           id: programacion.id,
           servicio_id: programacion.servicio_id,
@@ -94,7 +124,9 @@ export const useProgramacionInstalaciones = () => {
           instalador_id: programacion.instalador_id,
           created_at: programacion.created_at,
           updated_at: programacion.updated_at,
-          servicio: null, // Temporalmente null
+          servicio: programacion.servicio_id && serviciosMap.has(programacion.servicio_id)
+            ? serviciosMap.get(programacion.servicio_id)
+            : null,
           instalador: programacion.instalador_id && instaladoresMap.has(programacion.instalador_id) 
             ? instaladoresMap.get(programacion.instalador_id)
             : null
