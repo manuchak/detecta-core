@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, UserCheck, UserX, Clock, TrendingUp, Database, Phone, PhoneCall, CheckCircle, Target } from "lucide-react";
@@ -20,6 +21,7 @@ export const LeadsMetricsDashboard = ({ leads, dateFrom, dateTo }: LeadsMetricsD
   });
   
   const metrics = useMemo(() => {
+    // Validar que leads sea un array válido
     if (!Array.isArray(leads)) {
       return {
         total: 0,
@@ -33,6 +35,7 @@ export const LeadsMetricsDashboard = ({ leads, dateFrom, dateTo }: LeadsMetricsD
       };
     }
 
+    // Filtrar leads por rango de fechas si se proporcionan
     let filteredLeads = leads;
     if (dateFrom || dateTo) {
       filteredLeads = leads.filter(lead => {
@@ -42,6 +45,7 @@ export const LeadsMetricsDashboard = ({ leads, dateFrom, dateTo }: LeadsMetricsD
         const fromDate = dateFrom ? new Date(dateFrom) : new Date('1900-01-01');
         const toDate = dateTo ? new Date(dateTo) : new Date('2100-12-31');
         
+        // Incluir todo el día final
         toDate.setHours(23, 59, 59, 999);
         
         return leadDate >= fromDate && leadDate <= toDate;
@@ -53,6 +57,7 @@ export const LeadsMetricsDashboard = ({ leads, dateFrom, dateTo }: LeadsMetricsD
     const unassigned = total - assigned;
     const newLeads = filteredLeads.filter(lead => lead?.estado === 'nuevo').length;
     
+    // Estados que se consideran "en proceso" - incluye todos los estados intermedios del proceso custodio
     const inProcessStates = [
       'contactado',
       'en_revision', 
@@ -64,6 +69,7 @@ export const LeadsMetricsDashboard = ({ leads, dateFrom, dateTo }: LeadsMetricsD
       'instalacion_gps_completado'
     ];
     
+    // Estados que se consideran "aprobados" - estados finales exitosos
     const approvedStates = [
       'aprobado',
       'custodio_activo'
@@ -77,6 +83,7 @@ export const LeadsMetricsDashboard = ({ leads, dateFrom, dateTo }: LeadsMetricsD
       lead?.estado && approvedStates.includes(lead.estado)
     ).length;
     
+    // Calcular tiempo promedio entre creación y asignación en horas
     const assignedLeads = filteredLeads.filter(lead => lead && lead.asignado_a && lead.fecha_creacion);
     
     console.log('📊 Debug - Total leads filtrados:', filteredLeads.length);
@@ -94,6 +101,7 @@ export const LeadsMetricsDashboard = ({ leads, dateFrom, dateTo }: LeadsMetricsD
         const totalHours = assignedLeads.reduce((acc, lead) => {
           try {
             const creationDate = new Date(lead.fecha_creacion);
+            // Usamos fecha_contacto si existe, sino updated_at como fallback
             const assignmentDate = new Date(lead.fecha_contacto || lead.updated_at);
             
             if (isNaN(creationDate.getTime()) || isNaN(assignmentDate.getTime())) {
@@ -134,96 +142,96 @@ export const LeadsMetricsDashboard = ({ leads, dateFrom, dateTo }: LeadsMetricsD
       avgHoursToAssignment,
       assignmentRate
     };
-  }, [leads, dateFrom, dateTo]);
+  }, [leads, dateFrom, dateTo]); // Depende de leads y filtros de fecha
 
   return (
     <div className="space-y-6 mb-6">
       {/* Primera fila: Métricas de Leads */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Candidatos</CardTitle>
-            <Database className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics.total}</div>
-            <div className="flex items-center space-x-2 text-xs text-muted-foreground mt-1">
-              <Badge variant="outline" className="text-xs">
-                Cargados de BD
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Total Candidatos</CardTitle>
+          <Database className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{metrics.total}</div>
+          <div className="flex items-center space-x-2 text-xs text-muted-foreground mt-1">
+            <Badge variant="outline" className="text-xs">
+              Cargados de BD
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Estados</CardTitle>
+          <Users className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-1">
+            <div className="flex justify-between text-sm">
+              <span>Nuevos:</span>
+              <Badge variant="outline" className="text-xs bg-blue-50">
+                {metrics.newLeads}
               </Badge>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Estados</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              <div className="flex justify-between text-sm">
-                <span>Nuevos:</span>
-                <Badge variant="outline" className="text-xs bg-blue-50">
-                  {metrics.newLeads}
-                </Badge>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>En proceso:</span>
-                <Badge variant="outline" className="text-xs bg-yellow-50">
-                  {metrics.inProcess}
-                </Badge>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>Aprobados:</span>
-                <Badge variant="outline" className="text-xs bg-green-50">
-                  {metrics.approved}
-                </Badge>
-              </div>
+            <div className="flex justify-between text-sm">
+              <span>En proceso:</span>
+              <Badge variant="outline" className="text-xs bg-yellow-50">
+                {metrics.inProcess}
+              </Badge>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Asignados</CardTitle>
-            <UserCheck className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{metrics.assigned}</div>
-            <div className="flex items-center space-x-1 text-xs text-muted-foreground mt-1">
-              <TrendingUp className="h-3 w-3" />
-              <span>{metrics.assignmentRate}% del total</span>
+            <div className="flex justify-between text-sm">
+              <span>Aprobados:</span>
+              <Badge variant="outline" className="text-xs bg-green-50">
+                {metrics.approved}
+              </Badge>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Sin Asignar</CardTitle>
-            <UserX className="h-4 w-4 text-red-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{metrics.unassigned}</div>
-            <div className="flex items-center space-x-1 text-xs text-muted-foreground mt-1">
-              <Clock className="h-3 w-3" />
-              <span>Requieren atención</span>
-            </div>
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Asignados</CardTitle>
+          <UserCheck className="h-4 w-4 text-green-600" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-green-600">{metrics.assigned}</div>
+          <div className="flex items-center space-x-1 text-xs text-muted-foreground mt-1">
+            <TrendingUp className="h-3 w-3" />
+            <span>{metrics.assignmentRate}% del total</span>
+          </div>
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tiempo Promedio</CardTitle>
-            <Clock className="h-4 w-4 text-orange-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{metrics.avgHoursToAssignment}</div>
-            <div className="text-xs text-muted-foreground mt-1">
-              horas hasta asignación
-            </div>
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Sin Asignar</CardTitle>
+          <UserX className="h-4 w-4 text-red-600" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-red-600">{metrics.unassigned}</div>
+          <div className="flex items-center space-x-1 text-xs text-muted-foreground mt-1">
+            <Clock className="h-3 w-3" />
+            <span>Requieren atención</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Tiempo Promedio</CardTitle>
+          <Clock className="h-4 w-4 text-orange-600" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-orange-600">{metrics.avgHoursToAssignment}</div>
+          <div className="text-xs text-muted-foreground mt-1">
+            horas hasta asignación
+          </div>
+        </CardContent>
+      </Card>
       </div>
 
       {/* Segunda fila: Métricas de Call Center */}

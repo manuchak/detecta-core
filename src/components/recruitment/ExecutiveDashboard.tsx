@@ -1,65 +1,66 @@
-
-import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { MonthlyMetricsCards } from './MonthlyMetricsCards';
-import { IntelligentAlerts } from './IntelligentAlerts';
-import { LeadsAnalyticsSection } from './LeadsAnalyticsSection';
-import { TrendingUp, Users, AlertTriangle } from 'lucide-react';
+import React from "react";
+import { ExecutiveMetricsGrid } from '@/components/executive/ExecutiveMetricsGrid';
+import { FinancialPerformancePanel } from '@/components/executive/FinancialPerformancePanel';
+import { ConsolidatedAnalyticsPanel } from '@/components/executive/ConsolidatedAnalyticsPanel';
+import { SmartActionsPanel } from '@/components/executive/SmartActionsPanel';
+import { useExecutiveDashboardKPIs } from '@/hooks/useExecutiveDashboardKPIs';
 
 export const ExecutiveDashboard = () => {
-  // Calcular rango de fechas para el mes hasta la fecha
-  const today = new Date();
-  const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  const dateFrom = firstDayOfMonth.toISOString().split('T')[0];
-  const dateTo = today.toISOString().split('T')[0];
+  const { kpis, loading, refreshData } = useExecutiveDashboardKPIs();
 
   return (
-    <div className="space-y-8">
-      {/* KPIs Principales */}
-      <div className="space-y-2">
-        <h2 className="text-2xl font-semibold text-foreground">KPIs Principales</h2>
-        <p className="text-muted-foreground">
-          Métricas clave del proceso de reclutamiento
-        </p>
-      </div>
-      
-      <MonthlyMetricsCards />
-
-      {/* Análisis de Actividad Diaria */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <TrendingUp className="h-6 w-6 text-primary" />
-          <div>
-            <h2 className="text-2xl font-semibold text-foreground">Análisis de Actividad</h2>
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-6 py-8 space-y-8">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-light tracking-tight text-foreground">
+              Dashboard Ejecutivo
+            </h1>
             <p className="text-muted-foreground">
-              Actividad diaria de leads y performance de analistas
+              Vista consolidada de métricas clave y performance del negocio
             </p>
           </div>
-        </div>
-        
-        <LeadsAnalyticsSection 
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-        />
-      </div>
-
-      {/* Alertas Inteligentes */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <AlertTriangle className="h-6 w-6 text-destructive" />
-          <div>
-            <h2 className="text-2xl font-semibold text-foreground">Sistema de Alertas</h2>
-            <p className="text-muted-foreground">
-              Alertas críticas y preventivas del sistema
-            </p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={refreshData}
+              className="btn-apple px-4 py-2 text-sm bg-secondary hover:bg-secondary/80"
+              disabled={loading}
+            >
+              {loading ? 'Actualizando...' : 'Actualizar'}
+            </button>
+            <div className="text-xs text-muted-foreground">
+              Última actualización: {new Date().toLocaleTimeString('es-MX')}
+            </div>
           </div>
         </div>
-        
-        <Card>
-          <CardContent className="p-6">
-            <IntelligentAlerts />
-          </CardContent>
-        </Card>
+
+        {/* KPIs Hero Section */}
+        <section className="space-y-4">
+          <h2 className="text-lg font-medium text-foreground">KPIs Principales</h2>
+          <ExecutiveMetricsGrid kpis={kpis} loading={loading} />
+        </section>
+
+        {/* Financial Performance Section */}
+        <section className="space-y-4">
+          <FinancialPerformancePanel />
+        </section>
+
+        {/* Consolidated Analytics Section */}
+        <section className="space-y-4">
+          <ConsolidatedAnalyticsPanel />
+        </section>
+
+        {/* Smart Actions Section */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-medium text-foreground">Acciones Inteligentes</h2>
+            <div className="text-sm text-muted-foreground">
+              Basado en análisis automático de datos
+            </div>
+          </div>
+          <SmartActionsPanel />
+        </section>
       </div>
     </div>
   );
