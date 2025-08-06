@@ -28,23 +28,36 @@ export const useDailyLeadsCallsData = () => {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - 28);
 
-      // Obtener leads por día
+      console.log('Fetching data from', startDate.toISOString(), 'to', endDate.toISOString());
+
+      // Obtener leads por día de la tabla 'leads'
       const { data: leadsData, error: leadsError } = await supabase
-        .from('candidatos_custodios')
+        .from('leads')
         .select('created_at')
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString());
 
-      if (leadsError) throw leadsError;
+      if (leadsError) {
+        console.error('Error fetching leads:', leadsError);
+        throw leadsError;
+      }
 
-      // Obtener llamadas por día
+      console.log('Leads data:', leadsData);
+
+      // Obtener llamadas por día del equipo de supply
+      // Asumiendo que las llamadas están en 'manual_call_logs' o una tabla similar
       const { data: callsData, error: callsError } = await supabase
         .from('manual_call_logs')
         .select('created_at')
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString());
 
-      if (callsError) throw callsError;
+      if (callsError) {
+        console.error('Error fetching calls:', callsError);
+        throw callsError;
+      }
+
+      console.log('Calls data:', callsData);
 
       // Procesar datos por día
       const dailyStats: { [key: string]: DailyData } = {};
@@ -86,6 +99,8 @@ export const useDailyLeadsCallsData = () => {
       const sortedData = Object.values(dailyStats).sort((a, b) => 
         new Date(a.date).getTime() - new Date(b.date).getTime()
       );
+
+      console.log('Final processed data:', sortedData);
 
       setData(sortedData);
     } catch (error) {
