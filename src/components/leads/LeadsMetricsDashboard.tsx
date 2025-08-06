@@ -19,6 +19,7 @@ export const LeadsMetricsDashboard = ({ leads, dateFrom, dateTo }: LeadsMetricsD
     dateTo,
     enabled: true
   });
+  
   const metrics = useMemo(() => {
     // Validar que leads sea un array válido
     if (!Array.isArray(leads)) {
@@ -55,14 +56,41 @@ export const LeadsMetricsDashboard = ({ leads, dateFrom, dateTo }: LeadsMetricsD
     const assigned = filteredLeads.filter(lead => lead?.asignado_a).length;
     const unassigned = total - assigned;
     const newLeads = filteredLeads.filter(lead => lead?.estado === 'nuevo').length;
-    const inProcess = filteredLeads.filter(lead => lead?.estado === 'en_revision').length;
-    const approved = filteredLeads.filter(lead => lead?.estado === 'aprobado').length;
+    
+    // Estados que se consideran "en proceso" - incluye todos los estados intermedios del proceso custodio
+    const inProcessStates = [
+      'contactado',
+      'en_revision', 
+      'psicometricos_pendiente',
+      'psicometricos_completado',
+      'toxicologicos_pendiente',
+      'toxicologicos_completado',
+      'instalacion_gps_pendiente',
+      'instalacion_gps_completado'
+    ];
+    
+    // Estados que se consideran "aprobados" - estados finales exitosos
+    const approvedStates = [
+      'aprobado',
+      'custodio_activo'
+    ];
+    
+    const inProcess = filteredLeads.filter(lead => 
+      lead?.estado && inProcessStates.includes(lead.estado)
+    ).length;
+    
+    const approved = filteredLeads.filter(lead => 
+      lead?.estado && approvedStates.includes(lead.estado)
+    ).length;
     
     // Calcular tiempo promedio entre creación y asignación en horas
     const assignedLeads = filteredLeads.filter(lead => lead && lead.asignado_a && lead.fecha_creacion);
     
     console.log('📊 Debug - Total leads filtrados:', filteredLeads.length);
     console.log('📊 Debug - Leads asignados (con asignado_a):', filteredLeads.filter(lead => lead?.asignado_a).length);
+    console.log('📊 Debug - Estados de leads:', filteredLeads.map(lead => lead.estado));
+    console.log('📊 Debug - Leads en proceso:', inProcess);
+    console.log('📊 Debug - Leads aprobados:', approved);
     console.log('📊 Debug - Leads con fecha_creacion:', filteredLeads.filter(lead => lead?.fecha_creacion).length);
     console.log('📊 Debug - Leads con fecha_contacto:', filteredLeads.filter(lead => lead?.fecha_contacto).length);
     console.log('📊 Debug - Leads asignados válidos para cálculo:', assignedLeads.length);
