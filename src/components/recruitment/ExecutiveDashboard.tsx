@@ -1,8 +1,10 @@
+
 import React from "react";
 import { ExecutiveMetricsGrid } from '@/components/executive/ExecutiveMetricsGrid';
 import { FinancialPerformancePanel } from '@/components/executive/FinancialPerformancePanel';
 import { ConsolidatedAnalyticsPanel } from '@/components/executive/ConsolidatedAnalyticsPanel';
 import { SmartActionsPanel } from '@/components/executive/SmartActionsPanel';
+import { DailyLeadsCallsChart } from '@/components/recruitment/DailyLeadsCallsChart';
 import { useExecutiveDashboardKPIs } from '@/hooks/useExecutiveDashboardKPIs';
 
 export const ExecutiveDashboard = () => {
@@ -39,6 +41,14 @@ export const ExecutiveDashboard = () => {
         <section className="space-y-4">
           <h2 className="text-lg font-medium text-foreground">KPIs Principales</h2>
           <ExecutiveMetricsGrid kpis={kpis} loading={loading} />
+        </section>
+
+        {/* Daily Activity Chart Section */}
+        <section className="space-y-4">
+          <h2 className="text-lg font-medium text-foreground">Actividad de Reclutamiento</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <DailyLeadsCallsChart />
+          </div>
         </section>
 
         {/* Financial Performance Section */}
