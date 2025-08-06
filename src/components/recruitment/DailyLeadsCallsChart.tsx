@@ -13,7 +13,7 @@ const chartConfig = {
   },
   llamadas: {
     label: "Llamadas",
-    color: "hsl(var(--chart-2))",
+    color: "hsl(262, 83%, 58%)", // Violeta
   },
 };
 
@@ -63,7 +63,11 @@ export const DailyLeadsCallsChart = () => {
       <CardContent>
         <ChartContainer config={chartConfig} className="h-80 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <BarChart 
+              data={data} 
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              barCategoryGap="20%"
+            >
               <XAxis 
                 dataKey="dayLabel"
                 tick={{ fontSize: 10 }}
@@ -94,7 +98,7 @@ export const DailyLeadsCallsChart = () => {
               <Bar 
                 dataKey="llamadas" 
                 name="Llamadas"
-                fill="var(--color-llamadas)"
+                fill="hsl(262, 83%, 58%)"
                 radius={[2, 2, 0, 0]}
                 opacity={0.8}
               />
