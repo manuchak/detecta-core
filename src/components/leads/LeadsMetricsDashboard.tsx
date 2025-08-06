@@ -4,9 +4,6 @@ import { Users, UserCheck, UserX, Clock, TrendingUp, Database, Phone, PhoneCall,
 import { Lead } from "@/types/leadTypes";
 import { useMemo } from "react";
 import { useCallCenterMetrics } from "@/hooks/useCallCenterMetrics";
-import { useLeadsAnalytics } from "@/hooks/useLeadsAnalytics";
-import { DailyLeadsChart } from "./DailyLeadsChart";
-import { AnalystPerformanceTable } from "./AnalystPerformanceTable";
 
 interface LeadsMetricsDashboardProps {
   leads: Lead[];
@@ -21,16 +18,8 @@ export const LeadsMetricsDashboard = ({ leads, dateFrom, dateTo }: LeadsMetricsD
     dateTo,
     enabled: true
   });
-
-  // Hook para analíticas de leads
-  const { 
-    dailyData, 
-    analystPerformance, 
-    loading: analyticsLoading 
-  } = useLeadsAnalytics(dateFrom, dateTo);
   
   const metrics = useMemo(() => {
-    // Validar que leads sea un array válido
     if (!Array.isArray(leads)) {
       return {
         total: 0,
@@ -44,7 +33,6 @@ export const LeadsMetricsDashboard = ({ leads, dateFrom, dateTo }: LeadsMetricsD
       };
     }
 
-    // Filtrar leads por rango de fechas si se proporcionan
     let filteredLeads = leads;
     if (dateFrom || dateTo) {
       filteredLeads = leads.filter(lead => {
@@ -54,7 +42,6 @@ export const LeadsMetricsDashboard = ({ leads, dateFrom, dateTo }: LeadsMetricsD
         const fromDate = dateFrom ? new Date(dateFrom) : new Date('1900-01-01');
         const toDate = dateTo ? new Date(dateTo) : new Date('2100-12-31');
         
-        // Incluir todo el día final
         toDate.setHours(23, 59, 59, 999);
         
         return leadDate >= fromDate && leadDate <= toDate;
@@ -66,7 +53,6 @@ export const LeadsMetricsDashboard = ({ leads, dateFrom, dateTo }: LeadsMetricsD
     const unassigned = total - assigned;
     const newLeads = filteredLeads.filter(lead => lead?.estado === 'nuevo').length;
     
-    // Estados que se consideran "en proceso" - incluye todos los estados intermedios del proceso custodio
     const inProcessStates = [
       'contactado',
       'en_revision', 
@@ -78,7 +64,6 @@ export const LeadsMetricsDashboard = ({ leads, dateFrom, dateTo }: LeadsMetricsD
       'instalacion_gps_completado'
     ];
     
-    // Estados que se consideran "aprobados" - estados finales exitosos
     const approvedStates = [
       'aprobado',
       'custodio_activo'
@@ -92,7 +77,6 @@ export const LeadsMetricsDashboard = ({ leads, dateFrom, dateTo }: LeadsMetricsD
       lead?.estado && approvedStates.includes(lead.estado)
     ).length;
     
-    // Calcular tiempo promedio entre creación y asignación en horas
     const assignedLeads = filteredLeads.filter(lead => lead && lead.asignado_a && lead.fecha_creacion);
     
     console.log('📊 Debug - Total leads filtrados:', filteredLeads.length);
@@ -110,7 +94,6 @@ export const LeadsMetricsDashboard = ({ leads, dateFrom, dateTo }: LeadsMetricsD
         const totalHours = assignedLeads.reduce((acc, lead) => {
           try {
             const creationDate = new Date(lead.fecha_creacion);
-            // Usamos fecha_contacto si existe, sino updated_at como fallback
             const assignmentDate = new Date(lead.fecha_contacto || lead.updated_at);
             
             if (isNaN(creationDate.getTime()) || isNaN(assignmentDate.getTime())) {
@@ -151,7 +134,7 @@ export const LeadsMetricsDashboard = ({ leads, dateFrom, dateTo }: LeadsMetricsD
       avgHoursToAssignment,
       assignmentRate
     };
-  }, [leads, dateFrom, dateTo]); // Depende de leads y filtros de fecha
+  }, [leads, dateFrom, dateTo]);
 
   return (
     <div className="space-y-6 mb-6">
@@ -319,18 +302,6 @@ export const LeadsMetricsDashboard = ({ leads, dateFrom, dateTo }: LeadsMetricsD
             </div>
           </CardContent>
         </Card>
-      </div>
-
-      {/* Tercera fila: Gráficos de analíticas */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        <DailyLeadsChart 
-          data={dailyData} 
-          loading={analyticsLoading} 
-        />
-        <AnalystPerformanceTable 
-          data={analystPerformance} 
-          loading={analyticsLoading} 
-        />
       </div>
     </div>
   );
