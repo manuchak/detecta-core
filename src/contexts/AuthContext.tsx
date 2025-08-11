@@ -105,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Use secure function to get user role
-      const { data, error } = await supabase.rpc('get_current_user_role');
+      const { data, error } = await supabase.rpc('get_current_user_role_secure');
 
       if (error) {
         console.error('Error fetching user role:', error);
