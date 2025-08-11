@@ -14,6 +14,7 @@ import {
   LogOut,
   User,
   BarChart3,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -262,6 +263,13 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
         { title: "Gestión de Servicios", path: "/services" },
         { title: "Análisis de Rendimiento", path: "/services/rendimiento" },
       ]
+    }] : []),
+
+    // Planeación de Custodias - solo para usuarios con permisos administrativos
+    ...(userRole === 'admin' || userRole === 'owner' || userRole === 'coordinador_operaciones' || userRole === 'planificador' ? [{
+      title: "Planeación",
+      icon: Calendar,
+      path: "/planeacion",
     }] : []),
 
     // Monitoreo - solo si tiene permisos de monitoreo
