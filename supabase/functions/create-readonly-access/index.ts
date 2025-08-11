@@ -316,8 +316,9 @@ serve(async (req) => {
     
     const connectionString = `postgresql://${userName}:${password}@${dbHost}:${dbPort}/${dbName}`;
     
-    // Guardar la clave de API en la tabla secrets si existe
-    await saveCredentialsToSecrets(connection, sanitizedServiceName, connectionString);
+    // Por seguridad, no almacenamos credenciales generadas automáticamente en tablas públicas
+    // Si necesita persistir, use Secrets/Vault de Supabase desde el dashboard.
+    // await saveCredentialsToSecrets(connection, sanitizedServiceName, connectionString);
     
     // Preparar respuesta exitosa
     const response: ApiCredentialResponse = {

@@ -61,14 +61,34 @@ const fetchAvailableRoles = async (): Promise<Role[]> => {
 // Helper function to fetch permissions safely using secure database function
 const fetchRolePermissions = async (): Promise<Permission[]> => {
   try {
-    // Use secure function to get role permissions
-    const { data, error } = await supabase.rpc('get_role_permissions_secure');
-    
+    // Check if current user is admin via secure RPC
+    const { data: isAdmin, error: adminErr } = await supabase.rpc('is_admin_user_secure');
+    if (adminErr) {
+      console.error('Error checking admin status:', adminErr);
+    }
+
+    if (isAdmin) {
+      // Admins fetch all role permissions
+      const { data, error } = await supabase.rpc('get_role_permissions_secure');
+      if (error) {
+        console.error('Error fetching role permissions:', error);
+        throw error;
+      }
+      return (data || []).map((p: any) => ({
+        id: p.id,
+        role: p.role as Role,
+        permission_type: p.permission_type,
+        permission_id: p.permission_id,
+        allowed: p.allowed
+      }));
+    }
+
+    // Non-admins: fetch only their own effective permissions
+    const { data, error } = await supabase.rpc('get_my_permissions');
     if (error) {
-      console.error('Error fetching role permissions:', error);
+      console.error('Error fetching my permissions:', error);
       throw error;
     }
-    
     return (data || []).map((p: any) => ({
       id: p.id,
       role: p.role as Role,

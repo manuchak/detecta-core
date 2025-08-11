@@ -7784,9 +7784,12 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: {
           id: string
+          role: string
           permission_type: string
           permission_id: string
           allowed: boolean
+          created_at: string
+          updated_at: string
         }[]
       }
       get_points_system_config: {
