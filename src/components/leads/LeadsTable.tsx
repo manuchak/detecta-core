@@ -43,14 +43,20 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
   const [selectedLeads, setSelectedLeads] = useState<Lead[]>([]);
   const [activeQuickFilter, setActiveQuickFilter] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFiltersState>(() => ({
-    dateFrom: '',
-    dateTo: '',
-    source: 'all',
-    unassignedDays: 'all',
-    status: 'all',
-    assignment: 'all'
-  }));
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFiltersState>(() => {
+    const today = new Date();
+    const from = new Date();
+    from.setDate(today.getDate() - 14); // Últimos 14 días por defecto
+    const fmt = (d: Date) => d.toISOString().split('T')[0];
+    return {
+      dateFrom: fmt(from),
+      dateTo: fmt(today),
+      source: 'all',
+      unassignedDays: 'all',
+      status: 'all',
+      assignment: 'all'
+    };
+  });
 
   // Debounce search term
   useEffect(() => {
