@@ -71,3 +71,6 @@ verify_jwt = true
 
 [functions.hello-world]
 verify_jwt = true
+
+[functions.create-readonly-access]
+verify_jwt = true
