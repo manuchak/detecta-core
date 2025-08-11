@@ -46,9 +46,10 @@ export default function ImportMappingStep({
   onBack
 }: ImportMappingStepProps) {
   const [currentMapping, setCurrentMapping] = useState<MappingConfig>(mapping);
+  const safeColumns = (data.columns || []).filter((c: any) => c && typeof c.key === 'string');
   const [validationResult, setValidationResult] = useState(() => {
     const requiredFields = DATABASE_FIELDS.filter(f => f.required).map(f => f.value);
-    return validateMappedData(data, mapping, requiredFields);
+    return validateMappedData({ ...data, columns: safeColumns }, mapping, requiredFields);
   });
 
   const handleMappingChange = (excelColumn: string, dbField: string) => {
@@ -57,7 +58,7 @@ export default function ImportMappingStep({
     
     // Re-validate
     const requiredFields = DATABASE_FIELDS.filter(f => f.required).map(f => f.value);
-    setValidationResult(validateMappedData(data, newMapping, requiredFields));
+    setValidationResult(validateMappedData({ ...data, columns: safeColumns }, newMapping, requiredFields));
   };
 
   const handleContinue = () => {
@@ -86,7 +87,7 @@ export default function ImportMappingStep({
         <CardHeader>
           <CardTitle className="text-base">Archivo: {data.fileName}</CardTitle>
           <CardDescription>
-            {data.columns.length} columnas encontradas, {data.rows.length} registros
+            {safeColumns.length} columnas encontradas, {data.rows.length} registros
           </CardDescription>
         </CardHeader>
       </Card>
@@ -130,7 +131,7 @@ export default function ImportMappingStep({
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {data.columns.map((column) => (
+            {safeColumns.map((column) => (
               <div key={column.key} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded-lg">
                 <div>
                   <div className="font-medium">{column.header}</div>
@@ -197,7 +198,7 @@ export default function ImportMappingStep({
                 {Object.entries(currentMapping)
                   .filter(([_, dbField]) => dbField !== '')
                   .map(([excelCol, dbField]) => {
-                    const excelColumn = data.columns.find(c => c.key === excelCol);
+                    const excelColumn = safeColumns.find(c => c.key === excelCol);
                     const dbColumn = DATABASE_FIELDS.find(f => f.value === dbField);
                     return (
                       <div key={excelCol} className="text-sm">
@@ -213,7 +214,7 @@ export default function ImportMappingStep({
             <div>
               <div className="text-sm font-medium mb-2">Campos Sin Mapear:</div>
               <div className="space-y-1">
-                {data.columns
+                {safeColumns
                   .filter(col => !currentMapping[col.key] || currentMapping[col.key] === '')
                   .map(column => (
                     <div key={column.key} className="text-sm text-muted-foreground">
