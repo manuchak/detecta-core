@@ -7088,6 +7088,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      can_view_financial_data: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       can_view_sensitive_kpis: {
         Args: Record<PropertyKey, never>
         Returns: boolean
