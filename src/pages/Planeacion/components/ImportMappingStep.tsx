@@ -20,8 +20,9 @@ interface ImportMappingStepProps {
   onBack: () => void;
 }
 
+const NONE_VALUE = '__none__';
 const DATABASE_FIELDS = [
-  { value: '', label: 'No mapear', description: 'Ignorar esta columna' },
+  { value: NONE_VALUE, label: 'No mapear', description: 'Ignorar esta columna' },
   { value: 'cliente_id', label: 'Cliente ID', description: 'Identificador único del cliente', required: true },
   { value: 'fecha_programada', label: 'Fecha Programada', description: 'Fecha del servicio (YYYY-MM-DD)', required: true },
   { value: 'hora_ventana_inicio', label: 'Hora Inicio', description: 'Hora de inicio (HH:MM)' },
@@ -53,7 +54,8 @@ export default function ImportMappingStep({
   });
 
   const handleMappingChange = (excelColumn: string, dbField: string) => {
-    const newMapping = { ...currentMapping, [excelColumn]: dbField };
+    const normalized = dbField === NONE_VALUE ? '' : dbField;
+    const newMapping = { ...currentMapping, [excelColumn]: normalized };
     setCurrentMapping(newMapping);
     
     // Re-validate
@@ -68,7 +70,7 @@ export default function ImportMappingStep({
   };
 
   const getUsedFields = () => {
-    return Object.values(currentMapping).filter(field => field !== '');
+    return Object.values(currentMapping).filter(field => field !== '' && field !== NONE_VALUE);
   };
 
   const usedFields = getUsedFields();
@@ -142,7 +144,7 @@ export default function ImportMappingStep({
                 
                 <div className="md:col-span-2">
                   <Select
-                    value={currentMapping[column.key] || ''}
+                    value={(currentMapping[column.key] && currentMapping[column.key] !== '' ? currentMapping[column.key] : NONE_VALUE)}
                     onValueChange={(value) => handleMappingChange(column.key, value)}
                   >
                     <SelectTrigger>
@@ -173,7 +175,7 @@ export default function ImportMappingStep({
                     </SelectContent>
                   </Select>
                   
-                  {currentMapping[column.key] && (
+                  {currentMapping[column.key] && currentMapping[column.key] !== NONE_VALUE && (
                     <div className="text-xs text-muted-foreground mt-1">
                       {DATABASE_FIELDS.find(f => f.value === currentMapping[column.key])?.description}
                     </div>
@@ -196,7 +198,7 @@ export default function ImportMappingStep({
               <div className="text-sm font-medium mb-2">Campos Mapeados:</div>
               <div className="space-y-1">
                 {Object.entries(currentMapping)
-                  .filter(([_, dbField]) => dbField !== '')
+                  .filter(([_, dbField]) => dbField !== '' && dbField !== NONE_VALUE)
                   .map(([excelCol, dbField]) => {
                     const excelColumn = safeColumns.find(c => c.key === excelCol);
                     const dbColumn = DATABASE_FIELDS.find(f => f.value === dbField);
@@ -215,7 +217,7 @@ export default function ImportMappingStep({
               <div className="text-sm font-medium mb-2">Campos Sin Mapear:</div>
               <div className="space-y-1">
                 {safeColumns
-                  .filter(col => !currentMapping[col.key] || currentMapping[col.key] === '')
+                  .filter(col => !currentMapping[col.key] || currentMapping[col.key] === '' || currentMapping[col.key] === NONE_VALUE)
                   .map(column => (
                     <div key={column.key} className="text-sm text-muted-foreground">
                       {column.header}
