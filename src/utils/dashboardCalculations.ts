@@ -338,9 +338,9 @@ export const processTopClients = (data: ServiceData[]): TopClientsData[] => {
 
   console.log('processTopClients - Top 10 clientes:', clientCounts.slice(0, 10));
 
-  // Obtener TOP 5
-  const top5 = clientCounts.slice(0, 5);
-  const others = clientCounts.slice(5);
+  // Obtener TOP 8 para incluir más clientes importantes como Wieland
+  const top8 = clientCounts.slice(0, 8);
+  const others = clientCounts.slice(8);
 
   // Calcular total de servicios únicos
   const totalUniqueServices = clientCounts.reduce((sum, client) => sum + client.uniqueServices, 0);
@@ -352,12 +352,12 @@ export const processTopClients = (data: ServiceData[]): TopClientsData[] => {
   }
 
   // Crear resultado con porcentajes
-  const result: TopClientsData[] = top5.map(client => ({
+  const result: TopClientsData[] = top8.map(client => ({
     name: client.name,
     value: client.uniqueServices
   }));
 
-  // Agregar "Otros" si hay clientes fuera del TOP 5
+  // Agregar "Otros" si hay clientes fuera del TOP 8
   if (others.length > 0) {
     const othersTotal = others.reduce((sum, client) => sum + client.uniqueServices, 0);
     result.push({

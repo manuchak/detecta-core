@@ -25,11 +25,11 @@ const SERVICE_TYPE_COLORS = {
 };
 
 export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClientsData }: SecondaryChartsProps) => {
-  // Procesar datos de clientes principales - CORREGIDO para mostrar TOP 5 + Otros
+  // Procesar datos de clientes principales - CORREGIDO para mostrar TOP 8 + Otros
   const processTopClientsForDisplay = (data: TopClientsData[]) => {
     // Los datos ya vienen procesados correctamente desde el hook
-    // Solo necesitamos asegurar que sean máximo 6 elementos (TOP 5 + Otros)
-    return data.slice(0, 6);
+    // Solo necesitamos asegurar que sean máximo 9 elementos (TOP 8 + Otros)
+    return data.slice(0, 9);
   };
 
   // Procesar datos diarios para mostrar solo servicios finalizados hasta hoy
@@ -407,7 +407,7 @@ export const SecondaryCharts = ({ dailyServiceData, serviceTypesData, topClients
               <div className="w-3 h-3 rounded-full bg-orange-600"></div>
               Clientes Principales
             </CardTitle>
-            <p className="text-sm text-gray-600">Top 5 clientes + otros</p>
+            <p className="text-sm text-gray-600">Top 8 clientes + otros</p>
           </CardHeader>
           <CardContent className="flex-1 flex flex-col p-4 min-h-0 overflow-hidden">
             {/* Gráfico circular - altura controlada */}
