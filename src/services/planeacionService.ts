@@ -269,7 +269,14 @@ export const serviciosService = {
       .single();
 
     if (error) throw error;
-    return data;
+    
+    // Transform costos array to single object (assuming one cost record per service)
+    const transformedData = {
+      ...data,
+      costos: data.costos?.[0] || undefined
+    };
+    
+    return transformedData;
   },
 
   async create(servicio: ServicioForm): Promise<Servicio> {
