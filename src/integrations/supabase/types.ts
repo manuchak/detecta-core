@@ -7068,6 +7068,10 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: number
       }
+      can_access_call_logs: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       can_access_custodio_portal: {
         Args: Record<PropertyKey, never>
         Returns: boolean
