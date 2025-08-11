@@ -215,25 +215,32 @@ export const getDefaultMapping = (columns: ExcelColumn[]): MappingConfig => {
   
   columns.forEach(col => {
     const header = col.header.toLowerCase();
-    
-    // Try to auto-match common field names
-    if (header.includes('cliente')) {
+    const h = header.replace(/\s+/g, ' ');
+
+    // Try to auto-match common field names (more specific first)
+    if (h.includes('folio')) {
+      mapping[col.key] = 'folio';
+    } else if (h.includes('hora')) {
+      mapping[col.key] = 'hora_programacion';
+    } else if ((h.includes('cliente') && h.includes('id')) || h.includes('cliente_id')) {
       mapping[col.key] = 'cliente_id';
-    } else if (header.includes('fecha')) {
+    } else if (h.includes('cliente')) {
+      mapping[col.key] = 'cliente';
+    } else if (h.includes('fecha')) {
       mapping[col.key] = 'fecha_programada';
-    } else if (header.includes('origen')) {
+    } else if (h.includes('origen')) {
       mapping[col.key] = 'origen_texto';
-    } else if (header.includes('destino')) {
+    } else if (h.includes('destino')) {
       mapping[col.key] = 'destino_texto';
-    } else if (header.includes('tipo')) {
+    } else if (h.includes('tipo')) {
       mapping[col.key] = 'tipo_servicio';
-    } else if (header.includes('gadget')) {
+    } else if (h.includes('gadget')) {
       mapping[col.key] = 'requiere_gadgets';
-    } else if (header.includes('nota') || header.includes('comentario')) {
+    } else if (h.includes('nota') || h.includes('comentario')) {
       mapping[col.key] = 'notas_especiales';
-    } else if (header.includes('valor') || header.includes('precio')) {
+    } else if (h.includes('valor') || h.includes('precio')) {
       mapping[col.key] = 'valor_estimado';
-    } else if (header.includes('prioridad')) {
+    } else if (h.includes('prioridad')) {
       mapping[col.key] = 'prioridad';
     } else {
       mapping[col.key] = ''; // No mapping by default

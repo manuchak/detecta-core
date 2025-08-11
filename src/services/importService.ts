@@ -63,8 +63,11 @@ export const importServicios = async (
 
             // Set default values and prepare data for database
             const servicioData = {
+              folio: item.folio || undefined,
+              cliente: item.cliente || undefined,
               cliente_id: item.cliente_id,
               fecha_programada: item.fecha_programada,
+              hora_programacion: item.hora_programacion || undefined,
               hora_ventana_inicio: item.hora_ventana_inicio || '09:00',
               hora_ventana_fin: item.hora_ventana_fin || '17:00',
               origen_texto: item.origen_texto,
