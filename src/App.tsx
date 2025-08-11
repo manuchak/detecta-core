@@ -50,6 +50,7 @@ import SupplyDashboardExtended from '@/pages/supply/SupplyDashboardExtended';
 import SIERCPPage from '@/pages/evaluation/SIERCPPage';
 import SIERCPMethodologyPage from '@/pages/evaluation/SIERCPMethodologyPage';
 import ServiceWorkflowDocumentation from '@/pages/Documentation/ServiceWorkflowDocumentation';
+import PlaneacionDashboard from '@/pages/Planeacion/PlaneacionDashboard';
 
 import DuplicateCleanupPage from '@/pages/Maintenance/DuplicateCleanupPage';
 
@@ -491,6 +492,19 @@ function App() {
                 
                 {/* 404 route */}
                 <Route path="*" element={<NotFound />} />
+                {/* Planeación Custodias */}
+                <Route
+                  path="/planeacion"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'coordinador_operaciones', 'planificador']}>
+                        <DashboardLayout>
+                          <PlaneacionDashboard />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
               </Routes>
             </div>
           </Router>
