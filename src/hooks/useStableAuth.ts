@@ -49,33 +49,17 @@ export const useStableAuth = () => {
 
     console.log('🔧 StableAuth: Initializing...');
 
-    // Función para actualizar estado usando role seguro de base de datos
-    const updateAuthState = async (newSession: Session | null) => {
+    // Actualiza estado de forma síncrona; resolución de rol se hace aparte
+    const updateAuthState = (newSession: Session | null) => {
       if (!mounted.current) return;
 
       if (newSession?.user) {
-        const email = newSession.user.email || '';
-        
-        // Resolver rol desde base de datos de manera segura
-        let role: UserRole = 'unverified';
-        try {
-          const { data } = await supabase.rpc('get_current_user_role_secure');
-          role = (data as UserRole) || 'unverified';
-        } catch (error) {
-          console.warn('Failed to get user role:', error);
-        }
-        
-        const userPermissions = PERMISSIONS_MAP[role];
-
-        console.log(`✅ StableAuth: User ${email} -> Role: ${role}`);
-
         setUser(newSession.user);
         setSession(newSession);
-        setUserRole(role);
-        setPermissions(userPermissions);
-        setLoading(false);
+        setUserRole('unverified');
+        setPermissions(PERMISSIONS_MAP.unverified);
+        setLoading(true);
       } else {
-        console.log('❌ StableAuth: No user session');
         setUser(null);
         setSession(null);
         setUserRole('unverified');
@@ -84,15 +68,40 @@ export const useStableAuth = () => {
       }
     };
 
+    // Resolver rol de manera segura fuera del callback
+    const resolveRoleAndSet = async () => {
+      if (!mounted.current) return;
+      try {
+        const { data } = await supabase.rpc('get_current_user_role_secure');
+        const role = (data as UserRole) || 'unverified';
+        setUserRole(role);
+        setPermissions(PERMISSIONS_MAP[role]);
+      } catch (error) {
+        console.warn('Failed to get user role:', error);
+        setUserRole('unverified');
+        setPermissions(PERMISSIONS_MAP.unverified);
+      } finally {
+        if (mounted.current) setLoading(false);
+      }
+    };
+
     // Configurar listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log(`🔐 StableAuth: Auth event ${event}`);
       updateAuthState(session);
+      if (session?.user) {
+        setTimeout(resolveRoleAndSet, 0);
+      }
     });
 
     // Verificar sesión inicial
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
       updateAuthState(currentSession);
+      if (currentSession?.user) {
+        setTimeout(resolveRoleAndSet, 0);
+      } else {
+        setLoading(false);
+      }
     });
 
     return () => {

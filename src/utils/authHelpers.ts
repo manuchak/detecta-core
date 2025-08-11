@@ -13,7 +13,7 @@ export const getCurrentUserRole = async (): Promise<string | null> => {
     if (!user) return null;
     
     // Use the consolidated secure function
-    const { data, error } = await supabase.rpc('get_current_user_role');
+    const { data, error } = await supabase.rpc('get_current_user_role_secure');
 
     if (error) {
       console.error('Error getting user role:', error);
