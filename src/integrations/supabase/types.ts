@@ -4489,6 +4489,663 @@ export type Database = {
           },
         ]
       }
+      pc_asignaciones: {
+        Row: {
+          aceptada_en: string | null
+          confirmada_en: string | null
+          confirmada_por: string | null
+          confirmada_por_planificador: boolean | null
+          created_at: string | null
+          custodio_id: string
+          id: string
+          notas: string | null
+          oferta_id: string | null
+          servicio_id: string
+        }
+        Insert: {
+          aceptada_en?: string | null
+          confirmada_en?: string | null
+          confirmada_por?: string | null
+          confirmada_por_planificador?: boolean | null
+          created_at?: string | null
+          custodio_id: string
+          id?: string
+          notas?: string | null
+          oferta_id?: string | null
+          servicio_id: string
+        }
+        Update: {
+          aceptada_en?: string | null
+          confirmada_en?: string | null
+          confirmada_por?: string | null
+          confirmada_por_planificador?: boolean | null
+          created_at?: string | null
+          custodio_id?: string
+          id?: string
+          notas?: string | null
+          oferta_id?: string | null
+          servicio_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_asignaciones_custodio_id_fkey"
+            columns: ["custodio_id"]
+            isOneToOne: false
+            referencedRelation: "pc_custodios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pc_asignaciones_oferta_id_fkey"
+            columns: ["oferta_id"]
+            isOneToOne: false
+            referencedRelation: "pc_ofertas_custodio"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pc_asignaciones_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: true
+            referencedRelation: "pc_servicios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_audit_log: {
+        Row: {
+          accion: string
+          entidad: string
+          entidad_id: string | null
+          id: string
+          ip_address: unknown | null
+          payload: Json | null
+          timestamp: string | null
+          user_agent: string | null
+          usuario_id: string | null
+        }
+        Insert: {
+          accion: string
+          entidad: string
+          entidad_id?: string | null
+          id?: string
+          ip_address?: unknown | null
+          payload?: Json | null
+          timestamp?: string | null
+          user_agent?: string | null
+          usuario_id?: string | null
+        }
+        Update: {
+          accion?: string
+          entidad?: string
+          entidad_id?: string | null
+          id?: string
+          ip_address?: unknown | null
+          payload?: Json | null
+          timestamp?: string | null
+          user_agent?: string | null
+          usuario_id?: string | null
+        }
+        Relationships: []
+      }
+      pc_clientes: {
+        Row: {
+          activo: boolean | null
+          contacto_email: string | null
+          contacto_nombre: string
+          contacto_tel: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          nombre: string
+          notas: string | null
+          rfc: string | null
+          search_vector: unknown | null
+          sla_minutos_asignacion: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          contacto_email?: string | null
+          contacto_nombre: string
+          contacto_tel: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          nombre: string
+          notas?: string | null
+          rfc?: string | null
+          search_vector?: unknown | null
+          sla_minutos_asignacion?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          contacto_email?: string | null
+          contacto_nombre?: string
+          contacto_tel?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          nombre?: string
+          notas?: string | null
+          rfc?: string | null
+          search_vector?: unknown | null
+          sla_minutos_asignacion?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      pc_config_scoring: {
+        Row: {
+          activa: boolean | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          nombre_config: string
+          peso_antiguo_inactivo: number | null
+          peso_certificaciones: number | null
+          peso_confirmado_disponible: number | null
+          peso_distancia_origen: number | null
+          peso_gadgets: number | null
+          peso_match_tipo: number | null
+          peso_rating: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          activa?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          nombre_config: string
+          peso_antiguo_inactivo?: number | null
+          peso_certificaciones?: number | null
+          peso_confirmado_disponible?: number | null
+          peso_distancia_origen?: number | null
+          peso_gadgets?: number | null
+          peso_match_tipo?: number | null
+          peso_rating?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          activa?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          nombre_config?: string
+          peso_antiguo_inactivo?: number | null
+          peso_certificaciones?: number | null
+          peso_confirmado_disponible?: number | null
+          peso_distancia_origen?: number | null
+          peso_gadgets?: number | null
+          peso_match_tipo?: number | null
+          peso_rating?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      pc_costos_ingresos: {
+        Row: {
+          casetas: number | null
+          cobro_cliente: number | null
+          costo_custodio: number | null
+          created_at: string | null
+          id: string
+          margen: number | null
+          notas_costos: string | null
+          otros_costos: number | null
+          porcentaje_margen: number | null
+          servicio_id: string
+          updated_at: string | null
+          variacion: number | null
+          viaticos: number | null
+        }
+        Insert: {
+          casetas?: number | null
+          cobro_cliente?: number | null
+          costo_custodio?: number | null
+          created_at?: string | null
+          id?: string
+          margen?: number | null
+          notas_costos?: string | null
+          otros_costos?: number | null
+          porcentaje_margen?: number | null
+          servicio_id: string
+          updated_at?: string | null
+          variacion?: number | null
+          viaticos?: number | null
+        }
+        Update: {
+          casetas?: number | null
+          cobro_cliente?: number | null
+          costo_custodio?: number | null
+          created_at?: string | null
+          id?: string
+          margen?: number | null
+          notas_costos?: string | null
+          otros_costos?: number | null
+          porcentaje_margen?: number | null
+          servicio_id?: string
+          updated_at?: string | null
+          variacion?: number | null
+          viaticos?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_costos_ingresos_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "pc_servicios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_custodios: {
+        Row: {
+          certificaciones: string[] | null
+          comentarios: string | null
+          created_at: string | null
+          cuenta_bancaria: Json | null
+          dias_sin_actividad: number | null
+          disponibilidad:
+            | Database["public"]["Enums"]["disponibilidad_custodio"]
+            | null
+          documentos: string[] | null
+          email: string | null
+          estado: Database["public"]["Enums"]["estado_custodio"] | null
+          id: string
+          lat: number | null
+          lng: number | null
+          nombre: string
+          rating_promedio: number | null
+          search_vector: unknown | null
+          tel: string
+          tiene_gadgets: boolean | null
+          tipo_custodia: Database["public"]["Enums"]["tipo_custodia"] | null
+          ultima_actividad: string | null
+          updated_at: string | null
+          zona_base: string | null
+        }
+        Insert: {
+          certificaciones?: string[] | null
+          comentarios?: string | null
+          created_at?: string | null
+          cuenta_bancaria?: Json | null
+          dias_sin_actividad?: number | null
+          disponibilidad?:
+            | Database["public"]["Enums"]["disponibilidad_custodio"]
+            | null
+          documentos?: string[] | null
+          email?: string | null
+          estado?: Database["public"]["Enums"]["estado_custodio"] | null
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          nombre: string
+          rating_promedio?: number | null
+          search_vector?: unknown | null
+          tel: string
+          tiene_gadgets?: boolean | null
+          tipo_custodia?: Database["public"]["Enums"]["tipo_custodia"] | null
+          ultima_actividad?: string | null
+          updated_at?: string | null
+          zona_base?: string | null
+        }
+        Update: {
+          certificaciones?: string[] | null
+          comentarios?: string | null
+          created_at?: string | null
+          cuenta_bancaria?: Json | null
+          dias_sin_actividad?: number | null
+          disponibilidad?:
+            | Database["public"]["Enums"]["disponibilidad_custodio"]
+            | null
+          documentos?: string[] | null
+          email?: string | null
+          estado?: Database["public"]["Enums"]["estado_custodio"] | null
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          nombre?: string
+          rating_promedio?: number | null
+          search_vector?: unknown | null
+          tel?: string
+          tiene_gadgets?: boolean | null
+          tipo_custodia?: Database["public"]["Enums"]["tipo_custodia"] | null
+          ultima_actividad?: string | null
+          updated_at?: string | null
+          zona_base?: string | null
+        }
+        Relationships: []
+      }
+      pc_eventos_monitoreo: {
+        Row: {
+          adjuntos: string[] | null
+          created_at: string | null
+          created_by: string | null
+          detalle: string
+          id: string
+          notas_resolucion: string | null
+          resuelto: boolean | null
+          resuelto_en: string | null
+          resuelto_por: string | null
+          servicio_id: string
+          severidad: Database["public"]["Enums"]["severidad_evento"] | null
+          timestamp: string | null
+          tipo: Database["public"]["Enums"]["tipo_evento"]
+          ubicacion_lat: number | null
+          ubicacion_lng: number | null
+        }
+        Insert: {
+          adjuntos?: string[] | null
+          created_at?: string | null
+          created_by?: string | null
+          detalle: string
+          id?: string
+          notas_resolucion?: string | null
+          resuelto?: boolean | null
+          resuelto_en?: string | null
+          resuelto_por?: string | null
+          servicio_id: string
+          severidad?: Database["public"]["Enums"]["severidad_evento"] | null
+          timestamp?: string | null
+          tipo: Database["public"]["Enums"]["tipo_evento"]
+          ubicacion_lat?: number | null
+          ubicacion_lng?: number | null
+        }
+        Update: {
+          adjuntos?: string[] | null
+          created_at?: string | null
+          created_by?: string | null
+          detalle?: string
+          id?: string
+          notas_resolucion?: string | null
+          resuelto?: boolean | null
+          resuelto_en?: string | null
+          resuelto_por?: string | null
+          servicio_id?: string
+          severidad?: Database["public"]["Enums"]["severidad_evento"] | null
+          timestamp?: string | null
+          tipo?: Database["public"]["Enums"]["tipo_evento"]
+          ubicacion_lat?: number | null
+          ubicacion_lng?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_eventos_monitoreo_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "pc_servicios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_ofertas_custodio: {
+        Row: {
+          canal: Database["public"]["Enums"]["canal_comunicacion"] | null
+          created_at: string | null
+          custodio_id: string
+          enviada_en: string | null
+          estado: Database["public"]["Enums"]["estado_oferta"] | null
+          expira_en: string | null
+          id: string
+          mensaje_enviado: string | null
+          motivo_rechazo: string | null
+          ola_numero: number | null
+          respondida_en: string | null
+          score_asignacion: number | null
+          servicio_id: string
+        }
+        Insert: {
+          canal?: Database["public"]["Enums"]["canal_comunicacion"] | null
+          created_at?: string | null
+          custodio_id: string
+          enviada_en?: string | null
+          estado?: Database["public"]["Enums"]["estado_oferta"] | null
+          expira_en?: string | null
+          id?: string
+          mensaje_enviado?: string | null
+          motivo_rechazo?: string | null
+          ola_numero?: number | null
+          respondida_en?: string | null
+          score_asignacion?: number | null
+          servicio_id: string
+        }
+        Update: {
+          canal?: Database["public"]["Enums"]["canal_comunicacion"] | null
+          created_at?: string | null
+          custodio_id?: string
+          enviada_en?: string | null
+          estado?: Database["public"]["Enums"]["estado_oferta"] | null
+          expira_en?: string | null
+          id?: string
+          mensaje_enviado?: string | null
+          motivo_rechazo?: string | null
+          ola_numero?: number | null
+          respondida_en?: string | null
+          score_asignacion?: number | null
+          servicio_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_ofertas_custodio_custodio_id_fkey"
+            columns: ["custodio_id"]
+            isOneToOne: false
+            referencedRelation: "pc_custodios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pc_ofertas_custodio_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "pc_servicios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_rutas_frecuentes: {
+        Row: {
+          activa: boolean | null
+          cliente_id: string
+          created_at: string | null
+          destino_lat: number | null
+          destino_lng: number | null
+          destino_texto: string
+          id: string
+          km_estimados: number | null
+          nombre_ruta: string
+          origen_lat: number | null
+          origen_lng: number | null
+          origen_texto: string
+          tiempo_estimado_min: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          activa?: boolean | null
+          cliente_id: string
+          created_at?: string | null
+          destino_lat?: number | null
+          destino_lng?: number | null
+          destino_texto: string
+          id?: string
+          km_estimados?: number | null
+          nombre_ruta: string
+          origen_lat?: number | null
+          origen_lng?: number | null
+          origen_texto: string
+          tiempo_estimado_min?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          activa?: boolean | null
+          cliente_id?: string
+          created_at?: string | null
+          destino_lat?: number | null
+          destino_lng?: number | null
+          destino_texto?: string
+          id?: string
+          km_estimados?: number | null
+          nombre_ruta?: string
+          origen_lat?: number | null
+          origen_lng?: number | null
+          origen_texto?: string
+          tiempo_estimado_min?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_rutas_frecuentes_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "pc_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_servicios: {
+        Row: {
+          cliente_id: string
+          created_at: string | null
+          created_by: string | null
+          custodio_asignado_id: string | null
+          destino_lat: number | null
+          destino_lng: number | null
+          destino_texto: string
+          estado: Database["public"]["Enums"]["estado_servicio"] | null
+          fecha_programada: string
+          folio: string
+          hora_ventana_fin: string
+          hora_ventana_inicio: string
+          id: string
+          motivo_cancelacion: string | null
+          notas_especiales: string | null
+          origen_lat: number | null
+          origen_lng: number | null
+          origen_texto: string
+          prioridad: number | null
+          requiere_gadgets: boolean | null
+          tipo_servicio:
+            | Database["public"]["Enums"]["tipo_servicio_custodia"]
+            | null
+          updated_at: string | null
+          valor_estimado: number | null
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string | null
+          created_by?: string | null
+          custodio_asignado_id?: string | null
+          destino_lat?: number | null
+          destino_lng?: number | null
+          destino_texto: string
+          estado?: Database["public"]["Enums"]["estado_servicio"] | null
+          fecha_programada: string
+          folio: string
+          hora_ventana_fin: string
+          hora_ventana_inicio: string
+          id?: string
+          motivo_cancelacion?: string | null
+          notas_especiales?: string | null
+          origen_lat?: number | null
+          origen_lng?: number | null
+          origen_texto: string
+          prioridad?: number | null
+          requiere_gadgets?: boolean | null
+          tipo_servicio?:
+            | Database["public"]["Enums"]["tipo_servicio_custodia"]
+            | null
+          updated_at?: string | null
+          valor_estimado?: number | null
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          custodio_asignado_id?: string | null
+          destino_lat?: number | null
+          destino_lng?: number | null
+          destino_texto?: string
+          estado?: Database["public"]["Enums"]["estado_servicio"] | null
+          fecha_programada?: string
+          folio?: string
+          hora_ventana_fin?: string
+          hora_ventana_inicio?: string
+          id?: string
+          motivo_cancelacion?: string | null
+          notas_especiales?: string | null
+          origen_lat?: number | null
+          origen_lng?: number | null
+          origen_texto?: string
+          prioridad?: number | null
+          requiere_gadgets?: boolean | null
+          tipo_servicio?:
+            | Database["public"]["Enums"]["tipo_servicio_custodia"]
+            | null
+          updated_at?: string | null
+          valor_estimado?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_servicios_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "pc_clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pc_servicios_custodio_asignado_id_fkey"
+            columns: ["custodio_asignado_id"]
+            isOneToOne: false
+            referencedRelation: "pc_custodios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_touchpoints: {
+        Row: {
+          actor: Database["public"]["Enums"]["actor_touchpoint"]
+          adjuntos: string[] | null
+          created_at: string | null
+          created_by: string | null
+          duracion_min: number | null
+          id: string
+          medio: Database["public"]["Enums"]["canal_comunicacion"]
+          notas: string
+          servicio_id: string
+          timestamp: string | null
+        }
+        Insert: {
+          actor: Database["public"]["Enums"]["actor_touchpoint"]
+          adjuntos?: string[] | null
+          created_at?: string | null
+          created_by?: string | null
+          duracion_min?: number | null
+          id?: string
+          medio: Database["public"]["Enums"]["canal_comunicacion"]
+          notas: string
+          servicio_id: string
+          timestamp?: string | null
+        }
+        Update: {
+          actor?: Database["public"]["Enums"]["actor_touchpoint"]
+          adjuntos?: string[] | null
+          created_at?: string | null
+          created_by?: string | null
+          duracion_min?: number | null
+          id?: string
+          medio?: Database["public"]["Enums"]["canal_comunicacion"]
+          notas?: string
+          servicio_id?: string
+          timestamp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_touchpoints_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "pc_servicios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       point_rules: {
         Row: {
           category: string
@@ -7004,6 +7661,10 @@ export type Database = {
           fecha_calculo: string
         }[]
       }
+      calcular_distancia_km: {
+        Args: { lat1: number; lng1: number; lat2: number; lng2: number }
+        Returns: number
+      }
       calcular_puntos_viaje: {
         Args: { km_viaje: number; estado_viaje: string }
         Returns: number
@@ -7312,6 +7973,10 @@ export type Database = {
       generar_alertas_automaticas: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      generar_folio_servicio: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
       generate_recepcion_number: {
         Args: Record<PropertyKey, never>
@@ -8745,6 +9410,7 @@ export type Database = {
       }
     }
     Enums: {
+      actor_touchpoint: "C4" | "Planificador" | "Custodio" | "Cliente"
       app_role:
         | "owner"
         | "admin"
@@ -8760,6 +9426,33 @@ export type Database = {
         | "ejecutivo_ventas"
         | "coordinador_operaciones"
         | "tecnico_instalador"
+      canal_comunicacion: "whatsapp" | "app" | "telefono" | "email"
+      disponibilidad_custodio: "disponible" | "ocupado" | "off"
+      estado_custodio: "activo" | "inactivo"
+      estado_oferta: "enviada" | "aceptada" | "rechazada" | "expirada"
+      estado_servicio:
+        | "nuevo"
+        | "en_oferta"
+        | "asignado"
+        | "en_curso"
+        | "finalizado"
+        | "cancelado"
+      severidad_evento: "baja" | "media" | "alta" | "critica"
+      tipo_custodia: "armado" | "no_armado"
+      tipo_evento:
+        | "desvio"
+        | "jammer"
+        | "ign_on"
+        | "ign_off"
+        | "arribo_poi"
+        | "contacto_custodio"
+        | "contacto_cliente"
+        | "otro"
+      tipo_servicio_custodia:
+        | "traslado"
+        | "custodia_local"
+        | "escolta"
+        | "vigilancia"
       user_skill_type:
         | "dashboard_view"
         | "leads_management"
@@ -8910,6 +9603,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      actor_touchpoint: ["C4", "Planificador", "Custodio", "Cliente"],
       app_role: [
         "owner",
         "admin",
@@ -8925,6 +9619,36 @@ export const Constants = {
         "ejecutivo_ventas",
         "coordinador_operaciones",
         "tecnico_instalador",
+      ],
+      canal_comunicacion: ["whatsapp", "app", "telefono", "email"],
+      disponibilidad_custodio: ["disponible", "ocupado", "off"],
+      estado_custodio: ["activo", "inactivo"],
+      estado_oferta: ["enviada", "aceptada", "rechazada", "expirada"],
+      estado_servicio: [
+        "nuevo",
+        "en_oferta",
+        "asignado",
+        "en_curso",
+        "finalizado",
+        "cancelado",
+      ],
+      severidad_evento: ["baja", "media", "alta", "critica"],
+      tipo_custodia: ["armado", "no_armado"],
+      tipo_evento: [
+        "desvio",
+        "jammer",
+        "ign_on",
+        "ign_off",
+        "arribo_poi",
+        "contacto_custodio",
+        "contacto_cliente",
+        "otro",
+      ],
+      tipo_servicio_custodia: [
+        "traslado",
+        "custodia_local",
+        "escolta",
+        "vigilancia",
       ],
       user_skill_type: [
         "dashboard_view",
