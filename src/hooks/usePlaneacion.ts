@@ -18,8 +18,6 @@ import { toast } from 'sonner';
 import * as planeacionService from '@/services/planeacionService';
 import { FiltrosServicios, FiltrosCustodios, FiltrosClientes, ClienteForm, CustodioForm, ServicioForm } from '@/types/planeacion';
 
-const queryClient = useQueryClient();
-
 // =====================================================
 // HOOKS PARA CLIENTES
 // =====================================================
@@ -40,6 +38,7 @@ export const useCliente = (id: string) => {
 };
 
 export const useCreateCliente = () => {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: ClienteForm) => planeacionService.clientesService.create(data),
     onSuccess: () => {
@@ -53,6 +52,7 @@ export const useCreateCliente = () => {
 };
 
 export const useUpdateCliente = () => {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, cliente }: { id: string; cliente: Partial<ClienteForm> }) =>
       planeacionService.clientesService.update(id, cliente),
@@ -67,6 +67,7 @@ export const useUpdateCliente = () => {
 };
 
 export const useDeleteCliente = () => {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
       // For now, disable delete since it's not implemented in the service
@@ -102,6 +103,7 @@ export const useCustodio = (id: string) => {
 };
 
 export const useCreateCustodio = () => {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: CustodioForm) => planeacionService.custodiosService.create(data),
     onSuccess: () => {
@@ -115,6 +117,7 @@ export const useCreateCustodio = () => {
 };
 
 export const useUpdateCustodio = () => {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, custodio }: { id: string; custodio: Partial<CustodioForm> }) =>
       planeacionService.custodiosService.update(id, custodio),
@@ -129,6 +132,7 @@ export const useUpdateCustodio = () => {
 };
 
 export const useDeleteCustodio = () => {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
       // Use the actual updateDisponibilidad method
@@ -164,6 +168,7 @@ export const useServicio = (id: string) => {
 };
 
 export const useCreateServicio = () => {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: ServicioForm) => planeacionService.serviciosService.create(data),
     onSuccess: () => {
@@ -177,6 +182,7 @@ export const useCreateServicio = () => {
 };
 
 export const useUpdateServicio = () => {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, servicio }: { id: string; servicio: Partial<ServicioForm> }) =>
       planeacionService.serviciosService.update(id, servicio),
@@ -191,6 +197,7 @@ export const useUpdateServicio = () => {
 };
 
 export const useDeleteServicio = () => {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
       // For now, just update to cancelled since delete method is not implemented
