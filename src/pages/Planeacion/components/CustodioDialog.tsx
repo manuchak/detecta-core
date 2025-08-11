@@ -123,9 +123,15 @@ export default function CustodioDialog({
 
   const handleSubmit = async (values: z.infer<typeof custodioSchema>) => {
     const data: CustodioForm = {
-      ...values,
+      nombre: values.nombre,
+      tel: values.tel,
+      tiene_gadgets: values.tiene_gadgets,
+      tipo_custodia: values.tipo_custodia,
+      certificaciones: values.certificaciones,
       email: values.email || undefined,
       zona_base: values.zona_base || undefined,
+      lat: values.lat,
+      lng: values.lng,
       comentarios: values.comentarios || undefined,
     };
     

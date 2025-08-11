@@ -141,8 +141,20 @@ export default function ServicioDialog({
 
   const handleSubmit = async (values: z.infer<typeof servicioSchema>) => {
     const data: ServicioForm = {
-      ...values,
+      cliente_id: values.cliente_id,
       fecha_programada: format(values.fecha_programada, 'yyyy-MM-dd'),
+      hora_ventana_inicio: values.hora_ventana_inicio,
+      hora_ventana_fin: values.hora_ventana_fin,
+      origen_texto: values.origen_texto,
+      destino_texto: values.destino_texto,
+      tipo_servicio: values.tipo_servicio,
+      requiere_gadgets: values.requiere_gadgets,
+      prioridad: values.prioridad,
+      origen_lat: values.origen_lat,
+      origen_lng: values.origen_lng,
+      destino_lat: values.destino_lat,
+      destino_lng: values.destino_lng,
+      valor_estimado: values.valor_estimado,
       notas_especiales: values.notas_especiales || undefined,
     };
     

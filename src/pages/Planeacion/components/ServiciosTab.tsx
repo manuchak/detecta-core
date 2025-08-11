@@ -48,7 +48,10 @@ export default function ServiciosTab() {
 
   const handleUpdate = async (data: ServicioForm) => {
     if (editingServicio) {
-      await updateMutation.mutateAsync({ id: editingServicio.id, data });
+      await updateMutation.mutateAsync({ 
+        id: editingServicio.id, 
+        servicio: data 
+      });
       setEditingServicio(null);
       setDialogOpen(false);
     }
@@ -72,8 +75,8 @@ export default function ServiciosTab() {
     setDeleteDialogOpen(true);
   };
 
-  const getEstadoBadge = (estado: string) => {
-    const variants = {
+  const getEstadoBadge = (estado: string): "default" | "secondary" | "destructive" | "outline" => {
+    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       'nuevo': 'default',
       'en_oferta': 'secondary',
       'asignado': 'outline',
@@ -81,17 +84,17 @@ export default function ServiciosTab() {
       'finalizado': 'default',
       'cancelado': 'destructive'
     };
-    return variants[estado as keyof typeof variants] || 'default';
+    return variants[estado] || 'default';
   };
 
-  const getTipoServicioBadge = (tipo: string) => {
-    const variants = {
+  const getTipoServicioBadge = (tipo: string): "default" | "secondary" | "destructive" | "outline" => {
+    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       'traslado': 'default',
       'custodia_local': 'secondary',
       'escolta': 'outline',
       'vigilancia': 'default'
     };
-    return variants[tipo as keyof typeof variants] || 'default';
+    return variants[tipo] || 'default';
   };
 
   const columns: ColumnDef<Servicio>[] = [

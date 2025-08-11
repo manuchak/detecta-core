@@ -91,7 +91,10 @@ export default function ClienteDialog({
 
   const handleSubmit = async (values: z.infer<typeof clienteSchema>) => {
     const data: ClienteForm = {
-      ...values,
+      nombre: values.nombre,
+      contacto_nombre: values.contacto_nombre,
+      contacto_tel: values.contacto_tel,
+      sla_minutos_asignacion: values.sla_minutos_asignacion,
       contacto_email: values.contacto_email || undefined,
       rfc: values.rfc || undefined,
       notas: values.notas || undefined,

@@ -45,7 +45,10 @@ export default function ClientesTab() {
 
   const handleUpdate = async (data: ClienteForm) => {
     if (editingCliente) {
-      await updateMutation.mutateAsync({ id: editingCliente.id, data });
+      await updateMutation.mutateAsync({ 
+        id: editingCliente.id, 
+        cliente: data 
+      });
       setEditingCliente(null);
       setDialogOpen(false);
     }

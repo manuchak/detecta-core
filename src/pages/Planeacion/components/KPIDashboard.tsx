@@ -125,16 +125,19 @@ export default function KPIDashboard() {
           <CardContent className="space-y-4">
             {stats?.servicios_por_estado && Object.entries(stats.servicios_por_estado).map(([estado, cantidad]) => {
               const total = stats.total_servicios || 1;
-              const percentage = (cantidad / total) * 100;
+              const percentage = (Number(cantidad) / total) * 100;
               
-              const badgeVariant = {
-                'nuevo': 'default',
-                'en_oferta': 'secondary',
-                'asignado': 'outline',
-                'en_curso': 'default',
-                'finalizado': 'default',
-                'cancelado': 'destructive'
-              }[estado] as any || 'default';
+              const badgeVariant = (() => {
+                const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+                  'nuevo': 'default',
+                  'en_oferta': 'secondary',
+                  'asignado': 'outline',
+                  'en_curso': 'default',
+                  'finalizado': 'default',
+                  'cancelado': 'destructive'
+                };
+                return variants[estado] || 'default';
+              })();
 
               return (
                 <div key={estado} className="space-y-2">
@@ -143,7 +146,7 @@ export default function KPIDashboard() {
                       <Badge variant={badgeVariant} className="text-xs">
                         {estado.replace('_', ' ').toUpperCase()}
                       </Badge>
-                      <span className="text-sm">{cantidad}</span>
+                      <span className="text-sm">{Number(cantidad)}</span>
                     </div>
                     <span className="text-sm text-muted-foreground">
                       {Math.round(percentage)}%

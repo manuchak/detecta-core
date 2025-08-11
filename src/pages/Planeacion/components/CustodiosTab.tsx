@@ -45,7 +45,10 @@ export default function CustodiosTab() {
 
   const handleUpdate = async (data: CustodioForm) => {
     if (editingCustodio) {
-      await updateMutation.mutateAsync({ id: editingCustodio.id, data });
+      await updateMutation.mutateAsync({ 
+        id: editingCustodio.id, 
+        custodio: data 
+      });
       setEditingCustodio(null);
       setDialogOpen(false);
     }
@@ -69,16 +72,16 @@ export default function CustodiosTab() {
     setDeleteDialogOpen(true);
   };
 
-  const getDisponibilidadBadge = (disponibilidad: string) => {
-    const variants = {
+  const getDisponibilidadBadge = (disponibilidad: string): "default" | "secondary" | "destructive" | "outline" => {
+    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       'disponible': 'default',
       'ocupado': 'secondary',
       'off': 'destructive'
     };
-    return variants[disponibilidad as keyof typeof variants] || 'default';
+    return variants[disponibilidad] || 'default';
   };
 
-  const getEstadoBadge = (estado: string) => {
+  const getEstadoBadge = (estado: string): "default" | "secondary" | "destructive" | "outline" => {
     return estado === 'activo' ? 'default' : 'secondary';
   };
 
