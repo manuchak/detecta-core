@@ -93,12 +93,7 @@ const ROLE_PERMISSIONS: Record<UserRole, AuthState['permissions']> = {
   },
 };
 
-// Mapeo determinista de emails a roles (para casos especiales)
-const EMAIL_TO_ROLE_MAP: Record<string, UserRole> = {
-  'admin@admin.com': 'admin',
-  'brenda.jimenez@detectasecurity.io': 'supply_admin',
-  'marbelli.casillas@detectasecurity.io': 'supply_admin',
-};
+// Remove hardcoded email bypasses for security
 
 export const useUnifiedAuth = () => {
   const [authState, setAuthState] = useState<AuthState>({
@@ -112,20 +107,10 @@ export const useUnifiedAuth = () => {
   const mountedRef = useRef(true);
   const roleResolvedRef = useRef(false);
 
-  // Función determinista para obtener rol
+  // Función para obtener rol de base de datos de manera segura
   const resolveUserRole = useCallback(async (user: User): Promise<UserRole> => {
-    // 1. Verificar email directo primero (más rápido y determinista)
-    const directRole = EMAIL_TO_ROLE_MAP[user.email || ''];
-    if (directRole) {
-      console.log(`🎯 Direct role resolution: ${user.email} -> ${directRole}`);
-      return directRole;
-    }
-
-    // 2. Consultar base de datos como fallback
     try {
-      const { data, error } = await supabase.rpc('get_user_role_safe', {
-        user_uid: user.id
-      });
+      const { data, error } = await supabase.rpc('get_current_user_role_secure');
 
       if (error) {
         console.warn('⚠️ Role DB query failed:', error);

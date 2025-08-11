@@ -28,12 +28,7 @@ const PERMISSIONS_MAP: Record<UserRole, AuthPermissions> = {
   unverified: { canViewLeads: false, canEditLeads: false, canManageUsers: false, canViewDashboard: false },
 };
 
-// Mapeo directo de emails conocidos
-const KNOWN_USERS: Record<string, UserRole> = {
-  'admin@admin.com': 'admin',
-  'brenda.jimenez@detectasecurity.io': 'supply_admin',
-  'marbelli.casillas@detectasecurity.io': 'supply_admin',
-};
+// Remove hardcoded email bypasses for security
 
 export const useStableAuth = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -54,13 +49,22 @@ export const useStableAuth = () => {
 
     console.log('🔧 StableAuth: Initializing...');
 
-    // Función para actualizar estado
-    const updateAuthState = (newSession: Session | null) => {
+    // Función para actualizar estado usando role seguro de base de datos
+    const updateAuthState = async (newSession: Session | null) => {
       if (!mounted.current) return;
 
       if (newSession?.user) {
         const email = newSession.user.email || '';
-        const role = KNOWN_USERS[email] || 'unverified';
+        
+        // Resolver rol desde base de datos de manera segura
+        let role: UserRole = 'unverified';
+        try {
+          const { data } = await supabase.rpc('get_current_user_role_secure');
+          role = (data as UserRole) || 'unverified';
+        } catch (error) {
+          console.warn('Failed to get user role:', error);
+        }
+        
         const userPermissions = PERMISSIONS_MAP[role];
 
         console.log(`✅ StableAuth: User ${email} -> Role: ${role}`);

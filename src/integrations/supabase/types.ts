@@ -7480,6 +7480,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_current_user_role_secure: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_current_user_roles_safe: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -8144,6 +8148,72 @@ export type Database = {
           id_custodio: string
           tiempo_retraso: number
           puntos_ganados: number
+        }[]
+      }
+      get_user_servicios_secure: {
+        Args: { max_records?: number }
+        Returns: {
+          armado: string | null
+          auto: string | null
+          cantidad_transportes: string | null
+          casetas: string | null
+          cobro_cliente: number | null
+          comentarios_adicionales: string | null
+          contacto_emergencia: string | null
+          costo_custodio: string | null
+          creado_por: string | null
+          creado_via: string | null
+          created_at: string | null
+          destino: string | null
+          duracion_servicio: unknown | null
+          estado: string | null
+          fecha_contratacion: string | null
+          fecha_hora_asignacion: string | null
+          fecha_hora_cita: string | null
+          fecha_primer_servicio: string | null
+          folio_cliente: string | null
+          gadget: string | null
+          gadget_solicitado: string | null
+          gm_transport_id: string | null
+          hora_arribo: string | null
+          hora_finalizacion: string | null
+          hora_inicio_custodia: string | null
+          hora_presentacion: string | null
+          id: number | null
+          id_cotizacion: string | null
+          id_custodio: string | null
+          id_servicio: string | null
+          km_extras: string | null
+          km_recorridos: number | null
+          km_teorico: number | null
+          local_foraneo: string | null
+          nombre_armado: string | null
+          nombre_cliente: string | null
+          nombre_custodio: string | null
+          nombre_operador_adicional: string | null
+          nombre_operador_transporte: string | null
+          origen: string | null
+          placa: string | null
+          placa_carga: string | null
+          placa_carga_adicional: string | null
+          presentacion: string | null
+          proveedor: string | null
+          ruta: string | null
+          telefono: string | null
+          telefono_armado: string | null
+          telefono_emergencia: string | null
+          telefono_operador: string | null
+          telefono_operador_adicional: string | null
+          tiempo_estimado: string | null
+          tiempo_punto_origen: string | null
+          tiempo_retraso: unknown | null
+          tipo_carga: string | null
+          tipo_carga_adicional: string | null
+          tipo_gadget: string | null
+          tipo_servicio: string | null
+          tipo_unidad: string | null
+          tipo_unidad_adicional: string | null
+          updated_time: string | null
         }[]
       }
       get_user_skills: {
