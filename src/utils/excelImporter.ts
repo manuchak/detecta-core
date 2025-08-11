@@ -14,13 +14,17 @@ export interface ExcelData {
   columns: ExcelColumn[];
   rows: ExcelRow[];
   fileName: string;
+  sheets: string[];
+  selectedSheet: string;
+  headerRow: number;
+  previewRows: any[][];
 }
 
 export interface MappingConfig {
   [excelColumn: string]: string; // maps excel column to database field
 }
 
-export const parseExcelFile = async (file: File): Promise<ExcelData> => {
+export const parseExcelFile = async (file: File, selectedSheet?: string, headerRow?: number): Promise<ExcelData> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     
@@ -29,20 +33,44 @@ export const parseExcelFile = async (file: File): Promise<ExcelData> => {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
         
-        // Get the first sheet
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
+        if (workbook.SheetNames.length === 0) {
+          throw new Error('El archivo Excel no contiene hojas válidas');
+        }
         
-        // Convert to JSON with header row
+        // If no sheet selected, return basic info for sheet selection
+        if (!selectedSheet) {
+          const firstSheet = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheet];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+          
+          resolve({
+            columns: [],
+            rows: [],
+            fileName: file.name,
+            sheets: workbook.SheetNames,
+            selectedSheet: firstSheet,
+            headerRow: 1,
+            previewRows: jsonData.slice(0, 10) // First 10 rows for preview
+          });
+          return;
+        }
+        
+        const worksheet = workbook.Sheets[selectedSheet];
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
         
         if (jsonData.length === 0) {
-          throw new Error('El archivo Excel está vacío');
+          throw new Error('La hoja seleccionada está vacía');
         }
         
-        // Extract headers from first row
-        const headers = jsonData[0] as string[];
-        const dataRows = jsonData.slice(1);
+        const actualHeaderRow = (headerRow || 1) - 1; // Convert to 0-based index
+        
+        if (actualHeaderRow >= jsonData.length) {
+          throw new Error('La fila de encabezados especificada no existe');
+        }
+        
+        // Extract headers from specified row
+        const headers = jsonData[actualHeaderRow] as string[];
+        const dataRows = jsonData.slice(actualHeaderRow + 1);
         
         // Create columns with sample data
         const columns: ExcelColumn[] = headers.map((header, index) => ({
@@ -63,7 +91,11 @@ export const parseExcelFile = async (file: File): Promise<ExcelData> => {
         resolve({
           columns,
           rows,
-          fileName: file.name
+          fileName: file.name,
+          sheets: workbook.SheetNames,
+          selectedSheet,
+          headerRow: headerRow || 1,
+          previewRows: jsonData.slice(0, 10)
         });
       } catch (error) {
         reject(error);

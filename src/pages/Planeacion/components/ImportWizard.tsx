@@ -17,6 +17,9 @@ import {
   ArrowLeft,
   ArrowRight
 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import ImportMappingStep from './ImportMappingStep';
 import ImportPreviewStep from './ImportPreviewStep';
@@ -39,6 +42,8 @@ interface WizardState {
   mapping: MappingConfig;
   importResult: ImportResult | null;
   importProgress: ImportProgress | null;
+  selectedSheet: string;
+  headerRow: number;
 }
 
 export default function ImportWizard({
@@ -52,7 +57,9 @@ export default function ImportWizard({
     excelData: null,
     mapping: {},
     importResult: null,
-    importProgress: null
+    importProgress: null,
+    selectedSheet: '',
+    headerRow: 1
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -65,7 +72,9 @@ export default function ImportWizard({
       excelData: null,
       mapping: {},
       importResult: null,
-      importProgress: null
+      importProgress: null,
+      selectedSheet: '',
+      headerRow: 1
     });
     setError(null);
     setIsLoading(false);
@@ -80,11 +89,32 @@ export default function ImportWizard({
 
     try {
       const data = await parseExcelFile(file);
+      setState(prev => ({
+        ...prev,
+        file,
+        excelData: data,
+        selectedSheet: data.selectedSheet,
+        headerRow: data.headerRow
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al procesar el archivo');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSheetAndHeaderConfirm = async () => {
+    if (!state.file) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const data = await parseExcelFile(state.file, state.selectedSheet, state.headerRow);
       const defaultMapping = getDefaultMapping(data.columns);
       
       setState(prev => ({
         ...prev,
-        file,
         excelData: data,
         mapping: defaultMapping,
         step: 'mapping'
@@ -198,35 +228,119 @@ export default function ImportWizard({
                 </p>
               </div>
 
-              <div className="border-2 border-dashed border-muted rounded-lg p-8">
-                <div className="text-center">
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                    id="excel-upload"
-                    disabled={isLoading}
-                  />
-                  <label
-                    htmlFor="excel-upload"
-                    className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-                  >
-                    <Upload className="h-4 w-4" />
-                    {isLoading ? 'Procesando...' : 'Seleccionar Archivo'}
-                  </label>
-                  
-                  {state.file && (
-                    <div className="mt-4 flex items-center justify-center gap-2">
-                      <FileText className="h-4 w-4 text-green-600" />
-                      <span className="text-sm">{state.file.name}</span>
-                      <Badge variant="secondary">
-                        {(state.file.size / 1024 / 1024).toFixed(1)} MB
-                      </Badge>
+              {!state.file ? (
+                <div className="border-2 border-dashed border-muted rounded-lg p-8">
+                  <div className="text-center">
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      id="excel-upload"
+                      disabled={isLoading}
+                    />
+                    <label
+                      htmlFor="excel-upload"
+                      className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                    >
+                      <Upload className="h-4 w-4" />
+                      {isLoading ? 'Procesando...' : 'Seleccionar Archivo'}
+                    </label>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-center gap-2 p-4 bg-muted/50 rounded-lg">
+                    <FileText className="h-4 w-4 text-green-600" />
+                    <span className="text-sm font-medium">{state.file.name}</span>
+                    <Badge variant="secondary">
+                      {(state.file.size / 1024 / 1024).toFixed(1)} MB
+                    </Badge>
+                  </div>
+
+                  {state.excelData && (
+                    <div className="space-y-4">
+                      {/* Sheet Selection */}
+                      {state.excelData.sheets.length > 1 && (
+                        <div className="space-y-2">
+                          <Label>Seleccionar Hoja de Trabajo</Label>
+                          <Select 
+                            value={state.selectedSheet} 
+                            onValueChange={(value) => setState(prev => ({...prev, selectedSheet: value}))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecciona una hoja" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {state.excelData.sheets.map(sheet => (
+                                <SelectItem key={sheet} value={sheet}>{sheet}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+
+                      {/* Header Row Selection */}
+                      <div className="space-y-2">
+                        <Label>Fila de Encabezados</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="20"
+                          value={state.headerRow}
+                          onChange={(e) => setState(prev => ({...prev, headerRow: parseInt(e.target.value) || 1}))}
+                          className="w-24"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Especifica en qué fila se encuentran los encabezados de las columnas
+                        </p>
+                      </div>
+
+                      {/* Preview */}
+                      <div className="space-y-2">
+                        <Label>Vista Previa</Label>
+                        <div className="border rounded-lg overflow-hidden">
+                          <div className="overflow-x-auto max-h-40">
+                            <table className="w-full text-xs">
+                              <tbody>
+                                {state.excelData.previewRows.slice(0, 10).map((row, rowIndex) => (
+                                  <tr 
+                                    key={rowIndex} 
+                                    className={rowIndex === state.headerRow - 1 ? 'bg-primary/10 font-medium' : ''}
+                                  >
+                                    <td className="p-1 text-center text-muted-foreground border-r w-8">
+                                      {rowIndex + 1}
+                                    </td>
+                                    {row.slice(0, 6).map((cell, cellIndex) => (
+                                      <td key={cellIndex} className="p-1 border-r text-center">
+                                        {cell?.toString() || ''}
+                                      </td>
+                                    ))}
+                                    {row.length > 6 && (
+                                      <td className="p-1 text-muted-foreground">...</td>
+                                    )}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          La fila resaltada será usada como encabezados
+                        </p>
+                      </div>
+
+                      <Button 
+                        onClick={handleSheetAndHeaderConfirm}
+                        disabled={isLoading}
+                        className="w-full"
+                      >
+                        {isLoading ? 'Procesando...' : 'Continuar'}
+                      </Button>
                     </div>
                   )}
                 </div>
-              </div>
+              )}
 
               {error && (
                 <div className="flex items-center gap-2 p-4 bg-destructive/10 border border-destructive rounded-lg">
@@ -238,7 +352,7 @@ export default function ImportWizard({
               <div className="bg-muted/50 rounded-lg p-4">
                 <h4 className="font-medium mb-2">Formato esperado:</h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Primera fila debe contener los encabezados</li>
+                  <li>• Los encabezados pueden estar en cualquier fila</li>
                   <li>• Columnas recomendadas: Cliente, Fecha, Origen, Destino, Tipo</li>
                   <li>• Formato de archivo: Excel (.xlsx)</li>
                   <li>• Máximo 10,000 registros por importación</li>
