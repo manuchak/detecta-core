@@ -220,7 +220,7 @@ export default function ImportWizard({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+      <DialogContent className="max-w-4xl h-[90vh] max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <StepIcon className="h-5 w-5" />
@@ -241,7 +241,7 @@ export default function ImportWizard({
         </div>
 
         {/* Step Content */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto min-h-0">
           {/* Upload Step */}
           {state.step === 'upload' && (
             <div className="space-y-6 py-6">
