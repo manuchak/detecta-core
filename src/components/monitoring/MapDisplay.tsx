@@ -46,7 +46,7 @@ const MapDisplay = ({ className, title = "Monitoreo en Tiempo Real" }: MapDispla
       .setLngLat([-99.1332, 19.4326])
       .setPopup(
         new mapboxgl.Popup({ offset: 25 })
-          .setHTML('<h3>Vehículo 1</h3><p>En ruta</p>')
+          .setText('Vehículo 1 - En ruta')
       )
       .addTo(map.current);
 

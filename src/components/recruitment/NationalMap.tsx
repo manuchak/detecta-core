@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Users, MapPin } from 'lucide-react';
 import type { ZonaOperacion, MetricaDemandaZona, AlertaSistema, CandidatoCustodio } from '@/hooks/useNationalRecruitment';
+import { sanitize } from '@/utils/sanitize';
 
 interface NationalMapProps {
   zonas: ZonaOperacion[];
@@ -94,10 +95,12 @@ export const NationalMap: React.FC<NationalMapProps> = ({
       el.textContent = texto;
 
       // Popup informativo
+      const zonaNombre = sanitize(zona.nombre);
+      const estadosList = zona.estados_incluidos ? zona.estados_incluidos.map(sanitize).join(', ') : '';
       const popupContent = `
         <div style="padding: 12px; max-width: 250px;">
           <h3 style="margin: 0 0 8px 0; color: ${color}; font-weight: bold;">
-            ${zona.nombre}
+            ${zonaNombre}
           </h3>
           <p style="margin: 4px 0; font-size: 12px;">
             <strong>Custodios activos:</strong> ${custodiosActivos}
@@ -112,7 +115,7 @@ export const NationalMap: React.FC<NationalMapProps> = ({
           </p>
           ${zona.estados_incluidos ? `
             <p style="margin: 4px 0; font-size: 12px;">
-              <strong>Estados:</strong> ${zona.estados_incluidos.join(', ')}
+              <strong>Estados:</strong> ${estadosList}
             </p>
           ` : ''}
         </div>
@@ -156,25 +159,29 @@ export const NationalMap: React.FC<NationalMapProps> = ({
         'activo': '#22c55e'
       }[candidato.estado_proceso || 'lead'] || '#94a3b8';
 
+      const candNombre = sanitize(candidato.nombre);
+      const candEstado = sanitize(candidato.estado_proceso || 'Lead');
+      const fuente = sanitize(candidato.fuente_reclutamiento || 'N/A');
+      const telefono = candidato.telefono ? sanitize(candidato.telefono) : '';
       const popupContent = `
         <div style="padding: 8px; max-width: 250px;">
-          <h4 style="margin: 0 0 8px 0; font-weight: bold;">${candidato.nombre}</h4>
+          <h4 style="margin: 0 0 8px 0; font-weight: bold;">${candNombre}</h4>
           <p style="margin: 2px 0; font-size: 12px;">
-            <strong>Estado:</strong> ${candidato.estado_proceso || 'Lead'}
+            <strong>Estado:</strong> ${candEstado}
           </p>
           <p style="margin: 2px 0; font-size: 12px;">
-            <strong>Fuente:</strong> ${candidato.fuente_reclutamiento || 'N/A'}
+            <strong>Fuente:</strong> ${fuente}
           </p>
           <p style="margin: 2px 0; font-size: 12px;">
             <strong>Calificación:</strong> ${candidato.calificacion_inicial || 'N/A'}/10
           </p>
           ${candidato.telefono ? `
             <p style="margin: 2px 0; font-size: 12px;">
-              <strong>Teléfono:</strong> ${candidato.telefono}
+              <strong>Teléfono:</strong> ${telefono}
             </p>
           ` : ''}
-          ${candidato.experiencia_seguridad ? '<p style="margin: 2px 0; font-size: 12px; color: #22c55e;">✓ Experiencia en seguridad</p>' : ''}
-          ${candidato.vehiculo_propio ? '<p style="margin: 2px 0; font-size: 12px; color: #22c55e;">✓ Vehículo propio</p>' : ''}
+          ${candidato.experiencia_seguridad ? "<p style='margin: 2px 0; font-size: 12px; color: #22c55e;'>✓ Experiencia en seguridad</p>" : ''}
+          ${candidato.vehiculo_propio ? "<p style='margin: 2px 0; font-size: 12px; color: #22c55e;'>✓ Vehículo propio</p>" : ''}
         </div>
       `;
 
