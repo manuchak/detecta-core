@@ -13,12 +13,14 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -26,24 +28,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
 import { Custodio, CustodioForm } from '@/types/planeacion';
 
 const custodioSchema = z.object({
-  nombre: z.string().min(1, 'El nombre es requerido'),
-  tel: z.string().min(1, 'El teléfono es requerido'),
+  nombre: z.string().min(1, 'Nombre es requerido'),
+  tel: z.string().min(10, 'Teléfono debe tener al menos 10 dígitos'),
   email: z.string().email('Email inválido').optional().or(z.literal('')),
   zona_base: z.string().optional(),
-  lat: z.number().optional(),
-  lng: z.number().optional(),
-  tiene_gadgets: z.boolean(),
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
   tipo_custodia: z.enum(['armado', 'no_armado']),
-  certificaciones: z.array(z.string()),
+  tiene_gadgets: z.boolean().default(false),
+  certificaciones: z.array(z.string()).default([]),
   comentarios: z.string().optional(),
 });
 
@@ -55,17 +54,6 @@ interface CustodioDialogProps {
   loading?: boolean;
 }
 
-const certificacionesDisponibles = [
-  'Manejo de Armas',
-  'Primeros Auxilios',
-  'Defensa Personal',
-  'Conducción Defensiva',
-  'Manejo de Situaciones de Crisis',
-  'Protección Ejecutiva',
-  'Seguridad Privada',
-  'Vigilancia',
-];
-
 export default function CustodioDialog({
   open,
   onOpenChange,
@@ -73,19 +61,15 @@ export default function CustodioDialog({
   onSubmit,
   loading = false,
 }: CustodioDialogProps) {
-  const isEditing = !!custodio;
-
-  const form = useForm<z.infer<typeof custodioSchema>>({
+  const form = useForm<CustodioForm>({
     resolver: zodResolver(custodioSchema),
     defaultValues: {
       nombre: '',
       tel: '',
       email: '',
       zona_base: '',
-      lat: undefined,
-      lng: undefined,
-      tiene_gadgets: false,
       tipo_custodia: 'no_armado',
+      tiene_gadgets: false,
       certificaciones: [],
       comentarios: '',
     },
@@ -100,75 +84,55 @@ export default function CustodioDialog({
         zona_base: custodio.zona_base || '',
         lat: custodio.lat,
         lng: custodio.lng,
-        tiene_gadgets: custodio.tiene_gadgets,
         tipo_custodia: custodio.tipo_custodia,
-        certificaciones: custodio.certificaciones,
+        tiene_gadgets: custodio.tiene_gadgets,
+        certificaciones: custodio.certificaciones || [],
         comentarios: custodio.comentarios || '',
       });
     } else {
-      form.reset({
-        nombre: '',
-        tel: '',
-        email: '',
-        zona_base: '',
-        lat: undefined,
-        lng: undefined,
-        tiene_gadgets: false,
-        tipo_custodia: 'no_armado',
-        certificaciones: [],
-        comentarios: '',
-      });
+      form.reset();
     }
   }, [custodio, form]);
 
-  const handleSubmit = async (values: z.infer<typeof custodioSchema>) => {
-    const data: CustodioForm = {
-      nombre: values.nombre,
-      tel: values.tel,
-      tiene_gadgets: values.tiene_gadgets,
-      tipo_custodia: values.tipo_custodia,
-      certificaciones: values.certificaciones,
-      email: values.email || undefined,
-      zona_base: values.zona_base || undefined,
-      lat: values.lat,
-      lng: values.lng,
-      comentarios: values.comentarios || undefined,
-    };
-    
+  const handleSubmit = async (data: CustodioForm) => {
     await onSubmit(data);
     form.reset();
   };
 
-  const certificaciones = form.watch('certificaciones');
-
-  const addCertificacion = (cert: string) => {
-    if (!certificaciones.includes(cert)) {
-      form.setValue('certificaciones', [...certificaciones, cert]);
+  const addCertificacion = () => {
+    const certificaciones = form.getValues('certificaciones');
+    const nuevaCert = prompt('Ingrese la certificación:');
+    if (nuevaCert?.trim()) {
+      form.setValue('certificaciones', [...certificaciones, nuevaCert.trim()]);
     }
   };
 
-  const removeCertificacion = (cert: string) => {
-    form.setValue('certificaciones', certificaciones.filter(c => c !== cert));
+  const removeCertificacion = (index: number) => {
+    const certificaciones = form.getValues('certificaciones');
+    form.setValue('certificaciones', certificaciones.filter((_, i) => i !== index));
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? 'Editar Custodio' : 'Nuevo Custodio'}
+            {custodio ? 'Editar Custodio' : 'Nuevo Custodio'}
           </DialogTitle>
           <DialogDescription>
-            {isEditing 
-              ? 'Modifica la información del custodio'
-              : 'Ingresa los datos del nuevo custodio'
+            {custodio 
+              ? 'Modifica los datos del custodio'
+              : 'Registra un nuevo custodio en el sistema'
             }
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+            {/* Información Personal */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Información Personal</h3>
+              
               <FormField
                 control={form.control}
                 name="nombre"
@@ -176,63 +140,48 @@ export default function CustodioDialog({
                   <FormItem>
                     <FormLabel>Nombre Completo</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ej. Juan Pérez García" {...field} />
+                      <Input placeholder="Nombre del custodio" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="tel"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Teléfono</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ej. +52 55 1234 5678" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="tel"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Teléfono</FormLabel>
+                      <FormControl>
+                        <Input placeholder="+52 555 123 4567" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email (Opcional)</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="custodio@email.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email (Opcional)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="email" 
-                        placeholder="Ej. custodio@email.com" 
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="zona_base"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Zona Base (Opcional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ej. Polanco, CDMX" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+            {/* Configuración del Servicio */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Configuración del Servicio</h3>
+              
               <FormField
                 control={form.control}
                 name="tipo_custodia"
@@ -242,29 +191,53 @@ export default function CustodioDialog({
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecciona el tipo" />
+                          <SelectValue />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="no_armado">No Armado</SelectItem>
                         <SelectItem value="armado">Armado</SelectItem>
+                        <SelectItem value="no_armado">No Armado</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+            </div>
 
+            {/* Ubicación */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Ubicación Base</h3>
+              
+              <FormField
+                control={form.control}
+                name="zona_base"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Zona Base</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ej: Polanco, CDMX" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Configuración Adicional */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Configuración Adicional</h3>
+              
               <FormField
                 control={form.control}
                 name="tiene_gadgets"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                     <div className="space-y-0.5">
-                      <FormLabel>Tiene Gadgets</FormLabel>
-                      <FormDescription>
-                        Cuenta con equipamiento tecnológico
-                      </FormDescription>
+                      <FormLabel className="text-base">Tiene Gadgets</FormLabel>
+                      <div className="text-sm text-muted-foreground">
+                        El custodio cuenta con equipamiento tecnológico
+                      </div>
                     </div>
                     <FormControl>
                       <Switch
@@ -275,120 +248,56 @@ export default function CustodioDialog({
                   </FormItem>
                 )}
               />
-            </div>
 
-            <div className="grid grid-cols-2 gap-4">
+              {/* Certificaciones */}
+              <div className="space-y-2">
+                <FormLabel>Certificaciones</FormLabel>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {form.watch('certificaciones').map((cert, index) => (
+                    <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                      {cert}
+                      <X 
+                        className="h-3 w-3 cursor-pointer" 
+                        onClick={() => removeCertificacion(index)}
+                      />
+                    </Badge>
+                  ))}
+                </div>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={addCertificacion}
+                >
+                  Agregar Certificación
+                </Button>
+              </div>
+
               <FormField
                 control={form.control}
-                name="lat"
+                name="comentarios"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Latitud (Opcional)</FormLabel>
+                    <FormLabel>Comentarios</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        step="any"
-                        placeholder="Ej. 19.4326" 
+                      <Textarea
+                        placeholder="Observaciones adicionales sobre el custodio..."
+                        className="min-h-[80px]"
                         {...field}
-                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
-              <FormField
-                control={form.control}
-                name="lng"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Longitud (Opcional)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        step="any"
-                        placeholder="Ej. -99.1332" 
-                        {...field}
-                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
-
-            <FormField
-              control={form.control}
-              name="certificaciones"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Certificaciones</FormLabel>
-                  <div className="space-y-2">
-                    <Select onValueChange={addCertificacion}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Agregar certificación" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {certificacionesDisponibles
-                          .filter(cert => !certificaciones.includes(cert))
-                          .map((cert) => (
-                            <SelectItem key={cert} value={cert}>
-                              {cert}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                    
-                    {certificaciones.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {certificaciones.map((cert) => (
-                          <Badge key={cert} variant="secondary" className="flex items-center gap-1">
-                            {cert}
-                            <X 
-                              className="h-3 w-3 cursor-pointer" 
-                              onClick={() => removeCertificacion(cert)}
-                            />
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="comentarios"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Comentarios (Opcional)</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Información adicional sobre el custodio..."
-                      rows={3}
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <DialogFooter>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => onOpenChange(false)}
-                disabled={loading}
-              >
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>
               <Button type="submit" disabled={loading}>
-                {loading ? 'Guardando...' : isEditing ? 'Actualizar' : 'Crear'}
+                {loading ? 'Guardando...' : (custodio ? 'Actualizar' : 'Crear')}
               </Button>
             </DialogFooter>
           </form>

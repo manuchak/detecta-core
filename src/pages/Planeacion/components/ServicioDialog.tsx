@@ -2,8 +2,6 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format } from 'date-fns';
-import { CalendarIcon } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -15,12 +13,14 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -28,36 +28,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { cn } from '@/lib/utils';
-import { useClientes } from '@/hooks/usePlaneacion';
 import { Servicio, ServicioForm } from '@/types/planeacion';
+import { useClientes } from '@/hooks/usePlaneacion';
 
 const servicioSchema = z.object({
-  cliente_id: z.string().min(1, 'Debe seleccionar un cliente'),
-  fecha_programada: z.date({ required_error: 'La fecha es requerida' }),
-  hora_ventana_inicio: z.string().min(1, 'La hora de inicio es requerida'),
-  hora_ventana_fin: z.string().min(1, 'La hora de fin es requerida'),
-  origen_texto: z.string().min(1, 'El origen es requerido'),
+  cliente_id: z.string().min(1, 'Cliente es requerido'),
+  fecha_programada: z.string().min(1, 'Fecha es requerida'),
+  hora_ventana_inicio: z.string().min(1, 'Hora inicio es requerida'),
+  hora_ventana_fin: z.string().min(1, 'Hora fin es requerida'),
   origen_lat: z.number().optional(),
   origen_lng: z.number().optional(),
-  destino_texto: z.string().min(1, 'El destino es requerido'),
+  origen_texto: z.string().min(1, 'Origen es requerido'),
   destino_lat: z.number().optional(),
   destino_lng: z.number().optional(),
+  destino_texto: z.string().min(1, 'Destino es requerido'),
   tipo_servicio: z.enum(['traslado', 'custodia_local', 'escolta', 'vigilancia']),
-  requiere_gadgets: z.boolean(),
+  requiere_gadgets: z.boolean().default(false),
   notas_especiales: z.string().optional(),
-  prioridad: z.number().min(1).max(10),
-  valor_estimado: z.number().optional(),
+  prioridad: z.number().min(1).default(1),
+  valor_estimado: z.number().min(0).optional(),
 });
 
 interface ServicioDialogProps {
@@ -75,27 +65,22 @@ export default function ServicioDialog({
   onSubmit,
   loading = false,
 }: ServicioDialogProps) {
-  const isEditing = !!servicio;
   const { data: clientes = [] } = useClientes();
 
-  const form = useForm<z.infer<typeof servicioSchema>>({
+  const form = useForm<ServicioForm>({
     resolver: zodResolver(servicioSchema),
     defaultValues: {
       cliente_id: '',
-      fecha_programada: new Date(),
+      fecha_programada: '',
       hora_ventana_inicio: '09:00',
       hora_ventana_fin: '17:00',
       origen_texto: '',
-      origen_lat: undefined,
-      origen_lng: undefined,
       destino_texto: '',
-      destino_lat: undefined,
-      destino_lng: undefined,
       tipo_servicio: 'traslado',
       requiere_gadgets: false,
       notas_especiales: '',
-      prioridad: 5,
-      valor_estimado: undefined,
+      prioridad: 1,
+      valor_estimado: 0,
     },
   });
 
@@ -103,15 +88,15 @@ export default function ServicioDialog({
     if (servicio) {
       form.reset({
         cliente_id: servicio.cliente_id,
-        fecha_programada: new Date(servicio.fecha_programada),
+        fecha_programada: servicio.fecha_programada,
         hora_ventana_inicio: servicio.hora_ventana_inicio,
         hora_ventana_fin: servicio.hora_ventana_fin,
-        origen_texto: servicio.origen_texto,
         origen_lat: servicio.origen_lat,
         origen_lng: servicio.origen_lng,
-        destino_texto: servicio.destino_texto,
+        origen_texto: servicio.origen_texto,
         destino_lat: servicio.destino_lat,
         destino_lng: servicio.destino_lng,
+        destino_texto: servicio.destino_texto,
         tipo_servicio: servicio.tipo_servicio,
         requiere_gadgets: servicio.requiere_gadgets,
         notas_especiales: servicio.notas_especiales || '',
@@ -119,67 +104,34 @@ export default function ServicioDialog({
         valor_estimado: servicio.valor_estimado,
       });
     } else {
-      form.reset({
-        cliente_id: '',
-        fecha_programada: new Date(),
-        hora_ventana_inicio: '09:00',
-        hora_ventana_fin: '17:00',
-        origen_texto: '',
-        origen_lat: undefined,
-        origen_lng: undefined,
-        destino_texto: '',
-        destino_lat: undefined,
-        destino_lng: undefined,
-        tipo_servicio: 'traslado',
-        requiere_gadgets: false,
-        notas_especiales: '',
-        prioridad: 5,
-        valor_estimado: undefined,
-      });
+      form.reset();
     }
   }, [servicio, form]);
 
-  const handleSubmit = async (values: z.infer<typeof servicioSchema>) => {
-    const data: ServicioForm = {
-      cliente_id: values.cliente_id,
-      fecha_programada: format(values.fecha_programada, 'yyyy-MM-dd'),
-      hora_ventana_inicio: values.hora_ventana_inicio,
-      hora_ventana_fin: values.hora_ventana_fin,
-      origen_texto: values.origen_texto,
-      destino_texto: values.destino_texto,
-      tipo_servicio: values.tipo_servicio,
-      requiere_gadgets: values.requiere_gadgets,
-      prioridad: values.prioridad,
-      origen_lat: values.origen_lat,
-      origen_lng: values.origen_lng,
-      destino_lat: values.destino_lat,
-      destino_lng: values.destino_lng,
-      valor_estimado: values.valor_estimado,
-      notas_especiales: values.notas_especiales || undefined,
-    };
-    
+  const handleSubmit = async (data: ServicioForm) => {
     await onSubmit(data);
     form.reset();
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? 'Editar Servicio' : 'Nuevo Servicio'}
+            {servicio ? 'Editar Servicio' : 'Nuevo Servicio'}
           </DialogTitle>
           <DialogDescription>
-            {isEditing 
-              ? 'Modifica la información del servicio'
-              : 'Ingresa los datos del nuevo servicio de custodia'
+            {servicio 
+              ? 'Modifica los datos del servicio de custodia'
+              : 'Crea un nuevo servicio de custodia'
             }
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
+              {/* Cliente */}
               <FormField
                 control={form.control}
                 name="cliente_id"
@@ -189,7 +141,7 @@ export default function ServicioDialog({
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecciona un cliente" />
+                          <SelectValue placeholder="Seleccionar cliente" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -205,6 +157,7 @@ export default function ServicioDialog({
                 )}
               />
 
+              {/* Tipo de Servicio */}
               <FormField
                 control={form.control}
                 name="tipo_servicio"
@@ -214,7 +167,7 @@ export default function ServicioDialog({
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecciona el tipo" />
+                          <SelectValue />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -231,49 +184,22 @@ export default function ServicioDialog({
             </div>
 
             <div className="grid grid-cols-3 gap-4">
+              {/* Fecha */}
               <FormField
                 control={form.control}
                 name="fecha_programada"
                 render={({ field }) => (
-                  <FormItem className="flex flex-col">
+                  <FormItem>
                     <FormLabel>Fecha Programada</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "dd/MM/yyyy")
-                            ) : (
-                              <span>Selecciona fecha</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) =>
-                            date < new Date(new Date().setHours(0, 0, 0, 0))
-                          }
-                          initialFocus
-                          className="pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
+              {/* Hora Inicio */}
               <FormField
                 control={form.control}
                 name="hora_ventana_inicio"
@@ -288,6 +214,7 @@ export default function ServicioDialog({
                 )}
               />
 
+              {/* Hora Fin */}
               <FormField
                 control={form.control}
                 name="hora_ventana_fin"
@@ -303,113 +230,114 @@ export default function ServicioDialog({
               />
             </div>
 
+            {/* Origen */}
+            <FormField
+              control={form.control}
+              name="origen_texto"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Origen</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Dirección de origen" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Destino */}
+            <FormField
+              control={form.control}
+              name="destino_texto"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Destino</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Dirección de destino" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="origen_texto"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Origen</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ej. Polanco, CDMX" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="destino_texto"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Destino</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ej. Santa Fe, CDMX" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
+              {/* Prioridad */}
               <FormField
                 control={form.control}
                 name="prioridad"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Prioridad (1-10)</FormLabel>
+                    <FormLabel>Prioridad (1-5)</FormLabel>
                     <FormControl>
                       <Input 
                         type="number" 
-                        min="1" 
-                        max="10" 
+                        min="1"
+                        max="5"
                         {...field}
                         onChange={(e) => field.onChange(Number(e.target.value))}
                       />
                     </FormControl>
-                    <FormDescription>
-                      1 = Baja, 10 = Crítica
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
+              {/* Valor Estimado */}
               <FormField
                 control={form.control}
                 name="valor_estimado"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Valor Estimado (Opcional)</FormLabel>
+                    <FormLabel>Valor Estimado</FormLabel>
                     <FormControl>
                       <Input 
                         type="number" 
+                        min="0"
                         step="0.01"
-                        placeholder="0.00" 
                         {...field}
-                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
-              <FormField
-                control={form.control}
-                name="requiere_gadgets"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                    <div className="space-y-0.5">
-                      <FormLabel>Requiere Gadgets</FormLabel>
-                      <FormDescription className="text-xs">
-                        Equipamiento tecnológico
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
             </div>
 
+            {/* Requiere Gadgets */}
+            <FormField
+              control={form.control}
+              name="requiere_gadgets"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Requiere Gadgets</FormLabel>
+                    <div className="text-sm text-muted-foreground">
+                      El servicio requiere equipamiento especial
+                    </div>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {/* Notas Especiales */}
             <FormField
               control={form.control}
               name="notas_especiales"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Notas Especiales (Opcional)</FormLabel>
+                  <FormLabel>Notas Especiales</FormLabel>
                   <FormControl>
-                    <Textarea 
-                      placeholder="Instrucciones especiales, contactos adicionales, etc..."
-                      rows={3}
-                      {...field} 
+                    <Textarea
+                      placeholder="Instrucciones adicionales para el servicio..."
+                      className="min-h-[100px]"
+                      {...field}
                     />
                   </FormControl>
                   <FormMessage />
@@ -418,16 +346,11 @@ export default function ServicioDialog({
             />
 
             <DialogFooter>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => onOpenChange(false)}
-                disabled={loading}
-              >
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>
               <Button type="submit" disabled={loading}>
-                {loading ? 'Guardando...' : isEditing ? 'Actualizar' : 'Crear'}
+                {loading ? 'Guardando...' : (servicio ? 'Actualizar' : 'Crear')}
               </Button>
             </DialogFooter>
           </form>
