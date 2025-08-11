@@ -490,8 +490,6 @@ function App() {
                   <Route path="tickets" element={<CustodianTickets />} />
                 </Route>
                 
-                {/* 404 route */}
-                <Route path="*" element={<NotFound />} />
                 {/* Planeación Custodias */}
                 <Route
                   path="/planeacion"
@@ -505,6 +503,9 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                
+                {/* 404 route - MUST BE LAST */}
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </div>
           </Router>
