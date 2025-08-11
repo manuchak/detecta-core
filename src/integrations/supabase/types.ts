@@ -508,6 +508,36 @@ export type Database = {
           },
         ]
       }
+      audit_api_credentials: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          ip: unknown | null
+          service_name: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action?: string
+          created_at?: string
+          id?: string
+          ip?: unknown | null
+          service_name: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          ip?: unknown | null
+          service_name?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       audit_log_productos: {
         Row: {
           accion: string
@@ -8692,10 +8722,6 @@ export type Database = {
       verificar_cumplimiento_referido: {
         Args: { p_referido_id: string }
         Returns: boolean
-      }
-      verify_admin_email: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
       }
       verify_user_account: {
         Args: { target_user_id: string; verify_status: boolean }
