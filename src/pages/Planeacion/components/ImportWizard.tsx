@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -192,6 +192,31 @@ export default function ImportWizard({
   };
 
   const StepIcon = stepIcons[state.step];
+
+  // Actualiza la vista previa cuando cambia la hoja seleccionada
+  useEffect(() => {
+    const refreshPreview = async () => {
+      if (!state.file || !state.selectedSheet || state.step !== 'upload') return;
+      setIsLoading(true);
+      setError(null);
+      try {
+        const data = await parseExcelFile(state.file, state.selectedSheet);
+        setState(prev => ({
+          ...prev,
+          excelData: {
+            ...(prev.excelData || data),
+            ...data,
+          },
+          headerRow: 1,
+        }));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error al cargar la hoja seleccionada');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    refreshPreview();
+  }, [state.selectedSheet]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
