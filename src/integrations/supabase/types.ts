@@ -7780,6 +7780,15 @@ export type Database = {
           total_income: number
         }[]
       }
+      get_my_permissions: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          permission_type: string
+          permission_id: string
+          allowed: boolean
+        }[]
+      }
       get_points_system_config: {
         Args: Record<PropertyKey, never>
         Returns: {
