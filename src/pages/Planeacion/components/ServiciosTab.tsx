@@ -36,12 +36,17 @@ export default function ServiciosTab() {
   const updateMutation = useUpdateServicio();
   const deleteMutation = useDeleteServicio();
 
-  const filteredServicios = servicios.filter(servicio =>
-    servicio.folio.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    servicio.origen_texto.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    servicio.destino_texto.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    servicio.cliente?.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredServicios = servicios.filter(servicio => {
+    const clienteNombre = typeof servicio.cliente === 'string'
+      ? servicio.cliente
+      : servicio.cliente?.nombre || '';
+    return (
+      servicio.folio.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      servicio.origen_texto.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      servicio.destino_texto.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      clienteNombre.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   const handleCreate = async (data: ServicioForm) => {
     await createMutation.mutateAsync(data);
@@ -110,9 +115,13 @@ export default function ServiciosTab() {
     {
       accessorKey: 'cliente',
       header: 'Cliente',
-      cell: ({ row }) => (
-        <div className="font-medium">{row.original.cliente?.nombre || 'Sin cliente'}</div>
-      ),
+      cell: ({ row }) => {
+        const c = row.original.cliente;
+        const nombre = typeof c === 'string' ? c : c?.nombre;
+        return (
+          <div className="font-medium">{nombre || 'Sin cliente'}</div>
+        );
+      },
     },
     {
       accessorKey: 'fecha_programada',

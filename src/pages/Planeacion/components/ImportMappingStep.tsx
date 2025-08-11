@@ -23,6 +23,9 @@ interface ImportMappingStepProps {
 const NONE_VALUE = '__none__';
 const DATABASE_FIELDS = [
   { value: NONE_VALUE, label: 'No mapear', description: 'Ignorar esta columna' },
+  { value: 'folio', label: 'Folio', description: 'Folio del servicio (si existe en Excel)' },
+  { value: 'cliente', label: 'Cliente', description: 'Nombre del cliente (texto)' },
+  { value: 'hora_programacion', label: 'Hora Programación', description: 'Hora del servicio (HH:MM)' },
   { value: 'cliente_id', label: 'Cliente ID', description: 'Identificador único del cliente', required: true },
   { value: 'fecha_programada', label: 'Fecha Programada', description: 'Fecha del servicio (YYYY-MM-DD)', required: true },
   { value: 'hora_ventana_inicio', label: 'Hora Inicio', description: 'Hora de inicio (HH:MM)' },

@@ -208,7 +208,7 @@ export const serviciosService = {
       .from('pc_servicios')
       .select(`
         *,
-        cliente:pc_clientes(*),
+        cliente_rel:pc_clientes(*),
         custodio_asignado:pc_custodios(*),
         asignacion:pc_asignaciones(*),
         costos:pc_costos_ingresos(*)

@@ -173,12 +173,29 @@ export const transformDataForImport = (
           if (!isNaN(date.getTime())) {
             transformedRow[dbField] = date.toISOString().split('T')[0];
           }
-        } else if (dbField.includes('lat') || dbField.includes('lng') || dbField.includes('prioridad')) {
+        } else if ((dbField.includes('lat') || dbField.includes('lng') || dbField.includes('prioridad')) && value !== '') {
           // Parse numbers
           const num = parseFloat(value);
           if (!isNaN(num)) {
             transformedRow[dbField] = num;
           }
+        } else if (dbField.includes('hora') && value) {
+          // Normalize time to HH:MM
+          let hhmm = value.toString().trim();
+          if (typeof value === 'number' && value >= 0 && value < 1) {
+            // Excel time fraction
+            const totalMinutes = Math.round(value * 24 * 60);
+            const hh = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+            const mm = String(totalMinutes % 60).padStart(2, '0');
+            hhmm = `${hh}:${mm}`;
+          } else if (/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(hhmm)) {
+            // ISO datetime
+            hhmm = hhmm.split('T')[1].slice(0,5);
+          } else if (/\d{1,2}:\d{2}/.test(hhmm)) {
+            const [h, m] = hhmm.split(':');
+            hhmm = `${h.padStart(2,'0')}:${m}`;
+          }
+          transformedRow[dbField] = hhmm;
         } else if (dbField === 'requiere_gadgets') {
           // Parse boolean
           transformedRow[dbField] = ['true', '1', 'si', 'sí', 'yes'].includes(value.toString().toLowerCase());

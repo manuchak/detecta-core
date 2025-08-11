@@ -5002,6 +5002,7 @@ export type Database = {
       }
       pc_servicios: {
         Row: {
+          cliente: string | null
           cliente_id: string
           created_at: string | null
           created_by: string | null
@@ -5012,6 +5013,7 @@ export type Database = {
           estado: Database["public"]["Enums"]["estado_servicio"] | null
           fecha_programada: string
           folio: string
+          hora_programacion: string | null
           hora_ventana_fin: string
           hora_ventana_inicio: string
           id: string
@@ -5029,6 +5031,7 @@ export type Database = {
           valor_estimado: number | null
         }
         Insert: {
+          cliente?: string | null
           cliente_id: string
           created_at?: string | null
           created_by?: string | null
@@ -5039,6 +5042,7 @@ export type Database = {
           estado?: Database["public"]["Enums"]["estado_servicio"] | null
           fecha_programada: string
           folio: string
+          hora_programacion?: string | null
           hora_ventana_fin: string
           hora_ventana_inicio: string
           id?: string
@@ -5056,6 +5060,7 @@ export type Database = {
           valor_estimado?: number | null
         }
         Update: {
+          cliente?: string | null
           cliente_id?: string
           created_at?: string | null
           created_by?: string | null
@@ -5066,6 +5071,7 @@ export type Database = {
           estado?: Database["public"]["Enums"]["estado_servicio"] | null
           fecha_programada?: string
           folio?: string
+          hora_programacion?: string | null
           hora_ventana_fin?: string
           hora_ventana_inicio?: string
           id?: string

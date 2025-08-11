@@ -96,8 +96,9 @@ export interface Servicio {
   created_by?: string;
   created_at: string;
   updated_at: string;
-  // Relaciones
-  cliente?: Cliente;
+  // Relaciones y campos auxiliares
+  cliente?: Cliente | string;
+  cliente_rel?: Cliente; // relación anidada cuando se selecciona explícitamente como alias
   custodio_asignado?: Custodio;
   ofertas?: OfertaCustodio[];
   asignacion?: Asignacion;
