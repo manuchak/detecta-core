@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Plus, Search, Edit, Trash2, Calendar, MapPin, Shield, Clock } from 'lucide-react';
+import ImportWizard from './ImportWizard';
+import { Plus, Search, Edit, Trash2, Calendar, MapPin, Shield, Clock, Upload } from 'lucide-react';
 import { useServicios, useCreateServicio, useUpdateServicio, useDeleteServicio } from '@/hooks/usePlaneacion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ export default function ServiciosTab() {
   const [editingServicio, setEditingServicio] = useState<Servicio | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [servicioToDelete, setServicioToDelete] = useState<Servicio | null>(null);
+  const [importWizardOpen, setImportWizardOpen] = useState(false);
 
   const { data: servicios = [], isLoading } = useServicios();
   const createMutation = useCreateServicio();
@@ -209,10 +211,16 @@ export default function ServiciosTab() {
             Administra los servicios de custodia y su asignación
           </p>
         </div>
-        <Button onClick={() => setDialogOpen(true)} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Nuevo Servicio
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setImportWizardOpen(true)} className="flex items-center gap-2">
+            <Upload className="h-4 w-4" />
+            Importar Excel
+          </Button>
+          <Button onClick={() => setDialogOpen(true)} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Nuevo Servicio
+          </Button>
+        </div>
       </div>
 
       {/* Search */}
@@ -322,6 +330,13 @@ export default function ServiciosTab() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Import Wizard */}
+      <ImportWizard
+        open={importWizardOpen}
+        onOpenChange={setImportWizardOpen}
+        onComplete={() => window.location.reload()}
+      />
     </div>
   );
 }
