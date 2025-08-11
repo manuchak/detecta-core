@@ -303,7 +303,7 @@ export const processDailyData = (data: ServiceData[]): DailyServiceData[] => {
   return result;
 };
 
-// Procesar top clientes - CORREGIDO para TOP 5 + Otros con porcentajes reales
+// Procesar top clientes - TOP 5 por GMV del mes actual + Otros
 export const processTopClients = (data: ServiceData[]): TopClientsData[] => {
   if (!data || data.length === 0) {
     return getDefaultTopClients();
@@ -311,63 +311,75 @@ export const processTopClients = (data: ServiceData[]): TopClientsData[] => {
 
   console.log('processTopClients - Datos recibidos:', data.length);
 
-  // Contar servicios únicos por cliente usando id_servicio
-  const clientServiceIds: { [key: string]: Set<string> } = {};
+  const currentDate = new Date();
+  const currentMonth = currentDate.getMonth() + 1; // getMonth() returns 0-11
+  const currentYear = currentDate.getFullYear();
+
+  // Filtrar servicios del mes en curso y calcular GMV por cliente
+  const clientGMV: { [key: string]: number } = {};
   
   data.forEach(item => {
     const client = cleanTextValue(item.nombre_cliente);
-    const serviceId = cleanTextValue(item.id_servicio);
+    const gmv = cleanNumericValue(item.cobro_cliente);
     
-    if (client && client !== 'Sin especificar' && serviceId) {
-      if (!clientServiceIds[client]) {
-        clientServiceIds[client] = new Set();
+    // Verificar si el servicio es del mes en curso
+    if (item.fecha_hora_cita) {
+      const serviceDate = new Date(item.fecha_hora_cita);
+      const serviceMonth = serviceDate.getMonth() + 1;
+      const serviceYear = serviceDate.getFullYear();
+      
+      if (serviceMonth === currentMonth && serviceYear === currentYear && 
+          client && client !== 'Sin especificar' && gmv > 0) {
+        if (!clientGMV[client]) {
+          clientGMV[client] = 0;
+        }
+        clientGMV[client] += gmv;
       }
-      clientServiceIds[client].add(serviceId);
     }
   });
 
-  console.log('processTopClients - Clientes únicos encontrados:', Object.keys(clientServiceIds).length);
+  console.log('processTopClients - Clientes con GMV del mes actual:', Object.keys(clientGMV).length);
 
-  // Convertir a array y ordenar por cantidad de servicios únicos
-  const clientCounts = Object.entries(clientServiceIds)
-    .map(([name, serviceIds]) => ({
+  // Convertir a array y ordenar por GMV
+  const clientsByGMV = Object.entries(clientGMV)
+    .map(([name, gmv]) => ({
       name,
-      uniqueServices: serviceIds.size
+      gmv
     }))
-    .sort((a, b) => b.uniqueServices - a.uniqueServices);
+    .sort((a, b) => b.gmv - a.gmv);
 
-  console.log('processTopClients - Top 10 clientes:', clientCounts.slice(0, 10));
+  console.log('processTopClients - Top 10 clientes por GMV:', clientsByGMV.slice(0, 10));
 
-  // Obtener TOP 8 para incluir más clientes importantes como Wieland
-  const top8 = clientCounts.slice(0, 8);
-  const others = clientCounts.slice(8);
+  // Obtener TOP 5 por GMV
+  const top5 = clientsByGMV.slice(0, 5);
+  const others = clientsByGMV.slice(5);
 
-  // Calcular total de servicios únicos
-  const totalUniqueServices = clientCounts.reduce((sum, client) => sum + client.uniqueServices, 0);
+  // Calcular total GMV
+  const totalGMV = clientsByGMV.reduce((sum, client) => sum + client.gmv, 0);
   
-  console.log('processTopClients - Total servicios únicos:', totalUniqueServices);
+  console.log('processTopClients - Total GMV del mes:', totalGMV);
 
-  if (totalUniqueServices === 0) {
+  if (totalGMV === 0) {
     return getDefaultTopClients();
   }
 
-  // Crear resultado con porcentajes
-  const result: TopClientsData[] = top8.map(client => ({
+  // Crear resultado con GMV como valor
+  const result: TopClientsData[] = top5.map(client => ({
     name: client.name,
-    value: client.uniqueServices
+    value: Math.round(client.gmv) // Redondear para evitar decimales en la visualización
   }));
 
-  // Agregar "Otros" si hay clientes fuera del TOP 8
+  // Agregar "Otros" si hay clientes fuera del TOP 5
   if (others.length > 0) {
-    const othersTotal = others.reduce((sum, client) => sum + client.uniqueServices, 0);
+    const othersTotal = others.reduce((sum, client) => sum + client.gmv, 0);
     result.push({
       name: 'Otros',
-      value: othersTotal
+      value: Math.round(othersTotal)
     });
   }
 
-  console.log('processTopClients - Resultado final:', result);
-  console.log('processTopClients - Verificación suma:', result.reduce((sum, item) => sum + item.value, 0), 'vs total:', totalUniqueServices);
+  console.log('processTopClients - Resultado final por GMV:', result);
+  console.log('processTopClients - Verificación suma GMV:', result.reduce((sum, item) => sum + item.value, 0), 'vs total:', Math.round(totalGMV));
 
   return result;
 };
