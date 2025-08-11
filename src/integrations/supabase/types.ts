@@ -7920,6 +7920,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      es_c4_monitoreo: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      es_planificador: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       es_usuario_admin: {
         Args: Record<PropertyKey, never> | { user_id: string }
         Returns: boolean
@@ -9174,6 +9182,10 @@ export type Database = {
       }
       procesar_bono_referido: {
         Args: { p_referido_id: string }
+        Returns: boolean
+      }
+      puede_acceder_planeacion: {
+        Args: Record<PropertyKey, never>
         Returns: boolean
       }
       recomendar_gps_para_instalacion: {
