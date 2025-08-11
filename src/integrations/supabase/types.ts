@@ -7042,6 +7042,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      can_access_financial_data: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       can_access_home: {
         Args: Record<PropertyKey, never>
         Returns: boolean
