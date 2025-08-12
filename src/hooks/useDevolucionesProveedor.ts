@@ -53,7 +53,8 @@ export const useDevolucionesProveedor = () => {
 
   const agregarDetalle = useMutation({
     mutationFn: async (input: NuevoDetalleDevolucionInput): Promise<DetalleDevolucionProveedor> => {
-      const { data, error } = await supabase
+      // 1) Insertar detalle
+      const { data: detalle, error } = await supabase
         .from('devoluciones_proveedor_detalle')
         .insert([{ 
           devolucion_id: input.devolucion_id,
@@ -67,7 +68,37 @@ export const useDevolucionesProveedor = () => {
         .select('*')
         .single();
       if (error) throw error;
-      return data as DetalleDevolucionProveedor;
+
+      // 2) Calcular movimiento para descontar stock y reflejar costo
+      const { data: stockRow, error: stockError } = await supabase
+        .from('stock_productos')
+        .select('cantidad_disponible')
+        .eq('producto_id', input.producto_id)
+        .maybeSingle();
+      if (stockError) throw stockError;
+      const cantidadAnterior = stockRow?.cantidad_disponible ?? 0;
+      const cantidadNueva = Math.max(0, cantidadAnterior - input.cantidad);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error: movError } = await supabase
+        .from('movimientos_inventario')
+        .insert({
+          producto_id: input.producto_id,
+          tipo_movimiento: 'devolucion_proveedor',
+          cantidad: input.cantidad,
+          cantidad_anterior: cantidadAnterior,
+          cantidad_nueva: cantidadNueva,
+          motivo: input.motivo || 'Salida por RMA',
+          referencia_tipo: 'devoluciones_proveedor_detalle',
+          referencia_id: detalle.id,
+          usuario_id: user?.id || null,
+          fecha_movimiento: new Date().toISOString(),
+          costo_unitario: input.costo_unitario ?? 0,
+          valor_total: (input.costo_unitario ?? 0) * input.cantidad,
+        });
+      if (movError) throw movError;
+
+      return detalle as DetalleDevolucionProveedor;
     },
     onSuccess: () => {
       toast.success('Detalle agregado');

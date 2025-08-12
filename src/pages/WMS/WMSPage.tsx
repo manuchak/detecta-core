@@ -92,7 +92,7 @@ export const WMSPage = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-10 h-12">
+        <TabsList className="w-full h-12 overflow-x-auto gap-1 flex-wrap sm:flex-nowrap">
           <TabsTrigger value="inventario" className="flex items-center gap-2">
             <Package className="h-4 w-4" />
             Inventario
