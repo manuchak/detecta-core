@@ -8993,6 +8993,7 @@ export type Database = {
           display_name: string
           role: string
           created_at: string
+          last_login: string
         }[]
       }
       get_weekly_leaderboard: {
