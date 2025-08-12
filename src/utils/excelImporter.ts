@@ -162,33 +162,45 @@ export const transformDataForImport = (
   mapping: MappingConfig
 ): any[] => {
   // Helper to parse Excel serial numbers and common string formats (incl. DD-MM-YYYY HH:MM)
-  const parseExcelDateTime = (value: any): string | undefined => {
+  const parseExcelDateTime = (value: any): { date: string; time: string; dateTime: string } | undefined => {
     if (value === null || value === undefined || value === '') return undefined;
+    const pad2 = (n: number) => String(n).padStart(2, '0');
+    const fromDate = (d: Date) => {
+      if (isNaN(d.getTime())) return undefined;
+      const yyyy = d.getFullYear();
+      const mm = pad2(d.getMonth() + 1);
+      const dd = pad2(d.getDate());
+      const hh = pad2(d.getHours());
+      const mi = pad2(d.getMinutes());
+      const date = `${yyyy}-${mm}-${dd}`;
+      const time = `${hh}:${mi}`;
+      return { date, time, dateTime: `${date} ${time}` };
+    };
     try {
       if (typeof value === 'number') {
         // Excel serial date (days since 1899-12-30)
         const ms = Math.round((value - 25569) * 86400 * 1000);
-        const d = new Date(ms);
-        return isNaN(d.getTime()) ? undefined : d.toISOString();
+        return fromDate(new Date(ms));
       }
       if (typeof value === 'string') {
         const s = value.trim().replace(/\s+/g, ' ');
         // Match DD-MM-YYYY or DD/MM/YYYY with optional time HH:MM[:SS]
-        const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+        const m = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
         if (m) {
           const day = parseInt(m[1], 10);
-          const month = parseInt(m[2], 10) - 1;
+          const month = parseInt(m[2], 10);
           const yearRaw = parseInt(m[3], 10);
           const year = yearRaw < 100 ? 2000 + yearRaw : yearRaw;
           const hh = m[4] ? parseInt(m[4], 10) : 0;
-          const mm = m[5] ? parseInt(m[5], 10) : 0;
-          const ss = m[6] ? parseInt(m[6], 10) : 0;
-          const d = new Date(year, month, day, hh, mm, ss);
-          return isNaN(d.getTime()) ? undefined : d.toISOString();
+          const mi = m[5] ? parseInt(m[5], 10) : 0;
+          // Ignore seconds for DB compatibility (YYYY-MM-DD HH:MM)
+          const date = `${year}-${pad2(month)}-${pad2(day)}`;
+          const time = `${pad2(hh)}:${pad2(mi)}`;
+          return { date, time, dateTime: `${date} ${time}` };
         }
       }
       const d = new Date(value);
-      return isNaN(d.getTime()) ? undefined : d.toISOString();
+      return fromDate(d);
     } catch {
       return undefined;
     }
@@ -208,28 +220,25 @@ export const transformDataForImport = (
       if (dbField && row[excelColumn] !== undefined) {
         let value = row[excelColumn];
         
-        // Datetime fields (keep full timestamp)
+        // Datetime fields (store as 'YYYY-MM-DD HH:MM' without seconds)
         if ((dbField === 'fecha_hora_programada' || dbField === 'fecha_hora_recepcion_servicio' || dbField.includes('fecha_hora')) && value) {
-          const iso = parseExcelDateTime(value);
-          if (iso) {
+          const parsed = parseExcelDateTime(value);
+          if (parsed) {
             if (dbField === 'fecha_hora_programada') {
-              // Split into fecha_programada and hora_programacion
-              const [dPart, tPart] = iso.split('T');
-              transformedRow['fecha_programada'] = dPart;
-              transformedRow['hora_programacion'] = tPart.slice(0,5);
+              transformedRow['fecha_programada'] = parsed.date;
+              transformedRow['hora_programacion'] = parsed.time;
             } else {
-              transformedRow[dbField] = iso;
+              transformedRow[dbField] = parsed.dateTime;
             }
           }
         } else if (dbField.includes('fecha') && value) {
           // Date-only fields (but accept combined datetime too)
-          const iso = parseExcelDateTime(value);
-          if (iso) {
-            const [dPart, tPart] = iso.split('T');
-            transformedRow[dbField] = dPart;
+          const parsed = parseExcelDateTime(value);
+          if (parsed) {
+            transformedRow[dbField] = parsed.date;
             // If the source included time, also fill hora_programacion when not already mapped
-            if (hasTimeComponent(value) && !transformedRow['hora_programacion']) {
-              transformedRow['hora_programacion'] = tPart.slice(0,5);
+            if (parsed.time && !transformedRow['hora_programacion']) {
+              transformedRow['hora_programacion'] = parsed.time;
             }
           }
         } else if ((dbField.includes('lat') || dbField.includes('lng') || dbField.includes('prioridad')) && value !== '') {
