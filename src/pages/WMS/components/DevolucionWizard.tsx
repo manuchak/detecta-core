@@ -3,6 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useProductosInventario } from '@/hooks/useProductosInventario';
 import { useDevolucionesProveedor } from '@/hooks/useDevolucionesProveedor';
+import { useSerialesProducto } from '@/hooks/useSerialesProducto';
+import { Dialog, DialogContent, DialogHeader as DxHeader, DialogTitle as DxTitle, DialogDescription as DxDesc } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 
 interface DevolucionWizardProps {
@@ -16,7 +19,9 @@ interface ItemSeleccionado {
   disponible: number;
   cantidad: number;
   costo_unitario?: number;
-  seriales?: string[];
+  es_serializado?: boolean;
+  seriales?: string[]; // IDs de productos_serie
+  serialNumeros?: string[]; // Para mostrar
 }
 
 const PasoIndicator = ({ step }: { step: number }) => {
@@ -51,6 +56,40 @@ export const DevolucionWizard = ({ open, onOpenChange }: DevolucionWizardProps) 
   const [seleccion, setSeleccion] = useState<Record<string, ItemSeleccionado>>({});
   const selectedArray = useMemo(() => Object.values(seleccion), [seleccion]);
 
+  // Seriales modal
+  const [serialModalProduct, setSerialModalProduct] = useState<string | null>(null);
+  const { data: serialesDisponibles = [] } = useSerialesProducto(serialModalProduct || undefined);
+  const [serialTemp, setSerialTemp] = useState<string[]>([]);
+  
+  const openSerials = (pid: string) => {
+    setSerialModalProduct(pid);
+    setSerialTemp(seleccion[pid]?.seriales || []);
+  };
+
+  const toggleSerial = (id: string) => {
+    setSerialTemp((prev) => (prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]));
+  };
+
+  const saveSerials = () => {
+    if (!serialModalProduct) return;
+    const qty = seleccion[serialModalProduct]?.cantidad || 0;
+    if (serialTemp.length !== qty) {
+      toast.error(`Selecciona exactamente ${qty} serie(s)`);
+      return;
+    }
+    const numeros = serialesDisponibles.filter((s:any)=> serialTemp.includes(s.id)).map((s:any)=> s.numero_serie || '');
+    setSeleccion((prev)=> ({
+      ...prev,
+      [serialModalProduct]: {
+        ...prev[serialModalProduct],
+        es_serializado: true,
+        seriales: serialTemp,
+        serialNumeros: numeros,
+      }
+    }));
+    setSerialModalProduct(null);
+  };
+
   useEffect(() => {
     if (!open) {
       // Reset al cerrar
@@ -79,7 +118,11 @@ export const DevolucionWizard = ({ open, onOpenChange }: DevolucionWizardProps) 
   const totalValor = selectedArray.reduce((acc, it) => acc + ((it.costo_unitario || 0) * (it.cantidad || 0)), 0);
 
   const canNextFromPaso1 = true; // opcionales RMA y proveedor
-  const canNextFromPaso2 = selectedArray.length > 0 && selectedArray.every(it => it.cantidad > 0 && it.cantidad <= it.disponible);
+  const canNextFromPaso2 = selectedArray.length > 0 && selectedArray.every(it => {
+    const baseOk = it.cantidad > 0 && it.cantidad <= it.disponible;
+    const serialOk = !it.es_serializado || ((it.seriales?.length || 0) === it.cantidad);
+    return baseOk && serialOk;
+  });
   const canNextFromPaso3 = selectedArray.every(it => (it.costo_unitario ?? 0) >= 0);
 
   const goNext = () => setStep((s) => Math.min(4, s + 1));
@@ -100,7 +143,9 @@ export const DevolucionWizard = ({ open, onOpenChange }: DevolucionWizardProps) 
           disponible,
           cantidad: 1,
           costo_unitario: p?.precio_compra_promedio ?? 0,
+          es_serializado: !!p?.es_serializado,
           seriales: [],
+          serialNumeros: [],
         },
       };
     });
@@ -226,9 +271,16 @@ export const DevolucionWizard = ({ open, onOpenChange }: DevolucionWizardProps) 
                           )}
                         </td>
                         <td className="p-3 text-right">
-                          <Button size="sm" variant={sel? 'secondary':'outline'} onClick={()=>toggleProducto(p)}>
-                            {sel ? 'Quitar' : 'Agregar'}
-                          </Button>
+                          <div className="flex flex-col items-end gap-2">
+                            <Button size="sm" variant={sel? 'secondary':'outline'} onClick={()=>toggleProducto(p)}>
+                              {sel ? 'Quitar' : 'Agregar'}
+                            </Button>
+                            {p?.es_serializado && sel && (
+                              <Button size="sm" variant="outline" onClick={()=>openSerials(p.id)}>
+                                Series { (sel.seriales?.length || 0) }/{ sel.cantidad }
+                              </Button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
