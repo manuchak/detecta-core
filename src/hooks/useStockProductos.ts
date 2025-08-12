@@ -126,7 +126,8 @@ export const useStockProductos = () => {
       nueva_cantidad, 
       motivo,
       seriales,
-      seriales_salida
+      seriales_salida,
+      es_serializado
     }: { 
       producto_id: string; 
       nueva_cantidad: number; 
@@ -137,6 +138,7 @@ export const useStockProductos = () => {
         mac_address?: string;
       }>;
       seriales_salida?: string[]; // IDs de productos_serie a dar de baja
+      es_serializado?: boolean;
     }) => {
       // Obtener cantidad actual
       const { data: stockActual } = await supabase
@@ -155,7 +157,7 @@ export const useStockProductos = () => {
       let motivoFinal = motivo;
 
       // Si es salida de producto serializado, validar y actualizar seriales primero
-      if (diferencia < 0) {
+      if (diferencia < 0 && es_serializado) {
         if (!seriales_salida || seriales_salida.length !== absDif) {
           throw new Error(`Debe seleccionar exactamente ${absDif} número(s) de serie para dar de baja.`);
         }
@@ -262,7 +264,7 @@ export const useStockProductos = () => {
       console.error('Error adjusting stock:', error);
       toast({
         title: "Error al ajustar stock",
-        description: "No se pudo actualizar el stock. Verifique sus permisos.",
+        description: (error as any)?.message || "No se pudo actualizar el stock.",
         variant: "destructive",
       });
     }

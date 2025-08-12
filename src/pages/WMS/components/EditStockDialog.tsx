@@ -199,6 +199,7 @@ export const EditStockDialog = ({ open, onOpenChange, stockItem }: EditStockDial
         producto_id: stockItem.producto_id,
         nueva_cantidad: parseInt(nuevaCantidad),
         motivo: motivo.trim(),
+        es_serializado: esProductoSerializado,
         seriales: esProductoSerializado && esEntrada ? seriales : undefined,
         seriales_salida: esProductoSerializado && !esEntrada ? serialesSeleccionados : undefined,
       } as any;
