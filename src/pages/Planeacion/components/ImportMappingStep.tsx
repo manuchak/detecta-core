@@ -26,6 +26,7 @@ const DATABASE_FIELDS = [
   { value: 'folio', label: 'Folio', description: 'Folio del servicio (si existe en Excel)' },
   { value: 'cliente', label: 'Cliente', description: 'Nombre del cliente (texto)' },
   { value: 'cliente_id', label: 'Cliente ID', description: 'Identificador único del cliente', required: true },
+  { value: 'fecha_hora_programada', label: 'Fecha y Hora Programada', description: 'Fecha y hora del servicio (DD-MM-YYYY HH:MM o similar)' },
   { value: 'fecha_programada', label: 'Fecha Programada', description: 'Fecha del servicio (YYYY-MM-DD)', required: true },
   { value: 'hora_programacion', label: 'Hora Programación', description: 'Hora del servicio (HH:MM)' },
   { value: 'fecha_hora_recepcion_servicio', label: 'Fecha y Hora de recepción de la Solicitud del Servicio', description: 'Fecha y hora de recepción (YYYY-MM-DD HH:MM)' },

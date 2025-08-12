@@ -115,10 +115,13 @@ export const validateMappedData = (
   const errors: string[] = [];
   const warnings: string[] = [];
   
-  // Check if all required fields are mapped
+  // Check if all required fields are mapped (allow 'fecha_hora_programada' to satisfy 'fecha_programada')
   const mappedFields = Object.values(mapping).filter(field => field !== '');
-  const missingFields = requiredFields.filter(field => !mappedFields.includes(field));
-  
+  const effectiveMapped = new Set(mappedFields);
+  if (effectiveMapped.has('fecha_hora_programada')) {
+    effectiveMapped.add('fecha_programada');
+  }
+  const missingFields = requiredFields.filter(field => !effectiveMapped.has(field));
   if (missingFields.length > 0) {
     errors.push(`Campos requeridos sin mapear: ${missingFields.join(', ')}`);
   }
@@ -158,20 +161,43 @@ export const transformDataForImport = (
   data: ExcelData,
   mapping: MappingConfig
 ): any[] => {
-  // Helper to parse Excel serial date/times and strings into ISO datetime
+  // Helper to parse Excel serial numbers and common string formats (incl. DD-MM-YYYY HH:MM)
   const parseExcelDateTime = (value: any): string | undefined => {
     if (value === null || value === undefined || value === '') return undefined;
     try {
       if (typeof value === 'number') {
+        // Excel serial date (days since 1899-12-30)
         const ms = Math.round((value - 25569) * 86400 * 1000);
         const d = new Date(ms);
         return isNaN(d.getTime()) ? undefined : d.toISOString();
+      }
+      if (typeof value === 'string') {
+        const s = value.trim().replace(/\s+/g, ' ');
+        // Match DD-MM-YYYY or DD/MM/YYYY with optional time HH:MM[:SS]
+        const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+        if (m) {
+          const day = parseInt(m[1], 10);
+          const month = parseInt(m[2], 10) - 1;
+          const yearRaw = parseInt(m[3], 10);
+          const year = yearRaw < 100 ? 2000 + yearRaw : yearRaw;
+          const hh = m[4] ? parseInt(m[4], 10) : 0;
+          const mm = m[5] ? parseInt(m[5], 10) : 0;
+          const ss = m[6] ? parseInt(m[6], 10) : 0;
+          const d = new Date(year, month, day, hh, mm, ss);
+          return isNaN(d.getTime()) ? undefined : d.toISOString();
+        }
       }
       const d = new Date(value);
       return isNaN(d.getTime()) ? undefined : d.toISOString();
     } catch {
       return undefined;
     }
+  };
+
+  const hasTimeComponent = (value: any): boolean => {
+    if (typeof value === 'number') return value % 1 !== 0;
+    if (typeof value === 'string') return /\d{1,2}:\d{2}/.test(value);
+    return false;
   };
 
   return data.rows.map(row => {
@@ -183,13 +209,29 @@ export const transformDataForImport = (
         let value = row[excelColumn];
         
         // Datetime fields (keep full timestamp)
-        if ((dbField.includes('fecha_hora') || dbField === 'fecha_hora_recepcion_servicio') && value) {
+        if ((dbField === 'fecha_hora_programada' || dbField === 'fecha_hora_recepcion_servicio' || dbField.includes('fecha_hora')) && value) {
           const iso = parseExcelDateTime(value);
-          if (iso) transformedRow[dbField] = iso;
+          if (iso) {
+            if (dbField === 'fecha_hora_programada') {
+              // Split into fecha_programada and hora_programacion
+              const [dPart, tPart] = iso.split('T');
+              transformedRow['fecha_programada'] = dPart;
+              transformedRow['hora_programacion'] = tPart.slice(0,5);
+            } else {
+              transformedRow[dbField] = iso;
+            }
+          }
         } else if (dbField.includes('fecha') && value) {
-          // Date-only fields
+          // Date-only fields (but accept combined datetime too)
           const iso = parseExcelDateTime(value);
-          if (iso) transformedRow[dbField] = iso.split('T')[0];
+          if (iso) {
+            const [dPart, tPart] = iso.split('T');
+            transformedRow[dbField] = dPart;
+            // If the source included time, also fill hora_programacion when not already mapped
+            if (hasTimeComponent(value) && !transformedRow['hora_programacion']) {
+              transformedRow['hora_programacion'] = tPart.slice(0,5);
+            }
+          }
         } else if ((dbField.includes('lat') || dbField.includes('lng') || dbField.includes('prioridad')) && value !== '') {
           // Parse numbers
           const num = parseFloat(value);
@@ -211,6 +253,14 @@ export const transformDataForImport = (
           } else if (/\d{1,2}:\d{2}/.test(hhmm)) {
             const [h, m] = hhmm.split(':');
             hhmm = `${h.padStart(2,'0')}:${m}`;
+          } else {
+            // Try DD-MM-YYYY HH:MM
+            const m = hhmm.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})[ T](\d{1,2}):(\d{2})/);
+            if (m) {
+              const h = m[4].padStart(2,'0');
+              const mi = m[5];
+              hhmm = `${h}:${mi}`;
+            }
           }
           transformedRow[dbField] = hhmm;
         } else if (dbField === 'requiere_gadgets') {
@@ -239,6 +289,8 @@ export const getDefaultMapping = (columns: ExcelColumn[]): MappingConfig => {
       mapping[col.key] = 'folio';
     } else if (h.includes('recepcion') || (h.includes('fecha') && h.includes('hora') && (h.includes('solicitud') || h.includes('recepción')))) {
       mapping[col.key] = 'fecha_hora_recepcion_servicio';
+    } else if (h.includes('fecha') && h.includes('hora')) {
+      mapping[col.key] = 'fecha_hora_programada';
     } else if ((h.includes('cliente') && h.includes('id')) || h.includes('cliente_id')) {
       mapping[col.key] = 'cliente_id';
     } else if (h.includes('cliente')) {
