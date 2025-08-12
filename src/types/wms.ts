@@ -160,7 +160,7 @@ export interface DetalleOrdenCompra {
 export interface MovimientoInventario {
   id: string;
   producto_id: string;
-  tipo_movimiento: 'entrada' | 'salida' | 'ajuste' | 'reserva' | 'liberacion';
+  tipo_movimiento: 'entrada' | 'salida' | 'ajuste' | 'reserva' | 'liberacion' | 'desecho' | 'rma' | 'devolucion_proveedor';
   cantidad: number;
   cantidad_anterior: number;
   cantidad_nueva: number;
@@ -231,4 +231,50 @@ export interface ModeloGPS {
   activo?: boolean;
   created_at?: string;
   marca?: MarcaGPS;
+}
+
+export interface DevolucionProveedor {
+  id: string;
+  numero_rma?: string;
+  proveedor_id?: string;
+  estado: 'iniciada' | 'enviada' | 'aceptada' | 'rechazada' | 'cerrada';
+  total_items: number;
+  total_valor: number;
+  notas?: string;
+  evidencia_urls?: string[];
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+  detalles?: DetalleDevolucionProveedor[];
+}
+
+export interface DetalleDevolucionProveedor {
+  id: string;
+  devolucion_id: string;
+  producto_id: string;
+  cantidad: number;
+  seriales?: string[];
+  motivo?: string;
+  costo_unitario?: number;
+  subtotal?: number;
+  estado_item: 'pendiente' | 'enviado' | 'aceptado' | 'rechazado';
+  evidencia_urls?: string[];
+  created_at?: string;
+  producto?: ProductoInventario;
+}
+
+export interface DesechoInventario {
+  id: string;
+  producto_id: string;
+  cantidad: number;
+  motivo?: string;
+  seriales?: string[];
+  costo_unitario?: number;
+  valor_total?: number;
+  estado: 'registrado' | 'dispuesto';
+  evidencia_urls?: string[];
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+  producto?: ProductoInventario;
 }

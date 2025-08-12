@@ -1575,6 +1575,51 @@ export type Database = {
         }
         Relationships: []
       }
+      desechos_inventario: {
+        Row: {
+          cantidad: number
+          costo_unitario: number | null
+          created_at: string
+          created_by: string | null
+          estado: string
+          evidencia_urls: string[] | null
+          id: string
+          motivo: string | null
+          producto_id: string
+          seriales: string[] | null
+          updated_at: string
+          valor_total: number | null
+        }
+        Insert: {
+          cantidad: number
+          costo_unitario?: number | null
+          created_at?: string
+          created_by?: string | null
+          estado?: string
+          evidencia_urls?: string[] | null
+          id?: string
+          motivo?: string | null
+          producto_id: string
+          seriales?: string[] | null
+          updated_at?: string
+          valor_total?: number | null
+        }
+        Update: {
+          cantidad?: number
+          costo_unitario?: number | null
+          created_at?: string
+          created_by?: string | null
+          estado?: string
+          evidencia_urls?: string[] | null
+          id?: string
+          motivo?: string | null
+          producto_id?: string
+          seriales?: string[] | null
+          updated_at?: string
+          valor_total?: number | null
+        }
+        Relationships: []
+      }
       detalles_orden_compra: {
         Row: {
           cantidad_recibida: number | null
@@ -1685,6 +1730,98 @@ export type Database = {
             columns: ["recepcion_id"]
             isOneToOne: false
             referencedRelation: "recepciones_mercancia"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      devoluciones_proveedor: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          estado: string
+          evidencia_urls: string[] | null
+          id: string
+          notas: string | null
+          numero_rma: string | null
+          proveedor_id: string | null
+          total_items: number
+          total_valor: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          estado?: string
+          evidencia_urls?: string[] | null
+          id?: string
+          notas?: string | null
+          numero_rma?: string | null
+          proveedor_id?: string | null
+          total_items?: number
+          total_valor?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          estado?: string
+          evidencia_urls?: string[] | null
+          id?: string
+          notas?: string | null
+          numero_rma?: string | null
+          proveedor_id?: string | null
+          total_items?: number
+          total_valor?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      devoluciones_proveedor_detalle: {
+        Row: {
+          cantidad: number
+          costo_unitario: number | null
+          created_at: string
+          devolucion_id: string
+          estado_item: string
+          evidencia_urls: string[] | null
+          id: string
+          motivo: string | null
+          producto_id: string
+          seriales: string[] | null
+          subtotal: number | null
+        }
+        Insert: {
+          cantidad: number
+          costo_unitario?: number | null
+          created_at?: string
+          devolucion_id: string
+          estado_item?: string
+          evidencia_urls?: string[] | null
+          id?: string
+          motivo?: string | null
+          producto_id: string
+          seriales?: string[] | null
+          subtotal?: number | null
+        }
+        Update: {
+          cantidad?: number
+          costo_unitario?: number | null
+          created_at?: string
+          devolucion_id?: string
+          estado_item?: string
+          evidencia_urls?: string[] | null
+          id?: string
+          motivo?: string | null
+          producto_id?: string
+          seriales?: string[] | null
+          subtotal?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "devoluciones_proveedor_detalle_devolucion_id_fkey"
+            columns: ["devolucion_id"]
+            isOneToOne: false
+            referencedRelation: "devoluciones_proveedor"
             referencedColumns: ["id"]
           },
         ]
@@ -6841,8 +6978,10 @@ export type Database = {
       }
       stock_productos: {
         Row: {
+          cantidad_desecho: number
           cantidad_disponible: number | null
           cantidad_reservada: number | null
+          cantidad_rma: number
           cantidad_transito: number | null
           id: string
           producto_id: string
@@ -6851,8 +6990,10 @@ export type Database = {
           valor_inventario: number | null
         }
         Insert: {
+          cantidad_desecho?: number
           cantidad_disponible?: number | null
           cantidad_reservada?: number | null
+          cantidad_rma?: number
           cantidad_transito?: number | null
           id?: string
           producto_id: string
@@ -6861,8 +7002,10 @@ export type Database = {
           valor_inventario?: number | null
         }
         Update: {
+          cantidad_desecho?: number
           cantidad_disponible?: number | null
           cantidad_reservada?: number | null
+          cantidad_rma?: number
           cantidad_transito?: number | null
           id?: string
           producto_id?: string
