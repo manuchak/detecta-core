@@ -158,6 +158,22 @@ export const transformDataForImport = (
   data: ExcelData,
   mapping: MappingConfig
 ): any[] => {
+  // Helper to parse Excel serial date/times and strings into ISO datetime
+  const parseExcelDateTime = (value: any): string | undefined => {
+    if (value === null || value === undefined || value === '') return undefined;
+    try {
+      if (typeof value === 'number') {
+        const ms = Math.round((value - 25569) * 86400 * 1000);
+        const d = new Date(ms);
+        return isNaN(d.getTime()) ? undefined : d.toISOString();
+      }
+      const d = new Date(value);
+      return isNaN(d.getTime()) ? undefined : d.toISOString();
+    } catch {
+      return undefined;
+    }
+  };
+
   return data.rows.map(row => {
     const transformedRow: any = {};
     
@@ -166,13 +182,14 @@ export const transformDataForImport = (
       if (dbField && row[excelColumn] !== undefined) {
         let value = row[excelColumn];
         
-        // Apply transformations based on field type
-        if (dbField.includes('fecha') && value) {
-          // Try to parse dates
-          const date = new Date(value);
-          if (!isNaN(date.getTime())) {
-            transformedRow[dbField] = date.toISOString().split('T')[0];
-          }
+        // Datetime fields (keep full timestamp)
+        if ((dbField.includes('fecha_hora') || dbField === 'fecha_hora_recepcion_servicio') && value) {
+          const iso = parseExcelDateTime(value);
+          if (iso) transformedRow[dbField] = iso;
+        } else if (dbField.includes('fecha') && value) {
+          // Date-only fields
+          const iso = parseExcelDateTime(value);
+          if (iso) transformedRow[dbField] = iso.split('T')[0];
         } else if ((dbField.includes('lat') || dbField.includes('lng') || dbField.includes('prioridad')) && value !== '') {
           // Parse numbers
           const num = parseFloat(value);
@@ -220,18 +237,22 @@ export const getDefaultMapping = (columns: ExcelColumn[]): MappingConfig => {
     // Try to auto-match common field names (more specific first)
     if (h.includes('folio')) {
       mapping[col.key] = 'folio';
-    } else if (h.includes('hora')) {
-      mapping[col.key] = 'hora_programacion';
+    } else if (h.includes('recepcion') || (h.includes('fecha') && h.includes('hora') && (h.includes('solicitud') || h.includes('recepción')))) {
+      mapping[col.key] = 'fecha_hora_recepcion_servicio';
     } else if ((h.includes('cliente') && h.includes('id')) || h.includes('cliente_id')) {
       mapping[col.key] = 'cliente_id';
     } else if (h.includes('cliente')) {
       mapping[col.key] = 'cliente';
-    } else if (h.includes('fecha')) {
+    } else if (h.includes('fecha') && !h.includes('hora')) {
       mapping[col.key] = 'fecha_programada';
+    } else if (h.includes('hora')) {
+      mapping[col.key] = 'hora_programacion';
     } else if (h.includes('origen')) {
       mapping[col.key] = 'origen_texto';
     } else if (h.includes('destino')) {
       mapping[col.key] = 'destino_texto';
+    } else if (h.includes('custodio') && (h.includes('id') || h.includes('codigo') || h.includes('código'))) {
+      mapping[col.key] = 'custodio_asignado_id';
     } else if (h.includes('tipo')) {
       mapping[col.key] = 'tipo_servicio';
     } else if (h.includes('gadget')) {

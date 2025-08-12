@@ -5011,6 +5011,7 @@ export type Database = {
           destino_lng: number | null
           destino_texto: string
           estado: Database["public"]["Enums"]["estado_servicio"] | null
+          fecha_hora_recepcion_servicio: string | null
           fecha_programada: string
           folio: string
           hora_programacion: string | null
@@ -5040,6 +5041,7 @@ export type Database = {
           destino_lng?: number | null
           destino_texto: string
           estado?: Database["public"]["Enums"]["estado_servicio"] | null
+          fecha_hora_recepcion_servicio?: string | null
           fecha_programada: string
           folio: string
           hora_programacion?: string | null
@@ -5069,6 +5071,7 @@ export type Database = {
           destino_lng?: number | null
           destino_texto?: string
           estado?: Database["public"]["Enums"]["estado_servicio"] | null
+          fecha_hora_recepcion_servicio?: string | null
           fecha_programada?: string
           folio?: string
           hora_programacion?: string | null
