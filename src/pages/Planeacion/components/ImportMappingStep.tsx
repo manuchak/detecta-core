@@ -163,12 +163,15 @@ export default function ImportMappingStep({
                           <SelectItem 
                             key={field.value} 
                             value={field.value}
+                            textValue={field.label}
                             disabled={isUsed && field.value !== ''}
                           >
                             <div className="flex items-center gap-2">
                               <span>{field.label}</span>
                               {field.required && (
-                                <Badge variant="destructive" className="text-xs">*</Badge>
+                                <Badge variant="destructive" className="text-xs" aria-hidden>
+                                  *
+                                </Badge>
                               )}
                               {isUsed && field.value !== '' && (
                                 <Badge variant="secondary" className="text-xs">En uso</Badge>
