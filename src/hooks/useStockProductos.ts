@@ -125,7 +125,8 @@ export const useStockProductos = () => {
       producto_id, 
       nueva_cantidad, 
       motivo,
-      seriales
+      seriales,
+      seriales_salida
     }: { 
       producto_id: string; 
       nueva_cantidad: number; 
@@ -135,6 +136,7 @@ export const useStockProductos = () => {
         imei?: string;
         mac_address?: string;
       }>;
+      seriales_salida?: string[]; // IDs de productos_serie a dar de baja
     }) => {
       // Obtener cantidad actual
       const { data: stockActual } = await supabase
@@ -145,9 +147,45 @@ export const useStockProductos = () => {
 
       const cantidadAnterior = stockActual?.cantidad_disponible || 0;
       const diferencia = nueva_cantidad - cantidadAnterior;
+      const absDif = Math.abs(diferencia);
 
       // Obtener usuario actual de forma segura
       const { data: { user } } = await supabase.auth.getUser();
+
+      let motivoFinal = motivo;
+
+      // Si es salida de producto serializado, validar y actualizar seriales primero
+      if (diferencia < 0) {
+        if (!seriales_salida || seriales_salida.length !== absDif) {
+          throw new Error(`Debe seleccionar exactamente ${absDif} número(s) de serie para dar de baja.`);
+        }
+
+        // Validar pertenencia y estado de seriales
+        const { data: serialesRows, error: serialesFetchError } = await supabase
+          .from('productos_serie')
+          .select('id, numero_serie, estado')
+          .in('id', seriales_salida)
+          .eq('producto_id', producto_id);
+        if (serialesFetchError) throw serialesFetchError;
+        if (!serialesRows || serialesRows.length !== absDif) {
+          throw new Error('Algunos números de serie no pertenecen al producto seleccionado.');
+        }
+        const noDisponibles = serialesRows.filter(s => s.estado !== 'disponible');
+        if (noDisponibles.length > 0) {
+          throw new Error('Algunos números de serie no están disponibles para baja.');
+        }
+
+        const nowIso = new Date().toISOString();
+        const { error: updateSerialsError } = await supabase
+          .from('productos_serie')
+          .update({ estado: 'dado_de_baja', updated_at: nowIso })
+          .in('id', seriales_salida)
+          .eq('producto_id', producto_id);
+        if (updateSerialsError) throw updateSerialsError;
+
+        const serialNums = serialesRows.map(s => s.numero_serie).join(', ');
+        motivoFinal = motivo ? `${motivo} | Seriales de baja: ${serialNums}` : `Seriales de baja: ${serialNums}`;
+      }
 
       // Actualizar el stock en la tabla stock_productos
       const { error: updateError } = await supabase
@@ -158,7 +196,17 @@ export const useStockProductos = () => {
         })
         .eq('producto_id', producto_id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        // Intentar revertir actualización de seriales en caso de error al actualizar stock
+        if (diferencia < 0 && seriales_salida && seriales_salida.length) {
+          await supabase
+            .from('productos_serie')
+            .update({ estado: 'disponible', updated_at: new Date().toISOString() })
+            .in('id', seriales_salida)
+            .eq('producto_id', producto_id);
+        }
+        throw updateError;
+      }
 
       // Registrar movimiento en el historial
       const { error: movError } = await supabase
@@ -169,7 +217,7 @@ export const useStockProductos = () => {
           cantidad: Math.abs(diferencia),
           cantidad_anterior: cantidadAnterior,
           cantidad_nueva: nueva_cantidad,
-          motivo,
+          motivo: motivoFinal,
           referencia_tipo: 'ajuste_manual',
           referencia_id: null,
           usuario_id: user?.id,

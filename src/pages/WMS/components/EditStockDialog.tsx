@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useSerialesProducto } from '@/hooks/useSerialesProducto';
 import {
   Dialog,
   DialogContent,
@@ -35,19 +37,26 @@ export const EditStockDialog = ({ open, onOpenChange, stockItem }: EditStockDial
   const [motivo, setMotivo] = useState('');
   const [seriales, setSeriales] = useState<SerialItem[]>([]);
   const [paso, setPaso] = useState<'cantidad' | 'seriales'>('cantidad');
+  const [serialesSeleccionados, setSerialesSeleccionados] = useState<string[]>([]);
+  const [busqueda, setBusqueda] = useState('');
   const { ajustarStock } = useStockProductos();
   const { toast } = useToast();
+  const { data: serialesDisponibles = [], isLoading: cargandoSeriales } = useSerialesProducto(stockItem?.producto_id);
 
   const handleOpenChange = (newOpen: boolean) => {
     if (newOpen && stockItem) {
       setNuevaCantidad(stockItem.cantidad_disponible.toString());
       setMotivo('');
       setSeriales([]);
+      setSerialesSeleccionados([]);
+      setBusqueda('');
       setPaso('cantidad');
     } else {
       setNuevaCantidad('');
       setMotivo('');
       setSeriales([]);
+      setSerialesSeleccionados([]);
+      setBusqueda('');
       setPaso('cantidad');
     }
     onOpenChange(newOpen);
@@ -101,18 +110,23 @@ export const EditStockDialog = ({ open, onOpenChange, stockItem }: EditStockDial
   const continuarASeriales = () => {
     if (!validarCantidad()) return;
 
-    // Si es entrada de producto serializado, ir a captura de seriales
-    if (esProductoSerializado && esEntrada && cantidadParaSeriales > 0) {
-      // Inicializar array de seriales según la cantidad a ingresar
-      const serialesIniciales = Array.from({ length: cantidadParaSeriales }, () => ({
-        numero_serie: '',
-        imei: '',
-        mac_address: ''
-      }));
-      setSeriales(serialesIniciales);
+    // Si es producto serializado y hay diferencia, ir a paso de seriales
+    if (esProductoSerializado && cantidadParaSeriales > 0) {
+      if (esEntrada) {
+        // Inicializar array de seriales según la cantidad a ingresar
+        const serialesIniciales = Array.from({ length: cantidadParaSeriales }, () => ({
+          numero_serie: '',
+          imei: '',
+          mac_address: ''
+        }));
+        setSeriales(serialesIniciales);
+      } else {
+        // Salida: limpiar selección previa
+        setSerialesSeleccionados([]);
+      }
       setPaso('seriales');
     } else {
-      // Si no es serializado o es salida, proceder directamente
+      // No requiere manejo de seriales
       submitAjuste();
     }
   };
