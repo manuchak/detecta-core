@@ -40,8 +40,8 @@ export const useSecureAuth = () => {
 
   const getUserRole = async (userId: string): Promise<string | null> => {
     try {
-      // Usar función segura para obtener el rol
-      const { data: role, error } = await supabase.rpc('get_current_user_role');
+      // Usar función segura para obtener el rol (versión consolidada)
+      const { data: role, error } = await supabase.rpc('get_current_user_role_secure');
       
       if (error) {
         console.error('Role fetch error:', error);

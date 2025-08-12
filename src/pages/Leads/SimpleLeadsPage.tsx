@@ -27,7 +27,7 @@ const SimpleLeadsPage = () => {
       
       if (data.user) {
         // Obtener rol del usuario
-        supabase.rpc('get_current_user_role').then(({ data: roleData, error: roleError }) => {
+        supabase.rpc('get_current_user_role_secure').then(({ data: roleData, error: roleError }) => {
           if (roleError) {
             console.error('Error getting role:', roleError);
           } else {

@@ -44,7 +44,7 @@ export const useLeadsDiagnostic = () => {
       
       try {
         const { data: currentRole, error: currentRoleError } = await supabase
-          .rpc('get_current_user_role');
+          .rpc('get_current_user_role_secure');
         
         if (currentRoleError) {
           roleError = currentRoleError;

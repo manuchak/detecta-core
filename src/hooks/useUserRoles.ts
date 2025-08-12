@@ -15,7 +15,7 @@ export const useUserRoles = () => {
         console.log('Fetching users with roles using secure function...');
         
         // Verificar primero si el usuario actual es admin usando la función segura
-        const { data: currentUserRole, error: roleError } = await supabase.rpc('get_current_user_role');
+        const { data: currentUserRole, error: roleError } = await supabase.rpc('get_current_user_role_secure');
         
         if (roleError) {
           console.error('Error checking user role:', roleError);
