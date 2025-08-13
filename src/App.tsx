@@ -53,6 +53,7 @@ import ServiceWorkflowDocumentation from '@/pages/Documentation/ServiceWorkflowD
 import PlaneacionDashboard from '@/pages/Planeacion/PlaneacionDashboard';
 
 import DuplicateCleanupPage from '@/pages/Maintenance/DuplicateCleanupPage';
+import VersionControlPage from '@/pages/Administration/VersionControlPage';
 
 
 // Components
@@ -411,6 +412,20 @@ function App() {
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'bi', 'supply_admin']}>
                         <DashboardLayout>
                           <DuplicateCleanupPage />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                {/* Administration routes */}
+                <Route
+                  path="/admin/version-control"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner']}>
+                        <DashboardLayout>
+                          <VersionControlPage />
                         </DashboardLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>

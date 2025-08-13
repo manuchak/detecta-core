@@ -315,6 +315,7 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
       title: "Administración",
       icon: UserCog,
       subItems: [
+        { title: "Control de Versiones", path: "/admin/version-control" },
         { title: "Gestión de Landing", path: "/admin/landing-manager" },
         { title: "Limpieza de BD", path: "/maintenance/duplicate-cleanup" },
       ]

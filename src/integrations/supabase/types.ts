@@ -2183,6 +2183,65 @@ export type Database = {
           },
         ]
       }
+      feature_releases: {
+        Row: {
+          actual_hours: number | null
+          assigned_to: string | null
+          completion_date: string | null
+          completion_status: string
+          created_at: string | null
+          dependencies: string[] | null
+          due_date: string | null
+          estimated_hours: number | null
+          feature_description: string | null
+          feature_name: string
+          id: string
+          priority: string
+          updated_at: string | null
+          version_id: string | null
+        }
+        Insert: {
+          actual_hours?: number | null
+          assigned_to?: string | null
+          completion_date?: string | null
+          completion_status?: string
+          created_at?: string | null
+          dependencies?: string[] | null
+          due_date?: string | null
+          estimated_hours?: number | null
+          feature_description?: string | null
+          feature_name: string
+          id?: string
+          priority?: string
+          updated_at?: string | null
+          version_id?: string | null
+        }
+        Update: {
+          actual_hours?: number | null
+          assigned_to?: string | null
+          completion_date?: string | null
+          completion_status?: string
+          created_at?: string | null
+          dependencies?: string[] | null
+          due_date?: string | null
+          estimated_hours?: number | null
+          feature_description?: string | null
+          feature_name?: string
+          id?: string
+          priority?: string
+          updated_at?: string | null
+          version_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feature_releases_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "system_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       flagged_services: {
         Row: {
           admin_notes: string | null
@@ -7067,6 +7126,65 @@ export type Database = {
           },
         ]
       }
+      system_changes: {
+        Row: {
+          affected_components: string[] | null
+          change_type: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          impact_level: string
+          module: string
+          rollback_plan: string | null
+          technical_details: string | null
+          testing_notes: string | null
+          title: string
+          updated_at: string | null
+          version_id: string | null
+        }
+        Insert: {
+          affected_components?: string[] | null
+          change_type: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          impact_level?: string
+          module: string
+          rollback_plan?: string | null
+          technical_details?: string | null
+          testing_notes?: string | null
+          title: string
+          updated_at?: string | null
+          version_id?: string | null
+        }
+        Update: {
+          affected_components?: string[] | null
+          change_type?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          impact_level?: string
+          module?: string
+          rollback_plan?: string | null
+          technical_details?: string | null
+          testing_notes?: string | null
+          title?: string
+          updated_at?: string | null
+          version_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "system_changes_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "system_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       system_limits: {
         Row: {
           created_at: string | null
@@ -7091,6 +7209,51 @@ export type Database = {
           name?: string
           updated_at?: string | null
           value?: number
+        }
+        Relationships: []
+      }
+      system_versions: {
+        Row: {
+          approved_by: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          release_date: string
+          release_notes: string | null
+          status: string
+          updated_at: string | null
+          version_name: string | null
+          version_number: string
+          version_type: string
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          release_date?: string
+          release_notes?: string | null
+          status?: string
+          updated_at?: string | null
+          version_name?: string | null
+          version_number: string
+          version_type?: string
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          release_date?: string
+          release_notes?: string | null
+          status?: string
+          updated_at?: string | null
+          version_name?: string | null
+          version_number?: string
+          version_type?: string
         }
         Relationships: []
       }
