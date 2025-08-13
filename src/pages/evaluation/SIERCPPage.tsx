@@ -709,7 +709,8 @@ const SIERCPPage = () => {
     // Add print styles to head - moved outside of conditional render
     useEffect(() => {
       const styleElement = document.createElement('style');
-      styleElement.innerHTML = printStyles;
+      // Use textContent instead of innerHTML to prevent XSS
+      styleElement.textContent = printStyles;
       document.head.appendChild(styleElement);
       
       return () => {

@@ -8194,7 +8194,7 @@ export type Database = {
         Returns: string
       }
       current_user_has_role: {
-        Args: { check_role: string }
+        Args: { required_role: string }
         Returns: boolean
       }
       current_user_is_coordinator_or_admin: {
@@ -9429,12 +9429,19 @@ export type Database = {
         }[]
       }
       log_sensitive_access: {
-        Args: {
-          table_name: string
-          operation: string
-          record_id?: string
-          additional_data?: Json
-        }
+        Args:
+          | {
+              table_name: string
+              operation: string
+              record_id?: string
+              additional_data?: Json
+            }
+          | {
+              table_name: string
+              operation: string
+              record_id?: string
+              additional_data?: Json
+            }
         Returns: undefined
       }
       log_sensitive_data_access: {
