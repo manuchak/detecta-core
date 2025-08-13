@@ -1,19 +1,26 @@
 
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useAuthenticatedQuery, AUTHENTICATED_QUERY_CONFIG } from '@/hooks/useAuthenticatedQuery';
 import { fetchAllGmvData } from '@/services/gmvDataService';
 import { processGmvData, GmvAnalysisData } from '@/utils/gmvDataProcessor';
 
 export const useGmvAnalysis = (selectedClient: string = "all") => {
-  const { data: allServices, isLoading, error } = useQuery({
-    queryKey: ['gmv-analysis-complete'],
-    queryFn: fetchAllGmvData,
-    staleTime: 5 * 60 * 1000, // Reducido a 5 minutos para datos más frescos
-    gcTime: 10 * 60 * 1000, // Cache durante 10 minutos
-    retry: 3,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false, // Evitar refetch innecesario al montar
-  });
+  const { data: allServices, isLoading, error } = useAuthenticatedQuery<any[]>(
+    ['gmv-analysis-complete', selectedClient],
+    async () => {
+      const res = await fetchAllGmvData();
+      console.log(`✅ GMV fetch completo: ${Array.isArray(res) ? res.length : 0} registros`);
+      return res as any[];
+    },
+    {
+      ...AUTHENTICATED_QUERY_CONFIG,
+      staleTime: 30_000,
+      gcTime: 60_000,
+      refetchOnMount: true,
+      refetchOnWindowFocus: false,
+      retry: 2,
+    }
+  );
 
   const analysisData = useMemo((): GmvAnalysisData => {
     // Ensure allServices is an array before processing
