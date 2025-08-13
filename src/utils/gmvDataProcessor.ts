@@ -16,17 +16,22 @@ export interface GmvAnalysisData {
   totalGmv2024: number;
   overallGrowth: number;
   clients: string[];
+  currentYearLabel: number;
+  previousYearLabel: number;
 }
 
 export const processGmvData = (allServices: any[], selectedClient: string = "all"): GmvAnalysisData => {
   if (!allServices || allServices.length === 0) {
     console.log('⚠️ No services data available for analysis');
+    const nowYear = new Date().getFullYear();
     return {
       monthlyData: [],
       totalGmv2025: 0,
       totalGmv2024: 0,
       overallGrowth: 0,
-      clients: []
+      clients: [],
+      currentYearLabel: nowYear,
+      previousYearLabel: nowYear - 1,
     };
   }
 
@@ -105,6 +110,17 @@ export const processGmvData = (allServices: any[], selectedClient: string = "all
 
   // PASO 5: Procesamiento de datos mensuales
   console.log('📊 PASO 5: Procesamiento de datos mensuales');
+
+  // Detectar dinámicamente los dos años más recientes presentes en los datos
+  const yearsInData = validServices
+    .map((s) => {
+      const d = new Date(s.fecha_hora_cita);
+      return isNaN(d.getTime()) ? null : d.getFullYear();
+    })
+    .filter((y): y is number => y !== null);
+  const detectedCurrentYear = yearsInData.length > 0 ? Math.max(...yearsInData) : new Date().getFullYear();
+  const detectedPreviousYear = detectedCurrentYear - 1;
+
   const monthlyStats: { [key: string]: { year2025: number; year2024: number; count2025: number; count2024: number } } = {};
   
   const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -151,11 +167,11 @@ export const processGmvData = (allServices: any[], selectedClient: string = "all
         });
       }
 
-      if (year === 2025) {
+      if (year === detectedCurrentYear) {
         monthlyStats[monthName].year2025 += cobro;
         monthlyStats[monthName].count2025++;
         processedServices++;
-      } else if (year === 2024) {
+      } else if (year === detectedPreviousYear) {
         monthlyStats[monthName].year2024 += cobro;
         monthlyStats[monthName].count2024++;
         processedServices++;
@@ -235,6 +251,8 @@ export const processGmvData = (allServices: any[], selectedClient: string = "all
     totalGmv2025,
     totalGmv2024,
     overallGrowth,
-    clients: uniqueClients.sort()
+    clients: uniqueClients.sort(),
+    currentYearLabel: detectedCurrentYear,
+    previousYearLabel: detectedPreviousYear,
   };
 };

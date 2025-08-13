@@ -15,7 +15,9 @@ export const GmvAnalysisChart = () => {
     overallGrowth, 
     clients, 
     isLoading, 
-    totalRecords 
+    totalRecords,
+    currentYearLabel,
+    previousYearLabel 
   } = useGmvAnalysis(selectedClient);
 
   const formatCurrency = (value: number) => {
@@ -39,7 +41,7 @@ export const GmvAnalysisChart = () => {
                 style={{ backgroundColor: entry.color }}
               />
               <span className="text-sm text-gray-600">
-                {entry.dataKey === 'year2025' ? '2025' : '2024'}: {formatCurrency(entry.value)}
+                {entry.dataKey === 'year2025' ? String(currentYearLabel) : String(previousYearLabel)}: {formatCurrency(entry.value)}
               </span>
             </div>
           ))}
