@@ -50,13 +50,23 @@ export function TopNavBar({
             {sectionInfo.breadcrumbs.map((crumb, index) => (
               <React.Fragment key={index}>
                 {index > 0 && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
-                <span className={cn(
-                  index === sectionInfo.breadcrumbs.length - 1 
-                    ? "text-foreground font-medium" 
-                    : "text-muted-foreground"
-                )}>
+                <button 
+                  className={cn(
+                    "hover:text-foreground transition-colors",
+                    index === sectionInfo.breadcrumbs.length - 1 
+                      ? "text-foreground font-medium cursor-default" 
+                      : "text-muted-foreground hover:underline"
+                  )}
+                  onClick={() => {
+                    if (index === 0) {
+                      // Navigate to main dashboard when clicking first breadcrumb
+                      window.location.href = '/recruitment-strategy?section=executive';
+                    }
+                  }}
+                  disabled={index === sectionInfo.breadcrumbs.length - 1}
+                >
                   {crumb}
-                </span>
+                </button>
               </React.Fragment>
             ))}
           </nav>
