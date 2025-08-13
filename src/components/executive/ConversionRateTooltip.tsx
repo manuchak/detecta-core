@@ -14,7 +14,7 @@ export const ConversionRateTooltip: React.FC<ConversionRateTooltipProps> = ({ da
     );
   }
 
-  const { yearlyData, currentMonthData } = data;
+  const { yearlyData, currentMonthData, periodLabel } = data;
 
   return (
     <div className="p-4 max-w-md space-y-4">
@@ -28,7 +28,7 @@ export const ConversionRateTooltip: React.FC<ConversionRateTooltipProps> = ({ da
 
       {/* Datos anuales */}
       <div>
-        <h5 className="font-medium text-sm mb-2">Datos del Período (Jun-Jul 2025)</h5>
+        <h5 className="font-medium text-sm mb-2">Datos del Período ({periodLabel})</h5>
         <div className="space-y-1 text-xs">
           <div className="flex justify-between">
             <span className="text-blue-600">Total Leads</span>

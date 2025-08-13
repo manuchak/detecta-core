@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-
+import { useAuthenticatedQuery, AUTHENTICATED_QUERY_CONFIG } from '@/hooks/useAuthenticatedQuery';
+import { format, startOfMonth, endOfMonth, subMonths, addMonths, isSameYear } from 'date-fns';
+import { es } from 'date-fns/locale';
 export interface ConversionRateBreakdown {
   month: string;
   leads: number;
@@ -22,70 +23,75 @@ export interface ConversionRateDetails {
     newCustodians: number;
     conversionRate: number;
   };
+  periodLabel: string;
   loading: boolean;
 }
 
 export const useConversionRateDetails = (): ConversionRateDetails => {
-  // Obtener leads por mes (usando datos reales de la tabla leads)
-  const { data: leadsPorMes, isLoading: leadsLoading } = useQuery({
-    queryKey: ['leads-por-mes'],
-    queryFn: async () => {
+  // Calcular período dinámico: desde primer día del mes anterior hasta último día del mes actual
+  const today = new Date();
+  const start = startOfMonth(subMonths(today, 1));
+  const end = endOfMonth(today);
+  const startStr = format(start, 'yyyy-MM-dd');
+  const endStr = format(end, 'yyyy-MM-dd');
+
+  const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+
+  // Leads por mes (autenticado)
+  const { data: leadsPorMes = {}, isLoading: leadsLoading } = useAuthenticatedQuery<Record<string, number>>(
+    ['leads-por-mes', startStr, endStr],
+    async () => {
       const { data, error } = await supabase
         .from('leads')
-        .select('nombre, fecha_creacion')
-        .gte('fecha_creacion', '2025-06-01')  // Período con datos reales
-        .lte('fecha_creacion', '2025-07-31')  // Período con datos reales
+        .select('fecha_creacion')
+        .gte('fecha_creacion', startStr)
+        .lte('fecha_creacion', endStr)
         .order('fecha_creacion', { ascending: true });
 
       if (error) throw error;
-      
-      // Agrupar leads por mes
-      const leadsPorMes: { [key: string]: number } = {};
-      
-      if (data && data.length > 0) {
-        data.forEach(lead => {
-          const fecha = new Date(lead.fecha_creacion);
-          const yearMonth = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
-          
-          if (!leadsPorMes[yearMonth]) {
-            leadsPorMes[yearMonth] = 0;
-          }
-          leadsPorMes[yearMonth]++;
-        });
-      }
-      
-      return leadsPorMes;
-    },
-    staleTime: 5 * 60 * 1000,
-  });
 
-  // Obtener custodios con primer servicio por mes usando función optimizada
-  const { data: custodiosNuevosPorMes, isLoading: custodiosLoading } = useQuery({
-    queryKey: ['custodios-nuevos-conversion'],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_custodios_nuevos_por_mes', {
-        fecha_inicio: '2025-06-01',
-        fecha_fin: '2025-07-31'
+      const map: Record<string, number> = {};
+      (data ?? []).forEach((lead: any) => {
+        const fecha = new Date(lead.fecha_creacion);
+        const ym = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
+        map[ym] = (map[ym] ?? 0) + 1;
       });
-      
-      if (error) throw error;
-      
-      // Convertir a formato esperado (cantidad por mes)
-      const custodiosPorMes: { [key: string]: number } = {};
-      
-      if (data && data.length > 0) {
-        data.forEach(item => {
-          custodiosPorMes[item.mes] = item.custodios_nuevos;
-        });
-      }
-      
-      return custodiosPorMes;
+      return map;
     },
-    staleTime: 5 * 60 * 1000,
-  });
+    {
+      ...AUTHENTICATED_QUERY_CONFIG,
+      staleTime: 30_000,
+      refetchOnMount: true,
+    }
+  );
+
+  // Custodios nuevos (primer servicio) por mes (autenticado)
+  const { data: custodiosNuevosPorMes = {}, isLoading: custodiosLoading } = useAuthenticatedQuery<Record<string, number>>(
+    ['custodios-nuevos-conversion', startStr, endStr],
+    async () => {
+      const { data, error } = await supabase.rpc('get_custodios_nuevos_por_mes', {
+        fecha_inicio: startStr,
+        fecha_fin: endStr,
+      });
+
+      if (error) throw error;
+
+      const map: Record<string, number> = {};
+      (data ?? []).forEach((item: any) => {
+        // Se asume que item.mes viene como 'YYYY-MM'
+        map[item.mes] = item.custodios_nuevos;
+      });
+      return map;
+    },
+    {
+      ...AUTHENTICATED_QUERY_CONFIG,
+      staleTime: 30_000,
+      refetchOnMount: true,
+    }
+  );
 
   const conversionDetails = useMemo(() => {
-    if (leadsLoading || custodiosLoading || !leadsPorMes || !custodiosNuevosPorMes) {
+    if (leadsLoading || custodiosLoading) {
       return {
         yearlyData: {
           totalLeads: 0,
@@ -99,41 +105,43 @@ export const useConversionRateDetails = (): ConversionRateDetails => {
           newCustodians: 0,
           conversionRate: 0,
         },
+        periodLabel: '',
         loading: true,
-      };
+      } as ConversionRateDetails;
     }
 
-    // Obtener todos los meses del período real de datos
-    const allMonths = ['2025-06', '2025-07'];
-    const monthNames = ['Junio', 'Julio'];
-    
+    // Construir meses entre start y end (inclusive)
+    const months: { key: string; date: Date }[] = [];
+    for (let d = startOfMonth(start); d <= end; d = addMonths(d, 1)) {
+      months.push({ key: format(d, 'yyyy-MM'), date: new Date(d) });
+    }
+
     let totalLeads = 0;
     let totalNewCustodians = 0;
-    const monthlyBreakdown: ConversionRateBreakdown[] = [];
 
-    allMonths.forEach((month, index) => {
-      const leads = leadsPorMes[month] || 0;
-      const newCustodians = custodiosNuevosPorMes[month] || 0;
+    const monthlyBreakdown: ConversionRateBreakdown[] = months.map(({ key, date }) => {
+      const leads = leadsPorMes[key] ?? 0;
+      const newCustodians = custodiosNuevosPorMes[key] ?? 0;
       const conversionRate = leads > 0 ? Math.round((newCustodians / leads) * 100 * 100) / 100 : 0;
-
       totalLeads += leads;
       totalNewCustodians += newCustodians;
-
-      monthlyBreakdown.push({
-        month: monthNames[index],
-        leads,
-        newCustodians,
-        conversionRate,
-      });
+      const monthLabel = capitalize(format(date, 'LLLL', { locale: es }));
+      return { month: monthLabel, leads, newCustodians, conversionRate };
     });
 
     const overallConversionRate = totalLeads > 0 ? Math.round((totalNewCustodians / totalLeads) * 100 * 100) / 100 : 0;
 
-    // Datos del mes actual (Julio 2025 - último mes con datos)
-    const currentMonth = '2025-07';
-    const currentMonthLeads = leadsPorMes[currentMonth] || 0;
-    const currentMonthCustodians = custodiosNuevosPorMes[currentMonth] || 0;
+    // Mes actual (fin del período)
+    const currentMonthKey = format(end, 'yyyy-MM');
+    const currentMonthLeads = leadsPorMes[currentMonthKey] ?? 0;
+    const currentMonthCustodians = custodiosNuevosPorMes[currentMonthKey] ?? 0;
     const currentMonthConversion = currentMonthLeads > 0 ? Math.round((currentMonthCustodians / currentMonthLeads) * 100 * 100) / 100 : 0;
+    const currentMonthLabel = `${capitalize(format(end, 'LLLL', { locale: es }))} ${format(end, 'yyyy')}`;
+
+    // Etiqueta de período
+    const left = capitalize(format(start, isSameYear(start, end) ? 'LLL' : 'LLL yyyy', { locale: es }));
+    const right = capitalize(format(end, 'LLL yyyy', { locale: es }));
+    const periodLabel = `${left} - ${right}`;
 
     return {
       yearlyData: {
@@ -143,14 +151,15 @@ export const useConversionRateDetails = (): ConversionRateDetails => {
         monthlyBreakdown,
       },
       currentMonthData: {
-        month: 'Julio 2025',
+        month: currentMonthLabel,
         leads: currentMonthLeads,
         newCustodians: currentMonthCustodians,
         conversionRate: currentMonthConversion,
       },
+      periodLabel,
       loading: false,
-    };
-  }, [leadsPorMes, custodiosNuevosPorMes, leadsLoading, custodiosLoading]);
+    } as ConversionRateDetails;
+  }, [leadsPorMes, custodiosNuevosPorMes, leadsLoading, custodiosLoading, start, end]);
 
   return {
     ...conversionDetails,
