@@ -7643,6 +7643,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      audit_sensitive_access: {
+        Args: { table_name: string; operation: string; record_id?: string }
+        Returns: undefined
+      }
       auto_asignar_kit_instalacion: {
         Args: {
           p_programacion_id: string
@@ -9534,6 +9538,10 @@ export type Database = {
       validate_input_text: {
         Args: { input_text: string; max_length?: number }
         Returns: string
+      }
+      validate_role_change_secure: {
+        Args: { target_user_id: string; new_role: string }
+        Returns: boolean
       }
       validate_role_input: {
         Args: { role_name: string }
