@@ -3,6 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { MAPBOX_ACCESS_TOKEN } from '@/lib/mapbox';
 import { AlertTriangle, Users, MapPin } from 'lucide-react';
 import type { ZonaOperacion, MetricaDemandaZona, AlertaSistema, CandidatoCustodio } from '@/hooks/useNationalRecruitment';
 import { sanitize } from '@/utils/sanitize';
@@ -221,7 +222,7 @@ export const NationalMap: React.FC<NationalMapProps> = ({
     if (!mapContainer.current) return;
 
     // Usar el token de Mapbox del componente existente
-    mapboxgl.accessToken = 'pk.eyJ1IjoiZGV0ZWN0YXNlYyIsImEiOiJjbTlzdjg3ZmkwNGVoMmpwcGg3MWMwNXlhIn0.zIQ8khHoZsJt8bL4jXf35Q';
+    mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
     
     map.current = new mapboxgl.Map({
       container: mapContainer.current,

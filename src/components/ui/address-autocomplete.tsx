@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { MapPin, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { MAPBOX_ACCESS_TOKEN } from '@/lib/mapbox';
 
 interface AddressSuggestion {
   id: string;
@@ -47,8 +48,7 @@ export const AddressAutocomplete = ({
   const timeoutRef = useRef<NodeJS.Timeout>();
   const abortControllerRef = useRef<AbortController>();
 
-  // Token real de Mapbox
-  const MAPBOX_TOKEN = 'pk.eyJ1IjoiZGV0ZWN0YXNlYyIsImEiOiJjbTlzdjg3ZmkwNGVoMmpwcGg3MWMwNXlhIn0.zIQ8khHoZsJt8bL4jXf35Q';
+  // Using centralized Mapbox token
 
   const searchAddresses = useCallback(async (query: string) => {
     console.log('Searching addresses for:', query);
@@ -75,7 +75,7 @@ export const AddressAutocomplete = ({
       const types = 'address,poi,place,postcode';
       
       const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?` +
-        `access_token=${MAPBOX_TOKEN}&` +
+        `access_token=${MAPBOX_ACCESS_TOKEN}&` +
         `country=${country}&` +
         `types=${types}&` +
         `language=es&` +

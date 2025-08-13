@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Card } from '@/components/ui/card';
+import { MAPBOX_ACCESS_TOKEN } from '@/lib/mapbox';
 
 interface MapDisplayProps {
   className?: string;
@@ -17,7 +18,7 @@ const MapDisplay = ({ className, title = "Monitoreo en Tiempo Real" }: MapDispla
     if (!mapContainer.current) return;
 
     // Initialize map with the provided token
-    mapboxgl.accessToken = 'pk.eyJ1IjoiZGV0ZWN0YXNlYyIsImEiOiJjbTlzdjg3ZmkwNGVoMmpwcGg3MWMwNXlhIn0.zIQ8khHoZsJt8bL4jXf35Q';
+    mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
     
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
