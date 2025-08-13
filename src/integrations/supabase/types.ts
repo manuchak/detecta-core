@@ -9180,7 +9180,7 @@ export type Database = {
         Returns: boolean
       }
       is_admin_no_recursion: {
-        Args: { check_user_id: string }
+        Args: { user_uuid: string }
         Returns: boolean
       }
       is_admin_or_owner: {
