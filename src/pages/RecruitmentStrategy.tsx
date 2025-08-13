@@ -3,8 +3,7 @@ import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { NavigationSidebar } from '@/components/recruitment/ui/NavigationSidebar';
-import { MinimalSectionHeader } from '@/components/recruitment/ui/MinimalSectionHeader';
+import { AppShell } from '@/components/layout/AppShell';
 import { MinimalCard } from '@/components/recruitment/ui/MinimalCard';
 import { MinimalGrid } from '@/components/recruitment/ui/MinimalGrid';
 import { useNationalRecruitment } from '@/hooks/useNationalRecruitment';
@@ -767,60 +766,30 @@ const RecruitmentStrategy = () => {
   };
 
   return (
-    <div className="h-screen flex w-full bg-gray-50 font-apple">
-      {/* Navigation Sidebar */}
-      <NavigationSidebar 
+    <RecruitmentErrorBoundary>
+      <AppShell
         activeSection={activeSection}
         onSectionChange={setActiveSection}
-        criticalAlerts={multiMonthData?.kpis?.criticalClusters || alertasCriticas}
-        urgentClusters={multiMonthData?.kpis?.urgentClusters || alertasPreventivas}
-        totalDeficit={multiMonthData?.targetMonth?.totalNeed || totalDeficit}
-        activeCandidates={candidatosActivos}
-      />
-      
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Content Area */}
-        <div className="flex-1 overflow-auto">
-          <div className="p-12 space-y-12 max-w-7xl mx-auto">
-            {/* Section Header */}
-            <MinimalSectionHeader
-              title={sectionInfo.title}
-              description={sectionInfo.description}
-              actions={
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRefreshData}
-                    disabled={loading}
-                    className="border-gray-200 text-gray-600 hover:bg-gray-50"
-                  >
-                    <RefreshCw className={cn("w-4 h-4 mr-2", loading && "animate-spin")} />
-                    {loading ? 'Actualizando...' : 'Actualizar'}
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleGenerateAlerts}
-                    disabled={loading}
-                    className="bg-gray-900 hover:bg-gray-800 text-white"
-                  >
-                    <Zap className="w-4 h-4 mr-2" />
-                    Analizar
-                  </Button>
-                </>
-              }
-            />
-
-            {/* Section Metrics */}
-            {renderSectionMetrics()}
-
-            {/* Main Content */}
+        sectionInfo={sectionInfo}
+        stats={{
+          criticalAlerts: Array.isArray(alertasCriticas) ? alertasCriticas.length : alertasCriticas,
+          urgentClusters: Array.isArray(alertasEstrategicas) ? alertasEstrategicas.length : alertasEstrategicas,
+          totalDeficit: totalDeficit,
+          activeCandidates: candidatosActivos
+        }}
+        onRefresh={handleRefreshData}
+        onAnalyze={handleGenerateAlerts}
+        loading={loading}
+      >
+        <div className="p-8 max-w-7xl mx-auto space-y-8">
+          {renderSectionMetrics()}
+          
+          <div className="space-y-6">
             {renderContent()}
           </div>
         </div>
-      </div>
-    </div>
+      </AppShell>
+    </RecruitmentErrorBoundary>
   );
 };
 
