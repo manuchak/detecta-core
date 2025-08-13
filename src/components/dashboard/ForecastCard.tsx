@@ -12,9 +12,10 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useCallback, useEffect } from "react";
 import { useForecastConfig, useUpdateForecastConfig, useCanModifyForecastConfig } from "@/hooks/useForecastConfig";
-
+import { ForecastModelTooltip } from "@/components/tooltips/ForecastModelTooltip";
 interface ForecastCardProps {
   isLoading?: boolean;
   error?: any;
@@ -469,10 +470,19 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
                 Forecast de Servicios y GMV
               </CardTitle>
                <div className="flex items-center gap-3 mt-2">
-                  <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200">
-                    <Brain className="h-3 w-3 mr-1" />
-                    {forecastData.modelName || (ensembleForecast.forecast ? 'Ensemble AI' : 'Holt-Winters')}
-                  </Badge>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200">
+                          <Brain className="h-3 w-3 mr-1" />
+                          {forecastData.modelName || (ensembleForecast.forecast ? 'Ensemble AI' : 'Holt-Winters')}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" align="start" className="max-w-md">
+                        <ForecastModelTooltip />
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                  <Badge variant="outline" className="text-slate-600">
                    <Activity className="h-3 w-3 mr-1" />
                       sMAPE: {(() => {
