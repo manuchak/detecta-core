@@ -36,6 +36,9 @@ export const DesechosTab = () => {
                 <CardDescription>Qty: {d.cantidad} • Valor: {new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format((d.valor_total||0))} • Estado: {d.estado}</CardDescription>
               </CardHeader>
               <CardContent>
+                {d.seriales && (d.seriales as any[]).length > 0 && (
+                  <p className="text-xs text-muted-foreground mb-2">Series: {(d.seriales as any[]).join(', ')}</p>
+                )}
                 <p className="text-sm text-muted-foreground">{d.motivo || 'Sin motivo'}</p>
               </CardContent>
             </Card>
