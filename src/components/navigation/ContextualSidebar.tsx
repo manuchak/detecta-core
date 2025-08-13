@@ -149,14 +149,17 @@ export function ContextualSidebar({ activeSection, onSectionChange, stats }: Con
 
   return (
     <Sidebar className={cn(collapsed ? "w-14" : "w-64")} collapsible="icon">
-      <SidebarContent>
+      <SidebarContent className="p-2">
         {/* Main sections */}
-        <SidebarGroup>
-          <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>
+        <SidebarGroup className="space-y-1">
+          <SidebarGroupLabel className={cn(
+            "px-3 py-2 text-xs font-semibold tracking-wide uppercase text-muted-foreground/70",
+            collapsed ? "sr-only" : ""
+          )}>
             Navegación
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-1">
               {navigationItems.map((section) => {
                 const isActive = activeParentSection === section.id;
                 const dynamicBadge = getDynamicBadge(section.id);
@@ -165,8 +168,9 @@ export function ContextualSidebar({ activeSection, onSectionChange, stats }: Con
                   <SidebarMenuItem key={section.id}>
                     <SidebarMenuButton 
                       className={cn(
-                        "relative",
-                        isActive && "bg-primary/10 text-primary"
+                        "relative rounded-lg h-auto p-3 transition-all duration-200",
+                        "hover:bg-accent/50 hover:scale-[1.02]",
+                        isActive ? "bg-primary/10 text-primary shadow-sm border border-primary/20" : "hover:bg-muted/50"
                       )}
                       onClick={() => {
                         // Navigate to first child of section
@@ -176,24 +180,36 @@ export function ContextualSidebar({ activeSection, onSectionChange, stats }: Con
                         }
                       }}
                     >
-                      <section.icon className="h-4 w-4" />
+                      <section.icon className={cn(
+                        "shrink-0 transition-colors",
+                        isActive ? "text-primary" : "text-muted-foreground",
+                        collapsed ? "h-5 w-5" : "h-4 w-4"
+                      )} />
                       {!collapsed && (
                         <>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium truncate">{section.title}</div>
-                            <div className="text-xs text-muted-foreground truncate">
+                          <div className="flex-1 min-w-0 text-left">
+                            <div className={cn(
+                              "font-medium truncate text-sm leading-5",
+                              isActive ? "text-primary" : "text-foreground"
+                            )}>
+                              {section.title}
+                            </div>
+                            <div className="text-xs text-muted-foreground/80 truncate leading-4">
                               {section.description}
                             </div>
                           </div>
                           {dynamicBadge && (
-                            <Badge variant="destructive" className="text-xs px-1.5 py-0.5 ml-2">
+                            <Badge 
+                              variant="destructive" 
+                              className="text-xs px-2 py-0.5 ml-3 min-w-[1.5rem] justify-center"
+                            >
                               {dynamicBadge}
                             </Badge>
                           )}
                         </>
                       )}
                       {collapsed && dynamicBadge && (
-                        <div className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full text-xs w-5 h-5 flex items-center justify-center">
+                        <div className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full text-xs w-5 h-5 flex items-center justify-center shadow-sm animate-pulse">
                           {dynamicBadge}
                         </div>
                       )}
@@ -207,23 +223,38 @@ export function ContextualSidebar({ activeSection, onSectionChange, stats }: Con
 
         {/* Contextual navigation - only show when expanded */}
         {!collapsed && (
-          <SidebarGroup>
-            <SidebarGroupLabel>
-              {navigationItems.find(s => s.id === activeParentSection)?.title || 'Secciones'}
-            </SidebarGroupLabel>
+          <SidebarGroup className="space-y-1">
+            <div className="flex items-center justify-between px-3 py-2">
+              <SidebarGroupLabel className="text-xs font-semibold tracking-wide uppercase text-muted-foreground/70">
+                {navigationItems.find(s => s.id === activeParentSection)?.title || 'Secciones'}
+              </SidebarGroupLabel>
+              <div className="w-8 h-px bg-border"></div>
+            </div>
             <SidebarGroupContent>
-              <SidebarMenu>
+              <SidebarMenu className="space-y-1">
                 {getContextualItems().map((item) => (
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton
                       className={cn(
-                        "pl-6",
-                        activeSection === item.id && "bg-primary text-primary-foreground"
+                        "pl-8 pr-3 py-2 rounded-lg transition-all duration-200",
+                        "hover:bg-accent/50 hover:translate-x-1",
+                        activeSection === item.id 
+                          ? "bg-primary text-primary-foreground shadow-sm" 
+                          : "text-muted-foreground hover:text-foreground"
                       )}
                       onClick={() => onSectionChange(item.id)}
                     >
-                      <item.icon className="h-3 w-3" />
-                      <span className="text-sm">{item.title}</span>
+                      <item.icon className={cn(
+                        "shrink-0 transition-colors",
+                        activeSection === item.id ? "text-primary-foreground" : "text-muted-foreground",
+                        "h-3.5 w-3.5"
+                      )} />
+                      <span className={cn(
+                        "text-sm font-medium",
+                        activeSection === item.id ? "text-primary-foreground" : ""
+                      )}>
+                        {item.title}
+                      </span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
@@ -234,17 +265,19 @@ export function ContextualSidebar({ activeSection, onSectionChange, stats }: Con
 
         {/* Quick stats in footer */}
         {!collapsed && stats && (
-          <SidebarGroup className="mt-auto">
-            <SidebarGroupLabel>Estado Actual</SidebarGroupLabel>
+          <SidebarGroup className="mt-auto space-y-2">
+            <SidebarGroupLabel className="px-3 py-2 text-xs font-semibold tracking-wide uppercase text-muted-foreground/70">
+              Estado Actual
+            </SidebarGroupLabel>
             <SidebarGroupContent>
-              <div className="grid grid-cols-2 gap-2 p-2">
-                <div className="text-center p-2 bg-destructive/10 rounded text-xs">
-                  <div className="font-bold text-destructive">{stats.totalDeficit || 0}</div>
-                  <div className="text-muted-foreground">Déficit</div>
+              <div className="grid grid-cols-2 gap-2 p-3">
+                <div className="text-center p-3 bg-gradient-to-br from-destructive/10 to-destructive/20 rounded-xl border border-destructive/20">
+                  <div className="font-bold text-lg text-destructive leading-none">{stats.totalDeficit || 0}</div>
+                  <div className="text-xs text-muted-foreground mt-1 font-medium">Déficit</div>
                 </div>
-                <div className="text-center p-2 bg-warning/10 rounded text-xs">
-                  <div className="font-bold text-warning">{stats.criticalAlerts || 0}</div>
-                  <div className="text-muted-foreground">Alertas</div>
+                <div className="text-center p-3 bg-gradient-to-br from-orange-500/10 to-orange-600/20 rounded-xl border border-orange-500/20">
+                  <div className="font-bold text-lg text-orange-600 leading-none">{stats.criticalAlerts || 0}</div>
+                  <div className="text-xs text-muted-foreground mt-1 font-medium">Alertas</div>
                 </div>
               </div>
             </SidebarGroupContent>
