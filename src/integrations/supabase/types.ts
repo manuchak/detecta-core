@@ -9257,6 +9257,10 @@ export type Database = {
           linked_services: number
         }[]
       }
+      log_sensitive_data_access: {
+        Args: { table_name: string; operation: string; user_role?: string }
+        Returns: undefined
+      }
       manually_verify_user: {
         Args: { user_email: string }
         Returns: boolean
