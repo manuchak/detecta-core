@@ -60,7 +60,7 @@ export function TopNavBar({
                   onClick={() => {
                     if (index === 0) {
                       // Navigate to main dashboard when clicking first breadcrumb
-                      window.location.href = '/recruitment-strategy?section=executive';
+                      window.location.href = '/dashboard';
                     }
                   }}
                   disabled={index === sectionInfo.breadcrumbs.length - 1}
