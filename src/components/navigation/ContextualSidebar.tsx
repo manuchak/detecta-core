@@ -23,7 +23,8 @@ import {
   TestTube,
   Calendar,
   BarChart3,
-  Bot
+  Bot,
+  Home
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -150,6 +151,40 @@ export function ContextualSidebar({ activeSection, onSectionChange, stats }: Con
   return (
     <Sidebar className={cn(collapsed ? "w-14" : "w-64")} collapsible="icon">
       <SidebarContent className="p-2">
+        {/* Main Menu Button */}
+        <SidebarGroup className="mb-4">
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  className={cn(
+                    "relative rounded-lg h-auto p-3 transition-all duration-200",
+                    "bg-gradient-to-r from-primary to-primary/80 text-primary-foreground",
+                    "hover:from-primary/90 hover:to-primary/70 hover:scale-[1.02]",
+                    "shadow-md border border-primary/30"
+                  )}
+                  onClick={() => onSectionChange('dashboard')}
+                >
+                  <Home className={cn(
+                    "shrink-0 text-primary-foreground",
+                    collapsed ? "h-5 w-5" : "h-4 w-4"
+                  )} />
+                  {!collapsed && (
+                    <div className="flex-1 min-w-0 text-left">
+                      <div className="font-semibold text-sm leading-5 text-primary-foreground">
+                        Menú Principal
+                      </div>
+                      <div className="text-xs text-primary-foreground/80 leading-4">
+                        Volver al inicio
+                      </div>
+                    </div>
+                  )}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
         {/* Main sections */}
         <SidebarGroup className="space-y-1">
           <SidebarGroupLabel className={cn(
