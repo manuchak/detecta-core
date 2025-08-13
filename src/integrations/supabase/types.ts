@@ -8193,6 +8193,10 @@ export type Database = {
         }
         Returns: string
       }
+      current_user_has_role: {
+        Args: { check_role: string }
+        Returns: boolean
+      }
       current_user_is_coordinator_or_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
@@ -9423,6 +9427,15 @@ export type Database = {
         Returns: {
           linked_services: number
         }[]
+      }
+      log_sensitive_access: {
+        Args: {
+          table_name: string
+          operation: string
+          record_id?: string
+          additional_data?: Json
+        }
+        Returns: undefined
       }
       log_sensitive_data_access: {
         Args: { table_name: string; operation: string; user_role?: string }
