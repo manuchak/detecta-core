@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -113,6 +114,7 @@ const navigationItems: NavigationItem[] = [
 
 export function ContextualSidebar({ activeSection, onSectionChange, stats }: ContextualSidebarProps) {
   const { state } = useSidebar();
+  const navigate = useNavigate();
   const collapsed = state === 'collapsed';
 
   // Find active parent section
@@ -163,7 +165,7 @@ export function ContextualSidebar({ activeSection, onSectionChange, stats }: Con
                     "hover:from-primary/90 hover:to-primary/70 hover:scale-[1.02]",
                     "shadow-md border border-primary/30"
                   )}
-                  onClick={() => onSectionChange('dashboard')}
+                  onClick={() => navigate('/dashboard')}
                 >
                   <Home className={cn(
                     "shrink-0 text-primary-foreground",
