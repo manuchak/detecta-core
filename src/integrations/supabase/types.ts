@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -7779,7 +7779,7 @@ export type Database = {
         Returns: undefined
       }
       archivar_producto: {
-        Args: { p_producto_id: string; p_motivo?: string }
+        Args: { p_motivo?: string; p_producto_id: string }
         Returns: boolean
       }
       assign_initial_owner: {
@@ -7788,44 +7788,44 @@ export type Database = {
       }
       assign_role_secure: {
         Args: {
-          target_user_id: string
-          new_role: string
           audit_reason?: string
+          new_role: string
+          target_user_id: string
         }
         Returns: boolean
       }
       assign_user_role: {
-        Args: { target_user_id: string; new_role: string }
+        Args: { new_role: string; target_user_id: string }
         Returns: boolean
       }
       assign_user_role_secure: {
         Args: {
-          target_user_id: string
-          new_role: string
           change_reason?: string
+          new_role: string
+          target_user_id: string
         }
         Returns: boolean
       }
       audit_sensitive_access: {
-        Args: { table_name: string; operation: string; record_id?: string }
+        Args: { operation: string; record_id?: string; table_name: string }
         Returns: undefined
       }
       auto_asignar_kit_instalacion: {
         Args: {
-          p_programacion_id: string
-          p_tipo_vehiculo?: string
-          p_sensores_requeridos?: string[]
           p_forzar_asignacion?: boolean
+          p_programacion_id: string
+          p_sensores_requeridos?: string[]
+          p_tipo_vehiculo?: string
         }
         Returns: Json
       }
       award_points: {
         Args: {
-          p_user_id: string
-          p_service_id: string
-          p_points: number
-          p_point_type: string
           p_description: string
+          p_point_type: string
+          p_points: number
+          p_service_id: string
+          p_user_id: string
         }
         Returns: undefined
       }
@@ -7967,37 +7967,37 @@ export type Database = {
       }
       calcular_deficit_dinamico_por_zona: {
         Args: {
-          p_zona_operacion: string
           p_fecha_desde?: string
           p_fecha_hasta?: string
+          p_zona_operacion: string
         }
         Returns: {
-          zona_operacion: string
-          deficit_inicial: number
-          nuevos_custodios_incorporados: number
           deficit_ajustado: number
-          porcentaje_progreso: number
+          deficit_inicial: number
           fecha_calculo: string
+          nuevos_custodios_incorporados: number
+          porcentaje_progreso: number
+          zona_operacion: string
         }[]
       }
       calcular_distancia_km: {
-        Args: { lat1: number; lng1: number; lat2: number; lng2: number }
+        Args: { lat1: number; lat2: number; lng1: number; lng2: number }
         Returns: number
       }
       calcular_puntos_viaje: {
-        Args: { km_viaje: number; estado_viaje: string }
+        Args: { estado_viaje: string; km_viaje: number }
         Returns: number
       }
       calcular_roi_zona: {
-        Args: { p_zona_id: string; p_periodo_dias?: number }
+        Args: { p_periodo_dias?: number; p_zona_id: string }
         Returns: {
-          zona_nombre: string
-          inversion_total: number
-          ingresos_generados: number
-          roi_percentage: number
-          custodios_adquiridos: number
           costo_promedio_adquisicion: number
+          custodios_adquiridos: number
+          ingresos_generados: number
+          inversion_total: number
+          roi_percentage: number
           servicios_totales: number
+          zona_nombre: string
         }[]
       }
       calcular_score_urgencia_zona: {
@@ -8007,9 +8007,9 @@ export type Database = {
       calcular_valor_inventario: {
         Args: { p_producto_id: string }
         Returns: {
+          margen_potencial: number
           valor_costo: number
           valor_venta: number
-          margen_potencial: number
         }[]
       }
       calculate_custodian_level: {
@@ -8026,14 +8026,14 @@ export type Database = {
       }
       calculate_points_with_validation: {
         Args: {
-          p_km_recorridos: number
           p_estado: string
+          p_km_recorridos: number
           p_service_id?: string
         }
         Returns: {
           calculated_points: number
-          is_flagged: boolean
           flag_reason: string
+          is_flagged: boolean
         }[]
       }
       calculate_punctuality_rate: {
@@ -8041,7 +8041,7 @@ export type Database = {
         Returns: number
       }
       calculate_unified_points: {
-        Args: { p_km_recorridos: number; p_estado: string }
+        Args: { p_estado: string; p_km_recorridos: number }
         Returns: number
       }
       calculate_user_punctuality_rate: {
@@ -8091,23 +8091,23 @@ export type Database = {
       check_duplicate_service_ids: {
         Args: Record<PropertyKey, never>
         Returns: {
-          id_servicio: string
           duplicate_count: number
-          service_ids: string[]
+          id_servicio: string
           latest_date: string
+          service_ids: string[]
         }[]
       }
       check_pending_referral_bonuses: {
         Args: Record<PropertyKey, never>
         Returns: {
-          custodio_id: string
           custodio_email: string
+          custodio_id: string
           pending_bonuses: number
           total_amount: number
         }[]
       }
       check_user_role: {
-        Args: { user_id: string; role_name: string }
+        Args: { role_name: string; user_id: string }
         Returns: boolean
       }
       check_user_role_no_recursion: {
@@ -8119,15 +8119,15 @@ export type Database = {
         Returns: boolean
       }
       check_user_role_secure: {
-        Args: { user_id: string; role_name: string }
+        Args: { role_name: string; user_id: string }
         Returns: boolean
       }
       clean_duplicate_service_ids: {
         Args: Record<PropertyKey, never>
         Returns: {
+          details: string
           duplicates_found: number
           duplicates_removed: number
-          details: string
         }[]
       }
       cleanup_expired_skills: {
@@ -8141,21 +8141,21 @@ export type Database = {
       compare_dashboard_vs_forensic: {
         Args: Record<PropertyKey, never>
         Returns: {
-          metric_name: string
           dashboard_value: number
-          forensic_value: number
           discrepancy: number
           discrepancy_percent: number
+          forensic_value: number
+          metric_name: string
           status: string
         }[]
       }
       crear_kit_instalacion: {
         Args: {
-          p_programacion_id: string
           p_gps_id: string
-          p_sim_id?: string
           p_microsd_id?: string
           p_preparado_por?: string
+          p_programacion_id: string
+          p_sim_id?: string
         }
         Returns: string
       }
@@ -8171,25 +8171,25 @@ export type Database = {
       }
       create_reward_bypass_rls: {
         Args: {
-          reward_name: string
-          reward_description: string
-          reward_point_cost: number
-          reward_image_url: string
-          reward_category_id: string
           reward_availability: number
+          reward_category_id: string
+          reward_description: string
           reward_featured: boolean
+          reward_image_url: string
+          reward_name: string
+          reward_point_cost: number
         }
         Returns: string
       }
       create_test_trips_for_user: {
-        Args: { p_user_id: string; p_user_phone: string; p_user_name: string }
+        Args: { p_user_id: string; p_user_name: string; p_user_phone: string }
         Returns: number
       }
       create_vapi_call_log: {
         Args: {
           p_lead_id: string
-          p_vapi_call_id: string
           p_phone_number: string
+          p_vapi_call_id: string
         }
         Returns: string
       }
@@ -8216,23 +8216,23 @@ export type Database = {
       detect_suspicious_patterns: {
         Args: Record<PropertyKey, never>
         Returns: {
-          pattern_type: string
-          pattern_description: string
           count_found: number
-          severity: string
+          pattern_description: string
+          pattern_type: string
           sample_data: string
+          severity: string
         }[]
       }
       diagnose_phone_services: {
         Args: { p_phone: string }
         Returns: {
-          found_services: number
-          sample_service_id: string
-          sample_custodian: string
-          sample_phone: string
-          sample_estado: string
           distinct_phones: string[]
+          found_services: number
           phone_variations: string[]
+          sample_custodian: string
+          sample_estado: string
+          sample_phone: string
+          sample_service_id: string
         }[]
       }
       ensure_admin_privileges: {
@@ -8257,11 +8257,11 @@ export type Database = {
       }
       flag_service_for_review: {
         Args: {
-          p_service_id: string
           p_flag_reason: string
           p_original_km: number
-          p_suggested_km: number
           p_original_points: number
+          p_service_id: string
+          p_suggested_km: number
           p_suggested_points: number
         }
         Returns: string
@@ -8269,36 +8269,36 @@ export type Database = {
       forensic_audit_servicios_enero_actual: {
         Args: Record<PropertyKey, never>
         Returns: {
-          total_registros_raw: number
-          registros_con_fecha_valida: number
-          registros_enero_actual: number
-          servicios_unicos_id: number
-          registros_duplicados_id: number
-          registros_sin_id: number
-          estados_distintos: number
-          servicios_finalizado_exact: number
-          servicios_completado: number
-          servicios_pendientes: number
-          servicios_cancelados: number
-          servicios_estado_null: number
-          servicios_estado_vacio: number
-          registros_con_cobro_valido: number
-          registros_con_cobro_zero: number
-          registros_con_cobro_null: number
-          gmv_total_sin_filtros: number
-          gmv_solo_finalizados: number
-          gmv_solo_completados: number
-          custodios_distintos: number
-          registros_sin_custodio: number
-          custodios_con_hash_na: number
           clientes_distintos: number
-          registros_sin_cliente: number
-          registros_con_origen: number
-          registros_con_destino: number
-          registros_con_ruta_completa: number
+          custodios_con_hash_na: number
+          custodios_distintos: number
+          estados_distintos: number
           fecha_mas_antigua: string
           fecha_mas_reciente: string
+          gmv_solo_completados: number
+          gmv_solo_finalizados: number
+          gmv_total_sin_filtros: number
+          registros_con_cobro_null: number
+          registros_con_cobro_valido: number
+          registros_con_cobro_zero: number
+          registros_con_destino: number
+          registros_con_fecha_valida: number
+          registros_con_origen: number
+          registros_con_ruta_completa: number
+          registros_duplicados_id: number
+          registros_enero_actual: number
           registros_fuera_rango: number
+          registros_sin_cliente: number
+          registros_sin_custodio: number
+          registros_sin_id: number
+          servicios_cancelados: number
+          servicios_completado: number
+          servicios_estado_null: number
+          servicios_estado_vacio: number
+          servicios_finalizado_exact: number
+          servicios_pendientes: number
+          servicios_unicos_id: number
+          total_registros_raw: number
         }[]
       }
       generar_alertas_automaticas: {
@@ -8316,10 +8316,10 @@ export type Database = {
       get_activation_metrics_safe: {
         Args: Record<PropertyKey, never>
         Returns: {
-          total_custodians: number
           activated_custodians: number
           activation_rate: number
           median_activation_days: number
+          total_custodians: number
         }[]
       }
       get_active_custodians_60_days: {
@@ -8405,77 +8405,77 @@ export type Database = {
       get_all_redemptions_bypass_rls: {
         Args: Record<PropertyKey, never>
         Returns: {
-          id: string
-          user_id: string
-          reward_id: string
-          points_spent: number
-          status: string
           admin_notes: string
           created_at: string
-          reward: Json
           custodian_name: string
           custodian_phone: string
+          id: string
+          points_spent: number
+          reward: Json
+          reward_id: string
+          status: string
+          user_id: string
         }[]
       }
       get_all_rewards: {
         Args: Record<PropertyKey, never>
         Returns: {
-          id: string
-          name: string
-          description: string
-          point_cost: number
-          image_url: string
-          category: string
           availability: number
-          featured: boolean
-          created_at: string
-          updated_at: string
+          category: string
           category_id: string
+          created_at: string
+          description: string
+          featured: boolean
+          id: string
+          image_url: string
+          name: string
+          point_cost: number
+          updated_at: string
         }[]
       }
       get_all_user_roles_safe: {
         Args: Record<PropertyKey, never>
         Returns: {
-          user_id: string
           role: string
+          user_id: string
         }[]
       }
       get_all_users_with_roles: {
         Args: Record<PropertyKey, never>
         Returns: {
-          user_id: string
-          email: string
+          created_at: string
           display_name: string
-          phone: string
-          photo_url: string
+          email: string
           is_verified: boolean
           last_sign_in_at: string
-          created_at: string
+          phone: string
+          photo_url: string
+          user_id: string
           user_roles: string[]
         }[]
       }
       get_analyst_assigned_leads: {
         Args: Record<PropertyKey, never>
         Returns: {
-          lead_id: string
-          lead_nombre: string
-          lead_email: string
-          lead_telefono: string
-          lead_estado: string
-          lead_fecha_creacion: string
-          approval_stage: string
-          phone_interview_completed: boolean
-          second_interview_required: boolean
-          final_decision: string
-          notas: string
-          analyst_name: string
           analyst_email: string
+          analyst_name: string
+          approval_stage: string
           contact_attempts_count: number
-          last_contact_attempt_at: string
-          last_contact_outcome: string
+          decision_reason: string
+          final_decision: string
           interview_interrupted: boolean
           interview_session_id: string
-          decision_reason: string
+          last_contact_attempt_at: string
+          last_contact_outcome: string
+          lead_email: string
+          lead_estado: string
+          lead_fecha_creacion: string
+          lead_id: string
+          lead_nombre: string
+          lead_telefono: string
+          notas: string
+          phone_interview_completed: boolean
+          second_interview_required: boolean
         }[]
       }
       get_available_roles_secure: {
@@ -8485,9 +8485,9 @@ export type Database = {
       get_ciudades_safe: {
         Args: { estado_uuid: string }
         Returns: {
+          estado_id: string
           id: string
           nombre: string
-          estado_id: string
         }[]
       }
       get_cohort_retention_matrix: {
@@ -8506,12 +8506,12 @@ export type Database = {
       get_current_user_ranking_stats: {
         Args: Record<PropertyKey, never>
         Returns: {
-          posicion: number
-          total_custodios: number
-          puntos_totales: number
-          total_viajes: number
           km_totales: number
           nombre_custodio: string
+          posicion: number
+          puntos_totales: number
+          total_custodios: number
+          total_viajes: number
         }[]
       }
       get_current_user_role: {
@@ -8535,106 +8535,106 @@ export type Database = {
       get_custodian_full_stats: {
         Args: { p_custodio_id: string }
         Returns: {
+          km_totales: number
+          nivel: number
+          puntos_mes_actual: number
+          puntos_totales: number
           total_viajes: number
           viajes_completados: number
-          viajes_pendientes: number
-          km_totales: number
-          puntos_totales: number
-          nivel: number
           viajes_mes_actual: number
-          puntos_mes_actual: number
+          viajes_pendientes: number
         }[]
       }
       get_custodian_performance_safe: {
         Args: Record<PropertyKey, never>
         Returns: {
-          nombre_custodio: string
-          total_viajes: number
-          puntos_totales: number
           km_totales: number
+          nombre_custodio: string
           posicion: number
+          puntos_totales: number
+          total_viajes: number
         }[]
       }
       get_custodian_performance_stats: {
         Args: Record<PropertyKey, never>
         Returns: {
-          nombre_custodio: string
-          total_viajes: number
-          puntos_totales: number
           km_totales: number
+          nombre_custodio: string
           posicion: number
+          puntos_totales: number
+          total_viajes: number
         }[]
       }
       get_custodian_performance_unified: {
         Args: Record<PropertyKey, never>
         Returns: {
-          nombre_custodio: string
-          total_viajes: number
-          puntos_totales: number
           km_totales: number
+          nombre_custodio: string
           posicion: number
+          puntos_totales: number
+          total_viajes: number
         }[]
       }
       get_custodian_services: {
         Args: { custodian_name: string }
         Returns: {
-          id_servicio: string
-          origen: string
           destino: string
-          fecha_hora_cita: string
           estado: string
+          fecha_hora_cita: string
+          id_servicio: string
           km_recorridos: number
           nombre_cliente: string
+          origen: string
           tipo_servicio: string
         }[]
       }
       get_custodian_services_with_points: {
         Args: { p_custodian_name: string }
         Returns: {
-          id_servicio: string
-          origen: string
           destino: string
-          fecha_hora_cita: string
           estado: string
-          km_recorridos: number
-          puntos_ganados: number
-          nombre_cliente: string
-          tipo_servicio: string
-          is_flagged: boolean
+          fecha_hora_cita: string
           flag_reason: string
+          id_servicio: string
+          is_flagged: boolean
+          km_recorridos: number
+          nombre_cliente: string
+          origen: string
+          puntos_ganados: number
+          tipo_servicio: string
         }[]
       }
       get_custodians_levels_and_average: {
         Args: Record<PropertyKey, never>
         Returns: {
-          total_custodians: number
           average_level: number
           level_1_count: number
           level_2_count: number
           level_3_count: number
           level_4_count: number
           level_5_count: number
+          total_custodians: number
         }[]
       }
       get_custodio_referidos: {
         Args: { p_custodio_id: string }
         Returns: {
-          referido_id: string
-          candidato_nombre: string
-          candidato_email: string
-          estado_referido: string
-          fecha_referencia: string
-          fecha_activacion: string
           bono_otorgado: boolean
+          candidato_email: string
+          candidato_nombre: string
+          estado_referido: string
+          fecha_activacion: string
+          fecha_referencia: string
           monto_bono: number
+          referido_id: string
         }[]
       }
       get_custodio_referral_stats: {
         Args: { p_custodio_id: string }
         Returns: {
-          total_referidos: number
-          referidos_activos: number
           bonos_ganados: number
+          referidos_activos: number
+          total_referidos: number
           ultimo_bono_fecha: string
         }[]
       }
@@ -8647,27 +8647,27 @@ export type Database = {
         }[]
       }
       get_custodios_nuevos_por_mes: {
-        Args: { fecha_inicio: string; fecha_fin: string }
+        Args: { fecha_fin: string; fecha_inicio: string }
         Returns: {
-          mes: string
           custodios_nuevos: number
+          mes: string
           nombres_custodios: string[]
         }[]
       }
       get_estados_safe: {
         Args: Record<PropertyKey, never>
         Returns: {
+          codigo: string
           id: string
           nombre: string
-          codigo: string
         }[]
       }
       get_finalized_services_data_secure: {
-        Args: { start_date: string; end_date: string }
+        Args: { end_date: string; start_date: string }
         Returns: {
-          total_services: number
-          total_gmv: number
           service_count: number
+          total_gmv: number
+          total_services: number
         }[]
       }
       get_gmv_chart_data_secure: {
@@ -8739,44 +8739,44 @@ export type Database = {
       get_historical_monthly_data: {
         Args: Record<PropertyKey, never>
         Returns: {
-          year: number
+          gmv: number
           month: number
           services: number
-          gmv: number
           services_completed: number
+          year: number
         }[]
       }
       get_income_distribution_by_threshold: {
         Args: Record<PropertyKey, never>
         Returns: {
+          avg_income: number
+          avg_services: number
+          custodian_count: number
           income_level: string
           income_range: string
-          custodian_count: number
           percentage: number
-          avg_services: number
-          avg_income: number
         }[]
       }
       get_instaladores_disponibles: {
-        Args: { p_fecha: string; p_zona?: Json; p_tipo_instalacion?: string }
+        Args: { p_fecha: string; p_tipo_instalacion?: string; p_zona?: Json }
         Returns: {
+          calificacion_promedio: number
+          disponible: boolean
+          especialidades: string[]
           id: string
           nombre_completo: string
-          telefono: string
-          calificacion_promedio: number
           servicios_completados: number
-          especialidades: string[]
-          disponible: boolean
+          telefono: string
         }[]
       }
       get_instaladores_for_programacion: {
         Args: { instalador_ids: string[] }
         Returns: {
+          calificacion_promedio: number
+          especialidades: string[]
           id: string
           nombre_completo: string
           telefono: string
-          calificacion_promedio: number
-          especialidades: string[]
         }[]
       }
       get_marcas_vehiculos_safe: {
@@ -8806,23 +8806,23 @@ export type Database = {
       get_monthly_productivity_stats: {
         Args: Record<PropertyKey, never>
         Returns: {
-          month_year: string
           active_custodians: number
-          avg_services_per_custodian: number
-          total_services: number
           avg_income_per_custodian: number
+          avg_services_per_custodian: number
+          month_year: string
           total_income: number
+          total_services: number
         }[]
       }
       get_my_permissions: {
         Args: Record<PropertyKey, never>
         Returns: {
-          id: string
-          role: string
-          permission_type: string
-          permission_id: string
           allowed: boolean
           created_at: string
+          id: string
+          permission_id: string
+          permission_type: string
+          role: string
           updated_at: string
         }[]
       }
@@ -8830,10 +8830,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: {
           id: string
-          points_multiplier: number
-          min_points_for_rewards: number
-          level_thresholds: Json
           level_names: Json
+          level_thresholds: Json
+          min_points_for_rewards: number
+          points_multiplier: number
           updated_at: string
         }[]
       }
@@ -8854,19 +8854,19 @@ export type Database = {
       get_quick_metrics_fallback: {
         Args: Record<PropertyKey, never>
         Returns: {
+          last_updated: string
           metric_name: string
           metric_value: number
-          last_updated: string
         }[]
       }
       get_real_marketing_roi: {
         Args: { periodo_dias?: number }
         Returns: {
           canal: string
-          gasto_total: number
           candidatos_generados: number
-          custodios_activos: number
           cpa_real: number
+          custodios_activos: number
+          gasto_total: number
           ingresos_generados: number
           roi_porcentaje: number
           roi_total_marketing: number
@@ -8876,48 +8876,48 @@ export type Database = {
         Args: { periodo_dias?: number }
         Returns: {
           canal: string
-          gasto_total: number
           candidatos_generados: number
-          custodios_activos: number
           cpa_real: number
+          custodios_activos: number
+          desglose_calculo: Json
+          gasto_total: number
           ingresos_generados: number
           roi_porcentaje: number
           roi_total_marketing: number
-          desglose_calculo: Json
         }[]
       }
       get_redemptions_with_custodian_info: {
         Args: Record<PropertyKey, never>
         Returns: {
-          redemption_id: string
-          user_id: string
-          reward_id: string
-          points_spent: number
-          status: string
           admin_notes: string
           created_at: string
-          reward_name: string
-          reward_description: string
-          reward_point_cost: number
+          custodian_level: number
           custodian_name: string
           custodian_phone: string
           custodian_total_points: number
-          custodian_level: number
+          points_spent: number
+          redemption_id: string
+          reward_description: string
+          reward_id: string
+          reward_name: string
+          reward_point_cost: number
+          status: string
+          user_id: string
         }[]
       }
       get_reward_categories_with_stats: {
         Args: Record<PropertyKey, never>
         Returns: {
-          id: string
-          name: string
-          description: string
-          icon: string
-          color: string
-          is_active: boolean
-          display_order: number
-          total_rewards: number
           active_rewards: number
+          color: string
+          description: string
+          display_order: number
+          icon: string
+          id: string
+          is_active: boolean
+          name: string
           total_redemptions: number
+          total_rewards: number
         }[]
       }
       get_reward_image_url: {
@@ -8943,17 +8943,17 @@ export type Database = {
       get_rewards_with_category: {
         Args: Record<PropertyKey, never>
         Returns: {
-          id: string
-          name: string
-          description: string
-          point_cost: number
-          image_url: string
           availability: number
-          featured: boolean
-          created_at: string
-          category_name: string
           category_color: string
           category_icon: string
+          category_name: string
+          created_at: string
+          description: string
+          featured: boolean
+          id: string
+          image_url: string
+          name: string
+          point_cost: number
         }[]
       }
       get_roi_marketing_data: {
@@ -8961,34 +8961,34 @@ export type Database = {
         Returns: {
           gastos_totales: number
           ingresos_estimados: number
-          roi_calculado: number
           num_candidatos: number
           num_custodios_activos: number
+          roi_calculado: number
         }[]
       }
       get_roi_marketing_real_data: {
         Args: { periodo_dias?: number }
         Returns: {
-          roi_calculado: number
-          inversion_total: number
-          ingresos_reales: number
-          custodios_contratados: number
-          custodios_activos: number
-          servicios_completados: number
-          ingresos_por_custodio: number
           cpa_real: number
+          custodios_activos: number
+          custodios_contratados: number
           detalles_por_canal: Json
+          ingresos_por_custodio: number
+          ingresos_reales: number
+          inversion_total: number
+          roi_calculado: number
+          servicios_completados: number
         }[]
       }
       get_role_permissions_secure: {
         Args: Record<PropertyKey, never>
         Returns: {
-          id: string
-          role: string
-          permission_type: string
-          permission_id: string
           allowed: boolean
           created_at: string
+          id: string
+          permission_id: string
+          permission_type: string
+          role: string
           updated_at: string
         }[]
       }
@@ -9061,24 +9061,24 @@ export type Database = {
       get_services_by_phone: {
         Args: { p_phone: string }
         Returns: {
-          total_servicios: number
-          servicios_completados: number
-          servicios_pendientes: number
           km_totales: number
           puntos_totales: number
+          servicios_completados: number
           servicios_data: Json
+          servicios_pendientes: number
+          total_servicios: number
         }[]
       }
       get_services_by_user_phone: {
         Args: Record<PropertyKey, never>
         Returns: {
-          service_id: string
-          origin: string
-          destination: string
-          status: string
-          date: string
           client_name: string
+          date: string
+          destination: string
           km_travelled: number
+          origin: string
+          service_id: string
+          status: string
         }[]
       }
       get_servicio_completo_secure: {
@@ -9086,26 +9086,26 @@ export type Database = {
         Returns: Json
       }
       get_supply_growth_metrics: {
-        Args: { fecha_inicio?: string; fecha_fin?: string }
+        Args: { fecha_fin?: string; fecha_inicio?: string }
         Returns: {
-          period_start: string
-          period_end: string
+          custodios_activos_fin: number
+          custodios_activos_inicio: number
           custodios_nuevos: number
           custodios_perdidos: number
-          custodios_activos_inicio: number
-          custodios_activos_fin: number
-          supply_growth_rate: number
+          period_end: string
+          period_start: string
           supply_growth_absolute: number
+          supply_growth_rate: number
         }[]
       }
       get_user_confirmation_status: {
         Args: Record<PropertyKey, never>
         Returns: {
-          user_id: string
           email: string
           email_confirmed_at: string
           is_confirmed: boolean
           profile_verified: boolean
+          user_id: string
         }[]
       }
       get_user_role: {
@@ -9143,13 +9143,13 @@ export type Database = {
       get_user_services_by_phone: {
         Args: Record<PropertyKey, never>
         Returns: {
-          id_servicio: string
-          origen: string
           destino: string
           estado: string
           fecha_hora_cita: string
+          id_servicio: string
           km_recorridos: number
           nombre_cliente: string
+          origen: string
           user_id: string
           user_name: string
           user_phone: string
@@ -9158,50 +9158,50 @@ export type Database = {
       get_user_services_by_phone_secure: {
         Args: Record<PropertyKey, never>
         Returns: {
-          id_servicio: string
-          origen: string
           destino: string
-          fecha_hora_cita: string
           estado: string
+          fecha_hora_cita: string
+          id_servicio: string
+          km_recorridos: number
           nombre_cliente: string
           nombre_custodio: string
-          km_recorridos: number
-          telefono: string
+          origen: string
           puntos_ganados: number
+          telefono: string
         }[]
       }
       get_user_services_comprehensive: {
         Args: {
-          p_user_id?: string
-          p_user_phone?: string
           p_user_email?: string
+          p_user_id?: string
           p_user_name?: string
+          p_user_phone?: string
         }
         Returns: {
-          total_servicios: number
-          servicios_completados: number
-          servicios_pendientes: number
           km_totales: number
           puntos_totales: number
+          servicios_completados: number
           servicios_data: Json
+          servicios_pendientes: number
+          total_servicios: number
         }[]
       }
       get_user_services_list: {
         Args: { p_phone: string }
         Returns: {
-          id_servicio: string
-          origen: string
           destino: string
           estado: string
-          km_recorridos: number
           fecha_hora_cita: string
+          id_custodio: string
+          id_servicio: string
+          km_recorridos: number
           nombre_cliente: string
           nombre_custodio: string
-          tipo_servicio: string
-          telefono: string
-          id_custodio: string
-          tiempo_retraso: number
+          origen: string
           puntos_ganados: number
+          telefono: string
+          tiempo_retraso: number
+          tipo_servicio: string
         }[]
       }
       get_user_servicios_secure: {
@@ -9273,61 +9273,61 @@ export type Database = {
       get_user_skills: {
         Args: { check_user_id: string }
         Returns: {
-          skill: Database["public"]["Enums"]["user_skill_type"]
-          granted_at: string
           expires_at: string
+          granted_at: string
+          skill: Database["public"]["Enums"]["user_skill_type"]
         }[]
       }
       get_user_statistics: {
         Args: Record<PropertyKey, never>
         Returns: {
-          total_users: number
-          verified_users: number
-          unverified_users: number
           admin_users: number
-          manager_users: number
           custodio_users: number
+          manager_users: number
+          total_users: number
+          unverified_users: number
           users_last_30_days: number
+          verified_users: number
         }[]
       }
       get_users_with_roles_for_admin: {
         Args: Record<PropertyKey, never>
         Returns: {
-          user_id: string
+          created_at: string
           email: string
           role: string
-          created_at: string
+          user_id: string
         }[]
       }
       get_users_with_roles_secure: {
         Args: Record<PropertyKey, never>
         Returns: {
-          id: string
-          email: string
-          display_name: string
-          role: string
           created_at: string
+          display_name: string
+          email: string
+          id: string
           last_login: string
+          role: string
         }[]
       }
       get_weekly_leaderboard: {
         Args: Record<PropertyKey, never>
         Returns: {
           custodio_id: string
-          nombre_custodio: string
-          total_viajes: number
           km_totales: number
-          puntos: number
+          nombre_custodio: string
           posicion: number
+          puntos: number
+          total_viajes: number
         }[]
       }
       get_zonas_trabajo_safe: {
         Args: { ciudad_uuid: string }
         Returns: {
-          id: string
-          nombre: string
           ciudad_id: string
           descripcion: string
+          id: string
+          nombre: string
         }[]
       }
       has_management_role: {
@@ -9335,7 +9335,7 @@ export type Database = {
         Returns: boolean
       }
       has_role: {
-        Args: { user_uid: string; required_role: string }
+        Args: { required_role: string; user_uid: string }
         Returns: boolean
       }
       is_admin: {
@@ -9403,7 +9403,7 @@ export type Database = {
         Returns: boolean
       }
       is_service_owner: {
-        Args: { user_id: string; service_custodio_id: string }
+        Args: { service_custodio_id: string; user_id: string }
         Returns: boolean
       }
       is_super_admin: {
@@ -9423,7 +9423,7 @@ export type Database = {
         Returns: boolean
       }
       link_user_to_custodio_services: {
-        Args: { p_user_id: string; p_phone: string }
+        Args: { p_phone: string; p_user_id: string }
         Returns: {
           linked_services: number
         }[]
@@ -9431,21 +9431,21 @@ export type Database = {
       log_sensitive_access: {
         Args:
           | {
-              table_name: string
+              additional_data?: Json
               operation: string
               record_id?: string
-              additional_data?: Json
+              table_name: string
             }
           | {
-              table_name: string
+              additional_data?: Json
               operation: string
               record_id?: string
-              additional_data?: Json
+              table_name: string
             }
         Returns: undefined
       }
       log_sensitive_data_access: {
-        Args: { table_name: string; operation: string; user_role?: string }
+        Args: { operation: string; table_name: string; user_role?: string }
         Returns: undefined
       }
       manually_verify_user: {
@@ -9453,11 +9453,11 @@ export type Database = {
         Returns: boolean
       }
       marcar_producto_inactivo: {
-        Args: { p_producto_id: string; p_motivo?: string }
+        Args: { p_motivo?: string; p_producto_id: string }
         Returns: boolean
       }
       mark_interview_interrupted: {
-        Args: { p_lead_id: string; p_session_id: string; p_reason: string }
+        Args: { p_lead_id: string; p_reason: string; p_session_id: string }
         Returns: boolean
       }
       migrate_existing_categories: {
@@ -9475,21 +9475,21 @@ export type Database = {
       obtener_deficit_dinamico_nacional: {
         Args: { p_fecha_desde?: string; p_fecha_hasta?: string }
         Returns: {
-          zona_operacion: string
-          deficit_inicial: number
-          nuevos_custodios_incorporados: number
           deficit_ajustado: number
-          porcentaje_progreso: number
+          deficit_inicial: number
           estado_progreso: string
           fecha_calculo: string
+          nuevos_custodios_incorporados: number
+          porcentaje_progreso: number
+          zona_operacion: string
         }[]
       }
       obtener_estadisticas_custodio: {
         Args: { custodio_id: string }
         Returns: {
-          total_viajes: number
-          puntos_totales: number
           km_totales: number
+          puntos_totales: number
+          total_viajes: number
           viajes_completados: number
           viajes_pendientes: number
         }[]
@@ -9497,23 +9497,23 @@ export type Database = {
       obtener_microsd_disponibles: {
         Args: { p_capacidad_minima_gb?: number }
         Returns: {
-          microsd_id: string
-          numero_serie: string
-          marca: string
-          modelo: string
           capacidad_gb: number
           clase_velocidad: string
+          marca: string
+          microsd_id: string
+          modelo: string
+          numero_serie: string
         }[]
       }
       obtener_sim_disponibles: {
         Args: { p_tipo_plan?: string }
         Returns: {
-          sim_id: string
-          numero_sim: string
-          operador: string
-          tipo_plan: string
           costo_mensual: number
           datos_incluidos_mb: number
+          numero_sim: string
+          operador: string
+          sim_id: string
+          tipo_plan: string
         }[]
       }
       parse_tiempo_retraso: {
@@ -9534,8 +9534,8 @@ export type Database = {
       }
       recomendar_gps_para_instalacion: {
         Args: {
-          p_tipo_vehiculo: string
           p_sensores_requeridos: string[]
+          p_tipo_vehiculo: string
           p_ubicacion_instalacion?: string
         }
         Returns: {
@@ -9543,13 +9543,13 @@ export type Database = {
           marca: string
           modelo: string
           numero_serie: string
-          score_compatibilidad: number
           requiere_microsd: boolean
+          score_compatibilidad: number
           tipo_sim_recomendado: string
         }[]
       }
       redeem_points: {
-        Args: { p_user_id: string; p_reward_id: string; p_quantity?: number }
+        Args: { p_quantity?: number; p_reward_id: string; p_user_id: string }
         Returns: string
       }
       restaurar_producto: {
@@ -9558,20 +9558,20 @@ export type Database = {
       }
       review_flagged_service: {
         Args: {
-          p_flag_id: string
-          p_status: string
           p_admin_notes?: string
+          p_flag_id: string
           p_override_km?: number
           p_override_points?: number
+          p_status: string
         }
         Returns: boolean
       }
       save_interview_progress: {
         Args: {
+          p_autosave?: boolean
+          p_interview_data: Json
           p_lead_id: string
           p_session_id: string
-          p_interview_data: Json
-          p_autosave?: boolean
         }
         Returns: boolean
       }
@@ -9582,18 +9582,18 @@ export type Database = {
       test_recruitment_system_access: {
         Args: Record<PropertyKey, never>
         Returns: {
-          table_name: string
-          record_count: number
           access_status: string
+          record_count: number
           sample_data: Json
+          table_name: string
         }[]
       }
       transaction_crear_aprobacion_coordinador: {
         Args: {
-          p_servicio_id: string
+          p_aprobacion_data: Json
           p_coordinador_id: string
           p_estado_aprobacion: string
-          p_aprobacion_data: Json
+          p_servicio_id: string
         }
         Returns: string
       }
@@ -9603,12 +9603,12 @@ export type Database = {
       }
       update_approval_process: {
         Args: {
-          p_lead_id: string
-          p_stage: string
-          p_interview_method?: string
-          p_notes?: string
           p_decision?: string
           p_decision_reason?: string
+          p_interview_method?: string
+          p_lead_id: string
+          p_notes?: string
+          p_stage: string
         }
         Returns: undefined
       }
@@ -9618,40 +9618,40 @@ export type Database = {
       }
       update_points_system_config: {
         Args: {
-          p_points_multiplier: number
-          p_min_points_for_rewards: number
-          p_level_thresholds: Json
           p_level_names: Json
+          p_level_thresholds: Json
+          p_min_points_for_rewards: number
+          p_points_multiplier: number
         }
         Returns: string
       }
       update_redemption_status_bypass_rls: {
         Args: {
+          p_admin_notes?: string
           p_redemption_id: string
           p_status: string
-          p_admin_notes?: string
         }
         Returns: boolean
       }
       update_reward_bypass_rls: {
         Args: {
-          reward_id: string
-          reward_name: string
-          reward_description: string
-          reward_point_cost: number
-          reward_image_url: string
-          reward_category_id: string
           reward_availability: number
+          reward_category_id: string
+          reward_description: string
           reward_featured: boolean
+          reward_id: string
+          reward_image_url: string
+          reward_name: string
+          reward_point_cost: number
         }
         Returns: string
       }
       update_role_name: {
-        Args: { old_role: string; new_role: string }
+        Args: { new_role: string; old_role: string }
         Returns: undefined
       }
       update_role_permission_secure: {
-        Args: { p_permission_id: string; p_allowed: boolean }
+        Args: { p_allowed: boolean; p_permission_id: string }
         Returns: boolean
       }
       update_user_role_by_email: {
@@ -9659,14 +9659,14 @@ export type Database = {
         Returns: boolean
       }
       update_user_role_secure: {
-        Args: { target_user_id: string; new_role: string }
+        Args: { new_role: string; target_user_id: string }
         Returns: boolean
       }
       upsert_user_profile: {
         Args: {
-          user_id: string
-          user_email: string
           user_display_name: string
+          user_email: string
+          user_id: string
           user_phone?: string
           user_photo_url?: string
           user_role?: string
@@ -9675,14 +9675,14 @@ export type Database = {
       }
       user_has_permission: {
         Args: {
-          user_uid: string
-          permission_type: string
           permission_id: string
+          permission_type: string
+          user_uid: string
         }
         Returns: boolean
       }
       user_has_role: {
-        Args: { user_id: string; required_role: string }
+        Args: { required_role: string; user_id: string }
         Returns: boolean
       }
       user_has_role_direct: {
@@ -9692,7 +9692,7 @@ export type Database = {
       user_has_role_secure: {
         Args:
           | { check_role: string }
-          | { user_uuid: string; required_role: string }
+          | { required_role: string; user_uuid: string }
         Returns: boolean
       }
       user_has_skill: {
@@ -9709,8 +9709,8 @@ export type Database = {
       validar_instalacion_completada: {
         Args: {
           p_kit_id: string
-          p_validado_por?: string
           p_observaciones?: string
+          p_validado_por?: string
         }
         Returns: boolean
       }
@@ -9723,7 +9723,7 @@ export type Database = {
         Returns: string
       }
       validate_role_change_secure: {
-        Args: { target_user_id: string; new_role: string }
+        Args: { new_role: string; target_user_id: string }
         Returns: boolean
       }
       validate_role_input: {
@@ -9732,16 +9732,16 @@ export type Database = {
       }
       validate_service_distance: {
         Args: {
+          p_destino: string
           p_km_recorridos: number
           p_origen: string
-          p_destino: string
           p_service_id?: string
         }
         Returns: {
-          is_valid: boolean
-          suggested_km: number
           flag_reason: string
+          is_valid: boolean
           should_flag: boolean
+          suggested_km: number
         }[]
       }
       validate_user_session: {
