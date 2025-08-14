@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { LeadsTable } from "@/components/leads/LeadsTable";
-import LeadsStatusCard from "@/components/recruitment/LeadsStatusCard";
 import { EnhancedLeadForm } from "@/components/leads/EnhancedLeadForm";
 import { CompactZoneNeedsSection } from "@/components/leads/CompactZoneNeedsSection";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
@@ -86,9 +85,6 @@ const LeadsListPage = () => {
           </Button>
         )}
       </div>
-
-      {/* Tarjeta de estado detallado de leads */}
-      <LeadsStatusCard />
 
       {/* Sección de Necesidades compacta y colapsable */}
       <CompactZoneNeedsSection />
