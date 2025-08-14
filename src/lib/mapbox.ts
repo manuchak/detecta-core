@@ -1,6 +1,8 @@
-// Mapbox configuration - API key now securely managed
-export const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoiZGV0ZWN0YXNlYyIsImEiOiJjbTlzdjg3ZmkwNGVoMmpwcGg3MWMwNXlhIn0.zIQ8khHoZsJt8bL4jXf35Q';
+// Mapbox configuration
+// Using environment variable for security
+export const MAPBOX_ACCESS_TOKEN = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '';
 
-// SECURITY NOTE: This is a public Mapbox token which is safe to expose in client-side code
-// Mapbox public tokens are designed to be used in frontend applications
-// For sensitive operations, use restricted tokens with specific URL and scope limitations
+// Fallback warning for development
+if (!MAPBOX_ACCESS_TOKEN) {
+  console.warn('MAPBOX_ACCESS_TOKEN not set. Map functionality may not work properly.');
+}
