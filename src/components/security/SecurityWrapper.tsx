@@ -33,7 +33,8 @@ export const SecurityWrapper: React.FC<SecurityWrapperProps> = ({
   }, [auditTrail, user, requiredRole, userRole, sensitiveData, logSecurityEvent]);
 
   // If a required role is specified and user doesn't have it, return null
-  if (requiredRole && userRole !== requiredRole && !['admin', 'owner'].includes(userRole || '')) {
+  // Use database-driven permission checks only, no hardcoded bypasses
+  if (requiredRole && userRole !== requiredRole) {
     return null;
   }
 
