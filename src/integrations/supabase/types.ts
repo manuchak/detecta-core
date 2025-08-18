@@ -3589,6 +3589,7 @@ export type Database = {
           fecha_aprobacion: string | null
           fecha_contacto: string | null
           fecha_creacion: string
+          fecha_entrada_pool: string | null
           fecha_instalacion_gps: string | null
           fecha_psicometricos: string | null
           fecha_toxicologicos: string | null
@@ -3601,11 +3602,13 @@ export type Database = {
           last_contact_outcome: string | null
           last_interview_data: Json | null
           mensaje: string | null
+          motivo_pool: string | null
           motivo_rechazo: string | null
           nombre: string
           notas: string | null
           telefono: string | null
           updated_at: string
+          zona_preferida_id: string | null
         }
         Insert: {
           asignado_a?: string | null
@@ -3619,6 +3622,7 @@ export type Database = {
           fecha_aprobacion?: string | null
           fecha_contacto?: string | null
           fecha_creacion?: string
+          fecha_entrada_pool?: string | null
           fecha_instalacion_gps?: string | null
           fecha_psicometricos?: string | null
           fecha_toxicologicos?: string | null
@@ -3631,11 +3635,13 @@ export type Database = {
           last_contact_outcome?: string | null
           last_interview_data?: Json | null
           mensaje?: string | null
+          motivo_pool?: string | null
           motivo_rechazo?: string | null
           nombre: string
           notas?: string | null
           telefono?: string | null
           updated_at?: string
+          zona_preferida_id?: string | null
         }
         Update: {
           asignado_a?: string | null
@@ -3649,6 +3655,7 @@ export type Database = {
           fecha_aprobacion?: string | null
           fecha_contacto?: string | null
           fecha_creacion?: string
+          fecha_entrada_pool?: string | null
           fecha_instalacion_gps?: string | null
           fecha_psicometricos?: string | null
           fecha_toxicologicos?: string | null
@@ -3661,13 +3668,23 @@ export type Database = {
           last_contact_outcome?: string | null
           last_interview_data?: Json | null
           mensaje?: string | null
+          motivo_pool?: string | null
           motivo_rechazo?: string | null
           nombre?: string
           notas?: string | null
           telefono?: string | null
           updated_at?: string
+          zona_preferida_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leads_zona_preferida_id_fkey"
+            columns: ["zona_preferida_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_operacion_nacional"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lotes_inventario: {
         Row: {
@@ -5440,6 +5457,66 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: []
+      }
+      pool_reserva_movements: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          fecha_entrada: string | null
+          fecha_salida: string | null
+          id: string
+          lead_id: string
+          metadata: Json | null
+          motivo: string
+          movimiento_tipo: string
+          notas: string | null
+          reactivado_por: string | null
+          zona_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          fecha_entrada?: string | null
+          fecha_salida?: string | null
+          id?: string
+          lead_id: string
+          metadata?: Json | null
+          motivo: string
+          movimiento_tipo: string
+          notas?: string | null
+          reactivado_por?: string | null
+          zona_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          fecha_entrada?: string | null
+          fecha_salida?: string | null
+          id?: string
+          lead_id?: string
+          metadata?: Json | null
+          motivo?: string
+          movimiento_tipo?: string
+          notas?: string | null
+          reactivado_por?: string | null
+          zona_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pool_reserva_movements_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pool_reserva_movements_zona_id_fkey"
+            columns: ["zona_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_operacion_nacional"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       presupuestos_zona: {
         Row: {
@@ -7678,6 +7755,53 @@ export type Database = {
         }
         Relationships: []
       }
+      zona_capacity_management: {
+        Row: {
+          activo: boolean
+          capacidad_actual: number
+          capacidad_maxima: number
+          configuracion: Json | null
+          created_at: string | null
+          id: string
+          umbral_saturacion: number
+          updated_at: string | null
+          updated_by: string | null
+          zona_id: string
+        }
+        Insert: {
+          activo?: boolean
+          capacidad_actual?: number
+          capacidad_maxima?: number
+          configuracion?: Json | null
+          created_at?: string | null
+          id?: string
+          umbral_saturacion?: number
+          updated_at?: string | null
+          updated_by?: string | null
+          zona_id: string
+        }
+        Update: {
+          activo?: boolean
+          capacidad_actual?: number
+          capacidad_maxima?: number
+          configuracion?: Json | null
+          created_at?: string | null
+          id?: string
+          umbral_saturacion?: number
+          updated_at?: string | null
+          updated_by?: string | null
+          zona_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zona_capacity_management_zona_id_fkey"
+            columns: ["zona_id"]
+            isOneToOne: true
+            referencedRelation: "zonas_operacion_nacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       zonas_operacion_nacional: {
         Row: {
           coordenadas_centro: unknown | null
@@ -8122,6 +8246,10 @@ export type Database = {
         Args: { role_name: string; user_id: string }
         Returns: boolean
       }
+      check_zone_capacity: {
+        Args: { p_zona_id: string }
+        Returns: Json
+      }
       clean_duplicate_service_ids: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -8457,25 +8585,21 @@ export type Database = {
       get_analyst_assigned_leads: {
         Args: Record<PropertyKey, never>
         Returns: {
-          analyst_email: string
-          analyst_name: string
           approval_stage: string
-          contact_attempts_count: number
-          decision_reason: string
+          fecha_entrada_pool: string
           final_decision: string
-          interview_interrupted: boolean
-          interview_session_id: string
-          last_contact_attempt_at: string
-          last_contact_outcome: string
           lead_email: string
           lead_estado: string
           lead_fecha_creacion: string
           lead_id: string
           lead_nombre: string
           lead_telefono: string
+          motivo_pool: string
           notas: string
           phone_interview_completed: boolean
           second_interview_required: boolean
+          zona_nombre: string
+          zona_preferida_id: string
         }[]
       }
       get_available_roles_secure: {
@@ -9472,6 +9596,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: number
       }
+      move_lead_to_pool: {
+        Args: { p_lead_id: string; p_motivo?: string; p_zona_id: string }
+        Returns: boolean
+      }
       obtener_deficit_dinamico_nacional: {
         Args: { p_fecha_desde?: string; p_fecha_hasta?: string }
         Returns: {
@@ -9530,6 +9658,10 @@ export type Database = {
       }
       puede_acceder_planeacion: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      reactivate_lead_from_pool: {
+        Args: { p_lead_id: string; p_nuevo_estado?: string }
         Returns: boolean
       }
       recomendar_gps_para_instalacion: {
