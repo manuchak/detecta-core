@@ -14,14 +14,40 @@ interface MoveToPoolDialogProps {
   onConfirm: (leadId: string, poolState: string, motivo: string) => Promise<boolean>;
 }
 
-// Estados del pool de reserva en lugar de zonas
-const POOL_STATES = [
-  { id: 'zona_saturada', name: 'Zona Saturada', description: 'La zona preferida está completa' },
-  { id: 'documentacion_pendiente', name: 'Documentación Pendiente', description: 'Esperando completar documentos' },
-  { id: 'segunda_entrevista', name: 'Segunda Entrevista Programada', description: 'Esperando segunda evaluación' },
-  { id: 'disponibilidad_futura', name: 'Disponibilidad Futura', description: 'Candidato disponible en fecha posterior' },
-  { id: 'capacitacion_requerida', name: 'Capacitación Requerida', description: 'Necesita entrenamiento previo' },
-  { id: 'evaluacion_medica', name: 'Evaluación Médica Pendiente', description: 'Esperando exámenes médicos' },
+// Estados de la República Mexicana para ubicación geográfica
+const ESTADOS_MEXICO = [
+  { id: 'aguascalientes', name: 'Aguascalientes', description: 'Estado de Aguascalientes' },
+  { id: 'baja_california', name: 'Baja California', description: 'Estado de Baja California' },
+  { id: 'baja_california_sur', name: 'Baja California Sur', description: 'Estado de Baja California Sur' },
+  { id: 'campeche', name: 'Campeche', description: 'Estado de Campeche' },
+  { id: 'chiapas', name: 'Chiapas', description: 'Estado de Chiapas' },
+  { id: 'chihuahua', name: 'Chihuahua', description: 'Estado de Chihuahua' },
+  { id: 'ciudad_de_mexico', name: 'Ciudad de México', description: 'Ciudad de México' },
+  { id: 'coahuila', name: 'Coahuila', description: 'Estado de Coahuila' },
+  { id: 'colima', name: 'Colima', description: 'Estado de Colima' },
+  { id: 'durango', name: 'Durango', description: 'Estado de Durango' },
+  { id: 'estado_de_mexico', name: 'Estado de México', description: 'Estado de México' },
+  { id: 'guanajuato', name: 'Guanajuato', description: 'Estado de Guanajuato' },
+  { id: 'guerrero', name: 'Guerrero', description: 'Estado de Guerrero' },
+  { id: 'hidalgo', name: 'Hidalgo', description: 'Estado de Hidalgo' },
+  { id: 'jalisco', name: 'Jalisco', description: 'Estado de Jalisco' },
+  { id: 'michoacan', name: 'Michoacán', description: 'Estado de Michoacán' },
+  { id: 'morelos', name: 'Morelos', description: 'Estado de Morelos' },
+  { id: 'nayarit', name: 'Nayarit', description: 'Estado de Nayarit' },
+  { id: 'nuevo_leon', name: 'Nuevo León', description: 'Estado de Nuevo León' },
+  { id: 'oaxaca', name: 'Oaxaca', description: 'Estado de Oaxaca' },
+  { id: 'puebla', name: 'Puebla', description: 'Estado de Puebla' },
+  { id: 'queretaro', name: 'Querétaro', description: 'Estado de Querétaro' },
+  { id: 'quintana_roo', name: 'Quintana Roo', description: 'Estado de Quintana Roo' },
+  { id: 'san_luis_potosi', name: 'San Luis Potosí', description: 'Estado de San Luis Potosí' },
+  { id: 'sinaloa', name: 'Sinaloa', description: 'Estado de Sinaloa' },
+  { id: 'sonora', name: 'Sonora', description: 'Estado de Sonora' },
+  { id: 'tabasco', name: 'Tabasco', description: 'Estado de Tabasco' },
+  { id: 'tamaulipas', name: 'Tamaulipas', description: 'Estado de Tamaulipas' },
+  { id: 'tlaxcala', name: 'Tlaxcala', description: 'Estado de Tlaxcala' },
+  { id: 'veracruz', name: 'Veracruz', description: 'Estado de Veracruz' },
+  { id: 'yucatan', name: 'Yucatán', description: 'Estado de Yucatán' },
+  { id: 'zacatecas', name: 'Zacatecas', description: 'Estado de Zacatecas' }
 ];
 
 export const MoveToPoolDialog = ({
@@ -45,7 +71,7 @@ export const MoveToPoolDialog = ({
 
   const handleStateChange = (stateId: string) => {
     setSelectedState(stateId);
-    const selectedStateObj = POOL_STATES.find(s => s.id === stateId);
+    const selectedStateObj = ESTADOS_MEXICO.find(s => s.id === stateId);
     if (selectedStateObj) {
       setMotivo(selectedStateObj.description);
     }
@@ -91,17 +117,17 @@ export const MoveToPoolDialog = ({
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="estado">Estado del candidato en pool</Label>
+            <Label htmlFor="estado">Estado de ubicación del candidato</Label>
             <Select
               value={selectedState}
               onValueChange={handleStateChange}
               disabled={loading}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Selecciona el estado del candidato" />
+                <SelectValue placeholder="Selecciona el estado de ubicación" />
               </SelectTrigger>
               <SelectContent>
-                {POOL_STATES.map((state) => (
+                {ESTADOS_MEXICO.map((state) => (
                   <SelectItem key={state.id} value={state.id}>
                     <div className="flex flex-col items-start">
                       <span className="font-medium">{state.name}</span>
