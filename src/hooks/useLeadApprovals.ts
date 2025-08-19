@@ -31,10 +31,20 @@ export const useLeadApprovals = () => {
       }
       
       console.log('Assigned leads data:', data);
-      // Convertir datos de la DB al tipo AssignedLead
+      // Convertir datos de la DB al tipo AssignedLead con compatibilidad
       const typedLeads: AssignedLead[] = (data || []).map(lead => ({
         ...lead,
-        lead_estado: lead.lead_estado as LeadEstado
+        lead_estado: lead.lead_estado as LeadEstado,
+        // Mantener compatibilidad con campos antiguos para no romper funcionalidad existente
+        approval_stage: lead.final_decision ? 
+          (lead.final_decision === 'approved' ? 'approved' : 
+           lead.final_decision === 'rejected' ? 'rejected' : 'phone_interview') 
+          : 'phone_interview',
+        phone_interview_completed: lead.has_successful_call || false,
+        second_interview_required: false, // Este campo se puede derivar de otros datos si es necesario
+        // Mantener referencia al nombre del analista en formato anterior si existe código legacy
+        analyst_name: lead.analista_nombre,
+        analyst_email: lead.analista_email
       }));
       setAssignedLeads(typedLeads);
       

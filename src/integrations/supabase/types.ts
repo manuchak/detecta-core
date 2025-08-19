@@ -8585,6 +8585,8 @@ export type Database = {
       get_analyst_assigned_leads: {
         Args: Record<PropertyKey, never>
         Returns: {
+          analista_email: string
+          analista_nombre: string
           asignado_a: string
           contact_attempts_count: number
           fecha_asignacion: string

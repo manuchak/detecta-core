@@ -51,13 +51,17 @@ export interface AssignedLead {
   lead_telefono: string;
   lead_estado: LeadEstado;
   lead_fecha_creacion: string;
-  approval_stage: string;
-  phone_interview_completed: boolean;
-  second_interview_required: boolean;
+  approval_stage?: string; // Opcional para compatibilidad
+  phone_interview_completed?: boolean; // Opcional para compatibilidad
+  second_interview_required?: boolean; // Opcional para compatibilidad
   final_decision: string | null;
   notas?: string; // Campo para almacenar información adicional del candidato
-  analyst_name?: string; // Nombre del analista asignado
-  analyst_email?: string; // Email del analista asignado
+  
+  // Información del analista asignado
+  asignado_a?: string; // UUID del analista asignado
+  analista_nombre?: string; // Nombre del analista asignado
+  analista_email?: string; // Email del analista asignado
+  fecha_asignacion?: string; // Fecha cuando fue asignado
   
   // Campos para rastreo de intentos de contacto
   contact_attempts_count?: number;

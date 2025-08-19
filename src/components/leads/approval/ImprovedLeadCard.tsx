@@ -163,14 +163,15 @@ export const ImprovedLeadCard = ({
             </div>
           </div>
 
-          {/* Analista asignado - más compacto */}
-          {lead.analyst_name && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 px-2.5 py-1.5 rounded-md border">
-              <User className="h-3 w-3" />
-              <div className="text-right">
-                <div className="font-medium text-foreground">{lead.analyst_name}</div>
-              </div>
-            </div>
+          {/* Badge del analista asignado */}
+          {lead.analista_nombre && (
+            <Badge 
+              variant="outline" 
+              className="text-xs px-2 py-1 bg-primary/5 text-primary border-primary/20 font-medium"
+            >
+              <User className="h-3 w-3 mr-1" />
+              {lead.analista_nombre}
+            </Badge>
           )}
         </div>
       </CardHeader>
