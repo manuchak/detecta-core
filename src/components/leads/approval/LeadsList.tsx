@@ -283,7 +283,8 @@ export const LeadsList = ({
       filtered = filtered.filter(lead => 
         !lead.final_decision && 
         lead.lead_estado !== 'rechazado' && 
-        lead.lead_estado !== 'aprobado'
+        lead.lead_estado !== 'aprobado' &&
+        !lead.fecha_entrada_pool  // Exclude leads in reserve pool
       );
     } else if (activeTab === "approved") {
       filtered = filtered.filter(lead => 
