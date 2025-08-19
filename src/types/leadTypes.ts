@@ -16,7 +16,8 @@ export type LeadEstado =
   | 'custodio_activo'
   | 'rechazado_psicometrico'
   | 'rechazado_toxicologico'
-  | 'inactivo';
+  | 'inactivo'
+  | 'aprobado_en_espera'; // Pool de Reserva - Candidatos aprobados en zona saturada
 
 export interface Lead {
   id: string;
@@ -72,6 +73,12 @@ export interface AssignedLead {
   interview_session_id?: string; // ID de la sesión actual/última
   last_autosave_at?: string; // Timestamp del último auto-guardado
   interview_interrupted?: boolean; // Si la entrevista fue interrumpida
+  
+  // Pool de Reserva - Nuevos campos
+  zona_preferida_id?: string;
+  zona_nombre?: string;
+  fecha_entrada_pool?: string;
+  motivo_pool?: string;
 }
 
 export interface ManualCallLog {
@@ -87,4 +94,32 @@ export interface ManualCallLog {
   requires_reschedule?: boolean;
   created_at: string;
   updated_at: string;
+}
+
+// Pool de Reserva - Interfaces adicionales
+export interface ZoneCapacity {
+  id: string;
+  zona_id: string;
+  zona_nombre: string;
+  capacidad_maxima: number;
+  capacidad_actual: number;
+  umbral_saturacion: number;
+  zona_saturada: boolean;
+  espacios_disponibles: number;
+  activo: boolean;
+}
+
+export interface PoolMovement {
+  id: string;
+  lead_id: string;
+  zona_id: string;
+  movimiento_tipo: 'entrada' | 'salida' | 'reactivacion' | 'expiracion';
+  motivo: string;
+  fecha_entrada?: string;
+  fecha_salida?: string;
+  reactivado_por?: string;
+  notas?: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+  created_by?: string;
 }

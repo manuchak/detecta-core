@@ -21,6 +21,7 @@ import { useLeadApprovals } from "@/hooks/useLeadApprovals";
 import { LeadsList } from "@/components/leads/approval/LeadsList";
 import { LeadDialogs } from "@/components/leads/approval/LeadDialogs";
 import { ScheduledCallsView } from "@/components/leads/approval/ScheduledCallsView";
+import { PoolReservaView } from "@/components/leads/pool/PoolReservaView";
 import { ApprovalAdvancedFiltersState } from "@/components/leads/approval/ApprovalAdvancedFilters";
 
 export const LeadApprovals = () => {
@@ -192,6 +193,7 @@ export const LeadApprovals = () => {
                 <TabsTrigger value="approved">Aprobados</TabsTrigger>
                 <TabsTrigger value="rejected">Rechazados</TabsTrigger>
                 <TabsTrigger value="scheduled">Programadas</TabsTrigger>
+                <TabsTrigger value="pool">Pool de Reserva</TabsTrigger>
               </TabsList>
 
               <TabsContent value="pending" className="mt-6">
@@ -254,7 +256,13 @@ export const LeadApprovals = () => {
               </TabsContent>
 
               <TabsContent value="scheduled" className="mt-6">
-                <ScheduledCallsView assignedLeads={assignedLeads} />
+                <ScheduledCallsView 
+                  assignedLeads={assignedLeads.filter(lead => lead.has_scheduled_call)} 
+                />
+              </TabsContent>
+
+              <TabsContent value="pool" className="mt-6">
+                <PoolReservaView searchTerm={searchTerm} />
               </TabsContent>
             </Tabs>
           </CardContent>

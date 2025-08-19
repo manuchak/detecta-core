@@ -150,6 +150,45 @@ export const useLeadApprovals = () => {
         throw new Error('Usuario no autenticado');
       }
 
+      // Si hay zona_preferida_id, verificar capacidad
+      if (lead.zona_preferida_id) {
+        const { data: capacityData } = await supabase.rpc('check_zone_capacity', {
+          p_zona_id: lead.zona_preferida_id
+        });
+        
+        const capacity = capacityData as any;
+        if (capacity?.zona_saturada) {
+          // Mostrar opción para enviar al pool
+          const shouldMoveToPool = window.confirm(
+            `La zona "${lead.zona_nombre || 'seleccionada'}" está saturada (${capacity.capacidad_actual}/${capacity.capacidad_maxima} custodios). ¿Deseas mover este candidato al Pool de Reserva para contactarlo cuando se libere espacio?`
+          );
+          
+          if (shouldMoveToPool) {
+            const { data: moveResult } = await supabase.rpc('move_lead_to_pool', {
+              p_lead_id: lead.lead_id,
+              p_zona_id: lead.zona_preferida_id,
+              p_motivo: `Zona saturada - ${capacity.capacidad_actual}/${capacity.capacidad_maxima} custodios`
+            });
+            
+            if (moveResult) {
+              toast({
+                title: "Candidato movido al Pool de Reserva",
+                description: `El candidato ha sido aprobado y agregado al pool de reserva. Será contactado cuando se libere capacidad en la zona.`,
+              });
+              await refreshAfterCall();
+              return;
+            }
+          } else {
+            // Usuario decidió no mover al pool, continuar con aprobación normal
+            toast({
+              title: "Zona saturada",
+              description: "La zona está saturada pero el candidato será aprobado normalmente.",
+              variant: "warning" as any
+            });
+          }
+        }
+      }
+
       // Verificar que el lead existe y obtener su información de asignación
       const { data: leadData, error: leadCheckError } = await supabase
         .from('leads')
