@@ -14,7 +14,8 @@ import {
   User,
   AlertTriangle,
   MoreHorizontal,
-  PhoneCall
+  PhoneCall,
+  Archive
 } from "lucide-react";
 import {
   Tooltip,
@@ -45,6 +46,7 @@ interface ImprovedLeadCardProps {
   onReject: (lead: AssignedLead) => void;
   onCompleteMissingInfo: (lead: AssignedLead) => void;
   onLogCall: (lead: AssignedLead) => void;
+  onMoveToPool?: (lead: AssignedLead) => void;
 }
 
 export const ImprovedLeadCard = ({
@@ -58,7 +60,8 @@ export const ImprovedLeadCard = ({
   onSendToSecondInterview,
   onReject,
   onCompleteMissingInfo,
-  onLogCall
+  onLogCall,
+  onMoveToPool
 }: ImprovedLeadCardProps) => {
   const validation = validateLeadForApproval(lead);
   const hasMissingInfo = !validation.isValid;
@@ -332,6 +335,16 @@ export const ImprovedLeadCard = ({
                   <DropdownMenuItem onClick={() => onViewCallHistory(lead)} className="text-xs">
                     <Bot className="h-3 w-3 mr-2" />
                     Historial llamadas
+                  </DropdownMenuItem>
+                </>
+              )}
+              
+              {onMoveToPool && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onMoveToPool(lead)} className="text-xs">
+                    <Archive className="h-3 w-3 mr-2" />
+                    Mover al Pool
                   </DropdownMenuItem>
                 </>
               )}

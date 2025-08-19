@@ -18,11 +18,13 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AssignedLead } from "@/types/leadTypes";
 import { useLeadApprovals } from "@/hooks/useLeadApprovals";
+import { usePoolReserva } from "@/hooks/usePoolReserva";
 import { LeadsList } from "@/components/leads/approval/LeadsList";
 import { LeadDialogs } from "@/components/leads/approval/LeadDialogs";
 import { ScheduledCallsView } from "@/components/leads/approval/ScheduledCallsView";
 import { PoolReservaView } from "@/components/leads/pool/PoolReservaView";
 import { ApprovalAdvancedFiltersState } from "@/components/leads/approval/ApprovalAdvancedFilters";
+import { MoveToPoolDialog } from "@/components/leads/pool/MoveToPoolDialog";
 
 export const LeadApprovals = () => {
   const {
@@ -36,6 +38,8 @@ export const LeadApprovals = () => {
     handleSendToSecondInterview,
     handleRejectWithReasons
   } = useLeadApprovals();
+  
+  const { moveToPool } = usePoolReserva();
 
   const [selectedLead, setSelectedLead] = useState<AssignedLead | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -45,6 +49,7 @@ export const LeadApprovals = () => {
   const [showMissingInfoDialog, setShowMissingInfoDialog] = useState(false);
   const [showCallLogDialog, setShowCallLogDialog] = useState(false);
   const [showRejectionDialog, setShowRejectionDialog] = useState(false);
+  const [showMoveToPoolDialog, setShowMoveToPoolDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
   
@@ -100,6 +105,11 @@ export const LeadApprovals = () => {
   const handleRejectWithReason = (lead: AssignedLead) => {
     setSelectedLead(lead);
     setShowRejectionDialog(true);
+  };
+
+  const handleMoveToPool = (lead: AssignedLead) => {
+    setSelectedLead(lead);
+    setShowMoveToPoolDialog(true);
   };
 
   const handleConfirmReject = (reasons: string[], customReason: string) => {
@@ -216,6 +226,7 @@ export const LeadApprovals = () => {
                   onReject={handleRejectWithReason}
                   onCompleteMissingInfo={handleCompleteMissingInfo}
                   onLogCall={handleLogCall}
+                  onMoveToPool={handleMoveToPool}
                 />
               </TabsContent>
 
@@ -234,6 +245,7 @@ export const LeadApprovals = () => {
                   onReject={handleRejectWithReason}
                   onCompleteMissingInfo={handleCompleteMissingInfo}
                   onLogCall={handleLogCall}
+                  onMoveToPool={handleMoveToPool}
                 />
               </TabsContent>
 
@@ -252,6 +264,7 @@ export const LeadApprovals = () => {
                   onReject={handleRejectWithReason}
                   onCompleteMissingInfo={handleCompleteMissingInfo}
                   onLogCall={handleLogCall}
+                  onMoveToPool={handleMoveToPool}
                 />
               </TabsContent>
 
@@ -289,6 +302,13 @@ export const LeadApprovals = () => {
           onCallComplete={handleCallComplete}
           onOpenCompleteInfo={handleOpenCompleteInfo}
           onConfirmReject={handleConfirmReject}
+        />
+        
+        <MoveToPoolDialog
+          lead={selectedLead}
+          open={showMoveToPoolDialog}
+          onOpenChange={setShowMoveToPoolDialog}
+          onConfirm={moveToPool}
         />
       </div>
     </TooltipProvider>
