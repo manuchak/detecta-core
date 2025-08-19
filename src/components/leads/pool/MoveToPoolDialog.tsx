@@ -11,16 +11,17 @@ interface MoveToPoolDialogProps {
   lead: AssignedLead | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (leadId: string, zonaId: string, motivo: string) => Promise<boolean>;
+  onConfirm: (leadId: string, poolState: string, motivo: string) => Promise<boolean>;
 }
 
-// Lista estática de zonas comunes (se puede expandir después)
-const ZONES = [
-  { id: 'zona-norte', name: 'Zona Norte' },
-  { id: 'zona-sur', name: 'Zona Sur' },
-  { id: 'zona-centro', name: 'Zona Centro' },
-  { id: 'zona-este', name: 'Zona Este' },
-  { id: 'zona-oeste', name: 'Zona Oeste' },
+// Estados del pool de reserva en lugar de zonas
+const POOL_STATES = [
+  { id: 'zona_saturada', name: 'Zona Saturada', description: 'La zona preferida está completa' },
+  { id: 'documentacion_pendiente', name: 'Documentación Pendiente', description: 'Esperando completar documentos' },
+  { id: 'segunda_entrevista', name: 'Segunda Entrevista Programada', description: 'Esperando segunda evaluación' },
+  { id: 'disponibilidad_futura', name: 'Disponibilidad Futura', description: 'Candidato disponible en fecha posterior' },
+  { id: 'capacitacion_requerida', name: 'Capacitación Requerida', description: 'Necesita entrenamiento previo' },
+  { id: 'evaluacion_medica', name: 'Evaluación Médica Pendiente', description: 'Esperando exámenes médicos' },
 ];
 
 export const MoveToPoolDialog = ({
@@ -29,25 +30,33 @@ export const MoveToPoolDialog = ({
   onOpenChange,
   onConfirm
 }: MoveToPoolDialogProps) => {
-  const [selectedZona, setSelectedZona] = useState<string>("");
-  const [motivo, setMotivo] = useState("Zona saturada");
+  const [selectedState, setSelectedState] = useState<string>("");
+  const [motivo, setMotivo] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (open) {
       // Reset form when opening
-      setSelectedZona(lead?.zona_preferida_id || "");
-      setMotivo("Zona saturada");
+      setSelectedState("");
+      setMotivo("");
     }
   }, [open, lead]);
 
+  const handleStateChange = (stateId: string) => {
+    setSelectedState(stateId);
+    const selectedStateObj = POOL_STATES.find(s => s.id === stateId);
+    if (selectedStateObj) {
+      setMotivo(selectedStateObj.description);
+    }
+  };
+
   const handleConfirm = async () => {
-    if (!lead || !selectedZona) return;
+    if (!lead || !selectedState) return;
 
     setLoading(true);
     try {
-      const success = await onConfirm(lead.lead_id, selectedZona, motivo);
+      const success = await onConfirm(lead.lead_id, selectedState, motivo);
       if (success) {
         onOpenChange(false);
         toast({
@@ -76,25 +85,28 @@ export const MoveToPoolDialog = ({
           <DialogTitle>Mover al Pool de Reserva</DialogTitle>
           <DialogDescription>
             Vas a mover a <strong>{lead.lead_nombre}</strong> al pool de reserva. 
-            Selecciona la zona y el motivo del movimiento.
+            Selecciona el estado y especifica el motivo del movimiento.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="zona">Zona de destino</Label>
+            <Label htmlFor="estado">Estado del candidato en pool</Label>
             <Select
-              value={selectedZona}
-              onValueChange={setSelectedZona}
+              value={selectedState}
+              onValueChange={handleStateChange}
               disabled={loading}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Selecciona una zona" />
+                <SelectValue placeholder="Selecciona el estado del candidato" />
               </SelectTrigger>
               <SelectContent>
-                {ZONES.map((zona) => (
-                  <SelectItem key={zona.id} value={zona.id}>
-                    {zona.name}
+                {POOL_STATES.map((state) => (
+                  <SelectItem key={state.id} value={state.id}>
+                    <div className="flex flex-col items-start">
+                      <span className="font-medium">{state.name}</span>
+                      <span className="text-xs text-muted-foreground">{state.description}</span>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -102,10 +114,10 @@ export const MoveToPoolDialog = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="motivo">Motivo del movimiento</Label>
+            <Label htmlFor="motivo">Detalles adicionales (opcional)</Label>
             <Textarea
               id="motivo"
-              placeholder="Describe el motivo del movimiento al pool..."
+              placeholder="Agrega detalles específicos sobre el estado del candidato..."
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}
               disabled={loading}
@@ -124,7 +136,7 @@ export const MoveToPoolDialog = ({
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={!selectedZona || !motivo.trim() || loading}
+            disabled={!selectedState || loading}
           >
             {loading ? "Moviendo..." : "Mover al Pool"}
           </Button>
