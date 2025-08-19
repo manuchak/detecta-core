@@ -125,13 +125,13 @@ export const usePoolReserva = () => {
   };
 
   // Move lead to pool
-  const moveToPool = async (leadId: string, zonaId: string, motivo: string = 'Zona saturada') => {
+  const moveToPool = async (leadId: string, estadoId: string, motivo: string = 'Zona saturada') => {
     try {
       setLoading(true);
       
       const { data, error } = await supabase.rpc('move_lead_to_pool', {
         p_lead_id: leadId,
-        p_zona_id: zonaId,
+        p_estado_id: estadoId,
         p_motivo: motivo
       });
       

@@ -9597,7 +9597,9 @@ export type Database = {
         Returns: number
       }
       move_lead_to_pool: {
-        Args: { p_lead_id: string; p_motivo?: string; p_zona_id: string }
+        Args:
+          | { p_estado_id: string; p_lead_id: string; p_motivo?: string }
+          | { p_lead_id: string; p_motivo?: string; p_zona_id: string }
         Returns: boolean
       }
       obtener_deficit_dinamico_nacional: {
