@@ -46,7 +46,10 @@ export const useLeadApprovals = () => {
         analyst_name: lead.analista_nombre,
         analyst_email: lead.analista_email
       }));
-      setAssignedLeads(typedLeads);
+      
+      // Filtrar solo los leads que NO están en pool (fecha_entrada_pool es null)
+      const pendingLeads = typedLeads.filter(lead => !lead.fecha_entrada_pool);
+      setAssignedLeads(pendingLeads);
       
       if (!data || data.length === 0) {
         toast({

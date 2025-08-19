@@ -8589,7 +8589,6 @@ export type Database = {
           analista_nombre: string
           asignado_a: string
           contact_attempts_count: number
-          fecha_asignacion: string
           fecha_entrada_pool: string
           final_decision: string
           has_scheduled_call: boolean

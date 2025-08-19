@@ -17,10 +17,14 @@ export const usePoolReserva = () => {
       
       if (error) throw error;
       
+      // Filtrar solo los candidatos que están en el pool (tienen fecha_entrada_pool)
       const poolLeads = (data || []).filter((lead: any) => lead.fecha_entrada_pool !== null)
         .map((lead: any) => ({
           ...lead,
-          lead_estado: lead.lead_estado as LeadEstado
+          lead_estado: lead.lead_estado as LeadEstado,
+          // Compatibilidad con campos legacy si es necesario
+          analyst_name: lead.analista_nombre,
+          analyst_email: lead.analista_email
         }));
       setPoolCandidates(poolLeads);
     } catch (error) {

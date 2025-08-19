@@ -61,7 +61,6 @@ export interface AssignedLead {
   asignado_a?: string; // UUID del analista asignado
   analista_nombre?: string; // Nombre del analista asignado
   analista_email?: string; // Email del analista asignado
-  fecha_asignacion?: string; // Fecha cuando fue asignado
   
   // Campos para rastreo de intentos de contacto
   contact_attempts_count?: number;
