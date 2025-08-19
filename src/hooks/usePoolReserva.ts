@@ -17,7 +17,7 @@ export const usePoolReserva = () => {
       
       if (error) throw error;
       
-      const poolLeads = (data || []).filter((lead: any) => lead.lead_estado === 'aprobado_en_espera')
+      const poolLeads = (data || []).filter((lead: any) => lead.fecha_entrada_pool !== null)
         .map((lead: any) => ({
           ...lead,
           lead_estado: lead.lead_estado as LeadEstado
