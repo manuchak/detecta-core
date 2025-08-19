@@ -8585,9 +8585,16 @@ export type Database = {
       get_analyst_assigned_leads: {
         Args: Record<PropertyKey, never>
         Returns: {
-          approval_stage: string
+          asignado_a: string
+          contact_attempts_count: number
+          fecha_asignacion: string
           fecha_entrada_pool: string
           final_decision: string
+          has_scheduled_call: boolean
+          has_successful_call: boolean
+          interview_interrupted: boolean
+          interview_session_id: string
+          last_contact_outcome: string
           lead_email: string
           lead_estado: string
           lead_fecha_creacion: string
@@ -8595,9 +8602,7 @@ export type Database = {
           lead_nombre: string
           lead_telefono: string
           motivo_pool: string
-          notas: string
-          phone_interview_completed: boolean
-          second_interview_required: boolean
+          scheduled_call_datetime: string
           zona_nombre: string
           zona_preferida_id: string
         }[]
