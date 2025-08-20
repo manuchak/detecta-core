@@ -143,6 +143,12 @@ export const ImprovedLeadCard = ({
                     Programada
                   </Badge>
                 )}
+                {lead.interview_in_progress && (
+                  <Badge variant="outline" className="text-xs px-1.5 py-0.5 text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-950 dark:text-blue-400">
+                    <Edit className="h-2.5 w-2.5 mr-1" />
+                    En progreso
+                  </Badge>
+                )}
                 {(lead.contact_attempts_count && lead.contact_attempts_count > 0) && (
                   <Badge 
                     variant="outline" 

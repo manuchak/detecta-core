@@ -76,6 +76,8 @@ export interface AssignedLead {
   interview_session_id?: string; // ID de la sesión actual/última
   last_autosave_at?: string; // Timestamp del último auto-guardado
   interview_interrupted?: boolean; // Si la entrevista fue interrumpida
+  interview_in_progress?: boolean; // Si la entrevista está en progreso
+  interview_started_at?: string; // Cuándo se inició la entrevista
   
   // Pool de Reserva - Nuevos campos
   zona_preferida_id?: string;

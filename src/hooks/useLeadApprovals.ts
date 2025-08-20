@@ -44,7 +44,10 @@ export const useLeadApprovals = () => {
         second_interview_required: false, // Este campo se puede derivar de otros datos si es necesario
         // Mantener referencia al nombre del analista en formato anterior si existe código legacy
         analyst_name: lead.analista_nombre,
-        analyst_email: lead.analista_email
+        analyst_email: lead.analista_email,
+        // Nuevos campos para autoguardado e interview en progreso
+        interview_in_progress: lead.interview_in_progress || false,
+        interview_started_at: lead.interview_started_at || null
       }));
       
       // Filtrar solo los leads que NO están en pool (fecha_entrada_pool es null)

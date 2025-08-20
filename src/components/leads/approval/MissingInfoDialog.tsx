@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, CheckCircle, Save, User, Car, Shield, Clock, X } from "lucide-react";
+import { AlertTriangle, CheckCircle, Save, User, Car, Shield, Clock, X, Edit } from "lucide-react";
 import { AssignedLead } from "@/types/leadTypes";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -159,6 +159,9 @@ export const MissingInfoDialog = ({
   
   const [loading, setLoading] = useState(false);
   const [missingFields, setMissingFields] = useState<string[]>([]);
+  const [autoSaving, setAutoSaving] = useState(false);
+  const [interviewStarted, setInterviewStarted] = useState(false);
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -230,8 +233,106 @@ export const MissingInfoDialog = ({
       // Validar campos faltantes
       const validation = validateLeadForApproval(lead);
       setMissingFields(validation.missingFields);
+      
+      // Verificar si la entrevista ya fue iniciada
+      setInterviewStarted(lead.interview_in_progress || false);
     }
   }, [lead, open]);
+
+  // Limpiar timeout al desmontar el componente
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Función de autoguardado con debounce
+  const autoSaveFormData = useCallback(async (data: FormDataInterface) => {
+    if (!lead) return;
+    
+    try {
+      setAutoSaving(true);
+      
+      // Crear objeto de notas estructurado
+      const notesData = {
+        datos_personales: {
+          edad: data.edad,
+          direccion: data.direccion,
+          estado_id: data.estado_id,
+          ciudad_id: data.ciudad_id,
+          zona_trabajo_id: data.zona_trabajo_id
+        },
+        tipo_custodio: data.tipo_custodio,
+        vehiculo: {
+          marca_vehiculo: data.marca_vehiculo,
+          modelo_vehiculo: data.modelo_vehiculo,
+          año_vehiculo: data.año_vehiculo,
+          placas: data.placas,
+          color_vehiculo: data.color_vehiculo,
+          tipo_vehiculo: data.tipo_vehiculo,
+          seguro_vigente: data.seguro_vigente
+        },
+        seguridad_armada: {
+          licencia_armas: data.licencia_armas,
+          experiencia_militar: data.experiencia_militar,
+          años_experiencia_armada: data.años_experiencia_armada
+        },
+        custodio_abordo: {
+          especialidad_abordo: data.especialidad_abordo
+        },
+        experiencia: {
+          experiencia_custodia: data.experiencia_custodia,
+          años_experiencia: data.años_experiencia,
+          empresas_anteriores: data.empresas_anteriores,
+          licencia_conducir: data.licencia_conducir,
+          tipo_licencia: data.tipo_licencia,
+          antecedentes_penales: data.antecedentes_penales,
+          institucion_publica: data.institucion_publica,
+          baja_institucion: data.baja_institucion,
+          referencias: data.referencias,
+          mensaje: data.mensaje
+        },
+        disponibilidad: {
+          horario: data.horario,
+          dias: data.dias
+        },
+        empresa: data.empresa,
+        notas_adicionales: data.notas
+      };
+
+      // Actualizar base de datos con autoguardado
+      const updateData: any = {
+        nombre: data.nombre,
+        email: data.email,
+        telefono: data.telefono,
+        empresa: data.empresa,
+        notas: JSON.stringify(notesData),
+        updated_at: new Date().toISOString()
+      };
+
+      // Si es la primera vez que se modifica algo, marcar como iniciada
+      if (!interviewStarted) {
+        updateData.interview_in_progress = true;
+        updateData.interview_started_at = new Date().toISOString();
+        setInterviewStarted(true);
+      }
+
+      const { error } = await supabase
+        .from('leads')
+        .update(updateData)
+        .eq('id', lead.lead_id);
+
+      if (error) throw error;
+      
+    } catch (error) {
+      console.error('Error in auto-save:', error);
+      // No mostrar toast para errores de autoguardado para no interrumpir al usuario
+    } finally {
+      setAutoSaving(false);
+    }
+  }, [lead, interviewStarted]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -244,6 +345,15 @@ export const MissingInfoDialog = ({
     const mockLead = createMockLeadFromFormData(updatedFormData);
     const validation = validateLeadForApproval(mockLead);
     setMissingFields(validation.missingFields);
+    
+    // Autoguardado con debounce
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+    
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      autoSaveFormData(updatedFormData);
+    }, 2000); // Guardar después de 2 segundos de inactividad
   };
 
   const createMockLeadFromFormData = (data: FormDataInterface) => {
@@ -354,6 +464,11 @@ export const MissingInfoDialog = ({
         notas_adicionales: formData.notas
       };
 
+      // Limpiar el timeout de autoguardado ya que estamos guardando manualmente
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+
       const { error } = await supabase
         .from('leads')
         .update({
@@ -362,6 +477,8 @@ export const MissingInfoDialog = ({
           telefono: formData.telefono,
           empresa: formData.empresa,
           notas: JSON.stringify(notesData),
+          // Marcar la entrevista como completada cuando se guarda manualmente
+          interview_in_progress: false,
           updated_at: new Date().toISOString()
         })
         .eq('id', lead.lead_id);
@@ -370,7 +487,7 @@ export const MissingInfoDialog = ({
 
       toast({
         title: "Información actualizada",
-        description: "La información del candidato ha sido actualizada exitosamente.",
+        description: "La información del candidato ha sido completada exitosamente.",
       });
 
       onUpdate();
@@ -426,15 +543,33 @@ export const MissingInfoDialog = ({
       <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-              <AlertTriangle className="h-5 w-5 text-orange-600" />
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+              interviewStarted ? 'bg-blue-100' : 'bg-orange-100'
+            }`}>
+              {interviewStarted ? (
+                <Edit className={`h-5 w-5 ${autoSaving ? 'text-blue-400' : 'text-blue-600'}`} />
+              ) : (
+                <AlertTriangle className="h-5 w-5 text-orange-600" />
+              )}
             </div>
             <div>
               <DialogTitle className="text-xl">
                 Completar Información del Candidato
               </DialogTitle>
-              <DialogDescription className="text-sm text-muted-foreground mt-1">
-                Complete los campos faltantes para proceder con la aprobación
+              <DialogDescription className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
+                {interviewStarted ? (
+                  <>
+                    Entrevista en progreso - Los datos se guardan automáticamente
+                    {autoSaving && (
+                      <div className="flex items-center gap-1 text-blue-600">
+                        <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                        <span className="text-xs">Guardando...</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  "Complete los campos faltantes para proceder con la aprobación"
+                )}
               </DialogDescription>
             </div>
           </div>
@@ -444,21 +579,29 @@ export const MissingInfoDialog = ({
           {/* Panel principal del formulario */}
           <div className="flex-1 space-y-6">
           {/* Estado actual */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-medium text-gray-900">Estado de la información</h3>
-              {isFormValid ? (
-                <Badge className="bg-green-100 text-green-800 border-green-200">
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                  Completa
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200">
-                  <AlertTriangle className="h-3 w-3 mr-1" />
-                  {missingFields.length} campos faltantes
-                </Badge>
-              )}
-            </div>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-medium text-gray-900">Estado de la información</h3>
+                <div className="flex items-center gap-2">
+                  {interviewStarted && (
+                    <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                      <Edit className="h-3 w-3 mr-1" />
+                      En progreso
+                    </Badge>
+                  )}
+                  {isFormValid ? (
+                    <Badge className="bg-green-100 text-green-800 border-green-200">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Completa
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200">
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      {missingFields.length} campos faltantes
+                    </Badge>
+                  )}
+                </div>
+              </div>
             
             {!isFormValid && (
               <p className="text-sm text-gray-600">
@@ -719,7 +862,7 @@ export const MissingInfoDialog = ({
             ) : (
               <div className="flex items-center gap-2">
                 <Save className="h-4 w-4" />
-                Guardar
+                {interviewStarted ? 'Completar Entrevista' : 'Guardar'}
               </div>
             )}
           </Button>

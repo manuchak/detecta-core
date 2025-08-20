@@ -3596,7 +3596,9 @@ export type Database = {
           fuente: string | null
           id: string
           interruption_reason: string | null
+          interview_in_progress: boolean | null
           interview_session_id: string | null
+          interview_started_at: string | null
           last_autosave_at: string | null
           last_contact_attempt_at: string | null
           last_contact_outcome: string | null
@@ -3629,7 +3631,9 @@ export type Database = {
           fuente?: string | null
           id?: string
           interruption_reason?: string | null
+          interview_in_progress?: boolean | null
           interview_session_id?: string | null
+          interview_started_at?: string | null
           last_autosave_at?: string | null
           last_contact_attempt_at?: string | null
           last_contact_outcome?: string | null
@@ -3662,7 +3666,9 @@ export type Database = {
           fuente?: string | null
           id?: string
           interruption_reason?: string | null
+          interview_in_progress?: boolean | null
           interview_session_id?: string | null
+          interview_started_at?: string | null
           last_autosave_at?: string | null
           last_contact_attempt_at?: string | null
           last_contact_outcome?: string | null
@@ -8593,8 +8599,10 @@ export type Database = {
           final_decision: string
           has_scheduled_call: boolean
           has_successful_call: boolean
+          interview_in_progress: boolean
           interview_interrupted: boolean
           interview_session_id: string
+          interview_started_at: string
           last_contact_outcome: string
           lead_email: string
           lead_estado: string
