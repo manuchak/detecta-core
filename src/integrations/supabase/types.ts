@@ -9224,7 +9224,7 @@ export type Database = {
         Returns: Json
       }
       get_supply_growth_metrics: {
-        Args: { fecha_fin?: string; fecha_inicio?: string }
+        Args: { fecha_fin: string; fecha_inicio: string }
         Returns: {
           custodios_activos_fin: number
           custodios_activos_inicio: number
