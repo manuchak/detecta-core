@@ -8,12 +8,14 @@ import { useRetentionDetails } from '@/hooks/useRetentionDetails';
 import { useROIMarketingDetails } from '@/hooks/useROIMarketingDetails';
 import { useROIMarketingMonthly } from '@/hooks/useROIMarketingMonthly';
 import { useEngagementDetails } from '@/hooks/useEngagementDetails';
+import { useSupplyGrowthDetails } from '@/hooks/useSupplyGrowthDetails';
 import { CPATooltip } from './CPATooltip';
 import { ConversionRateTooltip } from './ConversionRateTooltip';
 import { LTVTooltip } from './LTVTooltip';
 import { RetentionTooltip } from './RetentionTooltip';
 import { ROIMarketingTooltip } from '../tooltips/ROIMarketingTooltip';
 import { EngagementTooltip } from './EngagementTooltip';
+import { SupplyGrowthTooltip } from './SupplyGrowthTooltip';
 
 interface ExecutiveMetricsGridProps {
   kpis: ExecutiveKPIData;
@@ -29,6 +31,7 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
   const roiMarketingDetails = useROIMarketingDetails();
   const roiMarketingMonthly = useROIMarketingMonthly();
   const engagementDetails = useEngagementDetails();
+  const supplyGrowthDetails = useSupplyGrowthDetails();
 
   const kpiConfig = [
     {
@@ -78,9 +81,9 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
     },
     {
       title: 'Supply Growth',
-      value: kpis.supplyGrowth,
+      value: supplyGrowthDetails.supplyGrowthDetails?.currentMonthData?.growthRate || kpis.supplyGrowth,
       unit: '%',
-      trend: kpis.supplyGrowth > 0 ? 'up' as const : 'down' as const,
+      trend: (supplyGrowthDetails.supplyGrowthDetails?.currentMonthData?.growthRate || kpis.supplyGrowth) > 0 ? 'up' as const : 'down' as const,
       key: 'supplyGrowth'
     },
     {
@@ -115,7 +118,7 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
           value={kpi.value}
           unit={kpi.unit}
           trend={kpi.trend}
-          loading={loading || (kpi.key === 'cpa' && cpaLoading) || (kpi.key === 'crate' && conversionRateDetails.loading) || (kpi.key === 'ltv' && ltvDetails.loading) || (kpi.key === 'rrate' && retentionDetails.loading) || (kpi.key === 'roiMkt' && roiMarketingMonthly.loading) || (kpi.key === 'engagement' && engagementDetails.loading)}
+          loading={loading || (kpi.key === 'cpa' && cpaLoading) || (kpi.key === 'crate' && conversionRateDetails.loading) || (kpi.key === 'ltv' && ltvDetails.loading) || (kpi.key === 'rrate' && retentionDetails.loading) || (kpi.key === 'roiMkt' && roiMarketingMonthly.loading) || (kpi.key === 'engagement' && engagementDetails.loading) || (kpi.key === 'supplyGrowth' && supplyGrowthDetails.loading)}
           tooltip={
             kpi.key === 'cpa' && !cpaLoading ? <CPATooltip cpaDetails={cpaDetails} /> :
             kpi.key === 'crate' && !conversionRateDetails.loading ? <ConversionRateTooltip data={conversionRateDetails} /> :
@@ -123,6 +126,7 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className }: Execu
             kpi.key === 'rrate' && !retentionDetails.loading ? <RetentionTooltip data={retentionDetails} /> :
             kpi.key === 'roiMkt' && !roiMarketingMonthly.loading ? <ROIMarketingTooltip data={roiMarketingDetails.metrics} /> :
             kpi.key === 'engagement' && !engagementDetails.loading ? <EngagementTooltip data={engagementDetails.engagementDetails} /> :
+            kpi.key === 'supplyGrowth' && !supplyGrowthDetails.loading ? <SupplyGrowthTooltip data={supplyGrowthDetails.supplyGrowthDetails} /> :
             undefined
           }
         />
