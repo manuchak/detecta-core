@@ -201,13 +201,15 @@ export const useForecastEngine = (manualParams?: Partial<ForecastParameters>) =>
     // Ensure forecast is at least current services
     monthlyServicesForecast = Math.max(currentServices, Math.round(monthlyServicesForecast));
     
-    const monthlyGMVForecast = monthlyServicesForecast * 5000;
+    // Use 2025 average ticket for more accurate GMV forecasting
+    const avgTicket2025 = 6582; // Based on actual 2025 data
+    const monthlyGMVForecast = monthlyServicesForecast * avgTicket2025;
 
     // Calculate annual projections
     const remainingMonths = 12 - currentMonthNumber;
     const averageMonthlyServices = monthlyServicesForecast * 0.95;
     const annualServices = (currentMonthNumber - 1) * averageMonthlyServices + monthlyServicesForecast;
-    const annualGMV = annualServices * 5000;
+    const annualGMV = annualServices * avgTicket2025;
 
     // Calculate accuracy metrics
     const serviceMAPE = calculateMAPE(historicalData, activeParams);

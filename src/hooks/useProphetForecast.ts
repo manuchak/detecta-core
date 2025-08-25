@@ -113,9 +113,9 @@ function calculateProphetForecast(
   }
 
   try {
-    // Extract and prepare time series data
-    const serviceData = historicalData.map(item => item.total_services || 0);
-    const gmvData = historicalData.map(item => item.total_gmv || 0);
+    // Extract and prepare time series data - use correct field names
+    const serviceData = historicalData.map(item => item.services || 0);
+    const gmvData = historicalData.map(item => item.gmv || 0);
 
     // Step 1: Detect and treat outliers
     const serviceOutliers = detectAndTreatOutliers(serviceData, 2.0);
@@ -138,7 +138,8 @@ function calculateProphetForecast(
 
     if (currentMonthData) {
       const monthProgress = calculateMonthProgress();
-      const currentRate = currentMonthData.total_services / monthProgress;
+      const currentServices = currentMonthData.servicios_completado || 0;
+      const currentRate = currentServices / monthProgress;
       const forecastedMonthlyFromCurrent = currentRate * 1.0;
 
       // Hybrid approach: weight Prophet vs current month extrapolation
@@ -147,9 +148,10 @@ function calculateProphetForecast(
 
       monthlyServices = prophetWeight * monthlyServices + currentWeight * forecastedMonthlyFromCurrent;
 
-      // Similar for GMV
-      if (currentMonthData.total_gmv > 0) {
-        const currentGMVRate = currentMonthData.total_gmv / monthProgress;
+      // Similar for GMV - use 2025 average ticket
+      const avgTicket2025 = 6582;
+      if (currentServices > 0) {
+        const currentGMVRate = (currentServices * avgTicket2025) / monthProgress;
         const forecastedGMVFromCurrent = currentGMVRate * 1.0;
         monthlyGMV = prophetWeight * monthlyGMV + currentWeight * forecastedGMVFromCurrent;
       }

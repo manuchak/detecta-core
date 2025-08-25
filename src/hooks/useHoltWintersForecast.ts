@@ -232,10 +232,10 @@ export const useHoltWintersForecast = (manualParams?: ManualParameters): Forecas
         });
       }
       
-      // Calcular GMV usando ticket promedio histórico robusto
+      // Calcular GMV usando ticket promedio de 2025 (más preciso)
       const historicalTicketAverage = actualGmvYTD > 0 && actualServicesYTD > 0 
         ? actualGmvYTD / actualServicesYTD 
-        : 6708;
+        : 6582; // 2025 average ticket vs old 6708
       
       console.log(`💰 TICKET PROMEDIO CALCULADO: $${historicalTicketAverage.toFixed(0)}`);
       

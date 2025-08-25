@@ -137,7 +137,10 @@ function calculateHoltWintersForecast(
       monthlyGMV = optimizedGmvResult.forecast[0];
     }
 
-    // Step 3: Apply current month correction if available
+    // Step 4: Use 2025 average ticket for GMV calculation when needed
+    const avgTicket2025 = 6582;
+    
+    // Step 5: Apply current month correction if available
     if (currentMonthData) {
       const monthProgress = calculateMonthProgress();
       const currentRate = currentMonthData.servicios_unicos_id ? 
@@ -154,14 +157,10 @@ function calculateHoltWintersForecast(
     // Step 4: Calculate annual projections
     const annualServices = monthlyServices * 12;
     
-    // Calculate GMV using historical average ticket
-    const validGmvData = gmvData.filter(g => g > 0);
-    const validServiceData = serviceData.filter(s => s > 0);
-    const avgTicket = validGmvData.length > 0 && validServiceData.length > 0 ? 
-      validGmvData.reduce((sum, val) => sum + val, 0) / validServiceData.reduce((sum, val) => sum + val, 0) : 6708;
-    
-    monthlyGMV = monthlyServices * avgTicket;
-    const annualGMV = annualServices * avgTicket;
+    // Calculate GMV using 2025 average ticket for better accuracy
+    // The 2025 average ticket is $6,582 vs historical $6,060
+    monthlyGMV = monthlyServices * avgTicket2025;
+    const annualGMV = annualServices * avgTicket2025;
 
     // Step 5: Calculate advanced metrics using corrected algorithms
     const recentActual = serviceData.slice(-Math.min(3, serviceData.length));
