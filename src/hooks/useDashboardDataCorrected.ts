@@ -263,24 +263,34 @@ export const useDashboardDataCorrected = (
         });
       }
 
-      // Análisis de GMV Corregido - solo servicios finalizados con cobro válido
-      const serviciosFinalizadosConCobro = serviciosFiltrados.filter(service => {
+      // Análisis de GMV Corregido - todos los estados excepto cancelado con cobro válido
+      const serviciosValidosParaGMV = serviciosFiltrados.filter(service => {
         const estado = (service.estado || '').trim().toLowerCase();
         const cobro = Number(service.cobro_cliente);
-        return estado === 'finalizado' && !isNaN(cobro) && cobro > 0;
+        
+        // Excluir solo servicios cancelados
+        const esCancelado = estado.includes('cancelado') || estado.includes('canceled');
+        
+        return !esCancelado && !isNaN(cobro) && cobro > 0;
       });
 
-      // Calcular GMV solo de servicios finalizados únicos
+      // Calcular GMV de todos los servicios válidos únicos (excepto cancelados)
       let totalGmvCalculated = 0;
       const uniqueServiceIds = new Set();
 
-      serviciosFinalizadosConCobro.forEach(service => {
+      serviciosValidosParaGMV.forEach(service => {
         if (service.id_servicio && !uniqueServiceIds.has(service.id_servicio)) {
           uniqueServiceIds.add(service.id_servicio);
           const cobroCliente = Number(service.cobro_cliente) || 0;
           totalGmvCalculated += cobroCliente;
         }
       });
+
+      // Log para debugging del nuevo cálculo de GMV
+      console.log(`💰 GMV METODOLOGÍA ACTUALIZADA:`);
+      console.log(`   - Servicios válidos para GMV (sin cancelados): ${serviciosValidosParaGMV.length}`);
+      console.log(`   - Servicios únicos para GMV: ${uniqueServiceIds.size}`);
+      console.log(`   - GMV Total Calculado: $${totalGmvCalculated.toLocaleString()}`);
 
       // Análizar estados para métricas
       const serviciosFinalizados = serviciosFiltrados.filter(service => {

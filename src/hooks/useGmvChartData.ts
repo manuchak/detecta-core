@@ -42,14 +42,15 @@ export const useGmvChartData = () => {
 
         console.log(`📅 Registros de 2025 para gráfico: ${data2025.length}`);
 
-        // Aplicar filtros forenses: Finalizado + cobro válido + ID válido
+        // Aplicar filtros corregidos: Todos excepto cancelado + cobro válido + ID válido
         const serviciosValidosParaGMV = data2025.filter(item => {
           // 1. ID de servicio válido
           if (!item.id_servicio || item.id_servicio.trim() === '') return false;
           
-          // 2. Estado finalizado (con variaciones)
+          // 2. Excluir solo estados cancelados
           const estado = (item.estado || '').trim().toLowerCase();
-          if (estado !== 'finalizado' && estado !== 'completado' && estado !== 'finished') return false;
+          const esCancelado = estado.includes('cancelado') || estado.includes('canceled');
+          if (esCancelado) return false;
           
           // 3. Cobro válido (mayor a 0)
           const cobro = parseFloat(String(item.cobro_cliente)) || 0;
@@ -151,15 +152,17 @@ export const useGmvChartData = () => {
 
         if (error) throw error;
 
-        // Filtrar datos de 2025 con mismos criterios
+        // Filtrar datos de 2025 con criterios corregidos (excluir solo cancelados)
         const serviciosValidos = data?.filter(item => {
           if (!item.fecha_hora_cita || !item.id_servicio || item.id_servicio.trim() === '') return false;
           
           const fecha = new Date(item.fecha_hora_cita);
           if (fecha.getFullYear() !== 2025) return false;
           
+          // Excluir solo estados cancelados
           const estado = (item.estado || '').trim().toLowerCase();
-          if (estado !== 'finalizado') return false;
+          const esCancelado = estado.includes('cancelado') || estado.includes('canceled');
+          if (esCancelado) return false;
           
           const cobro = parseFloat(String(item.cobro_cliente)) || 0;
           if (cobro <= 0) return false;

@@ -64,13 +64,27 @@ export const processGmvData = (allServices: any[], selectedClient: string = "all
 
   console.log('✅ RESULTADO VALIDACIÓN COBRO:', cobroValidationAnalysis);
 
-  // PASO 2: Filtrar servicios válidos
+  // PASO 2: Filtrar servicios válidos (cobro válido, fecha válida, y excluir cancelados)
   console.log('📊 PASO 2: Filtrado de servicios válidos');
   const validServices = allServices.filter(service => {
     const cobroValid = isValidCobroUltraPermissive(service.cobro_cliente);
     const fechaValid = service.fecha_hora_cita && service.fecha_hora_cita !== null && String(service.fecha_hora_cita) !== '';
     
-    return cobroValid && fechaValid;
+    // Excluir servicios cancelados
+    const estado = (service.estado || '').trim().toLowerCase();
+    const esCancelado = estado.includes('cancelado') || estado.includes('canceled');
+    
+    if (esCancelado && cobroValid) {
+      // Log servicios cancelados que tienen cobro (para investigación)
+      console.log(`🚫 Servicio cancelado excluido del GMV:`, {
+        id: service.id_servicio,
+        estado: service.estado,
+        cobro: service.cobro_cliente,
+        cliente: service.nombre_cliente
+      });
+    }
+    
+    return cobroValid && fechaValid && !esCancelado;
   });
 
   console.log(`✅ Services after validation filter: ${validServices.length} de ${allServices.length}`);
