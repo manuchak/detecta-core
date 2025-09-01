@@ -8908,6 +8908,18 @@ export type Database = {
           nombres_custodios: string[]
         }[]
       }
+      get_custodios_operativos_activos: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          km_promedio: number
+          nombre_custodio: string
+          servicios_completados: number
+          telefono: string
+          telefono_operador: string
+          total_servicios: number
+          ultimo_servicio: string
+        }[]
+      }
       get_estados_safe: {
         Args: Record<PropertyKey, never>
         Returns: {
