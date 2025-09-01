@@ -56,22 +56,7 @@ export const DevolucionDialog: React.FC<DevolucionDialogProps> = ({
       
       const { data, error } = await supabase
         .from('comodatos_gps')
-        .select(`
-          *,
-          productos_inventario:producto_gps_id (
-            nombre,
-            marca,
-            modelo
-          ),
-          pc_custodios:pc_custodio_id (
-            nombre,
-            email,
-            tel
-          ),
-          profiles:asignado_por (
-            display_name
-          )
-        `)
+        .select('*')
         .eq('id', comodatoId)
         .single();
       
@@ -106,17 +91,17 @@ export const DevolucionDialog: React.FC<DevolucionDialogProps> = ({
   if (!comodatoId) return null;
 
   const getCustodioDisplay = () => {
-    if (comodato?.pc_custodios?.nombre) {
-      return {
-        nombre: comodato.pc_custodios.nombre,
-        tipo: 'Planeación',
-        contacto: comodato.pc_custodios.tel || comodato.pc_custodios.email
-      };
-    } else if (comodato?.custodio_operativo_nombre) {
+    if (comodato?.custodio_operativo_nombre) {
       return {
         nombre: comodato.custodio_operativo_nombre,
         tipo: 'Operativo',
         contacto: comodato.custodio_operativo_telefono
+      };
+    } else if (comodato?.pc_custodio_id) {
+      return {
+        nombre: 'Custodio de Planeación',
+        tipo: 'Planeación',
+        contacto: 'ID: ' + comodato.pc_custodio_id
       };
     }
     return null;
@@ -167,7 +152,7 @@ export const DevolucionDialog: React.FC<DevolucionDialogProps> = ({
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Producto:</span>
-                    <div className="font-medium">{comodato.productos_inventario?.nombre}</div>
+                    <div className="font-medium">GPS - {comodato.numero_serie_gps}</div>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Número de Serie:</span>
@@ -180,9 +165,9 @@ export const DevolucionDialog: React.FC<DevolucionDialogProps> = ({
                     </Badge>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Marca/Modelo:</span>
+                    <span className="text-muted-foreground">ID Producto:</span>
                     <div className="font-medium">
-                      {comodato.productos_inventario?.marca} {comodato.productos_inventario?.modelo}
+                      {comodato.producto_gps_id}
                     </div>
                   </div>
                 </div>
@@ -211,7 +196,7 @@ export const DevolucionDialog: React.FC<DevolucionDialogProps> = ({
                     </div>
                     <div>
                       <span className="text-muted-foreground">Asignado por:</span>
-                      <div className="font-medium">{comodato.profiles?.display_name || 'Desconocido'}</div>
+                      <div className="font-medium">{comodato.asignado_por || 'Desconocido'}</div>
                     </div>
                   </div>
                 </CardContent>

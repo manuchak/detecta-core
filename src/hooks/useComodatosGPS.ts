@@ -11,7 +11,8 @@ import type {
   FiltrosComodatos,
   KPIsComodatos,
   CustodioOperativoActivo,
-  ProductoGPS
+  ProductoGPS,
+  EstadoComodato
 } from '@/types/comodatos';
 
 export const useComodatosGPS = (filtros?: FiltrosComodatos) => {
@@ -29,29 +30,7 @@ export const useComodatosGPS = (filtros?: FiltrosComodatos) => {
     queryFn: async () => {
       let query = supabase
         .from('comodatos_gps')
-        .select(`
-          *,
-          productos_inventario:producto_gps_id (
-            id,
-            nombre,
-            marca,
-            modelo
-          ),
-          pc_custodios:pc_custodio_id (
-            id,
-            nombre,
-            email,
-            tel
-          ),
-          profiles:asignado_por (
-            id,
-            display_name
-          ),
-          profiles_devuelto:devuelto_por (
-            id,
-            display_name
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       // Aplicar filtros
@@ -61,7 +40,7 @@ export const useComodatosGPS = (filtros?: FiltrosComodatos) => {
 
       if (filtros?.custodio_nombre) {
         query = query.or(
-          `pc_custodios.nombre.ilike.%${filtros.custodio_nombre}%,custodio_operativo_nombre.ilike.%${filtros.custodio_nombre}%`
+          `custodio_operativo_nombre.ilike.%${filtros.custodio_nombre}%`
         );
       }
 
@@ -96,14 +75,7 @@ export const useComodatosGPS = (filtros?: FiltrosComodatos) => {
         
         return {
           ...comodato,
-          producto_nombre: comodato.productos_inventario?.nombre,
-          producto_marca: comodato.productos_inventario?.marca,
-          producto_modelo: comodato.productos_inventario?.modelo,
-          pc_custodio_nombre: comodato.pc_custodios?.nombre,
-          pc_custodio_email: comodato.pc_custodios?.email,
-          pc_custodio_tel: comodato.pc_custodios?.tel,
-          asignado_por_nombre: comodato.profiles?.display_name,
-          devuelto_por_nombre: comodato.profiles_devuelto?.display_name,
+          estado: comodato.estado as EstadoComodato,
           dias_asignado: diasAsignado,
           dias_restantes: diasRestantes,
           esta_vencido: diasRestantes < 0 && comodato.estado !== 'devuelto',
@@ -366,39 +338,28 @@ export const useProductosGPSDisponibles = () => {
     queryKey: ['productos-gps-disponibles'],
     queryFn: async (): Promise<ProductoGPS[]> => {
       const { data, error } = await supabase
-        .from('stock_productos')
+        .from('productos_inventario')
         .select(`
-          *,
-          productos_inventario (
-            id,
-            nombre,
-            marca,
-            modelo,
-            numero_serie,
-            precio_venta_sugerido,
-            categorias_productos (
-              nombre
-            )
-          )
+          id,
+          nombre,
+          marca,
+          modelo,
+          precio_venta_sugerido,
+          stock_productos!inner(cantidad_disponible)
         `)
-        .gt('cantidad_disponible', 0);
+        .gt('stock_productos.cantidad_disponible', 0);
 
       if (error) throw error;
 
-      // Filtrar solo productos GPS
-      const productosGps = (data || [])
-        .filter(item => 
-          item.productos_inventario?.categorias_productos?.nombre?.toLowerCase().includes('gps')
-        )
-        .map(item => ({
-          id: item.productos_inventario.id,
-          nombre: item.productos_inventario.nombre,
-          marca: item.productos_inventario.marca,
-          modelo: item.productos_inventario.modelo,  
-          numero_serie: item.productos_inventario.numero_serie,
-          cantidad_disponible: item.cantidad_disponible,
-          precio_venta_sugerido: item.productos_inventario.precio_venta_sugerido
-        }));
+      // Mapear los datos
+      const productosGps = (data || []).map(item => ({
+        id: item.id,
+        nombre: item.nombre,
+        marca: item.marca,
+        modelo: item.modelo,
+        cantidad_disponible: item.stock_productos?.[0]?.cantidad_disponible || 0,
+        precio_venta_sugerido: item.precio_venta_sugerido
+      }));
 
       return productosGps;
     }

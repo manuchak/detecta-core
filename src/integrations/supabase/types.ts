@@ -973,7 +973,36 @@ export type Database = {
           producto_gps_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_comodatos_gps_asignado_por"
+            columns: ["asignado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_comodatos_gps_devuelto_por"
+            columns: ["devuelto_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_comodatos_gps_pc_custodio"
+            columns: ["pc_custodio_id"]
+            isOneToOne: false
+            referencedRelation: "pc_custodios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_comodatos_gps_producto"
+            columns: ["producto_gps_id"]
+            isOneToOne: false
+            referencedRelation: "productos_inventario"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       configuracion_bonos_referidos: {
         Row: {
@@ -4438,6 +4467,13 @@ export type Database = {
           usuario_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_movimientos_comodato_usuario"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "movimientos_comodato_comodato_id_fkey"
             columns: ["comodato_id"]

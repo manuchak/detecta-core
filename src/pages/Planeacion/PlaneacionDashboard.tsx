@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, Shield, Calendar, MapPin, TrendingUp, Clock } from 'lucide-react';
+import { Users, Shield, Calendar, MapPin, TrendingUp, Clock, Smartphone } from 'lucide-react';
 
 import ClientesTab from './components/ClientesTab';
 import CustodiosTab from './components/CustodiosTab';
 import ServiciosTab from './components/ServiciosTab';
 import KPIDashboard from './components/KPIDashboard';
+import { ComodatosGPSTab } from './components/ComodatosGPSTab';
 
 export default function PlaneacionDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -24,7 +25,7 @@ export default function PlaneacionDashboard() {
 
       {/* Tabs Navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 lg:w-[600px]">
+        <TabsList className="grid w-full grid-cols-5 lg:w-[750px]">
           <TabsTrigger value="dashboard" className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4" />
             Dashboard
@@ -40,6 +41,10 @@ export default function PlaneacionDashboard() {
           <TabsTrigger value="clientes" className="flex items-center gap-2">
             <MapPin className="h-4 w-4" />
             Clientes
+          </TabsTrigger>
+          <TabsTrigger value="gps-comodato" className="flex items-center gap-2">
+            <Smartphone className="h-4 w-4" />
+            GPS Comodato
           </TabsTrigger>
         </TabsList>
 
@@ -61,6 +66,11 @@ export default function PlaneacionDashboard() {
         {/* Clientes Tab */}
         <TabsContent value="clientes" className="space-y-6 mt-6">
           <ClientesTab />
+        </TabsContent>
+
+        {/* GPS Comodato Tab */}
+        <TabsContent value="gps-comodato" className="space-y-6 mt-6">
+          <ComodatosGPSTab />
         </TabsContent>
       </Tabs>
     </div>
