@@ -915,6 +915,66 @@ export type Database = {
           },
         ]
       }
+      comodatos_gps: {
+        Row: {
+          asignado_por: string
+          condiciones_asignacion: string | null
+          condiciones_devolucion: string | null
+          created_at: string
+          custodio_operativo_nombre: string | null
+          custodio_operativo_telefono: string | null
+          devuelto_por: string | null
+          estado: string
+          fecha_asignacion: string
+          fecha_devolucion_programada: string
+          fecha_devolucion_real: string | null
+          id: string
+          numero_serie_gps: string
+          observaciones: string | null
+          pc_custodio_id: string | null
+          producto_gps_id: string
+          updated_at: string
+        }
+        Insert: {
+          asignado_por: string
+          condiciones_asignacion?: string | null
+          condiciones_devolucion?: string | null
+          created_at?: string
+          custodio_operativo_nombre?: string | null
+          custodio_operativo_telefono?: string | null
+          devuelto_por?: string | null
+          estado?: string
+          fecha_asignacion?: string
+          fecha_devolucion_programada: string
+          fecha_devolucion_real?: string | null
+          id?: string
+          numero_serie_gps: string
+          observaciones?: string | null
+          pc_custodio_id?: string | null
+          producto_gps_id: string
+          updated_at?: string
+        }
+        Update: {
+          asignado_por?: string
+          condiciones_asignacion?: string | null
+          condiciones_devolucion?: string | null
+          created_at?: string
+          custodio_operativo_nombre?: string | null
+          custodio_operativo_telefono?: string | null
+          devuelto_por?: string | null
+          estado?: string
+          fecha_asignacion?: string
+          fecha_devolucion_programada?: string
+          fecha_devolucion_real?: string | null
+          id?: string
+          numero_serie_gps?: string
+          observaciones?: string | null
+          pc_custodio_id?: string | null
+          producto_gps_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       configuracion_bonos_referidos: {
         Row: {
           activo: boolean
@@ -4339,6 +4399,50 @@ export type Database = {
             columns: ["marca_id"]
             isOneToOne: false
             referencedRelation: "marcas_vehiculos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      movimientos_comodato: {
+        Row: {
+          comodato_id: string
+          created_at: string
+          datos_adicionales: Json | null
+          evidencias: Json | null
+          fecha_movimiento: string
+          id: string
+          observaciones: string | null
+          tipo_movimiento: string
+          usuario_id: string
+        }
+        Insert: {
+          comodato_id: string
+          created_at?: string
+          datos_adicionales?: Json | null
+          evidencias?: Json | null
+          fecha_movimiento?: string
+          id?: string
+          observaciones?: string | null
+          tipo_movimiento: string
+          usuario_id: string
+        }
+        Update: {
+          comodato_id?: string
+          created_at?: string
+          datos_adicionales?: Json | null
+          evidencias?: Json | null
+          fecha_movimiento?: string
+          id?: string
+          observaciones?: string | null
+          tipo_movimiento?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimientos_comodato_comodato_id_fkey"
+            columns: ["comodato_id"]
+            isOneToOne: false
+            referencedRelation: "comodatos_gps"
             referencedColumns: ["id"]
           },
         ]
@@ -7881,6 +7985,18 @@ export type Database = {
       }
     }
     Views: {
+      custodios_operativos_activos: {
+        Row: {
+          km_promedio: number | null
+          nombre_custodio: string | null
+          servicios_completados: number | null
+          telefono: string | null
+          telefono_operador: string | null
+          total_servicios: number | null
+          ultimo_servicio: string | null
+        }
+        Relationships: []
+      }
       user_skills_view: {
         Row: {
           display_name: string | null
@@ -9699,6 +9815,10 @@ export type Database = {
       redeem_points: {
         Args: { p_quantity?: number; p_reward_id: string; p_user_id: string }
         Returns: string
+      }
+      refresh_custodios_operativos_activos: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       restaurar_producto: {
         Args: { p_producto_id: string }
