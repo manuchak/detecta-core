@@ -180,11 +180,11 @@ export function useMultiMonthRecruitmentPrediction() {
       );
       
       // Usar déficit ajustado dinámico si está disponible, sino usar estático
-      const currentDeficit = dynamicDeficit?.deficit_ajustado || cluster.deficit_total || 0;
+      const currentDeficit = (dynamicDeficit?.deficit_ajustado ?? cluster.deficit_total) || 0;
       
       console.log(`📈 Déficit para ${cluster.zona_nombre}:`, {
-        deficit_estatico: cluster.deficit_total,
-        deficit_dinamico: dynamicDeficit?.deficit_ajustado,
+        deficit_estatico: cluster.deficit_total || 0,
+        deficit_dinamico: dynamicDeficit?.deficit_ajustado ?? 0,
         deficit_usado: currentDeficit,
         incorporaciones_recientes: dynamicDeficit?.nuevos_custodios_incorporados || 0,
         progreso: dynamicDeficit?.porcentaje_progreso || 0

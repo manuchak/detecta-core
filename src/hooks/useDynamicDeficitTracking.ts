@@ -38,7 +38,8 @@ export function useDynamicDeficitTracking() {
 
       if (error) {
         console.error('Error fetching dynamic deficit:', error);
-        throw error;
+        setLoading(false);
+        return []; // Return empty array instead of throwing
       }
 
       setDeficitData(data || []);
