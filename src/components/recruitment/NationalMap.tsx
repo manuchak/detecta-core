@@ -3,7 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MAPBOX_ACCESS_TOKEN } from '@/lib/mapbox';
+import { initializeMapboxToken } from '@/lib/mapbox';
 import { AlertTriangle, Users, MapPin } from 'lucide-react';
 import type { ZonaOperacion, MetricaDemandaZona, AlertaSistema, CandidatoCustodio } from '@/hooks/useNationalRecruitment';
 import { sanitize } from '@/utils/sanitize';
@@ -219,33 +219,45 @@ export const NationalMap: React.FC<NationalMapProps> = ({
 
   // Inicialización del mapa (solo una vez)
   useEffect(() => {
-    if (!mapContainer.current) return;
+    const initMap = async () => {
+      if (!mapContainer.current) return;
 
-    // Usar el token de Mapbox del componente existente
-    mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
-    
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/light-v11',
-      center: [-102.5528, 23.6345], // Centro de México
-      zoom: 4.5, // Zoom menor para mostrar México completo
-      projection: 'mercator'
-    });
+      // Inicializar token de Mapbox
+      const token = await initializeMapboxToken();
+      if (!token) {
+        console.error('No se pudo obtener el token de Mapbox');
+        return;
+      }
 
-    // Agregar controles de navegación
-    map.current.addControl(
-      new mapboxgl.NavigationControl(),
-      'top-right'
-    );
+      // Usar el token de Mapbox
+      mapboxgl.accessToken = token;
+      
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/light-v11',
+        center: [-102.5528, 23.6345], // Centro de México
+        zoom: 4.5, // Zoom menor para mostrar México completo
+        projection: 'mercator'
+      });
 
-    // Agregar escala
-    map.current.addControl(
-      new mapboxgl.ScaleControl({
-        maxWidth: 100,
-        unit: 'metric'
-      }),
-      'bottom-left'
-    );
+      // Agregar controles de navegación
+      map.current.addControl(
+        new mapboxgl.NavigationControl(),
+        'top-right'
+      );
+
+      // Agregar escala
+      map.current.addControl(
+        new mapboxgl.ScaleControl({
+          maxWidth: 100,
+          unit: 'metric'
+        }),
+        'bottom-left'
+      );
+    };
+
+    // Inicializar el mapa
+    initMap();
 
     // Cleanup
     return () => {

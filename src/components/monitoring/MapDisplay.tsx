@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Card } from '@/components/ui/card';
-import { MAPBOX_ACCESS_TOKEN } from '@/lib/mapbox';
+import { initializeMapboxToken } from '@/lib/mapbox';
 
 interface MapDisplayProps {
   className?: string;
@@ -15,41 +15,53 @@ const MapDisplay = ({ className, title = "Monitoreo en Tiempo Real" }: MapDispla
   const map = useRef<mapboxgl.Map | null>(null);
 
   useEffect(() => {
-    if (!mapContainer.current) return;
+    const initMap = async () => {
+      if (!mapContainer.current) return;
 
-    // Initialize map with the provided token
-    mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
-    
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [-99.1332, 19.4326], // Default to Mexico City
-      zoom: 9,
-    });
+      // Initialize Mapbox token
+      const token = await initializeMapboxToken();
+      if (!token) {
+        console.error('No se pudo obtener el token de Mapbox');
+        return;
+      }
 
-    // Add navigation controls
-    map.current.addControl(
-      new mapboxgl.NavigationControl(),
-      'top-right'
-    );
+      // Initialize map with the provided token
+      mapboxgl.accessToken = token;
+      
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [-99.1332, 19.4326], // Default to Mexico City
+        zoom: 9,
+      });
 
-    // Add scale
-    map.current.addControl(
-      new mapboxgl.ScaleControl({
-        maxWidth: 100,
-        unit: 'metric'
-      }),
-      'bottom-left'
-    );
+      // Add navigation controls
+      map.current.addControl(
+        new mapboxgl.NavigationControl(),
+        'top-right'
+      );
 
-    // Sample marker (this would be replaced with real data)
-    new mapboxgl.Marker({ color: '#3FB1CE' })
-      .setLngLat([-99.1332, 19.4326])
-      .setPopup(
-        new mapboxgl.Popup({ offset: 25 })
-          .setText('Vehículo 1 - En ruta')
-      )
-      .addTo(map.current);
+      // Add scale
+      map.current.addControl(
+        new mapboxgl.ScaleControl({
+          maxWidth: 100,
+          unit: 'metric'
+        }),
+        'bottom-left'
+      );
+
+      // Sample marker (this would be replaced with real data)
+      new mapboxgl.Marker({ color: '#3FB1CE' })
+        .setLngLat([-99.1332, 19.4326])
+        .setPopup(
+          new mapboxgl.Popup({ offset: 25 })
+            .setText('Vehículo 1 - En ruta')
+        )
+        .addTo(map.current);
+    };
+
+    // Initialize the map
+    initMap();
 
     // Cleanup
     return () => {
