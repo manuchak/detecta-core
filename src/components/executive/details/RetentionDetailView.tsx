@@ -254,8 +254,9 @@ export function RetentionDetailView() {
                     month: 'short' 
                   });
                   
-                  // Calcular números absolutos basados en custodios iniciales
-                  const custodiosIniciales = retentionData.monthlyBreakdown.find(m => m.month === cohort.cohortMonth)?.custodiosActual || 100;
+                  // Calcular custodios nuevos (aproximación basada en custodios nuevos del mes)
+                  const custodiosNuevos = retentionData.monthlyBreakdown.find(m => m.month === cohort.cohortMonth)?.custodiosNuevos || 
+                                        Math.round((retentionData.monthlyBreakdown.find(m => m.month === cohort.cohortMonth)?.custodiosActual || 50) * 0.3);
                   
                   return (
                     <tr key={index} className="border-b hover:bg-muted/20">
@@ -263,7 +264,7 @@ export function RetentionDetailView() {
                       <td className="py-3 px-3 text-center">
                         <div className="inline-block px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
                           <div>{cohort.month0}%</div>
-                          <div className="text-[10px] opacity-70">{custodiosIniciales}</div>
+                          <div className="text-[10px] opacity-70">{custodiosNuevos}</div>
                         </div>
                       </td>
                       <td className="py-3 px-3 text-center">
@@ -274,7 +275,7 @@ export function RetentionDetailView() {
                             'bg-red-100 text-red-800'
                           }`}>
                             <div>{cohort.month1}%</div>
-                            <div className="text-[10px] opacity-70">{Math.round(custodiosIniciales * cohort.month1 / 100)}</div>
+                            <div className="text-[10px] opacity-70">{Math.round(custodiosNuevos * cohort.month1 / 100)}</div>
                           </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
@@ -288,7 +289,7 @@ export function RetentionDetailView() {
                             'bg-red-100 text-red-800'
                           }`}>
                             <div>{cohort.month2}%</div>
-                            <div className="text-[10px] opacity-70">{Math.round(custodiosIniciales * cohort.month2 / 100)}</div>
+                            <div className="text-[10px] opacity-70">{Math.round(custodiosNuevos * cohort.month2 / 100)}</div>
                           </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
@@ -302,7 +303,7 @@ export function RetentionDetailView() {
                             'bg-red-100 text-red-800'
                           }`}>
                             <div>{cohort.month3}%</div>
-                            <div className="text-[10px] opacity-70">{Math.round(custodiosIniciales * cohort.month3 / 100)}</div>
+                            <div className="text-[10px] opacity-70">{Math.round(custodiosNuevos * cohort.month3 / 100)}</div>
                           </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
@@ -316,7 +317,7 @@ export function RetentionDetailView() {
                             'bg-red-100 text-red-800'
                           }`}>
                             <div>{cohort.month4}%</div>
-                            <div className="text-[10px] opacity-70">{Math.round(custodiosIniciales * cohort.month4 / 100)}</div>
+                            <div className="text-[10px] opacity-70">{Math.round(custodiosNuevos * cohort.month4 / 100)}</div>
                           </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
@@ -330,7 +331,7 @@ export function RetentionDetailView() {
                             'bg-red-100 text-red-800'
                           }`}>
                             <div>{cohort.month5}%</div>
-                            <div className="text-[10px] opacity-70">{Math.round(custodiosIniciales * cohort.month5 / 100)}</div>
+                            <div className="text-[10px] opacity-70">{Math.round(custodiosNuevos * cohort.month5 / 100)}</div>
                           </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
@@ -344,7 +345,7 @@ export function RetentionDetailView() {
                             'bg-red-100 text-red-800'
                           }`}>
                             <div>{cohort.month6}%</div>
-                            <div className="text-[10px] opacity-70">{Math.round(custodiosIniciales * cohort.month6 / 100)}</div>
+                            <div className="text-[10px] opacity-70">{Math.round(custodiosNuevos * cohort.month6 / 100)}</div>
                           </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
