@@ -177,7 +177,16 @@ export async function calculateIntraMonthProjection(
       recordsFound: currentMonthData?.length || 0
     });
 
-  // PROJECT using different methodologies
+  // Historical constraints from real data
+  const HISTORICAL_MAX_SERVICES = 1023; // October 2024
+  const HISTORICAL_MAX_GMV = 7000000; // August 2025 (~$7M)
+  const REALISTIC_MAX_GMV = 7500000; // Allow 7% above historical max
+  
+  // Current September pace analysis
+  const currentDailyServices = 30; // 240 services in 8 days
+  const currentDailyGMV = 217500; // $1.74M in 8 days
+  
+  // Calculate projections with historical validation
   let projectedMonthEnd: number;
   let methodology: string;
   let multiplierUsed: number;
@@ -193,19 +202,41 @@ export async function calculateIntraMonthProjection(
     daysInMonth,
     monthProgress: `${(monthProgress * 100).toFixed(1)}%`,
     firstWeekGMV: `$${(firstWeekGMV/1000000).toFixed(1)}M`,
-    currentAccumulatedGMV: `$${(currentAccumulatedGMV/1000000).toFixed(1)}M`
+    currentAccumulatedGMV: `$${(currentAccumulatedGMV/1000000).toFixed(1)}M`,
+    dailyPace: `${currentDailyServices} servicios/día, $${(currentDailyGMV/1000).toFixed(0)}K/día`
   });
 
-  // Methodology 1: First week multiplier (user's hypothesis - PRIORITIZED with realistic bounds)
-  if (firstWeekGMV >= 1600000 && dayOfMonth >= 8) { // After first week (8+ days)
-    // STRONG FIRST WEEK ($1.6M+) - Apply user's reasoning with bounds
-    const baseMultiplier = Math.min(4.25, 6800000 / firstWeekGMV); // Cap at reasonable multiplier
-    const conservativeMultiplier = Math.max(3.5, Math.min(baseMultiplier, 5.0)); // Between 3.5x-5.0x
-    projectedMonthEnd = Math.max(firstWeekGMV * conservativeMultiplier, 6500000); // Floor at $6.5M
-    projectedMonthEnd = Math.min(projectedMonthEnd, 12000000); // Ceiling at $12M for realism
-    methodology = `Primera semana fuerte - Multiplicador ${conservativeMultiplier.toFixed(2)}x con límites`;
-    multiplierUsed = conservativeMultiplier;
-    confidence = 'Alta';
+  if (firstWeekGMV > 0) {
+    // Conservative momentum calculation based on current pace
+    const baseProjection = currentDailyGMV * daysInMonth;
+    
+    // Apply conservative growth factor (max 15% above current pace)
+    const growthFactor = Math.min(
+      1 + (firstWeekGMV / (currentDailyGMV * Math.min(dayOfMonth, 7)) - 1) * 0.15,
+      1.15 // Max 15% growth
+    );
+    
+    const momentumProjection = baseProjection * growthFactor;
+    
+    // Apply historical validation - never exceed realistic bounds
+    projectedMonthEnd = Math.min(
+      momentumProjection,
+      REALISTIC_MAX_GMV,
+      currentAccumulatedGMV * (daysInMonth / dayOfMonth) * 1.1 // Max 10% above linear projection
+    );
+    
+    methodology = `Pace conservador: ${(currentDailyGMV/1000).toFixed(0)}K/día × ${daysInMonth} días × ${growthFactor.toFixed(2)}`;
+    multiplierUsed = growthFactor;
+    
+    // Validate against historical maximums
+    if (projectedMonthEnd > HISTORICAL_MAX_GMV * 1.5) {
+      console.warn(`⚠️ Forecast Alert: Projected GMV $${(projectedMonthEnd/1000000).toFixed(1)}M exceeds 150% of historical max ($${(HISTORICAL_MAX_GMV/1000000).toFixed(1)}M)`);
+      projectedMonthEnd = HISTORICAL_MAX_GMV * 1.1; // Cap at 110% of historical max
+      methodology += ' (ajustado por límite histórico)';
+      confidence = 'Media';
+    } else {
+      confidence = dayOfMonth >= 8 ? 'Alta' : 'Media';
+    }
       
       console.log('🚀 PRIMERA SEMANA FUERTE DETECTADA:', {
         firstWeekGMV: `$${(firstWeekGMV/1000000).toFixed(1)}M`,

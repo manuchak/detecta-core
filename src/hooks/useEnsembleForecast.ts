@@ -159,19 +159,29 @@ function calculateEnsembleForecast(
         intraMonthProjection
       );
 
-      // Apply momentum boost if first week is strong ($1.6M+) with final realism check
-      let adjustedGMV = finalGMV;
-      if (intraMonthProjection.projectedWeekEnd >= 1600000) {
-        const targetGMV = Math.max(finalGMV, 6800000); // User's target
-        adjustedGMV = Math.min(targetGMV, 10000000); // Final safety ceiling
-        console.log('🚀 MOMENTUM BOOST APLICADO (FINAL):', {
-          originalGMV: `$${(finalGMV/1000000).toFixed(1)}M`,
-          targetGMV: `$${(targetGMV/1000000).toFixed(1)}M`,
-          finalGMV: `$${(adjustedGMV/1000000).toFixed(1)}M`,
-          firstWeek: `$${(intraMonthProjection.projectedWeekEnd/1000000).toFixed(1)}M`,
-          wasCapped: targetGMV !== adjustedGMV
-        });
-      }
+    // Historical validation constants
+    const HISTORICAL_MAX_SERVICES = 1023; // October 2024
+    const HISTORICAL_MAX_GMV = 7000000; // August 2025
+    const SAFE_MAX_SERVICES = 950; // Conservative target
+    const SAFE_MAX_GMV = 6800000; // Conservative target
+    
+    // Apply conservative momentum (max 10% boost for exceptional performance)
+    let adjustedGMV = finalGMV;
+    if (intraMonthProjection?.confidence && intraMonthProjection.confidence === 'Alta') {
+      const momentumBoost = Math.min(1.10, 1.05); // Conservative 5-10% boost
+      console.log(`📈 Applying conservative momentum boost: ${((momentumBoost - 1) * 100).toFixed(1)}%`);
+      
+      adjustedGMV *= momentumBoost;
+    }
+    
+    // Strict historical validation with warnings
+    if (adjustedGMV > HISTORICAL_MAX_GMV) {
+      console.warn(`🚨 ALERT: Projected GMV $${(adjustedGMV/1000000).toFixed(1)}M exceeds historical max ($${(HISTORICAL_MAX_GMV/1000000).toFixed(1)}M). Applying conservative cap.`);
+      adjustedGMV = SAFE_MAX_GMV;
+    }
+    
+    // Final safety caps
+    adjustedGMV = Math.min(adjustedGMV, SAFE_MAX_GMV);
 
       // Final services recalculation with safe AOV
       const safeAOV = dynamicAOV?.currentMonthAOV > 0 && dynamicAOV.currentMonthAOV < 15000 

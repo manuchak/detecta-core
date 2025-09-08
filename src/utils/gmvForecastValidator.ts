@@ -181,16 +181,36 @@ export function createEnhancedGMVForecast(
     (momentumGMV * weights.momentum)
   );
   
-  // REALISM VALIDATION - Critical bounds check
-  const finalGMV = Math.min(rawGMV, 12000000); // Absolute ceiling $12M
+  // ENHANCED REALISM VALIDATION with historical context
+  const HISTORICAL_MAX_SERVICES = 1023; // October 2024
+  const HISTORICAL_MAX_GMV = 7000000; // August 2025
+  const REALISTIC_MAX_GMV = 7500000; // 7% buffer above historical
+  const REALISTIC_MAX_SERVICES = 1100; // 7% buffer above historical
+  
+  // Apply historical validation first
+  let cappedGMV = rawGMV;
+  if (cappedGMV > HISTORICAL_MAX_GMV * 1.5) {
+    console.warn(`🚨 HISTORICAL ALERT: Projected GMV $${(cappedGMV/1000000).toFixed(1)}M exceeds 150% of historical max ($${(HISTORICAL_MAX_GMV/1000000).toFixed(1)}M)`);
+    cappedGMV = REALISTIC_MAX_GMV;
+  }
+  
+  const finalGMV = Math.min(cappedGMV, REALISTIC_MAX_GMV); // Apply realistic ceiling
   const finalGMV_floored = Math.max(finalGMV, 3500000); // Absolute floor $3.5M
   
-  // Recalculate services with safe AOV
+  // Recalculate services with safe AOV and historical validation
   const safeAOV = dynamicAOV.currentMonthAOV > 0 && dynamicAOV.currentMonthAOV < 20000 
     ? dynamicAOV.currentMonthAOV 
     : 6350; // Fallback to known average
   
-  const finalServices = Math.round(finalGMV_floored / safeAOV);
+  let calculatedServices = Math.round(finalGMV_floored / safeAOV);
+  
+  // Apply historical service limits
+  if (calculatedServices > HISTORICAL_MAX_SERVICES * 1.5) {
+    console.warn(`🚨 HISTORICAL ALERT: Projected services ${calculatedServices} exceeds 150% of historical max (${HISTORICAL_MAX_SERVICES})`);
+    calculatedServices = REALISTIC_MAX_SERVICES;
+  }
+  
+  const finalServices = Math.min(calculatedServices, REALISTIC_MAX_SERVICES);
   const finalAOV = finalGMV_floored / finalServices;
   
   console.log('🔍 VALIDACIÓN DE REALISMO:', {
