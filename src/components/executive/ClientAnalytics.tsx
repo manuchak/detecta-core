@@ -6,7 +6,8 @@ import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { format, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from 'date-fns';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { format, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { 
   Search, 
@@ -26,9 +27,13 @@ import {
   Filter,
   Star,
   Percent,
-  CalendarIcon
+  CalendarIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
+  AlertTriangle,
+  Clock
 } from 'lucide-react';
-import { useClientsData, useClientAnalytics, ClientSummary, useClientMetrics } from '@/hooks/useClientAnalytics';
+import { useClientsData, useClientAnalytics, ClientSummary, useClientMetrics, useClientTableData } from '@/hooks/useClientAnalytics';
 import { Button } from '@/components/ui/button';
 
 type DateFilterType = 'current_month' | 'current_quarter' | 'current_year' | 'custom';
@@ -65,6 +70,7 @@ export const ClientAnalytics = () => {
 
   const { data: clients, isLoading } = useClientsData(dateRange);
   const { data: clientMetrics, isLoading: metricsLoading } = useClientMetrics(dateRange);
+  const { data: tableData, isLoading: tableLoading } = useClientTableData(dateRange);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<string>('gmv');
@@ -81,38 +87,34 @@ export const ClientAnalytics = () => {
   };
 
   const filteredAndSortedClients = useMemo(() => {
-    if (!clients) return [];
+    if (!tableData) return [];
     
-    let filtered = clients.filter(client => 
-      client.nombre_cliente.toLowerCase().includes(searchTerm.toLowerCase())
+    let filtered = tableData.filter(client => 
+      client.clientName.toLowerCase().includes(searchTerm.toLowerCase())
     );
-
-    // Apply service type filter
-    if (filterByType !== 'all') {
-      filtered = filtered.filter(client => {
-        // This would need additional data to filter by service type
-        return true; // For now, show all
-      });
-    }
 
     // Sort clients
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'gmv':
-          return b.totalGMV - a.totalGMV;
+          return b.currentGMV - a.currentGMV;
         case 'services':
-          return b.totalServices - a.totalServices;
+          return b.currentServices - a.currentServices;
         case 'completion':
           return b.completionRate - a.completionRate;
         case 'aov':
-          return (b.totalGMV / b.totalServices) - (a.totalGMV / a.totalServices);
+          return b.currentAOV - a.currentAOV;
+        case 'growth':
+          return b.gmvGrowth - a.gmvGrowth;
+        case 'days_inactive':
+          return a.daysSinceLastService - b.daysSinceLastService;
         default:
-          return b.totalGMV - a.totalGMV;
+          return b.currentGMV - a.currentGMV;
       }
     });
 
-    return filtered;
-  }, [clients, searchTerm, filterByType, sortBy]);
+    return filtered.slice(0, 15); // Top 15 clients
+  }, [tableData, searchTerm, sortBy]);
 
   if (isLoading) {
     return (
@@ -571,6 +573,8 @@ export const ClientAnalytics = () => {
                 <SelectItem value="services">Más Servicios</SelectItem>
                 <SelectItem value="completion">Mejor Cumplimiento</SelectItem>
                 <SelectItem value="aov">Mejor AOV</SelectItem>
+                <SelectItem value="growth">Mayor Crecimiento</SelectItem>
+                <SelectItem value="days_inactive">Días sin Actividad</SelectItem>
               </SelectContent>
             </Select>
             <Select value={filterByType} onValueChange={setFilterByType}>
@@ -587,78 +591,202 @@ export const ClientAnalytics = () => {
         </CardContent>
       </Card>
 
-      {/* Enhanced Clients Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredAndSortedClients.map((client, index) => (
-          <Card 
-            key={index} 
-            className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105"
-            onClick={() => setSelectedClient(client.nombre_cliente)}
-          >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-sm font-medium line-clamp-2">
-                {client.nombre_cliente}
-              </CardTitle>
-              <div className="flex items-center gap-1">
-                {index < 3 && (
-                  <Badge variant="secondary" className="bg-gold-50 text-gold-700 text-xs">
-                    TOP {index + 1}
-                  </Badge>
-                )}
-                <Building2 className="h-4 w-4 text-muted-foreground" />
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="bg-slate-50 p-2 rounded">
-                  <div className="text-xs text-muted-foreground">Servicios</div>
-                  <div className="font-bold">{client.totalServices}</div>
-                </div>
-                <div className="bg-slate-50 p-2 rounded">
-                  <div className="text-xs text-muted-foreground">GMV</div>
-                  <div className="font-bold text-green-700">{formatCurrency(client.totalGMV)}</div>
-                </div>
-              </div>
-              
-              <div className="bg-slate-50 p-2 rounded">
-                <div className="flex justify-between items-center text-sm mb-1">
-                  <span className="text-xs text-muted-foreground">AOV</span>
-                  <span className="font-medium text-purple-700">
-                    {formatCurrency(client.totalGMV / client.totalServices)}
-                  </span>
-                </div>
-              </div>
+      {/* Enhanced Clients Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Top 15 Clientes - Análisis de Performance y Tendencias
+          </CardTitle>
+          <CardDescription>
+            Tabla completa con métricas de crecimiento, tendencias y alertas
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {tableLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-pulse text-muted-foreground">Cargando datos...</div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[200px]">Cliente</TableHead>
+                    <TableHead className="text-center">Servicios</TableHead>
+                    <TableHead className="text-center">GMV Actual</TableHead>
+                    <TableHead className="text-center">AOV</TableHead>
+                    <TableHead className="text-center">Cumplimiento</TableHead>
+                    <TableHead className="text-center">Crecimiento GMV</TableHead>
+                    <TableHead className="text-center">Crecimiento Servicios</TableHead>
+                    <TableHead className="text-center">Días sin Actividad</TableHead>
+                    <TableHead className="text-center">Estado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredAndSortedClients.map((client, index) => (
+                    <TableRow 
+                      key={client.clientName} 
+                      className="hover:bg-muted/50 cursor-pointer"
+                      onClick={() => setSelectedClient(client.clientName)}
+                    >
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1">
+                            {index < 3 && (
+                              <Badge variant="secondary" className="bg-gold-50 text-gold-700 text-xs">
+                                #{index + 1}
+                              </Badge>
+                            )}
+                            <Building2 className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          <span className="line-clamp-2">{client.clientName}</span>
+                        </div>
+                      </TableCell>
+                      
+                      <TableCell className="text-center">
+                        <div className="flex flex-col items-center">
+                          <span className="font-semibold">{client.currentServices}</span>
+                          {client.servicesGrowth !== 0 && (
+                            <div className="flex items-center gap-1">
+                              {client.servicesGrowth > 0 ? (
+                                <ArrowUpIcon className="h-3 w-3 text-green-600" />
+                              ) : (
+                                <ArrowDownIcon className="h-3 w-3 text-red-600" />
+                              )}
+                              <span className={`text-xs ${client.servicesGrowth > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {Math.abs(client.servicesGrowth)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
 
-              <div className="space-y-2">
-                <div className="flex justify-between items-center text-sm">
-                  <span>Cumplimiento</span>
-                  <span className="font-medium">{client.completionRate}%</span>
-                </div>
-                <Progress 
-                  value={client.completionRate} 
-                  className={`h-2 ${client.completionRate >= 95 ? 'bg-green-200' : client.completionRate >= 85 ? 'bg-yellow-200' : 'bg-red-200'}`}
-                />
-              </div>
+                      <TableCell className="text-center">
+                        <div className="flex flex-col items-center">
+                          <span className="font-semibold text-green-700">
+                            {formatCurrency(client.currentGMV)}
+                          </span>
+                          {client.gmvGrowth !== 0 && (
+                            <div className="flex items-center gap-1">
+                              {client.gmvGrowth > 0 ? (
+                                <ArrowUpIcon className="h-3 w-3 text-green-600" />
+                              ) : (
+                                <ArrowDownIcon className="h-3 w-3 text-red-600" />
+                              )}
+                              <span className={`text-xs ${client.gmvGrowth > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {client.gmvGrowth > 0 ? '+' : ''}{client.gmvGrowth.toFixed(1)}%
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
 
-              <div className="text-xs text-muted-foreground bg-slate-50 p-2 rounded">
-                Último servicio: {client.lastService}
-              </div>
-              
-              <Button variant="outline" size="sm" className="w-full mt-3 hover:bg-primary hover:text-primary-foreground">
-                Ver Análisis Completo
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                      <TableCell className="text-center">
+                        <div className="flex flex-col items-center">
+                          <span className="font-semibold text-purple-700">
+                            {formatCurrency(client.currentAOV)}
+                          </span>
+                          {client.aovGrowth !== 0 && (
+                            <div className="flex items-center gap-1">
+                              {client.aovGrowth > 0 ? (
+                                <ArrowUpIcon className="h-3 w-3 text-green-600" />
+                              ) : (
+                                <ArrowDownIcon className="h-3 w-3 text-red-600" />
+                              )}
+                              <span className={`text-xs ${client.aovGrowth > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {client.aovGrowth > 0 ? '+' : ''}{client.aovGrowth.toFixed(1)}%
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
 
-      {filteredAndSortedClients.length === 0 && !isLoading && (
-        <div className="text-center py-12">
-          <Building2 className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No se encontraron clientes</h3>
-          <p className="text-muted-foreground">Intenta ajustar los filtros o el término de búsqueda</p>
-        </div>
-      )}
+                      <TableCell className="text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="font-semibold">{client.completionRate.toFixed(1)}%</span>
+                          <Progress 
+                            value={client.completionRate} 
+                            className="w-16 h-1"
+                          />
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center">
+                          {client.gmvGrowth > 10 ? (
+                            <Badge className="bg-green-100 text-green-800 gap-1">
+                              <ArrowUpIcon className="h-3 w-3" />
+                              Creciendo
+                            </Badge>
+                          ) : client.gmvGrowth < -10 ? (
+                            <Badge className="bg-red-100 text-red-800 gap-1">
+                              <ArrowDownIcon className="h-3 w-3" />
+                              Decreciendo
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline">Estable</Badge>
+                          )}
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center">
+                          {client.servicesGrowth > 2 ? (
+                            <Badge className="bg-blue-100 text-blue-800 gap-1">
+                              <ArrowUpIcon className="h-3 w-3" />
+                              +{client.servicesGrowth}
+                            </Badge>
+                          ) : client.servicesGrowth < -2 ? (
+                            <Badge className="bg-orange-100 text-orange-800 gap-1">
+                              <ArrowDownIcon className="h-3 w-3" />
+                              {client.servicesGrowth}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline">Normal</Badge>
+                          )}
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <Clock className="h-3 w-3 text-muted-foreground" />
+                          <span className={`text-sm ${client.daysSinceLastService > 30 ? 'text-red-600 font-semibold' : client.daysSinceLastService > 14 ? 'text-orange-600' : 'text-green-600'}`}>
+                            {client.daysSinceLastService} días
+                          </span>
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center">
+                          {client.daysSinceLastService > 30 ? (
+                            <Badge className="bg-red-100 text-red-800 gap-1">
+                              <AlertTriangle className="h-3 w-3" />
+                              Inactivo
+                            </Badge>
+                          ) : client.gmvGrowth > 15 ? (
+                            <Badge className="bg-green-100 text-green-800 gap-1">
+                              <Star className="h-3 w-3" />
+                              Estrella
+                            </Badge>
+                          ) : client.completionRate < 70 ? (
+                            <Badge className="bg-yellow-100 text-yellow-800 gap-1">
+                              <AlertTriangle className="h-3 w-3" />
+                              Atención
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-blue-100 text-blue-800">Activo</Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

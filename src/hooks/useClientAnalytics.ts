@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { format, startOfMonth, endOfMonth, differenceInDays } from 'date-fns';
 
 export interface ClientMetrics {
   clientName: string;
@@ -316,6 +317,162 @@ export const useClientAnalytics = (clientName: string, dateRange?: { from: Date;
       };
     },
     enabled: !!clientName,
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+export interface ClientTableData {
+  clientName: string;
+  currentServices: number;
+  previousServices: number;
+  currentGMV: number;
+  previousGMV: number;
+  currentAOV: number;
+  previousAOV: number;
+  completionRate: number;
+  daysSinceLastService: number;
+  gmvGrowth: number;
+  servicesGrowth: number;
+  aovGrowth: number;
+  lastServiceDate: string;
+}
+
+export const useClientTableData = (dateRange?: { from: Date; to: Date }) => {
+  return useQuery({
+    queryKey: ['client-table-data', dateRange],
+    queryFn: async (): Promise<ClientTableData[]> => {
+      // Get current period data
+      let currentQuery = supabase.from('servicios_custodia').select('*');
+      if (dateRange) {
+        currentQuery = currentQuery
+          .gte('fecha_hora_cita', dateRange.from.toISOString())
+          .lte('fecha_hora_cita', dateRange.to.toISOString());
+      }
+      const { data: currentServices, error: currentError } = await currentQuery;
+      if (currentError) throw currentError;
+
+      // Get previous period data for comparison
+      let previousFrom: Date, previousTo: Date;
+      if (dateRange) {
+        const periodLength = dateRange.to.getTime() - dateRange.from.getTime();
+        previousTo = new Date(dateRange.from.getTime() - 1);
+        previousFrom = new Date(previousTo.getTime() - periodLength);
+      } else {
+        // Default to comparing with previous month
+        previousTo = new Date(startOfMonth(new Date()).getTime() - 1);
+        previousFrom = startOfMonth(previousTo);
+      }
+
+      const { data: previousServices, error: previousError } = await supabase
+        .from('servicios_custodia')
+        .select('*')
+        .gte('fecha_hora_cita', previousFrom.toISOString())
+        .lte('fecha_hora_cita', previousTo.toISOString());
+      
+      if (previousError) throw previousError;
+
+      // Process current period data
+      const currentStats = {};
+      currentServices?.forEach(service => {
+        const clientName = service.nombre_cliente;
+        if (!clientName || clientName === '#N/A') return;
+
+        if (!currentStats[clientName]) {
+          currentStats[clientName] = {
+            clientName,
+            services: [],
+            totalServices: 0,
+            totalGMV: 0,
+            completedServices: 0,
+            lastServiceDate: null
+          };
+        }
+
+        currentStats[clientName].services.push(service);
+        currentStats[clientName].totalServices++;
+        currentStats[clientName].totalGMV += service.cobro_cliente || 0;
+        
+        if (service.estado?.toLowerCase() === 'completado' || 
+            service.estado?.toLowerCase() === 'finalizado') {
+          currentStats[clientName].completedServices++;
+        }
+
+        // Track last service date
+        if (service.fecha_hora_cita) {
+          const serviceDate = new Date(service.fecha_hora_cita);
+          if (!currentStats[clientName].lastServiceDate || serviceDate > currentStats[clientName].lastServiceDate) {
+            currentStats[clientName].lastServiceDate = serviceDate;
+          }
+        }
+      });
+
+      // Process previous period data
+      const previousStats = {};
+      previousServices?.forEach(service => {
+        const clientName = service.nombre_cliente;
+        if (!clientName || clientName === '#N/A') return;
+
+        if (!previousStats[clientName]) {
+          previousStats[clientName] = {
+            totalServices: 0,
+            totalGMV: 0,
+          };
+        }
+
+        previousStats[clientName].totalServices++;
+        previousStats[clientName].totalGMV += service.cobro_cliente || 0;
+      });
+
+      // Combine and calculate metrics
+      const tableData: ClientTableData[] = [];
+      const now = new Date();
+
+      Object.values(currentStats).forEach((current: any) => {
+        const previous = previousStats[current.clientName] || { totalServices: 0, totalGMV: 0 };
+        
+        const currentAOV = current.totalServices > 0 ? current.totalGMV / current.totalServices : 0;
+        const previousAOV = previous.totalServices > 0 ? previous.totalGMV / previous.totalServices : 0;
+        
+        const gmvGrowth = previous.totalGMV > 0 
+          ? ((current.totalGMV - previous.totalGMV) / previous.totalGMV) * 100 
+          : 0;
+        
+        const servicesGrowth = current.totalServices - previous.totalServices;
+        
+        const aovGrowth = previousAOV > 0 
+          ? ((currentAOV - previousAOV) / previousAOV) * 100 
+          : 0;
+
+        const completionRate = current.totalServices > 0 
+          ? (current.completedServices / current.totalServices) * 100 
+          : 0;
+
+        const daysSinceLastService = current.lastServiceDate 
+          ? differenceInDays(now, current.lastServiceDate)
+          : 999;
+
+        tableData.push({
+          clientName: current.clientName,
+          currentServices: current.totalServices,
+          previousServices: previous.totalServices,
+          currentGMV: current.totalGMV,
+          previousGMV: previous.totalGMV,
+          currentAOV: Math.round(currentAOV),
+          previousAOV: Math.round(previousAOV),
+          completionRate: Math.round(completionRate * 10) / 10,
+          daysSinceLastService,
+          gmvGrowth: Math.round(gmvGrowth * 10) / 10,
+          servicesGrowth,
+          aovGrowth: Math.round(aovGrowth * 10) / 10,
+          lastServiceDate: current.lastServiceDate 
+            ? format(current.lastServiceDate, 'dd/MM/yyyy') 
+            : 'N/A'
+        });
+      });
+
+      // Sort by current GMV and return top performers
+      return tableData.sort((a, b) => b.currentGMV - a.currentGMV);
+    },
     staleTime: 5 * 60 * 1000,
   });
 };
