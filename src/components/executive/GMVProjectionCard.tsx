@@ -1,9 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useMonthClosureAnalysis } from '@/hooks/useMonthClosureAnalysis';
-import { Loader2, TrendingUp, Target, DollarSign } from 'lucide-react';
+import { useRealisticProjections } from '@/hooks/useRealisticProjections';
+import { Loader2, TrendingUp, Target, DollarSign, AlertTriangle } from 'lucide-react';
 
 export const GMVProjectionCard = () => {
-  const { data, isLoading } = useMonthClosureAnalysis();
+  const { data, isLoading } = useRealisticProjections();
 
   if (isLoading) {
     return (
@@ -17,9 +17,9 @@ export const GMVProjectionCard = () => {
 
   if (!data) return null;
 
-  const projectedGMV = data.projection.gmv;
+  const mostLikelyGMV = data.mostLikely.gmv;
   const currentGMV = data.current.gmv;
-  const remainingGMV = projectedGMV - currentGMV;
+  const remainingGMV = mostLikelyGMV - currentGMV;
   const dailyGMVNeeded = remainingGMV / data.daysRemaining;
 
   return (
@@ -37,15 +37,41 @@ export const GMVProjectionCard = () => {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Main Answer */}
-        <div className="text-center p-6 bg-gradient-to-r from-success/10 to-primary/10 rounded-xl border border-success/20">
+        <div className="text-center p-6 bg-gradient-to-r from-warning/10 to-primary/10 rounded-xl border border-warning/20">
           <div className="text-sm font-medium text-muted-foreground mb-2">
             RESPUESTA: ¿Cómo cerramos septiembre en GMV?
           </div>
-          <div className="text-4xl font-bold text-success mb-2">
-            ${projectedGMV.toFixed(1)}M
+          <div className="text-4xl font-bold text-warning mb-2">
+            ${mostLikelyGMV.toFixed(1)}M
           </div>
-          <div className="text-lg text-muted-foreground">
-            Proyección total GMV septiembre
+          <div className="text-lg text-muted-foreground flex items-center justify-center gap-2">
+            Proyección más probable ({data.mostLikely.probability}%)
+            <AlertTriangle className="h-4 w-4 text-warning" />
+          </div>
+        </div>
+
+        {/* Scenarios */}
+        <div className="space-y-3">
+          <div className="text-sm font-medium text-muted-foreground">Escenarios múltiples:</div>
+          <div className="grid grid-cols-3 gap-3">
+            {data.scenarios.map((scenario) => (
+              <div key={scenario.name} className={`p-3 rounded-lg border ${
+                scenario.color === 'destructive' ? 'bg-destructive/10 border-destructive/20' :
+                scenario.color === 'warning' ? 'bg-warning/10 border-warning/20' :
+                'bg-success/10 border-success/20'
+              }`}>
+                <div className={`text-lg font-bold ${
+                  scenario.color === 'destructive' ? 'text-destructive' :
+                  scenario.color === 'warning' ? 'text-warning' :
+                  'text-success'
+                }`}>
+                  ${scenario.gmv.toFixed(1)}M
+                </div>
+                <div className="text-sm font-medium">{scenario.name}</div>
+                <div className="text-xs text-muted-foreground">{scenario.probability}% prob.</div>
+                <div className="text-xs text-muted-foreground mt-1">{scenario.services} servicios</div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -55,21 +81,21 @@ export const GMVProjectionCard = () => {
             <div className="text-2xl font-bold text-success">${currentGMV.toFixed(1)}M</div>
             <div className="text-sm text-muted-foreground">GMV actual</div>
             <div className="text-xs text-success">
-              {((currentGMV / projectedGMV) * 100).toFixed(1)}% completado
+              {((currentGMV / mostLikelyGMV) * 100).toFixed(1)}% completado
             </div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-warning">${remainingGMV.toFixed(1)}M</div>
             <div className="text-sm text-muted-foreground">GMV restante</div>
             <div className="text-xs text-warning">
-              {((remainingGMV / projectedGMV) * 100).toFixed(1)}% por alcanzar
+              {((remainingGMV / mostLikelyGMV) * 100).toFixed(1)}% por alcanzar
             </div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-primary">${dailyGMVNeeded.toFixed(0)}K</div>
-            <div className="text-sm text-muted-foreground">GMV/día necesario</div>
+            <div className="text-2xl font-bold text-primary">{data.insights.paceNeeded}</div>
+            <div className="text-sm text-muted-foreground">Servicios/día necesario</div>
             <div className="text-xs text-primary">
-              {Math.round(dailyGMVNeeded * 1000000 / data.current.aov)} servicios/día
+              vs {data.current.dailyPace.toFixed(1)} actual
             </div>
           </div>
         </div>
@@ -84,26 +110,26 @@ export const GMVProjectionCard = () => {
               </div>
             </div>
             <div className="text-right">
-              <div className={`text-lg font-bold ${projectedGMV > data.target.gmv ? 'text-success' : 'text-destructive'}`}>
-                {projectedGMV > data.target.gmv ? '+' : ''}
-                ${(projectedGMV - data.target.gmv).toFixed(1)}M
+              <div className={`text-lg font-bold ${mostLikelyGMV > data.target.gmv ? 'text-success' : 'text-destructive'}`}>
+                {mostLikelyGMV > data.target.gmv ? '+' : ''}
+                ${(mostLikelyGMV - data.target.gmv).toFixed(1)}M
               </div>
-              <div className={`text-sm ${projectedGMV > data.target.gmv ? 'text-success' : 'text-destructive'}`}>
-                {projectedGMV > data.target.gmv ? '+' : ''}
-                {(((projectedGMV - data.target.gmv) / data.target.gmv) * 100).toFixed(1)}%
+              <div className={`text-sm ${mostLikelyGMV > data.target.gmv ? 'text-success' : 'text-destructive'}`}>
+                {mostLikelyGMV > data.target.gmv ? '+' : ''}
+                {(((mostLikelyGMV - data.target.gmv) / data.target.gmv) * 100).toFixed(1)}%
               </div>
             </div>
           </div>
         </div>
 
         {/* Action Item */}
-        <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg">
-          <div className="flex items-center gap-2 text-primary">
-            <Target className="h-4 w-4" />
+        <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg">
+          <div className="flex items-center gap-2 text-warning">
+            <AlertTriangle className="h-4 w-4" />
             <span className="font-medium">
-              {projectedGMV > data.target.gmv ? 
-                `¡En camino de superar agosto por $${(projectedGMV - data.target.gmv).toFixed(1)}M!` :
-                `Necesitas acelerar para alcanzar agosto`
+              {mostLikelyGMV < data.target.gmv ? 
+                `Faltarían $${(data.target.gmv - mostLikelyGMV).toFixed(1)}M para igualar agosto. Necesitas ${data.insights.paceNeeded} servicios/día vs ${data.current.dailyPace.toFixed(1)} actual.` :
+                `En camino de superar agosto por $${(mostLikelyGMV - data.target.gmv).toFixed(1)}M`
               }
             </span>
           </div>
