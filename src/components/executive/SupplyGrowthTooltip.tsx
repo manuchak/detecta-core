@@ -1,40 +1,14 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, TrendingDown, Users, UserPlus, UserMinus } from 'lucide-react';
-
-interface SupplyGrowthDetails {
-  monthlyEvolution: Array<{
-    month: string;
-    monthName: string;
-    nuevos: number;
-    perdidos: number;
-    netGrowth: number;
-    growthRate: number;
-    activeCustodians: number;
-  }>;
-  currentMonthData: {
-    growthRate: number;
-    netGrowth: number;
-    nuevos: number;
-    perdidos: number;
-    activeCustodians: number;
-  };
-  yearlyData: {
-    averageGrowthRate: number;
-    totalNewCustodians: number;
-    totalLostCustodians: number;
-    netGrowthYear: number;
-    strongestGrowthMonth: string;
-    weakestGrowthMonth: string;
-  };
-}
+import { SupplyGrowthDetailsData } from '@/hooks/useSupplyGrowthDetails';
 
 interface SupplyGrowthTooltipProps {
-  data: SupplyGrowthDetails | null;
+  data: SupplyGrowthDetailsData;
 }
 
 export function SupplyGrowthTooltip({ data }: SupplyGrowthTooltipProps) {
-  if (!data) {
+  if (!data || data.loading || !data.monthlyData.length) {
     return (
       <Card className="w-96">
         <CardHeader className="pb-3">
@@ -50,8 +24,9 @@ export function SupplyGrowthTooltip({ data }: SupplyGrowthTooltipProps) {
     );
   }
 
-  const { monthlyEvolution, currentMonthData, yearlyData } = data;
-  const recentMonths = monthlyEvolution.slice(-6); // Últimos 6 meses
+  const { monthlyData, summary, qualityMetrics } = data;
+  const recentMonths = monthlyData.slice(0, 6); // Últimos 6 meses
+  const currentMonth = monthlyData[0];
 
   return (
     <Card className="w-96">
@@ -67,13 +42,13 @@ export function SupplyGrowthTooltip({ data }: SupplyGrowthTooltipProps) {
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">Mes Actual</p>
             <div className="flex items-center gap-1">
-              {currentMonthData.growthRate >= 0 ? (
+              {currentMonth.crecimientoPorcentual >= 0 ? (
                 <TrendingUp className="h-3 w-3 text-success" />
               ) : (
                 <TrendingDown className="h-3 w-3 text-destructive" />
               )}
               <span className="font-medium text-sm">
-                {currentMonthData.growthRate.toFixed(1)}%
+                {currentMonth.crecimientoPorcentual.toFixed(1)}%
               </span>
             </div>
           </div>
@@ -82,7 +57,7 @@ export function SupplyGrowthTooltip({ data }: SupplyGrowthTooltipProps) {
             <div className="flex items-center gap-1">
               <Users className="h-3 w-3 text-primary" />
               <span className="font-medium text-sm">
-                {currentMonthData.activeCustodians.toLocaleString()}
+                {currentMonth.custodiosActivos.toLocaleString()}
               </span>
             </div>
           </div>
@@ -101,13 +76,13 @@ export function SupplyGrowthTooltip({ data }: SupplyGrowthTooltipProps) {
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">Promedio Crecimiento</p>
               <span className="font-medium text-sm">
-                {yearlyData.averageGrowthRate.toFixed(1)}%
+                {summary.crecimientoPromedioMensual.toFixed(1)}%
               </span>
             </div>
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">Crecimiento Neto</p>
               <span className="font-medium text-sm">
-                {yearlyData.netGrowthYear >= 0 ? '+' : ''}{yearlyData.netGrowthYear}
+                {summary.crecimientoNetoAnual >= 0 ? '+' : ''}{summary.crecimientoNetoAnual}
               </span>
             </div>
           </div>
@@ -119,7 +94,7 @@ export function SupplyGrowthTooltip({ data }: SupplyGrowthTooltipProps) {
                 Nuevos
               </p>
               <span className="font-medium text-sm text-success">
-                +{yearlyData.totalNewCustodians}
+                +{summary.custodiosNuevosAnual}
               </span>
             </div>
             <div className="space-y-1">
@@ -128,7 +103,7 @@ export function SupplyGrowthTooltip({ data }: SupplyGrowthTooltipProps) {
                 Perdidos
               </p>
               <span className="font-medium text-sm text-destructive">
-                -{yearlyData.totalLostCustodians}
+                -{summary.custodiosPerdidosAnual}
               </span>
             </div>
           </div>
@@ -151,9 +126,9 @@ export function SupplyGrowthTooltip({ data }: SupplyGrowthTooltipProps) {
                 </span>
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-medium">
-                    {month.growthRate >= 0 ? '+' : ''}{month.growthRate.toFixed(1)}%
+                    {month.crecimientoPorcentual >= 0 ? '+' : ''}{month.crecimientoPorcentual.toFixed(1)}%
                   </span>
-                  {month.growthRate >= 0 ? (
+                  {month.crecimientoPorcentual >= 0 ? (
                     <TrendingUp className="h-3 w-3 text-success" />
                   ) : (
                     <TrendingDown className="h-3 w-3 text-destructive" />
@@ -169,11 +144,11 @@ export function SupplyGrowthTooltip({ data }: SupplyGrowthTooltipProps) {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">Mejor mes:</span>
-              <span className="text-xs font-medium">{yearlyData.strongestGrowthMonth}</span>
+              <span className="text-xs font-medium">{summary.mejorMes.mes}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">Mes más débil:</span>
-              <span className="text-xs font-medium">{yearlyData.weakestGrowthMonth}</span>
+              <span className="text-xs font-medium">{summary.peorMes.mes}</span>
             </div>
           </div>
         </div>

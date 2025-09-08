@@ -82,9 +82,9 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className, onKPICl
     },
     {
       title: 'Supply Growth',
-      value: supplyGrowthDetails.supplyGrowthDetails?.currentMonthData?.growthRate || kpis.supplyGrowth,
+      value: supplyGrowthDetails.monthlyData[0]?.crecimientoPorcentual || kpis.supplyGrowth,
       unit: '%',
-      trend: (supplyGrowthDetails.supplyGrowthDetails?.currentMonthData?.growthRate || kpis.supplyGrowth) > 0 ? 'up' as const : 'down' as const,
+      trend: (supplyGrowthDetails.monthlyData[0]?.crecimientoPorcentual || kpis.supplyGrowth) > 0 ? 'up' as const : 'down' as const,
       key: 'supplyGrowth'
     },
     {
@@ -139,7 +139,7 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className, onKPICl
             kpi.key === 'rrate' && !retentionDetails.loading ? <RetentionTooltip data={retentionDetails} /> :
             kpi.key === 'roiMkt' && !roiMarketingMonthly.loading ? <ROIMarketingTooltip data={roiMarketingDetails.metrics} /> :
             kpi.key === 'engagement' && !engagementDetails.loading ? <EngagementTooltip data={engagementDetails.engagementDetails} /> :
-            kpi.key === 'supplyGrowth' && !supplyGrowthDetails.loading ? <SupplyGrowthTooltip data={supplyGrowthDetails.supplyGrowthDetails} /> :
+            kpi.key === 'supplyGrowth' && !supplyGrowthDetails.loading ? <SupplyGrowthTooltip data={supplyGrowthDetails} /> :
             undefined
           }
         />

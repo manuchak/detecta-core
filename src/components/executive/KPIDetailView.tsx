@@ -3,11 +3,11 @@ import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RetentionDetailView } from './details/RetentionDetailView';
-import { LTVDetailView } from './details/LTVDetailView';
+import { SupplyGrowthDetailView } from './details/SupplyGrowthDetailView';
 import { CPADetailView } from './details/CPADetailView';
 import { ConversionRateDetailView } from './details/ConversionRateDetailView';
 
-export type KPIType = 'retention' | 'ltv' | 'cpa' | 'conversion' | 'engagement' | 'supply' | 'roi';
+export type KPIType = 'retention' | 'ltv' | 'cpa' | 'conversion' | 'engagement' | 'supply' | 'roi' | 'supply_growth';
 
 interface KPIDetailViewProps {
   selectedKPI: KPIType;
@@ -23,6 +23,7 @@ export function KPIDetailView({ selectedKPI, onClose }: KPIDetailViewProps) {
       conversion: 'Tasa de Conversión',
       engagement: 'Engagement de Usuarios',
       supply: 'Crecimiento de Oferta',
+      supply_growth: 'Crecimiento del Supply',
       roi: 'ROI de Marketing'
     };
     return titles[kpi];
@@ -30,10 +31,10 @@ export function KPIDetailView({ selectedKPI, onClose }: KPIDetailViewProps) {
 
   const renderDetailComponent = () => {
     switch (selectedKPI) {
+      case 'supply_growth':
+        return <SupplyGrowthDetailView />;
       case 'retention':
         return <RetentionDetailView />;
-      case 'ltv':
-        return <LTVDetailView />;
       case 'cpa':
         return <CPADetailView />;
       case 'conversion':
