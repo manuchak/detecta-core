@@ -270,8 +270,8 @@ export function RetentionDetailView() {
                       <td className="py-3 px-3 text-center">
                         {cohort.month1 > 0 ? (
                           <div className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                            cohort.month1 >= 85 ? 'bg-green-100 text-green-800' :
-                            cohort.month1 >= 70 ? 'bg-yellow-100 text-yellow-800' :
+                            cohort.month1 >= 80 ? 'bg-green-100 text-green-800' :
+                            cohort.month1 >= 60 ? 'bg-yellow-100 text-yellow-800' :
                             'bg-red-100 text-red-800'
                           }`}>
                             <div>{cohort.month1}%</div>
@@ -284,7 +284,7 @@ export function RetentionDetailView() {
                       <td className="py-3 px-3 text-center">
                         {cohort.month2 > 0 ? (
                           <div className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                            cohort.month2 >= 75 ? 'bg-green-100 text-green-800' :
+                            cohort.month2 >= 80 ? 'bg-green-100 text-green-800' :
                             cohort.month2 >= 60 ? 'bg-yellow-100 text-yellow-800' :
                             'bg-red-100 text-red-800'
                           }`}>
@@ -298,8 +298,8 @@ export function RetentionDetailView() {
                       <td className="py-3 px-3 text-center">
                         {cohort.month3 > 0 ? (
                           <div className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                            cohort.month3 >= 70 ? 'bg-green-100 text-green-800' :
-                            cohort.month3 >= 55 ? 'bg-yellow-100 text-yellow-800' :
+                            cohort.month3 >= 80 ? 'bg-green-100 text-green-800' :
+                            cohort.month3 >= 60 ? 'bg-yellow-100 text-yellow-800' :
                             'bg-red-100 text-red-800'
                           }`}>
                             <div>{cohort.month3}%</div>
@@ -312,8 +312,8 @@ export function RetentionDetailView() {
                       <td className="py-3 px-3 text-center">
                         {cohort.month4 > 0 ? (
                           <div className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                            cohort.month4 >= 65 ? 'bg-green-100 text-green-800' :
-                            cohort.month4 >= 50 ? 'bg-yellow-100 text-yellow-800' :
+                            cohort.month4 >= 80 ? 'bg-green-100 text-green-800' :
+                            cohort.month4 >= 60 ? 'bg-yellow-100 text-yellow-800' :
                             'bg-red-100 text-red-800'
                           }`}>
                             <div>{cohort.month4}%</div>
@@ -326,8 +326,8 @@ export function RetentionDetailView() {
                       <td className="py-3 px-3 text-center">
                         {cohort.month5 > 0 ? (
                           <div className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                            cohort.month5 >= 60 ? 'bg-green-100 text-green-800' :
-                            cohort.month5 >= 45 ? 'bg-yellow-100 text-yellow-800' :
+                            cohort.month5 >= 80 ? 'bg-green-100 text-green-800' :
+                            cohort.month5 >= 60 ? 'bg-yellow-100 text-yellow-800' :
                             'bg-red-100 text-red-800'
                           }`}>
                             <div>{cohort.month5}%</div>
@@ -340,8 +340,8 @@ export function RetentionDetailView() {
                       <td className="py-3 px-3 text-center">
                         {cohort.month6 > 0 ? (
                           <div className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                            cohort.month6 >= 55 ? 'bg-green-100 text-green-800' :
-                            cohort.month6 >= 40 ? 'bg-yellow-100 text-yellow-800' :
+                            cohort.month6 >= 80 ? 'bg-green-100 text-green-800' :
+                            cohort.month6 >= 60 ? 'bg-yellow-100 text-yellow-800' :
                             'bg-red-100 text-red-800'
                           }`}>
                             <div>{cohort.month6}%</div>
