@@ -254,88 +254,98 @@ export function RetentionDetailView() {
                     month: 'short' 
                   });
                   
+                  // Calcular números absolutos basados en custodios iniciales
+                  const custodiosIniciales = retentionData.monthlyBreakdown.find(m => m.month === cohort.cohortMonth)?.custodiosActual || 100;
+                  
                   return (
                     <tr key={index} className="border-b hover:bg-muted/20">
                       <td className="py-3 px-3 font-medium">{monthName}</td>
                       <td className="py-3 px-3 text-center">
-                        <span className="inline-block px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
-                          {cohort.month0}%
-                        </span>
+                        <div className="inline-block px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+                          <div>{cohort.month0}%</div>
+                          <div className="text-[10px] opacity-70">{custodiosIniciales}</div>
+                        </div>
                       </td>
                       <td className="py-3 px-3 text-center">
                         {cohort.month1 > 0 ? (
-                          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                          <div className={`inline-block px-2 py-1 rounded text-xs font-medium ${
                             cohort.month1 >= 85 ? 'bg-green-100 text-green-800' :
                             cohort.month1 >= 70 ? 'bg-yellow-100 text-yellow-800' :
                             'bg-red-100 text-red-800'
                           }`}>
-                            {cohort.month1}%
-                          </span>
+                            <div>{cohort.month1}%</div>
+                            <div className="text-[10px] opacity-70">{Math.round(custodiosIniciales * cohort.month1 / 100)}</div>
+                          </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
                         )}
                       </td>
                       <td className="py-3 px-3 text-center">
                         {cohort.month2 > 0 ? (
-                          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                          <div className={`inline-block px-2 py-1 rounded text-xs font-medium ${
                             cohort.month2 >= 75 ? 'bg-green-100 text-green-800' :
                             cohort.month2 >= 60 ? 'bg-yellow-100 text-yellow-800' :
                             'bg-red-100 text-red-800'
                           }`}>
-                            {cohort.month2}%
-                          </span>
+                            <div>{cohort.month2}%</div>
+                            <div className="text-[10px] opacity-70">{Math.round(custodiosIniciales * cohort.month2 / 100)}</div>
+                          </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
                         )}
                       </td>
                       <td className="py-3 px-3 text-center">
                         {cohort.month3 > 0 ? (
-                          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                          <div className={`inline-block px-2 py-1 rounded text-xs font-medium ${
                             cohort.month3 >= 70 ? 'bg-green-100 text-green-800' :
                             cohort.month3 >= 55 ? 'bg-yellow-100 text-yellow-800' :
                             'bg-red-100 text-red-800'
                           }`}>
-                            {cohort.month3}%
-                          </span>
+                            <div>{cohort.month3}%</div>
+                            <div className="text-[10px] opacity-70">{Math.round(custodiosIniciales * cohort.month3 / 100)}</div>
+                          </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
                         )}
                       </td>
                       <td className="py-3 px-3 text-center">
                         {cohort.month4 > 0 ? (
-                          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                          <div className={`inline-block px-2 py-1 rounded text-xs font-medium ${
                             cohort.month4 >= 65 ? 'bg-green-100 text-green-800' :
                             cohort.month4 >= 50 ? 'bg-yellow-100 text-yellow-800' :
                             'bg-red-100 text-red-800'
                           }`}>
-                            {cohort.month4}%
-                          </span>
+                            <div>{cohort.month4}%</div>
+                            <div className="text-[10px] opacity-70">{Math.round(custodiosIniciales * cohort.month4 / 100)}</div>
+                          </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
                         )}
                       </td>
                       <td className="py-3 px-3 text-center">
                         {cohort.month5 > 0 ? (
-                          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                          <div className={`inline-block px-2 py-1 rounded text-xs font-medium ${
                             cohort.month5 >= 60 ? 'bg-green-100 text-green-800' :
                             cohort.month5 >= 45 ? 'bg-yellow-100 text-yellow-800' :
                             'bg-red-100 text-red-800'
                           }`}>
-                            {cohort.month5}%
-                          </span>
+                            <div>{cohort.month5}%</div>
+                            <div className="text-[10px] opacity-70">{Math.round(custodiosIniciales * cohort.month5 / 100)}</div>
+                          </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
                         )}
                       </td>
                       <td className="py-3 px-3 text-center">
                         {cohort.month6 > 0 ? (
-                          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                          <div className={`inline-block px-2 py-1 rounded text-xs font-medium ${
                             cohort.month6 >= 55 ? 'bg-green-100 text-green-800' :
                             cohort.month6 >= 40 ? 'bg-yellow-100 text-yellow-800' :
                             'bg-red-100 text-red-800'
                           }`}>
-                            {cohort.month6}%
-                          </span>
+                            <div>{cohort.month6}%</div>
+                            <div className="text-[10px] opacity-70">{Math.round(custodiosIniciales * cohort.month6 / 100)}</div>
+                          </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
                         )}
