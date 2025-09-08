@@ -28,6 +28,13 @@ export function SupplyGrowthDetailView() {
     return monthlyData.filter(data => data.month.startsWith(selectedYear));
   }, [monthlyData, selectedYear]);
 
+  // Obtener los últimos 6 meses de todos los datos (más recientes)
+  const recentSixMonths = useMemo(() => {
+    // Ordenar todos los datos por fecha (más reciente primero)
+    const sortedData = [...monthlyData].sort((a, b) => b.month.localeCompare(a.month));
+    return sortedData.slice(0, 6);
+  }, [monthlyData]);
+
   // Recalcular métricas para el año seleccionado
   const yearSummary = useMemo(() => {
     if (filteredData.length === 0) return summary;
@@ -263,7 +270,7 @@ export function SupplyGrowthDetailView() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={monthlyData.slice(-6)}>
+              <BarChart data={recentSixMonths.reverse()}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 
                   dataKey="monthName" 
