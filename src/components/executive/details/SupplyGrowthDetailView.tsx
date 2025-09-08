@@ -263,7 +263,7 @@ export function SupplyGrowthDetailView() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={filteredData.slice(-6)}>
+              <BarChart data={monthlyData.slice(-6)}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 
                   dataKey="monthName" 
