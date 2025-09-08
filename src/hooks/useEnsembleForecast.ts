@@ -159,24 +159,40 @@ function calculateEnsembleForecast(
         intraMonthProjection
       );
 
-      // Apply momentum boost if first week is strong ($1.6M+)
+      // Apply momentum boost if first week is strong ($1.6M+) with final realism check
       let adjustedGMV = finalGMV;
       if (intraMonthProjection.projectedWeekEnd >= 1600000) {
-        adjustedGMV = Math.max(finalGMV, 6800000); // User's target
-        console.log('🚀 MOMENTUM BOOST APLICADO:', {
+        const targetGMV = Math.max(finalGMV, 6800000); // User's target
+        adjustedGMV = Math.min(targetGMV, 10000000); // Final safety ceiling
+        console.log('🚀 MOMENTUM BOOST APLICADO (FINAL):', {
           originalGMV: `$${(finalGMV/1000000).toFixed(1)}M`,
-          boostedGMV: `$${(adjustedGMV/1000000).toFixed(1)}M`,
-          firstWeek: `$${(intraMonthProjection.projectedWeekEnd/1000000).toFixed(1)}M`
+          targetGMV: `$${(targetGMV/1000000).toFixed(1)}M`,
+          finalGMV: `$${(adjustedGMV/1000000).toFixed(1)}M`,
+          firstWeek: `$${(intraMonthProjection.projectedWeekEnd/1000000).toFixed(1)}M`,
+          wasCapped: targetGMV !== adjustedGMV
         });
       }
 
+      // Final services recalculation with safe AOV
+      const safeAOV = dynamicAOV?.currentMonthAOV > 0 && dynamicAOV.currentMonthAOV < 15000 
+        ? dynamicAOV.currentMonthAOV 
+        : 6350;
+      const adjustedServices = Math.round(adjustedGMV / safeAOV);
+      
+      console.log('📊 AJUSTE FINAL DE SERVICIOS:', {
+        adjustedGMV: `$${(adjustedGMV/1000000).toFixed(1)}M`,
+        safeAOV: `$${safeAOV.toFixed(0)}`,
+        adjustedServices,
+        originalServices: finalServices
+      });
+
       return {
-        monthlyServices: finalServices,
-        annualServices: finalServices * 12,
+        monthlyServices: adjustedServices,
+        annualServices: adjustedServices * 12,
         monthlyGMV: adjustedGMV,
         annualGMV: adjustedGMV * 12,
         variance: {
-          services: { forecast: finalServices, actual: baseServicesProjection },
+          services: { forecast: adjustedServices, actual: baseServicesProjection },
           gmv: { forecast: adjustedGMV, actual: baseGmvProjection }
         },
         metrics: {
@@ -201,7 +217,7 @@ function calculateEnsembleForecast(
         individualModels: {
           prophet: { services: prophetServices, gmv: prophetGMV },
           holtWinters: { services: holtWintersServices, gmv: holtWintersGMV },
-          linear: { services: finalServices, gmv: adjustedGMV }
+          linear: { services: adjustedServices, gmv: adjustedGMV }
         },
         performanceMetrics: {
           accuracy: typeof enhancedForecast.confidence === 'string' && enhancedForecast.confidence === 'Alta' ? 0.92 : 0.85,

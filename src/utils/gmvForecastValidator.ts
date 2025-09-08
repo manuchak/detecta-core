@@ -147,16 +147,18 @@ export function createEnhancedGMVForecast(
   // Component 3: Services × AOV approach
   const servicesAOVGmv = baseServicesProjection * dynamicAOV.currentMonthAOV;
   
-  // Component 4: Momentum adjustment (CRITICAL - user's hypothesis)
+  // Component 4: Momentum adjustment (CRITICAL - user's hypothesis with bounds)
   let momentumGMV = baseGmvProjection;
   if (intraMonthProjection.projectedWeekEnd >= 1600000) { // Strong first week ($1.6M+)
-    // User's reasoning: "primera semana floja + $1.6M = mínimo $6.8M"
-    momentumGMV = Math.max(baseGmvProjection, weeklyPatternGMV, 6800000);
-    console.log('🎯 MOMENTUM CRÍTICO APLICADO:', {
+    // User's reasoning: "primera semana floja + $1.6M = mínimo $6.8M" BUT with realistic ceiling
+    const targetGMV = Math.max(baseGmvProjection, weeklyPatternGMV, 6800000);
+    momentumGMV = Math.min(targetGMV, 11000000); // Cap at $11M for realism
+    console.log('🎯 MOMENTUM CRÍTICO APLICADO (CON LÍMITES):', {
       firstWeek: `$${(intraMonthProjection.projectedWeekEnd/1000000).toFixed(1)}M`,
       baseProjection: `$${(baseGmvProjection/1000000).toFixed(1)}M`,
       weeklyPattern: `$${(weeklyPatternGMV/1000000).toFixed(1)}M`,
-      momentumTarget: `$${(momentumGMV/1000000).toFixed(1)}M`
+      targetGMV: `$${(targetGMV/1000000).toFixed(1)}M`,
+      momentumFinal: `$${(momentumGMV/1000000).toFixed(1)}M`
     });
   }
   
@@ -172,24 +174,42 @@ export function createEnhancedGMVForecast(
   const weights = calculateDynamicWeights(weeklyPatterns, intraMonthProjection, dynamicAOV);
   
   // Final weighted forecast
-  const finalGMV = Math.round(
+  const rawGMV = Math.round(
     (weeklyPatternGMV * weights.weeklyPattern) +
     (intraMonthGMV * weights.intraMonth) +
     (servicesAOVGmv * weights.servicesAOV) +
     (momentumGMV * weights.momentum)
   );
   
-  const finalServices = Math.round(finalGMV / dynamicAOV.currentMonthAOV);
-  const finalAOV = finalGMV / finalServices;
+  // REALISM VALIDATION - Critical bounds check
+  const finalGMV = Math.min(rawGMV, 12000000); // Absolute ceiling $12M
+  const finalGMV_floored = Math.max(finalGMV, 3500000); // Absolute floor $3.5M
+  
+  // Recalculate services with safe AOV
+  const safeAOV = dynamicAOV.currentMonthAOV > 0 && dynamicAOV.currentMonthAOV < 20000 
+    ? dynamicAOV.currentMonthAOV 
+    : 6350; // Fallback to known average
+  
+  const finalServices = Math.round(finalGMV_floored / safeAOV);
+  const finalAOV = finalGMV_floored / finalServices;
+  
+  console.log('🔍 VALIDACIÓN DE REALISMO:', {
+    rawGMV: `$${(rawGMV/1000000).toFixed(1)}M`,
+    finalGMV: `$${(finalGMV_floored/1000000).toFixed(1)}M`,
+    finalServices,
+    safeAOV: `$${safeAOV.toFixed(0)}`,
+    finalAOV: `$${finalAOV.toFixed(0)}`,
+    wasAdjusted: rawGMV !== finalGMV_floored
+  });
   
   // Calculate confidence
   const confidence = calculateOverallConfidence(weeklyPatterns, intraMonthProjection, dynamicAOV);
   
   // Validate coherence
-  const validation = validateForecastCoherence(finalServices, finalGMV, dynamicAOV, intraMonthProjection);
+  const validation = validateForecastCoherence(finalServices, finalGMV_floored, dynamicAOV, intraMonthProjection);
   
   // Apply final adjustments if validation suggests
-  let adjustedGMV = finalGMV;
+  let adjustedGMV = finalGMV_floored;
   let adjustedServices = finalServices;
   
   if (!validation.isCoherent && validation.confidence === 'Baja') {

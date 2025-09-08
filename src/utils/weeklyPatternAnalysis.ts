@@ -177,20 +177,35 @@ export async function calculateIntraMonthProjection(
       recordsFound: currentMonthData?.length || 0
     });
 
-    // PROJECT using different methodologies
-    let projectedMonthEnd: number;
-    let methodology: string;
-    let multiplierUsed: number;
-    let confidence: 'Alta' | 'Media' | 'Baja';
+  // PROJECT using different methodologies
+  let projectedMonthEnd: number;
+  let methodology: string;
+  let multiplierUsed: number;
+  let confidence: 'Alta' | 'Media' | 'Baja';
 
-    // Methodology 1: First week multiplier (user's hypothesis - PRIORITIZED)
-    if (firstWeekGMV >= 1600000 && currentDate.getDate() >= 7) {
-      // STRONG FIRST WEEK ($1.6M+) - Apply user's reasoning
-      const conservativeMultiplier = 4.25; // Conservative 4.25x for strong weeks
-      projectedMonthEnd = Math.max(firstWeekGMV * conservativeMultiplier, 6800000); // Floor at $6.8M
-      methodology = 'Primera semana fuerte - Proyección conservadora 4.25x';
-      multiplierUsed = conservativeMultiplier;
-      confidence = 'Alta';
+  // CORRECT DATE CALCULATION
+  const dayOfMonth = currentDate.getDate();
+  const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+  const monthProgress = dayOfMonth / daysInMonth;
+  
+  console.log('📅 ANÁLISIS DE FECHAS:', {
+    dayOfMonth,
+    daysInMonth,
+    monthProgress: `${(monthProgress * 100).toFixed(1)}%`,
+    firstWeekGMV: `$${(firstWeekGMV/1000000).toFixed(1)}M`,
+    currentAccumulatedGMV: `$${(currentAccumulatedGMV/1000000).toFixed(1)}M`
+  });
+
+  // Methodology 1: First week multiplier (user's hypothesis - PRIORITIZED with realistic bounds)
+  if (firstWeekGMV >= 1600000 && dayOfMonth >= 8) { // After first week (8+ days)
+    // STRONG FIRST WEEK ($1.6M+) - Apply user's reasoning with bounds
+    const baseMultiplier = Math.min(4.25, 6800000 / firstWeekGMV); // Cap at reasonable multiplier
+    const conservativeMultiplier = Math.max(3.5, Math.min(baseMultiplier, 5.0)); // Between 3.5x-5.0x
+    projectedMonthEnd = Math.max(firstWeekGMV * conservativeMultiplier, 6500000); // Floor at $6.5M
+    projectedMonthEnd = Math.min(projectedMonthEnd, 12000000); // Ceiling at $12M for realism
+    methodology = `Primera semana fuerte - Multiplicador ${conservativeMultiplier.toFixed(2)}x con límites`;
+    multiplierUsed = conservativeMultiplier;
+    confidence = 'Alta';
       
       console.log('🚀 PRIMERA SEMANA FUERTE DETECTADA:', {
         firstWeekGMV: `$${(firstWeekGMV/1000000).toFixed(1)}M`,
@@ -198,12 +213,14 @@ export async function calculateIntraMonthProjection(
         projectedMonthEnd: `$${(projectedMonthEnd/1000000).toFixed(1)}M`,
         reasoning: 'Usuario: primera semana floja + $1.6M = mínimo $6.5-6.8M'
       });
-    } else if (firstWeekGMV > 0 && currentDate.getDate() >= 7) {
-      // Normal first week - use historical patterns
-      const firstWeekMultiplier = 1 / weeklyPatterns.week1Ratio;
-      projectedMonthEnd = firstWeekGMV * firstWeekMultiplier;
-      methodology = 'Primera semana normal con multiplicador histórico';
-      multiplierUsed = firstWeekMultiplier;
+    } else if (firstWeekGMV > 0 && dayOfMonth >= 8) { // After first week
+      // Normal first week - use historical patterns with bounds
+      const baseMultiplier = 1 / weeklyPatterns.week1Ratio;
+      const cappedMultiplier = Math.min(baseMultiplier, 6.0); // Max 6x multiplier
+      projectedMonthEnd = firstWeekGMV * cappedMultiplier;
+      projectedMonthEnd = Math.min(projectedMonthEnd, 10000000); // Ceiling at $10M
+      methodology = `Primera semana normal - Multiplicador ${cappedMultiplier.toFixed(2)}x histórico`;
+      multiplierUsed = cappedMultiplier;
       confidence = weeklyPatterns.confidence > 0.7 ? 'Alta' : 'Media';
       
       console.log('📊 METODOLOGÍA HISTÓRICA - Primera semana normal:', {
@@ -214,19 +231,17 @@ export async function calculateIntraMonthProjection(
       });
       
     } else if (currentAccumulatedGMV > 0) {
-      // Methodology 2: Progressive accumulation
-      const dayOfMonth = currentDate.getDate();
-      const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-      const monthProgress = dayOfMonth / daysInMonth;
-      
+      // Methodology 2: Progressive accumulation with realistic bounds
       // Adjust for typical front-loading (first week usually weaker)
       let adjustmentFactor = 1.0;
-      if (monthProgress <= 0.25) adjustmentFactor = 1.4; // First quarter needs boost
-      else if (monthProgress <= 0.5) adjustmentFactor = 1.2;
-      else if (monthProgress <= 0.75) adjustmentFactor = 1.1;
+      if (monthProgress <= 0.25) adjustmentFactor = 1.3; // Reduced from 1.4
+      else if (monthProgress <= 0.5) adjustmentFactor = 1.15; // Reduced from 1.2
+      else if (monthProgress <= 0.75) adjustmentFactor = 1.05; // Reduced from 1.1
       
-      projectedMonthEnd = (currentAccumulatedGMV / monthProgress) * adjustmentFactor;
-      methodology = 'Acumulación progresiva con ajuste de front-loading';
+      const baseProjection = (currentAccumulatedGMV / monthProgress) * adjustmentFactor;
+      projectedMonthEnd = Math.min(baseProjection, 9000000); // Cap at $9M for realism
+      projectedMonthEnd = Math.max(projectedMonthEnd, 3000000); // Floor at $3M minimum
+      methodology = `Acumulación progresiva - ${(monthProgress * 100).toFixed(1)}% del mes transcurrido`;
       multiplierUsed = adjustmentFactor / monthProgress;
       confidence = monthProgress > 0.25 ? 'Media' : 'Baja';
       
@@ -246,16 +261,30 @@ export async function calculateIntraMonthProjection(
       confidence = 'Baja';
     }
 
-    // Apply minimum threshold based on user's analysis
-    if (firstWeekGMV >= 1600000) { // $1.6M+ first week
-      const minimumProjection = 6500000; // $6.5M minimum expectation
-      if (projectedMonthEnd < minimumProjection) {
-        console.log('⚡ AJUSTE POR MOMENTUM FUERTE - Aplicando piso mínimo');
-        projectedMonthEnd = minimumProjection;
-        methodology += ' + ajuste por momentum fuerte';
-        confidence = 'Alta';
-      }
+  // Apply realistic bounds based on business context
+  if (firstWeekGMV >= 1600000 && dayOfMonth >= 8) { // Strong first week after completion
+    const minimumProjection = 6500000; // $6.5M minimum expectation
+    const maximumProjection = 12000000; // $12M maximum realistic
+    if (projectedMonthEnd < minimumProjection) {
+      console.log('⚡ AJUSTE POR MOMENTUM FUERTE - Aplicando piso mínimo');
+      projectedMonthEnd = minimumProjection;
+      methodology += ' + ajuste por momentum fuerte';
+      confidence = 'Alta';
+    } else if (projectedMonthEnd > maximumProjection) {
+      console.log('🚨 AJUSTE POR REALISMO - Aplicando techo máximo');
+      projectedMonthEnd = maximumProjection;
+      methodology += ' + ajuste por realismo';
+      confidence = 'Media';
     }
+  }
+
+  // Final realism check for all methodologies
+  if (projectedMonthEnd > 15000000) { // $15M absolute ceiling
+    console.log('🚨 CORRECCIÓN DE REALISMO - Proyección excesiva detectada');
+    projectedMonthEnd = Math.min(projectedMonthEnd, 8000000); // Conservative fallback
+    methodology += ' + corrección de realismo aplicada';
+    confidence = 'Baja';
+  }
 
     console.log('🎯 PROYECCIÓN FINAL:', {
       projectedMonthEnd,
