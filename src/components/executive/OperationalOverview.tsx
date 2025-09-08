@@ -50,8 +50,8 @@ export const OperationalOverview = () => {
       value: metrics.totalServices.toLocaleString(),
       description: 'Total histórico',
       icon: Target,
-      trend: '+2.3%',
-      trendPositive: true,
+      trend: `${metrics.comparatives.servicesYTD.changePercent >= 0 ? '+' : ''}${metrics.comparatives.servicesYTD.changePercent}%`,
+      trendPositive: metrics.comparatives.servicesYTD.changePercent >= 0,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50'
     },
@@ -60,8 +60,8 @@ export const OperationalOverview = () => {
       value: `${metrics.completionRate}%`,
       description: 'Servicios completados',
       icon: CheckCircle,
-      trend: '+0.8%',
-      trendPositive: true,
+      trend: `${metrics.comparatives.completionRate.changePercent >= 0 ? '+' : ''}${metrics.comparatives.completionRate.changePercent}%`,
+      trendPositive: metrics.comparatives.completionRate.changePercent >= 0,
       color: 'text-green-600',
       bgColor: 'bg-green-50'
     },
@@ -70,8 +70,8 @@ export const OperationalOverview = () => {
       value: metrics.activeCustodians.toLocaleString(),
       description: 'Con servicios realizados',
       icon: Users,
-      trend: '+5.2%',
-      trendPositive: true,
+      trend: `${metrics.comparatives.activeCustodiansMonth.changePercent >= 0 ? '+' : ''}${metrics.comparatives.activeCustodiansMonth.changePercent}%`,
+      trendPositive: metrics.comparatives.activeCustodiansMonth.changePercent >= 0,
       color: 'text-purple-600',
       bgColor: 'bg-purple-50'
     },
@@ -80,8 +80,8 @@ export const OperationalOverview = () => {
       value: formatCurrency(metrics.totalGMV),
       description: 'Valor bruto de mercancía',
       icon: DollarSign,
-      trend: '+12.1%',
-      trendPositive: true,
+      trend: `${metrics.comparatives.totalGMV.changePercent >= 0 ? '+' : ''}${metrics.comparatives.totalGMV.changePercent}%`,
+      trendPositive: metrics.comparatives.totalGMV.changePercent >= 0,
       color: 'text-emerald-600',
       bgColor: 'bg-emerald-50'
     },
@@ -90,8 +90,8 @@ export const OperationalOverview = () => {
       value: formatCurrency(metrics.averageAOV),
       description: 'Valor promedio por orden',
       icon: TrendingUp,
-      trend: '+3.4%',
-      trendPositive: true,
+      trend: `${metrics.comparatives.averageAOV.changePercent >= 0 ? '+' : ''}${metrics.comparatives.averageAOV.changePercent}%`,
+      trendPositive: metrics.comparatives.averageAOV.changePercent >= 0,
       color: 'text-orange-600',
       bgColor: 'bg-orange-50'
     },
@@ -100,8 +100,8 @@ export const OperationalOverview = () => {
       value: metrics.averageServicesPerCustodian.toFixed(1),
       description: 'Promedio por custodio',
       icon: Users,
-      trend: '-0.2%',
-      trendPositive: false,
+      trend: `${metrics.comparatives.activeCustodiansQuarter.changePercent >= 0 ? '+' : ''}${metrics.comparatives.activeCustodiansQuarter.changePercent}%`,
+      trendPositive: metrics.comparatives.activeCustodiansQuarter.changePercent >= 0,
       color: 'text-indigo-600',
       bgColor: 'bg-indigo-50'
     },
@@ -110,8 +110,8 @@ export const OperationalOverview = () => {
       value: `${metrics.averageKmPerService}`,
       description: 'Kilómetros por servicio',
       icon: Route,
-      trend: '+1.1%',
-      trendPositive: true,
+      trend: `${metrics.comparatives.averageKmPerService.changePercent >= 0 ? '+' : ''}${metrics.comparatives.averageKmPerService.changePercent}%`,
+      trendPositive: metrics.comparatives.averageKmPerService.changePercent >= 0,
       color: 'text-cyan-600',
       bgColor: 'bg-cyan-50'
     },
@@ -120,8 +120,8 @@ export const OperationalOverview = () => {
       value: metrics.servicesThisMonth.toLocaleString(),
       description: 'Septiembre 2025',
       icon: Clock,
-      trend: '+8.7%',
-      trendPositive: true,
+      trend: `${metrics.comparatives.servicesThisMonth.changePercent >= 0 ? '+' : ''}${metrics.comparatives.servicesThisMonth.changePercent}%`,
+      trendPositive: metrics.comparatives.servicesThisMonth.changePercent >= 0,
       color: 'text-pink-600',
       bgColor: 'bg-pink-50'
     }
