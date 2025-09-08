@@ -1,11 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -17,18 +16,25 @@ import {
   BarChart3, 
   Clock, 
   RefreshCw,
-  Search,
-  Filter
+  Activity,
+  Building,
+  UserPlus
 } from 'lucide-react';
 import { useExecutiveDashboardKPIs } from '@/hooks/useExecutiveDashboardKPIs';
 import { useDynamicServiceData } from '@/hooks/useDynamicServiceData';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { OperationalOverview } from '@/components/executive/OperationalOverview';
+import { AcquisitionOverview } from '@/components/executive/AcquisitionOverview';
+import { ExecutiveMetricsGrid } from '@/components/executive/ExecutiveMetricsGrid';
 
 const KPIDashboard = () => {
   const { kpis, loading: kpisLoading, refreshData } = useExecutiveDashboardKPIs();
   const { data: serviceData, isLoading: serviceDataLoading } = useDynamicServiceData();
+  const { data: userProfile, isLoading: profileLoading } = useUserProfile();
   const navigate = useNavigate();
   const location = useLocation();
   
+  const [activeTab, setActiveTab] = useState('operacional');
   const currentTab = location.pathname === '/dashboard/kpis' ? 'kpis' : 'executive';
 
   const handleTabChange = (value: string) => {
@@ -50,6 +56,13 @@ const KPIDashboard = () => {
     if (hour < 12) return 'Buenos días';
     if (hour < 18) return 'Buenas tardes';
     return 'Buenas noches';
+  };
+
+  const getUserName = () => {
+    if (profileLoading) return 'Usuario';
+    if (userProfile?.display_name) return userProfile.display_name;
+    if (userProfile?.email) return userProfile.email.split('@')[0];
+    return 'Marbelli';
   };
 
   const formatCurrency = (value: number) => {
@@ -175,16 +188,21 @@ const KPIDashboard = () => {
     }
   ];
 
-  if (kpisLoading || serviceDataLoading) {
+  if (kpisLoading || serviceDataLoading || profileLoading) {
     return (
       <div className="min-h-screen bg-background p-6">
         <div className="container mx-auto space-y-6">
           {/* Loading skeleton */}
           <div className="animate-pulse space-y-6">
             <div className="h-8 bg-muted rounded w-64"></div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[...Array(3)].map((_, i) => (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              {[...Array(8)].map((_, i) => (
                 <div key={i} className="h-32 bg-muted rounded-lg"></div>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-64 bg-muted rounded-lg"></div>
               ))}
             </div>
           </div>
@@ -201,10 +219,10 @@ const KPIDashboard = () => {
           <div className="space-y-4">
             <div className="space-y-1">
               <h1 className="text-3xl font-light tracking-tight text-foreground">
-                {getGreeting()}, Ejecutivo
+                {getGreeting()}, {getUserName()}
               </h1>
               <p className="text-muted-foreground">
-                Mantente al día con tus KPIs, monitorea el progreso y haz seguimiento del estado.
+                Dashboard ejecutivo completo con métricas operativas, adquisición y KPIs avanzados.
               </p>
             </div>
             
@@ -217,7 +235,7 @@ const KPIDashboard = () => {
                 </TabsTrigger>
                 <TabsTrigger value="kpis" className="flex items-center gap-2">
                   <BarChart3 className="h-4 w-4" />
-                  KPIs
+                  KPIs Ejecutivos
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -238,223 +256,167 @@ const KPIDashboard = () => {
           </div>
         </div>
 
-        {/* Main KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {mainKPIs.map((kpi, index) => {
-            const Icon = kpi.icon;
-            const isPositive = kpi.trend > 0;
-            
-            return (
-              <Card key={index} className="relative overflow-hidden">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    {kpi.title}
-                  </CardTitle>
-                  <div className={`p-2 rounded-lg ${kpi.bgColor}`}>
-                    <Icon className={`h-4 w-4 ${kpi.color}`} />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{kpi.value}</div>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    {kpi.description}
-                  </p>
-                  <div className="flex items-center gap-1 text-xs">
-                    {isPositive ? (
-                      <TrendingUp className="h-3 w-3 text-green-500" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3 text-red-500" />
-                    )}
-                    <span className={isPositive ? 'text-green-600' : 'text-red-600'}>
-                      {Math.abs(kpi.trend)}%
-                    </span>
-                    <span className="text-muted-foreground">vs mes anterior</span>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+        {/* Executive Dashboard Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="operacional" className="flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              Operacional
+            </TabsTrigger>
+            <TabsTrigger value="adquisicion" className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Adquisición
+            </TabsTrigger>
+            <TabsTrigger value="kpis" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              KPIs Avanzados
+            </TabsTrigger>
+            <TabsTrigger value="resumen" className="flex items-center gap-2">
+              <Building className="h-4 w-4" />
+              Resumen Ejecutivo
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Secondary KPIs and Current Month */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Secondary KPIs */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {secondaryKPIs.map((kpi, index) => {
+          {/* Operational Overview Tab */}
+          <TabsContent value="operacional" className="space-y-6">
+            <OperationalOverview />
+          </TabsContent>
+
+          {/* Acquisition Overview Tab */}
+          <TabsContent value="adquisicion" className="space-y-6">
+            <AcquisitionOverview />
+          </TabsContent>
+
+          {/* Advanced KPIs Tab */}
+          <TabsContent value="kpis" className="space-y-6">
+            <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} />
+          </TabsContent>
+
+          {/* Executive Summary Tab */}
+          <TabsContent value="resumen" className="space-y-6">
+            {/* Current Month Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {mainKPIs.map((kpi, index) => {
                 const Icon = kpi.icon;
-                const progressPercentage = (kpi.progress / kpi.target) * 100;
+                const isPositive = kpi.trend > 0;
                 
                 return (
-                  <Card key={index}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">
-                          {kpi.title}
-                        </CardTitle>
-                        <Icon className="h-4 w-4 text-muted-foreground" />
+                  <Card key={index} className="relative overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">
+                        {kpi.title}
+                      </CardTitle>
+                      <div className={`p-2 rounded-lg ${kpi.bgColor}`}>
+                        <Icon className={`h-4 w-4 ${kpi.color}`} />
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-xl font-bold mb-1">{kpi.value}</div>
-                      <p className="text-xs text-muted-foreground mb-3">
+                      <div className="text-2xl font-bold">{kpi.value}</div>
+                      <p className="text-xs text-muted-foreground mb-2">
                         {kpi.description}
                       </p>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-xs">
-                          <span className="text-muted-foreground">Progreso vs Meta</span>
-                          <span className="font-medium">
-                            {Math.min(progressPercentage, 100).toFixed(0)}%
-                          </span>
-                        </div>
-                        <Progress 
-                          value={Math.min(progressPercentage, 100)} 
-                          className="h-2" 
-                        />
+                      <div className="flex items-center gap-1 text-xs">
+                        {isPositive ? (
+                          <TrendingUp className="h-3 w-3 text-green-500" />
+                        ) : (
+                          <TrendingDown className="h-3 w-3 text-red-500" />
+                        )}
+                        <span className={isPositive ? 'text-green-600' : 'text-red-600'}>
+                          {Math.abs(kpi.trend)}%
+                        </span>
+                        <span className="text-muted-foreground">vs mes anterior</span>
                       </div>
                     </CardContent>
                   </Card>
                 );
               })}
             </div>
-          </div>
 
-          {/* Current Month Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                Resumen Septiembre
-              </CardTitle>
-              <CardDescription>
-                Métricas del mes actual
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {serviceData && (
-                <>
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-sm">Servicios</span>
-                    <span className="text-sm font-medium">
-                      {serviceData.currentMonth.services.toLocaleString()}
-                    </span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-sm">GMV</span>
-                    <span className="text-sm font-medium">
-                      ${serviceData.currentMonth.gmv.toFixed(1)}M
-                    </span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-sm">AOV</span>
-                    <span className="text-sm font-medium">
-                      {formatCurrency(serviceData.currentMonth.aov)}
-                    </span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center py-2">
-                    <span className="text-sm">Ritmo Diario</span>
-                    <span className="text-sm font-medium">
-                      {serviceData.currentMonth.dailyPace} srv/día
-                    </span>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+            {/* Month Summary with Service Data */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    Resumen Septiembre 2025
+                  </CardTitle>
+                  <CardDescription>
+                    Métricas consolidadas del mes actual
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {serviceData && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center py-2 border-b">
+                          <span className="text-sm">Servicios Totales</span>
+                          <span className="text-lg font-bold text-primary">
+                            {serviceData.currentMonth.services.toLocaleString()}
+                          </span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center py-2 border-b">
+                          <span className="text-sm">GMV Acumulado</span>
+                          <span className="text-lg font-bold text-green-600">
+                            ${serviceData.currentMonth.gmv.toFixed(1)}M
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center py-2 border-b">
+                          <span className="text-sm">AOV Promedio</span>
+                          <span className="text-lg font-bold text-purple-600">
+                            {formatCurrency(serviceData.currentMonth.aov)}
+                          </span>
+                        </div>
+                        
+                        <div className="flex justify-between items-center py-2 border-b">
+                          <span className="text-sm">Ritmo Diario</span>
+                          <span className="text-lg font-bold text-orange-600">
+                            {serviceData.currentMonth.dailyPace}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-        {/* Operational Metrics */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Métricas Operacionales
-            </CardTitle>
-            <CardDescription>
-              Indicadores de rendimiento operativo
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {operationalMetrics.map((metric, index) => {
-                const isPositive = metric.trend > 0;
-                
-                return (
-                  <div key={index} className="text-center p-4 rounded-lg bg-muted/50">
-                    <div className="text-2xl font-bold">
-                      {metric.value}
-                      {metric.unit && <span className="text-sm font-normal text-muted-foreground ml-1">{metric.unit}</span>}
-                    </div>
-                    <div className="text-sm text-muted-foreground mb-2">{metric.label}</div>
-                    <div className="flex items-center justify-center gap-1 text-xs">
-                      {isPositive ? (
-                        <TrendingUp className="h-3 w-3 text-green-500" />
-                      ) : (
-                        <TrendingDown className="h-3 w-3 text-red-500" />
-                      )}
-                      <span className={isPositive ? 'text-green-600' : 'text-red-600'}>
-                        {Math.abs(metric.trend)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+              {/* Key Performance Indicators */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>KPIs Principales</CardTitle>
+                  <CardDescription>
+                    Indicadores clave de rendimiento
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {secondaryKPIs.slice(0, 4).map((kpi, index) => {
+                    const Icon = kpi.icon;
+                    const progressPercentage = (kpi.progress / kpi.target) * 100;
+                    
+                    return (
+                      <div key={index} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Icon className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm font-medium">{kpi.title}</span>
+                          </div>
+                          <span className="text-sm font-bold">{kpi.value}</span>
+                        </div>
+                        <Progress 
+                          value={Math.min(progressPercentage, 100)} 
+                          className="h-2" 
+                        />
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Recent Activities */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Actividades Recientes</CardTitle>
-                <CardDescription>
-                  Últimas actualizaciones de KPIs
-                </CardDescription>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="Buscar..." 
-                    className="pl-8 w-64"
-                  />
-                </div>
-                <Button variant="outline" size="sm">
-                  <Filter className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentActivities.map((activity) => (
-                <div key={activity.id} className="flex items-center justify-between p-4 rounded-lg border">
-                  <div className="flex items-center gap-4">
-                    <div className="text-sm font-medium">{activity.id}</div>
-                    <div>
-                      <div className="text-sm font-medium">{activity.activity}</div>
-                      <div className="text-xs text-muted-foreground">{activity.time}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-sm font-bold">{activity.value}</div>
-                    <Badge 
-                      variant={activity.status === 'Completado' ? 'default' : 'secondary'}
-                      className="text-xs"
-                    >
-                      {activity.status}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
