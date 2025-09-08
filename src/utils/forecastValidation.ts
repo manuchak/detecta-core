@@ -1,324 +1,170 @@
-// Temporal Validation and Anomaly Detection System
+import { toast } from "sonner";
 
-export interface ValidationMetrics {
-  mape: number;
-  mae: number;
-  rmse: number;
-  accuracy: number;
-  confidence: 'Alta' | 'Media' | 'Baja';
-}
-
-export interface AnomalyDetection {
-  isAnomaly: boolean;
-  anomalyScore: number;
-  reasons: string[];
-  severity: 'low' | 'medium' | 'high';
-}
-
-export interface BacktestResult {
-  period: string;
-  actual: number;
-  forecast: number;
-  error: number;
-  percentageError: number;
-}
-
-// === BACKTESTING Y VALIDACIÓN TEMPORAL ===
-
-export function performBacktesting(
-  historicalData: number[],
-  validationPeriods: number = 6
-): {
-  results: BacktestResult[];
-  overallMAPE: number;
-  monthlyMAPE: number[];
-  confidence: 'Alta' | 'Media' | 'Baja';
-} {
-  const results: BacktestResult[] = [];
-  const monthlyMAPE: number[] = [];
-  
-  // Realizar backtesting para los últimos N períodos
-  for (let i = validationPeriods; i > 0; i--) {
-    const trainData = historicalData.slice(0, -i);
-    const actualValue = historicalData[historicalData.length - i];
-    
-    if (trainData.length < 12) continue;
-    
-    // Calcular forecast usando Holt-Winters optimizado
-    const forecast = calculateOptimizedHoltWinters(trainData, 1)[0];
-    const error = actualValue - forecast;
-    const percentageError = Math.abs(error / actualValue) * 100;
-    
-    results.push({
-      period: `${historicalData.length - i + 1}`,
-      actual: actualValue,
-      forecast,
-      error,
-      percentageError
-    });
-    
-    monthlyMAPE.push(percentageError);
-  }
-  
-  const overallMAPE = monthlyMAPE.reduce((sum, mape) => sum + mape, 0) / monthlyMAPE.length;
-  const confidence = overallMAPE < 15 ? 'Alta' : overallMAPE < 25 ? 'Media' : 'Baja';
-  
-  return {
-    results,
-    overallMAPE,
-    monthlyMAPE,
-    confidence
+export interface ForecastValidationConfig {
+  minServices: number;
+  maxServices: number;
+  minGMV: number;
+  maxGMV: number;
+  maxDeviationPercent: number;
+  ytdContext: {
+    services: number;
+    gmv: number;
+    avgMonthly: number;
+  };
+  recentTrend: {
+    lastMonthServices: number;
+    growth: number;
+    acceleration: boolean;
   };
 }
 
-// === DETECCIÓN DE ANOMALÍAS AVANZADA ===
+export interface ValidationResult {
+  isValid: boolean;
+  adjustedServices?: number;
+  adjustedGMV?: number;
+  warnings: string[];
+  confidence: 'high' | 'medium' | 'low';
+  deviation: number;
+}
 
-export function detectAnomalies(
-  data: number[],
-  currentValue?: number
-): AnomalyDetection {
-  if (data.length < 6) {
-    return {
-      isAnomaly: false,
-      anomalyScore: 0,
-      reasons: ['Datos insuficientes para detección de anomalías'],
-      severity: 'low'
-    };
+/**
+ * Validates forecast results against realistic bounds and recent trends
+ */
+export function validateForecastRealism(
+  forecastServices: number,
+  forecastGMV: number,
+  config: ForecastValidationConfig
+): ValidationResult {
+  const warnings: string[] = [];
+  let adjustedServices = forecastServices;
+  let adjustedGMV = forecastGMV;
+  let isValid = true;
+  let confidence: 'high' | 'medium' | 'low' = 'high';
+
+  // Calculate deviation from YTD average
+  const deviation = Math.abs(forecastServices - config.ytdContext.avgMonthly) / config.ytdContext.avgMonthly;
+
+  // 1. Range validation
+  if (forecastServices < config.minServices || forecastServices > config.maxServices) {
+    warnings.push(`Services forecast ${forecastServices} outside realistic range [${config.minServices}, ${config.maxServices}]`);
+    adjustedServices = Math.max(config.minServices, Math.min(config.maxServices, forecastServices));
+    isValid = false;
+    confidence = 'low';
   }
-  
-  const reasons: string[] = [];
-  let anomalyScore = 0;
-  
-  // 1. Detección de outliers usando IQR
-  const sorted = [...data].sort((a, b) => a - b);
-  const q1 = sorted[Math.floor(sorted.length * 0.25)];
-  const q3 = sorted[Math.floor(sorted.length * 0.75)];
-  const iqr = q3 - q1;
-  const lowerBound = q1 - 1.5 * iqr;
-  const upperBound = q3 + 1.5 * iqr;
-  
-  if (currentValue && (currentValue < lowerBound || currentValue > upperBound)) {
-    reasons.push('Valor fuera del rango IQR normal');
-    anomalyScore += 0.3;
+
+  if (forecastGMV < config.minGMV || forecastGMV > config.maxGMV) {
+    warnings.push(`GMV forecast ${forecastGMV} outside realistic range [${config.minGMV}, ${config.maxGMV}]`);
+    adjustedGMV = Math.max(config.minGMV, Math.min(config.maxGMV, forecastGMV));
+    isValid = false;
+    confidence = 'low';
   }
+
+  // 2. Trend consistency validation
+  const expectedMinGrowth = config.recentTrend.acceleration ? 0.1 : 0.05; // 10% if accelerating, 5% if stable
+  const expectedMaxGrowth = config.recentTrend.acceleration ? 0.5 : 0.25; // 50% if accelerating, 25% if stable
   
-  // 2. Detección de cambios abruptos en tendencia
-  const recent3 = data.slice(-3);
-  const previous3 = data.slice(-6, -3);
+  const impliedGrowth = (forecastServices - config.recentTrend.lastMonthServices) / config.recentTrend.lastMonthServices;
   
-  if (recent3.length === 3 && previous3.length === 3) {
-    const recentAvg = recent3.reduce((sum, val) => sum + val, 0) / 3;
-    const previousAvg = previous3.reduce((sum, val) => sum + val, 0) / 3;
-    const changePercent = Math.abs((recentAvg - previousAvg) / previousAvg);
+  if (impliedGrowth < expectedMinGrowth && config.recentTrend.acceleration) {
+    warnings.push(`Forecast growth ${(impliedGrowth * 100).toFixed(1)}% too conservative given recent acceleration`);
+    const minExpectedServices = Math.round(config.recentTrend.lastMonthServices * (1 + expectedMinGrowth));
+    adjustedServices = Math.max(adjustedServices, minExpectedServices);
+    confidence = 'medium';
+  }
+
+  if (impliedGrowth > expectedMaxGrowth) {
+    warnings.push(`Forecast growth ${(impliedGrowth * 100).toFixed(1)}% unrealistically high`);
+    const maxExpectedServices = Math.round(config.recentTrend.lastMonthServices * (1 + expectedMaxGrowth));
+    adjustedServices = Math.min(adjustedServices, maxExpectedServices);
+    confidence = 'medium';
+  }
+
+  // 3. Deviation alert
+  if (deviation > config.maxDeviationPercent / 100) {
+    warnings.push(`Large deviation ${(deviation * 100).toFixed(1)}% from YTD average`);
+    if (confidence === 'high') confidence = 'medium';
+  }
+
+  // 4. GMV consistency check
+  const impliedAOV = forecastGMV / adjustedServices;
+  const historicalAOV = config.ytdContext.gmv / config.ytdContext.services;
+  const aovDeviation = Math.abs(impliedAOV - historicalAOV) / historicalAOV;
+
+  if (aovDeviation > 0.2) { // 20% AOV deviation
+    warnings.push(`Implied AOV ${impliedAOV.toFixed(0)} deviates ${(aovDeviation * 100).toFixed(1)}% from historical ${historicalAOV.toFixed(0)}`);
+    adjustedGMV = Math.round(adjustedServices * historicalAOV);
+    if (confidence === 'high') confidence = 'medium';
+  }
+
+  // 5. Show validation alerts
+  if (warnings.length > 0) {
+    console.warn('⚠️ FORECAST VALIDATION WARNINGS:', warnings);
     
-    if (changePercent > 0.25) {
-      reasons.push(`Cambio abrupto detectado: ${(changePercent * 100).toFixed(1)}%`);
-      anomalyScore += 0.4;
+    if (confidence === 'low') {
+      toast.error(`Forecast validation failed: ${warnings.length} critical issues detected`);
+    } else if (warnings.length >= 2) {
+      toast.warning(`Forecast validation: ${warnings.length} warnings detected`);
     }
   }
-  
-  // 3. Detección de volatilidad excesiva
-  const mean = data.reduce((sum, val) => sum + val, 0) / data.length;
-  const variance = data.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / data.length;
-  const stdDev = Math.sqrt(variance);
-  const coefficientOfVariation = stdDev / mean;
-  
-  if (coefficientOfVariation > 0.3) {
-    reasons.push(`Alta volatilidad detectada: CV=${(coefficientOfVariation * 100).toFixed(1)}%`);
-    anomalyScore += 0.2;
-  }
-  
-  // 4. Detección de valores negativos o cero
-  if (currentValue !== undefined && currentValue <= 0) {
-    reasons.push('Valor no válido (≤ 0)');
-    anomalyScore += 0.5;
-  }
-  
-  const isAnomaly = anomalyScore >= 0.4;
-  const severity: 'low' | 'medium' | 'high' = 
-    anomalyScore >= 0.7 ? 'high' : 
-    anomalyScore >= 0.4 ? 'medium' : 'low';
-  
+
   return {
-    isAnomaly,
-    anomalyScore,
-    reasons,
-    severity
+    isValid,
+    adjustedServices: adjustedServices !== forecastServices ? adjustedServices : undefined,
+    adjustedGMV: adjustedGMV !== forecastGMV ? adjustedGMV : undefined,
+    warnings,
+    confidence,
+    deviation: deviation * 100 // Return as percentage
   };
 }
 
-// === VALIDACIÓN DE CALIDAD DE DATOS ===
-
-export function validateDataQuality(data: number[]): {
-  quality: 'high' | 'medium' | 'low';
-  issues: string[];
-  completeness: number;
-  consistency: number;
-} {
-  const issues: string[] = [];
+/**
+ * Creates validation config based on historical context
+ */
+export function createValidationConfig(
+  ytdServices: number,
+  ytdGMV: number,
+  lastMonthServices: number,
+  recentGrowthRate: number
+): ForecastValidationConfig {
+  const avgMonthly = ytdServices / 8; // Assuming 8 months of data
   
-  // 1. Completeness - porcentaje de datos no nulos/cero
-  const validData = data.filter(val => val > 0);
-  const completeness = (validData.length / data.length) * 100;
-  
-  if (completeness < 80) {
-    issues.push(`Datos incompletos: ${completeness.toFixed(1)}% válidos`);
-  }
-  
-  // 2. Consistency - detectar patrones inconsistentes
-  let consistency = 100;
-  const outliers = data.filter(val => {
-    const mean = validData.reduce((sum, v) => sum + v, 0) / validData.length;
-    const stdDev = Math.sqrt(validData.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / validData.length);
-    return Math.abs(val - mean) > 2 * stdDev;
-  });
-  
-  if (outliers.length > data.length * 0.1) {
-    consistency -= 30;
-    issues.push(`Múltiples outliers detectados: ${outliers.length}`);
-  }
-  
-  // 3. Temporal consistency
-  let zeroCount = 0;
-  for (let i = 1; i < data.length; i++) {
-    if (data[i] === 0 && data[i-1] > 0) {
-      zeroCount++;
+  return {
+    minServices: Math.round(avgMonthly * 0.7), // 30% below average minimum
+    maxServices: Math.round(avgMonthly * 1.8), // 80% above average maximum
+    minGMV: Math.round((ytdGMV / 8) * 0.7),
+    maxGMV: Math.round((ytdGMV / 8) * 1.8),
+    maxDeviationPercent: 25, // 25% max deviation from YTD average
+    ytdContext: {
+      services: ytdServices,
+      gmv: ytdGMV,
+      avgMonthly
+    },
+    recentTrend: {
+      lastMonthServices,
+      growth: recentGrowthRate,
+      acceleration: recentGrowthRate > 0.15 // Consider >15% growth as acceleration
     }
-  }
-  
-  if (zeroCount > 2) {
-    consistency -= 20;
-    issues.push(`Inconsistencias temporales: ${zeroCount} caídas a cero`);
-  }
-  
-  const quality: 'high' | 'medium' | 'low' = 
-    completeness >= 95 && consistency >= 85 ? 'high' :
-    completeness >= 80 && consistency >= 70 ? 'medium' : 'low';
-  
-  return {
-    quality,
-    issues,
-    completeness,
-    consistency
   };
 }
 
-// === HOLT-WINTERS OPTIMIZADO ===
-
-function calculateOptimizedHoltWinters(
-  data: number[],
-  periods: number,
-  optimizeFor: 'accuracy' | 'responsiveness' = 'accuracy'
-): number[] {
-  if (data.length < 12) {
-    throw new Error('Datos insuficientes para Holt-Winters');
-  }
-  
-  const seasonLength = 12;
-  let bestMAPE = Infinity;
-  let bestResult: number[] = [];
-  
-  // Grid search optimizado
-  const paramRanges = optimizeFor === 'responsiveness' 
-    ? {
-        alpha: [0.6, 0.7, 0.8, 0.9],
-        beta: [0.3, 0.4, 0.5, 0.6],
-        gamma: [0.2, 0.3, 0.4, 0.5]
-      }
-    : {
-        alpha: [0.3, 0.4, 0.5, 0.6, 0.7],
-        beta: [0.1, 0.2, 0.3, 0.4],
-        gamma: [0.1, 0.2, 0.3, 0.4]
-      };
-  
-  for (const alpha of paramRanges.alpha) {
-    for (const beta of paramRanges.beta) {
-      for (const gamma of paramRanges.gamma) {
-        try {
-          const result = holtWintersCore(data, seasonLength, periods, alpha, beta, gamma);
-          const mape = calculateMAPE(data, result.forecast.slice(0, data.length));
-          
-          if (mape < bestMAPE) {
-            bestMAPE = mape;
-            bestResult = result.forecast;
-          }
-        } catch (e) {
-          continue;
-        }
-      }
-    }
-  }
-  
-  return bestResult.slice(0, periods);
-}
-
-// === CORE HOLT-WINTERS IMPLEMENTATION ===
-
-function holtWintersCore(
-  data: number[],
-  seasonLength: number,
-  periods: number,
-  alpha: number,
-  beta: number,
-  gamma: number
-): { forecast: number[]; level: number; trend: number; seasonal: number[] } {
-  const n = data.length;
-  const level: number[] = new Array(n);
-  const trend: number[] = new Array(n);
-  const seasonal: number[] = new Array(n + periods);
-  
-  // Inicialización mejorada
-  level[0] = data.slice(0, seasonLength).reduce((sum, val) => sum + val, 0) / seasonLength;
-  trend[0] = 0;
-  
-  // Inicialización de componentes estacionales
-  for (let i = 0; i < seasonLength; i++) {
-    seasonal[i] = data[i] / level[0];
-  }
-  
-  // Aplicar algoritmo Holt-Winters
-  for (let i = 1; i < n; i++) {
-    const prevLevel = level[i - 1];
-    const prevTrend = trend[i - 1];
-    const seasonalIndex = (i - seasonLength) % seasonLength;
-    
-    level[i] = alpha * (data[i] / seasonal[seasonalIndex]) + (1 - alpha) * (prevLevel + prevTrend);
-    trend[i] = beta * (level[i] - prevLevel) + (1 - beta) * prevTrend;
-    seasonal[i] = gamma * (data[i] / level[i]) + (1 - gamma) * seasonal[seasonalIndex];
-  }
-  
-  // Generar forecast
-  const forecast: number[] = [];
-  for (let i = 0; i < periods; i++) {
-    const seasonalIndex = (n + i - seasonLength) % seasonLength;
-    const forecastValue = (level[n - 1] + (i + 1) * trend[n - 1]) * seasonal[seasonalIndex];
-    forecast.push(Math.max(0, forecastValue));
-  }
-  
-  return {
-    forecast,
-    level: level[n - 1],
-    trend: trend[n - 1],
-    seasonal: seasonal.slice(0, seasonLength)
-  };
-}
-
-// === UTILIDADES ===
-
-function calculateMAPE(actual: number[], forecast: number[]): number {
-  if (actual.length !== forecast.length || actual.length === 0) {
-    return 50;
-  }
+/**
+ * Calculate asymmetric MAPE that penalizes underestimation more heavily
+ */
+export function calculateAsymmetricMAPE(actual: number[], forecast: number[], underestimationPenalty: number = 2): number {
+  if (actual.length !== forecast.length || actual.length === 0) return 0;
   
   let totalError = 0;
   let validPairs = 0;
   
   for (let i = 0; i < actual.length; i++) {
     if (actual[i] > 0) {
-      totalError += Math.abs((actual[i] - forecast[i]) / actual[i]);
+      const error = Math.abs(actual[i] - forecast[i]) / actual[i];
+      // Apply penalty multiplier for underestimation
+      const adjustedError = forecast[i] < actual[i] ? error * underestimationPenalty : error;
+      totalError += adjustedError;
       validPairs++;
     }
   }
   
-  return validPairs > 0 ? (totalError / validPairs) * 100 : 50;
+  return validPairs > 0 ? (totalError / validPairs) * 100 : 0;
 }

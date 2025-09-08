@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useProphetForecast } from './useProphetForecast';
 import { useHoltWintersForecast, ManualParameters } from './useHoltWintersForecast';
 import { calculateAdvancedMetrics, AdvancedMetrics } from '@/utils/advancedMetrics';
+import { validateForecastRealism, createValidationConfig } from '@/utils/forecastValidation';
 
 export interface EnsembleForecastData {
   // Final ensemble results - structured for ForecastCard compatibility
@@ -190,21 +191,48 @@ function calculateEnsembleForecast(
     const prophetPerf = prophetData.metrics || getDefaultMetrics();
     const holtWintersPerf = holtWintersData.metrics || getDefaultMetrics();
 
-    // Calculate adaptive weights based on recent performance
+    // Calculate enhanced adaptive weights with trend acceleration detection
     const weights = calculateAdaptiveWeights(prophetPerf, holtWintersPerf);
 
-    // Ensemble calculation with adaptive weights using adjusted values
-    const ensembleServices = Math.round(
+    // Apply forecast validation and correction
+    const validationConfig = createValidationConfig(
+      ytdServiciosReales,
+      ytdGMVReal,
+      748, // August 2025 actual services
+      0.27 // Recent growth rate (July-August acceleration)
+    );
+
+    // Validate initial ensemble prediction
+    const ensembleServicesRaw = Math.round(
       weights.prophet * adjustedProphetServices +
       weights.holtWinters * adjustedHoltWintersServices +
       weights.linear * linearServices
     );
 
-    const ensembleGMV = Math.round(
+    const ensembleGMVRaw = Math.round(
       weights.prophet * adjustedProphetGMV +
       weights.holtWinters * adjustedHoltWintersGMV +
       weights.linear * linearGMV
     );
+
+    // Apply validation with potential adjustments
+    const validation = validateForecastRealism(ensembleServicesRaw, ensembleGMVRaw, validationConfig);
+    
+    const finalEnsembleServices = validation.adjustedServices || ensembleServicesRaw;
+    const finalEnsembleGMV = validation.adjustedGMV || ensembleGMVRaw;
+
+    // Ensemble calculation with enhanced weights using adjusted values
+    const ensembleServices = finalEnsembleServices;
+    const ensembleGMV = finalEnsembleGMV;
+    
+    console.log('🎯 FINAL ENSEMBLE RESULTS:', {
+      ensembleServices,
+      ensembleGMV,
+      validation: validation.warnings,
+      confidence: validation.confidence
+    });
+
+    // Calculate model agreement and ensemble confidence
 
     console.log('🎯 FINAL ENSEMBLE RESULT:', {
       ensembleServices,

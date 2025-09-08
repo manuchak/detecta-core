@@ -35,9 +35,9 @@ export interface ProphetResult {
  */
 const DEFAULT_CONFIG: ProphetConfig = {
   seasonalityMode: 'additive',
-  changePointPriorScale: 0.05,
-  seasonalityPriorScale: 10.0,
-  n_changepoints: 25,
+  changePointPriorScale: 0.15, // Increased from 0.05 to capture recent acceleration
+  seasonalityPriorScale: 20.0, // Increased from 10.0 for better trend flexibility
+  n_changepoints: 35, // Increased from 25 for better trend detection
   yearly_seasonality: true,
   weekly_seasonality: false,
   daily_seasonality: false,
