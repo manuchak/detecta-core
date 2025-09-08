@@ -14,6 +14,7 @@ import Home from '@/pages/Home/Home';
 import HomeRobust from '@/pages/Home/HomeRobust';
 import Dashboard from '@/pages/Dashboard/Dashboard';
 import ExecutiveDashboard from '@/pages/Dashboard/ExecutiveDashboard';
+import KPIDashboard from '@/pages/Dashboard/KPIDashboard';
 import Login from '@/pages/Auth/Login';
 import Register from '@/pages/Auth/Register';
 import { ForgotPassword } from '@/pages/Auth/ForgotPassword';
@@ -122,6 +123,20 @@ function App() {
                       <PermissionProtectedRoute permissionType="page" permissionId="dashboard" showMessage={true}>
                         <DashboardLayout>
                           <ExecutiveDashboard />
+                        </DashboardLayout>
+                      </PermissionProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                {/* KPI Dashboard - Permission Protected */}
+                <Route
+                  path="/dashboard/kpis"
+                  element={
+                    <ProtectedRoute>
+                      <PermissionProtectedRoute permissionType="page" permissionId="dashboard" showMessage={true}>
+                        <DashboardLayout>
+                          <KPIDashboard />
                         </DashboardLayout>
                       </PermissionProtectedRoute>
                     </ProtectedRoute>
