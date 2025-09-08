@@ -3,6 +3,7 @@ import { MonthClosureCard } from '@/components/executive/MonthClosureCard';
 import { YearOverYearCard } from '@/components/executive/YearOverYearCard';
 import { PaceAnalysisCard } from '@/components/executive/PaceAnalysisCard';
 import { PerformanceAlertsCard } from '@/components/executive/PerformanceAlertsCard';
+import { GMVProjectionCard } from '@/components/executive/GMVProjectionCard';
 
 const ExecutiveDashboard = () => {
   return (
@@ -15,7 +16,7 @@ const ExecutiveDashboard = () => {
               Dashboard Ejecutivo
             </h1>
             <p className="text-muted-foreground">
-              Análisis de cierre mensual y crecimiento anual
+              Respuestas directas sobre el cierre de septiembre 2025
             </p>
           </div>
           <div className="text-xs text-muted-foreground">
@@ -23,7 +24,10 @@ const ExecutiveDashboard = () => {
           </div>
         </div>
 
-        {/* Main Forecast Grid */}
+        {/* Main GMV Question */}
+        <GMVProjectionCard />
+
+        {/* Secondary Analysis Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <MonthClosureCard />
           <YearOverYearCard />

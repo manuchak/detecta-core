@@ -108,18 +108,15 @@ export const PaceAnalysisCard = () => {
         <div className="mt-4 p-3 bg-primary/10 border border-primary/20 rounded-lg">
           <div className="flex items-center gap-2 text-primary mb-2">
             <AlertCircle className="h-4 w-4" />
-            <span className="text-sm font-medium">ACCIÓN REQUERIDA</span>
+            <span className="text-sm font-medium">ACCIÓN PARA SEPTIEMBRE</span>
           </div>
-          <div className="text-sm">
-            {!growthPaceStatus && (
-              <div>+{Math.round((growthPaceNeeded - monthData.currentPace) * 10) / 10} servicios/día mínimo para crecimiento</div>
-            )}
-            {!annualPaceStatus && (
-              <div>+{Math.round((requiredPaceFor2024 - currentAnnualPace) * 10) / 10} servicios/día para igualar 2024</div>
-            )}
-            {growthPaceStatus && annualPaceStatus && (
-              <div>Mantener ritmo actual - En buen camino</div>
-            )}
+          <div className="text-sm space-y-1">
+            <div className="font-medium">
+              Necesitas: +{Math.round((growthPaceNeeded - monthData.currentPace) * monthData.daysRemaining)} servicios adicionales
+            </div>
+            <div className="text-muted-foreground">
+              = ${((growthPaceNeeded - monthData.currentPace) * monthData.daysRemaining * 7272 / 1000000).toFixed(1)}M GMV adicional
+            </div>
           </div>
         </div>
       </CardContent>

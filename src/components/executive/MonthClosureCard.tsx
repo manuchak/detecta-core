@@ -53,22 +53,18 @@ export const MonthClosureCard = () => {
         </div>
 
         {/* Current Stats */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <div>
             <div className="text-2xl font-bold">{data.current.services}</div>
             <div className="text-sm text-muted-foreground">Servicios</div>
           </div>
           <div>
             <div className="text-2xl font-bold">${data.current.gmv.toFixed(1)}M</div>
-            <div className="text-sm text-muted-foreground">GMV</div>
+            <div className="text-sm text-muted-foreground">GMV actual</div>
           </div>
-        </div>
-
-        {/* AOV with change */}
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-muted-foreground">AOV:</span>
-          <div className="text-right">
-            <div className="font-medium">${data.current.aov.toLocaleString()}</div>
+          <div>
+            <div className="text-2xl font-bold">${data.current.aov.toLocaleString()}</div>
+            <div className="text-sm text-muted-foreground">AOV</div>
             <div className="text-xs text-destructive">↓8% vs agosto</div>
           </div>
         </div>
@@ -90,18 +86,24 @@ export const MonthClosureCard = () => {
           </div>
 
           {/* Projection */}
-          <div className="mt-3 p-3 bg-muted/50 rounded-lg">
-            <div className="flex justify-between items-center">
-              <div>
-                <div className="font-medium">Proyección: {data.projection.services} servicios</div>
-                <div className="text-sm text-muted-foreground">
+          <div className="mt-3 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+            <div className="text-center mb-3">
+              <div className="text-sm font-medium text-muted-foreground mb-1">RESPUESTA: ¿Cómo cerramos septiembre?</div>
+              <div className="text-3xl font-bold text-primary">${data.projection.gmv.toFixed(1)}M GMV</div>
+              <div className="text-lg font-medium">{data.projection.services} servicios</div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="text-center">
+                <div className="font-medium">vs Agosto 2025</div>
+                <div className={`text-lg font-bold ${data.projection.services > data.target.services ? 'text-success' : 'text-destructive'}`}>
                   {data.projection.services > data.target.services ? '+' : ''}
-                  {((data.projection.services - data.target.services) / data.target.services * 100).toFixed(1)}% vs agosto
+                  {((data.projection.services - data.target.services) / data.target.services * 100).toFixed(1)}%
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-lg font-bold">{data.projection.probability}%</div>
-                <div className="text-xs text-muted-foreground">probabilidad</div>
+              <div className="text-center">
+                <div className="font-medium">Probabilidad</div>
+                <div className="text-lg font-bold text-primary">{data.projection.probability}%</div>
               </div>
             </div>
           </div>
