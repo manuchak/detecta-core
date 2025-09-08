@@ -177,14 +177,14 @@ export async function calculateIntraMonthProjection(
       recordsFound: currentMonthData?.length || 0
     });
 
-  // Historical constraints from real data
-  const HISTORICAL_MAX_SERVICES = 1023; // October 2024
-  const HISTORICAL_MAX_GMV = 7000000; // August 2025 (~$7M)
-  const REALISTIC_MAX_GMV = 7500000; // Allow 7% above historical max
+  // Historical constraints from REAL data
+  const HISTORICAL_MAX_SERVICES = 910; // Real historical monthly max
+  const HISTORICAL_MAX_GMV = 7020000; // August 2025 real max ($7.02M)
+  const REALISTIC_MAX_GMV = Math.round(HISTORICAL_MAX_GMV * 1.15); // Allow 15% above historical max = $8.07M
   
-  // Current September pace analysis
-  const currentDailyServices = 30; // 240 services in 8 days
-  const currentDailyGMV = 217500; // $1.74M in 8 days
+  // Current September pace analysis (REAL data)
+  const currentDailyServices = 30; // 240 services in 8 days (CORRECT)
+  const currentDailyGMV = 217500; // $1.74M in 8 days (CORRECT)
   
   // Calculate projections with historical validation
   let projectedMonthEnd: number;
@@ -292,29 +292,27 @@ export async function calculateIntraMonthProjection(
       confidence = 'Baja';
     }
 
-  // Apply realistic bounds based on business context
-  if (firstWeekGMV >= 1600000 && dayOfMonth >= 8) { // Strong first week after completion
-    const minimumProjection = 6500000; // $6.5M minimum expectation
-    const maximumProjection = 12000000; // $12M maximum realistic
-    if (projectedMonthEnd < minimumProjection) {
-      console.log('⚡ AJUSTE POR MOMENTUM FUERTE - Aplicando piso mínimo');
-      projectedMonthEnd = minimumProjection;
-      methodology += ' + ajuste por momentum fuerte';
-      confidence = 'Alta';
-    } else if (projectedMonthEnd > maximumProjection) {
-      console.log('🚨 AJUSTE POR REALISMO - Aplicando techo máximo');
-      projectedMonthEnd = maximumProjection;
-      methodology += ' + ajuste por realismo';
-      confidence = 'Media';
-    }
+  // Apply REALISTIC business validation (remove artificial floors)
+  if (projectedMonthEnd > REALISTIC_MAX_GMV) {
+    console.log('🚨 AJUSTE POR REALISMO HISTÓRICO - Proyección excede máximo realista');
+    projectedMonthEnd = REALISTIC_MAX_GMV;
+    methodology += ' + limitado por máximo histórico';
+    confidence = 'Media';
+  }
+  
+  // Minimum validation based on current performance only
+  const minimumRealistic = currentAccumulatedGMV; // Cannot be less than what's already achieved
+  if (projectedMonthEnd < minimumRealistic) {
+    projectedMonthEnd = minimumRealistic;
+    methodology += ' + ajustado a mínimo realista';
   }
 
-  // Final realism check for all methodologies
-  if (projectedMonthEnd > 15000000) { // $15M absolute ceiling
-    console.log('🚨 CORRECCIÓN DE REALISMO - Proyección excesiva detectada');
-    projectedMonthEnd = Math.min(projectedMonthEnd, 8000000); // Conservative fallback
-    methodology += ' + corrección de realismo aplicada';
-    confidence = 'Baja';
+  // Final realism check - use historical validation only
+  if (projectedMonthEnd > REALISTIC_MAX_GMV * 1.2) { // 120% of realistic max as absolute ceiling
+    console.log('🚨 CORRECCIÓN DE REALISMO - Proyección excede límites históricos');
+    projectedMonthEnd = REALISTIC_MAX_GMV;
+    methodology += ' + corrección por límites históricos';
+    confidence = 'Media';
   }
 
     console.log('🎯 PROYECCIÓN FINAL:', {
@@ -471,8 +469,8 @@ function getDefaultProjection(): IntraMonthProjection {
 
 function getDefaultAOV(): DynamicAOV {
   return {
-    currentMonthAOV: 6350,
-    historicalAOV: 6350,
+    currentMonthAOV: 6602, // CORRECTED: Real 2025 YTD AOV
+    historicalAOV: 6602,   // CORRECTED: Real 2025 YTD AOV
     aovTrend: 0,
     deviationFromHistorical: 0,
     isSignificantChange: false

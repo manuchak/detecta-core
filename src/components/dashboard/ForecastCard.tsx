@@ -16,6 +16,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useState, useCallback, useEffect } from "react";
 import { useForecastConfig, useUpdateForecastConfig, useCanModifyForecastConfig } from "@/hooks/useForecastConfig";
 import { ForecastModelTooltip } from "@/components/tooltips/ForecastModelTooltip";
+import { ForecastValidationDashboard } from "@/components/ForecastValidationDashboard";
 interface ForecastCardProps {
   isLoading?: boolean;
   error?: any;
@@ -586,6 +587,13 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
             />
           </div>
         </div>
+        
+        {/* Forecast Validation Dashboard - Only show for Ensemble AI forecasts */}
+        {ensembleForecast.forecast && (
+          <div className="space-y-6">
+            <ForecastValidationDashboard forecast={ensembleForecast.forecast} />
+          </div>
+        )}
         
         {/* Metodología Holt-Winters mejorada */}
         <div className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl p-6 border border-gray-100">

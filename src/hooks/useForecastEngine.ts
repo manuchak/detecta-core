@@ -201,8 +201,8 @@ export const useForecastEngine = (manualParams?: Partial<ForecastParameters>) =>
     // Ensure forecast is at least current services
     monthlyServicesForecast = Math.max(currentServices, Math.round(monthlyServicesForecast));
     
-    // Use 2025 average ticket for more accurate GMV forecasting
-    const avgTicket2025 = 6582; // Based on actual 2025 data
+    // Use CORRECTED 2025 average ticket for accurate GMV forecasting  
+    const avgTicket2025 = 6602; // CORRECTED: Real 2025 YTD AOV ($39.88M / 6,041 services)
     const monthlyGMVForecast = monthlyServicesForecast * avgTicket2025;
 
     // Calculate annual projections
