@@ -59,6 +59,20 @@ export const useAcquisitionMetrics = () => {
 
       if (expensesError) throw expensesError;
 
+      // Fetch new custodians by month (correct definition: first service date)
+      // Calculate date range for last 6 months
+      const now = new Date();
+      const startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+      const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      
+      const { data: newCustodiansByMonth, error: custodiansError } = await supabase
+        .rpc('get_custodios_nuevos_por_mes', {
+          fecha_inicio: startDate.toISOString().split('T')[0],
+          fecha_fin: endDate.toISOString().split('T')[0]
+        });
+
+      if (custodiansError) throw custodiansError;
+
       // Calculate basic metrics
       const totalLeads = leads?.length || 0;
       const totalCandidates = candidates?.length || 0;
@@ -72,7 +86,6 @@ export const useAcquisitionMetrics = () => {
 
       // Leads by month for last 6 months
       const leadsByMonth = [];
-      const now = new Date();
       
       for (let i = 5; i >= 0; i--) {
         const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -85,10 +98,11 @@ export const useAcquisitionMetrics = () => {
           return leadDate.getMonth() + 1 === month && leadDate.getFullYear() === year;
         }).length || 0;
 
-        const monthConversions = candidates?.filter(candidate => {
-          const candidateDate = new Date(candidate.created_at);
-          return candidateDate.getMonth() + 1 === month && candidateDate.getFullYear() === year;
-        }).length || 0;
+        // Use correct definition: custodians who completed their first service in this month
+        const yearMonth = `${year}-${month.toString().padStart(2, '0')}`;
+        const monthConversions = newCustodiansByMonth?.find(custodian => 
+          custodian.mes === yearMonth
+        )?.custodios_nuevos || 0;
 
         leadsByMonth.push({
           month: monthStr,
@@ -113,13 +127,17 @@ export const useAcquisitionMetrics = () => {
         percentage: totalExpenses > 0 ? Math.round((amount / totalExpenses) * 100) : 0
       }));
 
+      // Calculate total active custodians (those who have completed at least one service)
+      const totalActiveCustodians = newCustodiansByMonth?.reduce((sum, month) => 
+        sum + (month.custodios_nuevos || 0), 0) || 0;
+
       // Conversion funnel (simulated data based on typical conversion rates)
       const conversionFunnel = {
         leads: totalLeads,
         contacted: Math.round(totalLeads * 0.8), // 80% contacted
         interviews: Math.round(totalLeads * 0.4), // 40% interviewed
         approved: Math.round(totalLeads * 0.25), // 25% approved
-        active: totalCandidates // Active candidates
+        active: totalActiveCustodians // Real active custodians (with completed services)
       };
 
       // ROI by channel (simplified calculation)
