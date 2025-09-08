@@ -55,7 +55,7 @@ export function useEnsembleForecast() {
   const holtWintersResult = useHoltWintersForecast();
 
   const { data: ensembleData, isLoading, error } = useQuery({
-    queryKey: ['ensembleForecast', prophetResult.forecast, holtWintersResult.data],
+    queryKey: ['ensembleForecast', prophetResult.forecast, holtWintersResult],
     queryFn: async () => {
       console.log('🔥 ENSEMBLE FORECAST EJECUTÁNDOSE...');
       
@@ -73,13 +73,13 @@ export function useEnsembleForecast() {
 
       return calculateEnsembleForecast(
         prophetResult.forecast,
-        holtWintersResult.data,
+        holtWintersResult,
         weeklyPatterns,
         intraMonthProjection,
         dynamicAOV
       );
     },
-    enabled: !prophetResult.isLoading && !!holtWintersResult.data,
+    enabled: !prophetResult.isLoading && !!holtWintersResult,
     staleTime: 0,
     gcTime: 0,
     retry: 2

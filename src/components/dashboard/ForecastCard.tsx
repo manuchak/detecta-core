@@ -121,7 +121,7 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
   } : undefined;
 
   // PHASE 1: DEBUG - Nuevo sistema de ensemble mejorado
-  const ensembleForecast = useEnsembleForecast(manualParams);
+  const ensembleForecast = useEnsembleForecast();
   
   // PHASE 1: DEBUG - Fallback a Holt-Winters tradicional para compatibilidad
   const holtWintersResult = useHoltWintersForecast(manualParams);
@@ -535,16 +535,16 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <ForecastMetricCard
               title="Servicios del Mes"
-              actual={forecastData.monthlyServices?.actual || 0}
-              forecast={forecastData.monthlyServices?.forecast || 0}
+              actual={typeof forecastData.variance?.services === 'object' ? forecastData.variance.services.actual : 0}
+              forecast={typeof forecastData.monthlyServices === 'number' ? forecastData.monthlyServices : (forecastData.monthlyServices?.forecast || 0)}
               variance={monthlyServicesVariance}
               icon={BarChart3}
               period="monthly"
             />
             <ForecastMetricCard
               title="GMV del Mes"
-              actual={forecastData.monthlyGMV?.actual || 0}
-              forecast={forecastData.monthlyGMV?.forecast || 0}
+              actual={typeof forecastData.variance?.gmv === 'object' ? forecastData.variance.gmv.actual : 0}
+              forecast={typeof forecastData.monthlyGMV === 'number' ? forecastData.monthlyGMV : (forecastData.monthlyGMV?.forecast || 0)}
               variance={monthlyGMVVariance}
               icon={DollarSign}
               isGMV={true}
@@ -567,8 +567,8 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <ForecastMetricCard
               title="Servicios Anuales"
-              actual={forecastData.annualServices?.actual || 0}
-              forecast={forecastData.annualServices?.forecast || 0}
+              actual={(typeof forecastData.variance?.services === 'object' ? forecastData.variance.services.actual : 0) * 12}
+              forecast={typeof forecastData.annualServices === 'number' ? forecastData.annualServices : (forecastData.annualServices?.forecast || 0)}
               variance={annualServicesVariance}
               icon={BarChart3}
               period="annual"
@@ -576,8 +576,8 @@ export const ForecastCard = ({ isLoading = false, error }: ForecastCardProps) =>
             />
             <ForecastMetricCard
               title="GMV Anual"
-              actual={forecastData.annualGMV?.actual || 0}
-              forecast={forecastData.annualGMV?.forecast || 0}
+              actual={(typeof forecastData.variance?.gmv === 'object' ? forecastData.variance.gmv.actual : 0) * 12}
+              forecast={typeof forecastData.annualGMV === 'number' ? forecastData.annualGMV : (forecastData.annualGMV?.forecast || 0)}
               variance={annualGMVVariance}
               icon={DollarSign}
               isGMV={true}
