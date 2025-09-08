@@ -306,11 +306,6 @@ const KPIDashboard = () => {
 
           {/* Advanced KPIs Tab */}
           <TabsContent value="kpis" className="space-y-6">
-            {/* Daily Leads & Calls Chart Section */}
-            <div className="mb-8">
-              <DailyLeadsCallsChart />
-            </div>
-            
             <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} />
           </TabsContent>
 
