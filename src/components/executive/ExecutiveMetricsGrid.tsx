@@ -120,6 +120,18 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className, onKPICl
           unit={kpi.unit}
           trend={kpi.trend}
           loading={loading || (kpi.key === 'cpa' && cpaLoading) || (kpi.key === 'crate' && conversionRateDetails.loading) || (kpi.key === 'ltv' && ltvDetails.loading) || (kpi.key === 'rrate' && retentionDetails.loading) || (kpi.key === 'roiMkt' && roiMarketingMonthly.loading) || (kpi.key === 'engagement' && engagementDetails.loading) || (kpi.key === 'supplyGrowth' && supplyGrowthDetails.loading)}
+          onClick={() => {
+            const kpiTypeMap: Record<string, string> = {
+              'cpa': 'cpa',
+              'crate': 'conversion', 
+              'ltv': 'ltv',
+              'rrate': 'retention',
+              'roiMkt': 'roi',
+              'engagement': 'engagement',
+              'supplyGrowth': 'supply'
+            };
+            onKPIClick?.(kpiTypeMap[kpi.key] || kpi.key);
+          }}
           tooltip={
             kpi.key === 'cpa' && !cpaLoading ? <CPATooltip cpaDetails={cpaDetails} /> :
             kpi.key === 'crate' && !conversionRateDetails.loading ? <ConversionRateTooltip data={conversionRateDetails} /> :
