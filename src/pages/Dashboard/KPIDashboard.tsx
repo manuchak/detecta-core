@@ -292,6 +292,11 @@ const KPIDashboard = () => {
           {/* Acquisition Overview Tab */}
           <TabsContent value="adquisicion" className="space-y-6">
             <AcquisitionOverview />
+            
+            {/* Daily Leads & Calls Chart */}
+            <div className="mt-8">
+              <DailyLeadsCallsChart />
+            </div>
           </TabsContent>
 
           {/* Client Analytics Tab */}
@@ -301,12 +306,12 @@ const KPIDashboard = () => {
 
           {/* Advanced KPIs Tab */}
           <TabsContent value="kpis" className="space-y-6">
-            <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} />
-            
             {/* Daily Leads & Calls Chart Section */}
-            <div className="mt-8">
+            <div className="mb-8">
               <DailyLeadsCallsChart />
             </div>
+            
+            <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} />
           </TabsContent>
 
           {/* Executive Summary Tab */}
