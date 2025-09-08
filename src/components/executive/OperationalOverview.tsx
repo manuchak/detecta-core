@@ -46,9 +46,19 @@ export const OperationalOverview = () => {
 
   const kpiCards = [
     {
-      title: 'Servicios Totales',
-      value: metrics.totalServices.toLocaleString(),
-      description: 'Total histórico',
+      title: 'Servicios Este Mes',
+      value: metrics.comparatives.servicesThisMonth.current.toLocaleString(),
+      description: 'Septiembre 2025',
+      icon: Clock,
+      trend: `${metrics.comparatives.servicesThisMonth.changePercent >= 0 ? '+' : ''}${metrics.comparatives.servicesThisMonth.changePercent}%`,
+      trendPositive: metrics.comparatives.servicesThisMonth.changePercent >= 0,
+      color: 'text-pink-600',
+      bgColor: 'bg-pink-50'
+    },
+    {
+      title: 'Servicios YTD',
+      value: metrics.comparatives.servicesYTD.current.toLocaleString(),
+      description: 'vs mismo período año anterior',
       icon: Target,
       trend: `${metrics.comparatives.servicesYTD.changePercent >= 0 ? '+' : ''}${metrics.comparatives.servicesYTD.changePercent}%`,
       trendPositive: metrics.comparatives.servicesYTD.changePercent >= 0,
@@ -57,8 +67,8 @@ export const OperationalOverview = () => {
     },
     {
       title: 'Tasa de Cumplimiento',
-      value: `${metrics.completionRate}%`,
-      description: 'Servicios completados',
+      value: `${metrics.comparatives.completionRate.current}%`,
+      description: 'Este mes vs anterior',
       icon: CheckCircle,
       trend: `${metrics.comparatives.completionRate.changePercent >= 0 ? '+' : ''}${metrics.comparatives.completionRate.changePercent}%`,
       trendPositive: metrics.comparatives.completionRate.changePercent >= 0,
@@ -66,9 +76,9 @@ export const OperationalOverview = () => {
       bgColor: 'bg-green-50'
     },
     {
-      title: 'Custodios Activos',
-      value: metrics.activeCustodians.toLocaleString(),
-      description: 'Con servicios realizados',
+      title: 'Custodios Activos Este Mes',
+      value: metrics.comparatives.activeCustodiansMonth.current.toLocaleString(),
+      description: 'Con servicios este mes',
       icon: Users,
       trend: `${metrics.comparatives.activeCustodiansMonth.changePercent >= 0 ? '+' : ''}${metrics.comparatives.activeCustodiansMonth.changePercent}%`,
       trendPositive: metrics.comparatives.activeCustodiansMonth.changePercent >= 0,
@@ -76,9 +86,9 @@ export const OperationalOverview = () => {
       bgColor: 'bg-purple-50'
     },
     {
-      title: 'GMV Total',
-      value: formatCurrency(metrics.totalGMV),
-      description: 'Valor bruto de mercancía',
+      title: 'GMV Este Mes',
+      value: formatCurrency(metrics.comparatives.totalGMV.current),
+      description: 'vs mes anterior',
       icon: DollarSign,
       trend: `${metrics.comparatives.totalGMV.changePercent >= 0 ? '+' : ''}${metrics.comparatives.totalGMV.changePercent}%`,
       trendPositive: metrics.comparatives.totalGMV.changePercent >= 0,
@@ -86,8 +96,8 @@ export const OperationalOverview = () => {
       bgColor: 'bg-emerald-50'
     },
     {
-      title: 'AOV Promedio',
-      value: formatCurrency(metrics.averageAOV),
+      title: 'AOV Este Mes',
+      value: formatCurrency(metrics.comparatives.averageAOV.current),
       description: 'Valor promedio por orden',
       icon: TrendingUp,
       trend: `${metrics.comparatives.averageAOV.changePercent >= 0 ? '+' : ''}${metrics.comparatives.averageAOV.changePercent}%`,
@@ -96,9 +106,9 @@ export const OperationalOverview = () => {
       bgColor: 'bg-orange-50'
     },
     {
-      title: 'Servicios/Custodio',
-      value: metrics.averageServicesPerCustodian.toFixed(1),
-      description: 'Promedio por custodio',
+      title: 'Custodios Este Trimestre',
+      value: metrics.comparatives.activeCustodiansQuarter.current.toLocaleString(),
+      description: 'Q3 vs Q2',
       icon: Users,
       trend: `${metrics.comparatives.activeCustodiansQuarter.changePercent >= 0 ? '+' : ''}${metrics.comparatives.activeCustodiansQuarter.changePercent}%`,
       trendPositive: metrics.comparatives.activeCustodiansQuarter.changePercent >= 0,
@@ -106,24 +116,14 @@ export const OperationalOverview = () => {
       bgColor: 'bg-indigo-50'
     },
     {
-      title: 'KM Promedio',
-      value: `${metrics.averageKmPerService}`,
+      title: 'KM Promedio Este Mes',
+      value: `${metrics.comparatives.averageKmPerService.current}`,
       description: 'Kilómetros por servicio',
       icon: Route,
       trend: `${metrics.comparatives.averageKmPerService.changePercent >= 0 ? '+' : ''}${metrics.comparatives.averageKmPerService.changePercent}%`,
       trendPositive: metrics.comparatives.averageKmPerService.changePercent >= 0,
       color: 'text-cyan-600',
       bgColor: 'bg-cyan-50'
-    },
-    {
-      title: 'Servicios Este Mes',
-      value: metrics.servicesThisMonth.toLocaleString(),
-      description: 'Septiembre 2025',
-      icon: Clock,
-      trend: `${metrics.comparatives.servicesThisMonth.changePercent >= 0 ? '+' : ''}${metrics.comparatives.servicesThisMonth.changePercent}%`,
-      trendPositive: metrics.comparatives.servicesThisMonth.changePercent >= 0,
-      color: 'text-pink-600',
-      bgColor: 'bg-pink-50'
     }
   ];
 
