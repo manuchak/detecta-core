@@ -18,7 +18,8 @@ import {
   RefreshCw,
   Activity,
   Building,
-  UserPlus
+  UserPlus,
+  Building2
 } from 'lucide-react';
 import { useExecutiveDashboardKPIs } from '@/hooks/useExecutiveDashboardKPIs';
 import { useDynamicServiceData } from '@/hooks/useDynamicServiceData';
@@ -26,6 +27,7 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import { OperationalOverview } from '@/components/executive/OperationalOverview';
 import { AcquisitionOverview } from '@/components/executive/AcquisitionOverview';
 import { ExecutiveMetricsGrid } from '@/components/executive/ExecutiveMetricsGrid';
+import { ClientAnalytics } from '@/components/executive/ClientAnalytics';
 
 const KPIDashboard = () => {
   const { kpis, loading: kpisLoading, refreshData } = useExecutiveDashboardKPIs();
@@ -258,7 +260,7 @@ const KPIDashboard = () => {
 
         {/* Executive Dashboard Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="operacional" className="flex items-center gap-2">
               <Activity className="h-4 w-4" />
               Operacional
@@ -266,6 +268,10 @@ const KPIDashboard = () => {
             <TabsTrigger value="adquisicion" className="flex items-center gap-2">
               <UserPlus className="h-4 w-4" />
               Adquisición
+            </TabsTrigger>
+            <TabsTrigger value="clientes" className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Análisis Clientes
             </TabsTrigger>
             <TabsTrigger value="kpis" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
@@ -285,6 +291,11 @@ const KPIDashboard = () => {
           {/* Acquisition Overview Tab */}
           <TabsContent value="adquisicion" className="space-y-6">
             <AcquisitionOverview />
+          </TabsContent>
+
+          {/* Client Analytics Tab */}
+          <TabsContent value="clientes" className="space-y-6">
+            <ClientAnalytics />
           </TabsContent>
 
           {/* Advanced KPIs Tab */}
