@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { TrendingUp, Users, Clock, Target } from 'lucide-react';
 import { useRetentionDetails } from '@/hooks/useRetentionDetails';
@@ -70,7 +70,7 @@ export function RetentionDetailView() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-600">
-              5.4
+              {retentionData.yearlyData.tiempoPromedioPermanenciaGeneral.toFixed(1)}
             </div>
             <p className="text-xs text-muted-foreground">
               meses de permanencia
@@ -109,7 +109,7 @@ export function RetentionDetailView() {
             <BarChart data={retentionData.monthlyBreakdown}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis 
-                dataKey="month" 
+                dataKey="monthName" 
                 stroke="hsl(var(--muted-foreground))"
                 fontSize={12}
               />
@@ -136,14 +136,14 @@ export function RetentionDetailView() {
         </CardContent>
       </Card>
 
-      {/* Detailed Metrics */}
+      {/* Lifetime Evolution and Performance Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Retention Trend */}
+        {/* Average Lifetime Evolution */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Tendencia de Retención
+              <Clock className="h-5 w-5" />
+              Evolución del Tiempo de Permanencia
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -151,14 +151,14 @@ export function RetentionDetailView() {
               <LineChart data={retentionData.monthlyBreakdown}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 
-                  dataKey="month" 
+                  dataKey="monthName" 
                   stroke="hsl(var(--muted-foreground))"
                   fontSize={12}
                 />
                 <YAxis 
                   stroke="hsl(var(--muted-foreground))"
                   fontSize={12}
-                  domain={[0, 100]}
+                  domain={[0, 'dataMax + 2']}
                 />
                 <Tooltip 
                   contentStyle={{
@@ -166,36 +166,36 @@ export function RetentionDetailView() {
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px'
                   }}
-                  formatter={(value: number) => [`${value.toFixed(1)}%`, 'Retención']}
+                  formatter={(value: number) => [`${value.toFixed(1)} meses`, 'Tiempo Promedio']}
                 />
                 <Line 
                   type="monotone" 
-                  dataKey="tasaRetencion" 
-                  stroke="hsl(var(--primary))"
+                  dataKey="tiempoPromedioPermanencia" 
+                  stroke="#8b5cf6"
                   strokeWidth={3}
-                  dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2 }}
+                  dot={{ fill: '#8b5cf6', strokeWidth: 2 }}
                 />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Monthly Breakdown Table */}
+        {/* Monthly Performance Summary */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
-              Desglose Mensual
+              Resumen de Rendimiento
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {retentionData.monthlyBreakdown.map((month, index) => (
+              {retentionData.monthlyBreakdown.slice(0, 4).map((month, index) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                   <div className="space-y-1">
-                    <div className="font-medium">{month.month}</div>
+                    <div className="font-medium">{month.monthName}</div>
                     <div className="text-sm text-muted-foreground">
-                      {month.custodiosAnterior} custodios totales
+                      {month.custodiosAnterior} custodios • {month.tiempoPromedioPermanencia.toFixed(1)} meses
                     </div>
                   </div>
                   <div className="text-right">
@@ -212,6 +212,126 @@ export function RetentionDetailView() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Cohort Analysis */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5" />
+            Análisis de Cohortes - Retención por Mes de Incorporación
+          </CardTitle>
+          <CardDescription>
+            Porcentaje de custodios que permanecen activos después de N meses desde su incorporación
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 px-3 font-medium text-muted-foreground">Cohorte</th>
+                  <th className="text-center py-2 px-3 font-medium text-muted-foreground">Mes 0</th>
+                  <th className="text-center py-2 px-3 font-medium text-muted-foreground">Mes 1</th>
+                  <th className="text-center py-2 px-3 font-medium text-muted-foreground">Mes 2</th>
+                  <th className="text-center py-2 px-3 font-medium text-muted-foreground">Mes 3</th>
+                  <th className="text-center py-2 px-3 font-medium text-muted-foreground">Mes 4</th>
+                  <th className="text-center py-2 px-3 font-medium text-muted-foreground">Mes 5</th>
+                  <th className="text-center py-2 px-3 font-medium text-muted-foreground">Mes 6</th>
+                </tr>
+              </thead>
+              <tbody>
+                {retentionData.cohortAnalysis.map((cohort, index) => {
+                  const monthName = new Date(cohort.cohortMonth).toLocaleDateString('es-MX', { 
+                    year: 'numeric', 
+                    month: 'short' 
+                  });
+                  
+                  return (
+                    <tr key={index} className="border-b hover:bg-muted/20">
+                      <td className="py-3 px-3 font-medium">{monthName}</td>
+                      <td className="py-3 px-3 text-center">
+                        <span className="inline-block px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+                          {cohort.month0}%
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                          cohort.month1 >= 90 ? 'bg-green-100 text-green-800' :
+                          cohort.month1 >= 80 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {cohort.month1}%
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                          cohort.month2 >= 80 ? 'bg-green-100 text-green-800' :
+                          cohort.month2 >= 70 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {cohort.month2}%
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                          cohort.month3 >= 70 ? 'bg-green-100 text-green-800' :
+                          cohort.month3 >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {cohort.month3}%
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                          cohort.month4 >= 65 ? 'bg-green-100 text-green-800' :
+                          cohort.month4 >= 55 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {cohort.month4}%
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                          cohort.month5 >= 60 ? 'bg-green-100 text-green-800' :
+                          cohort.month5 >= 50 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {cohort.month5}%
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                          cohort.month6 >= 55 ? 'bg-green-100 text-green-800' :
+                          cohort.month6 >= 45 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {cohort.month6}%
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          
+          {/* Cohort Legend */}
+          <div className="mt-4 flex items-center gap-4 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-green-100 rounded"></div>
+              <span className="text-muted-foreground">Excelente (≥80%)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-yellow-100 rounded"></div>
+              <span className="text-muted-foreground">Bueno (60-79%)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-red-100 rounded"></div>
+              <span className="text-muted-foreground">Necesita Mejora (&lt;60%)</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
