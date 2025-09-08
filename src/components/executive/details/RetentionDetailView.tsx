@@ -198,7 +198,7 @@ export function RetentionDetailView() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {retentionData.monthlyBreakdown.slice(0, 4).map((month, index) => (
+              {retentionData.monthlyBreakdown.slice(-4).reverse().map((month, index) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                   <div className="space-y-1">
                     <div className="font-medium">{month.monthName}</div>
