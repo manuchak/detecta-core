@@ -1,6 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuthenticatedQuery } from '@/hooks/useAuthenticatedQuery';
 
 interface YearOverYearData {
   current2025: {
@@ -24,12 +22,9 @@ interface YearOverYearData {
 }
 
 export const useYearOverYearComparison = () => {
-  const { user } = useAuth();
-
-  return useQuery({
-    queryKey: ['year-over-year-comparison'],
-    queryFn: async (): Promise<YearOverYearData> => {
-      if (!user) throw new Error('Usuario no autenticado');
+  return useAuthenticatedQuery(
+    ['year-over-year-comparison'],
+    async (): Promise<YearOverYearData> => {
 
       const currentDate = new Date();
       const currentMonth = currentDate.getMonth() + 1;
@@ -78,8 +73,9 @@ export const useYearOverYearComparison = () => {
         }
       };
     },
-    enabled: !!user,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: true
-  });
+    {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      refetchOnWindowFocus: true
+    }
+  );
 };

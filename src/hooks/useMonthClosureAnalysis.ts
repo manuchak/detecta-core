@@ -1,6 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuthenticatedQuery } from '@/hooks/useAuthenticatedQuery';
 
 interface MonthClosureData {
   current: {
@@ -25,12 +23,9 @@ interface MonthClosureData {
 }
 
 export const useMonthClosureAnalysis = () => {
-  const { user } = useAuth();
-
-  return useQuery({
-    queryKey: ['month-closure-analysis'],
-    queryFn: async (): Promise<MonthClosureData> => {
-      if (!user) throw new Error('Usuario no autenticado');
+  return useAuthenticatedQuery(
+    ['month-closure-analysis'],
+    async (): Promise<MonthClosureData> => {
 
       // Using real Prophet forecast data from console logs
       const prophetData = {
@@ -97,8 +92,9 @@ export const useMonthClosureAnalysis = () => {
         currentPace: Math.round(currentPace * 10) / 10
       };
     },
-    enabled: !!user,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: true
-  });
+    {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      refetchOnWindowFocus: true
+    }
+  );
 };
