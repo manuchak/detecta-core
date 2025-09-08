@@ -29,7 +29,7 @@ export const useMonthClosureAnalysis = () => {
   const { data: dynamicData, isLoading: dynamicDataLoading } = useDynamicServiceData();
 
   return useAuthenticatedQuery(
-    ['month-closure-analysis'],
+    ['month-closure-analysis', dynamicData ? 'ready' : 'waiting'],
     async (): Promise<MonthClosureData> => {
       if (!dynamicData) throw new Error('Dynamic data not available');
 

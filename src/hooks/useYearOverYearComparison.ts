@@ -26,7 +26,7 @@ export const useYearOverYearComparison = () => {
   const { data: dynamicData, isLoading: dynamicDataLoading } = useDynamicServiceData();
 
   return useAuthenticatedQuery(
-    ['year-over-year-comparison'],
+    ['year-over-year-comparison', dynamicData ? 'ready' : 'waiting'],
     async (): Promise<YearOverYearData> => {
       if (!dynamicData) throw new Error('Dynamic data not available');
       
