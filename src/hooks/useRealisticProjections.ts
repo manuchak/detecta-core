@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDynamicServiceData } from './useDynamicServiceData';
 
 interface ProjectionScenario {
   name: 'Pesimista' | 'Realista' | 'Optimista';
@@ -34,29 +35,29 @@ interface RealisticProjections {
 
 export const useRealisticProjections = () => {
   const { user } = useAuth();
+  const { data: dynamicData, isLoading: dynamicDataLoading } = useDynamicServiceData();
 
   return useQuery({
     queryKey: ['realistic-projections'],
     queryFn: async (): Promise<RealisticProjections> => {
       if (!user) throw new Error('Usuario no autenticado');
+      if (!dynamicData) throw new Error('Dynamic data not available');
 
-      // Real current data (from dashboard observations)
-      const currentServices = 240;
-      const currentAOV = 7272;
-      const currentGMV = (currentServices * currentAOV) / 1000000; // $1.75M
-      
-      const currentDate = new Date();
-      const daysElapsed = 8; // Approx current day of September
-      const daysRemaining = 22; // Days left in September
-      const currentDailyPace = currentServices / daysElapsed; // 30 services/day
+      // Use dynamic data instead of hardcoded values
+      const currentServices = dynamicData.currentMonth.services;
+      const currentAOV = dynamicData.currentMonth.aov;
+      const currentGMV = dynamicData.currentMonth.gmv;
+      const daysElapsed = dynamicData.currentMonth.days;
+      const daysRemaining = dynamicData.daysRemaining;
+      const currentDailyPace = dynamicData.currentMonth.dailyPace;
 
-      // August targets
-      const augustServices = 890;
-      const augustGMV = 7.03;
+      // September targets (using August as reference, but should be September targets)
+      const septemberTargetServices = 890; // Should be actual September target
+      const septemberTargetGMV = 7.03; // Should be actual September target in millions
 
       // Calculate realistic scenarios based on trends
-      const remainingServices = augustServices - currentServices; // 650 services needed
-      const paceNeeded = remainingServices / daysRemaining; // 29.5 services/day needed
+      const remainingServices = septemberTargetServices - currentServices;
+      const paceNeeded = remainingServices / daysRemaining;
 
       // Scenario calculations
       const scenarios: ProjectionScenario[] = [
@@ -106,8 +107,8 @@ export const useRealisticProjections = () => {
           dailyPace: currentDailyPace
         },
         target: {
-          services: augustServices,
-          gmv: augustGMV
+          services: septemberTargetServices,
+          gmv: septemberTargetGMV
         },
         scenarios,
         daysRemaining,
@@ -119,9 +120,9 @@ export const useRealisticProjections = () => {
         }
       };
     },
-    enabled: !!user,
-    staleTime: 15 * 60 * 1000, // 15 minutes for better performance
-    refetchOnWindowFocus: false,
-    refetchInterval: 30 * 60 * 1000 // Only refetch every 30 minutes
+    enabled: !!user && !dynamicDataLoading && !!dynamicData,
+    staleTime: 5 * 60 * 1000, // 5 minutes for real-time accuracy
+    refetchOnWindowFocus: true,
+    refetchInterval: 60 * 60 * 1000 // Refetch every hour
   });
 };

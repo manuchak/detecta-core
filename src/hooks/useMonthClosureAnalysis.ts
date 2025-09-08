@@ -1,5 +1,6 @@
 import { useAuthenticatedQuery } from '@/hooks/useAuthenticatedQuery';
 import { getPaceStatus } from '@/utils/paceStatus';
+import { useDynamicServiceData } from './useDynamicServiceData';
 
 interface MonthClosureData {
   current: {
@@ -25,34 +26,34 @@ interface MonthClosureData {
 }
 
 export const useMonthClosureAnalysis = () => {
+  const { data: dynamicData, isLoading: dynamicDataLoading } = useDynamicServiceData();
+
   return useAuthenticatedQuery(
     ['month-closure-analysis'],
     async (): Promise<MonthClosureData> => {
+      if (!dynamicData) throw new Error('Dynamic data not available');
 
-      // ===== USING SAME DATA AS useRealisticProjections FOR CONSISTENCY =====
+      // Use dynamic data for consistency across all components
+      const currentServices = dynamicData.currentMonth.services;
+      const avgAOV = dynamicData.currentMonth.aov;
+      const daysElapsed = dynamicData.currentMonth.days;
+      const daysRemaining = dynamicData.daysRemaining;
       
-      const currentDate = new Date();
-      const daysInSeptember = 30;
-      const daysElapsed = currentDate.getDate();
-      const daysRemaining = daysInSeptember - daysElapsed;
-
-      // Real data aligned with useRealisticProjections
-      const currentServices = 240;
-      const avgAOV = 7272;
-      const augustTargetServices = 890;
-      const augustTargetGMV = 7.0;
+      // September targets (should match useRealisticProjections)
+      const septemberTargetServices = 890;
+      const septemberTargetGMV = 7.0;
 
       const current = {
         services: currentServices,
-        gmv: (currentServices * avgAOV) / 1000000,
+        gmv: dynamicData.currentMonth.gmv,
         days: daysElapsed,
         aov: avgAOV,
-        dailyPace: currentServices / daysElapsed
+        dailyPace: dynamicData.currentMonth.dailyPace
       };
 
       const target = {
-        services: augustTargetServices,
-        gmv: augustTargetGMV
+        services: septemberTargetServices,
+        gmv: septemberTargetGMV
       };
 
       const currentPace = current.services / daysElapsed;
