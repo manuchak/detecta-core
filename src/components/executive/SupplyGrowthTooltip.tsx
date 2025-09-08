@@ -8,7 +8,7 @@ interface SupplyGrowthTooltipProps {
 }
 
 export function SupplyGrowthTooltip({ data }: SupplyGrowthTooltipProps) {
-  if (!data || data.loading || !data.monthlyData.length) {
+  if (!data || data.loading || !data.monthlyData || !data.monthlyData.length) {
     return (
       <Card className="w-96">
         <CardHeader className="pb-3">
