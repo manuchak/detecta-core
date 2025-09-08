@@ -54,17 +54,19 @@ export const ClientAnalytics = () => {
   // Get actual date range based on filter type
   const dateRange = useMemo(() => {
     const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000); // MTD -1 day
+    
     switch (dateFilterType) {
       case 'current_month':
-        return { from: startOfMonth(now), to: endOfMonth(now) };
+        return { from: startOfMonth(now), to: yesterday }; // MTD -1 day
       case 'current_quarter':
-        return { from: startOfQuarter(now), to: endOfQuarter(now) };
+        return { from: startOfQuarter(now), to: yesterday };
       case 'current_year':
-        return { from: startOfYear(now), to: endOfYear(now) };
+        return { from: startOfYear(now), to: yesterday };
       case 'custom':
         return customDateRange;
       default:
-        return { from: startOfMonth(now), to: endOfMonth(now) };
+        return { from: startOfMonth(now), to: yesterday }; // MTD -1 day
     }
   }, [dateFilterType, customDateRange]);
 
@@ -325,7 +327,8 @@ export const ClientAnalytics = () => {
         <div>
           <h2 className="text-2xl font-bold">Análisis de Performance de Clientes</h2>
           <p className="text-muted-foreground">
-            Dashboard completo con métricas clave • {format(dateRange.from, 'dd/MM/yyyy')} - {format(dateRange.to, 'dd/MM/yyyy')}
+            Dashboard completo con métricas clave • MTD {format(dateRange.from, 'dd/MM')} - {format(dateRange.to, 'dd/MM/yyyy')} 
+            {dateFilterType === 'current_month' && <span className="text-orange-600 ml-2">(datos con 1 día de retraso)</span>}
           </p>
         </div>
         <Button 
@@ -353,9 +356,9 @@ export const ClientAnalytics = () => {
                 <SelectValue placeholder="Seleccionar período..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="current_month">Mes Actual</SelectItem>
-                <SelectItem value="current_quarter">Trimestre Actual</SelectItem>
-                <SelectItem value="current_year">Año Actual</SelectItem>
+                <SelectItem value="current_month">MTD - Mes en Curso</SelectItem>
+                <SelectItem value="current_quarter">QTD - Trimestre en Curso</SelectItem>
+                <SelectItem value="current_year">YTD - Año en Curso</SelectItem>
                 <SelectItem value="custom">Rango Personalizado</SelectItem>
               </SelectContent>
             </Select>
