@@ -263,58 +263,82 @@ export function RetentionDetailView() {
                         </span>
                       </td>
                       <td className="py-3 px-3 text-center">
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                          cohort.month1 >= 90 ? 'bg-green-100 text-green-800' :
-                          cohort.month1 >= 80 ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {cohort.month1}%
-                        </span>
+                        {cohort.month1 > 0 ? (
+                          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                            cohort.month1 >= 85 ? 'bg-green-100 text-green-800' :
+                            cohort.month1 >= 70 ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {cohort.month1}%
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
                       </td>
                       <td className="py-3 px-3 text-center">
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                          cohort.month2 >= 80 ? 'bg-green-100 text-green-800' :
-                          cohort.month2 >= 70 ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {cohort.month2}%
-                        </span>
+                        {cohort.month2 > 0 ? (
+                          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                            cohort.month2 >= 75 ? 'bg-green-100 text-green-800' :
+                            cohort.month2 >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {cohort.month2}%
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
                       </td>
                       <td className="py-3 px-3 text-center">
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                          cohort.month3 >= 70 ? 'bg-green-100 text-green-800' :
-                          cohort.month3 >= 60 ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {cohort.month3}%
-                        </span>
+                        {cohort.month3 > 0 ? (
+                          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                            cohort.month3 >= 70 ? 'bg-green-100 text-green-800' :
+                            cohort.month3 >= 55 ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {cohort.month3}%
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
                       </td>
                       <td className="py-3 px-3 text-center">
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                          cohort.month4 >= 65 ? 'bg-green-100 text-green-800' :
-                          cohort.month4 >= 55 ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {cohort.month4}%
-                        </span>
+                        {cohort.month4 > 0 ? (
+                          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                            cohort.month4 >= 65 ? 'bg-green-100 text-green-800' :
+                            cohort.month4 >= 50 ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {cohort.month4}%
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
                       </td>
                       <td className="py-3 px-3 text-center">
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                          cohort.month5 >= 60 ? 'bg-green-100 text-green-800' :
-                          cohort.month5 >= 50 ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {cohort.month5}%
-                        </span>
+                        {cohort.month5 > 0 ? (
+                          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                            cohort.month5 >= 60 ? 'bg-green-100 text-green-800' :
+                            cohort.month5 >= 45 ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {cohort.month5}%
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
                       </td>
                       <td className="py-3 px-3 text-center">
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                          cohort.month6 >= 55 ? 'bg-green-100 text-green-800' :
-                          cohort.month6 >= 45 ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {cohort.month6}%
-                        </span>
+                        {cohort.month6 > 0 ? (
+                          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                            cohort.month6 >= 55 ? 'bg-green-100 text-green-800' :
+                            cohort.month6 >= 40 ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {cohort.month6}%
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
                       </td>
                     </tr>
                   );
