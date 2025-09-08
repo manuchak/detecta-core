@@ -3,6 +3,8 @@ import { useProphetForecast } from './useProphetForecast';
 import { useHoltWintersForecast, ManualParameters } from './useHoltWintersForecast';
 import { calculateAdvancedMetrics, AdvancedMetrics } from '@/utils/advancedMetrics';
 import { validateForecastRealism, createValidationConfig } from '@/utils/forecastValidation';
+import { analyzeWeeklyPatterns, calculateIntraMonthProjection, calculateDynamicAOV } from '@/utils/weeklyPatternAnalysis';
+import { createEnhancedGMVForecast } from '@/utils/gmvForecastValidator';
 
 export interface EnsembleForecastData {
   // Final ensemble results - structured for ForecastCard compatibility
@@ -67,10 +69,11 @@ export function useEnsembleForecast(manualParams?: ManualParameters) {
   const prophetResult = useProphetForecast();
   const holtWintersResult = useHoltWintersForecast(manualParams);
 
-  // Calculate ensemble forecast with proper debugging
+  // Calculate ensemble forecast with enhanced GMV analysis
   const { data: ensembleData, isLoading, error } = useQuery({
     queryKey: ['ensemble-forecast', prophetResult.forecast, holtWintersResult, JSON.stringify(manualParams)],
-    queryFn: () => {
+    queryFn: async () => {
+      console.log('🚀 ENSEMBLE HÍBRIDO CON PATRONES SEMANALES - Iniciando cálculo avanzado...');
       console.log('🧮 ENSEMBLE CALCULATION:', { 
         prophetData: prophetResult.forecast,
         holtWintersData: holtWintersResult,
@@ -79,7 +82,21 @@ export function useEnsembleForecast(manualParams?: ManualParameters) {
         manualParams: manualParams,
         timestamp: new Date().toISOString()
       });
-      return calculateEnsembleForecast(prophetResult.forecast, holtWintersResult);
+      
+      // Fetch enhanced analytics for better forecasting
+      const [weeklyPatterns, intraMonthProjection, dynamicAOV] = await Promise.all([
+        analyzeWeeklyPatterns(),
+        calculateIntraMonthProjection(await analyzeWeeklyPatterns(), new Date()),
+        calculateDynamicAOV()
+      ]);
+      
+      return calculateEnsembleForecast(
+        prophetResult.forecast, 
+        holtWintersResult, 
+        weeklyPatterns,
+        intraMonthProjection,
+        dynamicAOV
+      );
     },
     enabled: !prophetResult.isLoading && !!holtWintersResult,
     staleTime: 0, // Force refresh when parameters change
@@ -100,7 +117,10 @@ export function useEnsembleForecast(manualParams?: ManualParameters) {
 
 function calculateEnsembleForecast(
   prophetData: any,
-  holtWintersData: any
+  holtWintersData: any,
+  weeklyPatterns?: any,
+  intraMonthProjection?: any,
+  dynamicAOV?: any
 ): EnsembleForecastData {
   if (!prophetData || !holtWintersData) {
     console.log('❌ ENSEMBLE: Missing data', { prophetData: !!prophetData, holtWintersData: !!holtWintersData });
@@ -218,10 +238,45 @@ function calculateEnsembleForecast(
     // Apply validation with potential adjustments
     const validation = validateForecastRealism(ensembleServicesRaw, ensembleGMVRaw, validationConfig);
     
-    const finalEnsembleServices = validation.adjustedServices || ensembleServicesRaw;
-    const finalEnsembleGMV = validation.adjustedGMV || ensembleGMVRaw;
+    let finalEnsembleServices = validation.adjustedServices || ensembleServicesRaw;
+    let finalEnsembleGMV = validation.adjustedGMV || ensembleGMVRaw;
 
-    // Ensemble calculation with enhanced weights using adjusted values
+    // ENHANCED: Apply weekly patterns and intra-month analysis if available
+    if (weeklyPatterns && intraMonthProjection && dynamicAOV) {
+      console.log('🔥 APLICANDO ANÁLISIS AVANZADO DE PATRONES SEMANALES Y AOV...');
+      
+      const enhancedForecast = createEnhancedGMVForecast(
+        finalEnsembleServices,
+        finalEnsembleGMV,
+        weeklyPatterns,
+        intraMonthProjection,
+        dynamicAOV
+      );
+      
+      // Use enhanced forecast results
+      finalEnsembleServices = enhancedForecast.monthlyServices;
+      finalEnsembleGMV = enhancedForecast.monthlyGMV;
+      
+      console.log('✨ FORECAST MEJORADO CON PATRONES SEMANALES:', {
+        originalGMV: `$${(ensembleGMVRaw/1000000).toFixed(1)}M`,
+        enhancedGMV: `$${(finalEnsembleGMV/1000000).toFixed(1)}M`,
+        improvement: `${(((finalEnsembleGMV - ensembleGMVRaw) / ensembleGMVRaw) * 100).toFixed(1)}%`,
+        methodology: enhancedForecast.methodology.slice(0, 2).join(', '),
+        confidence: `${(enhancedForecast.confidence * 100).toFixed(0)}%`,
+        validation: enhancedForecast.validation.isCoherent ? '✅ Coherente' : '⚠️ Ajustado'
+      });
+      
+      // Add validation alerts to console
+      if (enhancedForecast.validation.alerts.length > 0) {
+        console.log('🚨 ALERTAS DE VALIDACIÓN:', enhancedForecast.validation.alerts);
+      }
+      
+      if (enhancedForecast.validation.recommendations.length > 0) {
+        console.log('💡 RECOMENDACIONES:', enhancedForecast.validation.recommendations);
+      }
+    }
+
+    // Final ensemble results
     const ensembleServices = finalEnsembleServices;
     const ensembleGMV = finalEnsembleGMV;
     
