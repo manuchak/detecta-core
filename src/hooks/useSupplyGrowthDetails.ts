@@ -63,7 +63,8 @@ export function useSupplyGrowthDetails(): SupplyGrowthDetailsData {
         .not('nombre_custodio', 'is', null)
         .not('nombre_custodio', 'eq', '')
         .not('nombre_custodio', 'eq', '#N/A')
-        .gte('fecha_hora_cita', '2024-01-01')
+        .gte('fecha_hora_cita', '2023-01-01') // Ampliar rango para obtener más data
+        .lte('fecha_hora_cita', new Date().toISOString()) // Solo hasta hoy
         .order('fecha_hora_cita', { ascending: false });
 
       if (error) {
