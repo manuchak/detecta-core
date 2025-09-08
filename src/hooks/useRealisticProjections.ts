@@ -120,7 +120,8 @@ export const useRealisticProjections = () => {
       };
     },
     enabled: !!user,
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: true
+    staleTime: 15 * 60 * 1000, // 15 minutes for better performance
+    refetchOnWindowFocus: false,
+    refetchInterval: 30 * 60 * 1000 // Only refetch every 30 minutes
   });
 };

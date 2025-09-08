@@ -1,6 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRealisticProjections } from '@/hooks/useRealisticProjections';
 import { Loader2, TrendingUp, Target, DollarSign, AlertTriangle } from 'lucide-react';
+import { getPaceStatus, getStatusTextColor } from '@/utils/paceStatus';
+import { useMemo } from 'react';
 
 export const GMVProjectionCard = () => {
   const { data, isLoading } = useRealisticProjections();
@@ -17,10 +19,23 @@ export const GMVProjectionCard = () => {
 
   if (!data) return null;
 
-  const mostLikelyGMV = data.mostLikely.gmv;
-  const currentGMV = data.current.gmv;
-  const remainingGMV = mostLikelyGMV - currentGMV;
-  const dailyGMVNeeded = remainingGMV / data.daysRemaining;
+  const calculations = useMemo(() => {
+    const mostLikelyGMV = data.mostLikely.gmv;
+    const currentGMV = data.current.gmv;
+    const remainingGMV = mostLikelyGMV - currentGMV;
+    const dailyGMVNeeded = remainingGMV / data.daysRemaining;
+    
+    // Status for daily pace (current vs needed)
+    const paceStatus = getPaceStatus(data.current.dailyPace, data.insights.paceNeeded);
+    
+    return {
+      mostLikelyGMV,
+      currentGMV,
+      remainingGMV,
+      dailyGMVNeeded,
+      paceStatus
+    };
+  }, [data]);
 
   return (
     <Card className="col-span-2">
@@ -42,7 +57,7 @@ export const GMVProjectionCard = () => {
             RESPUESTA: ¿Cómo cerramos septiembre en GMV?
           </div>
           <div className="text-4xl font-bold text-warning mb-2">
-            ${mostLikelyGMV.toFixed(1)}M
+            ${calculations.mostLikelyGMV.toFixed(1)}M
           </div>
           <div className="text-lg text-muted-foreground flex items-center justify-center gap-2">
             Proyección más probable ({data.mostLikely.probability}%)
@@ -78,24 +93,26 @@ export const GMVProjectionCard = () => {
         {/* Progress Breakdown */}
         <div className="grid grid-cols-3 gap-4">
           <div className="text-center">
-            <div className="text-2xl font-bold text-success">${currentGMV.toFixed(1)}M</div>
+            <div className="text-2xl font-bold text-success">${calculations.currentGMV.toFixed(1)}M</div>
             <div className="text-sm text-muted-foreground">GMV actual</div>
             <div className="text-xs text-success">
-              {((currentGMV / mostLikelyGMV) * 100).toFixed(1)}% completado
+              {((calculations.currentGMV / calculations.mostLikelyGMV) * 100).toFixed(1)}% completado
             </div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-warning">${remainingGMV.toFixed(1)}M</div>
+            <div className="text-2xl font-bold text-warning">${calculations.remainingGMV.toFixed(1)}M</div>
             <div className="text-sm text-muted-foreground">GMV restante</div>
             <div className="text-xs text-warning">
-              {((remainingGMV / mostLikelyGMV) * 100).toFixed(1)}% por alcanzar
+              {((calculations.remainingGMV / calculations.mostLikelyGMV) * 100).toFixed(1)}% por alcanzar
             </div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-primary">{data.insights.paceNeeded}</div>
             <div className="text-sm text-muted-foreground">Servicios/día necesario</div>
-            <div className="text-xs text-primary">
+            <div className={`text-xs font-medium ${getStatusTextColor(calculations.paceStatus.status)}`}>
               vs {data.current.dailyPace.toFixed(1)} actual
+              {calculations.paceStatus.status === 'exceeding' ? ' ✓' : 
+               calculations.paceStatus.status === 'behind' ? ' ⚠️' : ''}
             </div>
           </div>
         </div>
@@ -110,13 +127,13 @@ export const GMVProjectionCard = () => {
               </div>
             </div>
             <div className="text-right">
-              <div className={`text-lg font-bold ${mostLikelyGMV > data.target.gmv ? 'text-success' : 'text-destructive'}`}>
-                {mostLikelyGMV > data.target.gmv ? '+' : ''}
-                ${(mostLikelyGMV - data.target.gmv).toFixed(1)}M
+            <div className={`text-lg font-bold ${calculations.mostLikelyGMV > data.target.gmv ? 'text-success' : 'text-destructive'}`}>
+                {calculations.mostLikelyGMV > data.target.gmv ? '+' : ''}
+                ${(calculations.mostLikelyGMV - data.target.gmv).toFixed(1)}M
               </div>
-              <div className={`text-sm ${mostLikelyGMV > data.target.gmv ? 'text-success' : 'text-destructive'}`}>
-                {mostLikelyGMV > data.target.gmv ? '+' : ''}
-                {(((mostLikelyGMV - data.target.gmv) / data.target.gmv) * 100).toFixed(1)}%
+              <div className={`text-sm ${calculations.mostLikelyGMV > data.target.gmv ? 'text-success' : 'text-destructive'}`}>
+                {calculations.mostLikelyGMV > data.target.gmv ? '+' : ''}
+                {(((calculations.mostLikelyGMV - data.target.gmv) / data.target.gmv) * 100).toFixed(1)}%
               </div>
             </div>
           </div>
@@ -127,9 +144,9 @@ export const GMVProjectionCard = () => {
           <div className="flex items-center gap-2 text-warning">
             <AlertTriangle className="h-4 w-4" />
             <span className="font-medium">
-              {mostLikelyGMV < data.target.gmv ? 
-                `Faltarían $${(data.target.gmv - mostLikelyGMV).toFixed(1)}M para igualar agosto. Necesitas ${data.insights.paceNeeded} servicios/día vs ${data.current.dailyPace.toFixed(1)} actual.` :
-                `En camino de superar agosto por $${(mostLikelyGMV - data.target.gmv).toFixed(1)}M`
+              {calculations.mostLikelyGMV < data.target.gmv ? 
+                `Faltarían $${(data.target.gmv - calculations.mostLikelyGMV).toFixed(1)}M para igualar agosto. Necesitas ${data.insights.paceNeeded} servicios/día vs ${data.current.dailyPace.toFixed(1)} actual.` :
+                `En camino de superar agosto por $${(calculations.mostLikelyGMV - data.target.gmv).toFixed(1)}M`
               }
             </span>
           </div>
