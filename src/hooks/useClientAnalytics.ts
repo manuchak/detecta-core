@@ -105,13 +105,19 @@ export interface ClientMetrics {
   }>;
 }
 
-export const useClientsData = () => {
+export const useClientsData = (dateRange?: { from: Date; to: Date }) => {
   return useQuery({
-    queryKey: ['clients-data'],
+    queryKey: ['clients-data', dateRange],
     queryFn: async (): Promise<ClientSummary[]> => {
-      const { data: services, error } = await supabase
-        .from('servicios_custodia')
-        .select('*');
+      let query = supabase.from('servicios_custodia').select('*');
+      
+      if (dateRange) {
+        query = query
+          .gte('fecha_hora_cita', dateRange.from.toISOString())
+          .lte('fecha_hora_cita', dateRange.to.toISOString());
+      }
+
+      const { data: services, error } = await query;
 
       if (error) throw error;
 
@@ -169,16 +175,24 @@ export const useClientsData = () => {
   });
 };
 
-export const useClientAnalytics = (clientName: string) => {
+export const useClientAnalytics = (clientName: string, dateRange?: { from: Date; to: Date }) => {
   return useQuery({
-    queryKey: ['client-analytics', clientName],
+    queryKey: ['client-analytics', clientName, dateRange],
     queryFn: async (): Promise<ClientMetrics | null> => {
       if (!clientName) return null;
 
-      const { data: services, error } = await supabase
+      let query = supabase
         .from('servicios_custodia')
         .select('*')
         .eq('nombre_cliente', clientName);
+      
+      if (dateRange) {
+        query = query
+          .gte('fecha_hora_cita', dateRange.from.toISOString())
+          .lte('fecha_hora_cita', dateRange.to.toISOString());
+      }
+
+      const { data: services, error } = await query;
 
       if (error) throw error;
       if (!services || services.length === 0) return null;
@@ -306,13 +320,19 @@ export const useClientAnalytics = (clientName: string) => {
   });
 };
 
-export const useClientMetrics = () => {
+export const useClientMetrics = (dateRange?: { from: Date; to: Date }) => {
   return useQuery({
-    queryKey: ['client-metrics'],
+    queryKey: ['client-metrics', dateRange],
     queryFn: async (): Promise<ClientDashboardMetrics> => {
-      const { data: services, error } = await supabase
-        .from('servicios_custodia')
-        .select('*');
+      let query = supabase.from('servicios_custodia').select('*');
+      
+      if (dateRange) {
+        query = query
+          .gte('fecha_hora_cita', dateRange.from.toISOString())
+          .lte('fecha_hora_cita', dateRange.to.toISOString());
+      }
+
+      const { data: services, error } = await query;
 
       if (error) throw error;
 

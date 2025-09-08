@@ -4,6 +4,10 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { 
   Search, 
   Building2, 
@@ -21,19 +25,51 @@ import {
   MapPin,
   Filter,
   Star,
-  Percent
+  Percent,
+  CalendarIcon
 } from 'lucide-react';
 import { useClientsData, useClientAnalytics, ClientSummary, useClientMetrics } from '@/hooks/useClientAnalytics';
 import { Button } from '@/components/ui/button';
 
+type DateFilterType = 'current_month' | 'current_quarter' | 'current_year' | 'custom';
+
+interface DateRange {
+  from: Date;
+  to: Date;
+}
+
 export const ClientAnalytics = () => {
-  const { data: clients, isLoading } = useClientsData();
-  const { data: clientMetrics, isLoading: metricsLoading } = useClientMetrics();
+  // Date filtering state
+  const [dateFilterType, setDateFilterType] = useState<DateFilterType>('current_month');
+  const [customDateRange, setCustomDateRange] = useState<DateRange>({
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date())
+  });
+
+  // Get actual date range based on filter type
+  const dateRange = useMemo(() => {
+    const now = new Date();
+    switch (dateFilterType) {
+      case 'current_month':
+        return { from: startOfMonth(now), to: endOfMonth(now) };
+      case 'current_quarter':
+        return { from: startOfQuarter(now), to: endOfQuarter(now) };
+      case 'current_year':
+        return { from: startOfYear(now), to: endOfYear(now) };
+      case 'custom':
+        return customDateRange;
+      default:
+        return { from: startOfMonth(now), to: endOfMonth(now) };
+    }
+  }, [dateFilterType, customDateRange]);
+
+  const { data: clients, isLoading } = useClientsData(dateRange);
+  const { data: clientMetrics, isLoading: metricsLoading } = useClientMetrics(dateRange);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<string>('gmv');
   const [filterByType, setFilterByType] = useState<string>('all');
-  const { data: clientAnalytics, isLoading: analyticsLoading } = useClientAnalytics(selectedClient || '');
+  const { data: clientAnalytics, isLoading: analyticsLoading } = useClientAnalytics(selectedClient || '', dateRange);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-MX', {
@@ -286,7 +322,9 @@ export const ClientAnalytics = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Análisis de Performance de Clientes</h2>
-          <p className="text-muted-foreground">Dashboard completo con métricas clave y análisis profundo</p>
+          <p className="text-muted-foreground">
+            Dashboard completo con métricas clave • {format(dateRange.from, 'dd/MM/yyyy')} - {format(dateRange.to, 'dd/MM/yyyy')}
+          </p>
         </div>
         <Button 
           onClick={() => window.location.reload()} 
@@ -297,6 +335,85 @@ export const ClientAnalytics = () => {
           Actualizar
         </Button>
       </div>
+
+      {/* Date Filter Controls */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Período de Análisis
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Select value={dateFilterType} onValueChange={(value: DateFilterType) => setDateFilterType(value)}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Seleccionar período..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="current_month">Mes Actual</SelectItem>
+                <SelectItem value="current_quarter">Trimestre Actual</SelectItem>
+                <SelectItem value="current_year">Año Actual</SelectItem>
+                <SelectItem value="custom">Rango Personalizado</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {dateFilterType === 'custom' && (
+              <div className="flex gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[140px] justify-start text-left font-normal",
+                        !customDateRange.from && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customDateRange.from ? format(customDateRange.from, "dd/MM/yyyy") : "Desde"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={customDateRange.from}
+                      onSelect={(date) => date && setCustomDateRange(prev => ({ ...prev, from: date }))}
+                      disabled={(date) => date > new Date()}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+                
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[140px] justify-start text-left font-normal",
+                        !customDateRange.to && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customDateRange.to ? format(customDateRange.to, "dd/MM/yyyy") : "Hasta"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={customDateRange.to}
+                      onSelect={(date) => date && setCustomDateRange(prev => ({ ...prev, to: date }))}
+                      disabled={(date) => date > new Date() || date < customDateRange.from}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Key Metrics Cards */}
       {!metricsLoading && clientMetrics && (
