@@ -1,11 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useMonthClosureAnalysis } from '@/hooks/useMonthClosureAnalysis';
-import { Loader2, TrendingUp, TrendingDown, Target } from 'lucide-react';
+import { useRealisticProjections } from '@/hooks/useRealisticProjections';
+import { Loader2, TrendingUp, TrendingDown, Target, CheckCircle, XCircle } from 'lucide-react';
+import { getStatusTextColor } from '@/utils/paceStatus';
 
 export const MonthClosureCard = () => {
   const { data, isLoading } = useMonthClosureAnalysis();
+  const { data: projectionData, isLoading: projectionLoading } = useRealisticProjections();
 
-  if (isLoading) {
+  if (isLoading || projectionLoading) {
     return (
       <Card className="h-full">
         <CardContent className="flex items-center justify-center h-full">
@@ -15,11 +18,11 @@ export const MonthClosureCard = () => {
     );
   }
 
-  if (!data) return null;
+  if (!data || !projectionData) return null;
 
   const statusColor = {
     'En riesgo': 'text-destructive',
-    'En meta': 'text-warning',
+    'En meta': 'text-warning', 
     'Superando': 'text-success'
   };
 
@@ -37,7 +40,7 @@ export const MonthClosureCard = () => {
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-medium flex items-center gap-2">
             <Target className="h-5 w-5 text-primary" />
-            Cierre Septiembre 2025
+            Estado Actual - Septiembre
           </CardTitle>
           <div className={`flex items-center gap-1 ${statusColor[data.status]}`}>
             <StatusIcon className="h-4 w-4" />
@@ -69,42 +72,51 @@ export const MonthClosureCard = () => {
           </div>
         </div>
 
-        {/* Separator */}
+        {/* Pace Analysis */}
         <div className="border-t pt-4">
-          <div className="text-sm font-medium mb-2">META: Superar agosto ({data.target.services} servicios)</div>
+          <div className="text-sm font-medium mb-3">ANÁLISIS DE RITMO</div>
           
-          {/* Pace Analysis */}
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Ritmo actual:</span>
-              <span>{data.currentPace}/día</span>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Ritmo actual:</span>
+              <span className="font-medium">{data.currentPace}/día</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Ritmo necesario:</span>
-              <span>{data.requiredPace}/día</span>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Meta agosto ({data.target.services} servicios):</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{data.requiredPace}/día</span>
+                {data.paceStatus.status === 'exceeding' || data.paceStatus.status === 'on_track' ? (
+                  <CheckCircle className={`h-4 w-4 ${getStatusTextColor(data.paceStatus.status)}`} />
+                ) : (
+                  <XCircle className="h-4 w-4 text-destructive" />
+                )}
+              </div>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Meta crecimiento:</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{data.insights.paceNeeded}/día</span>
+                {data.currentPace >= data.insights.paceNeeded ? (
+                  <CheckCircle className="h-4 w-4 text-success" />
+                ) : (
+                  <XCircle className="h-4 w-4 text-destructive" />
+                )}
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* Projection */}
-          <div className="mt-3 p-4 bg-primary/5 border border-primary/20 rounded-lg">
-            <div className="text-center mb-3">
-              <div className="text-sm font-medium text-muted-foreground mb-1">RESPUESTA: ¿Cómo cerramos septiembre?</div>
-              <div className="text-3xl font-bold text-primary">${data.projection.gmv.toFixed(1)}M GMV</div>
-              <div className="text-lg font-medium">{data.projection.services} servicios</div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="text-center">
-                <div className="font-medium">vs Agosto 2025</div>
-                <div className={`text-lg font-bold ${data.projection.services > data.target.services ? 'text-success' : 'text-destructive'}`}>
-                  {data.projection.services > data.target.services ? '+' : ''}
-                  {((data.projection.services - data.target.services) / data.target.services * 100).toFixed(1)}%
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="font-medium">Probabilidad</div>
-                <div className="text-lg font-bold text-primary">{data.projection.probability}%</div>
-              </div>
+        {/* Status Summary */}
+        <div className="p-3 bg-muted/50 rounded-lg">
+          <div className="text-sm">
+            <div className="font-medium mb-1">Resumen del mes:</div>
+            <div className="text-muted-foreground">
+              {data.status === 'Superando' ? 
+                `Vas por buen camino para superar agosto. Mantén el ritmo de ${data.currentPace} servicios/día.` :
+                data.status === 'En meta' ?
+                `Estás en meta para igualar agosto. Necesitas ${data.requiredPace}/día para el resto del mes.` :
+                `Necesitas acelerar a ${data.requiredPace}/día para alcanzar la meta de agosto.`
+              }
             </div>
           </div>
         </div>
