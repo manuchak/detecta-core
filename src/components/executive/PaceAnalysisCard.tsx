@@ -9,19 +9,9 @@ export const PaceAnalysisCard = () => {
   const { data: monthData, isLoading: monthLoading } = useMonthClosureAnalysis();
   const { data: yearData, isLoading: yearLoading } = useYearOverYearComparison();
 
-  if (monthLoading || yearLoading) {
-    return (
-      <Card className="h-full">
-        <CardContent className="flex items-center justify-center h-full">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!monthData || !yearData) return null;
-
   const calculations = useMemo(() => {
+    if (!monthData || !yearData) return null;
+    
     // Calculate annual pace requirements
     const currentDate = new Date();
     const daysInYear = 365;
@@ -47,6 +37,18 @@ export const PaceAnalysisCard = () => {
       annualPaceStatus
     };
   }, [monthData, yearData]);
+
+  if (monthLoading || yearLoading) {
+    return (
+      <Card className="h-full">
+        <CardContent className="flex items-center justify-center h-full">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!monthData || !yearData || !calculations) return null;
 
   return (
     <Card className="h-full">
