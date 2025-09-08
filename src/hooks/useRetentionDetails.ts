@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useAuthenticatedQuery } from './useAuthenticatedQuery';
 import { supabase } from '@/integrations/supabase/client';
+import { calculateDynamicRetention, DynamicRetentionMetrics } from '@/utils/dynamicRetentionCalculator';
 
 export interface RetentionBreakdown {
   month: string;
@@ -48,6 +49,7 @@ export interface RetentionDetailsData {
   currentMonthData: RetentionCurrentData;
   monthlyBreakdown: RetentionBreakdown[];
   cohortAnalysis: CohortAnalysis[];
+  dynamicMetrics: DynamicRetentionMetrics | null;
   loading: boolean;
 }
 
@@ -98,8 +100,21 @@ export function useRetentionDetails(): RetentionDetailsData {
     }
   );
 
+  // Datos dinámicos de permanencia
+  const { data: dynamicRetentionData, isLoading: dynamicLoading } = useAuthenticatedQuery(
+    ['dynamic-retention'],
+    async () => {
+      console.log('🔄 Calculando métricas dinámicas de retención...');
+      return await calculateDynamicRetention();
+    },
+    {
+      staleTime: 60 * 60 * 1000, // 1 hora
+      refetchOnWindowFocus: false,
+    }
+  );
+
   return useMemo(() => {
-    if (isLoading || cohortLoading || !retentionData) {
+    if (isLoading || cohortLoading || dynamicLoading || !retentionData) {
       return {
         yearlyData: {
           retentionPromedio: 0,
@@ -119,6 +134,7 @@ export function useRetentionDetails(): RetentionDetailsData {
         },
         monthlyBreakdown: [],
         cohortAnalysis: [],
+        dynamicMetrics: null,
         loading: true,
       };
     }
@@ -128,13 +144,12 @@ export function useRetentionDetails(): RetentionDetailsData {
       'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
     ];
 
-    // Calcular tiempo de permanencia dinámicamente
-    const calculateAverageLifetime = (retentionRate: number): number => {
-      // Fórmula: 1 / (1 - retention_rate)
-      // Pero ajustada para evitar división por cero y ser más realista
-      if (retentionRate >= 99) return 12; // Máximo 12 meses
-      if (retentionRate <= 10) return 1;  // Mínimo 1 mes
-      return Math.round((1 / (1 - retentionRate / 100)) * 100) / 100;
+    // Usar tiempo de permanencia dinámico basado en datos reales
+    const getAverageLifetime = (): number => {
+      if (dynamicRetentionData) {
+        return dynamicRetentionData.tiempoPromedioPermanencia;
+      }
+      return 5.4; // Fallback al valor empírico conocido
     };
 
     // Procesar datos mensuales con tiempo de permanencia
@@ -149,7 +164,7 @@ export function useRetentionDetails(): RetentionDetailsData {
         custodiosNuevos: item.custodios_nuevos,
         custodiosPerdidos: item.custodios_perdidos,
         tasaRetencion: retentionRate,
-        tiempoPromedioPermanencia: calculateAverageLifetime(retentionRate),
+        tiempoPromedioPermanencia: getAverageLifetime(),
       };
     });
 
@@ -160,9 +175,8 @@ export function useRetentionDetails(): RetentionDetailsData {
     const retentionPromedio = mesesConDatos > 0 ? 
       retentionData.reduce((sum, item) => sum + Number(item.tasa_retencion), 0) / mesesConDatos : 0;
     
-    // Calcular tiempo promedio de permanencia general
-    const tiempoPromedioPermanenciaGeneral = mesesConDatos > 0 ?
-      monthlyBreakdown.reduce((sum, item) => sum + item.tiempoPromedioPermanencia, 0) / mesesConDatos : 5.4;
+    // Usar tiempo promedio de permanencia dinámico
+    const tiempoPromedioPermanenciaGeneral = dynamicRetentionData?.tiempoPromedioPermanencia || 5.4;
 
     // Datos del mes actual (el más reciente)
     const currentMonth = retentionData[0];
@@ -174,7 +188,7 @@ export function useRetentionDetails(): RetentionDetailsData {
       custodiosNuevos: currentMonth?.custodios_nuevos || 0,
       custodiosPerdidos: currentMonth?.custodios_perdidos || 0,
       tasaRetencion: currentRetentionRate,
-      tiempoPromedioPermanencia: calculateAverageLifetime(currentRetentionRate),
+      tiempoPromedioPermanencia: getAverageLifetime(),
     };
 
     // Generar análisis de cohortes (simulado basado en patrones observados)
@@ -205,7 +219,8 @@ export function useRetentionDetails(): RetentionDetailsData {
       currentMonthData,
       monthlyBreakdown: monthlyBreakdown.reverse(), // Mostrar cronológicamente
       cohortAnalysis,
+      dynamicMetrics: dynamicRetentionData,
       loading: false,
     };
-  }, [retentionData, cohortData, isLoading, cohortLoading]);
+  }, [retentionData, cohortData, dynamicRetentionData, isLoading, cohortLoading, dynamicLoading]);
 }

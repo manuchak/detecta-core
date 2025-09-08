@@ -1,0 +1,140 @@
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info, TrendingUp, TrendingDown, Calendar, Users } from "lucide-react";
+import { DynamicRetentionMetrics as DynamicMetrics } from "@/utils/dynamicRetentionCalculator";
+
+interface DynamicRetentionMetricsProps {
+  metrics: DynamicMetrics;
+}
+
+export function DynamicRetentionMetrics({ metrics }: DynamicRetentionMetricsProps) {
+  const getConfidenceColor = (confidence: number) => {
+    if (confidence >= 0.8) return "bg-green-500";
+    if (confidence >= 0.6) return "bg-yellow-500";
+    return "bg-red-500";
+  };
+
+  const getConfidenceLabel = (confidence: number) => {
+    if (confidence >= 0.8) return "Alta";
+    if (confidence >= 0.6) return "Media";
+    return "Baja";
+  };
+
+  const getTrendIcon = (trend: number) => {
+    if (trend > 1.05) return <TrendingUp className="h-4 w-4 text-green-600" />;
+    if (trend < 0.95) return <TrendingDown className="h-4 w-4 text-red-600" />;
+    return <div className="h-4 w-4 rounded-full bg-gray-400" />;
+  };
+
+  const formatLastUpdate = (date: Date) => {
+    const now = new Date();
+    const diffHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffHours < 1) return "Hace menos de 1 hora";
+    if (diffHours === 1) return "Hace 1 hora";
+    if (diffHours < 24) return `Hace ${diffHours} horas`;
+    return `Hace ${Math.floor(diffHours / 24)} días`;
+  };
+
+  return (
+    <TooltipProvider>
+      <Card className="border-dashed border-primary/30">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" />
+                Permanencia Dinámica
+              </CardTitle>
+              <CardDescription>
+                Cálculo automático basado en datos históricos reales
+              </CardDescription>
+            </div>
+            <Tooltip>
+              <TooltipTrigger>
+                <Info className="h-4 w-4 text-muted-foreground" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>
+                  Este valor se actualiza automáticamente cada 24 horas considerando:
+                  tendencias recientes, factores estacionales y permanencia histórica real.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </CardHeader>
+        
+        <CardContent className="space-y-4">
+          {/* Métrica principal */}
+          <div className="text-center p-4 bg-secondary/30 rounded-lg">
+            <div className="text-3xl font-bold text-primary">
+              {metrics.tiempoPromedioPermanencia.toFixed(1)}
+              <span className="text-base font-normal text-muted-foreground ml-1">meses</span>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">
+              Tiempo promedio actual de permanencia
+            </p>
+          </div>
+
+          {/* Detalles de cálculo */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Mediana</span>
+                <span className="text-sm">{metrics.tiempoMedianoPermanencia.toFixed(1)}m</span>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium flex items-center gap-1">
+                  Tendencia
+                  {getTrendIcon(metrics.tendenciaMensual)}
+                </span>
+                <span className="text-sm">
+                  {((metrics.tendenciaMensual - 1) * 100).toFixed(1)}%
+                </span>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Factor estacional</span>
+                <span className="text-sm">
+                  {((metrics.factorEstacional - 1) * 100).toFixed(1)}%
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium flex items-center gap-1">
+                  <Users className="h-3 w-3" />
+                  Custodios
+                </span>
+                <span className="text-sm">{metrics.custodiosAnalizados}</span>
+              </div>
+              
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Confianza</span>
+                  <Badge variant="outline" className="text-xs">
+                    {getConfidenceLabel(metrics.confianza)}
+                  </Badge>
+                </div>
+                <Progress 
+                  value={metrics.confianza * 100} 
+                  className="h-2"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Información de actualización */}
+          <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
+            <span>Última actualización: {formatLastUpdate(metrics.lastCalculated)}</span>
+            <span className="font-mono">{metrics.metodologia}</span>
+          </div>
+        </CardContent>
+      </Card>
+    </TooltipProvider>
+  );
+}

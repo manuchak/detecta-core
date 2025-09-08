@@ -3,10 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { TrendingUp, Users, Clock, Target } from 'lucide-react';
 import { useRetentionDetails } from '@/hooks/useRetentionDetails';
+import { DynamicRetentionMetrics } from './DynamicRetentionMetrics';
 
 export function RetentionDetailView() {
   const retentionData = useRetentionDetails();
-  const loading = retentionData.loading;
+  const { dynamicMetrics, loading } = retentionData;
 
   if (loading) {
     return (
@@ -25,6 +26,13 @@ export function RetentionDetailView() {
 
   return (
     <div className="space-y-6">
+      {/* Dynamic Metrics */}
+      {dynamicMetrics && (
+        <div className="mb-6">
+          <DynamicRetentionMetrics metrics={dynamicMetrics} />
+        </div>
+      )}
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
