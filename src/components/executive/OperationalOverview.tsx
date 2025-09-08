@@ -151,8 +151,11 @@ export const OperationalOverview = () => {
                 </p>
                 <div className="flex items-center gap-1">
                   <Badge 
-                    variant={kpi.trendPositive ? "default" : "destructive"}
-                    className="text-xs px-2 py-0"
+                    className={`text-xs px-2 py-0 ${
+                      kpi.trendPositive 
+                        ? 'bg-green-100 text-green-800 hover:bg-green-200' 
+                        : 'bg-red-100 text-red-800 hover:bg-red-200'
+                    }`}
                   >
                     {kpi.trend}
                   </Badge>
