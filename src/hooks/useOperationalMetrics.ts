@@ -84,7 +84,7 @@ export const useOperationalMetrics = () => {
       const now = new Date();
       const currentMonth = now.getMonth() + 1;
       const currentYear = now.getFullYear();
-      const currentDay = now.getDate();
+      const currentDay = now.getDate() - 1; // Data con 1 día de retraso
 
       // Calculate basic metrics
       const totalServices = services?.length || 0;
