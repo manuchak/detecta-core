@@ -181,20 +181,22 @@ export function createEnhancedGMVForecast(
     (momentumGMV * weights.momentum)
   );
   
-  // ENHANCED REALISM VALIDATION with historical context
+  // ENHANCED REALISM VALIDATION with dynamic historical context
   const HISTORICAL_MAX_SERVICES = 1023; // October 2024
   const HISTORICAL_MAX_GMV = 7000000; // August 2025
-  const REALISTIC_MAX_GMV = 7500000; // 7% buffer above historical
-  const REALISTIC_MAX_SERVICES = 1100; // 7% buffer above historical
+  const DYNAMIC_MAX_GMV = Math.round(HISTORICAL_MAX_GMV * 1.20); // 20% above historical max
+  const DYNAMIC_MAX_SERVICES = Math.round(HISTORICAL_MAX_SERVICES * 1.15); // 15% above historical max
   
-  // Apply historical validation first
+  // Apply dynamic validation (warnings but allow reasonable growth)
   let cappedGMV = rawGMV;
-  if (cappedGMV > HISTORICAL_MAX_GMV * 1.5) {
-    console.warn(`🚨 HISTORICAL ALERT: Projected GMV $${(cappedGMV/1000000).toFixed(1)}M exceeds 150% of historical max ($${(HISTORICAL_MAX_GMV/1000000).toFixed(1)}M)`);
-    cappedGMV = REALISTIC_MAX_GMV;
+  if (cappedGMV > HISTORICAL_MAX_GMV * 2.0) {
+    console.warn(`🚨 EXTREME ALERT: Projected GMV $${(cappedGMV/1000000).toFixed(1)}M exceeds 200% of historical max ($${(HISTORICAL_MAX_GMV/1000000).toFixed(1)}M)`);
+    cappedGMV = DYNAMIC_MAX_GMV;
+  } else if (cappedGMV > HISTORICAL_MAX_GMV * 1.5) {
+    console.warn(`⚠️ HIGH ALERT: Projected GMV $${(cappedGMV/1000000).toFixed(1)}M exceeds 150% of historical max ($${(HISTORICAL_MAX_GMV/1000000).toFixed(1)}M)`);
   }
   
-  const finalGMV = Math.min(cappedGMV, REALISTIC_MAX_GMV); // Apply realistic ceiling
+  const finalGMV = cappedGMV; // No hard cap, let algorithm decide
   const finalGMV_floored = Math.max(finalGMV, 3500000); // Absolute floor $3.5M
   
   // Recalculate services with safe AOV and historical validation
@@ -204,13 +206,15 @@ export function createEnhancedGMVForecast(
   
   let calculatedServices = Math.round(finalGMV_floored / safeAOV);
   
-  // Apply historical service limits
-  if (calculatedServices > HISTORICAL_MAX_SERVICES * 1.5) {
-    console.warn(`🚨 HISTORICAL ALERT: Projected services ${calculatedServices} exceeds 150% of historical max (${HISTORICAL_MAX_SERVICES})`);
-    calculatedServices = REALISTIC_MAX_SERVICES;
+  // Apply dynamic historical service limits
+  if (calculatedServices > HISTORICAL_MAX_SERVICES * 2.0) {
+    console.warn(`🚨 EXTREME ALERT: Projected services ${calculatedServices} exceeds 200% of historical max (${HISTORICAL_MAX_SERVICES})`);
+    calculatedServices = DYNAMIC_MAX_SERVICES;
+  } else if (calculatedServices > HISTORICAL_MAX_SERVICES * 1.5) {
+    console.warn(`⚠️ HIGH ALERT: Projected services ${calculatedServices} exceeds 150% of historical max (${HISTORICAL_MAX_SERVICES})`);
   }
   
-  const finalServices = Math.min(calculatedServices, REALISTIC_MAX_SERVICES);
+  const finalServices = calculatedServices; // No hard cap, allow reasonable growth
   const finalAOV = finalGMV_floored / finalServices;
   
   console.log('🔍 VALIDACIÓN DE REALISMO:', {
@@ -258,8 +262,8 @@ export function createEnhancedGMVForecast(
   return {
     monthlyGMV: adjustedGMV,
     monthlyServices: adjustedServices,
-    annualGMV: adjustedGMV * 12, // Simplified annual projection
-    annualServices: adjustedServices * 12,
+    annualGMV: calculateIntelligentAnnualGMV(adjustedGMV),
+    annualServices: calculateIntelligentAnnualServices(adjustedServices),
     aov: finalAOV,
     confidence,
     methodology,
@@ -349,4 +353,34 @@ function calculateOverallConfidence(
   }
   
   return Math.max(0.3, Math.min(0.95, confidence));
+}
+
+/**
+ * Calculate intelligent annual GMV projection using YTD + forecast + Q4 projection
+ */
+function calculateIntelligentAnnualGMV(septemberForecast: number): number {
+  const ytdGmvReal = 39880000; // Jan-Aug 2025 real data ($39.88M)
+  const q4HistoricalAvgGMV = 5500000; // Oct-Dec historical average GMV per month
+  
+  const annualProjection = ytdGmvReal + septemberForecast + (q4HistoricalAvgGMV * 3);
+  
+  // Apply annual realism validation
+  const ANNUAL_MAX_GMV = 65000000; // $65M annual maximum based on historical trends
+  
+  return Math.min(annualProjection, ANNUAL_MAX_GMV);
+}
+
+/**
+ * Calculate intelligent annual services projection using YTD + forecast + Q4 projection
+ */
+function calculateIntelligentAnnualServices(septemberForecast: number): number {
+  const ytdServicesReal = 5041; // Jan-Aug 2025 real data
+  const q4HistoricalAvgServices = 800; // Oct-Dec historical average per month
+  
+  const annualProjection = ytdServicesReal + septemberForecast + (q4HistoricalAvgServices * 3);
+  
+  // Apply annual realism validation
+  const ANNUAL_MAX_SERVICES = 8500; // Realistic annual maximum
+  
+  return Math.min(annualProjection, ANNUAL_MAX_SERVICES);
 }
