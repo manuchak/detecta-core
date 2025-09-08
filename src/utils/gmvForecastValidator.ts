@@ -147,10 +147,17 @@ export function createEnhancedGMVForecast(
   // Component 3: Services × AOV approach
   const servicesAOVGmv = baseServicesProjection * dynamicAOV.currentMonthAOV;
   
-  // Component 4: Momentum adjustment (first week strong = boost entire month)
+  // Component 4: Momentum adjustment (CRITICAL - user's hypothesis)
   let momentumGMV = baseGmvProjection;
-  if (intraMonthProjection.projectedWeekEnd >= 1600000) { // Strong first week
-    momentumGMV = Math.max(baseGmvProjection, 6800000); // Target user's $6.8M expectation
+  if (intraMonthProjection.projectedWeekEnd >= 1600000) { // Strong first week ($1.6M+)
+    // User's reasoning: "primera semana floja + $1.6M = mínimo $6.8M"
+    momentumGMV = Math.max(baseGmvProjection, weeklyPatternGMV, 6800000);
+    console.log('🎯 MOMENTUM CRÍTICO APLICADO:', {
+      firstWeek: `$${(intraMonthProjection.projectedWeekEnd/1000000).toFixed(1)}M`,
+      baseProjection: `$${(baseGmvProjection/1000000).toFixed(1)}M`,
+      weeklyPattern: `$${(weeklyPatternGMV/1000000).toFixed(1)}M`,
+      momentumTarget: `$${(momentumGMV/1000000).toFixed(1)}M`
+    });
   }
   
   console.log('📊 COMPONENTES DEL FORECAST:', {

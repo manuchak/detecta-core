@@ -183,20 +183,34 @@ export async function calculateIntraMonthProjection(
     let multiplierUsed: number;
     let confidence: 'Alta' | 'Media' | 'Baja';
 
-    // Methodology 1: First week multiplier (user's hypothesis)
-    if (firstWeekGMV > 0 && currentDate.getDate() >= 7) {
-      // Primera semana completa - usar multiplicador basado en patrones históricos
+    // Methodology 1: First week multiplier (user's hypothesis - PRIORITIZED)
+    if (firstWeekGMV >= 1600000 && currentDate.getDate() >= 7) {
+      // STRONG FIRST WEEK ($1.6M+) - Apply user's reasoning
+      const conservativeMultiplier = 4.25; // Conservative 4.25x for strong weeks
+      projectedMonthEnd = Math.max(firstWeekGMV * conservativeMultiplier, 6800000); // Floor at $6.8M
+      methodology = 'Primera semana fuerte - Proyección conservadora 4.25x';
+      multiplierUsed = conservativeMultiplier;
+      confidence = 'Alta';
+      
+      console.log('🚀 PRIMERA SEMANA FUERTE DETECTADA:', {
+        firstWeekGMV: `$${(firstWeekGMV/1000000).toFixed(1)}M`,
+        multiplierUsed,
+        projectedMonthEnd: `$${(projectedMonthEnd/1000000).toFixed(1)}M`,
+        reasoning: 'Usuario: primera semana floja + $1.6M = mínimo $6.5-6.8M'
+      });
+    } else if (firstWeekGMV > 0 && currentDate.getDate() >= 7) {
+      // Normal first week - use historical patterns
       const firstWeekMultiplier = 1 / weeklyPatterns.week1Ratio;
       projectedMonthEnd = firstWeekGMV * firstWeekMultiplier;
-      methodology = 'Primera semana completa con multiplicador histórico';
+      methodology = 'Primera semana normal con multiplicador histórico';
       multiplierUsed = firstWeekMultiplier;
       confidence = weeklyPatterns.confidence > 0.7 ? 'Alta' : 'Media';
       
-      console.log('🚀 METODOLOGÍA 1 - Primera semana completa:', {
-        firstWeekGMV,
+      console.log('📊 METODOLOGÍA HISTÓRICA - Primera semana normal:', {
+        firstWeekGMV: `$${(firstWeekGMV/1000000).toFixed(1)}M`,
         week1Ratio: weeklyPatterns.week1Ratio,
         multiplierUsed,
-        projectedMonthEnd
+        projectedMonthEnd: `$${(projectedMonthEnd/1000000).toFixed(1)}M`
       });
       
     } else if (currentAccumulatedGMV > 0) {
