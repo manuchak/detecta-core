@@ -81,9 +81,10 @@ export const useOperationalMetrics = () => {
 
       if (servicesError) throw servicesError;
 
-      const currentDate = new Date();
-      const currentMonth = currentDate.getMonth() + 1;
-      const currentYear = currentDate.getFullYear();
+      const now = new Date();
+      const currentMonth = now.getMonth() + 1;
+      const currentYear = now.getFullYear();
+      const currentDay = now.getDate();
 
       // Calculate basic metrics
       const totalServices = services?.length || 0;
@@ -124,23 +125,27 @@ export const useOperationalMetrics = () => {
       const totalGMV = services?.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0) || 0;
       const averageAOV = totalServices > 0 ? totalGMV / totalServices : 0;
 
-      // Current month metrics
+      // Current month metrics (MTD)
       const currentMonthServices = services?.filter(s => {
         if (!s.fecha_hora_cita) return false;
         const serviceDate = new Date(s.fecha_hora_cita);
-        return serviceDate.getMonth() + 1 === currentMonth && serviceDate.getFullYear() === currentYear;
+        return serviceDate.getMonth() + 1 === currentMonth && 
+               serviceDate.getFullYear() === currentYear &&
+               serviceDate.getDate() <= currentDay;
       }) || [];
 
       const servicesThisMonth = currentMonthServices.length;
       const gmvThisMonth = currentMonthServices.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0);
 
-      // Previous month metrics
+      // Previous month MTD (same day range)
       const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
       const prevMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
-      const previousMonthServices = services?.filter(s => {
+      const previousMonthMTDServices = services?.filter(s => {
         if (!s.fecha_hora_cita) return false;
         const serviceDate = new Date(s.fecha_hora_cita);
-        return serviceDate.getMonth() + 1 === prevMonth && serviceDate.getFullYear() === prevMonthYear;
+        return serviceDate.getMonth() + 1 === prevMonth && 
+               serviceDate.getFullYear() === prevMonthYear &&
+               serviceDate.getDate() <= currentDay;
       }) || [];
 
       // YTD vs same period previous year
@@ -186,7 +191,7 @@ export const useOperationalMetrics = () => {
 
       // Calculate metrics for previous periods
       const prevMonthCustodians = new Set(
-        previousMonthServices.map(s => s.nombre_custodio).filter(Boolean)
+        previousMonthMTDServices.map(s => s.nombre_custodio).filter(Boolean)
       ).size;
 
       const prevQuarterCustodians = new Set(
@@ -202,18 +207,18 @@ export const useOperationalMetrics = () => {
       ).size;
 
       // Previous month completion rate
-      const prevMonthCompleted = previousMonthServices.filter(s => 
+      const prevMonthCompleted = previousMonthMTDServices.filter(s => 
         s.estado?.toLowerCase() === 'completado' || s.estado?.toLowerCase() === 'finalizado'
       ).length;
-      const prevMonthCompletionRate = previousMonthServices.length > 0 ? 
-        (prevMonthCompleted / previousMonthServices.length) * 100 : 0;
+      const prevMonthCompletionRate = previousMonthMTDServices.length > 0 ? 
+        (prevMonthCompleted / previousMonthMTDServices.length) * 100 : 0;
 
       // Previous month AOV
-      const prevMonthGMV = previousMonthServices.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0);
-      const prevMonthAOV = previousMonthServices.length > 0 ? prevMonthGMV / previousMonthServices.length : 0;
+      const prevMonthGMV = previousMonthMTDServices.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0);
+      const prevMonthAOV = previousMonthMTDServices.length > 0 ? prevMonthGMV / previousMonthMTDServices.length : 0;
 
       // Previous month Km average
-      const prevMonthCompletedWithKm = previousMonthServices.filter(s => 
+      const prevMonthCompletedWithKm = previousMonthMTDServices.filter(s => 
         (s.estado?.toLowerCase() === 'completado' || s.estado?.toLowerCase() === 'finalizado') &&
         s.km_recorridos > 0
       );
@@ -290,8 +295,8 @@ export const useOperationalMetrics = () => {
         comparatives: {
           servicesThisMonth: {
             current: servicesThisMonth,
-            previousMonth: previousMonthServices.length,
-            changePercent: Math.round(calculateChangePercent(servicesThisMonth, previousMonthServices.length) * 10) / 10
+            previousMonth: previousMonthMTDServices.length,
+            changePercent: Math.round(calculateChangePercent(servicesThisMonth, previousMonthMTDServices.length) * 10) / 10
           },
           servicesYTD: {
             current: ytdServices.length,
