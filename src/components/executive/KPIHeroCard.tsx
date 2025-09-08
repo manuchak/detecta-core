@@ -11,6 +11,7 @@ interface KPIHeroCardProps {
   className?: string;
   loading?: boolean;
   tooltip?: React.ReactNode;
+  onClick?: () => void;
 }
 
 export function KPIHeroCard({ 
@@ -21,7 +22,8 @@ export function KPIHeroCard({
   trendValue,
   className,
   loading = false,
-  tooltip
+  tooltip,
+  onClick
 }: KPIHeroCardProps) {
   if (loading) {
     return (
@@ -68,12 +70,15 @@ export function KPIHeroCard({
   };
 
   const cardContent = (
-    <div className={cn(
-      "bg-card border border-border/50 rounded-xl p-6 hover-lift",
-      "shadow-apple hover:shadow-apple-md transition-all duration-200",
-      "group cursor-pointer",
-      className
-    )}>
+    <div 
+      className={cn(
+        "bg-card border border-border/50 rounded-xl p-6 hover-lift",
+        "shadow-apple hover:shadow-apple-md transition-all duration-200",
+        "group cursor-pointer",
+        className
+      )}
+      onClick={onClick}
+    >
       <div className="space-y-3">
         {/* Title */}
         <p className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">

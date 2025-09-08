@@ -29,6 +29,7 @@ import { AcquisitionOverview } from '@/components/executive/AcquisitionOverview'
 import { ExecutiveMetricsGrid } from '@/components/executive/ExecutiveMetricsGrid';
 import { ClientAnalytics } from '@/components/executive/ClientAnalytics';
 import { DailyLeadsCallsChart } from '@/components/recruitment/DailyLeadsCallsChart';
+import { KPIDetailView } from '@/components/executive/KPIDetailView';
 
 const KPIDashboard = () => {
   const { kpis, loading: kpisLoading, refreshData } = useExecutiveDashboardKPIs();
@@ -38,6 +39,7 @@ const KPIDashboard = () => {
   const location = useLocation();
   
   const [activeTab, setActiveTab] = useState('operacional');
+  const [selectedKPI, setSelectedKPI] = useState<string | null>(null);
   const currentTab = location.pathname === '/dashboard/kpis' ? 'kpis' : 'executive';
 
   const handleTabChange = (value: string) => {
@@ -306,7 +308,7 @@ const KPIDashboard = () => {
 
           {/* Advanced KPIs Tab */}
           <TabsContent value="kpis" className="space-y-6">
-            <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} />
+            <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} onKPIClick={setSelectedKPI} />
           </TabsContent>
 
           {/* Executive Summary Tab */}
@@ -434,6 +436,14 @@ const KPIDashboard = () => {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* KPI Detail View Modal */}
+        {selectedKPI && (
+          <KPIDetailView 
+            selectedKPI={selectedKPI as any}
+            onClose={() => setSelectedKPI(null)}
+          />
+        )}
       </div>
     </div>
   );

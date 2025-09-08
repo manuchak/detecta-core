@@ -21,9 +21,10 @@ interface ExecutiveMetricsGridProps {
   kpis: ExecutiveKPIData;
   loading?: boolean;
   className?: string;
+  onKPIClick?: (kpiType: string) => void;
 }
 
-export function ExecutiveMetricsGrid({ kpis, loading = false, className }: ExecutiveMetricsGridProps) {
+export function ExecutiveMetricsGrid({ kpis, loading = false, className, onKPIClick }: ExecutiveMetricsGridProps) {
   const { cpaDetails, loading: cpaLoading } = useCPADetails();
   const conversionRateDetails = useConversionRateDetails();
   const ltvDetails = useLTVDetails();
