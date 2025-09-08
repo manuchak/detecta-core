@@ -1,123 +1,110 @@
 
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { format, startOfDay, endOfDay, subDays, parseISO } from 'date-fns';
 
-interface DailyData {
-  date: string;
+export interface DailyLeadsCallsData {
+  fecha: string;
   leads: number;
   llamadas: number;
-  dayLabel: string;
 }
 
-export const useDailyLeadsCallsData = () => {
-  const [data, setData] = useState<DailyData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+export interface DailyLeadsCallsFilters {
+  dateRange: {
+    from: Date;
+    to: Date;
+  };
+  leadSource?: string;
+  callOutcome?: string;
+}
 
-  useEffect(() => {
-    fetchDailyData();
-  }, []);
+export const useDailyLeadsCallsData = (filters?: DailyLeadsCallsFilters) => {
+  // Default filters if none provided (backward compatibility)
+  const defaultFilters: DailyLeadsCallsFilters = {
+    dateRange: {
+      from: subDays(new Date(), 28),
+      to: new Date()
+    },
+    leadSource: undefined,
+    callOutcome: undefined
+  };
 
-  const fetchDailyData = async () => {
-    try {
-      setLoading(true);
+  const actualFilters = filters || defaultFilters;
 
-      // Obtener fecha de 28 días atrás
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 28);
+  return useQuery({
+    queryKey: ['daily-leads-calls', actualFilters],
+    queryFn: async (): Promise<DailyLeadsCallsData[]> => {
+      const { dateRange } = actualFilters;
+      const startDate = format(dateRange.from, 'yyyy-MM-dd');
+      const endDate = format(dateRange.to, 'yyyy-MM-dd');
 
-      console.log('Fetching data from', startDate.toISOString(), 'to', endDate.toISOString());
-
-      // Obtener leads por día de la tabla 'leads'
+      // Fetch leads data
       const { data: leadsData, error: leadsError } = await supabase
         .from('leads')
-        .select('created_at')
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString());
+        .select('fecha_creacion, fuente')
+        .gte('fecha_creacion', startDate)
+        .lte('fecha_creacion', endDate)
+        .order('fecha_creacion', { ascending: true });
 
-      if (leadsError) {
-        console.error('Error fetching leads:', leadsError);
-        throw leadsError;
-      }
+      if (leadsError) throw leadsError;
 
-      console.log('Leads data:', leadsData);
-
-      // Obtener llamadas por día del equipo de supply
-      // Asumiendo que las llamadas están en 'manual_call_logs' o una tabla similar
+      // Fetch calls data
       const { data: callsData, error: callsError } = await supabase
         .from('manual_call_logs')
-        .select('created_at')
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString());
+        .select('call_datetime, call_outcome')
+        .gte('call_datetime', startDate)
+        .lte('call_datetime', endDate)
+        .order('call_datetime', { ascending: true });
 
-      if (callsError) {
-        console.error('Error fetching calls:', callsError);
-        throw callsError;
+      if (callsError) throw callsError;
+
+      // Process data by day
+      const dataMap = new Map<string, { leads: number; llamadas: number }>();
+
+      // Initialize all days in range with zero values
+      const currentDate = new Date(dateRange.from);
+      while (currentDate <= dateRange.to) {
+        const dateKey = format(currentDate, 'yyyy-MM-dd');
+        dataMap.set(dateKey, { leads: 0, llamadas: 0 });
+        currentDate.setDate(currentDate.getDate() + 1);
       }
 
-      console.log('Calls data:', callsData);
-
-      // Procesar datos por día
-      const dailyStats: { [key: string]: DailyData } = {};
-
-      // Inicializar todos los días con 0
-      for (let i = 0; i < 28; i++) {
-        const currentDate = new Date(startDate);
-        currentDate.setDate(startDate.getDate() + i);
-        const dateKey = currentDate.toISOString().split('T')[0];
-        
-        dailyStats[dateKey] = {
-          date: dateKey,
-          leads: 0,
-          llamadas: 0,
-          dayLabel: currentDate.toLocaleDateString('es-ES', { 
-            month: 'short', 
-            day: 'numeric' 
-          })
-        };
-      }
-
-      // Contar leads por día
+      // Count leads per day
       leadsData?.forEach(lead => {
-        const dateKey = lead.created_at.split('T')[0];
-        if (dailyStats[dateKey]) {
-          dailyStats[dateKey].leads++;
+        if (lead.fecha_creacion) {
+          const dateKey = format(parseISO(lead.fecha_creacion), 'yyyy-MM-dd');
+          const existing = dataMap.get(dateKey);
+          if (existing) {
+            if (!actualFilters.leadSource || lead.fuente === actualFilters.leadSource) {
+              existing.leads += 1;
+            }
+          }
         }
       });
 
-      // Contar llamadas por día
+      // Count calls per day
       callsData?.forEach(call => {
-        const dateKey = call.created_at?.split('T')[0];
-        if (dateKey && dailyStats[dateKey]) {
-          dailyStats[dateKey].llamadas++;
+        if (call.call_datetime) {
+          const dateKey = format(parseISO(call.call_datetime), 'yyyy-MM-dd');
+          const existing = dataMap.get(dateKey);
+          if (existing) {
+            if (!actualFilters.callOutcome || call.call_outcome === actualFilters.callOutcome) {
+              existing.llamadas += 1;
+            }
+          }
         }
       });
 
-      // Convertir a array y ordenar por fecha
-      const sortedData = Object.values(dailyStats).sort((a, b) => 
-        new Date(a.date).getTime() - new Date(b.date).getTime()
-      );
-
-      console.log('Final processed data:', sortedData);
-
-      setData(sortedData);
-    } catch (error) {
-      console.error('Error fetching daily data:', error);
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los datos diarios",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return {
-    data,
-    loading,
-    refetch: fetchDailyData
-  };
+      // Convert to array and format
+      return Array.from(dataMap.entries())
+        .map(([fecha, data]) => ({
+          fecha: format(parseISO(fecha), 'dd/MM'),
+          leads: data.leads,
+          llamadas: data.llamadas
+        }))
+        .sort((a, b) => a.fecha.localeCompare(b.fecha));
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: 10 * 60 * 1000, // 10 minutes
+  });
 };

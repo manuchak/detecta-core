@@ -28,6 +28,7 @@ import { OperationalOverview } from '@/components/executive/OperationalOverview'
 import { AcquisitionOverview } from '@/components/executive/AcquisitionOverview';
 import { ExecutiveMetricsGrid } from '@/components/executive/ExecutiveMetricsGrid';
 import { ClientAnalytics } from '@/components/executive/ClientAnalytics';
+import { DailyLeadsCallsChart } from '@/components/recruitment/DailyLeadsCallsChart';
 
 const KPIDashboard = () => {
   const { kpis, loading: kpisLoading, refreshData } = useExecutiveDashboardKPIs();
@@ -301,6 +302,11 @@ const KPIDashboard = () => {
           {/* Advanced KPIs Tab */}
           <TabsContent value="kpis" className="space-y-6">
             <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} />
+            
+            {/* Daily Leads & Calls Chart Section */}
+            <div className="mt-8">
+              <DailyLeadsCallsChart />
+            </div>
           </TabsContent>
 
           {/* Executive Summary Tab */}
