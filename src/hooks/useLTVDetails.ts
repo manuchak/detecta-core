@@ -54,8 +54,8 @@ export const useLTVDetails = (): LTVDetails => {
           )
           .forEach(servicio => {
             const fecha = new Date(servicio.fecha_hora_cita);
-            // Usar el período real de datos (jun-jul 2025)
-            if (fecha >= new Date('2025-06-01') && fecha <= new Date('2025-07-31')) {
+            // Usar el período real de datos (jun-ago 2025)
+            if (fecha >= new Date('2025-06-01') && fecha <= new Date('2025-08-31')) {
               const yearMonth = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
               
               if (!serviciosPorMes[yearMonth]) {
@@ -108,8 +108,8 @@ export const useLTVDetails = (): LTVDetails => {
     }
 
     // Obtener todos los meses del período real de datos
-    const allMonths = ['2025-06', '2025-07'];
-    const monthNames = ['Junio', 'Julio'];
+    const allMonths = ['2025-06', '2025-07', '2025-08'];
+    const monthNames = ['Junio', 'Julio', 'Agosto'];
     
     let totalCustodiosUnicos = new Set<string>();
     let ingresosTotalesAcumulados = 0;
@@ -146,8 +146,8 @@ export const useLTVDetails = (): LTVDetails => {
     // LTV general estimado usando tiempo de vida promedio
     const ltvGeneral = Math.round(ingresoPromedioPorCustodioGeneral * TIEMPO_VIDA_PROMEDIO);
 
-    // Datos del mes actual (Julio 2025)
-    const currentMonth = '2025-07';
+    // Datos del mes actual (Agosto 2025)
+    const currentMonth = '2025-08';
     const currentMonthData = serviciosPorMes[currentMonth] || { custodiosActivos: 0, ingresos: 0 };
     const currentIngresoPromedio = currentMonthData.custodiosActivos > 0 ? 
       currentMonthData.ingresos / currentMonthData.custodiosActivos : 0;
@@ -162,7 +162,7 @@ export const useLTVDetails = (): LTVDetails => {
         monthlyBreakdown,
       },
       currentMonthData: {
-        month: 'Julio 2025',
+        month: 'Agosto 2025',
         custodiosActivos: currentMonthData.custodiosActivos,
         ingresosTotales: Math.round(currentMonthData.ingresos),
         ingresoPromedioPorCustodio: Math.round(currentIngresoPromedio),
