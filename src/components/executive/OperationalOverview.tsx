@@ -17,7 +17,7 @@ import { useOperationalMetrics } from '@/hooks/useOperationalMetrics';
 export const OperationalOverview = () => {
   const { data: metrics, isLoading } = useOperationalMetrics();
 
-  if (isLoading || !metrics) {
+  if (isLoading || !metrics || !metrics.comparatives) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[...Array(8)].map((_, i) => (
