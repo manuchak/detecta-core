@@ -40,6 +40,71 @@ export interface ClientSummary {
   lastService: string;
 }
 
+export interface ClientDashboardMetrics {
+  topAOV: {
+    clientName: string;
+    aov: number;
+    services: number;
+  };
+  mostServices: {
+    clientName: string;
+    services: number;
+    gmv: number;
+  };
+  highestGMV: {
+    clientName: string;
+    gmv: number;
+    services: number;
+  };
+  bestCompletion: {
+    clientName: string;
+    completionRate: number;
+    services: number;
+  };
+  serviceTypeAnalysis: {
+    foraneo: { count: number; avgValue: number };
+    local: { count: number; avgValue: number };
+    foraneoPercentage: number;
+  };
+  avgKmPerClient: number;
+  topKmClients: Array<{
+    clientName: string;
+    avgKm: number;
+    totalKm: number;
+  }>;
+}
+
+export interface ClientMetrics {
+  clientName: string;
+  totalServices: number;
+  completedServices: number;
+  cancelledServices: number;
+  totalGMV: number;
+  averageAOV: number;
+  completionRate: number;
+  firstService: string;
+  lastService: string;
+  totalKm: number;
+  averageKm: number;
+  servicesPerMonth: number;
+  monthlyTrend: Array<{
+    month: string;
+    services: number;
+    gmv: number;
+  }>;
+  serviceTypes: Array<{
+    type: string;
+    count: number;
+    percentage: number;
+  }>;
+  custodianPerformance: Array<{
+    custodian: string;
+    services: number;
+    completionRate: number;
+    averageKm: number;
+  }>;
+}
+
 export const useClientsData = () => {
   return useQuery({
     queryKey: ['clients-data'],
@@ -237,6 +302,158 @@ export const useClientAnalytics = (clientName: string) => {
       };
     },
     enabled: !!clientName,
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+export const useClientMetrics = () => {
+  return useQuery({
+    queryKey: ['client-metrics'],
+    queryFn: async (): Promise<ClientDashboardMetrics> => {
+      const { data: services, error } = await supabase
+        .from('servicios_custodia')
+        .select('*');
+
+      if (error) throw error;
+
+      // Group by client and calculate comprehensive metrics
+      const clientStats = {};
+      
+      services?.forEach(service => {
+        const clientName = service.nombre_cliente;
+        if (!clientName || clientName === '#N/A') return;
+
+        if (!clientStats[clientName]) {
+          clientStats[clientName] = {
+            nombre_cliente: clientName,
+            services: [],
+            totalGMV: 0,
+            completedServices: 0,
+            totalServices: 0,
+            totalKm: 0,
+            foraneoServices: 0,
+            localServices: 0,
+            foraneoGMV: 0,
+            localGMV: 0
+          };
+        }
+
+        clientStats[clientName].services.push(service);
+        clientStats[clientName].totalServices++;
+        clientStats[clientName].totalGMV += service.cobro_cliente || 0;
+        
+        if (service.estado?.toLowerCase() === 'completado' || 
+            service.estado?.toLowerCase() === 'finalizado') {
+          clientStats[clientName].completedServices++;
+        }
+
+        if (service.km_recorridos && service.km_recorridos > 0) {
+          clientStats[clientName].totalKm += service.km_recorridos;
+          
+          // Classify as foraneo if > 100km, otherwise local
+          if (service.km_recorridos > 100) {
+            clientStats[clientName].foraneoServices++;
+            clientStats[clientName].foraneoGMV += service.cobro_cliente || 0;
+          } else {
+            clientStats[clientName].localServices++;
+            clientStats[clientName].localGMV += service.cobro_cliente || 0;
+          }
+        }
+      });
+
+      // Convert to array and calculate metrics
+      const clientsArray = Object.values(clientStats).map((client: any) => {
+        const completionRate = client.totalServices > 0 
+          ? (client.completedServices / client.totalServices) * 100 
+          : 0;
+        
+        const aov = client.totalServices > 0 ? client.totalGMV / client.totalServices : 0;
+        const avgKm = client.totalServices > 0 ? client.totalKm / client.totalServices : 0;
+
+        return {
+          ...client,
+          completionRate: Math.round(completionRate * 10) / 10,
+          aov: Math.round(aov),
+          avgKm: Math.round(avgKm)
+        };
+      });
+
+      // Calculate top performers
+      const topAOV = clientsArray
+        .filter(c => c.totalServices >= 5)
+        .sort((a, b) => b.aov - a.aov)[0] || { nombre_cliente: 'N/A', aov: 0, totalServices: 0 };
+
+      const mostServices = clientsArray
+        .sort((a, b) => b.totalServices - a.totalServices)[0] || { nombre_cliente: 'N/A', totalServices: 0, totalGMV: 0 };
+
+      const highestGMV = clientsArray
+        .sort((a, b) => b.totalGMV - a.totalGMV)[0] || { nombre_cliente: 'N/A', totalGMV: 0, totalServices: 0 };
+
+      const bestCompletion = clientsArray
+        .filter(c => c.totalServices >= 5)
+        .sort((a, b) => b.completionRate - a.completionRate)[0] || { nombre_cliente: 'N/A', completionRate: 0, totalServices: 0 };
+
+      // Service type analysis
+      const totalForaneo = clientsArray.reduce((sum, c) => sum + c.foraneoServices, 0);
+      const totalLocal = clientsArray.reduce((sum, c) => sum + c.localServices, 0);
+      const totalForaneoGMV = clientsArray.reduce((sum, c) => sum + c.foraneoGMV, 0);
+      const totalLocalGMV = clientsArray.reduce((sum, c) => sum + c.localGMV, 0);
+
+      const foraneoPercentage = totalForaneo + totalLocal > 0 
+        ? Math.round((totalForaneo / (totalForaneo + totalLocal)) * 100)
+        : 0;
+
+      // Top KM clients
+      const topKmClients = clientsArray
+        .filter(c => c.totalKm > 0)
+        .sort((a, b) => b.avgKm - a.avgKm)
+        .slice(0, 5)
+        .map(c => ({
+          clientName: c.nombre_cliente,
+          avgKm: c.avgKm,
+          totalKm: c.totalKm
+        }));
+
+      const avgKmPerClient = clientsArray.length > 0 
+        ? clientsArray.reduce((sum, c) => sum + c.avgKm, 0) / clientsArray.length
+        : 0;
+
+      return {
+        topAOV: {
+          clientName: topAOV.nombre_cliente,
+          aov: topAOV.aov,
+          services: topAOV.totalServices
+        },
+        mostServices: {
+          clientName: mostServices.nombre_cliente,
+          services: mostServices.totalServices,
+          gmv: mostServices.totalGMV
+        },
+        highestGMV: {
+          clientName: highestGMV.nombre_cliente,
+          gmv: highestGMV.totalGMV,
+          services: highestGMV.totalServices
+        },
+        bestCompletion: {
+          clientName: bestCompletion.nombre_cliente,
+          completionRate: bestCompletion.completionRate,
+          services: bestCompletion.totalServices
+        },
+        serviceTypeAnalysis: {
+          foraneo: {
+            count: totalForaneo,
+            avgValue: totalForaneo > 0 ? totalForaneoGMV / totalForaneo : 0
+          },
+          local: {
+            count: totalLocal,
+            avgValue: totalLocal > 0 ? totalLocalGMV / totalLocal : 0
+          },
+          foraneoPercentage
+        },
+        avgKmPerClient,
+        topKmClients
+      };
+    },
     staleTime: 5 * 60 * 1000,
   });
 };

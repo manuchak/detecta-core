@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Search, 
   Building2, 
@@ -14,15 +15,24 @@ import {
   CheckCircle,
   BarChart3,
   FileText,
-  ArrowLeft
+  ArrowLeft,
+  Trophy,
+  Target,
+  MapPin,
+  Filter,
+  Star,
+  Percent
 } from 'lucide-react';
-import { useClientsData, useClientAnalytics, ClientSummary } from '@/hooks/useClientAnalytics';
+import { useClientsData, useClientAnalytics, ClientSummary, useClientMetrics } from '@/hooks/useClientAnalytics';
 import { Button } from '@/components/ui/button';
 
 export const ClientAnalytics = () => {
   const { data: clients, isLoading } = useClientsData();
+  const { data: clientMetrics, isLoading: metricsLoading } = useClientMetrics();
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<string>('gmv');
+  const [filterByType, setFilterByType] = useState<string>('all');
   const { data: clientAnalytics, isLoading: analyticsLoading } = useClientAnalytics(selectedClient || '');
 
   const formatCurrency = (value: number) => {
@@ -34,9 +44,39 @@ export const ClientAnalytics = () => {
     }).format(value);
   };
 
-  const filteredClients = clients?.filter(client => 
-    client.nombre_cliente.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  const filteredAndSortedClients = useMemo(() => {
+    if (!clients) return [];
+    
+    let filtered = clients.filter(client => 
+      client.nombre_cliente.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    // Apply service type filter
+    if (filterByType !== 'all') {
+      filtered = filtered.filter(client => {
+        // This would need additional data to filter by service type
+        return true; // For now, show all
+      });
+    }
+
+    // Sort clients
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'gmv':
+          return b.totalGMV - a.totalGMV;
+        case 'services':
+          return b.totalServices - a.totalServices;
+        case 'completion':
+          return b.completionRate - a.completionRate;
+        case 'aov':
+          return (b.totalGMV / b.totalServices) - (a.totalGMV / a.totalServices);
+        default:
+          return b.totalGMV - a.totalGMV;
+      }
+    });
+
+    return filtered;
+  }, [clients, searchTerm, filterByType, sortBy]);
 
   if (isLoading) {
     return (
@@ -245,73 +285,261 @@ export const ClientAnalytics = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Análisis de Clientes</h2>
-          <p className="text-muted-foreground">Selecciona un cliente para ver su análisis detallado</p>
+          <h2 className="text-2xl font-bold">Análisis de Performance de Clientes</h2>
+          <p className="text-muted-foreground">Dashboard completo con métricas clave y análisis profundo</p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Buscar cliente..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-64"
-            />
-          </div>
-        </div>
+        <Button 
+          onClick={() => window.location.reload()} 
+          variant="outline"
+          className="gap-2"
+        >
+          <TrendingUp className="h-4 w-4" />
+          Actualizar
+        </Button>
       </div>
 
-      {/* Clients Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredClients.map((client, index) => (
+      {/* Key Metrics Cards */}
+      {!metricsLoading && clientMetrics && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Top AOV Client */}
+          <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-green-800">Mejor AOV</CardTitle>
+              <Trophy className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-900">{formatCurrency(clientMetrics.topAOV.aov)}</div>
+              <p className="text-xs text-green-700 font-medium">{clientMetrics.topAOV.clientName}</p>
+              <Badge variant="secondary" className="mt-1 bg-green-100 text-green-800">
+                {clientMetrics.topAOV.services} servicios
+              </Badge>
+            </CardContent>
+          </Card>
+
+          {/* Most Services Client */}
+          <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-blue-800">Más Servicios</CardTitle>
+              <Target className="h-4 w-4 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-900">{clientMetrics.mostServices.services}</div>
+              <p className="text-xs text-blue-700 font-medium">{clientMetrics.mostServices.clientName}</p>
+              <Badge variant="secondary" className="mt-1 bg-blue-100 text-blue-800">
+                {formatCurrency(clientMetrics.mostServices.gmv)} GMV
+              </Badge>
+            </CardContent>
+          </Card>
+
+          {/* Highest GMV Client */}
+          <Card className="bg-gradient-to-br from-purple-50 to-violet-50 border-purple-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-purple-800">Mayor GMV</CardTitle>
+              <DollarSign className="h-4 w-4 text-purple-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-purple-900">{formatCurrency(clientMetrics.highestGMV.gmv)}</div>
+              <p className="text-xs text-purple-700 font-medium">{clientMetrics.highestGMV.clientName}</p>
+              <Badge variant="secondary" className="mt-1 bg-purple-100 text-purple-800">
+                {clientMetrics.highestGMV.services} servicios
+              </Badge>
+            </CardContent>
+          </Card>
+
+          {/* Best Completion Rate */}
+          <Card className="bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-200">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-amber-800">Mejor Cumplimiento</CardTitle>
+              <Star className="h-4 w-4 text-amber-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-amber-900">{clientMetrics.bestCompletion.completionRate}%</div>
+              <p className="text-xs text-amber-700 font-medium">{clientMetrics.bestCompletion.clientName}</p>
+              <Badge variant="secondary" className="mt-1 bg-amber-100 text-amber-800">
+                {clientMetrics.bestCompletion.services} servicios
+              </Badge>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Service Type Analysis */}
+      {!metricsLoading && clientMetrics && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Análisis de Rutas: Foráneos vs Locales
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <div className="text-2xl font-bold text-blue-900">{clientMetrics.serviceTypeAnalysis.foraneo.count}</div>
+                  <div className="text-sm text-blue-700">Servicios Foráneos</div>
+                  <div className="text-xs text-muted-foreground">{formatCurrency(clientMetrics.serviceTypeAnalysis.foraneo.avgValue)} prom.</div>
+                </div>
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <div className="text-2xl font-bold text-green-900">{clientMetrics.serviceTypeAnalysis.local.count}</div>
+                  <div className="text-sm text-green-700">Servicios Locales</div>
+                  <div className="text-xs text-muted-foreground">{formatCurrency(clientMetrics.serviceTypeAnalysis.local.avgValue)} prom.</div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>% Foráneos</span>
+                  <span>{clientMetrics.serviceTypeAnalysis.foraneoPercentage}%</span>
+                </div>
+                <Progress value={clientMetrics.serviceTypeAnalysis.foraneoPercentage} />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Route className="h-5 w-5" />
+                Promedio de KM por Cliente
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-center">
+                <div className="text-3xl font-bold">{clientMetrics.avgKmPerClient.toFixed(0)}</div>
+                <div className="text-sm text-muted-foreground">KM promedio por cliente</div>
+              </div>
+              <div className="space-y-3">
+                {clientMetrics.topKmClients.slice(0, 3).map((client, index) => (
+                  <div key={index} className="flex justify-between items-center">
+                    <span className="text-sm font-medium">{client.clientName}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">{client.avgKm} km</span>
+                      <Badge variant="outline" className={index === 0 ? "bg-gold-50 text-gold-700" : ""}>
+                        #{index + 1}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Filters and Search */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filtros y Búsqueda Avanzada
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Buscar cliente..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Ordenar por..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="gmv">Mayor GMV</SelectItem>
+                <SelectItem value="services">Más Servicios</SelectItem>
+                <SelectItem value="completion">Mejor Cumplimiento</SelectItem>
+                <SelectItem value="aov">Mejor AOV</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterByType} onValueChange={setFilterByType}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Tipo de servicio..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los tipos</SelectItem>
+                <SelectItem value="local">Solo Locales</SelectItem>
+                <SelectItem value="foraneo">Solo Foráneos</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Enhanced Clients Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredAndSortedClients.map((client, index) => (
           <Card 
             key={index} 
-            className="cursor-pointer hover:shadow-lg transition-shadow"
+            className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105"
             onClick={() => setSelectedClient(client.nombre_cliente)}
           >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
               <CardTitle className="text-sm font-medium line-clamp-2">
                 {client.nombre_cliente}
               </CardTitle>
-              <Building2 className="h-4 w-4 text-muted-foreground" />
+              <div className="flex items-center gap-1">
+                {index < 3 && (
+                  <Badge variant="secondary" className="bg-gold-50 text-gold-700 text-xs">
+                    TOP {index + 1}
+                  </Badge>
+                )}
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="bg-slate-50 p-2 rounded">
                   <div className="text-xs text-muted-foreground">Servicios</div>
                   <div className="font-bold">{client.totalServices}</div>
                 </div>
-                <div>
+                <div className="bg-slate-50 p-2 rounded">
                   <div className="text-xs text-muted-foreground">GMV</div>
-                  <div className="font-bold">{formatCurrency(client.totalGMV)}</div>
+                  <div className="font-bold text-green-700">{formatCurrency(client.totalGMV)}</div>
                 </div>
               </div>
               
+              <div className="bg-slate-50 p-2 rounded">
+                <div className="flex justify-between items-center text-sm mb-1">
+                  <span className="text-xs text-muted-foreground">AOV</span>
+                  <span className="font-medium text-purple-700">
+                    {formatCurrency(client.totalGMV / client.totalServices)}
+                  </span>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-sm">
                   <span>Cumplimiento</span>
                   <span className="font-medium">{client.completionRate}%</span>
                 </div>
-                <Progress value={client.completionRate} className="h-2" />
+                <Progress 
+                  value={client.completionRate} 
+                  className={`h-2 ${client.completionRate >= 95 ? 'bg-green-200' : client.completionRate >= 85 ? 'bg-yellow-200' : 'bg-red-200'}`}
+                />
               </div>
 
-              <div className="text-xs text-muted-foreground">
+              <div className="text-xs text-muted-foreground bg-slate-50 p-2 rounded">
                 Último servicio: {client.lastService}
               </div>
               
-              <Button variant="outline" size="sm" className="w-full mt-3">
-                Ver Análisis Detallado
+              <Button variant="outline" size="sm" className="w-full mt-3 hover:bg-primary hover:text-primary-foreground">
+                Ver Análisis Completo
               </Button>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {filteredClients.length === 0 && !isLoading && (
-        <div className="text-center py-8">
-          <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium">No se encontraron clientes</h3>
-          <p className="text-muted-foreground">Intenta con un término de búsqueda diferente</p>
+      {filteredAndSortedClients.length === 0 && !isLoading && (
+        <div className="text-center py-12">
+          <Building2 className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-xl font-semibold mb-2">No se encontraron clientes</h3>
+          <p className="text-muted-foreground">Intenta ajustar los filtros o el término de búsqueda</p>
         </div>
       )}
     </div>
