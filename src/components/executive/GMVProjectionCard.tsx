@@ -7,19 +7,9 @@ import { useMemo } from 'react';
 export const GMVProjectionCard = () => {
   const { data, isLoading } = useRealisticProjections();
 
-  if (isLoading) {
-    return (
-      <Card className="h-full">
-        <CardContent className="flex items-center justify-center h-full">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!data) return null;
-
   const calculations = useMemo(() => {
+    if (!data) return null;
+    
     const mostLikelyGMV = data.mostLikely.gmv;
     const currentGMV = data.current.gmv;
     const remainingGMV = mostLikelyGMV - currentGMV;
@@ -36,6 +26,18 @@ export const GMVProjectionCard = () => {
       paceStatus
     };
   }, [data]);
+
+  if (isLoading) {
+    return (
+      <Card className="h-full">
+        <CardContent className="flex items-center justify-center h-full">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data || !calculations) return null;
 
   return (
     <Card className="col-span-2">
