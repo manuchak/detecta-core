@@ -128,7 +128,7 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className, onKPICl
               'rrate': 'retention',
               'roiMkt': 'roi',
               'engagement': 'engagement',
-              'supplyGrowth': 'supply'
+              'supplyGrowth': 'supply_growth'
             };
             onKPIClick?.(kpiTypeMap[kpi.key] || kpi.key);
           }}

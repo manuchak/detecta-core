@@ -183,7 +183,8 @@ export function useSupplyGrowthDetails(): SupplyGrowthDetailsData {
 
       const crecimientoNeto = custodiosActivos - custodiosActivosAnterior;
       const crecimientoPorcentual = custodiosActivosAnterior > 0 ? 
-        (crecimientoNeto / custodiosActivosAnterior) * 100 : 0;
+        (crecimientoNeto / custodiosActivosAnterior) * 100 : 
+        (custodiosActivos > 0 ? 100 : 0); // Si no hay anterior pero sí actual, es 100% crecimiento
 
       const tasaRetencionMensual = custodiosActivosAnterior > 0 ? 
         ((custodiosActivosAnterior - custodiosPerdidos) / custodiosActivosAnterior) * 100 : 100;
