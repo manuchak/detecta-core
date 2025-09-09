@@ -246,10 +246,14 @@ export const ModernRecruitmentDashboard = () => {
     }
   );
 
-  // Get analyst performance data
-  const { data: analystPerformance } = useAuthenticatedQuery(
-    ['analyst-performance-modern', selectedAnalysts.join(','), selectedPeriod],
+  // Get analyst performance data - only when leads and analysts are available
+  const { data: analystPerformance, isLoading: analystPerformanceLoading } = useAuthenticatedQuery(
+    ['analyst-performance-modern', selectedAnalysts.join(','), selectedPeriod, filteredLeads.length.toString()],
     async () => {
+      // Early return if conditions aren't met
+      if (leadsLoading || activeAnalysts.length === 0) {
+        return [];
+      }
       console.log('🔍 ModernRecruitmentDashboard - analyst performance query');
       console.log('   - activeAnalysts:', activeAnalysts.length);
       console.log('   - filteredLeads:', filteredLeads.length);
@@ -296,10 +300,15 @@ export const ModernRecruitmentDashboard = () => {
       });
 
       return performanceData.sort((a, b) => b.approvalRate - a.approvalRate);
+    },
+    {
+      // Only run when leads are loaded and analysts are available
+      refetchOnWindowFocus: false,
+      staleTime: 30000, // Cache for 30 seconds
     }
   );
 
-  const loading = statsLoading || analystsLoading || leadsLoading || contactabilityLoading;
+  const loading = statsLoading || analystsLoading || leadsLoading || contactabilityLoading || analystPerformanceLoading;
 
   const getStatusColor = (status: string) => {
     switch (status) {
