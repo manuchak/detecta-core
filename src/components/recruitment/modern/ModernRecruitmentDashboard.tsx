@@ -403,7 +403,7 @@ export const ModernRecruitmentDashboard = () => {
                                   )}
                                   {callsData && (
                                     <div className="flex items-center gap-2">
-                                      <div className="w-2 h-2 rounded-full bg-chart-2"></div>
+                                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'hsl(220 70% 50%)' }}></div>
                                       <span className="text-sm">Llamadas: <span className="font-semibold">{callsValue}</span></span>
                                     </div>
                                   )}
@@ -442,13 +442,13 @@ export const ModernRecruitmentDashboard = () => {
                         yAxisId={chartType === 'separate' ? 'calls' : undefined}
                         type="monotone"
                         dataKey="calls"
-                        stroke="hsl(var(--chart-2))"
+                        stroke="hsl(220 70% 50%)"
                         strokeWidth={3}
                         name="Llamadas"
                         dot={false}
                         activeDot={{ 
                           r: 4, 
-                          stroke: 'hsl(var(--chart-2))', 
+                          stroke: 'hsl(220 70% 50%)', 
                           strokeWidth: 2, 
                           fill: 'hsl(var(--background))' 
                         }}
@@ -457,15 +457,17 @@ export const ModernRecruitmentDashboard = () => {
                       <Legend 
                         content={({ payload }) => (
                           <div className="flex items-center justify-center gap-6 mt-4 text-sm">
-                            {payload?.map((entry, index) => (
-                              <div key={index} className="flex items-center gap-2">
-                                <div 
-                                  className="w-3 h-3 rounded-full"
-                                  style={{ backgroundColor: entry.color }}
-                                ></div>
-                                <span className="text-muted-foreground">{entry.value}</span>
-                              </div>
-                            ))}
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full bg-primary"></div>
+                              <span className="text-muted-foreground">Leads</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-3 h-3 rounded-full"
+                                style={{ backgroundColor: 'hsl(220 70% 50%)' }}
+                              ></div>
+                              <span className="text-muted-foreground">Llamadas</span>
+                            </div>
                             <div className="text-xs text-muted-foreground ml-4">
                               {chartType === 'separate' ? 'Ejes independientes' : 'Eje compartido'}
                             </div>
