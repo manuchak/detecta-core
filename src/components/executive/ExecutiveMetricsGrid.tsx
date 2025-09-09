@@ -9,6 +9,7 @@ import { useROIMarketingDetails } from '@/hooks/useROIMarketingDetails';
 import { useROIMarketingMonthly } from '@/hooks/useROIMarketingMonthly';
 import { useEngagementDetails } from '@/hooks/useEngagementDetails';
 import { useSupplyGrowthDetails } from '@/hooks/useSupplyGrowthDetails';
+import { useServiceCapacity } from '@/hooks/useServiceCapacity';
 import { CPATooltip } from './CPATooltip';
 import { ConversionRateTooltip } from './ConversionRateTooltip';
 import { LTVTooltip } from './LTVTooltip';
@@ -16,6 +17,7 @@ import { RetentionTooltip } from './RetentionTooltip';
 import { ROIMarketingTooltip } from '../tooltips/ROIMarketingTooltip';
 import { EngagementTooltip } from './EngagementTooltip';
 import { SupplyGrowthTooltip } from './SupplyGrowthTooltip';
+import { ServiceCapacityTooltip } from './ServiceCapacityTooltip';
 
 interface ExecutiveMetricsGridProps {
   kpis: ExecutiveKPIData;
@@ -33,6 +35,7 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className, onKPICl
   const roiMarketingMonthly = useROIMarketingMonthly();
   const engagementDetails = useEngagementDetails();
   const supplyGrowthDetails = useSupplyGrowthDetails();
+  const { capacityData, loading: capacityLoading } = useServiceCapacity();
 
   const kpiConfig = [
     {
@@ -108,6 +111,44 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className, onKPICl
       trend: kpis.onboardingTime <= 5 ? 'up' as const : 'down' as const,
       key: 'onboardingTime'
     },
+    {
+      title: 'Capacidad Diaria',
+      value: capacityData.dailyCapacity.total,
+      unit: 'servicios',
+      trend: capacityData.utilizationMetrics.current <= 75 ? 'up' as const : 
+             capacityData.utilizationMetrics.current <= 85 ? 'neutral' as const : 'down' as const,
+      key: 'dailyCapacity'
+    },
+    {
+      title: 'Capacidad Mensual',
+      value: Math.round(capacityData.monthlyCapacity.total / 1000 * 10) / 10,
+      unit: 'K servicios',
+      trend: capacityData.alerts.type === 'healthy' ? 'up' as const : 
+             capacityData.alerts.type === 'warning' ? 'neutral' as const : 'down' as const,
+      key: 'monthlyCapacity'
+    },
+    {
+      title: 'Utilización Saludable',
+      value: capacityData.utilizationMetrics.current,
+      unit: '%',
+      trend: capacityData.utilizationMetrics.current <= 75 ? 'up' as const : 
+             capacityData.utilizationMetrics.current <= 85 ? 'neutral' as const : 'down' as const,
+      key: 'healthyUtilization'
+    },
+    {
+      title: 'Gap vs Forecast',
+      value: Math.abs(capacityData.monthlyCapacity.total - (capacityData.recentServices.total / 3)),
+      unit: 'servicios',
+      trend: capacityData.monthlyCapacity.total > (capacityData.recentServices.total / 3) ? 'up' as const : 'down' as const,
+      key: 'gapForecast'
+    },
+    {
+      title: 'Eficiencia de Flota',
+      value: Math.round((capacityData.recentServices.total / 3) / capacityData.monthlyCapacity.total * 100),
+      unit: '%',
+      trend: (capacityData.recentServices.total / 3) / capacityData.monthlyCapacity.total > 0.6 ? 'up' as const : 'down' as const,
+      key: 'fleetEfficiency'
+    },
   ];
 
   return (
@@ -119,7 +160,7 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className, onKPICl
           value={kpi.value}
           unit={kpi.unit}
           trend={kpi.trend}
-          loading={loading || (kpi.key === 'cpa' && cpaLoading) || (kpi.key === 'crate' && conversionRateDetails.loading) || (kpi.key === 'ltv' && ltvDetails.loading) || (kpi.key === 'rrate' && retentionDetails.loading) || (kpi.key === 'roiMkt' && roiMarketingMonthly.loading) || (kpi.key === 'engagement' && engagementDetails.loading) || (kpi.key === 'supplyGrowth' && supplyGrowthDetails.loading)}
+          loading={loading || (kpi.key === 'cpa' && cpaLoading) || (kpi.key === 'crate' && conversionRateDetails.loading) || (kpi.key === 'ltv' && ltvDetails.loading) || (kpi.key === 'rrate' && retentionDetails.loading) || (kpi.key === 'roiMkt' && roiMarketingMonthly.loading) || (kpi.key === 'engagement' && engagementDetails.loading) || (kpi.key === 'supplyGrowth' && supplyGrowthDetails.loading) || (['dailyCapacity', 'monthlyCapacity', 'healthyUtilization', 'gapForecast', 'fleetEfficiency'].includes(kpi.key) && capacityLoading)}
           onClick={() => {
             const kpiTypeMap: Record<string, string> = {
               'cpa': 'cpa',
@@ -128,7 +169,12 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className, onKPICl
               'rrate': 'retention',
               'roiMkt': 'roi',
               'engagement': 'engagement',
-              'supplyGrowth': 'supply_growth'
+              'supplyGrowth': 'supply_growth',
+              'dailyCapacity': 'daily_capacity',
+              'monthlyCapacity': 'monthly_capacity',
+              'healthyUtilization': 'healthy_utilization',
+              'gapForecast': 'gap_forecast',
+              'fleetEfficiency': 'fleet_efficiency'
             };
             onKPIClick?.(kpiTypeMap[kpi.key] || kpi.key);
           }}
@@ -140,6 +186,7 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className, onKPICl
             kpi.key === 'roiMkt' && !roiMarketingMonthly.loading ? <ROIMarketingTooltip data={roiMarketingDetails.metrics} /> :
             kpi.key === 'engagement' && !engagementDetails.loading ? <EngagementTooltip data={engagementDetails.engagementDetails} /> :
             kpi.key === 'supplyGrowth' && !supplyGrowthDetails.loading ? <SupplyGrowthTooltip data={supplyGrowthDetails} /> :
+            (['dailyCapacity', 'monthlyCapacity', 'healthyUtilization', 'gapForecast', 'fleetEfficiency'].includes(kpi.key) && !capacityLoading) ? <ServiceCapacityTooltip data={capacityData} kpiType={kpi.key} /> :
             undefined
           }
         />

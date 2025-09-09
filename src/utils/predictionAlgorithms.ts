@@ -28,6 +28,50 @@ export const DEFAULT_SERVICE_CONFIG: ServiceTypeConfig = {
   express: { duracion: 4, complejidad: 5, disponibilidad: 0.8 } // 4/5 días disponible
 };
 
+// Configuración mejorada basada en datos reales de últimos 3 meses
+// 83 custodios activos, 2,446 servicios completados (29 servicios/custodio promedio)
+export interface ImprovedServiceConfig {
+  local: { duracion: number; disponibilidad: number; recuperacion: number };
+  regional: { duracion: number; disponibilidad: number; recuperacion: number };
+  foraneo: { duracion: number; disponibilidad: number; recuperacion: number };
+}
+
+export const IMPROVED_SERVICE_CONFIG: ImprovedServiceConfig = {
+  local: { 
+    duracion: 3, // 2-4 horas promedio para servicios ≤50km
+    disponibilidad: 0.8, // Puede hacer varios al día
+    recuperacion: 2 // 2 horas de descanso entre servicios
+  },
+  regional: { 
+    duracion: 6, // 4-8 horas para servicios 51-200km  
+    disponibilidad: 0.5, // Uno por día típicamente
+    recuperacion: 8 // 8 horas de descanso recomendado
+  },
+  foraneo: { 
+    duracion: 10, // 6h servicio + 4h retorno promedio (>200km)
+    disponibilidad: 0.3, // Requiere día completo + descanso
+    recuperacion: 12 // 12 horas mínimo de descanso post-foráneo
+  }
+};
+
+export interface HealthyWorkConfig {
+  targetUtilization: number; // % ideal de utilización
+  maxSafeUtilization: number; // % máximo recomendado
+  minRestBetweenServices: number; // Horas mínimas entre servicios
+  maxServicesPerDay: number; // Servicios máximos por custodio/día
+  idealRestForaneo: number; // Descanso ideal post-foráneo
+  maxRestForaneo: number; // Descanso máximo post-foráneo
+}
+
+export const HEALTHY_WORK_CONFIG: HealthyWorkConfig = {
+  targetUtilization: 75, // 75% utilización óptima
+  maxSafeUtilization: 85, // 85% utilización máxima segura
+  minRestBetweenServices: 2, // 2 horas mínimo entre servicios
+  maxServicesPerDay: 3, // Máximo 3 servicios por día por custodio
+  idealRestForaneo: 8, // 8 horas ideal post-foráneo
+  maxRestForaneo: 12 // 12 horas máximo post-foráneo
+};
+
 /**
  * Calcula la capacidad efectiva considerando ratio de rechazo y eficiencia
  */
@@ -249,5 +293,82 @@ export const analizarDistribucionOptima = (
     foraneo: custodiosForaneo,
     express: custodiosExpress,
     cobertura_total: Math.min(coberturaTotal, 100)
+  };
+};
+
+/**
+ * Calcula capacidad realista considerando descanso y trabajo saludable
+ */
+export const calcularCapacidadRealistaConDescanso = (
+  custodiosNominales: number,
+  config: CapacityConfig = DEFAULT_CAPACITY_CONFIG
+): number => {
+  // Factor de disponibilidad real considerando descansos y rotación
+  const factorDisponibilidadReal = 0.75; // 75% disponibilidad real
+  return custodiosNominales * factorDisponibilidadReal * config.eficienciaOperacional;
+};
+
+/**
+ * Calcula servicios posibles por tipo con algoritmos mejorados
+ */
+export const calcularServiciosPosiblesPorTipoMejorado = (
+  capacidadEfectiva: number,
+  tipoServicio: keyof ImprovedServiceConfig,
+  config: HealthyWorkConfig = HEALTHY_WORK_CONFIG
+): number => {
+  const serviceConfig = IMPROVED_SERVICE_CONFIG[tipoServicio];
+  const horasDisponiblesPorDia = 16; // 16 horas máximo por día
+  
+  // Servicios posibles por custodio por día
+  const serviciosPorCustodioPorDia = Math.min(
+    Math.floor(horasDisponiblesPorDia / (serviceConfig.duracion + serviceConfig.recuperacion)),
+    config.maxServicesPerDay
+  );
+  
+  // Aplicar factor de disponibilidad y utilización saludable
+  const serviciosDiarios = capacidadEfectiva * serviciosPorCustodioPorDia * serviceConfig.disponibilidad * (config.targetUtilization / 100);
+  
+  return Math.max(0, serviciosDiarios);
+};
+
+/**
+ * Analiza la brecha entre capacidad y demanda proyectada
+ */
+export const analizarBrechaCapacidadVsForecast = (
+  capacidadMensual: number,
+  demandaProyectada: number,
+  tipoAnalisis: 'optimista' | 'realista' | 'pesimista' = 'realista'
+): {
+  brecha: number;
+  brechaPocentual: number;
+  estado: 'surplus' | 'equilibrio' | 'deficit';
+  recomendacion: string;
+} => {
+  const factorAjuste = tipoAnalisis === 'optimista' ? 0.9 : tipoAnalisis === 'pesimista' ? 1.1 : 1.0;
+  const demandaAjustada = demandaProyectada * factorAjuste;
+  
+  const brecha = capacidadMensual - demandaAjustada;
+  const brechaPocentual = demandaAjustada > 0 ? (brecha / demandaAjustada) * 100 : 0;
+  
+  let estado: 'surplus' | 'equilibrio' | 'deficit';
+  let recomendacion: string;
+  
+  if (brechaPocentual > 20) {
+    estado = 'surplus';
+    recomendacion = 'Capacidad excedente - evaluar expansión de mercado';
+  } else if (brechaPocentual < -10) {
+    estado = 'deficit';
+    const custodiosNecesarios = Math.ceil(Math.abs(brecha) / 29); // Promedio 29 servicios por custodio
+    recomendacion = `Déficit crítico - contratar ${custodiosNecesarios} custodios`;
+  } else {
+    estado = 'equilibrio';
+    recomendacion = 'Capacidad balanceada - monitorear tendencias';
+  }
+  
+  return {
+    brecha: Math.round(brecha),
+    brechaPocentual: Math.round(brechaPocentual * 10) / 10,
+    estado,
+    recomendacion
   };
 };
