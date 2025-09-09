@@ -43,6 +43,7 @@ import { useContactabilityMetrics } from '@/hooks/useContactabilityMetrics';
 import { ContactabilityAnalytics } from './ContactabilityAnalytics';
 import { RejectionAnalytics } from './RejectionAnalytics';
 import { supabase } from '@/integrations/supabase/client';
+import { MainNavigation } from '@/components/layout/MainNavigation';
 
 interface DashboardStats {
   totalLeads: number;
@@ -380,8 +381,11 @@ export const ModernRecruitmentDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
+      {/* Main Navigation */}
+      <MainNavigation />
+      
       {/* Header */}
-      <div className="border-b bg-background/50 backdrop-blur-sm sticky top-0 z-10">
+      <div className="border-b bg-background/50 backdrop-blur-sm sticky top-16 z-10">
         <div className="p-6">
           <div className="flex items-center justify-between">
             <div>
