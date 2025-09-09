@@ -13,6 +13,7 @@ import {
   BarChart3
 } from 'lucide-react';
 import { useAcquisitionMetrics } from '@/hooks/useAcquisitionMetrics';
+import { EnhancedConversionFunnel } from '@/components/recruitment/EnhancedConversionFunnel';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
@@ -199,46 +200,10 @@ export const AcquisitionOverview = () => {
         </Card>
       </div>
 
-      {/* Conversion Funnel and ROI by Channel */}
+      {/* Enhanced Conversion Funnel and ROI by Channel */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Conversion Funnel */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5" />
-              Embudo de Conversión
-            </CardTitle>
-            <CardDescription>
-              Proceso completo de adquisición
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {[
-              { label: 'Leads', value: metrics.conversionFunnel.leads, icon: Users, percentage: 100 },
-              { label: 'Contactados', value: metrics.conversionFunnel.contacted, icon: PhoneCall, percentage: (metrics.conversionFunnel.contacted / metrics.conversionFunnel.leads) * 100 },
-              { label: 'Entrevistas', value: metrics.conversionFunnel.interviews, icon: UserPlus, percentage: (metrics.conversionFunnel.interviews / metrics.conversionFunnel.leads) * 100 },
-              { label: 'Aprobados', value: metrics.conversionFunnel.approved, icon: UserCheck, percentage: (metrics.conversionFunnel.approved / metrics.conversionFunnel.leads) * 100 },
-              { label: 'Activos', value: metrics.conversionFunnel.active, icon: TrendingUp, percentage: (metrics.conversionFunnel.active / metrics.conversionFunnel.leads) * 100 }
-            ].map((stage, index) => {
-              const Icon = stage.icon;
-              
-              return (
-                <div key={index} className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
-                  <Icon className="h-5 w-5 text-muted-foreground" />
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium">{stage.label}</span>
-                      <span className="text-sm text-muted-foreground">
-                        {stage.value.toLocaleString()} ({stage.percentage.toFixed(1)}%)
-                      </span>
-                    </div>
-                    <Progress value={stage.percentage} className="h-2" />
-                  </div>
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
+        {/* Enhanced Conversion Funnel */}
+        <EnhancedConversionFunnel isLoading={isLoading} />
 
         {/* ROI by Channel */}
         <Card>

@@ -38,6 +38,7 @@ import { useLeadAssignment } from '@/hooks/useLeadAssignment';
 import { useCallCenterMetrics } from '@/hooks/useCallCenterMetrics';
 import { useLeadsStable } from '@/hooks/useLeadsStable';
 import { useAuthenticatedQuery } from '@/hooks/useAuthenticatedQuery';
+import { EnhancedConversionFunnel } from '@/components/recruitment/EnhancedConversionFunnel';
 import { useContactabilityMetrics } from '@/hooks/useContactabilityMetrics';
 import { ContactabilityAnalytics } from './ContactabilityAnalytics';
 import { RejectionAnalytics } from './RejectionAnalytics';
@@ -863,32 +864,8 @@ export const ModernRecruitmentDashboard = () => {
               </Card>
             </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Embudo de Conversión</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {[
-                    { stage: 'Leads Generados', count: dashboardStats?.totalLeads || 0, percentage: 100 },
-                    { stage: 'Contactados', count: Math.round((dashboardStats?.totalLeads || 0) * (dashboardStats?.contactRate || 0) / 100), percentage: dashboardStats?.contactRate || 0 },
-                    { stage: 'En Proceso', count: filteredLeads.filter(l => l.estado === 'en_revision').length || 0, percentage: Math.round(((filteredLeads.filter(l => l.estado === 'en_revision').length || 0) / (dashboardStats?.totalLeads || 1)) * 100) },
-                    { stage: 'Aprobados', count: Math.round((dashboardStats?.totalLeads || 0) * (dashboardStats?.conversionRate || 0) / 100), percentage: dashboardStats?.conversionRate || 0 }
-                  ].map((stage, index) => (
-                    <div key={index} className="flex items-center gap-4">
-                      <div className="w-24 text-sm font-medium">{stage.stage}</div>
-                      <div className="flex-1">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-sm text-muted-foreground">{stage.count} leads</span>
-                          <span className="text-sm font-medium">{stage.percentage}%</span>
-                        </div>
-                        <Progress value={stage.percentage} className="h-2" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            {/* Enhanced Conversion Funnel */}
+            <EnhancedConversionFunnel isLoading={loading} />
           </TabsContent>
         </Tabs>
       </div>
