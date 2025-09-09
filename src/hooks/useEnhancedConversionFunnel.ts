@@ -19,40 +19,50 @@ export const useEnhancedConversionFunnel = () => {
   return useQuery({
     queryKey: ['enhanced-conversion-funnel'],
     queryFn: async (): Promise<ConversionFunnelData> => {
-      // Fetch leads data
+      // Calculate date 30 days ago
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const dateFilter = thirtyDaysAgo.toISOString();
+
+      // Fetch leads data from last 30 days
       const { data: leads, error: leadsError } = await supabase
         .from('leads')
-        .select('id, estado, created_at, asignado_a');
+        .select('id, estado, created_at, asignado_a')
+        .gte('created_at', dateFilter);
 
       if (leadsError) throw leadsError;
 
-      // Fetch candidates data
+      // Fetch candidates data from last 30 days
       const { data: candidates, error: candidatesError } = await supabase
         .from('candidatos_custodios')
-        .select('id, estado_proceso, created_at, experiencia_seguridad');
+        .select('id, estado_proceso, created_at, experiencia_seguridad')
+        .gte('created_at', dateFilter);
 
       if (candidatesError) throw candidatesError;
 
-      // Fetch call logs data
+      // Fetch call logs data from last 30 days
       const { data: callLogs, error: callLogsError } = await supabase
         .from('manual_call_logs')
-        .select('id, lead_id, call_outcome, call_datetime');
+        .select('id, lead_id, call_outcome, call_datetime')
+        .gte('call_datetime', dateFilter);
 
       if (callLogsError) throw callLogsError;
 
-      // Fetch lead approval process data
+      // Fetch lead approval process data from last 30 days
       const { data: approvalProcess, error: approvalError } = await supabase
         .from('lead_approval_process')
-        .select('id, lead_id, final_decision, phone_interview_completed, second_interview_completed');
+        .select('id, lead_id, final_decision, phone_interview_completed, second_interview_completed, created_at')
+        .gte('created_at', dateFilter);
 
       if (approvalError) throw approvalError;
 
-      // Get active custodians (those with completed services)
+      // Get active custodians (those with completed services from last 30 days)
       const { data: activeCustodians, error: custodiansError } = await supabase
         .from('servicios_custodia')
-        .select('id_custodio')
+        .select('id_custodio, fecha_hora_cita')
         .in('estado', ['completado', 'Completado', 'finalizado', 'Finalizado'])
-        .not('id_custodio', 'is', null);
+        .not('id_custodio', 'is', null)
+        .gte('fecha_hora_cita', dateFilter);
 
       if (custodiansError) throw custodiansError;
 
