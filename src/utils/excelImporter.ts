@@ -343,8 +343,24 @@ export const getPriceMatrixDefaultMapping = (columns: ExcelColumn[]): MappingCon
     // Try to auto-match price matrix field names
     if (h === 'cliente' || h.includes('cliente')) {
       mapping[col.key] = 'cliente_nombre';
+    } else if (h === 'clave' || h.includes('clave')) {
+      mapping[col.key] = 'clave';
+    } else if (h === 'tipo' && !h.includes('viaje')) {
+      mapping[col.key] = 'tipo_servicio';
+    } else if (h === 'origen' || h.includes('origen')) {
+      mapping[col.key] = 'origen_texto';
     } else if (h === 'destino' || h.includes('destino')) {
       mapping[col.key] = 'destino_texto';
+    } else if (h === 'tipo de viaje' || h === 'tipo viaje' || (h.includes('tipo') && h.includes('viaje'))) {
+      mapping[col.key] = 'tipo_viaje';
+    } else if (h === 'precio a cliente' || (h.includes('precio') && h.includes('cliente'))) {
+      mapping[col.key] = 'valor_bruto';
+    } else if (h === 'costo custodio' || (h.includes('costo') && h.includes('custodio'))) {
+      mapping[col.key] = 'costo_custodio';
+    } else if (h === 'costo maximo en casetas' || h === 'costo máximo en casetas' || (h.includes('casetas') && h.includes('máximo'))) {
+      mapping[col.key] = 'costo_maximo_casetas';
+    } else if (h === 'pago custodio sin arma' || (h.includes('pago') && h.includes('sin') && h.includes('arma'))) {
+      mapping[col.key] = 'pago_custodio_sin_arma';
     } else if (h === 'dias operacion' || h === 'días operacion' || h.includes('dias') || h.includes('días')) {
       mapping[col.key] = 'dias_operacion';
     } else if (h === 'valor bruto' || h.includes('valor') && h.includes('bruto')) {
@@ -353,7 +369,7 @@ export const getPriceMatrixDefaultMapping = (columns: ExcelColumn[]): MappingCon
       mapping[col.key] = 'precio_custodio';
     } else if (h === 'costo operativo' || h.includes('costo') && h.includes('operativo')) {
       mapping[col.key] = 'costo_operativo';
-    } else if (h === 'no de kms' || h === 'kms' || h.includes('km') || h.includes('kilómetros')) {
+    } else if (h === 'no de kms' || h === 'kms' || h.includes('km') || h.includes('kilómetros') || (h.includes('distancia') && h.includes('km'))) {
       mapping[col.key] = 'distancia_km';
     } else if (h === 'precio desde casa' || h.includes('desde') && h.includes('casa')) {
       mapping[col.key] = 'precio_desde_casa';

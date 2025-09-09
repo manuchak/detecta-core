@@ -3997,7 +3997,10 @@ export type Database = {
       matriz_precios_rutas: {
         Row: {
           activo: boolean
+          clave: string | null
           cliente_nombre: string
+          costo_custodio: number | null
+          costo_maximo_casetas: number | null
           costo_operativo: number | null
           created_at: string
           created_by: string | null
@@ -4007,17 +4010,24 @@ export type Database = {
           fecha_vigencia: string
           id: string
           margen_neto_calculado: number | null
+          origen_texto: string | null
+          pago_custodio_sin_arma: number | null
           porcentaje_utilidad: number | null
           precio_custodio: number
           precio_desde_casa: number | null
           precio_historico_2022: number | null
           precio_operativo_logistico: number | null
+          tipo_servicio: string | null
+          tipo_viaje: string | null
           updated_at: string
           valor_bruto: number
         }
         Insert: {
           activo?: boolean
+          clave?: string | null
           cliente_nombre: string
+          costo_custodio?: number | null
+          costo_maximo_casetas?: number | null
           costo_operativo?: number | null
           created_at?: string
           created_by?: string | null
@@ -4027,17 +4037,24 @@ export type Database = {
           fecha_vigencia?: string
           id?: string
           margen_neto_calculado?: number | null
+          origen_texto?: string | null
+          pago_custodio_sin_arma?: number | null
           porcentaje_utilidad?: number | null
           precio_custodio: number
           precio_desde_casa?: number | null
           precio_historico_2022?: number | null
           precio_operativo_logistico?: number | null
+          tipo_servicio?: string | null
+          tipo_viaje?: string | null
           updated_at?: string
           valor_bruto: number
         }
         Update: {
           activo?: boolean
+          clave?: string | null
           cliente_nombre?: string
+          costo_custodio?: number | null
+          costo_maximo_casetas?: number | null
           costo_operativo?: number | null
           created_at?: string
           created_by?: string | null
@@ -4047,11 +4064,15 @@ export type Database = {
           fecha_vigencia?: string
           id?: string
           margen_neto_calculado?: number | null
+          origen_texto?: string | null
+          pago_custodio_sin_arma?: number | null
           porcentaje_utilidad?: number | null
           precio_custodio?: number
           precio_desde_casa?: number | null
           precio_historico_2022?: number | null
           precio_operativo_logistico?: number | null
+          tipo_servicio?: string | null
+          tipo_viaje?: string | null
           updated_at?: string
           valor_bruto?: number
         }
