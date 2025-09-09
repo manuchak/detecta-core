@@ -19,7 +19,17 @@ import {
   Award,
   Activity
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { 
+  ComposedChart, 
+  Area, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  Legend
+} from 'recharts';
 import { useLeadAssignment } from '@/hooks/useLeadAssignment';
 import { useCallCenterMetrics } from '@/hooks/useCallCenterMetrics';
 import { useLeadsStable } from '@/hooks/useLeadsStable';
@@ -48,6 +58,7 @@ interface AnalystPerformance {
 
 export const ModernRecruitmentDashboard = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('30d');
+  const [chartType, setChartType] = useState<'combined' | 'separate'>('combined');
   
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
   const today = new Date().toISOString().split('T')[0];
@@ -305,61 +316,164 @@ export const ModernRecruitmentDashboard = () => {
               {/* Daily Activity Chart */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5" />
-                    Actividad Diaria
-                  </CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Actividad Diaria
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant={chartType === 'combined' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setChartType('combined')}
+                        className="text-xs px-2 py-1 h-7"
+                      >
+                        Combinado
+                      </Button>
+                      <Button
+                        variant={chartType === 'separate' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setChartType('separate')}
+                        className="text-xs px-2 py-1 h-7"
+                      >
+                        Separado
+                      </Button>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <LineChart data={dailyActivityData || []}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <ResponsiveContainer width="100%" height={280}>
+                    <ComposedChart data={dailyActivityData || []} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
                       <XAxis 
                         dataKey="date" 
                         className="text-xs fill-muted-foreground"
-                        tick={{ fontSize: 12 }}
+                        tick={{ fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
                       />
-                      <YAxis 
-                        className="text-xs fill-muted-foreground"
-                        tick={{ fontSize: 12 }}
-                      />
+                      
+                      {chartType === 'combined' ? (
+                        <YAxis 
+                          className="text-xs fill-muted-foreground"
+                          tick={{ fontSize: 11 }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                      ) : (
+                        <>
+                          <YAxis 
+                            yAxisId="leads"
+                            className="text-xs fill-muted-foreground"
+                            tick={{ fontSize: 11 }}
+                            axisLine={false}
+                            tickLine={false}
+                            label={{ value: 'Leads', angle: -90, position: 'insideLeft' }}
+                          />
+                          <YAxis 
+                            yAxisId="calls"
+                            orientation="right"
+                            className="text-xs fill-muted-foreground"
+                            tick={{ fontSize: 11 }}
+                            axisLine={false}
+                            tickLine={false}
+                            label={{ value: 'Llamadas', angle: 90, position: 'insideRight' }}
+                          />
+                        </>
+                      )}
+                      
                       <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'hsl(var(--card))',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px',
-                          fontSize: '12px'
+                        content={({ active, payload, label }) => {
+                          if (active && payload && payload.length) {
+                            const leadsData = payload.find(p => p.dataKey === 'leads');
+                            const callsData = payload.find(p => p.dataKey === 'calls');
+                            
+                            const leadsValue = Number(leadsData?.value || 0);
+                            const callsValue = Number(callsData?.value || 0);
+                            
+                            return (
+                              <div className="bg-card/95 backdrop-blur-sm border rounded-lg p-3 shadow-lg">
+                                <p className="font-medium text-foreground mb-2">{label}</p>
+                                <div className="space-y-1">
+                                  {leadsData && (
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-2 h-2 rounded-full bg-primary"></div>
+                                      <span className="text-sm">Leads: <span className="font-semibold">{leadsValue}</span></span>
+                                    </div>
+                                  )}
+                                  {callsData && (
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-2 h-2 rounded-full bg-chart-2"></div>
+                                      <span className="text-sm">Llamadas: <span className="font-semibold">{callsValue}</span></span>
+                                    </div>
+                                  )}
+                                  <div className="pt-1 mt-2 border-t border-border">
+                                    <span className="text-xs text-muted-foreground">
+                                      Total actividad: {leadsValue + callsValue}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
                         }}
-                        labelStyle={{ color: 'hsl(var(--foreground))' }}
                       />
-                      <Line 
-                        type="monotone" 
-                        dataKey="leads" 
-                        stroke="hsl(var(--primary))" 
+                      
+                      <Area
+                        yAxisId={chartType === 'separate' ? 'leads' : undefined}
+                        type="monotone"
+                        dataKey="leads"
+                        fill="hsl(var(--primary))"
+                        fillOpacity={0.1}
+                        stroke="hsl(var(--primary))"
                         strokeWidth={2}
-                        dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 3 }}
                         name="Leads"
+                        dot={false}
+                        activeDot={{ 
+                          r: 4, 
+                          stroke: 'hsl(var(--primary))', 
+                          strokeWidth: 2, 
+                          fill: 'hsl(var(--background))' 
+                        }}
                       />
-                      <Line 
-                        type="monotone" 
-                        dataKey="calls" 
-                        stroke="hsl(var(--chart-2))" 
-                        strokeWidth={2}
-                        dot={{ fill: 'hsl(var(--chart-2))', strokeWidth: 2, r: 3 }}
+                      
+                      <Line
+                        yAxisId={chartType === 'separate' ? 'calls' : undefined}
+                        type="monotone"
+                        dataKey="calls"
+                        stroke="hsl(var(--chart-2))"
+                        strokeWidth={3}
                         name="Llamadas"
+                        dot={false}
+                        activeDot={{ 
+                          r: 4, 
+                          stroke: 'hsl(var(--chart-2))', 
+                          strokeWidth: 2, 
+                          fill: 'hsl(var(--background))' 
+                        }}
                       />
-                    </LineChart>
+                      
+                      <Legend 
+                        content={({ payload }) => (
+                          <div className="flex items-center justify-center gap-6 mt-4 text-sm">
+                            {payload?.map((entry, index) => (
+                              <div key={index} className="flex items-center gap-2">
+                                <div 
+                                  className="w-3 h-3 rounded-full"
+                                  style={{ backgroundColor: entry.color }}
+                                ></div>
+                                <span className="text-muted-foreground">{entry.value}</span>
+                              </div>
+                            ))}
+                            <div className="text-xs text-muted-foreground ml-4">
+                              {chartType === 'separate' ? 'Ejes independientes' : 'Eje compartido'}
+                            </div>
+                          </div>
+                        )}
+                      />
+                    </ComposedChart>
                   </ResponsiveContainer>
-                  <div className="mt-2 flex items-center justify-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-primary"></div>
-                      <span>Leads</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'hsl(var(--chart-2))' }}></div>
-                      <span>Llamadas</span>
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
 
