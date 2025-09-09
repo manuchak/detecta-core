@@ -38,6 +38,9 @@ import { useLeadAssignment } from '@/hooks/useLeadAssignment';
 import { useCallCenterMetrics } from '@/hooks/useCallCenterMetrics';
 import { useLeadsStable } from '@/hooks/useLeadsStable';
 import { useAuthenticatedQuery } from '@/hooks/useAuthenticatedQuery';
+import { useContactabilityMetrics } from '@/hooks/useContactabilityMetrics';
+import { ContactabilityAnalytics } from './ContactabilityAnalytics';
+import { RejectionAnalytics } from './RejectionAnalytics';
 import { supabase } from '@/integrations/supabase/client';
 
 interface DashboardStats {
@@ -88,6 +91,13 @@ export const ModernRecruitmentDashboard = () => {
     dateTo: today,
     enabled: true
   });
+
+  // Get contactability metrics
+  const { data: contactabilityMetrics, isLoading: contactabilityLoading } = useContactabilityMetrics(
+    dateFrom,
+    dateTo,
+    selectedAnalysts
+  );
 
   // Filter leads by selected analysts and date period
   const filteredLeads = useMemo(() => {
@@ -190,7 +200,8 @@ export const ModernRecruitmentDashboard = () => {
 
       return {
         totalLeads,
-        contactRate: totalLeads > 0 ? Math.round((contactedLeads / totalLeads) * 100) : 0,
+        contactRate: contactabilityMetrics?.realContactabilityRate || 
+                    (totalLeads > 0 ? Math.round((contactedLeads / totalLeads) * 100) : 0),
         conversionRate: totalLeads > 0 ? Math.round((approvedLeads / totalLeads) * 100) : 0,
         activeAnalysts: activeAnalysts.length,
         avgResponseTime: 24, // hours - would need to calculate from actual data
@@ -226,7 +237,7 @@ export const ModernRecruitmentDashboard = () => {
     }
   );
 
-  const loading = statsLoading || analystsLoading || leadsLoading;
+  const loading = statsLoading || analystsLoading || leadsLoading || contactabilityLoading;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -410,12 +421,12 @@ export const ModernRecruitmentDashboard = () => {
             subtitle={`Últimos ${daysCount} días`}
           />
           <StatCard
-            title="Tasa de Contacto"
+            title="Contactabilidad Efectiva"
             value={`${dashboardStats?.contactRate || 0}%`}
             change="+3%"
             trend="up"
             icon={Phone}
-            subtitle={`${callMetrics.contactosEfectivosDia}/día contactos`}
+            subtitle={`${contactabilityMetrics?.leadsWithEffectiveContact || 0} contactos exitosos`}
           />
           <StatCard
             title="Conversión"
@@ -437,8 +448,10 @@ export const ModernRecruitmentDashboard = () => {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 bg-muted/50">
+          <TabsList className="grid w-full grid-cols-5 bg-muted/50">
             <TabsTrigger value="overview">Vista General</TabsTrigger>
+            <TabsTrigger value="contactability">Contactabilidad</TabsTrigger>
+            <TabsTrigger value="rejection">Análisis de Rechazo</TabsTrigger>
             <TabsTrigger value="analysts">Analistas</TabsTrigger>
             <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
           </TabsList>
@@ -645,6 +658,52 @@ export const ModernRecruitmentDashboard = () => {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="contactability" className="space-y-6">
+            <ContactabilityAnalytics 
+              metrics={contactabilityMetrics || {
+                totalLeads: 0,
+                leadsWithoutContact: 0,
+                leadsWithIneffectiveContact: 0,
+                leadsWithEffectiveContact: 0,
+                leadsNeedingRecontact: 0,
+                realContactabilityRate: 0,
+                averageAttemptsBeforeSuccess: 0,
+                contactEfficiencyRate: 0,
+                averageTimeBetweenAttempts: 0,
+                attemptDistribution: {
+                  noAttempts: 0,
+                  oneAttempt: 0,
+                  twoAttempts: 0,
+                  threeAttempts: 0,
+                  fourPlusAttempts: 0,
+                },
+                outcomeDistribution: {
+                  successful: 0,
+                  no_answer: 0,
+                  busy: 0,
+                  voicemail: 0,
+                  wrong_number: 0,
+                  non_existent_number: 0,
+                  call_failed: 0,
+                  reschedule_requested: 0,
+                  numero_no_disponible: 0,
+                },
+                conversionRateByAttempt: [],
+                optimalCallTimes: [],
+                priorityRecontacts: []
+              }}
+              loading={contactabilityLoading}
+            />
+          </TabsContent>
+
+          <TabsContent value="rejection" className="space-y-6">
+            <RejectionAnalytics 
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              selectedAnalysts={selectedAnalysts}
+            />
           </TabsContent>
 
           <TabsContent value="analysts" className="space-y-6">
