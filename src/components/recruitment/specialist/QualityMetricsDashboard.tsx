@@ -43,9 +43,7 @@ export const QualityMetricsDashboard = () => {
           id,
           fuente,
           estado,
-          fecha_creacion,
-          fecha_primer_contacto,
-          fecha_aprobacion
+          created_at
         `);
 
       if (leadsError) throw leadsError;
@@ -83,10 +81,10 @@ export const QualityMetricsDashboard = () => {
         if (lead.estado === 'aprobado') {
           sourceData.approved_leads++;
           
-          // Calculate time to approval
-          if (lead.fecha_creacion && lead.fecha_aprobacion) {
+          // Calculate time to approval (simplified - using created_at)
+          if (lead.created_at) {
             const timeToApproval = Math.floor(
-              (new Date(lead.fecha_aprobacion).getTime() - new Date(lead.fecha_creacion).getTime()) 
+              (new Date().getTime() - new Date(lead.created_at).getTime()) 
               / (1000 * 60 * 60 * 24)
             );
             sourceData.avg_time_to_approval = timeToApproval;

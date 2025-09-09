@@ -47,9 +47,9 @@ const RecruitmentStrategy = () => {
     
     return {
       total: leads.length,
-      leads: leads.filter(l => l.estado === 'lead').length,
+      leads: leads.filter(l => l.estado === 'nuevo').length,
       contacted: leads.filter(l => l.estado === 'contactado').length,
-      interview: leads.filter(l => l.estado === 'entrevista').length,
+      interview: leads.filter(l => l.estado === 'en_revision').length,
       approved: leads.filter(l => l.estado === 'aprobado').length
     };
   }, [leads]);
@@ -257,22 +257,17 @@ const RecruitmentStrategy = () => {
 
   return (
     <AppShell
-      title={sectionInfo.title}
-      description={sectionInfo.description}
-      icon={sectionInfo.icon}
-      breadcrumbs={sectionInfo.breadcrumbs}
       activeSection={activeSection}
       onSectionChange={setActiveSection}
-      navigationItems={navigationItems}
-      summaryStats={summaryStats}
-      actions={[
-        {
-          label: "Actualizar",
-          onClick: handleRefreshData,
-          icon: RefreshCw,
-          variant: "outline" as const
-        }
-      ]}
+      sectionInfo={sectionInfo}
+      stats={{
+        criticalAlerts: 0,
+        urgentClusters: 0,
+        totalDeficit: pipelineStats.leads,
+        activeCandidates: pipelineStats.approved
+      }}
+      onRefresh={handleRefreshData}
+      loading={loading}
     >
       <div className="space-y-6">
         {renderSectionMetrics()}

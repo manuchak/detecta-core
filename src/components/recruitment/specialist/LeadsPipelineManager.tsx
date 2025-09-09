@@ -55,22 +55,21 @@ export const LeadsPipelineManager = () => {
           estado,
           fuente,
           asignado_a,
-          fecha_creacion,
-          fecha_primer_contacto,
-          fecha_ultima_actividad,
+          created_at,
+          updated_at,
           profiles!leads_asignado_a_fkey (
             display_name
           )
         `)
-        .order('fecha_creacion', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (leadsError) throw leadsError;
 
       // Calculate pipeline stats
       const stages = [
-        { stage: 'lead', label: 'Nuevos Leads', icon: Users, color: 'bg-blue-500' },
+        { stage: 'nuevo', label: 'Nuevos Leads', icon: Users, color: 'bg-blue-500' },
         { stage: 'contactado', label: 'Contactados', icon: Phone, color: 'bg-yellow-500' },
-        { stage: 'entrevista', label: 'En Entrevista', icon: MessageSquare, color: 'bg-orange-500' },
+        { stage: 'en_revision', label: 'En Revisión', icon: MessageSquare, color: 'bg-orange-500' },
         { stage: 'aprobado', label: 'Aprobados', icon: UserCheck, color: 'bg-green-500' }
       ];
 
@@ -86,7 +85,7 @@ export const LeadsPipelineManager = () => {
 
       // Calculate lead activities
       const activities: LeadActivity[] = leadsData?.map(lead => {
-        const createdDate = new Date(lead.fecha_creacion);
+        const createdDate = new Date(lead.created_at);
         const now = new Date();
         const daysInStage = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
         
@@ -95,16 +94,15 @@ export const LeadsPipelineManager = () => {
           lead_name: lead.nombre,
           stage: lead.estado,
           days_in_stage: daysInStage,
-          last_activity: lead.fecha_ultima_actividad || lead.fecha_creacion,
+          last_activity: lead.updated_at || lead.created_at,
           assigned_to: lead.asignado_a || '',
-          assigned_name: lead.profiles?.display_name || 'Sin asignar',
+          assigned_name: 'Sin asignar',
           source: lead.fuente || 'Directo'
         };
       }) || [];
 
       return { stats, activities, totalLeads };
-    },
-    { enabled: !leadsLoading }
+    }
   );
 
   const { data: conversionFunnel } = useAuthenticatedQuery(
@@ -120,7 +118,7 @@ export const LeadsPipelineManager = () => {
       const funnelData = data?.reduce((acc, lead) => {
         const source = lead.fuente || 'unknown';
         if (!acc[source]) {
-          acc[source] = { total: 0, lead: 0, contactado: 0, entrevista: 0, aprobado: 0 };
+          acc[source] = { total: 0, nuevo: 0, contactado: 0, en_revision: 0, aprobado: 0 };
         }
         acc[source].total++;
         acc[source][lead.estado as keyof typeof acc[typeof source]]++;
@@ -129,7 +127,11 @@ export const LeadsPipelineManager = () => {
 
       return Object.entries(funnelData || {}).map(([source, stats]) => ({
         source,
-        ...stats,
+        total: stats.total,
+        nuevo: stats.nuevo,
+        contactado: stats.contactado,
+        en_revision: stats.en_revision,
+        aprobado: stats.aprobado,
         conversion_rate: stats.total > 0 ? Math.round((stats.aprobado / stats.total) * 100) : 0
       }));
     }
@@ -157,7 +159,7 @@ export const LeadsPipelineManager = () => {
     : pipelineData?.activities?.filter(activity => activity.stage === selectedStage) || [];
 
   const urgentLeads = pipelineData?.activities?.filter(activity => 
-    activity.days_in_stage > 3 && activity.stage === 'lead'
+    activity.days_in_stage > 3 && activity.stage === 'nuevo'
   ) || [];
 
   const staleLeads = pipelineData?.activities?.filter(activity => 
@@ -324,7 +326,7 @@ export const LeadsPipelineManager = () => {
                     
                     <div className="grid grid-cols-4 gap-2 text-center">
                       <div className="p-2 bg-blue-50 rounded text-blue-800">
-                        <p className="text-lg font-bold">{funnel.lead}</p>
+                        <p className="text-lg font-bold">{funnel.nuevo}</p>
                         <p className="text-xs">Leads</p>
                       </div>
                       <div className="p-2 bg-yellow-50 rounded text-yellow-800">
@@ -332,8 +334,8 @@ export const LeadsPipelineManager = () => {
                         <p className="text-xs">Contactados</p>
                       </div>
                       <div className="p-2 bg-orange-50 rounded text-orange-800">
-                        <p className="text-lg font-bold">{funnel.entrevista}</p>
-                        <p className="text-xs">Entrevistas</p>
+                        <p className="text-lg font-bold">{funnel.en_revision}</p>
+                        <p className="text-xs">En Revisión</p>
                       </div>
                       <div className="p-2 bg-green-50 rounded text-green-800">
                         <p className="text-lg font-bold">{funnel.aprobado}</p>

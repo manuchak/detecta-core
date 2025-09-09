@@ -110,8 +110,7 @@ export const AnalystPerformanceDashboard = () => {
       });
 
       return Array.from(statsMap.values()).sort((a, b) => b.approval_rate - a.approval_rate);
-    },
-    { enabled: !analystsLoading && analysts.length > 0 }
+    }
   );
 
   if (isLoading || analystsLoading) {
