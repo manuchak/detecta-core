@@ -104,17 +104,20 @@ export const ModernRecruitmentDashboard = () => {
     if (!allLeads) return [];
     
     return allLeads.filter(lead => {
-      // Filter by date
+      // Filter by date first
       const leadDate = new Date(lead.created_at).toISOString().split('T')[0];
       if (leadDate < dateFrom || leadDate > dateTo) return false;
       
-      // Filter by selected analysts (if lead is assigned)
-      if (lead.asignado_a && selectedAnalysts.length > 0) {
+      // If no analysts are selected, show all leads (within date range)
+      if (selectedAnalysts.length === 0) return true;
+      
+      // If lead is assigned, only include if assigned to selected analyst
+      if (lead.asignado_a) {
         return selectedAnalysts.includes(lead.asignado_a);
       }
       
-      // Include unassigned leads if we have selected analysts
-      return selectedAnalysts.length > 0;
+      // Include unassigned leads when we have selected analysts
+      return true;
     });
   }, [allLeads, selectedAnalysts, dateFrom, dateTo]);
 
@@ -130,7 +133,7 @@ export const ModernRecruitmentDashboard = () => {
   }, [analysts]);
 
   // Initialize selected analysts when filtered analysts change
-  useMemo(() => {
+  React.useEffect(() => {
     if (filteredAnalysts.length > 0 && selectedAnalysts.length === 0) {
       setSelectedAnalysts(filteredAnalysts.map(a => a.id));
     }
@@ -191,6 +194,13 @@ export const ModernRecruitmentDashboard = () => {
         supabase.from('manual_call_logs').select('*').gte('created_at', thirtyDaysAgo)
       ]);
 
+      console.log('🔍 Dashboard Stats Debug:', {
+        filteredLeadsCount: filteredLeads.length,
+        selectedAnalysts: selectedAnalysts.length,
+        dateRange: { dateFrom, dateTo },
+        allLeadsCount: allLeads?.length || 0
+      });
+
       // Use filtered leads for consistent data
       const totalLeads = filteredLeads.length;
       const approvedLeads = filteredLeads.filter(l => l.estado === 'aprobado').length;
@@ -198,7 +208,7 @@ export const ModernRecruitmentDashboard = () => {
       const totalCalls = callsData.data?.length || 0;
       const successfulCalls = callsData.data?.filter(c => c.call_outcome === 'successful').length || 0;
 
-      return {
+      const stats = {
         totalLeads,
         contactRate: contactabilityMetrics?.realContactabilityRate || 
                     (totalLeads > 0 ? Math.round((contactedLeads / totalLeads) * 100) : 0),
@@ -207,6 +217,9 @@ export const ModernRecruitmentDashboard = () => {
         avgResponseTime: 24, // hours - would need to calculate from actual data
         dailyActivity: Math.round(totalCalls / daysCount)
       } as DashboardStats;
+
+      console.log('📊 Dashboard Stats Result:', stats);
+      return stats;
     }
   );
 

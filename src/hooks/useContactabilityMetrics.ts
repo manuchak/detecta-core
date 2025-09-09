@@ -93,7 +93,10 @@ export const useContactabilityMetrics = (
 
       // Filter leads by selected analysts if applicable
       const filteredLeads = selectedAnalysts.length > 0 
-        ? leads.filter(lead => !lead.asignado_a || selectedAnalysts.includes(lead.asignado_a))
+        ? leads.filter(lead => {
+            // Include unassigned leads and leads assigned to selected analysts
+            return !lead.asignado_a || selectedAnalysts.includes(lead.asignado_a);
+          })
         : leads;
 
       // Group call logs by lead
