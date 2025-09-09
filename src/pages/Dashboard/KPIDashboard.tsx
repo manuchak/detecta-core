@@ -30,6 +30,7 @@ import { ExecutiveMetricsGrid } from '@/components/executive/ExecutiveMetricsGri
 import { ClientAnalytics } from '@/components/executive/ClientAnalytics';
 import { DailyLeadsCallsChart } from '@/components/recruitment/DailyLeadsCallsChart';
 import { KPIDetailView } from '@/components/executive/KPIDetailView';
+import { CustodianEngagementDetailView } from '@/components/executive/details/CustodianEngagementDetailView';
 
 const KPIDashboard = () => {
   const { kpis, loading: kpisLoading, refreshData } = useExecutiveDashboardKPIs();
