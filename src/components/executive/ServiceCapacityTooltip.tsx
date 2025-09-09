@@ -7,6 +7,8 @@ interface ServiceCapacityData {
   utilizationMetrics: { current: number; healthy: number; maxSafe: number };
   alerts: { type: 'healthy' | 'warning' | 'critical'; message: string; recommendations: string[] };
   activeCustodians: number;
+  availableCustodians: number;
+  unavailableCustodians: { returningFromForeign: number; currentlyOnRoute: number };
   recentServices: { total: number; byType: { local: number; regional: number; foraneo: number } };
 }
 
@@ -23,25 +25,63 @@ export const ServiceCapacityTooltip: React.FC<ServiceCapacityTooltipProps> = ({ 
           <div className="space-y-3">
             <h4 className="font-semibold text-sm flex items-center gap-2">
               <Calendar className="h-4 w-4" />
-              Capacidad Diaria de Servicios
+              Capacidad Diaria Real
             </h4>
             <div className="space-y-2 text-xs">
               <div className="flex justify-between">
-                <span>🏠 Servicios locales (≤50km):</span>
-                <span className="font-medium">{data.dailyCapacity.local}</span>
+                <span>👥 Custodios totales:</span>
+                <span className="font-medium">{data.activeCustodians}</span>
               </div>
               <div className="flex justify-between">
-                <span>🌆 Servicios regionales (51-200km):</span>
-                <span className="font-medium">{data.dailyCapacity.regional}</span>
+                <span>✅ Disponibles hoy:</span>
+                <span className="font-medium text-green-600">{data.availableCustodians}</span>
               </div>
-              <div className="flex justify-between">
-                <span>🛣️ Servicios foráneos (&gt;200km):</span>
-                <span className="font-medium">{data.dailyCapacity.foraneo}</span>
+              {(data.unavailableCustodians.returningFromForeign + data.unavailableCustodians.currentlyOnRoute) > 0 && (
+                <>
+                  <div className="flex justify-between">
+                    <span>❌ Indisponibles:</span>
+                    <span className="font-medium text-red-600">
+                      {data.unavailableCustodians.returningFromForeign + data.unavailableCustodians.currentlyOnRoute}
+                    </span>
+                  </div>
+                  {data.unavailableCustodians.returningFromForeign > 0 && (
+                    <div className="flex justify-between text-xs text-orange-600 ml-4">
+                      <span>• Retornando de foráneo:</span>
+                      <span>{data.unavailableCustodians.returningFromForeign}</span>
+                    </div>
+                  )}
+                  {data.unavailableCustodians.currentlyOnRoute > 0 && (
+                    <div className="flex justify-between text-xs text-blue-600 ml-4">
+                      <span>• En ruta actualmente:</span>
+                      <span>{data.unavailableCustodians.currentlyOnRoute}</span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            <div className="pt-2 border-t">
+              <p className="text-xs font-medium mb-2">Capacidad estimada hoy:</p>
+              <div className="space-y-1 text-xs">
+                <div className="flex justify-between">
+                  <span>🏠 Locales (≤50km):</span>
+                  <span className="font-medium">{data.dailyCapacity.local}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>🌆 Regionales (51-200km):</span>
+                  <span className="font-medium">{data.dailyCapacity.regional}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>🛣️ Foráneos (&gt;200km):</span>
+                  <span className="font-medium">{data.dailyCapacity.foraneo}</span>
+                </div>
+                <div className="flex justify-between font-semibold border-t pt-1">
+                  <span>📊 Total hoy:</span>
+                  <span>{data.dailyCapacity.total} servicios</span>
+                </div>
               </div>
             </div>
             <div className="pt-2 border-t text-xs text-muted-foreground">
-              <p><strong>Con {data.activeCustodians} custodios activos</strong></p>
-              <p>Basado en análisis de últimos 3 meses</p>
+              <p>Basado en disponibilidad real y patrones históricos</p>
             </div>
           </div>
         );
@@ -151,12 +191,12 @@ export const ServiceCapacityTooltip: React.FC<ServiceCapacityTooltipProps> = ({ 
             </h4>
             <div className="space-y-2 text-xs">
               <div className="flex justify-between">
-                <span>👥 Custodios activos:</span>
-                <span className="font-medium">{data.activeCustodians}</span>
+                <span>👥 Custodios disponibles:</span>
+                <span className="font-medium">{data.availableCustodians}</span>
               </div>
               <div className="flex justify-between">
                 <span>🎯 Servicios por custodio/mes:</span>
-                <span className="font-medium">{Math.round((data.recentServices.total / 3) / data.activeCustodians)}</span>
+                <span className="font-medium">{Math.round((data.recentServices.total / 3) / data.availableCustodians)}</span>
               </div>
               <div className="flex justify-between">
                 <span>⚡ Eficiencia operativa:</span>

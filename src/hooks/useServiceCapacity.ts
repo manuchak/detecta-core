@@ -10,6 +10,11 @@ import {
 
 interface RealCapacityData {
   activeCustodians: number;
+  availableCustodians: number;
+  unavailableCustodians: {
+    returningFromForeign: number;
+    currentlyOnRoute: number;
+  };
   totalServices: number;
   servicesByType: {
     local: number;
@@ -51,6 +56,11 @@ interface ServiceCapacityData {
   
   // Datos base
   activeCustodians: number;
+  availableCustodians: number;
+  unavailableCustodians: {
+    returningFromForeign: number;
+    currentlyOnRoute: number;
+  };
   recentServices: {
     total: number;
     byType: {
@@ -62,25 +72,48 @@ interface ServiceCapacityData {
 }
 
 export const useServiceCapacity = () => {
-  // Obtener custodios activos y servicios de los últimos 3 meses
+  // Obtener capacidad real basada en disponibilidad actual
   const { data: realCapacityData, isLoading } = useQuery<RealCapacityData>({
-    queryKey: ['service-capacity-analysis'],
+    queryKey: ['real-time-capacity-analysis'],
     queryFn: async () => {
-      // Obtener datos de servicios de los últimos 3 meses
+      // 1. Obtener datos históricos (últimos 3 meses)
       const threeMonthsAgo = new Date();
       threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
       
-      const { data: servicesData, error } = await supabase
+      const { data: servicesData, error: servicesError } = await supabase
         .from('servicios_custodia')
         .select('nombre_custodio, km_recorridos, estado, fecha_hora_cita')
         .gte('fecha_hora_cita', threeMonthsAgo.toISOString())
         .in('estado', ['completado', 'Completado', 'finalizado', 'Finalizado'])
         .not('nombre_custodio', 'is', null);
         
-      if (error) throw error;
+      if (servicesError) throw servicesError;
       
-      // Procesar datos
-      const custodians = new Set<string>();
+      // 2. Identificar custodios indisponibles por servicios foráneos recientes (últimas 24h)
+      const yesterday = new Date();
+      yesterday.setHours(0, 0, 0, 0);
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      const { data: recentForeignServices, error: foreignError } = await supabase
+        .from('servicios_custodia')
+        .select('nombre_custodio, km_recorridos, estado, fecha_hora_cita')
+        .gte('fecha_hora_cita', yesterday.toISOString())
+        .in('estado', ['completado', 'Completado', 'finalizado', 'Finalizado'])
+        .not('nombre_custodio', 'is', null);
+      
+      if (foreignError) throw foreignError;
+      
+      // 3. Identificar custodios actualmente ocupados
+      const { data: currentlyBusyServices, error: busyError } = await supabase
+        .from('servicios_custodia')
+        .select('nombre_custodio, estado')
+        .in('estado', ['En ruta', 'en_ruta', 'programado', 'Programado'])
+        .not('nombre_custodio', 'is', null);
+      
+      if (busyError) throw busyError;
+      
+      // Procesar datos históricos
+      const allCustodians = new Set<string>();
       const services = {
         local: 0,
         regional: 0,
@@ -89,7 +122,7 @@ export const useServiceCapacity = () => {
       
       servicesData?.forEach(service => {
         if (service.nombre_custodio) {
-          custodians.add(service.nombre_custodio);
+          allCustodians.add(service.nombre_custodio);
         }
         const km = service.km_recorridos || 0;
         
@@ -98,13 +131,41 @@ export const useServiceCapacity = () => {
         else services.foraneo++;
       });
       
+      // Identificar custodios indisponibles por servicios foráneos
+      const custodiansReturningFromForeign = new Set<string>();
+      recentForeignServices?.forEach(service => {
+        const km = service.km_recorridos || 0;
+        // Si es servicio foráneo (>200km), el custodio estará indisponible
+        if (km > 200 && service.nombre_custodio) {
+          custodiansReturningFromForeign.add(service.nombre_custodio);
+        }
+      });
+      
+      // Identificar custodios actualmente ocupados
+      const custodiansCurrentlyBusy = new Set<string>();
+      currentlyBusyServices?.forEach(service => {
+        if (service.nombre_custodio) {
+          custodiansCurrentlyBusy.add(service.nombre_custodio);
+        }
+      });
+      
+      // Calcular disponibilidad real
+      const totalActiveCustodians = allCustodians.size;
+      const unavailableCount = custodiansReturningFromForeign.size + custodiansCurrentlyBusy.size;
+      const availableCustodians = Math.max(0, totalActiveCustodians - unavailableCount);
+      
       return {
-        activeCustodians: custodians.size,
+        activeCustodians: totalActiveCustodians,
+        availableCustodians,
+        unavailableCustodians: {
+          returningFromForeign: custodiansReturningFromForeign.size,
+          currentlyOnRoute: custodiansCurrentlyBusy.size,
+        },
         totalServices: servicesData?.length || 0,
         servicesByType: services
       };
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 2 * 60 * 1000, // 2 minutes - más frecuente para datos en tiempo real
   });
 
   const capacityAnalysis = useMemo((): ServiceCapacityData => {
@@ -115,17 +176,21 @@ export const useServiceCapacity = () => {
         utilizationMetrics: { current: 0, healthy: 75, maxSafe: 85 },
         alerts: { type: 'healthy', message: 'Cargando datos...', recommendations: [] },
         activeCustodians: 0,
+        availableCustodians: 0,
+        unavailableCustodians: { returningFromForeign: 0, currentlyOnRoute: 0 },
         recentServices: { total: 0, byType: { local: 0, regional: 0, foraneo: 0 } }
       };
     }
 
-    const activeCustodians = realCapacityData.activeCustodians || 83;
-    const capacidadEfectiva = calcularCapacidadRealistaConDescanso(activeCustodians);
-
-    // Calcular capacidades diarias por tipo
-    const dailyCapacityLocal = calcularServiciosPosiblesPorTipoMejorado(capacidadEfectiva, 'local');
-    const dailyCapacityRegional = calcularServiciosPosiblesPorTipoMejorado(capacidadEfectiva, 'regional');
-    const dailyCapacityForaneo = calcularServiciosPosiblesPorTipoMejorado(capacidadEfectiva, 'foraneo');
+    // ALGORITMO CORREGIDO: usar custodios realmente disponibles
+    const availableCustodians = realCapacityData.availableCustodians;
+    const activeCustodians = realCapacityData.activeCustodians;
+    
+    // Capacidad diaria realista basada en disponibilidad real
+    // Distribucion real observada: 60% locales, 30% regionales, 10% foráneos
+    const dailyCapacityLocal = Math.floor(availableCustodians * 0.6 * 2.0); // 2 locales por custodio por día
+    const dailyCapacityRegional = Math.floor(availableCustodians * 0.3 * 1.0); // 1 regional por custodio por día
+    const dailyCapacityForaneo = Math.floor(availableCustodians * 0.1 * 0.5); // 0.5 foráneo por custodio por día
     
     const dailyCapacityTotal = dailyCapacityLocal + dailyCapacityRegional + dailyCapacityForaneo;
 
@@ -140,12 +205,24 @@ export const useServiceCapacity = () => {
     
     const currentUtilization = (monthlyRealServices / monthlyCapacityTotal) * 100;
 
-    // Determinar alertas
+    // Determinar alertas basadas en disponibilidad real
     let alertType: 'healthy' | 'warning' | 'critical' = 'healthy';
     let alertMessage = 'Capacidad operativa saludable';
     const recommendations: string[] = [];
+    
+    const unavailableTotal = realCapacityData.unavailableCustodians.returningFromForeign + realCapacityData.unavailableCustodians.currentlyOnRoute;
+    const availabilityRate = (availableCustodians / activeCustodians) * 100;
 
-    if (currentUtilization > 85) {
+    if (availabilityRate < 60) {
+      alertType = 'critical';
+      alertMessage = `Solo ${availableCustodians} de ${activeCustodians} custodios disponibles (${Math.round(availabilityRate)}%)`;
+      recommendations.push('Muchos custodios indisponibles por servicios foráneos');
+      recommendations.push('Considerar redistribuir servicios foráneos a días específicos');
+    } else if (availabilityRate < 75) {
+      alertType = 'warning';
+      alertMessage = `Disponibilidad limitada: ${availableCustodians} de ${activeCustodians} custodios`;
+      recommendations.push('Monitorear distribución de servicios foráneos');
+    } else if (currentUtilization > 85) {
       alertType = 'critical';
       alertMessage = 'Sobrecarga crítica detectada';
       recommendations.push('Contratar custodios adicionales urgentemente');
@@ -155,6 +232,10 @@ export const useServiceCapacity = () => {
       recommendations.push('Planificar contratación preventiva');
     } else {
       recommendations.push('Capacidad suficiente para crecimiento');
+    }
+    
+    if (unavailableTotal > 0) {
+      recommendations.unshift(`${unavailableTotal} custodios temporalmente indisponibles`);
     }
 
     return {
@@ -181,6 +262,8 @@ export const useServiceCapacity = () => {
         recommendations
       },
       activeCustodians,
+      availableCustodians,
+      unavailableCustodians: realCapacityData.unavailableCustodians,
       recentServices: {
         total: totalRecentServices,
         byType: recentServices
