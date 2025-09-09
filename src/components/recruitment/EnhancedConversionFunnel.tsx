@@ -36,11 +36,26 @@ export const EnhancedConversionFunnel: React.FC<EnhancedConversionFunnelProps> =
   const { data: funnelData, isLoading: dataLoading } = useEnhancedConversionFunnel();
   const isLoading = externalLoading || dataLoading;
 
+  // Provide default data if funnelData is undefined
+  const safeData = funnelData || {
+    totalLeads: 0,
+    qualified: 0,
+    contacted: 0,
+    callsCompleted: 0,
+    interviewsScheduled: 0,
+    interviewsCompleted: 0,
+    inEvaluation: 0,
+    preApproved: 0,
+    documentationComplete: 0,
+    finalApproved: 0,
+    activeCustodians: 0
+  };
+
   const stages: FunnelStage[] = [
     {
       id: 'leads',
       label: 'Leads Generados',
-      count: funnelData.totalLeads,
+      count: safeData.totalLeads,
       icon: Users,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
@@ -49,7 +64,7 @@ export const EnhancedConversionFunnel: React.FC<EnhancedConversionFunnelProps> =
     {
       id: 'qualified',
       label: 'Leads Calificados',
-      count: funnelData.qualified,
+      count: safeData.qualified,
       icon: CheckCircle2,
       color: 'text-emerald-600',
       bgColor: 'bg-emerald-50',
@@ -58,7 +73,7 @@ export const EnhancedConversionFunnel: React.FC<EnhancedConversionFunnelProps> =
     {
       id: 'contacted',
       label: 'Contactados',
-      count: funnelData.contacted,
+      count: safeData.contacted,
       icon: PhoneCall,
       color: 'text-violet-600',
       bgColor: 'bg-violet-50',
@@ -67,7 +82,7 @@ export const EnhancedConversionFunnel: React.FC<EnhancedConversionFunnelProps> =
     {
       id: 'calls',
       label: 'Llamadas Completadas',
-      count: funnelData.callsCompleted,
+      count: safeData.callsCompleted,
       icon: MessageSquare,
       color: 'text-indigo-600',
       bgColor: 'bg-indigo-50',
@@ -76,7 +91,7 @@ export const EnhancedConversionFunnel: React.FC<EnhancedConversionFunnelProps> =
     {
       id: 'scheduled',
       label: 'Entrevistas Programadas',
-      count: funnelData.interviewsScheduled,
+      count: safeData.interviewsScheduled,
       icon: Calendar,
       color: 'text-orange-600',
       bgColor: 'bg-orange-50',
@@ -85,7 +100,7 @@ export const EnhancedConversionFunnel: React.FC<EnhancedConversionFunnelProps> =
     {
       id: 'interviews',
       label: 'Entrevistas Completadas',
-      count: funnelData.interviewsCompleted,
+      count: safeData.interviewsCompleted,
       icon: ClipboardCheck,
       color: 'text-cyan-600',
       bgColor: 'bg-cyan-50',
@@ -94,7 +109,7 @@ export const EnhancedConversionFunnel: React.FC<EnhancedConversionFunnelProps> =
     {
       id: 'evaluation',
       label: 'En Evaluación',
-      count: funnelData.inEvaluation,
+      count: safeData.inEvaluation,
       icon: AlertCircle,
       color: 'text-amber-600',
       bgColor: 'bg-amber-50',
@@ -103,7 +118,7 @@ export const EnhancedConversionFunnel: React.FC<EnhancedConversionFunnelProps> =
     {
       id: 'preapproved',
       label: 'Pre-Aprobados',
-      count: funnelData.preApproved,
+      count: safeData.preApproved,
       icon: UserCheck,
       color: 'text-teal-600',
       bgColor: 'bg-teal-50',
@@ -112,7 +127,7 @@ export const EnhancedConversionFunnel: React.FC<EnhancedConversionFunnelProps> =
     {
       id: 'documentation',
       label: 'Documentación Completa',
-      count: funnelData.documentationComplete,
+      count: safeData.documentationComplete,
       icon: FileText,
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
@@ -121,7 +136,7 @@ export const EnhancedConversionFunnel: React.FC<EnhancedConversionFunnelProps> =
     {
       id: 'approved',
       label: 'Aprobados Finales',
-      count: funnelData.finalApproved,
+      count: safeData.finalApproved,
       icon: CheckCircle2,
       color: 'text-green-600',
       bgColor: 'bg-green-50',
@@ -130,7 +145,7 @@ export const EnhancedConversionFunnel: React.FC<EnhancedConversionFunnelProps> =
     {
       id: 'active',
       label: 'Custodios Activos',
-      count: funnelData.activeCustodians,
+      count: safeData.activeCustodians,
       icon: TrendingUp,
       color: 'text-emerald-700',
       bgColor: 'bg-emerald-100',
@@ -138,7 +153,7 @@ export const EnhancedConversionFunnel: React.FC<EnhancedConversionFunnelProps> =
     }
   ];
 
-  if (isLoading || !funnelData) {
+  if (isLoading) {
     return (
       <Card>
         <CardHeader>
@@ -258,7 +273,7 @@ export const EnhancedConversionFunnel: React.FC<EnhancedConversionFunnelProps> =
             </div>
             <div>
               <div className="text-lg font-bold text-blue-600">
-                {((funnelData.contacted / funnelData.totalLeads) * 100).toFixed(1)}%
+                {safeData.totalLeads > 0 ? ((safeData.contacted / safeData.totalLeads) * 100).toFixed(1) : '0.0'}%
               </div>
               <div className="text-xs text-muted-foreground">
                 Tasa de Contacto
@@ -266,7 +281,7 @@ export const EnhancedConversionFunnel: React.FC<EnhancedConversionFunnelProps> =
             </div>
             <div>
               <div className="text-lg font-bold text-green-600">
-                {((funnelData.finalApproved / funnelData.contacted) * 100).toFixed(1)}%
+                {safeData.contacted > 0 ? ((safeData.finalApproved / safeData.contacted) * 100).toFixed(1) : '0.0'}%
               </div>
               <div className="text-xs text-muted-foreground">
                 Contacto → Aprobado
