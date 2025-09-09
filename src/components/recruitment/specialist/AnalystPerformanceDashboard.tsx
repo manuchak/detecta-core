@@ -32,6 +32,9 @@ export const AnalystPerformanceDashboard = () => {
         return [];
       }
 
+      const analystIds = analysts.map(a => a.id);
+      console.log('🔍 Fetching leads for analysts:', analystIds);
+
       // Get analyst performance data
       const { data: leads, error: leadsError } = await supabase
         .from('leads')
@@ -41,7 +44,7 @@ export const AnalystPerformanceDashboard = () => {
           estado,
           created_at
         `)
-        .not('asignado_a', 'is', null);
+        .in('asignado_a', analystIds);
 
       if (leadsError) throw leadsError;
 
