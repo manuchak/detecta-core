@@ -79,8 +79,8 @@ export const AnalystPerformanceDashboard = () => {
           const stats = statsMap.get(lead.asignado_a)!;
           stats.leads_assigned++;
           
-          // Assume contacted if not in lead state
-          if (lead.estado !== 'lead') {
+          // Count as contacted if processed (not in initial lead state)
+          if (['nuevo', 'aprobado', 'rechazado', 'en_proceso', 'contactado'].includes(lead.estado)) {
             stats.leads_contacted++;
           }
           
