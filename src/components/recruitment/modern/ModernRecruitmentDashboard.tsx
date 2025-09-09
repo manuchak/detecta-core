@@ -19,6 +19,7 @@ import {
   Award,
   Activity
 } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useLeadAssignment } from '@/hooks/useLeadAssignment';
 import { useCallCenterMetrics } from '@/hooks/useCallCenterMetrics';
 import { useLeadsStable } from '@/hooks/useLeadsStable';
@@ -59,7 +60,50 @@ export const ModernRecruitmentDashboard = () => {
     enabled: true
   });
 
-  // Get comprehensive dashboard stats
+  // Get daily activity data for chart
+  const { data: dailyActivityData } = useAuthenticatedQuery(
+    ['daily-activity-chart', selectedPeriod],
+    async () => {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+      
+      const [leadsData, callsData] = await Promise.all([
+        supabase
+          .from('leads')
+          .select('created_at')
+          .gte('created_at', startDate.toISOString()),
+        supabase
+          .from('manual_call_logs')
+          .select('created_at')
+          .gte('created_at', startDate.toISOString())
+      ]);
+
+      // Create daily buckets for the last 30 days
+      const dailyData = [];
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        const leadsCount = leadsData.data?.filter(lead => 
+          lead.created_at.split('T')[0] === dateStr
+        ).length || 0;
+        
+        const callsCount = callsData.data?.filter(call => 
+          call.created_at.split('T')[0] === dateStr
+        ).length || 0;
+
+        dailyData.push({
+          date: date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }),
+          leads: leadsCount,
+          calls: callsCount,
+          total: leadsCount + callsCount
+        });
+      }
+
+      return dailyData;
+    }
+  );
   const { data: dashboardStats, isLoading: statsLoading } = useAuthenticatedQuery(
     ['modern-dashboard-stats', selectedPeriod],
     async () => {
@@ -267,10 +311,54 @@ export const ModernRecruitmentDashboard = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-48 flex items-center justify-center text-muted-foreground">
-                    Gráfico de actividad diaria
-                    <br />
-                    <span className="text-sm">Promedio: {dashboardStats?.dailyActivity || 0} actividades/día</span>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={dailyActivityData || []}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="date" 
+                        className="text-xs fill-muted-foreground"
+                        tick={{ fontSize: 12 }}
+                      />
+                      <YAxis 
+                        className="text-xs fill-muted-foreground"
+                        tick={{ fontSize: 12 }}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                          fontSize: '12px'
+                        }}
+                        labelStyle={{ color: 'hsl(var(--foreground))' }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="leads" 
+                        stroke="hsl(var(--primary))" 
+                        strokeWidth={2}
+                        dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 3 }}
+                        name="Leads"
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="calls" 
+                        stroke="hsl(var(--chart-2))" 
+                        strokeWidth={2}
+                        dot={{ fill: 'hsl(var(--chart-2))', strokeWidth: 2, r: 3 }}
+                        name="Llamadas"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                  <div className="mt-2 flex items-center justify-center gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-primary"></div>
+                      <span>Leads</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'hsl(var(--chart-2))' }}></div>
+                      <span>Llamadas</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
