@@ -45,6 +45,7 @@ import CustodianDashboard from '@/pages/custodian/CustodianDashboard';
 import CustodianTickets from '@/pages/custodian/CustodianTickets';
 import CustodianPortalAdmin from '@/pages/admin/CustodianPortalAdmin';
 import RecruitmentStrategy from '@/pages/RecruitmentStrategy';
+import ModernRecruitment from '@/pages/ModernRecruitment';
 import SimulationScenarios from '@/pages/SimulationScenarios';
 import ExecutiveRecruitmentDashboard from '@/pages/ExecutiveRecruitmentDashboard';
 import SupplyDashboardExtended from '@/pages/supply/SupplyDashboardExtended';
@@ -197,9 +198,7 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'manager', 'coordinador_operaciones']}>
-                        <DashboardLayout>
-                          <RecruitmentStrategy />
-                        </DashboardLayout>
+                        <ModernRecruitment />
                       </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
