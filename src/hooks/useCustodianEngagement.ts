@@ -63,7 +63,7 @@ export function useCustodianEngagement() {
     queryFn: async () => {
       try {
         const { data, error } = await supabase
-          .rpc('bypass_rls_get_servicios', { max_records: 5000 });
+          .rpc('bypass_rls_get_servicios', { max_records: 10000 }); // Aumentar límite
         
         if (error) throw error;
         return data as ServicioCustodia[];
@@ -82,13 +82,14 @@ export function useCustodianEngagement() {
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+    const sixMonthsAgo = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000); // 6 meses atrás
 
-    // Filtrar servicios con fecha válida y custodio asignado
+    // Filtrar servicios con fecha válida y custodio asignado - extender rango a 6 meses
     const serviciosValidos = serviciosData.filter(s => 
       s.fecha_hora_cita && 
       s.nombre_custodio && 
       s.nombre_custodio !== 'Sin asignar' &&
-      new Date(s.fecha_hora_cita) >= sixtyDaysAgo
+      new Date(s.fecha_hora_cita) >= sixMonthsAgo // Cambiar a 6 meses
     );
 
     // Agrupar por custodio
@@ -165,7 +166,7 @@ export function useCustodianEngagement() {
       }, 0);
       const ingresoPromedioDiario = diasTrabajados > 0 ? ingresoTotal / diasTrabajados : 0;
 
-      // Calcular score de engagement (0-100)
+      // Calcular score de engagement (0-100) con validaciones contra NaN
       let scoreEngagement = 0;
       
       // Componente 1: Actividad (40% del score)
@@ -174,30 +175,34 @@ export function useCustodianEngagement() {
       // Componente 2: Balance trabajo-descanso (30% del score)
       const horasSemanales = (horasTrabajadasMes / 4.33); // Promedio semanal
       let balanceScore = 0;
-      if (horasSemanales >= 20 && horasSemanales <= 48) { // Rango saludable
+      if (!isNaN(horasSemanales) && horasSemanales >= 20 && horasSemanales <= 48) { // Rango saludable
         balanceScore = 30;
-      } else if (horasSemanales > 48 && horasSemanales <= 60) {
+      } else if (!isNaN(horasSemanales) && horasSemanales > 48 && horasSemanales <= 60) {
         balanceScore = 20;
-      } else if (horasSemanales > 60) {
+      } else if (!isNaN(horasSemanales) && horasSemanales > 60) {
         balanceScore = 10; // Sobreexplotación
-      } else {
+      } else if (!isNaN(horasSemanales)) {
         balanceScore = Math.max(10, (horasSemanales / 20) * 30);
+      } else {
+        balanceScore = 20; // Valor default si no hay datos
       }
       
       // Componente 3: Descanso adecuado (20% del score)
       let descansoScore = 0;
-      if (horasDescansoPromedio >= 12 && horasDescansoPromedio <= 48) {
+      if (!isNaN(horasDescansoPromedio) && horasDescansoPromedio >= 12 && horasDescansoPromedio <= 48) {
         descansoScore = 20;
-      } else if (horasDescansoPromedio < 12) {
+      } else if (!isNaN(horasDescansoPromedio) && horasDescansoPromedio < 12) {
         descansoScore = Math.max(5, (horasDescansoPromedio / 12) * 20);
-      } else {
+      } else if (!isNaN(horasDescansoPromedio)) {
         descansoScore = 15;
+      } else {
+        descansoScore = 15; // Valor default
       }
       
       // Componente 4: Consistencia (10% del score)
       const consistenciaScore = Math.min(10, (diasTrabajados / 20) * 10); // Max 20 días por mes
       
-      scoreEngagement = actividadScore + balanceScore + descansoScore + consistenciaScore;
+      scoreEngagement = Math.round(actividadScore + balanceScore + descansoScore + consistenciaScore);
 
       // Determinar nivel de riesgo
       let nivelRiesgo: 'saludable' | 'moderado' | 'alto' | 'critico' = 'saludable';
@@ -257,12 +262,14 @@ export function useCustodianEngagement() {
       const custodiosActivosMes = new Set(serviciosMes.map(s => s.nombre_custodio)).size;
       const viajesPromedio = custodiosActivosMes > 0 ? serviciosMes.length / custodiosActivosMes : 0;
       
-      // Calcular engagement promedio del mes
+      // Calcular engagement promedio del mes con validaciones
       const custodiosMes = Array.from(new Set(serviciosMes.map(s => s.nombre_custodio)));
       const engagementPromedio = custodiosMes.length > 0 
         ? custodiosMes.reduce((sum, custodio) => {
             const metrica = metricas.find(m => m.nombreCustodio === custodio);
-            return sum + (metrica?.scoreEngagement || 0);
+            const score = metrica?.scoreEngagement;
+            // Validar que el score no sea NaN antes de sumarlo
+            return sum + (typeof score === 'number' && !isNaN(score) ? score : 0);
           }, 0) / custodiosMes.length
         : 0;
 
@@ -287,11 +294,19 @@ export function useCustodianEngagement() {
     const custodiosTotal = metricas.length;
     const custodiosSaludables = metricas.filter(m => m.nivelRiesgo === 'saludable').length;
     const custodiosEnRiesgo = metricas.filter(m => ['alto', 'critico'].includes(m.nivelRiesgo)).length;
-    const engagementPromedio = metricas.length > 0 
-      ? Math.round(metricas.reduce((sum, m) => sum + m.scoreEngagement, 0) / metricas.length)
-      : 0;
+    
+    // Calcular engagement promedio con validación contra NaN
+    const sumaEngagement = metricas.reduce((sum, m) => {
+      const score = typeof m.scoreEngagement === 'number' && !isNaN(m.scoreEngagement) ? m.scoreEngagement : 0;
+      return sum + score;
+    }, 0);
+    const engagementPromedio = metricas.length > 0 ? Math.round(sumaEngagement / metricas.length) : 0;
+    
     const horasPromedioPorCustodio = metricas.length > 0
-      ? Math.round(metricas.reduce((sum, m) => sum + m.horasTrabajadasMes, 0) / metricas.length)
+      ? Math.round(metricas.reduce((sum, m) => {
+          const horas = typeof m.horasTrabajadasMes === 'number' && !isNaN(m.horasTrabajadasMes) ? m.horasTrabajadasMes : 0;
+          return sum + horas;
+        }, 0) / metricas.length)
       : 0;
 
     // Generar recomendaciones
