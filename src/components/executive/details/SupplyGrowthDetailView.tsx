@@ -12,7 +12,6 @@ import {
   Activity, Award, AlertTriangle, Calendar, Target, Filter, Info
 } from 'lucide-react';
 import { StarRating } from '@/components/ui/star-rating';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSupplyGrowthDetails } from '@/hooks/useSupplyGrowthDetails';
 
 export function SupplyGrowthDetailView() {
@@ -189,23 +188,19 @@ export function SupplyGrowthDetailView() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Calidad del Supply</CardTitle>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-sm">
-                      <div className="space-y-2">
-                        <p className="font-semibold">Puntuación: {summary.qualityRating.score}/100</p>
-                        <div className="space-y-1 text-xs">
-                          <div>Distribución de Servicios: {summary.qualityRating.breakdown.serviceDistribution}/100</div>
-                          <div>Performance Financiero: {summary.qualityRating.breakdown.financialPerformance}/100</div>
-                          <div>Crecimiento y Retención: {summary.qualityRating.breakdown.growthRetention}/100</div>
-                        </div>
+                <div className="relative group">
+                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                  <div className="absolute right-0 top-6 w-64 p-3 bg-popover border border-border rounded-lg shadow-lg invisible group-hover:visible z-50">
+                    <div className="space-y-2">
+                      <p className="font-semibold text-sm">Puntuación: {summary.qualityRating.score}/100</p>
+                      <div className="space-y-1 text-xs text-muted-foreground">
+                        <div>Distribución de Servicios: {summary.qualityRating.breakdown.serviceDistribution}/100</div>
+                        <div>Performance Financiero: {summary.qualityRating.breakdown.financialPerformance}/100</div>
+                        <div>Crecimiento y Retención: {summary.qualityRating.breakdown.growthRetention}/100</div>
                       </div>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                    </div>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-col items-center space-y-2">
