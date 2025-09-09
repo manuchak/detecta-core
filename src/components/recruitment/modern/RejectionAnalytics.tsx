@@ -31,105 +31,126 @@ export const RejectionAnalytics: React.FC<RejectionAnalyticsProps> = ({
   const { data: rejectionData, isLoading } = useAuthenticatedQuery(
     ['rejection-analytics', dateFrom, dateTo, selectedAnalysts.join(',')],
     async () => {
-      // Get rejected leads with reasons
-      const { data: rejectedLeads } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('estado', 'rechazado')
-        .gte('created_at', dateFrom)
-        .lte('created_at', dateTo + 'T23:59:59.999Z');
+      try {
+        // Get rejected leads with reasons
+        const { data: rejectedLeads } = await supabase
+          .from('leads')
+          .select('*')
+          .eq('estado', 'rechazado')
+          .gte('created_at', dateFrom)
+          .lte('created_at', dateTo + 'T23:59:59.999Z');
 
-      // Get all leads for rejection rate calculation
-      const { data: allLeads } = await supabase
-        .from('leads')
-        .select('id, estado, fuente, asignado_a, created_at')
-        .gte('created_at', dateFrom)
-        .lte('created_at', dateTo + 'T23:59:59.999Z');
+        // Get all leads for rejection rate calculation
+        const { data: allLeads } = await supabase
+          .from('leads')
+          .select('id, estado, fuente, asignado_a, created_at')
+          .gte('created_at', dateFrom)
+          .lte('created_at', dateTo + 'T23:59:59.999Z');
 
-      const filteredLeads = selectedAnalysts.length > 0 
-        ? allLeads?.filter(lead => !lead.asignado_a || selectedAnalysts.includes(lead.asignado_a))
-        : allLeads;
+        const filteredLeads = selectedAnalysts.length > 0 
+          ? allLeads?.filter(lead => !lead.asignado_a || selectedAnalysts.includes(lead.asignado_a))
+          : allLeads;
 
-      const filteredRejected = selectedAnalysts.length > 0
-        ? rejectedLeads?.filter(lead => !lead.asignado_a || selectedAnalysts.includes(lead.asignado_a))
-        : rejectedLeads;
+        const filteredRejected = selectedAnalysts.length > 0
+          ? rejectedLeads?.filter(lead => !lead.asignado_a || selectedAnalysts.includes(lead.asignado_a))
+          : rejectedLeads;
 
-      // Calculate rejection statistics
-      const totalLeads = filteredLeads?.length || 0;
-      const totalRejected = filteredRejected?.length || 0;
-      const rejectionRate = totalLeads > 0 ? Math.round((totalRejected / totalLeads) * 100) : 0;
+        // Calculate rejection statistics
+        const totalLeads = filteredLeads?.length || 0;
+        const totalRejected = filteredRejected?.length || 0;
+        const rejectionRate = totalLeads > 0 ? Math.round((totalRejected / totalLeads) * 100) : 0;
 
-      // Process rejection reasons
-      const reasonCounts: Record<string, number> = {};
-      const categoryCounts: Record<string, number> = {
-        'Requisitos Básicos': 0,
-        'Ubicación/Movilidad': 0,
-        'Disponibilidad': 0,
-        'Aspectos Económicos': 0,
-        'Otros': 0
-      };
+        // Process rejection reasons
+        const reasonCounts: Record<string, number> = {};
+        const categoryCounts: Record<string, number> = {
+          'Requisitos Básicos': 0,
+          'Ubicación/Movilidad': 0,
+          'Disponibilidad': 0,
+          'Aspectos Económicos': 0,
+          'Otros': 0
+        };
 
-      filteredRejected?.forEach(lead => {
-        // For now, use motivo_rechazo field or create generic reasons
-        const reasons = lead.motivo_rechazo ? [lead.motivo_rechazo] : ['Sin razón especificada'];
-        reasons.forEach((reason: string) => {
-          reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
-          
-          // Categorize reasons
-          if (reason.includes('experiencia') || reason.includes('edad') || reason.includes('documentos')) {
-            categoryCounts['Requisitos Básicos']++;
-          } else if (reason.includes('ubicacion') || reason.includes('movilidad') || reason.includes('zona')) {
-            categoryCounts['Ubicación/Movilidad']++;
-          } else if (reason.includes('horario') || reason.includes('disponibilidad')) {
-            categoryCounts['Disponibilidad']++;
-          } else if (reason.includes('inversion') || reason.includes('economico') || reason.includes('salario')) {
-            categoryCounts['Aspectos Económicos']++;
-          } else {
-            categoryCounts['Otros']++;
+        filteredRejected?.forEach(lead => {
+          // For now, use motivo_rechazo field or create generic reasons
+          const reasons = lead.motivo_rechazo ? [lead.motivo_rechazo] : ['Sin razón especificada'];
+          reasons.forEach((reason: string) => {
+            reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
+            
+            // Categorize reasons
+            if (reason.includes('experiencia') || reason.includes('edad') || reason.includes('documentos')) {
+              categoryCounts['Requisitos Básicos']++;
+            } else if (reason.includes('ubicacion') || reason.includes('movilidad') || reason.includes('zona')) {
+              categoryCounts['Ubicación/Movilidad']++;
+            } else if (reason.includes('horario') || reason.includes('disponibilidad')) {
+              categoryCounts['Disponibilidad']++;
+            } else if (reason.includes('inversion') || reason.includes('economico') || reason.includes('salario')) {
+              categoryCounts['Aspectos Económicos']++;
+            } else {
+              categoryCounts['Otros']++;
+            }
+          });
+        });
+
+        // Calculate rejection by source
+        const rejectionBySource: Record<string, { total: number; rejected: number; rate: number }> = {};
+        filteredLeads?.forEach(lead => {
+          const source = lead.fuente || 'Sin fuente';
+          if (!rejectionBySource[source]) {
+            rejectionBySource[source] = { total: 0, rejected: 0, rate: 0 };
+          }
+          rejectionBySource[source].total++;
+          if (lead.estado === 'rechazado') {
+            rejectionBySource[source].rejected++;
           }
         });
-      });
 
-      // Calculate rejection by source
-      const rejectionBySource: Record<string, { total: number; rejected: number; rate: number }> = {};
-      filteredLeads?.forEach(lead => {
-        const source = lead.fuente || 'Sin fuente';
-        if (!rejectionBySource[source]) {
-          rejectionBySource[source] = { total: 0, rejected: 0, rate: 0 };
-        }
-        rejectionBySource[source].total++;
-        if (lead.estado === 'rechazado') {
-          rejectionBySource[source].rejected++;
-        }
-      });
+        Object.keys(rejectionBySource).forEach(source => {
+          const data = rejectionBySource[source];
+          data.rate = data.total > 0 ? Math.round((data.rejected / data.total) * 100) : 0;
+        });
 
-      Object.keys(rejectionBySource).forEach(source => {
-        const data = rejectionBySource[source];
-        data.rate = data.total > 0 ? Math.round((data.rejected / data.total) * 100) : 0;
-      });
+        // Calculate time to rejection
+        const timeToRejection = filteredRejected?.map(lead => {
+          const created = new Date(lead.created_at);
+          const updated = new Date(lead.updated_at);
+          const diffHours = Math.round((updated.getTime() - created.getTime()) / (1000 * 60 * 60));
+          return diffHours;
+        }) || [];
 
-      // Calculate time to rejection
-      const timeToRejection = filteredRejected?.map(lead => {
-        const created = new Date(lead.created_at);
-        const updated = new Date(lead.updated_at);
-        const diffHours = Math.round((updated.getTime() - created.getTime()) / (1000 * 60 * 60));
-        return diffHours;
-      }) || [];
+        const avgTimeToRejection = timeToRejection.length > 0
+          ? Math.round(timeToRejection.reduce((sum, time) => sum + time, 0) / timeToRejection.length)
+          : 0;
 
-      const avgTimeToRejection = timeToRejection.length > 0
-        ? Math.round(timeToRejection.reduce((sum, time) => sum + time, 0) / timeToRejection.length)
-        : 0;
-
-      return {
-        totalLeads,
-        totalRejected,
-        rejectionRate,
-        reasonCounts,
-        categoryCounts,
-        rejectionBySource,
-        avgTimeToRejection,
-        timeToRejection
-      };
+        return {
+          totalLeads,
+          totalRejected,
+          rejectionRate,
+          reasonCounts,
+          categoryCounts,
+          rejectionBySource,
+          avgTimeToRejection,
+          timeToRejection
+        };
+      } catch (error) {
+        console.error('Error in rejection analytics:', error);
+        // Return default empty data structure on error
+        return {
+          totalLeads: 0,
+          totalRejected: 0,
+          rejectionRate: 0,
+          reasonCounts: {},
+          categoryCounts: {
+            'Requisitos Básicos': 0,
+            'Ubicación/Movilidad': 0,
+            'Disponibilidad': 0,
+            'Aspectos Económicos': 0,
+            'Otros': 0
+          },
+          rejectionBySource: {},
+          avgTimeToRejection: 0,
+          timeToRejection: []
+        };
+      }
     },
     {
       staleTime: 5 * 60 * 1000
@@ -339,29 +360,34 @@ export const RejectionAnalytics: React.FC<RejectionAnalyticsProps> = ({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-64">
-              {sourceData && sourceData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={sourceData} layout="horizontal">
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" domain={[0, 100]} />
-                    <YAxis dataKey="source" type="category" width={80} />
-                    <Tooltip 
-                      formatter={(value: number) => [`${value}%`, 'Tasa de Rechazo']}
-                      labelFormatter={(label: string) => `Fuente: ${label}`}
-                    />
-                    <Bar dataKey="rate" fill="#ef4444" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  <div className="text-center">
-                    <BarChart3 className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p>No hay datos de rechazo por fuente</p>
+            {sourceData && sourceData.length > 0 ? (
+              <div className="space-y-3">
+                {sourceData.map((source, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{source.source}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Progress value={ensureValidNumber(source.rate, 0)} className="flex-1" />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {ensureValidNumber(source.rejected, 0)}/{ensureValidNumber(source.total, 0)} rechazados
+                      </p>
+                    </div>
+                    <div className="text-right ml-4">
+                      <p className="font-bold text-lg">{ensureValidNumber(source.rate, 0)}%</p>
+                      <p className="text-xs text-muted-foreground">Rechazo</p>
+                    </div>
                   </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-64 text-muted-foreground">
+                <div className="text-center">
+                  <BarChart3 className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>No hay datos de rechazo por fuente</p>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
