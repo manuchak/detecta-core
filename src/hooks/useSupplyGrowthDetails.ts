@@ -337,8 +337,19 @@ function calculateSupplyQualityRating(
   const growthRetentionScore = (retentionScore * 0.7 + growthScore * 0.3);
   score += growthRetentionScore * 0.3;
   
-  // Convertir score a estrellas (1-5)
-  const stars = Math.max(1, Math.min(5, Math.ceil(score / 20)));
+  // Convertir score a estrellas (1-5) - Sistema estricto
+  let stars: number;
+  if (score >= 95) {
+    stars = 5;
+  } else if (score >= 81) {
+    stars = 4;
+  } else if (score >= 66) {
+    stars = 3;
+  } else if (score >= 51) {
+    stars = 2;
+  } else {
+    stars = 1;
+  }
   
   return {
     stars,
