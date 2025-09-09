@@ -156,33 +156,45 @@ export const RejectionAnalytics: React.FC<RejectionAnalyticsProps> = ({
     );
   }
 
-  // Prepare chart data
+  // Helper function to ensure valid numbers
+  const ensureValidNumber = (value: any, fallback: number = 0): number => {
+    const num = Number(value);
+    return isNaN(num) || !isFinite(num) ? fallback : num;
+  };
+
+  // Prepare chart data with validation
   const categoryData = Object.entries(rejectionData.categoryCounts)
-    .map(([category, count]) => ({
-      name: category,
-      value: count,
-      percentage: rejectionData.totalRejected > 0 
-        ? Math.round((count / rejectionData.totalRejected) * 100)
-        : 0
-    }))
+    .map(([category, count]) => {
+      const validCount = ensureValidNumber(count, 0);
+      const validTotal = ensureValidNumber(rejectionData.totalRejected, 1);
+      const percentage = validTotal > 0 ? Math.round((validCount / validTotal) * 100) : 0;
+      
+      return {
+        name: category,
+        value: validCount,
+        percentage: ensureValidNumber(percentage, 0)
+      };
+    })
     .filter(item => item.value > 0);
 
   const sourceData = Object.entries(rejectionData.rejectionBySource)
     .map(([source, data]) => ({
       source,
-      total: data.total,
-      rejected: data.rejected,
-      rate: data.rate
+      total: ensureValidNumber(data.total, 0),
+      rejected: ensureValidNumber(data.rejected, 0),
+      rate: ensureValidNumber(data.rate, 0)
     }))
+    .filter(item => item.total > 0) // Only include sources with data
     .sort((a, b) => b.rate - a.rate)
     .slice(0, 8);
 
   const colors = ['#ef4444', '#f59e0b', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6'];
 
   const getRejectionLevel = (rate: number) => {
-    if (rate <= 15) return { level: 'Excelente', color: 'text-green-600', bgColor: 'bg-green-100' };
-    if (rate <= 25) return { level: 'Bueno', color: 'text-yellow-600', bgColor: 'bg-yellow-100' };
-    if (rate <= 40) return { level: 'Regular', color: 'text-orange-600', bgColor: 'bg-orange-100' };
+    const validRate = ensureValidNumber(rate, 0);
+    if (validRate <= 15) return { level: 'Excelente', color: 'text-green-600', bgColor: 'bg-green-100' };
+    if (validRate <= 25) return { level: 'Bueno', color: 'text-yellow-600', bgColor: 'bg-yellow-100' };
+    if (validRate <= 40) return { level: 'Regular', color: 'text-orange-600', bgColor: 'bg-orange-100' };
     return { level: 'Crítico', color: 'text-red-600', bgColor: 'bg-red-100' };
   };
 
@@ -198,7 +210,7 @@ export const RejectionAnalytics: React.FC<RejectionAnalyticsProps> = ({
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-sm font-medium text-muted-foreground">Tasa de Rechazo</p>
-                <p className="text-3xl font-bold">{rejectionData.rejectionRate}%</p>
+                <p className="text-3xl font-bold">{ensureValidNumber(rejectionData.rejectionRate, 0)}%</p>
                 <Badge 
                   variant="secondary" 
                   className={`${rejectionLevel.color} ${rejectionLevel.bgColor} border-0`}
@@ -208,7 +220,7 @@ export const RejectionAnalytics: React.FC<RejectionAnalyticsProps> = ({
               </div>
               <TrendingDown className="h-8 w-8 text-muted-foreground" />
             </div>
-            <Progress value={rejectionData.rejectionRate} className="mt-3" />
+            <Progress value={ensureValidNumber(rejectionData.rejectionRate, 0)} className="mt-3" />
           </CardContent>
         </Card>
 
@@ -218,8 +230,8 @@ export const RejectionAnalytics: React.FC<RejectionAnalyticsProps> = ({
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-sm font-medium text-muted-foreground">Total Rechazados</p>
-                <p className="text-3xl font-bold">{rejectionData.totalRejected}</p>
-                <p className="text-xs text-muted-foreground">De {rejectionData.totalLeads} leads</p>
+                <p className="text-3xl font-bold">{ensureValidNumber(rejectionData.totalRejected, 0)}</p>
+                <p className="text-xs text-muted-foreground">De {ensureValidNumber(rejectionData.totalLeads, 0)} leads</p>
               </div>
               <X className="h-8 w-8 text-muted-foreground" />
             </div>
@@ -232,7 +244,7 @@ export const RejectionAnalytics: React.FC<RejectionAnalyticsProps> = ({
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-sm font-medium text-muted-foreground">Tiempo a Rechazo</p>
-                <p className="text-3xl font-bold">{rejectionData.avgTimeToRejection}h</p>
+                <p className="text-3xl font-bold">{ensureValidNumber(rejectionData.avgTimeToRejection, 0)}h</p>
                 <p className="text-xs text-muted-foreground">Promedio</p>
               </div>
               <Clock className="h-8 w-8 text-muted-foreground" />
@@ -248,7 +260,7 @@ export const RejectionAnalytics: React.FC<RejectionAnalyticsProps> = ({
                 <p className="text-sm font-medium text-muted-foreground">Impacto en Costo</p>
                 <p className="text-3xl font-bold">Alto</p>
                 <p className="text-xs text-muted-foreground">
-                  {Math.round((rejectionData.totalRejected * 1500) / 1000)}k MXN
+                  {Math.round((ensureValidNumber(rejectionData.totalRejected, 0) * 1500) / 1000)}k MXN
                 </p>
               </div>
               <DollarSign className="h-8 w-8 text-muted-foreground" />
