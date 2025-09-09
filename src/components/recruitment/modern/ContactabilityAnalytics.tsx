@@ -11,7 +11,9 @@ import {
   TrendingUp,
   AlertCircle,
   CheckCircle,
-  Users
+  Users,
+  BarChart3,
+  Activity
 } from 'lucide-react';
 import { ContactabilityMetrics } from '@/hooks/useContactabilityMetrics';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts';
@@ -208,27 +210,36 @@ export const ContactabilityAnalytics: React.FC<ContactabilityAnalyticsProps> = (
           </CardHeader>
           <CardContent>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={attemptDistributionData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {attemptDistributionData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    formatter={(value: number) => [value, 'Leads']}
-                    labelStyle={{ color: '#374151' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+              {attemptDistributionData && attemptDistributionData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={attemptDistributionData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {attemptDistributionData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(value: number) => [value, 'Leads']}
+                      labelStyle={{ color: '#374151' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="text-center">
+                    <Activity className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>No hay datos de distribución de intentos</p>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-2 mt-4">
               {attemptDistributionData.map((item, index) => (
@@ -251,20 +262,29 @@ export const ContactabilityAnalytics: React.FC<ContactabilityAnalyticsProps> = (
           </CardHeader>
           <CardContent>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={conversionData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="attempt" />
-                  <YAxis />
-                  <Tooltip 
-                    formatter={(value: number, name: string) => [
-                      `${value}%`, 
-                      name === 'rate' ? 'Tasa de Éxito' : name
-                    ]}
-                  />
-                  <Bar dataKey="rate" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {conversionData && conversionData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={conversionData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="attempt" />
+                    <YAxis />
+                    <Tooltip 
+                      formatter={(value: number, name: string) => [
+                        `${value}%`, 
+                        name === 'rate' ? 'Tasa de Éxito' : name
+                      ]}
+                    />
+                    <Bar dataKey="rate" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="text-center">
+                    <BarChart3 className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>No hay datos de conversión por intento</p>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

@@ -268,29 +268,38 @@ export const RejectionAnalytics: React.FC<RejectionAnalyticsProps> = ({
           </CardHeader>
           <CardContent>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <RechartsPieChart>
-                  <Pie
-                    data={categoryData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {categoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    formatter={(value: number, name: string, props: any) => [
-                      `${value} (${props.payload.percentage}%)`,
-                      'Rechazos'
-                    ]}
-                  />
-                </RechartsPieChart>
-              </ResponsiveContainer>
+              {categoryData && categoryData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsPieChart>
+                    <Pie
+                      data={categoryData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {categoryData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(value: number, name: string, props: any) => [
+                        `${value} (${props.payload.percentage}%)`,
+                        'Rechazos'
+                      ]}
+                    />
+                  </RechartsPieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="text-center">
+                    <PieChart className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>No hay datos de rechazo por categoría</p>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-1 gap-2 mt-4">
               {categoryData.map((item, index) => (
@@ -319,18 +328,27 @@ export const RejectionAnalytics: React.FC<RejectionAnalyticsProps> = ({
           </CardHeader>
           <CardContent>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={sourceData} layout="horizontal">
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" domain={[0, 100]} />
-                  <YAxis dataKey="source" type="category" width={80} />
-                  <Tooltip 
-                    formatter={(value: number) => [`${value}%`, 'Tasa de Rechazo']}
-                    labelFormatter={(label: string) => `Fuente: ${label}`}
-                  />
-                  <Bar dataKey="rate" fill="#ef4444" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {sourceData && sourceData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={sourceData} layout="horizontal">
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" domain={[0, 100]} />
+                    <YAxis dataKey="source" type="category" width={80} />
+                    <Tooltip 
+                      formatter={(value: number) => [`${value}%`, 'Tasa de Rechazo']}
+                      labelFormatter={(label: string) => `Fuente: ${label}`}
+                    />
+                    <Bar dataKey="rate" fill="#ef4444" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="text-center">
+                    <BarChart3 className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>No hay datos de rechazo por fuente</p>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
