@@ -105,9 +105,11 @@ export const ModernRecruitmentDashboard = () => {
     if (!allLeads) return [];
     
     return allLeads.filter(lead => {
-      // Filter by date first
-      const leadDate = new Date(lead.created_at).toISOString().split('T')[0];
-      if (leadDate < dateFrom || leadDate > dateTo) return false;
+      // Filter by date first - use proper date comparison
+      const leadDate = new Date(lead.created_at);
+      const fromDate = new Date(dateFrom);
+      const toDate = new Date(dateTo + 'T23:59:59'); // Include end of day
+      if (leadDate < fromDate || leadDate > toDate) return false;
       
       // If no analysts are selected, show all leads (within date range)
       if (selectedAnalysts.length === 0) return true;
