@@ -412,11 +412,11 @@ export const PriceMatrixImportWizard: React.FC<PriceMatrixImportWizardProps> = (
                         
                         <div>
                           <Select
-                            value={state.mapping[col.key] || ''}
+                            value={state.mapping[col.key] || 'unmapped'}
                             onValueChange={(value) => {
                               setState(prev => ({
                                 ...prev,
-                                mapping: { ...prev.mapping, [col.key]: value }
+                                mapping: { ...prev.mapping, [col.key]: value === 'unmapped' ? '' : value }
                               }));
                             }}
                           >
@@ -424,7 +424,7 @@ export const PriceMatrixImportWizard: React.FC<PriceMatrixImportWizardProps> = (
                               <SelectValue placeholder="Seleccionar campo" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">No mapear</SelectItem>
+                              <SelectItem value="unmapped">No mapear</SelectItem>
                               {AVAILABLE_FIELDS.map(field => (
                                 <SelectItem key={field.value} value={field.value}>
                                   {field.label}
