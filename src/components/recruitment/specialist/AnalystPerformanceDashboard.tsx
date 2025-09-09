@@ -22,83 +22,64 @@ interface AnalystStats {
 }
 
 export const AnalystPerformanceDashboard = () => {
-  const { analysts, loading: analystsLoading, fetchAnalysts } = useLeadAssignment();
+  const { analysts, loading: analystsLoading } = useLeadAssignment();
   
   const { data: analystStats, isLoading } = useAuthenticatedQuery(
-    ['analyst-performance', analysts.length.toString()],
+    ['analyst-performance-simple', JSON.stringify(analysts.map(a => a.id))],
     async () => {
+      console.log('🔍 Starting analyst performance query with analysts:', analysts.length);
+      
       if (analysts.length === 0) {
-        console.log('No analysts available yet');
         return [];
       }
 
       const analystIds = analysts.map(a => a.id);
-      console.log('🔍 Fetching leads for analysts:', analystIds);
+      console.log('🔍 Analyst IDs:', analystIds);
 
-      // Get analyst performance data - simplified query
-      const { data: leads, error: leadsError } = await supabase
+      // Direct query to leads table
+      const { data: leads, error } = await supabase
         .from('leads')
         .select('*')
         .in('asignado_a', analystIds);
 
-      if (leadsError) {
-        console.error('❌ Error fetching leads:', leadsError);
-        throw leadsError;
+      if (error) {
+        console.error('❌ Error fetching leads:', error);
+        throw error;
       }
 
-      console.log('📊 Found leads:', leads?.length || 0, 'for analysts');
-      console.log('📊 Sample leads:', leads?.slice(0, 3));
-
-      // Initialize stats for each analyst
-      const statsMap = new Map<string, AnalystStats>();
+      console.log('📊 Found leads:', leads?.length || 0);
+      console.log('📊 Leads by analyst:');
+      
+      // Create stats map
+      const statsMap = new Map();
+      
+      // Initialize all analysts
       analysts.forEach(analyst => {
+        const leadsForAnalyst = leads?.filter(lead => lead.asignado_a === analyst.id) || [];
+        const approvedLeads = leadsForAnalyst.filter(lead => lead.estado === 'aprobado');
+        const contactedLeads = leadsForAnalyst.filter(lead => 
+          ['nuevo', 'aprobado', 'rechazado', 'en_proceso', 'contactado'].includes(lead.estado)
+        );
+
+        console.log(`📊 ${analyst.display_name}: ${leadsForAnalyst.length} leads, ${approvedLeads.length} approved`);
+
         statsMap.set(analyst.id, {
           id: analyst.id,
           name: analyst.display_name,
           email: analyst.email,
-          leads_assigned: 0,
-          leads_contacted: 0,
-          leads_approved: 0,
+          leads_assigned: leadsForAnalyst.length,
+          leads_contacted: contactedLeads.length,
+          leads_approved: approvedLeads.length,
           total_calls: 0,
           successful_calls: 0,
-          approval_rate: 0,
-          contactability_rate: 0,
+          approval_rate: leadsForAnalyst.length > 0 ? Math.round((approvedLeads.length / leadsForAnalyst.length) * 100) : 0,
+          contactability_rate: leadsForAnalyst.length > 0 ? Math.round((contactedLeads.length / leadsForAnalyst.length) * 100) : 0,
           avg_response_time: 0
         });
       });
 
-      // Process leads and calculate stats
-      leads?.forEach(lead => {
-        const analystId = lead.asignado_a;
-        if (analystId && statsMap.has(analystId)) {
-          const stats = statsMap.get(analystId)!;
-          stats.leads_assigned++;
-          
-          // Count as contacted if processed
-          if (['nuevo', 'aprobado', 'rechazado', 'en_proceso', 'contactado'].includes(lead.estado)) {
-            stats.leads_contacted++;
-          }
-          
-          if (lead.estado === 'aprobado') {
-            stats.leads_approved++;
-          }
-        }
-      });
-
-      // Calculate final rates
-      statsMap.forEach((stats) => {
-        stats.approval_rate = stats.leads_assigned > 0 
-          ? Math.round((stats.leads_approved / stats.leads_assigned) * 100) 
-          : 0;
-        
-        stats.contactability_rate = stats.leads_assigned > 0 
-          ? Math.round((stats.leads_contacted / stats.leads_assigned) * 100) 
-          : 0;
-      });
-
       const result = Array.from(statsMap.values()).sort((a, b) => b.approval_rate - a.approval_rate);
-      console.log('📊 Final analyst stats:', result);
-      
+      console.log('📊 Final result:', result);
       return result;
     }
   );
