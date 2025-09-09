@@ -54,8 +54,19 @@ interface ContextualSidebarProps {
 
 const navigationItems: NavigationItem[] = [
   {
+    id: 'home',
+    title: 'Inicio',
+    description: 'Dashboard principal',
+    icon: Home,
+    children: [
+      { id: 'dashboard', title: 'Dashboard', icon: Target },
+      { id: 'leads-page', title: 'Leads', icon: Users },
+      { id: 'services', title: 'Servicios', icon: Database }
+    ]
+  },
+  {
     id: 'dashboard',
-    title: 'Dashboard',
+    title: 'Análisis',
     description: 'Vista ejecutiva',
     icon: Target,
     children: [
@@ -210,10 +221,15 @@ export function ContextualSidebar({ activeSection, onSectionChange, stats }: Con
                         isActive ? "bg-primary/10 text-primary shadow-sm border border-primary/20" : "hover:bg-muted/50"
                       )}
                       onClick={() => {
-                        // Navigate to first child of section
-                        const firstChild = section.children?.[0];
-                        if (firstChild) {
-                          onSectionChange(firstChild.id);
+                        if (section.id === 'home') {
+                          // Special handling for home section
+                          navigate('/dashboard');
+                        } else {
+                          // Navigate to first child of section
+                          const firstChild = section.children?.[0];
+                          if (firstChild) {
+                            onSectionChange(firstChild.id);
+                          }
                         }
                       }}
                     >
@@ -279,7 +295,18 @@ export function ContextualSidebar({ activeSection, onSectionChange, stats }: Con
                           ? "bg-primary text-primary-foreground shadow-sm" 
                           : "text-muted-foreground hover:text-foreground"
                       )}
-                      onClick={() => onSectionChange(item.id)}
+                      onClick={() => {
+                        // Handle specific navigation items
+                        if (item.id === 'leads-page') {
+                          navigate('/leads');
+                        } else if (item.id === 'services') {
+                          navigate('/services');
+                        } else if (item.id === 'dashboard') {
+                          navigate('/dashboard');
+                        } else {
+                          onSectionChange(item.id);
+                        }
+                      }}
                     >
                       <item.icon className={cn(
                         "shrink-0 transition-colors",

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { SidebarTrigger } from '@/components/ui/sidebar';
@@ -7,7 +8,8 @@ import {
   Zap, 
   ChevronRight,
   AlertTriangle,
-  Users
+  Users,
+  Home
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -37,6 +39,7 @@ export function TopNavBar({
   stats
 }: TopNavBarProps) {
   const { icon: Icon } = sectionInfo;
+  const navigate = useNavigate();
 
   return (
     <header className="h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -60,7 +63,7 @@ export function TopNavBar({
                   onClick={() => {
                     if (index === 0) {
                       // Navigate to main dashboard when clicking first breadcrumb
-                      window.location.href = '/dashboard';
+                      navigate('/dashboard');
                     }
                   }}
                   disabled={index === sectionInfo.breadcrumbs.length - 1}
@@ -81,8 +84,19 @@ export function TopNavBar({
           </div>
         </div>
 
-        {/* Right section: Quick stats + Actions */}
+        {/* Right section: Home button + Quick stats + Actions */}
         <div className="flex items-center gap-3">
+          {/* Home Navigation Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/dashboard')}
+            className="h-8 text-muted-foreground hover:text-foreground"
+            title="Ir al Dashboard Principal"
+          >
+            <Home className="h-4 w-4 mr-1" />
+            Dashboard
+          </Button>
           {/* Quick Stats */}
           {stats && (
             <div className="flex items-center gap-2">

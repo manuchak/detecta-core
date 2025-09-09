@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWMSAccess } from '@/hooks/useWMSAccess';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { MainNavigation } from '@/components/layout/MainNavigation';
 import { 
   User, 
   Shield, 
@@ -148,6 +149,7 @@ const Home = () => {
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-gray-50 via-white to-gray-50">
+      <MainNavigation />
       {/* Hero Section */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-50/50 via-transparent to-purple-50/30 pointer-events-none" />
