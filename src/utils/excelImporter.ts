@@ -462,7 +462,15 @@ export const validatePriceMatrixData = (
   });
   
   // Check for invalid numeric values
-  const numericFields = ['valor_bruto', 'precio_custodio', 'costo_operativo', 'distancia_km'];
+  const numericFields = [
+    'valor_bruto', 
+    'precio_custodio', 
+    'costo_custodio', 
+    'costo_operativo', 
+    'costo_maximo_casetas', 
+    'pago_custodio_sin_arma', 
+    'distancia_km'
+  ];
   numericFields.forEach(field => {
     const excelColumn = Object.keys(mapping).find(col => mapping[col] === field);
     if (excelColumn) {
