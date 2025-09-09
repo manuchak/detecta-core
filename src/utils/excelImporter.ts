@@ -425,7 +425,7 @@ export const validatePriceMatrixData = (
   const errors: string[] = [];
   const warnings: string[] = [];
   
-  const requiredFields = ['cliente_nombre', 'destino_texto', 'precio_custodio'];
+  const requiredFields = ['cliente_nombre', 'destino_texto', 'costo_custodio'];
   
   // Check if all required fields are mapped
   const mappedFields = Object.values(mapping).filter(field => field !== '');
