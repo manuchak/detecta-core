@@ -35,31 +35,22 @@ export const AnalystPerformanceDashboard = () => {
       const analystIds = analysts.map(a => a.id);
       console.log('🔍 Fetching leads for analysts:', analystIds);
 
-      // Get analyst performance data
+      // Get analyst performance data - simplified query
       const { data: leads, error: leadsError } = await supabase
         .from('leads')
-        .select(`
-          id,
-          asignado_a,
-          estado,
-          created_at
-        `)
+        .select('*')
         .in('asignado_a', analystIds);
 
-      if (leadsError) throw leadsError;
+      if (leadsError) {
+        console.error('❌ Error fetching leads:', leadsError);
+        throw leadsError;
+      }
 
-      // Get call logs for contactability (even with null caller_id for now)
-      const { data: callLogs, error: callsError } = await supabase
-        .from('manual_call_logs')
-        .select('*')
-        .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+      console.log('📊 Found leads:', leads?.length || 0, 'for analysts');
+      console.log('📊 Sample leads:', leads?.slice(0, 3));
 
-      if (callsError) throw callsError;
-
-      // Calculate stats per analyst
+      // Initialize stats for each analyst
       const statsMap = new Map<string, AnalystStats>();
-
-      // Initialize with analysts
       analysts.forEach(analyst => {
         statsMap.set(analyst.id, {
           id: analyst.id,
@@ -76,13 +67,14 @@ export const AnalystPerformanceDashboard = () => {
         });
       });
 
-      // Process leads data
+      // Process leads and calculate stats
       leads?.forEach(lead => {
-        if (lead.asignado_a && statsMap.has(lead.asignado_a)) {
-          const stats = statsMap.get(lead.asignado_a)!;
+        const analystId = lead.asignado_a;
+        if (analystId && statsMap.has(analystId)) {
+          const stats = statsMap.get(analystId)!;
           stats.leads_assigned++;
           
-          // Count as contacted if processed (not in initial lead state)
+          // Count as contacted if processed
           if (['nuevo', 'aprobado', 'rechazado', 'en_proceso', 'contactado'].includes(lead.estado)) {
             stats.leads_contacted++;
           }
@@ -93,31 +85,21 @@ export const AnalystPerformanceDashboard = () => {
         }
       });
 
-      // Process call logs - NOTE: caller_id might be null for existing records
-      callLogs?.forEach(call => {
-        const analystId = call.caller_id;
-        if (analystId && statsMap.has(analystId)) {
-          const stats = statsMap.get(analystId)!;
-          stats.total_calls++;
-          
-          if (call.call_outcome === 'successful') {
-            stats.successful_calls++;
-          }
-        }
-      });
-
-      // Calculate rates
+      // Calculate final rates
       statsMap.forEach((stats) => {
         stats.approval_rate = stats.leads_assigned > 0 
           ? Math.round((stats.leads_approved / stats.leads_assigned) * 100) 
           : 0;
         
-        stats.contactability_rate = stats.total_calls > 0 
-          ? Math.round((stats.successful_calls / stats.total_calls) * 100) 
-          : stats.leads_contacted > 0 ? 50 : 0; // Fallback estimate when no call data
+        stats.contactability_rate = stats.leads_assigned > 0 
+          ? Math.round((stats.leads_contacted / stats.leads_assigned) * 100) 
+          : 0;
       });
 
-      return Array.from(statsMap.values()).sort((a, b) => b.approval_rate - a.approval_rate);
+      const result = Array.from(statsMap.values()).sort((a, b) => b.approval_rate - a.approval_rate);
+      console.log('📊 Final analyst stats:', result);
+      
+      return result;
     }
   );
 
