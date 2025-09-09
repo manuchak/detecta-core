@@ -26,6 +26,8 @@ import { useLeadsStable } from '@/hooks/useLeadsStable';
 const RecruitmentStrategy = () => {
   const [activeSection, setActiveSection] = useState('analistas');
   
+  console.log('🎯 RecruitmentStrategy - activeSection:', activeSection);
+  
   // Hooks especializados para reclutamiento
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
   const today = new Date().toISOString().split('T')[0];
@@ -191,8 +193,10 @@ const RecruitmentStrategy = () => {
 
   // Render specialized recruitment content based on active section
   const renderContent = () => {
+    console.log('🔄 renderContent called with activeSection:', activeSection);
     switch (activeSection) {
       case 'analistas':
+        console.log('📊 Rendering AnalystPerformanceDashboard');
         return <AnalystPerformanceDashboard />;
 
       case 'contactabilidad':
