@@ -34,6 +34,15 @@ export interface SupplyGrowthSummary {
   peorMes: { mes: string; crecimiento: number };
   tendencia: 'creciendo' | 'decreciendo' | 'estable';
   velocidadCrecimiento: number; // aceleración/desaceleración
+  qualityRating: {
+    stars: number;
+    score: number;
+    breakdown: {
+      serviceDistribution: number;
+      financialPerformance: number;
+      growthRetention: number;
+    };
+  };
 }
 
 export interface SupplyGrowthDetailsData {
@@ -95,6 +104,15 @@ export function useSupplyGrowthDetails(): SupplyGrowthDetailsData {
           peorMes: { mes: '', crecimiento: 0 },
           tendencia: 'estable' as const,
           velocidadCrecimiento: 0,
+          qualityRating: {
+            stars: 1,
+            score: 0,
+            breakdown: {
+              serviceDistribution: 0,
+              financialPerformance: 0,
+              growthRetention: 0,
+            },
+          },
         },
         qualityMetrics: {
           custodiosConMas5Servicios: 0,
@@ -248,6 +266,9 @@ export function useSupplyGrowthDetails(): SupplyGrowthDetailsData {
     if (velocidadCrecimiento > 1) tendencia = 'creciendo';
     else if (velocidadCrecimiento < -1) tendencia = 'decreciendo';
 
+    // Calculate quality rating
+    const qualityRating = calculateSupplyQualityRating(qualityMetrics, recent12Months);
+
     const summary: SupplyGrowthSummary = {
       crecimientoPromedioMensual: recent12Months.length > 0 ?
         recent12Months.reduce((sum, m) => sum + m.crecimientoPorcentual, 0) / recent12Months.length : 0,
@@ -259,6 +280,7 @@ export function useSupplyGrowthDetails(): SupplyGrowthDetailsData {
       peorMes,
       tendencia,
       velocidadCrecimiento: Math.round(velocidadCrecimiento * 100) / 100,
+      qualityRating,
     };
 
     console.log('✅ Supply Growth calculado:', { 
@@ -274,4 +296,57 @@ export function useSupplyGrowthDetails(): SupplyGrowthDetailsData {
       loading: false,
     };
   }, [rawData, isLoading]);
+}
+
+// Función para calcular la calificación por estrellas de la calidad del supply
+function calculateSupplyQualityRating(
+  qualityMetrics: SupplyQualityMetrics,
+  monthlyData: SupplyGrowthMonthlyData[]
+) {
+  let score = 0;
+  
+  // 1. Distribución de servicios (30% peso)
+  const totalCustodians = qualityMetrics.custodiosConMas5Servicios + qualityMetrics.custodiosConMenos1Servicio;
+  const serviceDistributionRatio = totalCustodians > 0 
+    ? (qualityMetrics.custodiosConMas5Servicios / totalCustodians) * 100 
+    : 0;
+  
+  const avgServicesScore = Math.min((qualityMetrics.promedioServiciosPorCustodio / 50) * 100, 100);
+  const distributionScore = (serviceDistributionRatio * 0.7 + avgServicesScore * 0.3);
+  score += distributionScore * 0.3;
+  
+  // 2. Performance financiero (40% peso)
+  const revenueScore = Math.min((qualityMetrics.ingresoPromedioPorCustodio / 50000) * 100, 100);
+  const zeroRevenuePenalty = totalCustodians > 0 
+    ? Math.max(0, 100 - ((qualityMetrics.custodiosConIngresosCero / totalCustodians) * 100 * 2))
+    : 100;
+  const financialScore = (revenueScore * 0.6 + zeroRevenuePenalty * 0.4);
+  score += financialScore * 0.4;
+  
+  // 3. Crecimiento y retención (30% peso)
+  const recentMonths = monthlyData.slice(-6);
+  const avgRetention = recentMonths.length > 0 
+    ? recentMonths.reduce((sum, month) => sum + month.tasaRetencionMensual, 0) / recentMonths.length 
+    : 0;
+  const avgGrowth = recentMonths.length > 1
+    ? recentMonths.slice(1).reduce((sum, month) => sum + Math.max(0, month.crecimientoPorcentual), 0) / (recentMonths.length - 1)
+    : 0;
+  
+  const retentionScore = avgRetention;
+  const growthScore = Math.min(avgGrowth * 10, 100);
+  const growthRetentionScore = (retentionScore * 0.7 + growthScore * 0.3);
+  score += growthRetentionScore * 0.3;
+  
+  // Convertir score a estrellas (1-5)
+  const stars = Math.max(1, Math.min(5, Math.ceil(score / 20)));
+  
+  return {
+    stars,
+    score: Math.round(score),
+    breakdown: {
+      serviceDistribution: Math.round(distributionScore),
+      financialPerformance: Math.round(financialScore),
+      growthRetention: Math.round(growthRetentionScore)
+    }
+  };
 }

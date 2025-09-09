@@ -4,13 +4,15 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, 
   LineChart, Line, ComposedChart, Area, AreaChart 
 } from 'recharts';
 import { 
   TrendingUp, TrendingDown, Users, UserPlus, UserMinus, 
-  Activity, Award, AlertTriangle, Calendar, Target, Filter
+  Activity, Award, AlertTriangle, Calendar, Target, Filter, Info
 } from 'lucide-react';
+import { StarRating } from '@/components/ui/star-rating';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSupplyGrowthDetails } from '@/hooks/useSupplyGrowthDetails';
 
 export function SupplyGrowthDetailView() {
@@ -113,7 +115,7 @@ export function SupplyGrowthDetailView() {
       </div>
 
       {/* Header KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -181,8 +183,48 @@ export function SupplyGrowthDetailView() {
               Últimos 12 meses de {selectedYear}
             </p>
           </CardContent>
-        </Card>
-      </div>
+            </Card>
+
+            {/* Supply Quality Rating Card */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Calidad del Supply</CardTitle>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-sm">
+                      <div className="space-y-2">
+                        <p className="font-semibold">Puntuación: {summary.qualityRating.score}/100</p>
+                        <div className="space-y-1 text-xs">
+                          <div>Distribución de Servicios: {summary.qualityRating.breakdown.serviceDistribution}/100</div>
+                          <div>Performance Financiero: {summary.qualityRating.breakdown.financialPerformance}/100</div>
+                          <div>Crecimiento y Retención: {summary.qualityRating.breakdown.growthRetention}/100</div>
+                        </div>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col items-center space-y-2">
+                  <StarRating 
+                    rating={summary.qualityRating.stars} 
+                    size={24}
+                    color="hsl(var(--primary))"
+                  />
+                  <div className="text-2xl font-bold">{summary.qualityRating.stars}/5</div>
+                  <p className="text-xs text-muted-foreground text-center">
+                    {summary.qualityRating.stars >= 5 ? 'Excelente' :
+                     summary.qualityRating.stars >= 4 ? 'Muy Bueno' :
+                     summary.qualityRating.stars >= 3 ? 'Bueno' :
+                     summary.qualityRating.stars >= 2 ? 'Regular' : 'Necesita Mejora'}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
       {/* Análisis de Tendencia */}
       <Card>
@@ -227,7 +269,7 @@ export function SupplyGrowthDetailView() {
                 stroke="hsl(var(--muted-foreground))"
                 fontSize={12}
               />
-              <Tooltip 
+              <RechartsTooltip 
                 contentStyle={{
                   backgroundColor: 'hsl(var(--card))',
                   border: '1px solid hsl(var(--border))',
@@ -281,7 +323,7 @@ export function SupplyGrowthDetailView() {
                   stroke="hsl(var(--muted-foreground))"
                   fontSize={12}
                 />
-                <Tooltip 
+                <RechartsTooltip 
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
