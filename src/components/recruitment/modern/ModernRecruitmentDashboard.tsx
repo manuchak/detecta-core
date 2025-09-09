@@ -82,12 +82,31 @@ export const ModernRecruitmentDashboard = () => {
   const today = dateTo;
   
   const { analysts, loading: analystsLoading } = useLeadAssignment();
-  const { leads, isLoading: leadsLoading } = useLeadsStable();
+  const { leads: allLeads, isLoading: leadsLoading } = useLeadsStable();
   const { metrics: callMetrics } = useCallCenterMetrics({
     dateFrom: thirtyDaysAgo,
     dateTo: today,
     enabled: true
   });
+
+  // Filter leads by selected analysts and date period
+  const filteredLeads = useMemo(() => {
+    if (!allLeads) return [];
+    
+    return allLeads.filter(lead => {
+      // Filter by date
+      const leadDate = new Date(lead.created_at).toISOString().split('T')[0];
+      if (leadDate < dateFrom || leadDate > dateTo) return false;
+      
+      // Filter by selected analysts (if lead is assigned)
+      if (lead.asignado_a && selectedAnalysts.length > 0) {
+        return selectedAnalysts.includes(lead.asignado_a);
+      }
+      
+      // Include unassigned leads if we have selected analysts
+      return selectedAnalysts.length > 0;
+    });
+  }, [allLeads, selectedAnalysts, dateFrom, dateTo]);
 
   // Filter out admin/test accounts by default and initialize selected analysts
   const filteredAnalysts = useMemo(() => {
@@ -158,14 +177,14 @@ export const ModernRecruitmentDashboard = () => {
   const { data: dashboardStats, isLoading: statsLoading } = useAuthenticatedQuery(
     ['modern-dashboard-stats', selectedPeriod, selectedAnalysts.join(',')],
     async () => {
-      const [leadsData, callsData] = await Promise.all([
-        supabase.from('leads').select('*').gte('created_at', thirtyDaysAgo),
+      const [callsData] = await Promise.all([
         supabase.from('manual_call_logs').select('*').gte('created_at', thirtyDaysAgo)
       ]);
 
-      const totalLeads = leadsData.data?.length || 0;
-      const approvedLeads = leadsData.data?.filter(l => l.estado === 'aprobado').length || 0;
-      const contactedLeads = leadsData.data?.filter(l => l.estado !== 'nuevo').length || 0;
+      // Use filtered leads for consistent data
+      const totalLeads = filteredLeads.length;
+      const approvedLeads = filteredLeads.filter(l => l.estado === 'aprobado').length;
+      const contactedLeads = filteredLeads.filter(l => l.estado !== 'nuevo').length;
       const totalCalls = callsData.data?.length || 0;
       const successfulCalls = callsData.data?.filter(c => c.call_outcome === 'successful').length || 0;
 
@@ -186,14 +205,9 @@ export const ModernRecruitmentDashboard = () => {
     async () => {
       if (activeAnalysts.length === 0) return [];
 
-      const { data: leads } = await supabase
-        .from('leads')
-        .select('*')
-        .not('asignado_a', 'is', null)
-        .gte('created_at', thirtyDaysAgo);
-
+      // Use filtered leads for performance calculation
       const performanceData: AnalystPerformance[] = activeAnalysts.map(analyst => {
-        const analystLeads = leads?.filter(l => l.asignado_a === analyst.id) || [];
+        const analystLeads = filteredLeads.filter(l => l.asignado_a === analyst.id);
         const approvedLeads = analystLeads.filter(l => l.estado === 'aprobado');
         
         return {
@@ -700,7 +714,7 @@ export const ModernRecruitmentDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold mb-2">
-                    {leads?.filter(l => l.estado === 'nuevo').length || 0}
+                    {filteredLeads.filter(l => l.estado === 'nuevo').length || 0}
                   </div>
                   <p className="text-sm text-muted-foreground">Leads sin contactar</p>
                 </CardContent>
@@ -712,7 +726,7 @@ export const ModernRecruitmentDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold mb-2">
-                    {leads?.filter(l => ['contactado', 'en_revision'].includes(l.estado)).length || 0}
+                    {filteredLeads.filter(l => ['contactado', 'en_revision'].includes(l.estado)).length || 0}
                   </div>
                   <p className="text-sm text-muted-foreground">En seguimiento</p>
                 </CardContent>
@@ -724,7 +738,7 @@ export const ModernRecruitmentDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold mb-2 text-green-600">
-                    {leads?.filter(l => l.estado === 'aprobado').length || 0}
+                    {filteredLeads.filter(l => l.estado === 'aprobado').length || 0}
                   </div>
                   <p className="text-sm text-muted-foreground">Conversiones exitosas</p>
                 </CardContent>
@@ -740,7 +754,7 @@ export const ModernRecruitmentDashboard = () => {
                   {[
                     { stage: 'Leads Generados', count: dashboardStats?.totalLeads || 0, percentage: 100 },
                     { stage: 'Contactados', count: Math.round((dashboardStats?.totalLeads || 0) * (dashboardStats?.contactRate || 0) / 100), percentage: dashboardStats?.contactRate || 0 },
-                    { stage: 'En Proceso', count: leads?.filter(l => l.estado === 'en_revision').length || 0, percentage: Math.round(((leads?.filter(l => l.estado === 'en_revision').length || 0) / (dashboardStats?.totalLeads || 1)) * 100) },
+                    { stage: 'En Proceso', count: filteredLeads.filter(l => l.estado === 'en_revision').length || 0, percentage: Math.round(((filteredLeads.filter(l => l.estado === 'en_revision').length || 0) / (dashboardStats?.totalLeads || 1)) * 100) },
                     { stage: 'Aprobados', count: Math.round((dashboardStats?.totalLeads || 0) * (dashboardStats?.conversionRate || 0) / 100), percentage: dashboardStats?.conversionRate || 0 }
                   ].map((stage, index) => (
                     <div key={index} className="flex items-center gap-4">
