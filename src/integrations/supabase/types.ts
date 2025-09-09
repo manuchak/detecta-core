@@ -3994,6 +3994,69 @@ export type Database = {
         }
         Relationships: []
       }
+      matriz_precios_rutas: {
+        Row: {
+          activo: boolean
+          cliente_nombre: string
+          costo_operativo: number | null
+          created_at: string
+          created_by: string | null
+          destino_texto: string
+          dias_operacion: string | null
+          distancia_km: number | null
+          fecha_vigencia: string
+          id: string
+          margen_neto_calculado: number | null
+          porcentaje_utilidad: number | null
+          precio_custodio: number
+          precio_desde_casa: number | null
+          precio_historico_2022: number | null
+          precio_operativo_logistico: number | null
+          updated_at: string
+          valor_bruto: number
+        }
+        Insert: {
+          activo?: boolean
+          cliente_nombre: string
+          costo_operativo?: number | null
+          created_at?: string
+          created_by?: string | null
+          destino_texto: string
+          dias_operacion?: string | null
+          distancia_km?: number | null
+          fecha_vigencia?: string
+          id?: string
+          margen_neto_calculado?: number | null
+          porcentaje_utilidad?: number | null
+          precio_custodio: number
+          precio_desde_casa?: number | null
+          precio_historico_2022?: number | null
+          precio_operativo_logistico?: number | null
+          updated_at?: string
+          valor_bruto: number
+        }
+        Update: {
+          activo?: boolean
+          cliente_nombre?: string
+          costo_operativo?: number | null
+          created_at?: string
+          created_by?: string | null
+          destino_texto?: string
+          dias_operacion?: string | null
+          distancia_km?: number | null
+          fecha_vigencia?: string
+          id?: string
+          margen_neto_calculado?: number | null
+          porcentaje_utilidad?: number | null
+          precio_custodio?: number
+          precio_desde_casa?: number | null
+          precio_historico_2022?: number | null
+          precio_operativo_logistico?: number | null
+          updated_at?: string
+          valor_bruto?: number
+        }
+        Relationships: []
+      }
       metricas_canales: {
         Row: {
           calidad_promedio: number | null
@@ -4953,12 +5016,17 @@ export type Database = {
           contacto_tel: string
           created_at: string | null
           created_by: string | null
+          descuentos_aplicables: Json | null
+          forma_pago_preferida: string | null
           id: string
+          margen_objetivo_porcentaje: number | null
           nombre: string
           notas: string | null
           rfc: string | null
           search_vector: unknown | null
           sla_minutos_asignacion: number | null
+          sla_respuesta_horas: number | null
+          tarifas_especiales: boolean | null
           updated_at: string | null
         }
         Insert: {
@@ -4968,12 +5036,17 @@ export type Database = {
           contacto_tel: string
           created_at?: string | null
           created_by?: string | null
+          descuentos_aplicables?: Json | null
+          forma_pago_preferida?: string | null
           id?: string
+          margen_objetivo_porcentaje?: number | null
           nombre: string
           notas?: string | null
           rfc?: string | null
           search_vector?: unknown | null
           sla_minutos_asignacion?: number | null
+          sla_respuesta_horas?: number | null
+          tarifas_especiales?: boolean | null
           updated_at?: string | null
         }
         Update: {
@@ -4983,12 +5056,17 @@ export type Database = {
           contacto_tel?: string
           created_at?: string | null
           created_by?: string | null
+          descuentos_aplicables?: Json | null
+          forma_pago_preferida?: string | null
           id?: string
+          margen_objetivo_porcentaje?: number | null
           nombre?: string
           notas?: string | null
           rfc?: string | null
           search_vector?: unknown | null
           sla_minutos_asignacion?: number | null
+          sla_respuesta_horas?: number | null
+          tarifas_especiales?: boolean | null
           updated_at?: string | null
         }
         Relationships: []
@@ -5304,12 +5382,16 @@ export type Database = {
         Row: {
           activa: boolean | null
           cliente_id: string
+          costo_operativo_actualizado: number | null
           created_at: string | null
           destino_lat: number | null
           destino_lng: number | null
           destino_texto: string
+          distancia_km_real: number | null
+          fecha_ultima_actualizacion_precios: string | null
           id: string
           km_estimados: number | null
+          margen_objetivo: number | null
           nombre_ruta: string
           origen_lat: number | null
           origen_lng: number | null
@@ -5320,12 +5402,16 @@ export type Database = {
         Insert: {
           activa?: boolean | null
           cliente_id: string
+          costo_operativo_actualizado?: number | null
           created_at?: string | null
           destino_lat?: number | null
           destino_lng?: number | null
           destino_texto: string
+          distancia_km_real?: number | null
+          fecha_ultima_actualizacion_precios?: string | null
           id?: string
           km_estimados?: number | null
+          margen_objetivo?: number | null
           nombre_ruta: string
           origen_lat?: number | null
           origen_lng?: number | null
@@ -5336,12 +5422,16 @@ export type Database = {
         Update: {
           activa?: boolean | null
           cliente_id?: string
+          costo_operativo_actualizado?: number | null
           created_at?: string | null
           destino_lat?: number | null
           destino_lng?: number | null
           destino_texto?: string
+          distancia_km_real?: number | null
+          fecha_ultima_actualizacion_precios?: string | null
           id?: string
           km_estimados?: number | null
+          margen_objetivo?: number | null
           nombre_ruta?: string
           origen_lat?: number | null
           origen_lng?: number | null
@@ -8110,6 +8200,20 @@ export type Database = {
           p_user_id: string
         }
         Returns: undefined
+      }
+      buscar_precio_ruta: {
+        Args: {
+          p_cliente_nombre: string
+          p_destino: string
+          p_distancia_km?: number
+        }
+        Returns: {
+          costo_operativo: number
+          margen_estimado: number
+          precio_custodio: number
+          precio_sugerido: number
+          ruta_encontrada: string
+        }[]
       }
       bypass_rls_get_servicios: {
         Args: { max_records?: number }

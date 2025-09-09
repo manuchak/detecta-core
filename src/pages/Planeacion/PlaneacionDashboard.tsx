@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, Shield, Calendar, MapPin, TrendingUp, Clock, Smartphone } from 'lucide-react';
+import { Users, Shield, Calendar, MapPin, TrendingUp, Clock, Smartphone, Calculator } from 'lucide-react';
 
 import ClientesTab from './components/ClientesTab';
 import CustodiosTab from './components/CustodiosTab';
 import ServiciosTab from './components/ServiciosTab';
 import KPIDashboard from './components/KPIDashboard';
 import { ComodatosGPSTab } from './components/ComodatosGPSTab';
+import { MatrizPreciosTab } from './components/MatrizPreciosTab';
 
 export default function PlaneacionDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -25,7 +26,7 @@ export default function PlaneacionDashboard() {
 
       {/* Tabs Navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 lg:w-[750px]">
+        <TabsList className="grid w-full grid-cols-6 lg:w-[900px]">
           <TabsTrigger value="dashboard" className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4" />
             Dashboard
@@ -33,6 +34,10 @@ export default function PlaneacionDashboard() {
           <TabsTrigger value="servicios" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
             Servicios
+          </TabsTrigger>
+          <TabsTrigger value="precios" className="flex items-center gap-2">
+            <Calculator className="h-4 w-4" />
+            Precios
           </TabsTrigger>
           <TabsTrigger value="custodios" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
@@ -56,6 +61,11 @@ export default function PlaneacionDashboard() {
         {/* Servicios Tab */}
         <TabsContent value="servicios" className="space-y-6 mt-6">
           <ServiciosTab />
+        </TabsContent>
+
+        {/* Matriz Precios Tab */}
+        <TabsContent value="precios" className="space-y-6 mt-6">
+          <MatrizPreciosTab />
         </TabsContent>
 
         {/* Custodios Tab */}
