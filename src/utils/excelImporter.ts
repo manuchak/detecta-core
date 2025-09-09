@@ -353,23 +353,23 @@ export const getPriceMatrixDefaultMapping = (columns: ExcelColumn[]): MappingCon
       mapping[col.key] = 'destino_texto';
     } else if (h === 'tipo de viaje' || h === 'tipo viaje' || (h.includes('tipo') && h.includes('viaje'))) {
       mapping[col.key] = 'tipo_viaje';
-    } else if (h === 'precio a cliente' || (h.includes('precio') && h.includes('cliente'))) {
+    } else if (h === 'precio a cliente' || h === 'precio al cliente' || h.includes('precio cliente')) {
       mapping[col.key] = 'valor_bruto';
-    } else if (h === 'costo custodio' || (h.includes('costo') && h.includes('custodio'))) {
+    } else if (h === 'costo custodio' || (h.includes('costo') && h.includes('custodio') && !h.includes('pago'))) {
       mapping[col.key] = 'costo_custodio';
     } else if (h === 'costo maximo en casetas' || h === 'costo máximo en casetas' || (h.includes('casetas') && h.includes('máximo'))) {
       mapping[col.key] = 'costo_maximo_casetas';
     } else if (h === 'pago custodio sin arma' || (h.includes('pago') && h.includes('sin') && h.includes('arma'))) {
       mapping[col.key] = 'pago_custodio_sin_arma';
-    } else if (h === 'dias operacion' || h === 'días operacion' || h.includes('dias') || h.includes('días')) {
+    } else if (h === 'dias operacion' || h === 'días operacion' || (h.includes('dias') && h.includes('operacion')) || (h.includes('días') && h.includes('operacion'))) {
       mapping[col.key] = 'dias_operacion';
-    } else if (h === 'valor bruto' || h.includes('valor') && h.includes('bruto')) {
+    } else if (h === 'valor bruto' || (h.includes('valor') && h.includes('bruto'))) {
       mapping[col.key] = 'valor_bruto';
-    } else if (h === 'precio a custodio' || h.includes('precio') && h.includes('custodio')) {
+    } else if (h === 'precio custodio' || h === 'precio a custodio' || (h.includes('precio') && h.includes('custodio') && !h.includes('cliente'))) {
       mapping[col.key] = 'precio_custodio';
-    } else if (h === 'costo operativo' || h.includes('costo') && h.includes('operativo')) {
+    } else if (h === 'costo operativo' || (h.includes('costo') && h.includes('operativo'))) {
       mapping[col.key] = 'costo_operativo';
-    } else if (h === 'no de kms' || h === 'kms' || h.includes('km') || h.includes('kilómetros') || (h.includes('distancia') && h.includes('km'))) {
+    } else if (h === 'no de kms' || h === 'distancia km' || h === 'distancia (km)' || (h.includes('distancia') && h.includes('km')) || h === 'kms') {
       mapping[col.key] = 'distancia_km';
     } else if (h === 'precio desde casa' || h.includes('desde') && h.includes('casa')) {
       mapping[col.key] = 'precio_desde_casa';
@@ -425,7 +425,7 @@ export const validatePriceMatrixData = (
   const errors: string[] = [];
   const warnings: string[] = [];
   
-  const requiredFields = ['cliente_nombre', 'destino_texto', 'valor_bruto', 'precio_custodio'];
+  const requiredFields = ['cliente_nombre', 'destino_texto', 'precio_custodio'];
   
   // Check if all required fields are mapped
   const mappedFields = Object.values(mapping).filter(field => field !== '');
