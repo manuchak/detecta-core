@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -75,6 +75,11 @@ export const useLeadAssignment = () => {
       setLoading(false);
     }
   }, [toast]);
+
+  // Auto-fetch analysts on mount
+  useEffect(() => {
+    fetchAnalysts();
+  }, [fetchAnalysts]);
 
   return {
     analysts,

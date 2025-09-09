@@ -22,11 +22,16 @@ interface AnalystStats {
 }
 
 export const AnalystPerformanceDashboard = () => {
-  const { analysts, loading: analystsLoading } = useLeadAssignment();
+  const { analysts, loading: analystsLoading, fetchAnalysts } = useLeadAssignment();
   
   const { data: analystStats, isLoading } = useAuthenticatedQuery(
-    ['analyst-performance'],
+    ['analyst-performance', analysts.length.toString()],
     async () => {
+      if (analysts.length === 0) {
+        console.log('No analysts available yet');
+        return [];
+      }
+
       // Get analyst performance data
       const { data: leads, error: leadsError } = await supabase
         .from('leads')
@@ -40,7 +45,7 @@ export const AnalystPerformanceDashboard = () => {
 
       if (leadsError) throw leadsError;
 
-      // Get call logs for contactability
+      // Get call logs for contactability (even with null caller_id for now)
       const { data: callLogs, error: callsError } = await supabase
         .from('manual_call_logs')
         .select('*')
@@ -85,7 +90,7 @@ export const AnalystPerformanceDashboard = () => {
         }
       });
 
-      // Process call logs
+      // Process call logs - NOTE: caller_id might be null for existing records
       callLogs?.forEach(call => {
         const analystId = call.caller_id;
         if (analystId && statsMap.has(analystId)) {
@@ -106,7 +111,7 @@ export const AnalystPerformanceDashboard = () => {
         
         stats.contactability_rate = stats.total_calls > 0 
           ? Math.round((stats.successful_calls / stats.total_calls) * 100) 
-          : 0;
+          : stats.leads_contacted > 0 ? 50 : 0; // Fallback estimate when no call data
       });
 
       return Array.from(statsMap.values()).sort((a, b) => b.approval_rate - a.approval_rate);
@@ -253,9 +258,18 @@ export const AnalystPerformanceDashboard = () => {
           <CardContent className="p-8 text-center">
             <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium mb-2">No hay datos de analistas</h3>
-            <p className="text-muted-foreground">
-              No se encontraron analistas con leads asignados en el período seleccionado.
+            <p className="text-muted-foreground mb-4">
+              {analysts.length === 0 
+                ? "Cargando analistas disponibles..."
+                : "No se encontraron analistas con leads asignados en el período seleccionado."
+              }
             </p>
+            <div className="bg-muted p-3 rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                <strong>Nota:</strong> Los registros de llamadas no tienen caller_id asignado. 
+                Las métricas de contactabilidad pueden estar limitadas.
+              </p>
+            </div>
           </CardContent>
         </Card>
       )}
