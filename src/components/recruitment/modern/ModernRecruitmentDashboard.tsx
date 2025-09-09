@@ -247,12 +247,38 @@ export const ModernRecruitmentDashboard = () => {
   const { data: analystPerformance } = useAuthenticatedQuery(
     ['analyst-performance-modern', selectedAnalysts.join(','), selectedPeriod],
     async () => {
+      console.log('🔍 ModernRecruitmentDashboard - analyst performance query');
+      console.log('   - activeAnalysts:', activeAnalysts.length);
+      console.log('   - filteredLeads:', filteredLeads.length);
+      console.log('   - Sample filtered leads:', filteredLeads.slice(0, 3));
+      
       if (activeAnalysts.length === 0) return [];
 
       // Use filtered leads for performance calculation
       const performanceData: AnalystPerformance[] = activeAnalysts.map(analyst => {
         const analystLeads = filteredLeads.filter(l => l.asignado_a === analyst.id);
         const approvedLeads = analystLeads.filter(l => l.estado === 'aprobado');
+        
+        console.log(`📊 Analyst ${analyst.display_name}:`, {
+          analystId: analyst.id,
+          analystIdType: typeof analyst.id,
+          totalLeads: analystLeads.length,
+          approvedLeads: approvedLeads.length,
+          sampleLeads: analystLeads.slice(0, 2)
+        });
+        
+        // Debug: Check if any leads have asignado_a matching this analyst
+        const leadsWithAssignment = filteredLeads.filter(l => l.asignado_a);
+        const uniqueAssignments = [...new Set(leadsWithAssignment.map(l => l.asignado_a))];
+        
+        if (analyst.display_name === 'MARBELLI CASILLAS') {
+          console.log('🔍 MARBELLI CASILLAS Debug:', {
+            analystId: analyst.id,
+            uniqueAssignments: uniqueAssignments,
+            leadsWithAssignment: leadsWithAssignment.length,
+            exactMatches: filteredLeads.filter(l => l.asignado_a === analyst.id).length
+          });
+        }
         
         return {
           id: analyst.id,
