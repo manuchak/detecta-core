@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { 
   Users, 
   Phone, 
@@ -17,7 +19,9 @@ import {
   Calendar,
   User,
   Award,
-  Activity
+  Activity,
+  Filter,
+  ChevronDown
 } from 'lucide-react';
 import { 
   ComposedChart, 
@@ -57,11 +61,25 @@ interface AnalystPerformance {
 }
 
 export const ModernRecruitmentDashboard = () => {
-  const [selectedPeriod, setSelectedPeriod] = useState('30d');
+  const [selectedPeriod, setSelectedPeriod] = useState<'7d' | '30d' | 'live'>('30d');
   const [chartType, setChartType] = useState<'combined' | 'separate'>('combined');
+  const [selectedAnalysts, setSelectedAnalysts] = useState<string[]>([]);
   
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const today = new Date().toISOString().split('T')[0];
+  // Calculate date ranges based on selected period
+  const { dateFrom, dateTo, daysCount } = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const days = selectedPeriod === '7d' ? 7 : selectedPeriod === '30d' ? 30 : 1;
+    const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    return {
+      dateFrom: from,
+      dateTo: today,
+      daysCount: days
+    };
+  }, [selectedPeriod]);
+
+  const thirtyDaysAgo = dateFrom;
+  const today = dateTo;
   
   const { analysts, loading: analystsLoading } = useLeadAssignment();
   const { leads, isLoading: leadsLoading } = useLeadsStable();
@@ -71,12 +89,34 @@ export const ModernRecruitmentDashboard = () => {
     enabled: true
   });
 
+  // Filter out admin/test accounts by default and initialize selected analysts
+  const filteredAnalysts = useMemo(() => {
+    const adminKeywords = ['admin', 'test', 'prueba', 'demo'];
+    return analysts.filter(analyst => 
+      !adminKeywords.some(keyword => 
+        analyst.display_name.toLowerCase().includes(keyword) ||
+        analyst.email.toLowerCase().includes(keyword)
+      )
+    );
+  }, [analysts]);
+
+  // Initialize selected analysts when filtered analysts change
+  useMemo(() => {
+    if (filteredAnalysts.length > 0 && selectedAnalysts.length === 0) {
+      setSelectedAnalysts(filteredAnalysts.map(a => a.id));
+    }
+  }, [filteredAnalysts, selectedAnalysts.length]);
+
+  const activeAnalysts = useMemo(() => {
+    return filteredAnalysts.filter(analyst => selectedAnalysts.includes(analyst.id));
+  }, [filteredAnalysts, selectedAnalysts]);
+
   // Get daily activity data for chart
   const { data: dailyActivityData } = useAuthenticatedQuery(
-    ['daily-activity-chart', selectedPeriod],
+    ['daily-activity-chart', selectedPeriod, selectedAnalysts.join(',')],
     async () => {
       const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 30);
+      startDate.setDate(startDate.getDate() - daysCount);
       
       const [leadsData, callsData] = await Promise.all([
         supabase
@@ -89,9 +129,9 @@ export const ModernRecruitmentDashboard = () => {
           .gte('created_at', startDate.toISOString())
       ]);
 
-      // Create daily buckets for the last 30 days
+      // Create daily buckets for the selected period
       const dailyData = [];
-      for (let i = 29; i >= 0; i--) {
+      for (let i = daysCount - 1; i >= 0; i--) {
         const date = new Date();
         date.setDate(date.getDate() - i);
         const dateStr = date.toISOString().split('T')[0];
@@ -116,7 +156,7 @@ export const ModernRecruitmentDashboard = () => {
     }
   );
   const { data: dashboardStats, isLoading: statsLoading } = useAuthenticatedQuery(
-    ['modern-dashboard-stats', selectedPeriod],
+    ['modern-dashboard-stats', selectedPeriod, selectedAnalysts.join(',')],
     async () => {
       const [leadsData, callsData] = await Promise.all([
         supabase.from('leads').select('*').gte('created_at', thirtyDaysAgo),
@@ -133,18 +173,18 @@ export const ModernRecruitmentDashboard = () => {
         totalLeads,
         contactRate: totalLeads > 0 ? Math.round((contactedLeads / totalLeads) * 100) : 0,
         conversionRate: totalLeads > 0 ? Math.round((approvedLeads / totalLeads) * 100) : 0,
-        activeAnalysts: analysts.length,
+        activeAnalysts: activeAnalysts.length,
         avgResponseTime: 24, // hours - would need to calculate from actual data
-        dailyActivity: Math.round(totalCalls / 30)
+        dailyActivity: Math.round(totalCalls / daysCount)
       } as DashboardStats;
     }
   );
 
   // Get analyst performance data
   const { data: analystPerformance } = useAuthenticatedQuery(
-    ['analyst-performance-modern', analysts.length.toString()],
+    ['analyst-performance-modern', selectedAnalysts.join(','), selectedPeriod],
     async () => {
-      if (analysts.length === 0) return [];
+      if (activeAnalysts.length === 0) return [];
 
       const { data: leads } = await supabase
         .from('leads')
@@ -152,7 +192,7 @@ export const ModernRecruitmentDashboard = () => {
         .not('asignado_a', 'is', null)
         .gte('created_at', thirtyDaysAgo);
 
-      const performanceData: AnalystPerformance[] = analysts.map(analyst => {
+      const performanceData: AnalystPerformance[] = activeAnalysts.map(analyst => {
         const analystLeads = leads?.filter(l => l.asignado_a === analyst.id) || [];
         const approvedLeads = analystLeads.filter(l => l.estado === 'aprobado');
         
@@ -253,14 +293,92 @@ export const ModernRecruitmentDashboard = () => {
               <p className="text-muted-foreground">Dashboard de performance y análisis</p>
             </div>
             <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm">
+              <Button 
+                variant={selectedPeriod === '7d' ? 'default' : 'outline'} 
+                size="sm"
+                onClick={() => setSelectedPeriod('7d')}
+              >
+                <Calendar className="h-4 w-4 mr-2" />
+                Últimos 7 días
+              </Button>
+              <Button 
+                variant={selectedPeriod === '30d' ? 'default' : 'outline'} 
+                size="sm"
+                onClick={() => setSelectedPeriod('30d')}
+              >
                 <Calendar className="h-4 w-4 mr-2" />
                 Últimos 30 días
               </Button>
-              <Button size="sm">
+              <Button 
+                variant={selectedPeriod === 'live' ? 'default' : 'outline'} 
+                size="sm"
+                onClick={() => setSelectedPeriod('live')}
+              >
                 <Activity className="h-4 w-4 mr-2" />
                 En vivo
               </Button>
+              
+              {/* Analyst Filter */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Filter className="h-4 w-4 mr-2" />
+                    Analistas ({selectedAnalysts.length})
+                    <ChevronDown className="h-4 w-4 ml-2" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-0" align="end">
+                  <div className="p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium text-sm">Filtrar Analistas</h4>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (selectedAnalysts.length === filteredAnalysts.length) {
+                            setSelectedAnalysts([]);
+                          } else {
+                            setSelectedAnalysts(filteredAnalysts.map(a => a.id));
+                          }
+                        }}
+                        className="text-xs h-6 px-2"
+                      >
+                        {selectedAnalysts.length === filteredAnalysts.length ? 'Ninguno' : 'Todos'}
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {filteredAnalysts.map((analyst) => (
+                        <div key={analyst.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={analyst.id}
+                            checked={selectedAnalysts.includes(analyst.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedAnalysts(prev => [...prev, analyst.id]);
+                              } else {
+                                setSelectedAnalysts(prev => prev.filter(id => id !== analyst.id));
+                              }
+                            }}
+                          />
+                          <label 
+                            htmlFor={analyst.id}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
+                          >
+                            {analyst.display_name}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {filteredAnalysts.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-2">
+                        No hay analistas disponibles
+                      </p>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>
@@ -275,7 +393,7 @@ export const ModernRecruitmentDashboard = () => {
             change="+12%"
             trend="up"
             icon={Users}
-            subtitle="Últimos 30 días"
+            subtitle={`Últimos ${daysCount} días`}
           />
           <StatCard
             title="Tasa de Contacto"
