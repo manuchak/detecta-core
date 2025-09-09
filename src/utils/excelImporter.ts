@@ -331,3 +331,138 @@ export const getDefaultMapping = (columns: ExcelColumn[]): MappingConfig => {
   
   return mapping;
 };
+
+// Default mapping specifically for price matrix
+export const getPriceMatrixDefaultMapping = (columns: ExcelColumn[]): MappingConfig => {
+  const mapping: MappingConfig = {};
+  
+  columns.forEach(col => {
+    const header = col.header.toLowerCase();
+    const h = header.replace(/\s+/g, ' ').trim();
+
+    // Try to auto-match price matrix field names
+    if (h === 'cliente' || h.includes('cliente')) {
+      mapping[col.key] = 'cliente_nombre';
+    } else if (h === 'destino' || h.includes('destino')) {
+      mapping[col.key] = 'destino_texto';
+    } else if (h === 'dias operacion' || h === 'días operacion' || h.includes('dias') || h.includes('días')) {
+      mapping[col.key] = 'dias_operacion';
+    } else if (h === 'valor bruto' || h.includes('valor') && h.includes('bruto')) {
+      mapping[col.key] = 'valor_bruto';
+    } else if (h === 'precio a custodio' || h.includes('precio') && h.includes('custodio')) {
+      mapping[col.key] = 'precio_custodio';
+    } else if (h === 'costo operativo' || h.includes('costo') && h.includes('operativo')) {
+      mapping[col.key] = 'costo_operativo';
+    } else if (h === 'no de kms' || h === 'kms' || h.includes('km') || h.includes('kilómetros')) {
+      mapping[col.key] = 'distancia_km';
+    } else if (h === 'precio desde casa' || h.includes('desde') && h.includes('casa')) {
+      mapping[col.key] = 'precio_desde_casa';
+    } else if (h === 'precio historico 2022' || h.includes('histórico') || h.includes('historico')) {
+      mapping[col.key] = 'precio_historico_2022';
+    } else if (h === 'precio operativo logistico' || h.includes('logístico') || h.includes('logistico')) {
+      mapping[col.key] = 'precio_operativo_logistico';
+    } else {
+      mapping[col.key] = ''; // No mapping by default
+    }
+  });
+  
+  return mapping;
+};
+
+// Transform data specifically for price matrix
+export const transformPriceMatrixDataForImport = (
+  data: ExcelData,
+  mapping: MappingConfig
+): any[] => {
+  return data.rows.map(row => {
+    const transformedRow: any = {};
+    
+    Object.keys(mapping).forEach(excelColumn => {
+      const dbField = mapping[excelColumn];
+      if (dbField && row[excelColumn] !== undefined) {
+        let value = row[excelColumn];
+        
+        // Handle numeric fields
+        if (['valor_bruto', 'precio_custodio', 'costo_operativo', 'distancia_km', 
+             'precio_desde_casa', 'precio_historico_2022', 'precio_operativo_logistico'].includes(dbField)) {
+          const num = parseFloat(value);
+          transformedRow[dbField] = !isNaN(num) ? num : 0;
+        } else {
+          // Handle text fields
+          transformedRow[dbField] = value.toString().trim();
+        }
+      }
+    });
+    
+    // Set default active status
+    transformedRow.activo = true;
+    
+    return transformedRow;
+  });
+};
+
+// Validate price matrix data
+export const validatePriceMatrixData = (
+  data: ExcelData, 
+  mapping: MappingConfig
+): { valid: boolean; errors: string[]; warnings: string[] } => {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  
+  const requiredFields = ['cliente_nombre', 'destino_texto', 'valor_bruto', 'precio_custodio'];
+  
+  // Check if all required fields are mapped
+  const mappedFields = Object.values(mapping).filter(field => field !== '');
+  const missingFields = requiredFields.filter(field => !mappedFields.includes(field));
+  
+  if (missingFields.length > 0) {
+    errors.push(`Campos requeridos sin mapear: ${missingFields.join(', ')}`);
+  }
+  
+  // Check for duplicate mappings
+  const duplicateFields = mappedFields.filter((field, index) => 
+    mappedFields.indexOf(field) !== index
+  );
+  
+  if (duplicateFields.length > 0) {
+    errors.push(`Campos duplicados: ${duplicateFields.join(', ')}`);
+  }
+  
+  // Validate data quality on sample
+  const sampleSize = Math.min(10, data.rows.length);
+  const sampleRows = data.rows.slice(0, sampleSize);
+  
+  // Check for empty required fields in sample data
+  requiredFields.forEach(field => {
+    const excelColumn = Object.keys(mapping).find(col => mapping[col] === field);
+    if (excelColumn) {
+      const emptyCount = sampleRows.filter(row => 
+        !row[excelColumn] || row[excelColumn].toString().trim() === ''
+      ).length;
+      if (emptyCount > 0) {
+        warnings.push(`${field}: ${emptyCount} de ${sampleSize} registros vacíos en la muestra`);
+      }
+    }
+  });
+  
+  // Check for invalid numeric values
+  const numericFields = ['valor_bruto', 'precio_custodio', 'costo_operativo', 'distancia_km'];
+  numericFields.forEach(field => {
+    const excelColumn = Object.keys(mapping).find(col => mapping[col] === field);
+    if (excelColumn) {
+      const invalidCount = sampleRows.filter(row => {
+        const value = row[excelColumn];
+        return value && isNaN(parseFloat(value));
+      }).length;
+      if (invalidCount > 0) {
+        warnings.push(`${field}: ${invalidCount} de ${sampleSize} valores no numéricos en la muestra`);
+      }
+    }
+  });
+  
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings
+  };
+};

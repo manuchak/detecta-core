@@ -10,7 +10,7 @@ import { useAuthenticatedQuery } from '@/hooks/useAuthenticatedQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ColumnDef } from '@tanstack/react-table';
-import { ExcelImportWizard } from './ExcelImportWizard';
+import { PriceMatrixImportWizard } from './PriceMatrixImportWizard';
 import { PriceCalculator } from './PriceCalculator';
 
 interface MatrizPrecio {
@@ -177,7 +177,14 @@ export const MatrizPreciosTab = () => {
                   Sube tu archivo Excel con la matriz de precios para importar automáticamente
                 </DialogDescription>
               </DialogHeader>
-              <ExcelImportWizard onSuccess={() => setShowImportWizard(false)} />
+              <PriceMatrixImportWizard 
+                open={showImportWizard}
+                onOpenChange={setShowImportWizard}
+                onComplete={() => {
+                  setShowImportWizard(false);
+                  window.location.reload();
+                }}
+              />
             </DialogContent>
           </Dialog>
         </div>
