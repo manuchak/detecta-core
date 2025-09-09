@@ -22,7 +22,9 @@ interface AnalystStats {
 }
 
 export const AnalystPerformanceDashboard = () => {
+  console.log('🚀 AnalystPerformanceDashboard component mounted');
   const { analysts, loading: analystsLoading } = useLeadAssignment();
+  console.log('📊 Analysts loaded:', analysts?.length || 0, 'Loading:', analystsLoading);
   
   const { data: analystStats, isLoading } = useAuthenticatedQuery(
     ['analyst-performance-function'],
