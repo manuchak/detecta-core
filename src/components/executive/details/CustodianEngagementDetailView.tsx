@@ -6,14 +6,15 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   ComposedChart, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer, LineChart, Area, AreaChart,
+  Tooltip as RechartsTooltip, ResponsiveContainer, LineChart, Area, AreaChart,
   PieChart, Pie, Cell
 } from 'recharts';
 import { 
   Users, TrendingUp, TrendingDown, Clock, AlertTriangle, 
   Heart, Activity, Target, BarChart3, Calendar, RefreshCw,
-  CheckCircle, XCircle, AlertCircle, Coffee
+  CheckCircle, XCircle, AlertCircle, Coffee, Info
 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCustodianEngagement } from '@/hooks/useCustodianEngagement';
 
 const RISK_COLORS = {
@@ -146,7 +147,43 @@ export function CustodianEngagementDetailView() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Engagement Promedio</CardTitle>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              Engagement Promedio
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-sm p-4">
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-sm">Cálculo del Engagement (0-100)</h4>
+                      <div className="space-y-2 text-xs">
+                        <div className="flex justify-between">
+                          <span>📊 Actividad (viajes/mes):</span>
+                          <span className="font-medium">40%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>⚖️ Balance trabajo-descanso:</span>
+                          <span className="font-medium">30%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>😴 Descanso adecuado:</span>
+                          <span className="font-medium">20%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>📅 Consistencia:</span>
+                          <span className="font-medium">10%</span>
+                        </div>
+                      </div>
+                      <div className="pt-2 border-t text-xs text-muted-foreground">
+                        <p><strong>Balance saludable:</strong> 20-48h semanales</p>
+                        <p><strong>Descanso óptimo:</strong> 12-48h entre servicios</p>
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </CardTitle>
             <Heart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -219,7 +256,7 @@ export function CustodianEngagementDetailView() {
                 <XAxis dataKey="mes" />
                 <YAxis yAxisId="left" />
                 <YAxis yAxisId="right" orientation="right" />
-                <Tooltip />
+                <RechartsTooltip />
                 <Bar yAxisId="left" dataKey="custodiosActivos" fill="#3b82f6" name="Custodios Activos" />
                 <Line 
                   yAxisId="right" 
@@ -257,7 +294,7 @@ export function CustodianEngagementDetailView() {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <RechartsTooltip />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
@@ -378,7 +415,7 @@ export function CustodianEngagementDetailView() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="mes" />
                   <YAxis />
-                  <Tooltip />
+                  <RechartsTooltip />
                   <Area 
                     type="monotone" 
                     dataKey="viajesPromedioPorCustodio" 
