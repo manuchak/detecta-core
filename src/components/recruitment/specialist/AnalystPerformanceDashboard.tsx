@@ -26,6 +26,9 @@ export const AnalystPerformanceDashboard = () => {
   const { analysts, loading: analystsLoading } = useLeadAssignment();
   console.log('📊 Analysts loaded:', analysts?.length || 0, 'Loading:', analystsLoading);
   
+  // Force render with test data if needed
+  console.log('🔧 Component is rendering - check navigation!');
+  
   const { data: analystStats, isLoading } = useAuthenticatedQuery(
     ['analyst-performance-function'],
     async () => {
