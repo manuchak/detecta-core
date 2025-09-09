@@ -835,9 +835,14 @@ export const ModernRecruitmentDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold mb-2">
-                    {filteredLeads.filter(l => l.estado === 'nuevo').length || 0}
+                    {filteredLeads.filter(l => {
+                      // Lead realmente sin tocar: sin fecha de contacto, sin asignación, estado nuevo
+                      return l.estado === 'nuevo' && 
+                             !l.fecha_contacto && 
+                             !l.asignado_a;
+                    }).length || 0}
                   </div>
-                  <p className="text-sm text-muted-foreground">Leads sin contactar</p>
+                  <p className="text-sm text-muted-foreground">Leads sin tocar</p>
                 </CardContent>
               </Card>
 
@@ -847,7 +852,11 @@ export const ModernRecruitmentDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold mb-2">
-                    {filteredLeads.filter(l => ['contactado', 'en_revision'].includes(l.estado)).length || 0}
+                    {filteredLeads.filter(l => {
+                      // Leads que han sido tocados pero no aprobados
+                      return (l.fecha_contacto || l.asignado_a) && 
+                             !['aprobado', 'rechazado', 'descartado'].includes(l.estado);
+                    }).length || 0}
                   </div>
                   <p className="text-sm text-muted-foreground">En seguimiento</p>
                 </CardContent>
