@@ -27,6 +27,7 @@ const RecruitmentStrategy = () => {
   const [activeSection, setActiveSection] = useState('analistas');
   
   console.log('🎯 RecruitmentStrategy - activeSection:', activeSection);
+  console.log('🔥 FORCE REFRESH - Component version 2.0');
   
   // Hooks especializados para reclutamiento
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
