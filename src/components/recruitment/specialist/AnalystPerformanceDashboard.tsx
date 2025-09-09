@@ -33,9 +33,15 @@ export const AnalystPerformanceDashboard = () => {
     ['analyst-performance-function'],
     async () => {
       console.log('🔍 Using get_analyst_assigned_leads() function');
+      console.log('🔍 About to call supabase.rpc...');
       
       // Use the Supabase function that has proper RLS permissions
       const { data: leadsData, error } = await supabase.rpc('get_analyst_assigned_leads');
+
+      console.log('📊 Raw response from get_analyst_assigned_leads:');
+      console.log('   - Data:', leadsData);
+      console.log('   - Error:', error);
+      console.log('   - Data length:', leadsData?.length || 0);
 
       if (error) {
         console.error('❌ Error calling get_analyst_assigned_leads:', error);
