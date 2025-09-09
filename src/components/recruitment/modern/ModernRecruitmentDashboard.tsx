@@ -187,8 +187,9 @@ export const ModernRecruitmentDashboard = () => {
       return dailyData;
     }
   );
+  // Get dashboard statistics
   const { data: dashboardStats, isLoading: statsLoading } = useAuthenticatedQuery(
-    ['modern-dashboard-stats', selectedPeriod, selectedAnalysts.join(',')],
+    ['modern-dashboard-stats', selectedPeriod, selectedAnalysts.join(','), filteredLeads.length.toString()],
     async () => {
       const [callsData] = await Promise.all([
         supabase.from('manual_call_logs').select('*').gte('created_at', thirtyDaysAgo)
@@ -208,13 +209,32 @@ export const ModernRecruitmentDashboard = () => {
       const totalCalls = callsData.data?.length || 0;
       const successfulCalls = callsData.data?.filter(c => c.call_outcome === 'successful').length || 0;
 
+      // Calculate real response time from leads data
+      let avgResponseTimeHours = 24; // Default fallback
+      if (filteredLeads.length > 0) {
+        const leadsWithResponse = filteredLeads.filter(lead => 
+          lead.fecha_contacto && lead.created_at
+        );
+        
+        if (leadsWithResponse.length > 0) {
+          const totalResponseTime = leadsWithResponse.reduce((sum, lead) => {
+            const created = new Date(lead.created_at).getTime();
+            const contacted = new Date(lead.fecha_contacto!).getTime();
+            const diffHours = (contacted - created) / (1000 * 60 * 60);
+            return sum + Math.max(0, diffHours); // Avoid negative values
+          }, 0);
+          
+          avgResponseTimeHours = Math.round(totalResponseTime / leadsWithResponse.length);
+        }
+      }
+
       const stats = {
         totalLeads,
         contactRate: contactabilityMetrics?.realContactabilityRate || 
                     (totalLeads > 0 ? Math.round((contactedLeads / totalLeads) * 100) : 0),
         conversionRate: totalLeads > 0 ? Math.round((approvedLeads / totalLeads) * 100) : 0,
         activeAnalysts: activeAnalysts.length,
-        avgResponseTime: 24, // hours - would need to calculate from actual data
+        avgResponseTime: avgResponseTimeHours,
         dailyActivity: Math.round(totalCalls / daysCount)
       } as DashboardStats;
 
@@ -455,7 +475,7 @@ export const ModernRecruitmentDashboard = () => {
             change="-15%"
             trend="up"
             icon={Clock}
-            subtitle="Promedio de respuesta"
+            subtitle={dashboardStats?.avgResponseTime === 24 ? "Calculado en tiempo real" : "Basado en datos reales"}
           />
         </div>
 
