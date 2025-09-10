@@ -393,9 +393,9 @@ export const transformPriceMatrixDataForImport = (
   return data.rows.map(row => {
     const transformedRow: any = {};
     
-    // Define required numeric fields (NOT NULL in DB)
+    // Define required fields based on DB schema
+    const requiredTextFields = ['cliente_nombre', 'destino_texto'];
     const requiredNumericFields = ['valor_bruto', 'precio_custodio'];
-    // Define optional numeric fields (nullable in DB)
     const optionalNumericFields = ['costo_operativo', 'distancia_km', 'precio_desde_casa', 
                                    'precio_historico_2022', 'precio_operativo_logistico', 
                                    'costo_custodio', 'costo_maximo_casetas', 'pago_custodio_sin_arma', 
@@ -403,46 +403,57 @@ export const transformPriceMatrixDataForImport = (
     
     Object.keys(mapping).forEach(excelColumn => {
       const dbField = mapping[excelColumn];
-      if (dbField && row[excelColumn] !== undefined) {
+      if (dbField && dbField !== '') {
         let value = row[excelColumn];
-        
-        // Skip completely empty values
-        if (value === null || value === undefined || value === '') {
-          // For required numeric fields, set default value
-          if (requiredNumericFields.includes(dbField)) {
-            transformedRow[dbField] = 0;
-          } else if (optionalNumericFields.includes(dbField)) {
-            // For optional numeric fields, set null (don't set the field at all)
-            // This allows the database to use its default value or null
-            return;
-          } else {
-            // For text fields, set empty string or skip if nullable
-            transformedRow[dbField] = '';
-          }
-          return;
-        }
         
         // Handle numeric fields
         if (requiredNumericFields.includes(dbField) || optionalNumericFields.includes(dbField)) {
-          // Clean the value - remove currency symbols, commas, etc.
-          const cleanValue = value.toString().replace(/[$,\s]/g, '');
-          const num = parseFloat(cleanValue);
+          let numericValue = 0; // Default for required fields
           
-          if (!isNaN(num)) {
-            transformedRow[dbField] = num;
-          } else if (requiredNumericFields.includes(dbField)) {
-            // For required fields, use 0 as default
-            transformedRow[dbField] = 0;
+          if (value !== null && value !== undefined && value !== '') {
+            // Clean the value - remove currency symbols, commas, etc.
+            const cleanValue = value.toString().replace(/[$,\s%]/g, '');
+            const num = parseFloat(cleanValue);
+            
+            if (!isNaN(num)) {
+              numericValue = num;
+            }
           }
-          // For optional numeric fields with invalid values, don't set the field (allows DB default)
-        } else {
-          // Handle text fields
+          
+          // Always set required numeric fields
+          if (requiredNumericFields.includes(dbField)) {
+            transformedRow[dbField] = numericValue;
+          } else if (optionalNumericFields.includes(dbField) && numericValue !== 0) {
+            // Only set optional fields if they have valid non-zero values
+            transformedRow[dbField] = numericValue;
+          }
+        } 
+        // Handle required text fields
+        else if (requiredTextFields.includes(dbField)) {
+          transformedRow[dbField] = value ? value.toString().trim() : 'No especificado';
+        }
+        // Handle optional text fields
+        else if (value !== null && value !== undefined && value !== '') {
           transformedRow[dbField] = value.toString().trim();
         }
       }
     });
     
-    // Set required fields
+    // Ensure all required fields are present with valid values
+    if (!transformedRow.cliente_nombre) {
+      transformedRow.cliente_nombre = 'Cliente no especificado';
+    }
+    if (!transformedRow.destino_texto) {
+      transformedRow.destino_texto = 'Destino no especificado';
+    }
+    if (!transformedRow.valor_bruto || transformedRow.valor_bruto === 0) {
+      transformedRow.valor_bruto = 1; // Minimum value to avoid 0
+    }
+    if (!transformedRow.precio_custodio || transformedRow.precio_custodio === 0) {
+      transformedRow.precio_custodio = 1; // Minimum value to avoid 0
+    }
+    
+    // Set default fields
     transformedRow.activo = true;
     transformedRow.fecha_vigencia = new Date().toISOString();
     
@@ -458,7 +469,8 @@ export const validatePriceMatrixData = (
   const errors: string[] = [];
   const warnings: string[] = [];
   
-  const requiredFields = ['cliente_nombre', 'destino_texto', 'costo_custodio'];
+  // Updated required fields based on actual DB schema
+  const requiredFields = ['cliente_nombre', 'destino_texto', 'valor_bruto', 'precio_custodio'];
   
   // Check if all required fields are mapped
   const mappedFields = Object.values(mapping).filter(field => field !== '');
