@@ -87,23 +87,37 @@ export const importCustodianServices = async (
 
             console.log(`Processing record ${current}:`, servicioData);
 
-            // Use native Supabase upsert with correct conflict resolution
-            const { error: upsertError, count } = await supabase
+            // Check if record exists first, then insert or update
+            const { data: existingRecord } = await supabase
               .from('servicios_custodia')
-              .upsert(servicioData, { 
-                onConflict: 'id_servicio',
-                ignoreDuplicates: false
-              });
+              .select('id')
+              .eq('id_servicio', servicioData.id_servicio)
+              .maybeSingle();
+
+            let upsertError = null;
+            if (existingRecord) {
+              // Update existing record
+              const { error } = await supabase
+                .from('servicios_custodia')
+                .update(servicioData)
+                .eq('id_servicio', servicioData.id_servicio);
+              upsertError = error;
+              if (!error) result.updated++;
+            } else {
+              // Insert new record
+              const { error } = await supabase
+                .from('servicios_custodia')
+                .insert(servicioData);
+              upsertError = error;
+              if (!error) result.imported++;
+            }
 
             if (upsertError) {
-              console.error(`Upsert error for ${item.id_servicio}:`, upsertError);
+              console.error(`Database error for ${item.id_servicio}:`, upsertError);
               result.failed++;
-              result.errors.push(`Registro ${current}: Error en upsert - ${upsertError.message}`);
+              result.errors.push(`Registro ${current}: Error en base de datos - ${upsertError.message}`);
             } else {
               console.log(`Successfully processed ${item.id_servicio}`);
-              // For upsert, we can't easily distinguish between insert/update without additional queries
-              // So we'll count all successful operations as "imported" for now
-              result.imported++;
             }
 
           } catch (itemError) {

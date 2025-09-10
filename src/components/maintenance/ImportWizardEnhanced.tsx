@@ -7,6 +7,7 @@ import { Loader2, Upload, FileText, CheckCircle, XCircle, AlertTriangle, Downloa
 import { parseExcelFile } from "@/utils/excelImporter";
 import { importCustodianServices, CustodianServiceImportResult, CustodianServiceImportProgress } from "@/services/custodianServicesImportService";
 import { validateCustodianServicesData, getQuickValidationSample, ValidationResult } from "@/services/custodianServicesValidationService";
+import { validateDataBeforeImport, getValidationSummary } from '@/services/custodianServicesEarlyValidationService';
 import { applyIntelligentMapping } from "@/services/intelligentMappingService";
 import { useSavedMappings, SavedMapping } from "@/hooks/useSavedMappings";
 import { ValidationStep } from "./ValidationStep";
@@ -144,6 +145,33 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
         return transformed;
       });
 
+      // Early validation before starting import
+      console.log('🔍 Running early validation...');
+      const earlyValidation = await validateDataBeforeImport(transformedData, 
+        Object.fromEntries(Object.entries(state.mapping).filter(([_, db]) => db !== 'unmapped'))
+      );
+
+      if (!earlyValidation.isValid) {
+        toast.error(`Validación fallida: ${earlyValidation.errors.join(', ')}`);
+        setState(prev => ({ 
+          ...prev, 
+          step: 'mapping',
+          result: {
+            success: false,
+            imported: 0,
+            updated: 0,
+            failed: transformedData.length,
+            errors: earlyValidation.errors,
+            warnings: earlyValidation.warnings
+          }
+        }));
+        return;
+      }
+
+      if (earlyValidation.warnings.length > 0) {
+        toast.warning(`Advertencias: ${earlyValidation.warnings.join(', ')}`);
+      }
+
       const result = await importCustodianServices(transformedData, (progress) => {
         setState(prev => ({ ...prev, progress }));
       });
@@ -151,7 +179,7 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
       setState(prev => ({ ...prev, result, step: 'results' }));
       console.log('🎯 Import completed, moving to results step:', result);
       if (result.success) {
-        toast.success(`Importación completada: ${result.imported} registros procesados`);
+        toast.success(`Importación completada: ${result.imported} nuevos, ${result.updated} actualizados`);
       } else {
         toast.error(`Importación con errores: ${result.failed} registros fallaron`);
       }
