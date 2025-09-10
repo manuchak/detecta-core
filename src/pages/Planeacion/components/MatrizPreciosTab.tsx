@@ -566,4 +566,6 @@ export const MatrizPreciosTab = () => {
       />
     </div>
   );
-});
+};
+
+// No need for additional export since the component is directly exported with memo
