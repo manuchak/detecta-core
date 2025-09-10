@@ -254,22 +254,38 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
                           <div key={field} className="flex items-center gap-2">
                             <div className="w-32 text-sm font-mono">{field}</div>
                             <Select
-                              value={csvField || ''}
+                              value={csvField || 'none'}
                               onValueChange={(value) => {
-                                setState(prev => ({
-                                  ...prev,
-                                  mapping: {
-                                    ...prev.mapping,
-                                    [value]: field
-                                  }
-                                }));
+                                if (value === 'none') {
+                                  // Remove the mapping for this field
+                                  setState(prev => {
+                                    const newMapping = { ...prev.mapping };
+                                    Object.keys(newMapping).forEach(key => {
+                                      if (newMapping[key] === field) {
+                                        delete newMapping[key];
+                                      }
+                                    });
+                                    return {
+                                      ...prev,
+                                      mapping: newMapping
+                                    };
+                                  });
+                                } else {
+                                  setState(prev => ({
+                                    ...prev,
+                                    mapping: {
+                                      ...prev.mapping,
+                                      [value]: field
+                                    }
+                                  }));
+                                }
                               }}
                             >
                               <SelectTrigger className="w-48">
                                 <SelectValue placeholder="Seleccionar columna CSV" />
                               </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="">Sin mapear</SelectItem>
+                              <SelectContent className="bg-white z-50">
+                                <SelectItem value="none">Sin mapear</SelectItem>
                                 {csvFields.map(csvField => (
                                   <SelectItem key={csvField} value={csvField}>
                                     {csvField}
