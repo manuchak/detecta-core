@@ -35,45 +35,7 @@ interface WizardState {
   result: CustodianServiceImportResult | null;
 }
 
-const DATABASE_FIELDS = {
-  'Identificación': [
-    'id_servicio', 'gm_transport_id', 'folio_cliente', 'id_custodio', 'id_cotizacion'
-  ],
-  'Cliente y Servicio': [
-    'nombre_cliente', 'tipo_servicio', 'estado', 'local_foraneo', 'ruta'
-  ],
-  'Ubicaciones': [
-    'origen', 'destino'
-  ],
-  'Fechas y Horarios': [
-    'fecha_hora_cita', 'fecha_hora_asignacion', 'hora_presentacion', 'hora_inicio_custodia', 
-    'hora_arribo', 'hora_finalizacion', 'tiempo_punto_origen', 'duracion_servicio',
-    'fecha_contratacion', 'fecha_primer_servicio', 'created_at', 'updated_time'
-  ],
-  'Custodio': [
-    'nombre_custodio', 'telefono', 'contacto_emergencia', 'telefono_emergencia', 'proveedor'
-  ],
-  'Vehículo y Seguridad': [
-    'auto', 'placa', 'armado', 'nombre_armado', 'telefono_armado'
-  ],
-  'Transporte': [
-    'cantidad_transportes', 'nombre_operador_transporte', 'telefono_operador',
-    'placa_carga', 'tipo_unidad', 'tipo_carga', 'nombre_operador_adicional',
-    'telefono_operador_adicional', 'placa_carga_adicional', 'tipo_unidad_adicional', 'tipo_carga_adicional'
-  ],
-  'Equipamiento': [
-    'gadget_solicitado', 'gadget', 'tipo_gadget'
-  ],
-  'Métricas': [
-    'km_teorico', 'km_recorridos', 'km_extras', 'tiempo_estimado', 'tiempo_retraso', 'presentacion'
-  ],
-  'Financiero': [
-    'costo_custodio', 'casetas', 'cobro_cliente'
-  ],
-  'Observaciones': [
-    'comentarios_adicionales', 'creado_via', 'creado_por'
-  ]
-};
+import { CUSTODIAN_SERVICE_FIELDS } from '@/config/custodianServiceFields';
 
 export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
   open,
@@ -91,6 +53,8 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
   });
   
   const [mappingName, setMappingName] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const { savedMappings, currentMapping, saveMapping, deleteMapping, loadMapping, autoSaveMapping } = useSavedMappings();
 
   // Auto-load saved mapping when component mounts
@@ -270,13 +234,55 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
     applyIntelligentMapping(csvFields, (newMapping) => {
       setState(prev => ({ ...prev, mapping: newMapping }));
       autoSaveMapping(newMapping);
-    });
+    }, state.parsedData || []);
   };
 
   const renderMappingStep = () => {
     const csvFields = state.parsedData?.[0] ? Object.keys(state.parsedData[0]) : [];
     const mappedCount = Object.values(state.mapping).filter(v => v).length;
     const isValidMapping = Object.values(state.mapping).includes('id_servicio');
+
+    // Helper function to get sample data for a CSV column
+    const getSampleData = (columnName: string): string[] => {
+      if (!state.parsedData || state.parsedData.length === 0) return [];
+      return state.parsedData
+        .slice(0, 3)
+        .map(row => String(row[columnName] || '').trim())
+        .filter(val => val && val !== 'undefined' && val !== 'null');
+    };
+
+    // Filter fields based on search and category
+    const getFilteredFields = () => {
+      let filteredFields = CUSTODIAN_SERVICE_FIELDS;
+      
+      if (selectedCategory !== 'all') {
+        filteredFields = { [selectedCategory]: CUSTODIAN_SERVICE_FIELDS[selectedCategory] || [] };
+      }
+
+      if (searchTerm.trim()) {
+        const searchLower = searchTerm.toLowerCase();
+        const filtered: typeof CUSTODIAN_SERVICE_FIELDS = {};
+        
+        Object.entries(filteredFields).forEach(([category, fieldDefs]) => {
+          const matchingFields = fieldDefs.filter(fieldDef => 
+            fieldDef.name.toLowerCase().includes(searchLower) ||
+            fieldDef.description.toLowerCase().includes(searchLower) ||
+            fieldDef.keywords.some(keyword => keyword.toLowerCase().includes(searchLower))
+          );
+          
+          if (matchingFields.length > 0) {
+            filtered[category] = matchingFields;
+          }
+        });
+        
+        filteredFields = filtered;
+      }
+
+      return filteredFields;
+    };
+
+    const filteredFields = getFilteredFields();
+    const categories = Object.keys(CUSTODIAN_SERVICE_FIELDS);
 
     return (
       <div className="space-y-6">
@@ -332,11 +338,35 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
             <CardDescription className="text-base">
               Las configuraciones se guardan automáticamente mientras trabajas
             </CardDescription>
+            
+            {/* Search and Filter Controls */}
+            <div className="flex gap-3 mt-4">
+              <div className="flex-1">
+                <Input
+                  type="text"
+                  placeholder="Buscar campos por nombre, descripción o palabras clave..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las categorías</SelectItem>
+                  {categories.map(category => (
+                    <SelectItem key={category} value={category}>{category}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </CardHeader>
           <CardContent className="pt-6">
             <ScrollArea className="h-96">
               <div className="space-y-6">
-                {Object.entries(DATABASE_FIELDS).map(([category, fields]) => (
+                {Object.entries(filteredFields).map(([category, fieldDefs]) => (
                   <div key={category} className="space-y-3">
                     <div className="flex items-center gap-2">
                       <div className="h-px bg-gradient-to-r from-primary to-transparent flex-1"></div>
@@ -344,10 +374,11 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
                       <div className="h-px bg-gradient-to-l from-primary to-transparent flex-1"></div>
                     </div>
                     <div className="grid gap-3 ml-6">
-                      {fields.map(field => {
+                      {fieldDefs.map(fieldDef => {
+                        const field = fieldDef.name;
                         const csvField = Object.keys(state.mapping).find(k => state.mapping[k] === field);
                         const isMapped = !!csvField;
-                        const isRequired = field === 'id_servicio';
+                        const isRequired = fieldDef.required;
                         
                         return (
                           <div key={field} className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
@@ -355,6 +386,7 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
                           } ${isRequired ? 'ring-2 ring-red-200' : ''}`}>
                             <div className="w-40">
                               <div className="font-mono text-sm font-semibold text-gray-800">{field}</div>
+                              <div className="text-xs text-gray-500 mt-1">{fieldDef.description}</div>
                               {isRequired && (
                                 <Badge variant="destructive" className="text-xs mt-1">
                                   Requerido
@@ -385,15 +417,26 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
                               <SelectTrigger className="w-64 bg-white border-2 font-medium">
                                 <SelectValue placeholder="Seleccionar columna CSV" />
                               </SelectTrigger>
-                              <SelectContent className="bg-white z-50 border-2 shadow-xl">
+                              <SelectContent className="bg-white z-50 border-2 shadow-xl max-h-60">
                                 <SelectItem value="none" className="font-medium text-gray-600">
                                   Sin configurar
                                 </SelectItem>
-                                {csvFields.map(csvField => (
-                                  <SelectItem key={csvField} value={csvField} className="font-medium">
-                                    {csvField}
-                                  </SelectItem>
-                                ))}
+                                {csvFields.map(csvField => {
+                                  const sampleData = getSampleData(csvField);
+                                  return (
+                                    <SelectItem key={csvField} value={csvField} className="font-medium">
+                                      <div className="w-full">
+                                        <div className="font-semibold">{csvField}</div>
+                                        {sampleData.length > 0 && (
+                                          <div className="text-xs text-gray-500 mt-1">
+                                            Ejemplo: {sampleData.slice(0, 2).join(', ')}
+                                            {sampleData.length > 2 ? '...' : ''}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </SelectItem>
+                                  );
+                                })}
                               </SelectContent>
                             </Select>
                             {isMapped && (
@@ -409,6 +452,14 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
                 ))}
               </div>
             </ScrollArea>
+            
+            {/* Show message when no fields match search */}
+            {Object.keys(filteredFields).length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                <p>No se encontraron campos que coincidan con "{searchTerm}"</p>
+                <p className="text-sm mt-2">Intenta con otros términos de búsqueda</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
