@@ -1,0 +1,246 @@
+// Servicio de mapeo inteligente para columnas CSV
+import { toast } from '@/hooks/use-toast';
+
+interface MappingScore {
+  csvField: string;
+  dbField: string;
+  score: number;
+  category: string;
+}
+
+interface MappingResult {
+  mapping: Record<string, string>;
+  confidence: number;
+  suggestions: MappingScore[];
+}
+
+// Todas las opciones de campos de base de datos organizadas por categoría
+const DATABASE_FIELDS = {
+  'Identificación': [
+    'id_servicio', 'gm_transport_id', 'folio_cliente', 'id_custodio', 'id_cotizacion'
+  ],
+  'Cliente y Servicio': [
+    'nombre_cliente', 'tipo_servicio', 'estado', 'local_foraneo', 'ruta'
+  ],
+  'Ubicaciones': [
+    'origen', 'destino'
+  ],
+  'Fechas y Horarios': [
+    'fecha_inicio', 'fecha_fin', 'hora_inicio', 'hora_fin', 'duracion_estimada', 'updated_time'
+  ],
+  'Personal': [
+    'custodio_nombre', 'custodio_telefono', 'custodio_email', 'custodio_especialidad', 
+    'custodio_certificaciones', 'supervisor_asignado'
+  ],
+  'Vehículo': [
+    'vehiculo_modelo', 'vehiculo_marca', 'vehiculo_año', 'vehiculo_placas', 'vehiculo_color',
+    'vehiculo_capacidad', 'vehiculo_tipo'
+  ],
+  'Monitoreo': [
+    'dispositivo_gps_id', 'sim_card_numero', 'plataforma_monitoreo', 'frecuencia_reporte'
+  ],
+  'Financiero': [
+    'monto_servicio', 'monto_total', 'moneda', 'forma_pago', 'status_pago',
+    'comision_custodio', 'comision_empresa'
+  ],
+  'Documentación': [
+    'documentos_requeridos', 'documentos_entregados', 'evidencia_fotografica',
+    'reporte_inicial', 'reporte_final'
+  ],
+  'Observaciones': [
+    'observaciones', 'requerimientos_especiales', 'restricciones', 'instrucciones_cliente'
+  ]
+};
+
+// Palabras clave y sinónimos para mejorar el matching
+const FIELD_KEYWORDS: Record<string, string[]> = {
+  'id_servicio': ['id_servicio', 'servicio_id', 'service_id', 'id', 'servicio', 'service'],
+  'gm_transport_id': ['gm_transport_id', 'transport_id', 'gm_id', 'transport', 'gm'],
+  'folio_cliente': ['folio_cliente', 'folio', 'cliente_folio', 'client_folio', 'numero_cliente'],
+  'id_custodio': ['id_custodio', 'custodio_id', 'custodian_id', 'custodio', 'guardian'],
+  'nombre_cliente': ['nombre_cliente', 'cliente_nombre', 'client_name', 'cliente', 'client'],
+  'tipo_servicio': ['tipo_servicio', 'service_type', 'tipo', 'servicio_tipo', 'service'],
+  'estado': ['estado', 'status', 'state', 'situacion'],
+  'origen': ['origen', 'origin', 'pickup', 'desde', 'from', 'salida'],
+  'destino': ['destino', 'destination', 'delivery', 'hasta', 'to', 'llegada'],
+  'fecha_inicio': ['fecha_inicio', 'start_date', 'inicio', 'fecha_salida', 'departure_date'],
+  'fecha_fin': ['fecha_fin', 'end_date', 'fin', 'fecha_llegada', 'arrival_date'],
+  'hora_inicio': ['hora_inicio', 'start_time', 'hora_salida', 'departure_time'],
+  'hora_fin': ['hora_fin', 'end_time', 'hora_llegada', 'arrival_time'],
+  'custodio_nombre': ['custodio_nombre', 'nombre_custodio', 'guardian_name', 'custodian_name'],
+  'custodio_telefono': ['custodio_telefono', 'telefono_custodio', 'guardian_phone', 'phone_custodio'],
+  'vehiculo_modelo': ['vehiculo_modelo', 'modelo', 'model', 'vehicle_model'],
+  'vehiculo_marca': ['vehiculo_marca', 'marca', 'brand', 'vehicle_brand'],
+  'vehiculo_placas': ['vehiculo_placas', 'placas', 'license_plate', 'plate'],
+  'monto_servicio': ['monto_servicio', 'amount', 'precio', 'price', 'cost', 'costo'],
+  'updated_time': ['updated_time', 'fecha_actualizacion', 'last_updated', 'modified', 'actualizado']
+};
+
+/**
+ * Calcula la similitud entre dos cadenas usando distancia de Levenshtein normalizada
+ */
+function calculateSimilarity(str1: string, str2: string): number {
+  const s1 = str1.toLowerCase().trim();
+  const s2 = str2.toLowerCase().trim();
+  
+  if (s1 === s2) return 1;
+  
+  const maxLen = Math.max(s1.length, s2.length);
+  if (maxLen === 0) return 1;
+  
+  return (maxLen - levenshteinDistance(s1, s2)) / maxLen;
+}
+
+/**
+ * Calcula la distancia de Levenshtein entre dos cadenas
+ */
+function levenshteinDistance(str1: string, str2: string): number {
+  const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+  
+  for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+  for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+  
+  for (let j = 1; j <= str2.length; j++) {
+    for (let i = 1; i <= str1.length; i++) {
+      const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+      matrix[j][i] = Math.min(
+        matrix[j][i - 1] + 1,     // deletion
+        matrix[j - 1][i] + 1,     // insertion
+        matrix[j - 1][i - 1] + cost // substitution
+      );
+    }
+  }
+  
+  return matrix[str2.length][str1.length];
+}
+
+/**
+ * Calcula el puntaje de mapeo entre un campo CSV y un campo de base de datos
+ */
+function calculateMappingScore(csvField: string, dbField: string): number {
+  const csvLower = csvField.toLowerCase().trim();
+  
+  // Coincidencia exacta
+  if (csvLower === dbField.toLowerCase()) return 1.0;
+  
+  // Verificar palabras clave conocidas
+  const keywords = FIELD_KEYWORDS[dbField] || [];
+  for (const keyword of keywords) {
+    if (csvLower === keyword.toLowerCase()) return 0.95;
+    if (csvLower.includes(keyword.toLowerCase()) || keyword.toLowerCase().includes(csvLower)) {
+      return 0.8 + (calculateSimilarity(csvLower, keyword.toLowerCase()) * 0.15);
+    }
+  }
+  
+  // Similitud general
+  const similarity = calculateSimilarity(csvField, dbField);
+  
+  // Bonus por subcadenas comunes
+  const csvParts = csvLower.split(/[_\-\s]/);
+  const dbParts = dbField.toLowerCase().split(/[_\-\s]/);
+  let commonParts = 0;
+  
+  for (const csvPart of csvParts) {
+    for (const dbPart of dbParts) {
+      if (csvPart.length > 2 && dbPart.length > 2) {
+        if (csvPart === dbPart || csvPart.includes(dbPart) || dbPart.includes(csvPart)) {
+          commonParts++;
+        }
+      }
+    }
+  }
+  
+  const partsBonus = Math.min(commonParts / Math.max(csvParts.length, dbParts.length), 0.3);
+  
+  return Math.min(similarity + partsBonus, 0.95);
+}
+
+/**
+ * Genera mapeo inteligente automático basado en similitud de nombres
+ */
+export function generateIntelligentMapping(csvFields: string[]): MappingResult {
+  const allDbFields = Object.values(DATABASE_FIELDS).flat();
+  const allScores: MappingScore[] = [];
+  
+  // Calcular puntajes para todas las combinaciones
+  for (const csvField of csvFields) {
+    for (const [category, fields] of Object.entries(DATABASE_FIELDS)) {
+      for (const dbField of fields) {
+        const score = calculateMappingScore(csvField, dbField);
+        if (score > 0.3) { // Solo considerar coincidencias razonables
+          allScores.push({
+            csvField,
+            dbField,
+            score,
+            category
+          });
+        }
+      }
+    }
+  }
+  
+  // Ordenar por puntaje descendente
+  allScores.sort((a, b) => b.score - a.score);
+  
+  // Crear mapeo evitando duplicados
+  const mapping: Record<string, string> = {};
+  const usedDbFields = new Set<string>();
+  const usedCsvFields = new Set<string>();
+  
+  for (const scoreEntry of allScores) {
+    if (!usedDbFields.has(scoreEntry.dbField) && !usedCsvFields.has(scoreEntry.csvField)) {
+      if (scoreEntry.score >= 0.5) { // Solo auto-mapear coincidencias confiables
+        mapping[scoreEntry.csvField] = scoreEntry.dbField;
+        usedDbFields.add(scoreEntry.dbField);
+        usedCsvFields.add(scoreEntry.csvField);
+      }
+    }
+  }
+  
+  // Calcular confianza general
+  const totalPossibleMappings = Math.min(csvFields.length, allDbFields.length);
+  const actualMappings = Object.keys(mapping).length;
+  const avgScore = Object.keys(mapping).length > 0 
+    ? allScores
+        .filter(s => mapping[s.csvField] === s.dbField)
+        .reduce((sum, s) => sum + s.score, 0) / Object.keys(mapping).length
+    : 0;
+  
+  const confidence = (actualMappings / totalPossibleMappings) * avgScore;
+  
+  return {
+    mapping,
+    confidence,
+    suggestions: allScores.slice(0, 20) // Top 20 sugerencias
+  };
+}
+
+/**
+ * Aplica mapeo inteligente y muestra resultados al usuario
+ */
+export function applyIntelligentMapping(
+  csvFields: string[],
+  onMappingUpdate: (mapping: Record<string, string>) => void
+): void {
+  try {
+    const result = generateIntelligentMapping(csvFields);
+    
+    onMappingUpdate(result.mapping);
+    
+    const mappedCount = Object.keys(result.mapping).length;
+    const confidencePercent = Math.round(result.confidence * 100);
+    
+    toast({
+      title: "✨ Mapeo Automático Aplicado",
+      description: `Se mapearon ${mappedCount} campos con ${confidencePercent}% de confianza. Revisa y ajusta según sea necesario.`,
+    });
+    
+  } catch (error) {
+    console.error('Error en mapeo inteligente:', error);
+    toast({
+      title: "Error en Mapeo Automático",
+      description: "Ocurrió un error al generar el mapeo automático. Intenta mapear manualmente.",
+      variant: "destructive"
+    });
+  }
+}

@@ -3,10 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Upload, FileText, CheckCircle, XCircle, AlertTriangle, Download, Save, FolderOpen } from "lucide-react";
+import { Loader2, Upload, FileText, CheckCircle, XCircle, AlertTriangle, Download, Save, FolderOpen, Wand2, Sparkles } from "lucide-react";
 import { parseExcelFile } from "@/utils/excelImporter";
 import { importCustodianServices, CustodianServiceImportResult, CustodianServiceImportProgress } from "@/services/custodianServicesImportService";
 import { validateCustodianServicesData, getQuickValidationSample, ValidationResult } from "@/services/custodianServicesValidationService";
+import { applyIntelligentMapping } from "@/services/intelligentMappingService";
 import { useSavedMappings, SavedMapping } from "@/hooks/useSavedMappings";
 import { ValidationStep } from "./ValidationStep";
 import { toast } from "sonner";
@@ -263,6 +264,15 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
     </div>
   );
 
+  const handleIntelligentMapping = () => {
+    const csvFields = state.parsedData?.[0] ? Object.keys(state.parsedData[0]) : [];
+    
+    applyIntelligentMapping(csvFields, (newMapping) => {
+      setState(prev => ({ ...prev, mapping: newMapping }));
+      autoSaveMapping(newMapping);
+    });
+  };
+
   const renderMappingStep = () => {
     const csvFields = state.parsedData?.[0] ? Object.keys(state.parsedData[0]) : [];
     const mappedCount = Object.values(state.mapping).filter(v => v).length;
@@ -288,6 +298,33 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
             )}
           </div>
         </div>
+
+        {/* Mapeo Inteligente */}
+        <Card className="bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Sparkles className="h-6 w-6 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-purple-900 text-lg mb-1">Mapeo Inteligente</h3>
+                  <p className="text-sm text-purple-800">
+                    Detecta automáticamente qué columnas corresponden a cada campo usando similitud de nombres
+                  </p>
+                </div>
+              </div>
+              <Button 
+                onClick={handleIntelligentMapping}
+                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-300"
+                size="lg"
+              >
+                <Wand2 className="w-5 h-5 mr-2" />
+                Auto-Mapear
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="border-2">
           <CardHeader className="bg-gradient-to-r from-slate-50 to-gray-50 border-b">
