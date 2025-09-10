@@ -87,12 +87,12 @@ export const importCustodianServices = async (
 
             console.log(`Processing record ${current}:`, servicioData);
 
-            // Use native Supabase upsert instead of manual SELECT + INSERT/UPDATE
+            // Use native Supabase upsert with correct conflict resolution
             const { error: upsertError, count } = await supabase
               .from('servicios_custodia')
               .upsert(servicioData, { 
                 onConflict: 'id_servicio',
-                count: 'exact'
+                ignoreDuplicates: false
               });
 
             if (upsertError) {

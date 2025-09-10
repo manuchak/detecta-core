@@ -52,6 +52,11 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
     result: null,
   });
   
+  // Debug: Log step changes
+  useEffect(() => {
+    console.log('🎯 Wizard step changed to:', state.step, 'Result:', state.result);
+  }, [state.step, state.result]);
+  
   const [mappingName, setMappingName] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -144,7 +149,7 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
       });
 
       setState(prev => ({ ...prev, result, step: 'results' }));
-
+      console.log('🎯 Import completed, moving to results step:', result);
       if (result.success) {
         toast.success(`Importación completada: ${result.imported} registros procesados`);
       } else {
