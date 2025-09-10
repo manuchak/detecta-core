@@ -52,20 +52,85 @@ interface WizardState {
 }
 
 const AVAILABLE_FIELDS = [
+  // Core fields
   { value: 'id_servicio', label: 'ID Servicio', required: true },
+  { value: 'fecha_hora_cita', label: 'Fecha Hora Cita', required: false },
+  { value: 'gm_transport_id', label: 'GM Transport ID', required: false },
+  { value: 'estado', label: 'Estado', required: false },
   { value: 'nombre_cliente', label: 'Nombre Cliente', required: false },
-  { value: 'telefono', label: 'Teléfono', required: false },
-  { value: 'telefono_operador', label: 'Teléfono Operador', required: false },
+  { value: 'folio_cliente', label: 'Folio Cliente', required: false },
+  { value: 'comentarios_adicionales', label: 'Comentarios Adicionales', required: false },
+  
+  // Service details
+  { value: 'local_foraneo', label: 'Local/Foráneo', required: false },
+  { value: 'ruta', label: 'Ruta', required: false },
+  { value: 'tipo_servicio', label: 'Tipo Servicio', required: false },
   { value: 'origen', label: 'Origen', required: false },
   { value: 'destino', label: 'Destino', required: false },
-  { value: 'fecha_hora_cita', label: 'Fecha Hora Cita', required: false },
-  { value: 'estado', label: 'Estado', required: false },
-  { value: 'tipo_servicio', label: 'Tipo Servicio', required: false },
+  { value: 'km_teorico', label: 'KM Teórico', required: false },
+  
+  // Equipment/Gadget
+  { value: 'gadget_solicitado', label: 'Gadget Solicitado', required: false },
+  { value: 'gadget', label: 'Gadget', required: false },
+  { value: 'tipo_gadget', label: 'Tipo Gadget', required: false },
+  
+  // Transport details
+  { value: 'cantidad_transportes', label: 'Cantidad Transportes', required: false },
+  { value: 'nombre_operador_transporte', label: 'Nombre Operador Transporte', required: false },
+  { value: 'telefono_operador', label: 'Teléfono Operador', required: false },
+  { value: 'placa_carga', label: 'Placa Carga', required: false },
+  { value: 'tipo_unidad', label: 'Tipo Unidad', required: false },
+  { value: 'tipo_carga', label: 'Tipo Carga', required: false },
+  
+  // Additional transport
+  { value: 'nombre_operador_adicional', label: 'Nombre Operador Adicional', required: false },
+  { value: 'telefono_operador_adicional', label: 'Teléfono Operador Adicional', required: false },
+  { value: 'placa_carga_adicional', label: 'Placa Carga Adicional', required: false },
+  { value: 'tipo_unidad_adicional', label: 'Tipo Unidad Adicional', required: false },
+  { value: 'tipo_carga_adicional', label: 'Tipo Carga Adicional', required: false },
+  
+  // Assignment details
+  { value: 'fecha_hora_asignacion', label: 'Fecha Hora Asignación', required: false },
+  { value: 'id_custodio', label: 'ID Custodio', required: false },
   { value: 'nombre_custodio', label: 'Nombre Custodio', required: false },
+  { value: 'telefono', label: 'Teléfono', required: false },
+  { value: 'contacto_emergencia', label: 'Contacto Emergencia', required: false },
+  { value: 'telefono_emergencia', label: 'Teléfono Emergencia', required: false },
+  
+  // Vehicle details
+  { value: 'auto', label: 'Auto', required: false },
+  { value: 'placa', label: 'Placa', required: false },
+  { value: 'armado', label: 'Armado', required: false },
+  { value: 'nombre_armado', label: 'Nombre Armado', required: false },
+  { value: 'telefono_armado', label: 'Teléfono Armado', required: false },
+  { value: 'proveedor', label: 'Proveedor', required: false },
+  
+  // Time tracking
+  { value: 'hora_presentacion', label: 'Hora Presentación', required: false },
+  { value: 'presentacion', label: 'Presentación', required: false },
+  { value: 'hora_inicio_custodia', label: 'Hora Inicio Custodia', required: false },
+  { value: 'tiempo_punto_origen', label: 'Tiempo Punto Origen', required: false },
+  { value: 'hora_arribo', label: 'Hora Arribo', required: false },
+  { value: 'hora_finalizacion', label: 'Hora Finalización', required: false },
+  { value: 'duracion_servicio', label: 'Duración Servicio', required: false },
+  
+  // Financial details
+  { value: 'id_cotizacion', label: 'ID Cotización', required: false },
+  { value: 'tiempo_estimado', label: 'Tiempo Estimado', required: false },
   { value: 'km_recorridos', label: 'KM Recorridos', required: false },
+  { value: 'km_extras', label: 'KM Extras', required: false },
+  { value: 'costo_custodio', label: 'Costo Custodio', required: false },
+  { value: 'casetas', label: 'Casetas', required: false },
   { value: 'cobro_cliente', label: 'Cobro Cliente', required: false },
+  
+  // Metadata
+  { value: 'updated_time', label: 'Updated Time', required: false },
+  { value: 'fecha_contratacion', label: 'Fecha Contratación', required: false },
+  { value: 'fecha_primer_servicio', label: 'Fecha Primer Servicio', required: false },
+  { value: 'creado_via', label: 'Creado Vía', required: false },
+  { value: 'creado_por', label: 'Creado Por', required: false },
+  { value: 'created_at', label: 'Created At', required: false },
   { value: 'tiempo_retraso', label: 'Tiempo Retraso (min)', required: false },
-  { value: 'comentarios_adicionales', label: 'Comentarios', required: false },
 ];
 
 export const ServiciosCustodiaImportWizard: React.FC<ServiciosCustodiaImportWizardProps> = ({
