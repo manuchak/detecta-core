@@ -269,6 +269,7 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
     });
     
     applyIntelligentMapping(csvFields, (newMapping) => {
+      console.log('🎯 Mapeo inteligente completado:', newMapping);
       setState(prev => ({ ...prev, mapping: newMapping }));
       autoSaveMapping(newMapping);
     }, state.parsedData || []);
@@ -433,6 +434,7 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
                     <div className="grid gap-3 ml-6">
                       {fieldDefs.map(fieldDef => {
                         const field = fieldDef.name;
+                        // Find which CSV field is mapped to this DB field
                         const csvField = Object.keys(state.mapping).find(k => state.mapping[k] === field);
                         const isMapped = !!csvField;
                         const isRequired = fieldDef.required;
@@ -454,6 +456,7 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
                               value={csvField || 'none'}
                               onValueChange={(value) => {
                                 if (value === 'none') {
+                                  // Remove this field from mapping
                                   setState(prev => {
                                     const newMapping = { ...prev.mapping };
                                     Object.keys(newMapping).forEach(key => {
@@ -461,13 +464,26 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
                                         delete newMapping[key];
                                       }
                                     });
+                                    autoSaveMapping(newMapping);
                                     return { ...prev, mapping: newMapping };
                                   });
                                 } else {
-                                  setState(prev => ({
-                                    ...prev,
-                                    mapping: { ...prev.mapping, [value]: field }
-                                  }));
+                                  // Clear any existing mapping for this CSV field and map it to current DB field
+                                  setState(prev => {
+                                    const newMapping = { ...prev.mapping };
+                                    // Remove this CSV field from any existing mapping
+                                    delete newMapping[value];
+                                    // Remove this DB field from any existing mapping
+                                    Object.keys(newMapping).forEach(key => {
+                                      if (newMapping[key] === field) {
+                                        delete newMapping[key];
+                                      }
+                                    });
+                                    // Add new mapping
+                                    newMapping[value] = field;
+                                    autoSaveMapping(newMapping);
+                                    return { ...prev, mapping: newMapping };
+                                  });
                                 }
                               }}
                             >
