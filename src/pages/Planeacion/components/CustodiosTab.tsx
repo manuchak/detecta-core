@@ -80,10 +80,7 @@ export const CustodiosTab = () => {
       if (error) throw error;
       return data as ServicioDetalle[];
     },
-    {
-      ...PERFORMANCE_QUERY_CONFIG,
-      enabled: !!selectedCustodio
-    }
+    PERFORMANCE_QUERY_CONFIG
   );
 
   const filteredCustodios = useMemo(() => {
