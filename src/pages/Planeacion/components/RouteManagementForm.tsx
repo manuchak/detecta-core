@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo, useCallback, useMemo } from 'react';
+import { useState, useEffect, memo, useCallback, useMemo } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -94,9 +94,31 @@ const RouteManagementFormComponent = ({
     clave: ''
   }), []);
 
-  // Optimizar inicialización del formulario
+  // Optimizar inicialización del formulario y permisos
   useEffect(() => {
     if (!open) return; // Solo ejecutar cuando el modal esté abierto
+    
+    // Solo verificar permisos si no se pasaron como prop
+    if (hasPermission === undefined) {
+      console.log('🔐 Verificando permisos en RouteManagementForm...');
+      const checkPerms = async () => {
+        try {
+          const { data, error } = await supabase.rpc('puede_acceder_planeacion');
+          if (error) throw error;
+          console.log('✅ Permisos verificados:', data);
+          // Si no tiene permisos, cerrar el modal inmediatamente
+          if (!data) {
+            onOpenChange(false);
+            toast.error('No tienes permisos para gestionar rutas');
+          }
+        } catch (error) {
+          console.error('❌ Error verificando permisos:', error);
+          onOpenChange(false);
+          toast.error('Error al verificar permisos');
+        }
+      };
+      checkPerms();
+    }
     
     if (editingRoute) {
       setFormData({
@@ -106,7 +128,7 @@ const RouteManagementFormComponent = ({
     } else {
       setFormData(initialFormData);
     }
-  }, [editingRoute, open, initialFormData]);
+  }, [editingRoute, open, initialFormData, hasPermission, onOpenChange]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
