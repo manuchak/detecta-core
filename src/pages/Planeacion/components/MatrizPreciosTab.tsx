@@ -35,7 +35,7 @@ export const MatrizPreciosTab = () => {
   const [showCalculator, setShowCalculator] = useState(false);
   const [selectedRuta, setSelectedRuta] = useState<MatrizPrecio | null>(null);
   const [showRouteDetails, setShowRouteDetails] = useState(false);
-  const [filterClient, setFilterClient] = useState('');
+  const [filterClient, setFilterClient] = useState('all');
   const [filterMargin, setFilterMargin] = useState('all');
 
   // Fetch price matrix data
@@ -57,7 +57,7 @@ export const MatrizPreciosTab = () => {
     const matchesSearch = precio.cliente_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       precio.destino_texto.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesClient = filterClient === '' || precio.cliente_nombre === filterClient;
+    const matchesClient = filterClient === 'all' || filterClient === '' || precio.cliente_nombre === filterClient;
     
     const matchesMargin = filterMargin === 'all' || 
       (filterMargin === 'high' && precio.porcentaje_utilidad >= 25) ||
@@ -323,7 +323,7 @@ export const MatrizPreciosTab = () => {
                     <SelectValue placeholder="Todos los clientes" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos los clientes</SelectItem>
+                    <SelectItem value="all">Todos los clientes</SelectItem>
                     {Array.from(new Set(precios.map(p => p.cliente_nombre))).sort().map(cliente => (
                       <SelectItem key={cliente} value={cliente}>{cliente}</SelectItem>
                     ))}
@@ -350,7 +350,7 @@ export const MatrizPreciosTab = () => {
                 variant="outline" 
                 onClick={() => {
                   setSearchTerm('');
-                  setFilterClient('');
+                  setFilterClient('all');
                   setFilterMargin('all');
                 }}
                 className="gap-2"

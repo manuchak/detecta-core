@@ -152,11 +152,11 @@ export const AsignarGPSDialog: React.FC<AsignarGPSDialogProps> = ({
                   <SelectTrigger>
                     <SelectValue placeholder="Selecciona un GPS disponible" />
                   </SelectTrigger>
-                  <SelectContent>
+                   <SelectContent>
                     {loadingProductos ? (
-                      <SelectItem value="">Cargando productos...</SelectItem>
+                      <SelectItem value="loading" disabled>Cargando productos...</SelectItem>
                     ) : productosGPS.length === 0 ? (
-                      <SelectItem value="">No hay GPS disponibles</SelectItem>
+                      <SelectItem value="no-gps" disabled>No hay GPS disponibles</SelectItem>
                     ) : (
                       productosGPS.map((producto) => (
                         <SelectItem key={producto.id} value={producto.id}>
