@@ -76,14 +76,40 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
     if (!file) return;
 
     try {
-      const excelData = await parseExcelFile(file);
+      // First, get sheet info
+      const initialData = await parseExcelFile(file);
+      
+      // Then parse the first sheet with actual data
+      const firstSheet = initialData.sheets[0];
+      const actualData = await parseExcelFile(file, firstSheet, 1);
+      
+      console.log('📁 Archivo procesado:', {
+        fileName: actualData.fileName,
+        sheets: actualData.sheets,
+        columnas: actualData.columns.length,
+        filas: actualData.rows.length,
+        primerasColumnas: actualData.columns.slice(0, 5).map(c => c.header)
+      });
+
+      // Transform the data structure for compatibility
+      const transformedRows = actualData.rows.map(row => {
+        const transformedRow: any = {};
+        actualData.columns.forEach((col, index) => {
+          transformedRow[col.header] = row[`col_${index}`];
+        });
+        return transformedRow;
+      });
+
       setState(prev => ({
         ...prev,
         file,
-        parsedData: excelData.rows,
+        parsedData: transformedRows,
         step: 'mapping'
       }));
+
+      toast.success(`Archivo cargado: ${transformedRows.length} registros encontrados con ${actualData.columns.length} columnas`);
     } catch (error) {
+      console.error('❌ Error al procesar archivo:', error);
       toast.error('Error al procesar el archivo: ' + (error as Error).message);
     }
   }, []);
@@ -229,7 +255,18 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
   );
 
   const handleIntelligentMapping = () => {
-    const csvFields = state.parsedData?.[0] ? Object.keys(state.parsedData[0]) : [];
+    if (!state.parsedData || state.parsedData.length === 0) {
+      toast.error('No hay datos cargados. Por favor, sube un archivo primero.');
+      return;
+    }
+
+    const csvFields = Object.keys(state.parsedData[0]) || [];
+    
+    console.log('🎯 Iniciando mapeo inteligente:', {
+      totalFilas: state.parsedData.length,
+      campos: csvFields,
+      primeraFila: state.parsedData[0]
+    });
     
     applyIntelligentMapping(csvFields, (newMapping) => {
       setState(prev => ({ ...prev, mapping: newMapping }));
@@ -305,6 +342,25 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
           </div>
         </div>
 
+         {/* Status del archivo cargado */}
+        {state.parsedData && state.parsedData.length > 0 && (
+          <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-green-900 mb-1">Archivo Cargado Correctamente</h3>
+                  <p className="text-sm text-green-800">
+                    {state.parsedData.length} registros • {csvFields.length} columnas detectadas
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Mapeo Inteligente */}
         <Card className="bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200">
           <CardContent className="pt-6">
@@ -322,7 +378,8 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
               </div>
               <Button 
                 onClick={handleIntelligentMapping}
-                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-300"
+                disabled={!state.parsedData || state.parsedData.length === 0}
+                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold px-6 py-2 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 size="lg"
               >
                 <Wand2 className="w-5 h-5 mr-2" />
@@ -454,7 +511,7 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
             </ScrollArea>
             
             {/* Show message when no fields match search */}
-            {Object.keys(filteredFields).length === 0 && (
+            {Object.keys(filteredFields).length === 0 && searchTerm && (
               <div className="text-center py-8 text-gray-500">
                 <p>No se encontraron campos que coincidan con "{searchTerm}"</p>
                 <p className="text-sm mt-2">Intenta con otros términos de búsqueda</p>
@@ -462,6 +519,25 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
             )}
           </CardContent>
         </Card>
+
+        {/* Mensaje si no hay archivo cargado */}
+        {(!state.parsedData || state.parsedData.length === 0) && (
+          <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-100 rounded-lg">
+                  <AlertTriangle className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-amber-900 mb-1">Carga un archivo para continuar</h3>
+                  <p className="text-sm text-amber-800">
+                    Necesitas cargar un archivo CSV o Excel antes de poder configurar el mapeo de campos.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Configuraciones guardadas */}
         {savedMappings.length > 0 && (
