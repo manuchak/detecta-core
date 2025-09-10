@@ -174,12 +174,28 @@ export const PriceMatrixImportWizard: React.FC<PriceMatrixImportWizardProps> = (
 
     try {
       const transformedData = transformPriceMatrixDataForImport(state.excelData, state.mapping);
+      
+      // Deduplicate data by cliente_nombre + destino_texto combination
+      const deduplicatedData = transformedData.reduce((acc, current) => {
+        const key = `${current.cliente_nombre || ''}_${current.destino_texto || ''}`;
+        
+        // If we haven't seen this combination before, add it
+        if (!acc.some(item => 
+          `${item.cliente_nombre || ''}_${item.destino_texto || ''}` === key
+        )) {
+          acc.push(current);
+        }
+        return acc;
+      }, [] as typeof transformedData);
+      
+      console.log(`Original records: ${transformedData.length}, After deduplication: ${deduplicatedData.length}`);
+      
       const batchSize = 50;
       let imported = 0;
       let errors = 0;
 
-      for (let i = 0; i < transformedData.length; i += batchSize) {
-        const batch = transformedData.slice(i, i + batchSize);
+      for (let i = 0; i < deduplicatedData.length; i += batchSize) {
+        const batch = deduplicatedData.slice(i, i + batchSize);
         
         try {
           const { error } = await supabase
@@ -196,7 +212,7 @@ export const PriceMatrixImportWizard: React.FC<PriceMatrixImportWizardProps> = (
           errors += batch.length;
         }
 
-        const progress = ((i + batchSize) / transformedData.length) * 100;
+        const progress = ((i + batchSize) / deduplicatedData.length) * 100;
         setState(prev => ({ ...prev, importProgress: Math.min(progress, 100) }));
       }
 
