@@ -81,8 +81,8 @@ export const importCustodianServices = async (
               cobro_cliente: item.cobro_cliente ? parseFloat(item.cobro_cliente) : null,
               tiempo_retraso: item.tiempo_retraso ? parseInt(item.tiempo_retraso) : null,
               comentarios_adicionales: item.comentarios_adicionales || '',
-              fecha_creacion: item.fecha_creacion ? new Date(item.fecha_creacion).toISOString() : null,
-              fecha_actualizacion: new Date().toISOString()
+              created_at: item.created_at ? new Date(item.created_at).toISOString() : null,
+              updated_time: new Date().toISOString()
             };
 
             console.log(`Processing record ${current}:`, servicioData);

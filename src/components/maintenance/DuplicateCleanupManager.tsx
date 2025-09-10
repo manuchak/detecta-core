@@ -8,7 +8,7 @@ import { AlertTriangle, CheckCircle, Clock, Play, Shield, Trash2, Upload } from 
 import { useDuplicateCleanup } from '@/hooks/useDuplicateCleanup';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ServiciosCustodiaImportWizard } from './ServiciosCustodiaImportWizard';
+import { ImportWizardEnhanced } from './ImportWizardEnhanced';
 
 const DuplicateCleanupManager = () => {
   const {
@@ -270,7 +270,7 @@ const DuplicateCleanupManager = () => {
       </Card>
       
       {/* Import Wizard */}
-      <ServiciosCustodiaImportWizard
+      <ImportWizardEnhanced
         open={showImportWizard}
         onOpenChange={setShowImportWizard}
         onComplete={() => {
