@@ -9061,6 +9061,21 @@ export type Database = {
           total_servicios: number
         }[]
       }
+      get_custodios_estadisticas_planeacion: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          estados: string
+          ingresos_total: number
+          km_total: number
+          nombre_custodio: string
+          promedio_km: number
+          servicios_activos: number
+          servicios_finalizados: number
+          tasa_finalizacion: number
+          total_servicios: number
+          ultimo_servicio: string
+        }[]
+      }
       get_custodios_nuevos_por_mes: {
         Args: { fecha_fin: string; fecha_inicio: string }
         Returns: {

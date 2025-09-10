@@ -1,196 +1,223 @@
-import { useState } from 'react';
-import { Plus, Search, Edit, Trash2, MapPin, Star, Shield, Smartphone } from 'lucide-react';
-import { useCustodios, useCreateCustodio, useUpdateCustodio, useDeleteCustodio } from '@/hooks/usePlaneacion';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
-import { ColumnDef } from '@tanstack/react-table';
-import { Custodio, CustodioForm } from '@/types/planeacion';
-import CustodioDialog from './CustodioDialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
-  AlertDialog, 
-  AlertDialogAction, 
-  AlertDialogCancel, 
-  AlertDialogContent, 
-  AlertDialogDescription, 
-  AlertDialogFooter, 
-  AlertDialogHeader, 
-  AlertDialogTitle 
-} from '@/components/ui/alert-dialog';
+  Users, 
+  TrendingUp, 
+  MapPin, 
+  Clock, 
+  Search, 
+  Eye, 
+  Star,
+  Calendar,
+  Route,
+  DollarSign,
+  Activity,
+  Shield
+} from 'lucide-react';
+import { useAuthenticatedQuery } from '@/hooks/useAuthenticatedQuery';
+import { supabase } from '@/integrations/supabase/client';
+import { ColumnDef } from '@tanstack/react-table';
+import { PERFORMANCE_QUERY_CONFIG } from '@/utils/performanceOptimizations';
 
-export default function CustodiosTab() {
+interface CustodioData {
+  nombre_custodio: string;
+  total_servicios: number;
+  ultimo_servicio: string | null;
+  estados: string;
+  servicios_finalizados: number;
+  servicios_activos: number;
+  km_total: number;
+  ingresos_total: number;
+  promedio_km: number;
+  tasa_finalizacion: number;
+}
+
+interface ServicioDetalle {
+  origen: string;
+  destino: string;
+  estado: string;
+  fecha_hora_cita: string;
+  km_recorridos: number;
+  cobro_cliente: number;
+}
+
+export const CustodiosTab = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingCustodio, setEditingCustodio] = useState<Custodio | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [custodioToDelete, setCustodioToDelete] = useState<Custodio | null>(null);
+  const [selectedCustodio, setSelectedCustodio] = useState<CustodioData | null>(null);
+  const [showCustodioDetails, setShowCustodioDetails] = useState(false);
 
-  const { data: custodios = [], isLoading } = useCustodios();
-  const createMutation = useCreateCustodio();
-  const updateMutation = useUpdateCustodio();
-  const deleteMutation = useDeleteCustodio();
-
-  const filteredCustodios = custodios.filter(custodio =>
-    custodio.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    custodio.tel.includes(searchTerm) ||
-    custodio.zona_base?.toLowerCase().includes(searchTerm.toLowerCase())
+  // Fetch custodios data with aggregated statistics
+  const { data: custodios = [], isPending: custodiosLoading } = useAuthenticatedQuery(
+    ['custodios-planeacion'],
+    async () => {
+      const { data, error } = await supabase
+        .rpc('get_custodios_estadisticas_planeacion');
+      
+      if (error) throw error;
+      return data as CustodioData[];
+    },
+    PERFORMANCE_QUERY_CONFIG
   );
 
-  const handleCreate = async (data: CustodioForm) => {
-    await createMutation.mutateAsync(data);
-    setDialogOpen(false);
-  };
-
-  const handleUpdate = async (data: CustodioForm) => {
-    if (editingCustodio) {
-      await updateMutation.mutateAsync({ 
-        id: editingCustodio.id, 
-        custodio: data 
-      });
-      setEditingCustodio(null);
-      setDialogOpen(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (custodioToDelete) {
-      await deleteMutation.mutateAsync(custodioToDelete.id);
-      setCustodioToDelete(null);
-      setDeleteDialogOpen(false);
-    }
-  };
-
-  const openEditDialog = (custodio: Custodio) => {
-    setEditingCustodio(custodio);
-    setDialogOpen(true);
-  };
-
-  const openDeleteDialog = (custodio: Custodio) => {
-    setCustodioToDelete(custodio);
-    setDeleteDialogOpen(true);
-  };
-
-  const getDisponibilidadBadge = (disponibilidad: string): "default" | "secondary" | "destructive" | "outline" => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      'disponible': 'default',
-      'ocupado': 'secondary',
-      'off': 'destructive'
-    };
-    return variants[disponibilidad] || 'default';
-  };
-
-  const getEstadoBadge = (estado: string): "default" | "secondary" | "destructive" | "outline" => {
-    return estado === 'activo' ? 'default' : 'secondary';
-  };
-
-  const columns: ColumnDef<Custodio>[] = [
+  // Fetch services details for selected custodio
+  const { data: serviciosDetalle = [] } = useAuthenticatedQuery(
+    ['custodio-servicios', selectedCustodio?.nombre_custodio],
+    async () => {
+      if (!selectedCustodio) return [];
+      
+      const { data, error } = await supabase
+        .from('servicios_custodia')
+        .select('origen, destino, estado, fecha_hora_cita, km_recorridos, cobro_cliente')
+        .eq('nombre_custodio', selectedCustodio.nombre_custodio)
+        .order('fecha_hora_cita', { ascending: false })
+        .limit(20);
+      
+      if (error) throw error;
+      return data as ServicioDetalle[];
+    },
     {
-      accessorKey: 'nombre',
+      ...PERFORMANCE_QUERY_CONFIG,
+      enabled: !!selectedCustodio
+    }
+  );
+
+  const filteredCustodios = useMemo(() => {
+    return custodios.filter(custodio =>
+      custodio.nombre_custodio.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [custodios, searchTerm]);
+
+  // Calculate KPIs
+  const kpis = useMemo(() => {
+    const totalCustodios = custodios.length;
+    const custodiosActivos = custodios.filter(c => c.servicios_activos > 0).length;
+    const promedioServicios = totalCustodios > 0 
+      ? Math.round(custodios.reduce((acc, c) => acc + c.total_servicios, 0) / totalCustodios)
+      : 0;
+    const mejorCustodio = custodios.reduce((max, c) => 
+      c.tasa_finalizacion > (max?.tasa_finalizacion || 0) ? c : max, 
+      custodios[0]
+    );
+
+    return {
+      totalCustodios,
+      custodiosActivos,
+      promedioServicios,
+      mejorCustodio: mejorCustodio?.nombre_custodio || 'N/A'
+    };
+  }, [custodios]);
+
+  const columns: ColumnDef<CustodioData>[] = [
+    {
+      accessorKey: 'nombre_custodio',
       header: 'Custodio',
       cell: ({ row }) => (
-        <div className="space-y-1">
-          <div className="font-medium">{row.original.nombre}</div>
-          <div className="text-sm text-muted-foreground">{row.original.tel}</div>
-          {row.original.email && (
-            <div className="text-sm text-muted-foreground">{row.original.email}</div>
-          )}
+        <div className="font-medium">
+          {row.getValue('nombre_custodio')}
         </div>
       ),
     },
     {
-      accessorKey: 'rating_promedio',
-      header: 'Rating',
+      accessorKey: 'total_servicios',
+      header: 'Total Servicios',
       cell: ({ row }) => (
-        <div className="flex items-center gap-1">
-          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-          <span className="font-medium">{row.original.rating_promedio.toFixed(1)}</span>
+        <div className="text-center font-medium">
+          {row.getValue('total_servicios')}
         </div>
       ),
     },
     {
-      accessorKey: 'zona_base',
-      header: 'Zona Base',
+      accessorKey: 'servicios_finalizados',
+      header: 'Finalizados',
       cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <MapPin className="h-4 w-4 text-muted-foreground" />
-          <span>{row.original.zona_base || 'No asignada'}</span>
+        <div className="text-center text-green-600 font-medium">
+          {row.getValue('servicios_finalizados')}
         </div>
       ),
     },
     {
-      accessorKey: 'tipo_custodia',
-      header: 'Tipo',
+      accessorKey: 'servicios_activos',
+      header: 'Activos',
       cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <Shield className="h-4 w-4 text-muted-foreground" />
-          <Badge variant="outline">
-            {row.original.tipo_custodia === 'armado' ? 'Armado' : 'No Armado'}
-          </Badge>
+        <div className="text-center text-blue-600 font-medium">
+          {row.getValue('servicios_activos')}
         </div>
       ),
     },
     {
-      accessorKey: 'tiene_gadgets',
-      header: 'Gadgets',
+      accessorKey: 'tasa_finalizacion',
+      header: '% Finalización',
+      cell: ({ row }) => {
+        const tasa = parseFloat(row.getValue('tasa_finalizacion'));
+        const color = tasa >= 90 ? 'text-green-600' : 
+                     tasa >= 70 ? 'text-yellow-600' : 'text-red-600';
+        return (
+          <div className={`text-center font-medium ${color}`}>
+            {tasa.toFixed(1)}%
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'km_total',
+      header: 'KM Total',
       cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <Smartphone className="h-4 w-4 text-muted-foreground" />
-          <Badge variant={row.original.tiene_gadgets ? 'default' : 'secondary'}>
-            {row.original.tiene_gadgets ? 'Sí' : 'No'}
-          </Badge>
+        <div className="text-center">
+          {Math.round(row.getValue('km_total')).toLocaleString()}
         </div>
       ),
     },
     {
-      accessorKey: 'disponibilidad',
-      header: 'Disponibilidad',
-      cell: ({ row }) => (
-        <Badge variant={getDisponibilidadBadge(row.original.disponibilidad)}>
-          {row.original.disponibilidad.charAt(0).toUpperCase() + row.original.disponibilidad.slice(1)}
-        </Badge>
-      ),
+      accessorKey: 'ingresos_total',
+      header: 'Ingresos Total',
+      cell: ({ row }) => {
+        const amount = parseFloat(row.getValue('ingresos_total'));
+        return (
+          <div className="text-center font-medium text-green-600">
+            ${amount.toLocaleString()}
+          </div>
+        );
+      },
     },
     {
-      accessorKey: 'estado',
-      header: 'Estado',
-      cell: ({ row }) => (
-        <Badge variant={getEstadoBadge(row.original.estado)}>
-          {row.original.estado.charAt(0).toUpperCase() + row.original.estado.slice(1)}
-        </Badge>
-      ),
+      accessorKey: 'ultimo_servicio',
+      header: 'Último Servicio',
+      cell: ({ row }) => {
+        const fecha = row.getValue('ultimo_servicio') as string;
+        if (!fecha) return <span className="text-muted-foreground">N/A</span>;
+        
+        return (
+          <div className="text-sm">
+            {new Date(fecha).toLocaleDateString('es-MX')}
+          </div>
+        );
+      },
     },
     {
       id: 'actions',
       header: 'Acciones',
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2">
+      cell: ({ row }) => {
+        const custodio = row.original;
+        return (
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
-            onClick={() => openEditDialog(row.original)}
+            onClick={() => {
+              setSelectedCustodio(custodio);
+              setShowCustodioDetails(true);
+            }}
           >
-            <Edit className="h-4 w-4" />
+            <Eye className="h-4 w-4" />
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => openDeleteDialog(row.original)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      ),
+        );
+      },
     },
   ];
-
-  const custodiosActivos = custodios.filter(c => c.estado === 'activo');
-  const custodiosDisponibles = custodios.filter(c => c.disponibilidad === 'disponible');
-  const custodiosConGadgets = custodios.filter(c => c.tiene_gadgets);
-  const ratingPromedio = custodios.length > 0 
-    ? custodios.reduce((sum, c) => sum + c.rating_promedio, 0) / custodios.length
-    : 0;
 
   return (
     <div className="space-y-6">
@@ -202,122 +229,285 @@ export default function CustodiosTab() {
             Administra tu red de custodios y su disponibilidad
           </p>
         </div>
-        <Button onClick={() => setDialogOpen(true)} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Nuevo Custodio
-        </Button>
+        <Badge variant="outline" className="text-sm">
+          Solo Consulta - Datos desde Servicios
+        </Badge>
       </div>
 
-      {/* Search */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar custodios..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-      </div>
+      {/* KPI Cards */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Custodios</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{kpis.totalCustodios}</div>
+            <p className="text-xs text-muted-foreground">
+              custodios registrados en sistema
+            </p>
+          </CardContent>
+        </Card>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Custodios
-            </CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Custodios Activos</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{custodios.length}</div>
+            <div className="text-2xl font-bold">{kpis.custodiosActivos}</div>
+            <p className="text-xs text-muted-foreground">
+              con servicios en proceso
+            </p>
           </CardContent>
         </Card>
+
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Custodios Activos
-            </CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Promedio Servicios</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{custodiosActivos.length}</div>
+            <div className="text-2xl font-bold">{kpis.promedioServicios}</div>
+            <p className="text-xs text-muted-foreground">
+              servicios por custodio
+            </p>
           </CardContent>
         </Card>
+
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Disponibles
-            </CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Mejor Custodio</CardTitle>
+            <Star className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{custodiosDisponibles.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Rating Promedio
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold flex items-center gap-1">
-              <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-              {ratingPromedio.toFixed(1)}
+            <div className="text-xs font-bold text-green-600 truncate">
+              {kpis.mejorCustodio}
             </div>
+            <p className="text-xs text-muted-foreground">
+              mayor tasa de finalización
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Data Table */}
+      {/* Search and Filters */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Consulta de Custodios Activos</CardTitle>
+              <CardDescription>
+                Información de custodios basada en servicios registrados
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex-1 max-w-sm">
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar custodio..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
+              </div>
+              <Badge variant="outline" className="text-sm">
+                {filteredCustodios.length} custodio(s) encontrado(s)
+              </Badge>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Custodios Table */}
       <Card>
         <CardHeader>
           <CardTitle>Lista de Custodios</CardTitle>
           <CardDescription>
-            {filteredCustodios.length} custodio(s) encontrado(s)
+            Estadísticas y rendimiento de custodios activos
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <DataTable
-            columns={columns}
+          <DataTable 
+            columns={columns} 
             data={filteredCustodios}
-            loading={isLoading}
+            loading={custodiosLoading}
           />
         </CardContent>
       </Card>
 
-      {/* Custodio Dialog */}
-      <CustodioDialog
-        open={dialogOpen}
-        onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open) setEditingCustodio(null);
-        }}
-        custodio={editingCustodio}
-        onSubmit={editingCustodio ? handleUpdate : handleCreate}
-        loading={createMutation.isPending || updateMutation.isPending}
-      />
+      {/* Custodio Details Dialog */}
+      <Dialog open={showCustodioDetails} onOpenChange={setShowCustodioDetails}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Detalles del Custodio: {selectedCustodio?.nombre_custodio}
+            </DialogTitle>
+            <DialogDescription>
+              Historial completo de servicios y estadísticas detalladas
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedCustodio && (
+            <div className="space-y-6">
+              {/* Estadísticas Generales */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Route className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Total Servicios</span>
+                  </div>
+                  <div className="text-2xl font-bold">{selectedCustodio.total_servicios}</div>
+                </div>
+                
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingUp className="h-4 w-4 text-green-600" />
+                    <span className="text-sm font-medium">Finalizados</span>
+                  </div>
+                  <div className="text-2xl font-bold text-green-600">
+                    {selectedCustodio.servicios_finalizados}
+                  </div>
+                </div>
+                
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">KM Total</span>
+                  </div>
+                  <div className="text-2xl font-bold">
+                    {Math.round(selectedCustodio.km_total).toLocaleString()}
+                  </div>
+                </div>
+                
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <DollarSign className="h-4 w-4 text-green-600" />
+                    <span className="text-sm font-medium">Ingresos</span>
+                  </div>
+                  <div className="text-lg font-bold text-green-600">
+                    ${selectedCustodio.ingresos_total.toLocaleString()}
+                  </div>
+                </div>
+              </div>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente el custodio
-              "{custodioToDelete?.nombre}" y todos sus datos asociados.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleteMutation.isPending ? 'Eliminando...' : 'Eliminar'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              {/* Performance Metrics */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 p-4 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Star className="h-4 w-4 text-green-600" />
+                    <span className="text-sm font-medium">Tasa de Finalización</span>
+                  </div>
+                  <div className="text-3xl font-bold text-green-600">
+                    {selectedCustodio.tasa_finalizacion.toFixed(1)}%
+                  </div>
+                </div>
+                
+                <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-4 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <MapPin className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium">Promedio KM</span>
+                  </div>
+                  <div className="text-3xl font-bold text-blue-600">
+                    {selectedCustodio.promedio_km.toFixed(0)}
+                  </div>
+                </div>
+                
+                <div className="bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 p-4 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Activity className="h-4 w-4 text-purple-600" />
+                    <span className="text-sm font-medium">Servicios Activos</span>
+                  </div>
+                  <div className="text-3xl font-bold text-purple-600">
+                    {selectedCustodio.servicios_activos}
+                  </div>
+                </div>
+              </div>
+
+              {/* Últimos Servicios */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Últimos 20 Servicios
+                </h3>
+                
+                <div className="border rounded-lg">
+                  <div className="max-h-96 overflow-y-auto">
+                    <table className="w-full">
+                      <thead className="bg-muted/50 sticky top-0">
+                        <tr>
+                          <th className="text-left p-3 text-sm font-medium">Fecha</th>
+                          <th className="text-left p-3 text-sm font-medium">Origen</th>
+                          <th className="text-left p-3 text-sm font-medium">Destino</th>
+                          <th className="text-left p-3 text-sm font-medium">Estado</th>
+                          <th className="text-right p-3 text-sm font-medium">KM</th>
+                          <th className="text-right p-3 text-sm font-medium">Cobro</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {serviciosDetalle.map((servicio, index) => (
+                          <tr key={index} className="border-t hover:bg-muted/50">
+                            <td className="p-3 text-sm">
+                              {servicio.fecha_hora_cita 
+                                ? new Date(servicio.fecha_hora_cita).toLocaleDateString('es-MX', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric'
+                                  })
+                                : 'N/A'
+                              }
+                            </td>
+                            <td className="p-3 text-sm max-w-48 truncate" title={servicio.origen}>
+                              {servicio.origen}
+                            </td>
+                            <td className="p-3 text-sm max-w-48 truncate" title={servicio.destino}>
+                              {servicio.destino}
+                            </td>
+                            <td className="p-3">
+                              <Badge 
+                                variant={servicio.estado === 'Finalizado' ? 'default' : 'secondary'}
+                                className="text-xs"
+                              >
+                                {servicio.estado}
+                              </Badge>
+                            </td>
+                            <td className="p-3 text-sm text-right">
+                              {servicio.km_recorridos ? Math.round(servicio.km_recorridos) : '-'}
+                            </td>
+                            <td className="p-3 text-sm text-right font-medium">
+                              {servicio.cobro_cliente 
+                                ? `$${servicio.cobro_cliente.toLocaleString()}`
+                                : '-'
+                              }
+                            </td>
+                          </tr>
+                        ))}
+                        {serviciosDetalle.length === 0 && (
+                          <tr>
+                            <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                              No se encontraron servicios para este custodio
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
-}
+};
+
+// Export default para lazy loading
+export default CustodiosTab;
