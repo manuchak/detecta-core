@@ -5,13 +5,14 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Upload, FileSpreadsheet, Calculator, TrendingUp, Search, Filter } from 'lucide-react';
+import { Upload, FileSpreadsheet, Calculator, TrendingUp, Search, Filter, Eye, MapPin, DollarSign, Clock } from 'lucide-react';
 import { useAuthenticatedQuery } from '@/hooks/useAuthenticatedQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ColumnDef } from '@tanstack/react-table';
 import { PriceMatrixImportWizard } from './PriceMatrixImportWizard';
 import { PriceCalculator } from './PriceCalculator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface MatrizPrecio {
   id: string;
@@ -32,6 +33,10 @@ export const MatrizPreciosTab = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showImportWizard, setShowImportWizard] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
+  const [selectedRuta, setSelectedRuta] = useState<MatrizPrecio | null>(null);
+  const [showRouteDetails, setShowRouteDetails] = useState(false);
+  const [filterClient, setFilterClient] = useState('');
+  const [filterMargin, setFilterMargin] = useState('all');
 
   // Fetch price matrix data
   const { data: precios = [], isPending, error } = useAuthenticatedQuery(
@@ -48,10 +53,19 @@ export const MatrizPreciosTab = () => {
     }
   );
 
-  const filteredPrecios = precios.filter(precio =>
-    precio.cliente_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    precio.destino_texto.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredPrecios = precios.filter(precio => {
+    const matchesSearch = precio.cliente_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      precio.destino_texto.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesClient = filterClient === '' || precio.cliente_nombre === filterClient;
+    
+    const matchesMargin = filterMargin === 'all' || 
+      (filterMargin === 'high' && precio.porcentaje_utilidad >= 25) ||
+      (filterMargin === 'medium' && precio.porcentaje_utilidad >= 15 && precio.porcentaje_utilidad < 25) ||
+      (filterMargin === 'low' && precio.porcentaje_utilidad < 15);
+    
+    return matchesSearch && matchesClient && matchesMargin;
+  });
 
   const columns: ColumnDef<MatrizPrecio>[] = [
     {
@@ -131,6 +145,24 @@ export const MatrizPreciosTab = () => {
         const km = row.getValue('distancia_km');
         return km ? <span className="text-sm text-muted-foreground">{Number(km).toFixed(0)} km</span> : '-';
       },
+    },
+    {
+      id: 'actions',
+      header: 'Consultar',
+      cell: ({ row }) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            setSelectedRuta(row.original);
+            setShowRouteDetails(true);
+          }}
+          className="gap-2"
+        >
+          <Eye className="h-4 w-4" />
+          Ver detalles
+        </Button>
+      ),
     },
   ];
 
@@ -382,28 +414,100 @@ export const MatrizPreciosTab = () => {
         </Card>
       </div>
 
-      {/* Search and Filters */}
+      {/* Advanced Search and Filters */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Matriz de Precios Activa</CardTitle>
+              <CardTitle>Consultar Rutas Específicas</CardTitle>
               <CardDescription>
-                Consulta y administra los precios por ruta configurados
+                Usa los filtros avanzados para encontrar rutas específicas y consultar su información detallada
               </CardDescription>
             </div>
-            <div className="flex gap-2">
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar cliente o destino..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8 w-80"
-                />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-4">
+            {/* Filter Row */}
+            <div className="flex flex-wrap gap-4 items-end">
+              <div className="flex-1 min-w-80">
+                <label className="text-sm font-medium mb-2 block">Búsqueda General</label>
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar cliente o destino..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
               </div>
+              
+              <div className="min-w-60">
+                <label className="text-sm font-medium mb-2 block">Cliente Específico</label>
+                <Select value={filterClient} onValueChange={setFilterClient}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos los clientes" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Todos los clientes</SelectItem>
+                    {Array.from(new Set(precios.map(p => p.cliente_nombre))).sort().map(cliente => (
+                      <SelectItem key={cliente} value={cliente}>{cliente}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="min-w-48">
+                <label className="text-sm font-medium mb-2 block">Filtrar por Margen</label>
+                <Select value={filterMargin} onValueChange={setFilterMargin}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los márgenes</SelectItem>
+                    <SelectItem value="high">Alto (&gt;25%)</SelectItem>
+                    <SelectItem value="medium">Medio (15-25%)</SelectItem>
+                    <SelectItem value="low">Bajo (&lt;15%)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSearchTerm('');
+                  setFilterClient('');
+                  setFilterMargin('all');
+                }}
+                className="gap-2"
+              >
+                <Filter className="h-4 w-4" />
+                Limpiar filtros
+              </Button>
+            </div>
+            
+            {/* Results Summary */}
+            <div className="flex items-center gap-4 text-sm text-muted-foreground border-t pt-4">
+              <span>Mostrando {filteredPrecios.length} de {precios.length} rutas</span>
+              {(searchTerm || filterClient || filterMargin !== 'all') && (
+                <Badge variant="secondary" className="gap-1">
+                  <Filter className="h-3 w-3" />
+                  Filtros activos
+                </Badge>
+              )}
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Data Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Matriz de Precios Activa</CardTitle>
+          <CardDescription>
+            Haz clic en "Ver detalles" para consultar información completa de cada ruta
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <DataTable
@@ -413,6 +517,167 @@ export const MatrizPreciosTab = () => {
           />
         </CardContent>
       </Card>
+
+      {/* Route Details Modal */}
+      <Dialog open={showRouteDetails} onOpenChange={setShowRouteDetails}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5" />
+              Detalles de Ruta: {selectedRuta?.cliente_nombre} → {selectedRuta?.destino_texto}
+            </DialogTitle>
+            <DialogDescription>
+              Información completa y análisis financiero de la ruta seleccionada
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedRuta && (
+            <div className="space-y-6">
+              {/* Basic Route Info */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Información General
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Cliente:</span>
+                      <span className="font-medium">{selectedRuta.cliente_nombre}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Destino:</span>
+                      <span className="font-medium">{selectedRuta.destino_texto}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Días operación:</span>
+                      <Badge variant="secondary">{selectedRuta.dias_operacion || 'L-V'}</Badge>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Distancia:</span>
+                      <span className="font-medium">
+                        {selectedRuta.distancia_km ? `${selectedRuta.distancia_km} km` : 'No especificada'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Vigencia:</span>
+                      <span className="font-medium">
+                        {new Date(selectedRuta.fecha_vigencia).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <DollarSign className="h-4 w-4" />
+                      Análisis Financiero
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Precio al cliente:</span>
+                      <span className="font-bold text-primary">
+                        ${selectedRuta.valor_bruto.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Pago custodio:</span>
+                      <span className="font-medium">
+                        ${selectedRuta.precio_custodio.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Costo operativo:</span>
+                      <span className="font-medium text-destructive">
+                        ${selectedRuta.costo_operativo.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="border-t pt-2">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Margen neto:</span>
+                        <span className={`font-bold ${selectedRuta.margen_neto_calculado > 0 ? 'text-success' : 'text-destructive'}`}>
+                          ${selectedRuta.margen_neto_calculado.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">% Utilidad:</span>
+                        <Badge variant={selectedRuta.porcentaje_utilidad >= 20 ? 'default' : selectedRuta.porcentaje_utilidad >= 10 ? 'secondary' : 'destructive'}>
+                          {selectedRuta.porcentaje_utilidad.toFixed(1)}%
+                        </Badge>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Profitability Analysis */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" />
+                    Análisis de Rentabilidad
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="text-center p-4 rounded-lg bg-primary/10">
+                      <div className="text-2xl font-bold text-primary">
+                        {((selectedRuta.precio_custodio / selectedRuta.valor_bruto) * 100).toFixed(1)}%
+                      </div>
+                      <div className="text-sm text-muted-foreground">% Costo Custodio</div>
+                    </div>
+                    <div className="text-center p-4 rounded-lg bg-destructive/10">
+                      <div className="text-2xl font-bold text-destructive">
+                        {((selectedRuta.costo_operativo / selectedRuta.valor_bruto) * 100).toFixed(1)}%
+                      </div>
+                      <div className="text-sm text-muted-foreground">% Costo Operativo</div>
+                    </div>
+                    <div className="text-center p-4 rounded-lg bg-success/10">
+                      <div className="text-2xl font-bold text-success">
+                        {selectedRuta.distancia_km ? (selectedRuta.valor_bruto / selectedRuta.distancia_km).toFixed(0) : '-'}
+                      </div>
+                      <div className="text-sm text-muted-foreground">$ por KM</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Recommendations */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recomendaciones</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {selectedRuta.porcentaje_utilidad < 15 && (
+                      <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive">
+                        <span className="font-medium">⚠️ Margen bajo:</span>
+                        <span>Esta ruta tiene un margen inferior al 15%. Considera revisar los costos o ajustar el precio.</span>
+                      </div>
+                    )}
+                    {selectedRuta.porcentaje_utilidad >= 25 && (
+                      <div className="flex items-center gap-2 p-3 rounded-lg bg-success/10 text-success">
+                        <span className="font-medium">✅ Ruta premium:</span>
+                        <span>Excelente rentabilidad. Esta ruta es altamente rentable.</span>
+                      </div>
+                    )}
+                    {(selectedRuta.precio_custodio + selectedRuta.costo_operativo) / selectedRuta.valor_bruto > 0.8 && (
+                      <div className="flex items-center gap-2 p-3 rounded-lg bg-warning/10 text-warning">
+                        <span className="font-medium">⚡ Costos altos:</span>
+                        <span>Los costos representan más del 80% del precio. Revisa oportunidades de optimización.</span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
