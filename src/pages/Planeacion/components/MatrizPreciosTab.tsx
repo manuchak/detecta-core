@@ -566,4 +566,4 @@ export const MatrizPreciosTab = () => {
       />
     </div>
   );
-};
+});

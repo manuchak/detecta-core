@@ -39,13 +39,15 @@ interface RouteManagementFormProps {
   onOpenChange: (open: boolean) => void;
   editingRoute?: RouteData | null;
   onRouteUpdated: () => void;
+  hasPermission?: boolean; // Nueva prop para recibir permisos desde el componente padre
 }
 
-export const RouteManagementForm = ({ 
+const RouteManagementFormComponent = ({ 
   open, 
   onOpenChange, 
   editingRoute, 
-  onRouteUpdated 
+  onRouteUpdated,
+  hasPermission = false
 }: RouteManagementFormProps) => {
   const [formData, setFormData] = useState<RouteData>({
     cliente_nombre: '',
@@ -69,55 +71,44 @@ export const RouteManagementForm = ({
   });
   
   const [loading, setLoading] = useState(false);
-  const [hasPermission, setHasPermission] = useState(false);
 
-  useEffect(() => {
-    checkPermissions();
-  }, []);
+  // Memoizar datos iniciales del formulario para evitar recreaciones constantes
+  const initialFormData = useMemo((): RouteData => ({
+    cliente_nombre: '',
+    destino_texto: '',
+    origen_texto: '',
+    tipo_servicio: '',
+    tipo_viaje: '',
+    dias_operacion: '',
+    valor_bruto: 0,
+    precio_custodio: 0,
+    costo_operativo: 0,
+    costo_custodio: 0,
+    costo_maximo_casetas: 0,
+    pago_custodio_sin_arma: 0,
+    distancia_km: 0,
+    porcentaje_utilidad: 0,
+    fecha_vigencia: new Date().toISOString().split('T')[0],
+    activo: true,
+    observaciones: '',
+    clave: ''
+  }), []);
 
+  // Optimizar inicialización del formulario
   useEffect(() => {
+    if (!open) return; // Solo ejecutar cuando el modal esté abierto
+    
     if (editingRoute) {
       setFormData({
         ...editingRoute,
         fecha_vigencia: editingRoute.fecha_vigencia?.split('T')[0] || new Date().toISOString().split('T')[0]
       });
     } else {
-      // Reset form for new route
-      setFormData({
-        cliente_nombre: '',
-        destino_texto: '',
-        origen_texto: '',
-        tipo_servicio: '',
-        tipo_viaje: '',
-        dias_operacion: '',
-        valor_bruto: 0,
-        precio_custodio: 0,
-        costo_operativo: 0,
-        costo_custodio: 0,
-        costo_maximo_casetas: 0,
-        pago_custodio_sin_arma: 0,
-        distancia_km: 0,
-        porcentaje_utilidad: 0,
-        fecha_vigencia: new Date().toISOString().split('T')[0],
-        activo: true,
-        observaciones: '',
-        clave: ''
-      });
+      setFormData(initialFormData);
     }
-  }, [editingRoute, open]);
+  }, [editingRoute, open, initialFormData]);
 
-  const checkPermissions = async () => {
-    try {
-      const { data, error } = await supabase.rpc('puede_acceder_planeacion');
-      if (error) throw error;
-      setHasPermission(data);
-    } catch (error) {
-      console.error('Error checking permissions:', error);
-      setHasPermission(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!hasPermission) {
@@ -639,3 +630,6 @@ export const RouteManagementForm = ({
     </Dialog>
   );
 };
+
+// Memoizar el componente para evitar re-renders innecesarios
+export const RouteManagementForm = memo(RouteManagementFormComponent);
