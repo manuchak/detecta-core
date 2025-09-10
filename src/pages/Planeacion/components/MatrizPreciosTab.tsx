@@ -190,39 +190,34 @@ export const MatrizPreciosTab = () => {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Enhanced Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {/* Total Rutas con más detalle */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Rutas</CardTitle>
+            <CardTitle className="text-sm font-medium">Portfolio de Rutas</CardTitle>
             <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{precios.length}</div>
-            <p className="text-xs text-muted-foreground">
-              rutas configuradas
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Clientes Únicos</CardTitle>
-            <Search className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {new Set(precios.map(p => p.cliente_nombre)).size}
+            <div className="flex items-center justify-between mt-2">
+              <div className="text-xs text-muted-foreground">
+                {new Set(precios.map(p => p.cliente_nombre)).size} clientes activos
+              </div>
+              <Badge variant="secondary" className="text-xs">
+                {precios.length > 0 ? 
+                  (precios.reduce((acc, p) => acc + (p.distancia_km || 0), 0) / precios.length).toFixed(0) 
+                  : '0'
+                } km prom
+              </Badge>
             </div>
-            <p className="text-xs text-muted-foreground">
-              clientes con precios
-            </p>
           </CardContent>
         </Card>
 
+        {/* Rentabilidad General */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Margen Promedio</CardTitle>
+            <CardTitle className="text-sm font-medium">Rentabilidad Global</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -232,24 +227,157 @@ export const MatrizPreciosTab = () => {
                 : '0'
               }%
             </div>
-            <p className="text-xs text-muted-foreground">
-              utilidad promedio
-            </p>
+            <div className="flex items-center justify-between mt-2">
+              <div className="text-xs text-success">
+                Máx: {precios.length > 0 ? Math.max(...precios.map(p => p.porcentaje_utilidad)).toFixed(1) : '0'}%
+              </div>
+              <div className="text-xs text-destructive">
+                Mín: {precios.length > 0 ? Math.min(...precios.map(p => p.porcentaje_utilidad)).toFixed(1) : '0'}%
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Análisis de Ingresos */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Ingresos Potenciales</CardTitle>
+            <Search className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-primary">
+              ${precios.length > 0 ? 
+                Math.round(precios.reduce((acc, p) => acc + p.valor_bruto, 0) / 1000) + 'K' 
+                : '0'
+              }
+            </div>
+            <div className="flex items-center justify-between mt-2">
+              <div className="text-xs text-muted-foreground">
+                ${precios.length > 0 ? Math.round(precios.reduce((acc, p) => acc + p.valor_bruto, 0) / precios.length).toLocaleString() : '0'} promedio
+              </div>
+              <Badge variant={precios.filter(p => p.valor_bruto > 50000).length > precios.length * 0.3 ? 'default' : 'secondary'} className="text-xs">
+                {precios.filter(p => p.valor_bruto > 50000).length} premium
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Alertas Operativas */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Alertas de Gestión</CardTitle>
+            <Filter className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Bajo margen (&lt;15%)</span>
+                <Badge variant="destructive" className="text-xs">
+                  {precios.filter(p => p.porcentaje_utilidad < 15).length}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Alto costo (&gt;80%)</span>
+                <Badge variant="secondary" className="text-xs">
+                  {precios.filter(p => (p.precio_custodio + p.costo_operativo) / p.valor_bruto > 0.8).length}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Larga distancia (&gt;500km)</span>
+                <Badge variant="outline" className="text-xs">
+                  {precios.filter(p => (p.distancia_km || 0) > 500).length}
+                </Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Top Clients & Efficiency Analysis */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Top 5 Clientes por Volumen</CardTitle>
+            <CardDescription>Clientes con mayor número de rutas configuradas</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {Object.entries(
+                precios.reduce((acc, precio) => {
+                  acc[precio.cliente_nombre] = (acc[precio.cliente_nombre] || 0) + 1;
+                  return acc;
+                }, {} as Record<string, number>)
+              )
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 5)
+                .map(([cliente, rutas], index) => {
+                  const clientePrecios = precios.filter(p => p.cliente_nombre === cliente);
+                  const avgMargin = clientePrecios.reduce((acc, p) => acc + p.porcentaje_utilidad, 0) / clientePrecios.length;
+                  return (
+                    <div key={cliente} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                          {index + 1}
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{cliente}</p>
+                          <p className="text-xs text-muted-foreground">{rutas} rutas • {avgMargin.toFixed(1)}% margen prom.</p>
+                        </div>
+                      </div>
+                      <Badge variant={avgMargin >= 20 ? 'default' : avgMargin >= 15 ? 'secondary' : 'destructive'}>
+                        ${Math.round(clientePrecios.reduce((acc, p) => acc + p.valor_bruto, 0) / 1000)}K
+                      </Badge>
+                    </div>
+                  );
+                })}
+            </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Rutas Bajo Margen</CardTitle>
-            <Filter className="h-4 w-4 text-muted-foreground" />
+          <CardHeader>
+            <CardTitle className="text-lg">Análisis de Eficiencia</CardTitle>
+            <CardDescription>Métricas clave de desempeño operativo</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">
-              {precios.filter(p => p.porcentaje_utilidad < 15).length}
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-3 rounded-lg bg-success/10">
+                  <div className="text-lg font-bold text-success">
+                    {precios.filter(p => p.porcentaje_utilidad >= 25).length}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Rutas Premium (&gt;25%)</div>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-warning/10">
+                  <div className="text-lg font-bold text-warning">
+                    {precios.filter(p => p.porcentaje_utilidad >= 15 && p.porcentaje_utilidad < 25).length}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Rutas Estándar (15-25%)</div>
+                </div>
+              </div>
+              
+              <div className="pt-2 border-t">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium">Eficiencia por KM</span>
+                  <span className="text-sm text-muted-foreground">
+                    ${precios.length > 0 && precios.some(p => p.distancia_km) ? 
+                      Math.round(precios.filter(p => p.distancia_km).reduce((acc, p) => acc + (p.valor_bruto / (p.distancia_km || 1)), 0) / precios.filter(p => p.distancia_km).length)
+                      : '0'
+                    } / km
+                  </span>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Costo Operativo Promedio</span>
+                  <span className="text-sm text-muted-foreground">
+                    {precios.length > 0 ? 
+                      ((precios.reduce((acc, p) => acc + p.costo_operativo, 0) / precios.reduce((acc, p) => acc + p.valor_bruto, 0)) * 100).toFixed(1)
+                      : '0'
+                    }% del ingreso
+                  </span>
+                </div>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              menos del 15% utilidad
-            </p>
           </CardContent>
         </Card>
       </div>
