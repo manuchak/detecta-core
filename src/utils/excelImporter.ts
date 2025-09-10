@@ -393,16 +393,48 @@ export const transformPriceMatrixDataForImport = (
   return data.rows.map(row => {
     const transformedRow: any = {};
     
+    // Define required numeric fields (NOT NULL in DB)
+    const requiredNumericFields = ['valor_bruto', 'precio_custodio'];
+    // Define optional numeric fields (nullable in DB)
+    const optionalNumericFields = ['costo_operativo', 'distancia_km', 'precio_desde_casa', 
+                                   'precio_historico_2022', 'precio_operativo_logistico', 
+                                   'costo_custodio', 'costo_maximo_casetas', 'pago_custodio_sin_arma', 
+                                   'margen_neto_calculado', 'porcentaje_utilidad'];
+    
     Object.keys(mapping).forEach(excelColumn => {
       const dbField = mapping[excelColumn];
       if (dbField && row[excelColumn] !== undefined) {
         let value = row[excelColumn];
         
+        // Skip completely empty values
+        if (value === null || value === undefined || value === '') {
+          // For required numeric fields, set default value
+          if (requiredNumericFields.includes(dbField)) {
+            transformedRow[dbField] = 0;
+          } else if (optionalNumericFields.includes(dbField)) {
+            // For optional numeric fields, set null (don't set the field at all)
+            // This allows the database to use its default value or null
+            return;
+          } else {
+            // For text fields, set empty string or skip if nullable
+            transformedRow[dbField] = '';
+          }
+          return;
+        }
+        
         // Handle numeric fields
-        if (['valor_bruto', 'precio_custodio', 'costo_operativo', 'distancia_km', 
-             'precio_desde_casa', 'precio_historico_2022', 'precio_operativo_logistico'].includes(dbField)) {
-          const num = parseFloat(value);
-          transformedRow[dbField] = !isNaN(num) ? num : 0;
+        if (requiredNumericFields.includes(dbField) || optionalNumericFields.includes(dbField)) {
+          // Clean the value - remove currency symbols, commas, etc.
+          const cleanValue = value.toString().replace(/[$,\s]/g, '');
+          const num = parseFloat(cleanValue);
+          
+          if (!isNaN(num)) {
+            transformedRow[dbField] = num;
+          } else if (requiredNumericFields.includes(dbField)) {
+            // For required fields, use 0 as default
+            transformedRow[dbField] = 0;
+          }
+          // For optional numeric fields with invalid values, don't set the field (allows DB default)
         } else {
           // Handle text fields
           transformedRow[dbField] = value.toString().trim();
@@ -410,8 +442,9 @@ export const transformPriceMatrixDataForImport = (
       }
     });
     
-    // Set default active status
+    // Set required fields
     transformedRow.activo = true;
+    transformedRow.fecha_vigencia = new Date().toISOString();
     
     return transformedRow;
   });
