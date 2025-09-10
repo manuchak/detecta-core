@@ -17,12 +17,14 @@ import {
   Route,
   DollarSign,
   Activity,
-  Shield
+  Shield,
+  Upload
 } from 'lucide-react';
 import { useAuthenticatedQuery } from '@/hooks/useAuthenticatedQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { ColumnDef } from '@tanstack/react-table';
 import { PERFORMANCE_QUERY_CONFIG } from '@/utils/performanceOptimizations';
+import { CustodianServicesImportWizard } from './CustodianServicesImportWizard';
 
 interface CustodioData {
   nombre_custodio: string;
@@ -50,6 +52,7 @@ export const CustodiosTab = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustodio, setSelectedCustodio] = useState<CustodioData | null>(null);
   const [showCustodioDetails, setShowCustodioDetails] = useState(false);
+  const [showImportWizard, setShowImportWizard] = useState(false);
 
   // Fetch custodios data with aggregated statistics
   const { data: custodios = [], isPending: custodiosLoading } = useAuthenticatedQuery(
@@ -226,9 +229,19 @@ export const CustodiosTab = () => {
             Administra tu red de custodios y su disponibilidad
           </p>
         </div>
-        <Badge variant="outline" className="text-sm">
-          Solo Consulta - Datos desde Servicios
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setShowImportWizard(true)}
+            className="flex items-center gap-2"
+          >
+            <Upload className="h-4 w-4" />
+            Cargar Servicios CSV
+          </Button>
+          <Badge variant="outline" className="text-sm">
+            Solo Consulta - Datos desde Servicios
+          </Badge>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -502,6 +515,16 @@ export const CustodiosTab = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Import Wizard */}
+      <CustodianServicesImportWizard
+        open={showImportWizard}
+        onOpenChange={setShowImportWizard}
+        onComplete={() => {
+          // Refetch custodios data after successful import
+          window.location.reload();
+        }}
+      />
     </div>
   );
 };
