@@ -5,13 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Upload, FileSpreadsheet, Calculator, TrendingUp, Search, Filter, Eye, MapPin, DollarSign, Clock } from 'lucide-react';
+import { Upload, FileSpreadsheet, Plus, TrendingUp, Search, Filter, Eye, Edit, MapPin, DollarSign, Clock } from 'lucide-react';
 import { useAuthenticatedQuery } from '@/hooks/useAuthenticatedQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ColumnDef } from '@tanstack/react-table';
 import { PriceMatrixImportWizard } from './PriceMatrixImportWizard';
-import { PriceCalculator } from './PriceCalculator';
+import { RouteManagementForm } from './RouteManagementForm';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface MatrizPrecio {
@@ -32,15 +32,17 @@ interface MatrizPrecio {
 export const MatrizPreciosTab = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showImportWizard, setShowImportWizard] = useState(false);
-  const [showCalculator, setShowCalculator] = useState(false);
+  const [showRouteForm, setShowRouteForm] = useState(false);
   const [selectedRuta, setSelectedRuta] = useState<MatrizPrecio | null>(null);
   const [showRouteDetails, setShowRouteDetails] = useState(false);
+  const [editingRoute, setEditingRoute] = useState<MatrizPrecio | null>(null);
   const [filterClient, setFilterClient] = useState('all');
   const [filterMargin, setFilterMargin] = useState('all');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Fetch price matrix data
   const { data: precios = [], isPending, error } = useAuthenticatedQuery(
-    ['matriz-precios'],
+    ['matriz-precios', refreshTrigger.toString()],
     async () => {
       const { data, error } = await supabase
         .from('matriz_precios_rutas')
@@ -177,23 +179,17 @@ export const MatrizPreciosTab = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <Dialog open={showCalculator} onOpenChange={setShowCalculator}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <Calculator className="h-4 w-4" />
-                Calculadora
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl">
-              <DialogHeader>
-                <DialogTitle>Calculadora de Precios</DialogTitle>
-                <DialogDescription>
-                  Calcula precios estimados basados en la matriz existente
-                </DialogDescription>
-              </DialogHeader>
-              <PriceCalculator />
-            </DialogContent>
-          </Dialog>
+          <Button 
+            variant="outline" 
+            className="gap-2"
+            onClick={() => {
+              setEditingRoute(null);
+              setShowRouteForm(true);
+            }}
+          >
+            <Plus className="h-4 w-4" />
+            Nueva Ruta
+          </Button>
 
           <Dialog open={showImportWizard} onOpenChange={setShowImportWizard}>
             <DialogTrigger asChild>
@@ -551,6 +547,22 @@ export const MatrizPreciosTab = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Route Management Form */}
+      <RouteManagementForm
+        open={showRouteForm}
+        onOpenChange={(open) => {
+          setShowRouteForm(open);
+          if (!open) {
+            setEditingRoute(null);
+          }
+        }}
+        editingRoute={editingRoute}
+        onRouteUpdated={() => {
+          setRefreshTrigger(prev => prev + 1);
+          toast.success('Datos actualizados correctamente');
+        }}
+      />
     </div>
   );
 };
