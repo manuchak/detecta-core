@@ -65,7 +65,7 @@ export const importCustodianServices = async (
 
               console.log(`Processing record ${current}:`, item);
 
-            // Prepare data for upsert
+            // Prepare data for upsert (removing internal id field)
             const servicioData = {
               id_servicio: item.id_servicio,
               nombre_cliente: item.nombre_cliente || '',
@@ -81,56 +81,29 @@ export const importCustodianServices = async (
               cobro_cliente: item.cobro_cliente ? parseFloat(item.cobro_cliente) : null,
               tiempo_retraso: item.tiempo_retraso ? parseInt(item.tiempo_retraso) : null,
               comentarios_adicionales: item.comentarios_adicionales || '',
-              fecha_creacion: item.fecha_creacion ? new Date(item.fecha_creacion).toISOString() : new Date().toISOString(),
+              fecha_creacion: item.fecha_creacion ? new Date(item.fecha_creacion).toISOString() : null,
               fecha_actualizacion: new Date().toISOString()
             };
 
-            // Check if record exists (for upsert logic)
-            const { data: existingRecord, error: selectError } = await supabase
+            console.log(`Processing record ${current}:`, servicioData);
+
+            // Use native Supabase upsert instead of manual SELECT + INSERT/UPDATE
+            const { error: upsertError, count } = await supabase
               .from('servicios_custodia')
-              .select('id_servicio')
-              .eq('id_servicio', item.id_servicio)
-              .maybeSingle();
+              .upsert(servicioData, { 
+                onConflict: 'id_servicio',
+                count: 'exact'
+              });
 
-            console.log(`Checking existing record for ${item.id_servicio}:`, existingRecord);
-
-            if (selectError && selectError.code !== 'PGRST116') {
+            if (upsertError) {
+              console.error(`Upsert error for ${item.id_servicio}:`, upsertError);
               result.failed++;
-              result.errors.push(`Registro ${current}: Error verificando existencia - ${selectError.message}`);
-              continue;
-            }
-
-            if (existingRecord) {
-              // Update existing record
-              console.log(`Updating record ${item.id_servicio}:`, servicioData);
-              const { error: updateError } = await supabase
-                .from('servicios_custodia')
-                .update(servicioData)
-                .eq('id_servicio', item.id_servicio);
-
-              if (updateError) {
-                console.error(`Update error for ${item.id_servicio}:`, updateError);
-                result.failed++;
-                result.errors.push(`Registro ${current}: Error actualizando - ${updateError.message}`);
-              } else {
-                console.log(`Successfully updated ${item.id_servicio}`);
-                result.updated++;
-              }
+              result.errors.push(`Registro ${current}: Error en upsert - ${upsertError.message}`);
             } else {
-              // Insert new record
-              console.log(`Inserting new record ${item.id_servicio}:`, servicioData);
-              const { error: insertError } = await supabase
-                .from('servicios_custodia')
-                .insert(servicioData);
-
-              if (insertError) {
-                console.error(`Insert error for ${item.id_servicio}:`, insertError);
-                result.failed++;
-                result.errors.push(`Registro ${current}: Error insertando - ${insertError.message}`);
-              } else {
-                console.log(`Successfully inserted ${item.id_servicio}`);
-                result.imported++;
-              }
+              console.log(`Successfully processed ${item.id_servicio}`);
+              // For upsert, we can't easily distinguish between insert/update without additional queries
+              // So we'll count all successful operations as "imported" for now
+              result.imported++;
             }
 
           } catch (itemError) {
