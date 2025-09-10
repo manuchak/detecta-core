@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useMetricsWithFallback } from './useTimeoutProtection';
+import { useSupplyGrowthDetails } from './useSupplyGrowthDetails';
 
 // Valores de fallback seguros - nunca cero
 const FALLBACK_VALUES = {
@@ -15,6 +17,7 @@ const FALLBACK_VALUES = {
 
 export const useSafeKPIData = () => {
   const { getMetricSafely, isRetrying } = useMetricsWithFallback();
+  const supplyGrowthData = useSupplyGrowthDetails();
 
   // CPA seguro
   const { data: safeCPA, isLoading: cpaLoading } = useQuery({
@@ -124,24 +127,13 @@ export const useSafeKPIData = () => {
     retry: false
   });
 
-  // Supply Growth seguro con datos reales
-  const { data: safeSupplyGrowth, isLoading: supplyGrowthLoading } = useQuery({
-    queryKey: ['safe-supply-growth'],
-    queryFn: () => getMetricSafely(
-      async () => {
-        const { data, error } = await supabase.rpc('get_supply_growth_metrics', {
-          fecha_inicio: '2025-01-01',
-          fecha_fin: new Date().toISOString().split('T')[0]
-        });
-        if (error) throw error;
-        return data?.[0]?.supply_growth_rate || 12.5;
-      },
-      12.5,
-      'Supply Growth'
-    ),
-    staleTime: 10 * 60 * 1000,
-    retry: false
-  });
+  // Supply Growth usando datos reales de useSupplyGrowthDetails
+  const safeSupplyGrowth = useMemo(() => {
+    if (supplyGrowthData.loading || !supplyGrowthData.monthlyData.length) {
+      return 12.5; // Fallback mientras carga
+    }
+    return supplyGrowthData.summary.crecimientoPromedioMensual || 12.5;
+  }, [supplyGrowthData]);
 
   // ROI Marketing real data con función simplificada y segura
   const { data: safeROIMarketing, isLoading: roiMarketingLoading } = useQuery({
@@ -170,9 +162,9 @@ export const useSafeKPIData = () => {
     activationRate: safeActivationMetrics?.activation_rate || FALLBACK_VALUES.activationRate,
     retentionRate: safeRetentionRate || FALLBACK_VALUES.retentionRate,
     ltv: FALLBACK_VALUES.ltv,
-    supplyGrowth: safeSupplyGrowth || 12.5,
+    supplyGrowth: safeSupplyGrowth,
     roiMarketing: safeROIMarketing || 45.2,
-    loading: cpaLoading || conversionLoading || activationLoading || retentionLoading || supplyGrowthLoading || roiMarketingLoading || isRetrying,
+    loading: cpaLoading || conversionLoading || activationLoading || retentionLoading || supplyGrowthData.loading || roiMarketingLoading || isRetrying,
     isRetrying
   };
 };
