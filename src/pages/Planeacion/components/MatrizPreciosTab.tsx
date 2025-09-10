@@ -40,7 +40,7 @@ export const MatrizPreciosTab = () => {
   const [filterMargin, setFilterMargin] = useState('all');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // Fetch price matrix data
+  // Fetch price matrix data con configuración optimizada
   const { data: precios = [], isPending, error } = useAuthenticatedQuery(
     ['matriz-precios', refreshTrigger.toString()],
     async () => {
@@ -52,7 +52,8 @@ export const MatrizPreciosTab = () => {
 
       if (error) throw error;
       return data || [];
-    }
+    },
+    { config: 'static' } // Datos que cambian poco, cache más agresivo
   );
 
   const filteredPrecios = precios.filter(precio => {

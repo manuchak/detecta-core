@@ -9,7 +9,9 @@ import { useAuth } from '@/contexts/AuthContext';
 export function useAuthenticatedQuery<T>(
   queryKey: string[],
   queryFn: () => Promise<T>,
-  options?: Omit<UseQueryOptions<T>, 'queryKey' | 'queryFn' | 'enabled'>
+  options?: Omit<UseQueryOptions<T>, 'queryKey' | 'queryFn' | 'enabled'> & {
+    config?: 'standard' | 'static' | 'critical';
+  }
 ) {
   const { user, loading: authLoading, userRole } = useAuth();
 
@@ -35,20 +37,47 @@ export function useAuthenticatedQuery<T>(
       }
     },
     enabled: !!user && !authLoading && !!userRole, // Solo ejecutar con autenticación completa
-    retry: 1,
-    refetchOnWindowFocus: false,
-    staleTime: 30000, // 30 segundos de cache por defecto
+    
+    // Aplicar configuración optimizada basada en el tipo de query
+    ...(options?.config ? AUTHENTICATED_QUERY_CONFIG[options.config] : AUTHENTICATED_QUERY_CONFIG.standard),
+    
+    // Las opciones personalizadas sobrescriben la configuración predeterminada
     ...options
   });
 }
 
 /**
- * Patrón de configuración estándar para queries autenticadas
+ * Configuraciones de query optimizadas para diferentes casos de uso
  */
 export const AUTHENTICATED_QUERY_CONFIG = {
-  retry: 1,
-  retryDelay: 1000,
-  staleTime: 30000,
-  refetchOnWindowFocus: false,
-  refetchOnReconnect: true
+  // Configuración estándar - datos que cambian regularmente
+  standard: {
+    retry: 1,
+    retryDelay: 1000,
+    staleTime: 30 * 1000, // 30 segundos
+    gcTime: 5 * 60 * 1000, // 5 minutos
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true
+  },
+  
+  // Configuración para datos estáticos - cambian poco
+  static: {
+    retry: 1,
+    retryDelay: 1000,
+    staleTime: 10 * 60 * 1000, // 10 minutos
+    gcTime: 30 * 60 * 1000, // 30 minutos
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false
+  },
+  
+  // Configuración para datos críticos - necesitan estar frescos
+  critical: {
+    retry: 2,
+    retryDelay: 500,
+    staleTime: 10 * 1000, // 10 segundos
+    gcTime: 2 * 60 * 1000, // 2 minutos
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchInterval: 60 * 1000 // Refetch cada minuto
+  }
 } as const;
