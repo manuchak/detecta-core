@@ -71,6 +71,15 @@ export const ServiciosCustodiaImporter: React.FC<ServiciosCustodiaImporterProps>
         }
       });
 
+      console.log('Excel columns found:', excelData.columns.map(c => c.header));
+      console.log('Column mapping:', mapping);
+      console.log('Sample data:', excelData.rows.slice(0, 2));
+
+      // Validate we have essential mapping
+      if (!Object.values(mapping).includes('id_servicio')) {
+        throw new Error('No se encontró una columna para "id_servicio". Asegúrate de que tu archivo incluya esta columna.');
+      }
+
       // Transform data based on mapping
       const mappedData = excelData.rows.map(row => {
         const mappedRow: any = {};
@@ -79,6 +88,8 @@ export const ServiciosCustodiaImporter: React.FC<ServiciosCustodiaImporterProps>
         });
         return mappedRow;
       });
+
+      console.log('Mapped data sample:', mappedData.slice(0, 2));
 
       // Start import process
       const results = await importCustodianServices(
@@ -148,7 +159,10 @@ export const ServiciosCustodiaImporter: React.FC<ServiciosCustodiaImporterProps>
           accept=".csv,.xlsx,.xls"
           onChange={(e) => {
             const file = e.target.files?.[0];
-            if (file) handleFileUpload(file);
+            if (file) {
+              console.log('File selected:', file.name, 'Size:', file.size);
+              handleFileUpload(file);
+            }
           }}
         />
         <label htmlFor="csv-upload">
@@ -168,6 +182,7 @@ export const ServiciosCustodiaImporter: React.FC<ServiciosCustodiaImporterProps>
             <div><strong>Funcionalidad UPSERT:</strong> Los registros existentes serán actualizados, los nuevos serán insertados.</div>
             <div><strong>Identificador:</strong> Se usa 'id_servicio' como clave única para determinar si actualizar o insertar.</div>
             <div><strong>Campos importantes:</strong> id_servicio, nombre_cliente, origen, destino, fecha_hora_cita, estado, nombre_custodio.</div>
+            <div><strong>Columnas esperadas:</strong> ID Servicio, Nombre Cliente, Origen, Destino, Fecha Hora Cita, Estado, Custodio, etc.</div>
           </div>
         </AlertDescription>
       </Alert>

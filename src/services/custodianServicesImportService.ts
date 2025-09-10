@@ -54,13 +54,16 @@ export const importCustodianServices = async (
             message: `Procesando registro ${current} de ${total}`
           });
 
-          try {
-            // Validate required fields for custodian services
-            if (!item.id_servicio) {
-              result.failed++;
-              result.errors.push(`Registro ${current}: ID de servicio es requerido`);
-              continue;
-            }
+            try {
+              // Validate required fields for custodian services
+              if (!item.id_servicio) {
+                result.failed++;
+                result.errors.push(`Registro ${current}: ID de servicio es requerido`);
+                console.log('Missing id_servicio for item:', item);
+                continue;
+              }
+
+              console.log(`Processing record ${current}:`, item);
 
             // Prepare data for upsert
             const servicioData = {
@@ -83,35 +86,49 @@ export const importCustodianServices = async (
             };
 
             // Check if record exists (for upsert logic)
-            const { data: existingRecord } = await supabase
+            const { data: existingRecord, error: selectError } = await supabase
               .from('servicios_custodia')
               .select('id_servicio')
               .eq('id_servicio', item.id_servicio)
-              .single();
+              .maybeSingle();
+
+            console.log(`Checking existing record for ${item.id_servicio}:`, existingRecord);
+
+            if (selectError && selectError.code !== 'PGRST116') {
+              result.failed++;
+              result.errors.push(`Registro ${current}: Error verificando existencia - ${selectError.message}`);
+              continue;
+            }
 
             if (existingRecord) {
               // Update existing record
+              console.log(`Updating record ${item.id_servicio}:`, servicioData);
               const { error: updateError } = await supabase
                 .from('servicios_custodia')
                 .update(servicioData)
                 .eq('id_servicio', item.id_servicio);
 
               if (updateError) {
+                console.error(`Update error for ${item.id_servicio}:`, updateError);
                 result.failed++;
                 result.errors.push(`Registro ${current}: Error actualizando - ${updateError.message}`);
               } else {
+                console.log(`Successfully updated ${item.id_servicio}`);
                 result.updated++;
               }
             } else {
               // Insert new record
+              console.log(`Inserting new record ${item.id_servicio}:`, servicioData);
               const { error: insertError } = await supabase
                 .from('servicios_custodia')
                 .insert(servicioData);
 
               if (insertError) {
+                console.error(`Insert error for ${item.id_servicio}:`, insertError);
                 result.failed++;
                 result.errors.push(`Registro ${current}: Error insertando - ${insertError.message}`);
               } else {
+                console.log(`Successfully inserted ${item.id_servicio}`);
                 result.imported++;
               }
             }
