@@ -8,6 +8,7 @@ import { AlertTriangle, CheckCircle, Clock, Play, Shield, Trash2 } from 'lucide-
 import { useDuplicateCleanup } from '@/hooks/useDuplicateCleanup';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import ServiciosCustodiaImporter from './ServiciosCustodiaImporter';
 
 const DuplicateCleanupManager = () => {
   const {
@@ -84,6 +85,9 @@ const DuplicateCleanupManager = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Importador de Servicios */}
+      <ServiciosCustodiaImporter />
 
       {/* Controles de limpieza */}
       <Card>
