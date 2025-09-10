@@ -1,14 +1,14 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { AlertTriangle, CheckCircle, Clock, Play, Shield, Trash2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, Play, Shield, Trash2, Upload } from 'lucide-react';
 import { useDuplicateCleanup } from '@/hooks/useDuplicateCleanup';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
-import ServiciosCustodiaImporter from './ServiciosCustodiaImporter';
+import { ServiciosCustodiaImportWizard } from './ServiciosCustodiaImportWizard';
 
 const DuplicateCleanupManager = () => {
   const {
@@ -19,6 +19,8 @@ const DuplicateCleanupManager = () => {
     executeCleanup,
     isExecutingCleanup,
   } = useDuplicateCleanup();
+
+  const [showImportWizard, setShowImportWizard] = useState(false);
 
   const totalDuplicates = duplicates?.reduce((sum, dup) => sum + dup.duplicate_count - 1, 0) || 0;
 
@@ -87,7 +89,33 @@ const DuplicateCleanupManager = () => {
       </div>
 
       {/* Importador de Servicios */}
-      <ServiciosCustodiaImporter />
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Upload className="h-5 w-5" />
+            Importación y Actualización de Servicios
+          </CardTitle>
+          <CardDescription>
+            Sistema de carga masiva con capacidad de upsert para la tabla servicios_custodia
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">
+                Cargar archivo CSV/Excel para actualizar registros de servicios de custodia
+              </p>
+            </div>
+            <Button 
+              onClick={() => setShowImportWizard(true)}
+              className="flex items-center gap-2"
+            >
+              <Upload className="h-4 w-4" />
+              Importar Servicios
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Controles de limpieza */}
       <Card>
@@ -240,6 +268,16 @@ const DuplicateCleanupManager = () => {
           </div>
         </CardContent>
       </Card>
+      
+      {/* Import Wizard */}
+      <ServiciosCustodiaImportWizard
+        open={showImportWizard}
+        onOpenChange={setShowImportWizard}
+        onComplete={() => {
+          // Optionally refresh data or show success message
+          setShowImportWizard(false);
+        }}
+      />
     </div>
   );
 };
