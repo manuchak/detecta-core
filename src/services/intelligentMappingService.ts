@@ -119,46 +119,65 @@ function levenshteinDistance(str1: string, str2: string): number {
  */
 function calculateMappingScore(csvField: string, dbField: string): number {
   const csvLower = csvField.toLowerCase().trim();
+  const dbLower = dbField.toLowerCase().trim();
   
   // Coincidencia exacta
-  if (csvLower === dbField.toLowerCase()) return 1.0;
+  if (csvLower === dbLower) return 1.0;
   
   // Verificar palabras clave conocidas
   const keywords = FIELD_KEYWORDS[dbField] || [];
   for (const keyword of keywords) {
-    if (csvLower === keyword.toLowerCase()) return 0.95;
-    if (csvLower.includes(keyword.toLowerCase()) || keyword.toLowerCase().includes(csvLower)) {
-      return 0.8 + (calculateSimilarity(csvLower, keyword.toLowerCase()) * 0.15);
+    const keywordLower = keyword.toLowerCase();
+    if (csvLower === keywordLower) return 0.95;
+    if (csvLower.includes(keywordLower) || keywordLower.includes(csvLower)) {
+      return 0.8 + (calculateSimilarity(csvLower, keywordLower) * 0.15);
     }
   }
   
-  // Similitud general
+  // Similitud general mejorada
   const similarity = calculateSimilarity(csvField, dbField);
   
-  // Bonus por subcadenas comunes
-  const csvParts = csvLower.split(/[_\-\s]/);
-  const dbParts = dbField.toLowerCase().split(/[_\-\s]/);
+  // Bonus por subcadenas comunes - mejorado
+  const csvParts = csvLower.split(/[_\-\s\.]/);
+  const dbParts = dbLower.split(/[_\-\s\.]/);
   let commonParts = 0;
+  let exactMatches = 0;
   
   for (const csvPart of csvParts) {
-    for (const dbPart of dbParts) {
-      if (csvPart.length > 2 && dbPart.length > 2) {
-        if (csvPart === dbPart || csvPart.includes(dbPart) || dbPart.includes(csvPart)) {
-          commonParts++;
+    if (csvPart.length > 1) { // Reducir longitud mínima
+      for (const dbPart of dbParts) {
+        if (dbPart.length > 1) {
+          if (csvPart === dbPart) {
+            exactMatches++;
+            commonParts++;
+          } else if (csvPart.includes(dbPart) || dbPart.includes(csvPart)) {
+            commonParts += 0.5;
+          }
         }
       }
     }
   }
   
-  const partsBonus = Math.min(commonParts / Math.max(csvParts.length, dbParts.length), 0.3);
+  const partsBonus = Math.min(commonParts / Math.max(csvParts.length, dbParts.length), 0.4);
+  const exactBonus = exactMatches > 0 ? 0.2 : 0;
   
-  return Math.min(similarity + partsBonus, 0.95);
+  // Bonus adicional por patrones comunes
+  let patternBonus = 0;
+  if (csvLower.includes('id') && dbLower.includes('id')) patternBonus += 0.2;
+  if (csvLower.includes('fecha') && dbLower.includes('fecha')) patternBonus += 0.2;
+  if (csvLower.includes('nombre') && dbLower.includes('nombre')) patternBonus += 0.2;
+  if (csvLower.includes('telefono') && dbLower.includes('telefono')) patternBonus += 0.2;
+  if (csvLower.includes('email') && dbLower.includes('email')) patternBonus += 0.2;
+  
+  return Math.min(similarity + partsBonus + exactBonus + patternBonus, 0.95);
 }
 
 /**
  * Genera mapeo inteligente automático basado en similitud de nombres
  */
 export function generateIntelligentMapping(csvFields: string[]): MappingResult {
+  console.log('🔍 Iniciando mapeo inteligente con campos CSV:', csvFields);
+  
   const allDbFields = Object.values(DATABASE_FIELDS).flat();
   const allScores: MappingScore[] = [];
   
@@ -167,7 +186,7 @@ export function generateIntelligentMapping(csvFields: string[]): MappingResult {
     for (const [category, fields] of Object.entries(DATABASE_FIELDS)) {
       for (const dbField of fields) {
         const score = calculateMappingScore(csvField, dbField);
-        if (score > 0.3) { // Solo considerar coincidencias razonables
+        if (score > 0.15) { // Reducir umbral para considerar más opciones
           allScores.push({
             csvField,
             dbField,
@@ -182,20 +201,25 @@ export function generateIntelligentMapping(csvFields: string[]): MappingResult {
   // Ordenar por puntaje descendente
   allScores.sort((a, b) => b.score - a.score);
   
-  // Crear mapeo evitando duplicados
+  console.log('📊 Top 10 coincidencias encontradas:', allScores.slice(0, 10));
+  
+  // Crear mapeo evitando duplicados - reducir umbral de confianza
   const mapping: Record<string, string> = {};
   const usedDbFields = new Set<string>();
   const usedCsvFields = new Set<string>();
   
   for (const scoreEntry of allScores) {
     if (!usedDbFields.has(scoreEntry.dbField) && !usedCsvFields.has(scoreEntry.csvField)) {
-      if (scoreEntry.score >= 0.5) { // Solo auto-mapear coincidencias confiables
+      if (scoreEntry.score >= 0.3) { // Reducir umbral de 0.5 a 0.3
         mapping[scoreEntry.csvField] = scoreEntry.dbField;
         usedDbFields.add(scoreEntry.dbField);
         usedCsvFields.add(scoreEntry.csvField);
+        console.log(`✅ Mapeo: ${scoreEntry.csvField} -> ${scoreEntry.dbField} (score: ${scoreEntry.score.toFixed(3)})`);
       }
     }
   }
+  
+  console.log('🎯 Mapeo final generado:', mapping);
   
   // Calcular confianza general
   const totalPossibleMappings = Math.min(csvFields.length, allDbFields.length);
@@ -206,7 +230,9 @@ export function generateIntelligentMapping(csvFields: string[]): MappingResult {
         .reduce((sum, s) => sum + s.score, 0) / Object.keys(mapping).length
     : 0;
   
-  const confidence = (actualMappings / totalPossibleMappings) * avgScore;
+  const confidence = actualMappings > 0 ? (actualMappings / Math.min(csvFields.length, 10)) * avgScore : 0;
+  
+  console.log(`📈 Confianza calculada: ${confidence} (${actualMappings} campos mapeados de ${csvFields.length})`);
   
   return {
     mapping,
@@ -215,28 +241,39 @@ export function generateIntelligentMapping(csvFields: string[]): MappingResult {
   };
 }
 
-/**
- * Aplica mapeo inteligente y muestra resultados al usuario
- */
 export function applyIntelligentMapping(
   csvFields: string[],
   onMappingUpdate: (mapping: Record<string, string>) => void
 ): void {
   try {
+    console.log('🚀 Aplicando mapeo inteligente...');
     const result = generateIntelligentMapping(csvFields);
     
     onMappingUpdate(result.mapping);
     
     const mappedCount = Object.keys(result.mapping).length;
-    const confidencePercent = Math.round(result.confidence * 100);
+    const confidencePercent = Math.round((result.confidence || 0) * 100);
     
-    toast({
-      title: "✨ Mapeo Automático Aplicado",
-      description: `Se mapearon ${mappedCount} campos con ${confidencePercent}% de confianza. Revisa y ajusta según sea necesario.`,
-    });
+    if (mappedCount === 0) {
+      // Si no se encontraron mapeos, mostrar sugerencias
+      console.log('⚠️ No se encontraron mapeos automáticos');
+      console.log('📋 Campos CSV disponibles:', csvFields);
+      console.log('💡 Mejores coincidencias encontradas:', result.suggestions.slice(0, 5));
+      
+      toast({
+        title: "⚠️ Sin Mapeos Automáticos",
+        description: `No se encontraron coincidencias confiables. Revisa la consola para ver sugerencias o configura manualmente.`,
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "✨ Mapeo Automático Aplicado",
+        description: `Se mapearon ${mappedCount} campos con ${confidencePercent}% de confianza. Revisa y ajusta según sea necesario.`,
+      });
+    }
     
   } catch (error) {
-    console.error('Error en mapeo inteligente:', error);
+    console.error('❌ Error en mapeo inteligente:', error);
     toast({
       title: "Error en Mapeo Automático",
       description: "Ocurrió un error al generar el mapeo automático. Intenta mapear manualmente.",
