@@ -4,8 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { AlertTriangle, CheckCircle, Clock, Play, Shield, Trash2, Upload } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, Play, Shield, Trash2, Upload, FileText, XCircle } from 'lucide-react';
 import { useDuplicateCleanup } from '@/hooks/useDuplicateCleanup';
+import { useLastImportResults } from '@/hooks/useLastImportResults';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ImportWizardEnhanced } from './ImportWizardEnhanced';
@@ -20,6 +21,7 @@ const DuplicateCleanupManager = () => {
     isExecutingCleanup,
   } = useDuplicateCleanup();
 
+  const { lastResults, saveResults, clearResults } = useLastImportResults();
   const [showImportWizard, setShowImportWizard] = useState(false);
 
   const totalDuplicates = duplicates?.reduce((sum, dup) => sum + dup.duplicate_count - 1, 0) || 0;
@@ -100,19 +102,91 @@ const DuplicateCleanupManager = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">
-                Cargar archivo CSV/Excel para actualizar registros de servicios de custodia
-              </p>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Cargar archivo CSV/Excel para actualizar registros de servicios de custodia
+                </p>
+              </div>
+              <Button 
+                onClick={() => setShowImportWizard(true)}
+                className="flex items-center gap-2"
+              >
+                <Upload className="h-4 w-4" />
+                Importar Servicios
+              </Button>
             </div>
-            <Button 
-              onClick={() => setShowImportWizard(true)}
-              className="flex items-center gap-2"
-            >
-              <Upload className="h-4 w-4" />
-              Importar Servicios
-            </Button>
+
+            {/* Last Import Results */}
+            {lastResults && (
+              <div className="border rounded-lg p-4 bg-muted/50">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    <span className="font-medium text-sm">Último Resultado de Importación</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {formatDistanceToNow(new Date(lastResults.timestamp), { 
+                        addSuffix: true, 
+                        locale: es 
+                      })}
+                    </span>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={clearResults}
+                      className="h-6 w-6 p-0"
+                    >
+                      <XCircle className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-3 gap-3 mb-2">
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-green-600">{lastResults.imported}</div>
+                    <div className="text-xs text-muted-foreground">Importados</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-blue-600">{lastResults.updated}</div>
+                    <div className="text-xs text-muted-foreground">Actualizados</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-red-600">{lastResults.failed}</div>
+                    <div className="text-xs text-muted-foreground">Fallidos</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <Badge variant={lastResults.success ? "default" : "destructive"}>
+                    {lastResults.success ? "Exitoso" : "Con Errores"}
+                  </Badge>
+                  {lastResults.filename && (
+                    <span className="text-xs text-muted-foreground">
+                      Archivo: {lastResults.filename}
+                    </span>
+                  )}
+                </div>
+
+                {lastResults.errors.length > 0 && (
+                  <div className="mt-3 text-xs text-red-600">
+                    <div className="font-medium mb-1">Errores encontrados:</div>
+                    <div className="max-h-20 overflow-y-auto space-y-1">
+                      {lastResults.errors.slice(0, 3).map((error, index) => (
+                        <div key={index} className="text-xs">• {error}</div>
+                      ))}
+                      {lastResults.errors.length > 3 && (
+                        <div className="text-xs font-medium">
+                          ... y {lastResults.errors.length - 3} errores más
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -273,8 +347,10 @@ const DuplicateCleanupManager = () => {
       <ImportWizardEnhanced
         open={showImportWizard}
         onOpenChange={setShowImportWizard}
-        onComplete={() => {
-          // Optionally refresh data or show success message
+        onComplete={(results, filename) => {
+          if (results) {
+            saveResults(results, filename);
+          }
           setShowImportWizard(false);
         }}
       />

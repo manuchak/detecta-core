@@ -17,11 +17,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
+import { useTabVisibility } from '@/hooks/useTabVisibility';
 
 interface ImportWizardEnhancedProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onComplete?: () => void;
+  onComplete?: (results?: CustodianServiceImportResult, filename?: string) => void;
 }
 
 type WizardStep = 'upload' | 'mapping' | 'validation' | 'preview' | 'processing' | 'results';
@@ -34,6 +35,7 @@ interface WizardState {
   validation: ValidationResult | null;
   progress: CustodianServiceImportProgress | null;
   result: CustodianServiceImportResult | null;
+  fileName: string;
 }
 
 import { CUSTODIAN_SERVICE_FIELDS } from '@/config/custodianServiceFields';
@@ -51,7 +53,10 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
     validation: null,
     progress: null,
     result: null,
+    fileName: '',
   });
+  
+  const { isVisible, hasLeftTab, resetTabTracking } = useTabVisibility();
   
   // Debug: Log step changes
   useEffect(() => {
@@ -110,8 +115,11 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
         ...prev,
         file,
         parsedData: transformedRows,
+        fileName: file.name,
         step: 'mapping'
       }));
+      
+      resetTabTracking();
 
       toast.success(`Archivo cargado: ${transformedRows.length} registros encontrados con ${actualData.columns.length} columnas`);
     } catch (error) {
@@ -132,7 +140,13 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
   const handleStartImport = useCallback(async () => {
     if (!state.parsedData) return;
 
+    // Warn user about tab switching
+    if (!isVisible) {
+      toast.warning('Por favor mantén esta pestaña activa durante el proceso de importación');
+    }
+
     setState(prev => ({ ...prev, step: 'processing', progress: null }));
+    resetTabTracking();
 
     try {
       const transformedData = state.parsedData.map(row => {
@@ -178,6 +192,10 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
 
       setState(prev => ({ ...prev, result, step: 'results' }));
       console.log('🎯 Import completed, moving to results step:', result);
+      
+      // Call onComplete with results
+      onComplete?.(result, state.fileName);
+      
       if (result.success) {
         toast.success(`Importación completada: ${result.imported} nuevos, ${result.updated} actualizados`);
       } else {
@@ -215,13 +233,12 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
       validation: null,
       progress: null,
       result: null,
+      fileName: '',
     });
     setMappingName('');
+    resetTabTracking();
     onOpenChange(false);
-    if (state.result?.imported > 0) {
-      onComplete?.();
-    }
-  }, [onOpenChange, onComplete, state.result]);
+  }, [onOpenChange, resetTabTracking]);
 
   const renderUploadStep = () => (
     <div className="space-y-6">
@@ -266,6 +283,14 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
         <AlertTriangle className="h-4 w-4 text-amber-600" />
         <AlertDescription className="font-medium">
           <strong>Campo requerido:</strong> Tu archivo debe contener una columna con 'id_servicio' para identificar cada registro de manera única.
+        </AlertDescription>
+      </Alert>
+
+      <Alert className="border-red-200 bg-red-50 text-red-800">
+        <AlertTriangle className="h-4 w-4 text-red-600" />
+        <AlertDescription className="font-medium">
+          <strong>¡Importante!</strong> Mantén esta pestaña activa durante todo el proceso de importación. 
+          Cambiar de pestaña puede interrumpir la carga de datos y causar errores.
         </AlertDescription>
       </Alert>
 
@@ -813,6 +838,17 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
           </p>
         </div>
       </div>
+
+      {/* Tab switch warning */}
+      {hasLeftTab && (
+        <Alert className="border-red-200 bg-red-50 text-red-800 max-w-md mx-auto">
+          <AlertTriangle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="font-medium">
+            <strong>¡Advertencia!</strong> Has cambiado de pestaña durante el proceso. 
+            Esto puede haber afectado la importación. Si el proceso se detiene, reintenta la importación.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {state.progress && (
         <Card className="max-w-md mx-auto border-2">
