@@ -6986,7 +6986,7 @@ export type Database = {
           hora_finalizacion: string | null
           hora_inicio_custodia: string | null
           hora_presentacion: string | null
-          id: number | null
+          id: number
           id_cotizacion: string | null
           id_custodio: string | null
           id_servicio: string | null
@@ -7049,7 +7049,7 @@ export type Database = {
           hora_finalizacion?: string | null
           hora_inicio_custodia?: string | null
           hora_presentacion?: string | null
-          id?: number | null
+          id?: number
           id_cotizacion?: string | null
           id_custodio?: string | null
           id_servicio?: string | null
@@ -7112,7 +7112,7 @@ export type Database = {
           hora_finalizacion?: string | null
           hora_inicio_custodia?: string | null
           hora_presentacion?: string | null
-          id?: number | null
+          id?: number
           id_cotizacion?: string | null
           id_custodio?: string | null
           id_servicio?: string | null
@@ -8265,7 +8265,7 @@ export type Database = {
           hora_finalizacion: string | null
           hora_inicio_custodia: string | null
           hora_presentacion: string | null
-          id: number | null
+          id: number
           id_cotizacion: string | null
           id_custodio: string | null
           id_servicio: string | null
@@ -8331,7 +8331,7 @@ export type Database = {
           hora_finalizacion: string | null
           hora_inicio_custodia: string | null
           hora_presentacion: string | null
-          id: number | null
+          id: number
           id_cotizacion: string | null
           id_custodio: string | null
           id_servicio: string | null
@@ -8776,7 +8776,7 @@ export type Database = {
           hora_finalizacion: string | null
           hora_inicio_custodia: string | null
           hora_presentacion: string | null
-          id: number | null
+          id: number
           id_cotizacion: string | null
           id_custodio: string | null
           id_servicio: string | null
@@ -9141,7 +9141,7 @@ export type Database = {
           hora_finalizacion: string | null
           hora_inicio_custodia: string | null
           hora_presentacion: string | null
-          id: number | null
+          id: number
           id_cotizacion: string | null
           id_custodio: string | null
           id_servicio: string | null
@@ -9463,7 +9463,7 @@ export type Database = {
           hora_finalizacion: string | null
           hora_inicio_custodia: string | null
           hora_presentacion: string | null
-          id: number | null
+          id: number
           id_cotizacion: string | null
           id_custodio: string | null
           id_servicio: string | null
@@ -9675,7 +9675,7 @@ export type Database = {
           hora_finalizacion: string | null
           hora_inicio_custodia: string | null
           hora_presentacion: string | null
-          id: number | null
+          id: number
           id_cotizacion: string | null
           id_custodio: string | null
           id_servicio: string | null
