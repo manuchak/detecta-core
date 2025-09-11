@@ -1,12 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useRealisticProjections } from '@/hooks/useRealisticProjections';
+import { useRealisticProjectionsWithGuardrails } from '@/hooks/useRealisticProjectionsWithGuardrails';
 import { Loader2, TrendingUp, Target, DollarSign, AlertTriangle } from 'lucide-react';
 import { getPaceStatus, getStatusTextColor } from '@/utils/paceStatus';
 import { getCurrentMonthInfo, getDaysRemainingInMonth, formatMonthlyQuestion, getPreviousMonthName, capitalize } from '@/utils/dynamicDateUtils';
 import { useMemo } from 'react';
 
 export const GMVProjectionCard = () => {
-  const { data, isLoading } = useRealisticProjections();
+  const { data, isLoading } = useRealisticProjectionsWithGuardrails();
   const currentMonth = getCurrentMonthInfo();
   const previousMonth = getPreviousMonthName();
 
@@ -65,8 +65,15 @@ export const GMVProjectionCard = () => {
             ${calculations.mostLikelyGMV.toFixed(1)}M
           </div>
           <div className="text-lg text-muted-foreground flex items-center justify-center gap-2">
-            Proyección más probable ({data.mostLikely.probability}%)
-            <AlertTriangle className="h-4 w-4 text-warning" />
+            Proyección más probable ({data.mostLikely.probability}%) 
+            <span className={`text-xs px-2 py-1 rounded ${
+              data.confidence.overall === 'high' ? 'bg-success/20 text-success' :
+              data.confidence.overall === 'medium' ? 'bg-warning/20 text-warning' :
+              'bg-destructive/20 text-destructive'
+            }`}>
+              {data.confidence.overall === 'high' ? 'Alta confianza' :
+               data.confidence.overall === 'medium' ? 'Media confianza' : 'Baja confianza'}
+            </span>
           </div>
         </div>
 
@@ -144,16 +151,32 @@ export const GMVProjectionCard = () => {
           </div>
         </div>
 
-        {/* Action Item */}
-        <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg">
-          <div className="flex items-center gap-2 text-warning">
-            <AlertTriangle className="h-4 w-4" />
-            <span className="font-medium">
-              {calculations.mostLikelyGMV < data.target.gmv ? 
-                `Faltarían $${(data.target.gmv - calculations.mostLikelyGMV).toFixed(1)}M para igualar ${previousMonth.toLowerCase()}. Necesitas ${data.insights.paceNeeded} servicios/día vs ${data.current.dailyPace.toFixed(1)} actual.` :
-                `En camino de superar ${previousMonth.toLowerCase()} por $${(calculations.mostLikelyGMV - data.target.gmv).toFixed(1)}M`
-              }
-            </span>
+        {/* Confidence & Warnings */}
+        <div className={`p-3 rounded-lg border ${
+          data.confidence.overall === 'high' ? 'bg-success/10 border-success/20' :
+          data.confidence.overall === 'medium' ? 'bg-warning/10 border-warning/20' :
+          'bg-destructive/10 border-destructive/20'
+        }`}>
+          <div className={`flex items-start gap-2 ${
+            data.confidence.overall === 'high' ? 'text-success' :
+            data.confidence.overall === 'medium' ? 'text-warning' : 'text-destructive'
+          }`}>
+            <AlertTriangle className="h-4 w-4 mt-0.5" />
+            <div className="space-y-1">
+              <div className="font-medium">
+                {calculations.mostLikelyGMV < data.target.gmv ? 
+                  `Faltarían $${(data.target.gmv - calculations.mostLikelyGMV).toFixed(1)}M para meta. Necesitas ${data.insights.paceNeeded} servicios/día vs ${data.current.dailyPace.toFixed(1)} actual.` :
+                  `En camino de superar meta por $${(calculations.mostLikelyGMV - data.target.gmv).toFixed(1)}M`
+                }
+              </div>
+              {data.confidence.warnings.length > 0 && (
+                <div className="text-xs space-y-1">
+                  {data.confidence.warnings.map((warning, idx) => (
+                    <div key={idx}>⚠️ {warning}</div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </CardContent>

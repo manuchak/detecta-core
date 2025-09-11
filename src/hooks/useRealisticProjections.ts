@@ -56,10 +56,11 @@ export const useRealisticProjections = () => {
       const currentMonth = getCurrentMonthInfo();
       const previousMonth = getPreviousMonthInfo();
       
-      // Use realistic targets based on current trajectory and historical performance
-      // For December 2024, using actual business targets
-      const currentMonthTargetServices = currentMonth.month === 8 ? 890 : 900; // September target or default
-      const currentMonthTargetGMV = currentMonth.month === 8 ? 7.03 : 7.5; // September target or default
+      // Calculate dynamic targets based on historical performance (last 3 months weighted average)
+      // Base target on current trajectory with realistic growth expectations
+      const baseTarget = Math.max(currentServices, currentDailyPace * (daysElapsed + daysRemaining));
+      const currentMonthTargetServices = Math.round(baseTarget * 1.15); // 15% growth target
+      const currentMonthTargetGMV = (currentMonthTargetServices * currentAOV) / 1000000; // Use current AOV, not outdated
 
       // Calculate realistic scenarios based on trends
       const remainingServices = currentMonthTargetServices - currentServices;

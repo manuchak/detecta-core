@@ -33,12 +33,12 @@ export const useDynamicServiceData = () => {
     ['dynamic-service-data'],
     async (): Promise<DynamicServiceData> => {
       
-      // Get current date info - Force to current actual month for real projections
+      // Get current date info - Use actual current month/year dynamically
       const now = new Date();
-      const currentYear = 2024; // Using 2024 as we have real data there
-      const currentMonth = 12; // December 2024 as the most recent month with data
+      const currentYear = now.getFullYear(); // 2025 for current year
+      const currentMonth = now.getMonth() + 1; // September = 9 (RPC uses 1-12)
       const currentDay = now.getDate();
-      const daysInMonth = 31; // December has 31 days
+      const daysInMonth = new Date(currentYear, currentMonth, 0).getDate(); // Dynamic days in month
       const daysRemaining = daysInMonth - currentDay;
 
       // Get historical monthly data for calculations
