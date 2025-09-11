@@ -8501,7 +8501,7 @@ export type Database = {
           duplicate_count: number
           id_servicio: string
           latest_date: string
-          service_ids: string[]
+          service_ids: number[]
         }[]
       }
       check_pending_referral_bonuses: {
