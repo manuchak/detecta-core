@@ -16,11 +16,14 @@ import {
 } from 'lucide-react';
 import { parseExcelFile, ExcelData, MappingConfig } from '@/utils/excelImporter';
 import { 
-  importCustodianServices, 
-  CustodianServiceImportResult, 
-  CustodianServiceImportProgress,
   getCustodianServicesDefaultMapping 
 } from '@/services/custodianServicesImportService';
+import {
+  importCustodianServicesEnhanced,
+  EnhancedImportResult,
+  EnhancedImportProgress,
+  rollbackImport
+} from '@/services/enhancedImportService';
 import { toast } from 'sonner';
 
 interface ServiciosCustodiaImporterProps {
@@ -34,8 +37,9 @@ interface ImporterData {
   file: File | null;
   excelData: ExcelData | null;
   mapping: MappingConfig;
-  progress: CustodianServiceImportProgress | null;
-  results: CustodianServiceImportResult | null;
+  progress: EnhancedImportProgress | null;
+  results: EnhancedImportResult | null;
+  showRollback: boolean;
 }
 
 export const ServiciosCustodiaImporter: React.FC<ServiciosCustodiaImporterProps> = ({
@@ -47,7 +51,8 @@ export const ServiciosCustodiaImporter: React.FC<ServiciosCustodiaImporterProps>
     excelData: null,
     mapping: {},
     progress: null,
-    results: null
+    results: null,
+    showRollback: false
   });
 
   const handleFileUpload = useCallback(async (file: File) => {
@@ -91,11 +96,19 @@ export const ServiciosCustodiaImporter: React.FC<ServiciosCustodiaImporterProps>
 
       console.log('Mapped data sample:', mappedData.slice(0, 2));
 
-      // Start import process
-      const results = await importCustodianServices(
+      // Start enhanced import process
+      const results = await importCustodianServicesEnhanced(
         mappedData,
         (progress) => {
           setImporterData(prev => ({ ...prev, progress }));
+        },
+        {
+          testMode: false,
+          enableCircuitBreaker: true,
+          enableRollback: true,
+          maxConsecutiveErrors: 10,
+          maxFailureRate: 20,
+          batchSize: 25
         }
       );
 
@@ -104,7 +117,8 @@ export const ServiciosCustodiaImporter: React.FC<ServiciosCustodiaImporterProps>
         state: results.success ? 'completed' : 'error',
         excelData,
         mapping,
-        results
+        results,
+        showRollback: results.rollbackAvailable || false
       }));
 
       if (results.success) {
@@ -125,11 +139,44 @@ export const ServiciosCustodiaImporter: React.FC<ServiciosCustodiaImporterProps>
           updated: 0,
           failed: 0,
           errors: [error instanceof Error ? error.message : 'Error desconocido'],
-          warnings: []
-        }
+          warnings: [],
+          circuitBreakerTriggered: false,
+          rollbackAvailable: false,
+          errorsByType: {},
+          validationResult: {
+            isValid: false,
+            errors: [error instanceof Error ? error.message : 'Error desconocido'],
+            warnings: [],
+            missingColumns: [],
+            availableColumns: []
+          }
+        },
+        showRollback: false
       }));
     }
   }, [onImportComplete]);
+
+  const handleRollback = async () => {
+    if (!importerData.results?.rollbackIds) return;
+    
+    setImporterData(prev => ({ 
+      ...prev, 
+      progress: { current: 0, total: 100, status: 'rolling_back', message: 'Ejecutando rollback...' } 
+    }));
+    
+    const rollbackResult = await rollbackImport(importerData.results.rollbackIds);
+    
+    if (rollbackResult.success) {
+      toast.success(rollbackResult.message);
+      resetImporter();
+    } else {
+      toast.error(rollbackResult.message);
+      setImporterData(prev => ({ 
+        ...prev, 
+        progress: null 
+      }));
+    }
+  };
 
   const resetImporter = () => {
     setImporterData({
@@ -138,7 +185,8 @@ export const ServiciosCustodiaImporter: React.FC<ServiciosCustodiaImporterProps>
       excelData: null,
       mapping: {},
       progress: null,
-      results: null
+      results: null,
+      showRollback: false
     });
   };
 
@@ -213,9 +261,14 @@ export const ServiciosCustodiaImporter: React.FC<ServiciosCustodiaImporterProps>
             value={(importerData.progress.current / importerData.progress.total) * 100} 
             className="w-full"
           />
-          <p className="text-sm text-muted-foreground">
-            {importerData.progress.current} de {importerData.progress.total} registros procesados
-          </p>
+          <div className="text-sm text-muted-foreground space-y-1">
+            <p>{importerData.progress.current} de {importerData.progress.total} registros procesados</p>
+            {importerData.progress.phaseProgress && (
+              <p className="text-xs">
+                {importerData.progress.phaseProgress.phase}: {importerData.progress.phaseProgress.progress}%
+              </p>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -228,8 +281,16 @@ export const ServiciosCustodiaImporter: React.FC<ServiciosCustodiaImporterProps>
           <CheckCircle className="w-8 h-8 text-green-600" />
         </div>
         <h4 className="text-lg font-semibold text-green-700 dark:text-green-300">
-          Importación Completada Exitosamente
+          {importerData.results?.circuitBreakerTriggered 
+            ? 'Importación Detenida por Protección' 
+            : 'Importación Completada Exitosamente'
+          }
         </h4>
+        {importerData.results?.circuitBreakerTriggered && (
+          <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-2">
+            La importación se detuvo automáticamente para evitar errores masivos
+          </p>
+        )}
       </div>
 
       {importerData.results && (
@@ -272,7 +333,27 @@ export const ServiciosCustodiaImporter: React.FC<ServiciosCustodiaImporterProps>
         </div>
       )}
 
+      {importerData.results?.validationResult && !importerData.results.validationResult.isValid && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            <div className="font-medium mb-2">Errores de validación de esquema:</div>
+            <div className="space-y-1">
+              {importerData.results.validationResult.errors.map((error, idx) => (
+                <div key={idx} className="text-xs">{error}</div>
+              ))}
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex gap-2 justify-center">
+        {importerData.showRollback && importerData.results?.rollbackIds && (
+          <Button variant="destructive" onClick={handleRollback}>
+            <XCircle className="h-4 w-4 mr-2" />
+            Deshacer Importación ({importerData.results.rollbackIds.length} registros)
+          </Button>
+        )}
         <Button variant="outline" onClick={resetImporter}>
           <RefreshCw className="h-4 w-4 mr-2" />
           Nueva Importación
@@ -288,8 +369,16 @@ export const ServiciosCustodiaImporter: React.FC<ServiciosCustodiaImporterProps>
           <XCircle className="w-8 h-8 text-red-600" />
         </div>
         <h4 className="text-lg font-semibold text-red-700 dark:text-red-300">
-          Error en la Importación
+          {importerData.results?.circuitBreakerTriggered 
+            ? 'Importación Detenida Automáticamente' 
+            : 'Error en la Importación'
+          }
         </h4>
+        {importerData.results?.circuitBreakerTriggered && (
+          <p className="text-sm text-orange-600 dark:text-orange-400 mt-2">
+            Se detectaron demasiados errores consecutivos. Se activó la protección automática.
+          </p>
+        )}
       </div>
 
       {importerData.results && (
@@ -344,6 +433,19 @@ export const ServiciosCustodiaImporter: React.FC<ServiciosCustodiaImporterProps>
                     </div>
                   )}
                 </div>
+                
+                {importerData.results.errorsByType && Object.keys(importerData.results.errorsByType).length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-red-200">
+                    <div className="text-xs font-medium mb-1">Tipos de errores:</div>
+                    <div className="flex flex-wrap gap-1">
+                      {Object.entries(importerData.results.errorsByType).map(([type, count]) => (
+                        <Badge key={type} variant="destructive" className="text-xs">
+                          {type}: {count}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </AlertDescription>
             </Alert>
           )}
@@ -351,6 +453,12 @@ export const ServiciosCustodiaImporter: React.FC<ServiciosCustodiaImporterProps>
       )}
 
       <div className="flex gap-2 justify-center">
+        {importerData.showRollback && importerData.results?.rollbackIds && (
+          <Button variant="destructive" onClick={handleRollback}>
+            <XCircle className="h-4 w-4 mr-2" />
+            Deshacer Importación ({importerData.results.rollbackIds.length} registros)
+          </Button>
+        )}
         <Button variant="outline" onClick={resetImporter}>
           <RefreshCw className="h-4 w-4 mr-2" />
           Reintentar

@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { parseRobustDate, isProblematicDate } from '@/utils/dateUtils';
+import { validateTableSchema } from './schemaValidationService';
 
 export interface EarlyValidationResult {
   isValid: boolean;
@@ -30,13 +31,28 @@ export const validateDataBeforeImport = async (
 
   console.log('🔍 Starting early validation for', data.length, 'records');
 
-  // 1. Check required field mapping
+  // 1. Schema validation first
+  const requiredColumns = [
+    'id_servicio', 'nombre_cliente', 'telefono', 'origen', 'destino',
+    'fecha_hora_cita', 'estado', 'nombre_custodio', 'updated_time', 'created_at'
+  ];
+
+  const schemaValidation = await validateTableSchema('servicios_custodia', requiredColumns);
+  if (!schemaValidation.isValid) {
+    result.errors.push(...schemaValidation.errors);
+    result.isValid = false;
+  }
+  if (schemaValidation.warnings.length > 0) {
+    result.warnings.push(...schemaValidation.warnings);
+  }
+
+  // 2. Check required field mapping
   if (!mapping['id_servicio']) {
     result.errors.push('El campo "id_servicio" es obligatorio y debe estar mapeado');
     result.isValid = false;
   }
 
-  // 2. Check for duplicate id_servicio in the import data
+  // 3. Check for duplicate id_servicio in the import data
   const idServicioField = mapping['id_servicio'];
   if (idServicioField) {
     const seenIds = new Set<string>();
@@ -59,7 +75,7 @@ export const validateDataBeforeImport = async (
     }
   }
 
-  // 3. Check for empty required fields
+  // 4. Check for empty required fields
   data.forEach((row, index) => {
     const idServicio = row[mapping['id_servicio']];
     if (!idServicio || idServicio.trim() === '') {
@@ -72,7 +88,7 @@ export const validateDataBeforeImport = async (
     }
   });
 
-  // 4. Sample check for existing records in database (check first 100 to estimate conflicts)
+  // 5. Sample check for existing records in database (check first 100 to estimate conflicts)
   if (mapping['id_servicio']) {
     const sampleSize = Math.min(100, data.length);
     const sampleIds = data.slice(0, sampleSize)
@@ -102,7 +118,7 @@ export const validateDataBeforeImport = async (
     }
   }
 
-  // 5. Enhanced date format validation using robust parsing
+  // 6. Enhanced date format validation using robust parsing
   const dateFields = ['fecha_hora_cita', 'created_at'];
   dateFields.forEach(dbField => {
     const csvField = Object.keys(mapping).find(key => mapping[key] === dbField);
@@ -129,7 +145,7 @@ export const validateDataBeforeImport = async (
     }
   });
 
-  // 6. Validate numeric fields
+  // 7. Validate numeric fields
   const numericFields = ['km_recorridos', 'km_teorico', 'cobro_cliente', 'tiempo_retraso'];
   numericFields.forEach(dbField => {
     const csvField = Object.keys(mapping).find(key => mapping[key] === dbField);

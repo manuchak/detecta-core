@@ -12,7 +12,7 @@ interface DuplicateCleanupResult {
 interface DuplicateCheck {
   id_servicio: string;
   duplicate_count: number;
-  service_ids: string[];
+  service_ids: number[];
   latest_date: string;
 }
 
