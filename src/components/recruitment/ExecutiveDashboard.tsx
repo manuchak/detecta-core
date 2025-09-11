@@ -16,7 +16,7 @@ export const ExecutiveDashboard = () => {
               Dashboard Ejecutivo
             </h1>
             <p className="text-muted-foreground">
-              Análisis de cierre mensual y crecimiento anual
+              Análisis basado en datos de diciembre 2024 (período con datos reales)
             </p>
           </div>
           <div className="text-xs text-muted-foreground">

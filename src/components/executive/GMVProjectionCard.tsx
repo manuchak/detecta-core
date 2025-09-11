@@ -45,7 +45,7 @@ export const GMVProjectionCard = () => {
         <div className="flex items-center justify-between">
           <CardTitle className="text-xl font-medium flex items-center gap-2">
             <DollarSign className="h-6 w-6 text-success" />
-            Proyección GMV Septiembre
+            Proyección GMV Diciembre 2024
           </CardTitle>
           <div className="text-sm text-muted-foreground">
             Quedan {data.daysRemaining} días
@@ -56,7 +56,7 @@ export const GMVProjectionCard = () => {
         {/* Main Answer */}
         <div className="text-center p-6 bg-gradient-to-r from-warning/10 to-primary/10 rounded-xl border border-warning/20">
           <div className="text-sm font-medium text-muted-foreground mb-2">
-            RESPUESTA: ¿Cómo cerramos septiembre en GMV?
+            RESPUESTA: ¿Cómo cerramos diciembre 2024 en GMV?
           </div>
           <div className="text-4xl font-bold text-warning mb-2">
             ${calculations.mostLikelyGMV.toFixed(1)}M
@@ -123,9 +123,9 @@ export const GMVProjectionCard = () => {
         <div className="p-4 bg-muted/50 rounded-lg">
           <div className="flex justify-between items-center">
             <div>
-              <div className="font-medium">vs Agosto 2025:</div>
+              <div className="font-medium">vs Noviembre 2024:</div>
               <div className="text-sm text-muted-foreground">
-                Agosto cerró con ${data.target.gmv.toFixed(1)}M GMV
+                Noviembre cerró con ${data.target.gmv.toFixed(1)}M GMV
               </div>
             </div>
             <div className="text-right">
@@ -147,8 +147,8 @@ export const GMVProjectionCard = () => {
             <AlertTriangle className="h-4 w-4" />
             <span className="font-medium">
               {calculations.mostLikelyGMV < data.target.gmv ? 
-                `Faltarían $${(data.target.gmv - calculations.mostLikelyGMV).toFixed(1)}M para igualar agosto. Necesitas ${data.insights.paceNeeded} servicios/día vs ${data.current.dailyPace.toFixed(1)} actual.` :
-                `En camino de superar agosto por $${(calculations.mostLikelyGMV - data.target.gmv).toFixed(1)}M`
+                `Faltarían $${(data.target.gmv - calculations.mostLikelyGMV).toFixed(1)}M para igualar noviembre. Necesitas ${data.insights.paceNeeded} servicios/día vs ${data.current.dailyPace.toFixed(1)} actual.` :
+                `En camino de superar noviembre por $${(calculations.mostLikelyGMV - data.target.gmv).toFixed(1)}M`
               }
             </span>
           </div>
