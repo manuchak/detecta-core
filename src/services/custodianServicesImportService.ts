@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { parseRobustDate, formatDateParsingResult } from '@/utils/dateUtils';
 
 export interface CustodianServiceImportResult {
   success: boolean;
@@ -65,6 +66,30 @@ export const importCustodianServices = async (
 
               console.log(`Processing record ${current}:`, item);
 
+            // Parse and validate dates using robust parsing
+            const fechaCitaResult = parseRobustDate(item.fecha_hora_cita);
+            const createdAtResult = parseRobustDate(item.created_at);
+            
+            // Log date parsing results for debugging
+            if (item.fecha_hora_cita) {
+              console.log(`Date parsing for record ${current} (fecha_hora_cita):`, formatDateParsingResult(fechaCitaResult));
+              
+              // Add warning if date parsing failed or resulted in problematic date
+              if (!fechaCitaResult.success) {
+                result.warnings.push(`Registro ${current}: ${fechaCitaResult.error}`);
+              } else if (fechaCitaResult.warning) {
+                result.warnings.push(`Registro ${current}: ${fechaCitaResult.warning}`);
+              }
+            }
+            
+            if (item.created_at) {
+              console.log(`Date parsing for record ${current} (created_at):`, formatDateParsingResult(createdAtResult));
+              
+              if (!createdAtResult.success) {
+                result.warnings.push(`Registro ${current}: Error en created_at - ${createdAtResult.error}`);
+              }
+            }
+
             // Prepare data for upsert (removing internal id field)
             const servicioData = {
               id_servicio: item.id_servicio,
@@ -73,7 +98,7 @@ export const importCustodianServices = async (
               telefono_operador: item.telefono_operador || '',
               origen: item.origen || '',
               destino: item.destino || '',
-              fecha_hora_cita: item.fecha_hora_cita ? new Date(item.fecha_hora_cita).toISOString() : null,
+              fecha_hora_cita: fechaCitaResult.isoString || null,
               estado: item.estado || 'pendiente',
               tipo_servicio: item.tipo_servicio || 'traslado',
               nombre_custodio: item.nombre_custodio || '',
@@ -81,7 +106,7 @@ export const importCustodianServices = async (
               cobro_cliente: item.cobro_cliente ? parseFloat(item.cobro_cliente) : null,
               tiempo_retraso: item.tiempo_retraso ? parseInt(item.tiempo_retraso) : null,
               comentarios_adicionales: item.comentarios_adicionales || '',
-              created_at: item.created_at ? new Date(item.created_at).toISOString() : null,
+              created_at: createdAtResult.isoString || null,
               updated_time: new Date().toISOString()
             };
 

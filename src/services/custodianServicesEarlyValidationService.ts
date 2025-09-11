@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { parseRobustDate, isProblematicDate } from '@/utils/dateUtils';
 
 export interface EarlyValidationResult {
   isValid: boolean;
@@ -101,7 +102,7 @@ export const validateDataBeforeImport = async (
     }
   }
 
-  // 5. Validate date formats
+  // 5. Enhanced date format validation using robust parsing
   const dateFields = ['fecha_hora_cita', 'created_at'];
   dateFields.forEach(dbField => {
     const csvField = Object.keys(mapping).find(key => mapping[key] === dbField);
@@ -109,14 +110,19 @@ export const validateDataBeforeImport = async (
       data.forEach((row, index) => {
         const dateValue = row[csvField];
         if (dateValue && dateValue !== '' && dateValue !== 'N/A') {
-          const parsedDate = new Date(dateValue);
-          if (isNaN(parsedDate.getTime())) {
+          const parseResult = parseRobustDate(dateValue);
+          
+          if (!parseResult.success) {
             result.invalidData.push({
               row: index + 1,
               field: dbField,
               value: dateValue,
-              reason: 'Formato de fecha inválido'
+              reason: `Fecha inválida: ${parseResult.error}`
             });
+          } else if (parseResult.parsedDate && isProblematicDate(parseResult)) {
+            result.warnings.push(
+              `Fila ${index + 1}, campo ${dbField}: Fecha sospechosa "${dateValue}" parseada como ${parseResult.isoString} - revisar formato`
+            );
           }
         }
       });
