@@ -1,6 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useRealisticProjectionsWithGuardrails } from '@/hooks/useRealisticProjectionsWithGuardrails';
-import { Loader2, TrendingUp, Target, DollarSign, AlertTriangle } from 'lucide-react';
+import { Loader2, TrendingUp, Target, DollarSign, AlertTriangle, Brain, Activity } from 'lucide-react';
 import { getPaceStatus, getStatusTextColor } from '@/utils/paceStatus';
 import { getCurrentMonthInfo, getDaysRemainingInMonth, formatMonthlyQuestion, getPreviousMonthName, capitalize } from '@/utils/dynamicDateUtils';
 import { useMemo } from 'react';
@@ -49,9 +51,36 @@ export const GMVProjectionCard = () => {
           <CardTitle className="text-xl font-medium flex items-center gap-2">
             <DollarSign className="h-6 w-6 text-success" />
             Proyección GMV {capitalize(currentMonth.fullName)}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Brain className="h-4 w-4 text-primary/60" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs max-w-xs">
+                    {data.regime.mathematicalJustification}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </CardTitle>
-          <div className="text-sm text-muted-foreground">
-            Quedan {data.daysRemaining} días
+          <div className="flex items-center gap-3">
+            <Badge 
+              variant={
+                data.regime.type === 'exponential' ? 'default' :
+                data.regime.type === 'volatile' ? 'destructive' :
+                data.regime.type === 'declining' ? 'secondary' : 'outline'
+              }
+              className="text-xs"
+            >
+              <Activity className="h-3 w-3 mr-1" />
+              {data.regime.type === 'exponential' ? '🚀 Exponencial' :
+               data.regime.type === 'volatile' ? '⚡ Volátil' :
+               data.regime.type === 'declining' ? '📉 Declive' : '📈 Normal'}
+            </Badge>
+            <div className="text-sm text-muted-foreground">
+              {data.daysRemaining} días restantes
+            </div>
           </div>
         </div>
       </CardHeader>
@@ -65,15 +94,32 @@ export const GMVProjectionCard = () => {
             ${calculations.mostLikelyGMV.toFixed(1)}M
           </div>
           <div className="text-lg text-muted-foreground flex items-center justify-center gap-2">
-            Proyección más probable ({data.mostLikely.probability}%) 
-            <span className={`text-xs px-2 py-1 rounded ${
-              data.confidence.overall === 'high' ? 'bg-success/20 text-success' :
-              data.confidence.overall === 'medium' ? 'bg-warning/20 text-warning' :
-              'bg-destructive/20 text-destructive'
-            }`}>
-              {data.confidence.overall === 'high' ? 'Alta confianza' :
-               data.confidence.overall === 'medium' ? 'Media confianza' : 'Baja confianza'}
-            </span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <span>Proyección más probable ({data.mostLikely.probability}%)</span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <div className="text-xs max-w-sm space-y-1">
+                    <p><strong>Régimen detectado:</strong> {data.regime.type}</p>
+                    <p><strong>Confianza matemática:</strong> {(data.regime.confidence * 100).toFixed(1)}%</p>
+                    {data.regime.adaptiveGuardrails && (
+                      <p><strong>⚙️ Ajustado por guardrails adaptativos</strong></p>
+                    )}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <Badge 
+              variant={
+                data.confidence.overall === 'high' ? 'default' :
+                data.confidence.overall === 'medium' ? 'secondary' : 'destructive'
+              }
+              className="text-xs"
+            >
+              {data.confidence.overall === 'high' ? '🎯 Alta confianza' :
+               data.confidence.overall === 'medium' ? '⚖️ Media confianza' : '⚠️ Baja confianza'}
+            </Badge>
           </div>
         </div>
 
