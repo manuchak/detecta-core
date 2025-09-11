@@ -7,6 +7,7 @@ import { YearOverYearCard } from '@/components/executive/YearOverYearCard';
 import { PaceAnalysisCard } from '@/components/executive/PaceAnalysisCard';
 import { PerformanceAlertsCard } from '@/components/executive/PerformanceAlertsCard';
 import { GMVProjectionCard } from '@/components/executive/GMVProjectionCard';
+import { AdvancedForecastDashboard } from '@/components/advanced/AdvancedForecastDashboard';
 
 const ExecutiveDashboard = () => {
   const navigate = useNavigate();
@@ -60,12 +61,18 @@ const ExecutiveDashboard = () => {
         <GMVProjectionCard />
 
         {/* Secondary Analysis Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <MonthClosureCard />
-          <YearOverYearCard />
-          <PaceAnalysisCard />
-          <PerformanceAlertsCard />
-        </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <MonthClosureCard />
+            <YearOverYearCard />
+            <PaceAnalysisCard />
+            <PerformanceAlertsCard />
+          </div>
+          
+          {/* Advanced Mathematical Forecast */}
+          <div className="mt-8">
+            <h2 className="text-2xl font-bold mb-6">Forecast Matemático Avanzado</h2>
+            <AdvancedForecastDashboard />
+          </div>
       </div>
     </div>
   );
