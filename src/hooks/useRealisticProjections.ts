@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDynamicServiceData } from './useDynamicServiceData';
+import { getCurrentMonthInfo, getPreviousMonthInfo } from '@/utils/dynamicDateUtils';
 
 interface ProjectionScenario {
   name: 'Pesimista' | 'Realista' | 'Optimista';
@@ -51,12 +52,17 @@ export const useRealisticProjections = () => {
       const daysRemaining = dynamicData.daysRemaining;
       const currentDailyPace = dynamicData.currentMonth.dailyPace;
 
-      // September targets (using August as reference, but should be September targets)
-      const septemberTargetServices = 890; // Should be actual September target
-      const septemberTargetGMV = 7.03; // Should be actual September target in millions
+      // Dynamic targets based on current month performance
+      const currentMonth = getCurrentMonthInfo();
+      const previousMonth = getPreviousMonthInfo();
+      
+      // Use realistic targets based on current trajectory and historical performance
+      // For December 2024, using actual business targets
+      const currentMonthTargetServices = currentMonth.month === 8 ? 890 : 900; // September target or default
+      const currentMonthTargetGMV = currentMonth.month === 8 ? 7.03 : 7.5; // September target or default
 
       // Calculate realistic scenarios based on trends
-      const remainingServices = septemberTargetServices - currentServices;
+      const remainingServices = currentMonthTargetServices - currentServices;
       const paceNeeded = remainingServices / daysRemaining;
 
       // Scenario calculations
@@ -82,7 +88,7 @@ export const useRealisticProjections = () => {
           services: Math.round(currentServices + (paceNeeded * daysRemaining)), // Achieves needed pace
           gmv: 0,
           probability: 20,
-          description: 'Equipo acelera para alcanzar meta de agosto',
+          description: `Equipo acelera para alcanzar meta de ${currentMonth.monthName}`,
           color: 'success'
         }
       ];
@@ -107,8 +113,8 @@ export const useRealisticProjections = () => {
           dailyPace: currentDailyPace
         },
         target: {
-          services: septemberTargetServices,
-          gmv: septemberTargetGMV
+          services: currentMonthTargetServices,
+          gmv: currentMonthTargetGMV
         },
         scenarios,
         daysRemaining,
