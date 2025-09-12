@@ -31,10 +31,13 @@ import {
   ArrowUpIcon,
   ArrowDownIcon,
   AlertTriangle,
-  Clock
+  Clock,
+  Download
 } from 'lucide-react';
 import { useClientsData, useClientAnalytics, ClientSummary, useClientMetrics, useClientTableData } from '@/hooks/useClientAnalytics';
 import { Button } from '@/components/ui/button';
+import { exportClientAnalyticsToPDF } from '@/utils/pdfExporter';
+import { toast } from 'sonner';
 
 type DateFilterType = 'current_month' | 'current_quarter' | 'current_year' | 'custom';
 
@@ -78,6 +81,21 @@ export const ClientAnalytics = () => {
   const [sortBy, setSortBy] = useState<string>('gmv');
   const [filterByType, setFilterByType] = useState<string>('all');
   const { data: clientAnalytics, isLoading: analyticsLoading } = useClientAnalytics(selectedClient || '', dateRange);
+
+  const handleDownloadPDF = async () => {
+    try {
+      toast.promise(
+        exportClientAnalyticsToPDF(selectedClient || undefined),
+        {
+          loading: 'Generando reporte PDF...',
+          success: 'Reporte descargado exitosamente',
+          error: 'Error al generar el reporte PDF'
+        }
+      );
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+    }
+  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-MX', {
@@ -135,7 +153,7 @@ export const ClientAnalytics = () => {
 
   if (selectedClient && clientAnalytics) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6" id="client-analytics-content">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -143,7 +161,7 @@ export const ClientAnalytics = () => {
               variant="outline" 
               size="sm" 
               onClick={() => setSelectedClient(null)}
-              className="gap-2"
+              className="gap-2 pdf-ignore"
             >
               <ArrowLeft className="h-4 w-4" />
               Volver a Clientes
@@ -153,6 +171,14 @@ export const ClientAnalytics = () => {
               <p className="text-muted-foreground">Análisis detallado de performance</p>
             </div>
           </div>
+          <Button 
+            onClick={handleDownloadPDF}
+            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground pdf-ignore"
+            size="sm"
+          >
+            <Download className="h-4 w-4" />
+            Descargar PDF
+          </Button>
         </div>
 
         {/* Key Metrics */}
@@ -321,7 +347,7 @@ export const ClientAnalytics = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" id="client-analytics-content">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -331,14 +357,24 @@ export const ClientAnalytics = () => {
             {dateFilterType === 'current_month' && <span className="text-orange-600 ml-2">(datos con 1 día de retraso)</span>}
           </p>
         </div>
-        <Button 
-          onClick={() => window.location.reload()} 
-          variant="outline"
-          className="gap-2"
-        >
-          <TrendingUp className="h-4 w-4" />
-          Actualizar
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            onClick={handleDownloadPDF}
+            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground pdf-ignore"
+            size="sm"
+          >
+            <Download className="h-4 w-4" />
+            Descargar PDF
+          </Button>
+          <Button 
+            onClick={() => window.location.reload()} 
+            variant="outline"
+            className="gap-2 pdf-ignore"
+          >
+            <TrendingUp className="h-4 w-4" />
+            Actualizar
+          </Button>
+        </div>
       </div>
 
       {/* Date Filter Controls */}
