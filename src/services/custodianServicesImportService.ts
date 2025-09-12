@@ -242,6 +242,10 @@ export const getCustodianServicesDefaultMapping = (): Record<string, string> => 
     'Comentarios': 'comentarios_adicionales',
     'COMENTARIOS_ADICIONALES': 'comentarios_adicionales',
     'observaciones': 'comentarios_adicionales',
-    'notas': 'comentarios_adicionales'
+    'notas': 'comentarios_adicionales',
+    'fecha_contratacion': 'fecha_hora_cita',
+    'Fecha Contratación': 'fecha_hora_cita',
+    'FECHA_CONTRATACION': 'fecha_hora_cita',
+    'contratacion': 'fecha_hora_cita'
   };
 };

@@ -115,6 +115,28 @@ export const parseRobustDate = (value: any): DateParsingResult => {
           return result;
         }
       }
+
+      // Handle "DD/MM/YYYY HH:MM" format  
+      const ddslashmmyyyyTimeMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+      if (ddslashmmyyyyTimeMatch) {
+        const [, day, month, year, hour, minute, second] = ddslashmmyyyyTimeMatch;
+        const date = new Date(
+          parseInt(year), 
+          parseInt(month) - 1, 
+          parseInt(day), 
+          parseInt(hour), 
+          parseInt(minute),
+          parseInt(second || '0')
+        );
+        
+        if (!isNaN(date.getTime()) && date.getFullYear() > 1980) {
+          result.success = true;
+          result.parsedDate = date;
+          result.isoString = date.toISOString();
+          result.format = 'DD/MM/YYYY HH:MM';
+          return result;
+        }
+      }
     }
 
     // Handle Excel serial numbers

@@ -27,6 +27,11 @@ import {
   CustodianServiceImportProgress,
   getCustodianServicesDefaultMapping 
 } from '@/services/custodianServicesImportService';
+import { 
+  validateDateArrayWithFeedback, 
+  getSupportedDateFormats,
+  DateValidationInfo 
+} from '@/utils/dateValidationUtils';
 import { toast } from 'sonner';
 
 interface CustodianServicesImportWizardProps {
@@ -44,6 +49,7 @@ interface WizardState {
   mapping: MappingConfig;
   progress: CustodianServiceImportProgress | null;
   results: CustodianServiceImportResult | null;
+  dateValidation: DateValidationInfo[] | null;
 }
 
 export const CustodianServicesImportWizard: React.FC<CustodianServicesImportWizardProps> = ({
@@ -57,7 +63,8 @@ export const CustodianServicesImportWizard: React.FC<CustodianServicesImportWiza
     excelData: null,
     mapping: {},
     progress: null,
-    results: null
+    results: null,
+    dateValidation: null
   });
 
   const handleFileUpload = async (file: File) => {
@@ -79,12 +86,22 @@ export const CustodianServicesImportWizard: React.FC<CustodianServicesImportWiza
         }
       });
 
+      // Validate dates in fecha_hora_cita if mapped
+      let dateValidation = null;
+      const fechaHoraCitaColumn = Object.keys(mapping).find(key => mapping[key] === 'fecha_hora_cita');
+      if (fechaHoraCitaColumn) {
+        const dateValues = excelData.rows.map(row => row[fechaHoraCitaColumn]);
+        const validationResult = validateDateArrayWithFeedback(dateValues);
+        dateValidation = validationResult.validations;
+      }
+
       setState(prev => ({
         ...prev,
         step: 'preview',
         file,
         excelData,
-        mapping
+        mapping,
+        dateValidation
       }));
     } catch (error) {
       toast.error(`Error al procesar archivo: ${error instanceof Error ? error.message : 'Error desconocido'}`);
@@ -149,7 +166,8 @@ export const CustodianServicesImportWizard: React.FC<CustodianServicesImportWiza
       excelData: null,
       mapping: {},
       progress: null,
-      results: null
+      results: null,
+      dateValidation: null
     });
     onOpenChange(false);
     if (state.results?.success) {
@@ -190,6 +208,8 @@ export const CustodianServicesImportWizard: React.FC<CustodianServicesImportWiza
           <strong>Campos requeridos:</strong> ID Servicio, Nombre Cliente, Origen, Destino.
           <br />
           <strong>Funcionalidad:</strong> Los registros existentes serán actualizados, los nuevos serán insertados (UPSERT).
+          <br />
+          <strong>Formatos de fecha soportados:</strong> YYYY-MM-DD HH:MM, DD/MM/YYYY, DD-MM-YYYY HH:MM (transformación automática)
         </AlertDescription>
       </Alert>
     </div>
@@ -251,6 +271,50 @@ export const CustodianServicesImportWizard: React.FC<CustodianServicesImportWiza
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Date Validation Summary */}
+      {state.dateValidation && (
+        <div className="border rounded-lg overflow-hidden">
+          <div className="bg-muted p-4">
+            <h4 className="font-medium mb-2">Validación de Fechas (fecha_hora_cita)</h4>
+            <div className="space-y-2">
+              {/* Summary stats */}
+              <div className="flex gap-4 text-sm">
+                <span className="flex items-center gap-1">
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  Válidas: {state.dateValidation.filter(v => v.isValid).length}
+                </span>
+                <span className="flex items-center gap-1">
+                  <XCircle className="w-4 h-4 text-red-600" />
+                  Errores: {state.dateValidation.filter(v => !v.isValid).length}
+                </span>
+                <span className="flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4 text-blue-600" />
+                  Se convertirán: {state.dateValidation.filter(v => v.willBeTransformed).length}
+                </span>
+              </div>
+              
+              {/* Show examples of transformations */}
+              {state.dateValidation.filter(v => v.willBeTransformed).slice(0, 3).map((validation, idx) => (
+                <div key={idx} className="text-xs bg-blue-50 dark:bg-blue-950 p-2 rounded border-l-2 border-blue-500">
+                  <span className="font-mono">{validation.originalValue}</span>
+                  <span className="text-muted-foreground mx-2">→</span>
+                  <span className="font-mono">{validation.transformedValue?.split('T')[0]} {validation.transformedValue?.split('T')[1]?.split('.')[0]}</span>
+                  <div className="text-blue-600 mt-1">{validation.message}</div>
+                </div>
+              ))}
+              
+              {/* Show errors if any */}
+              {state.dateValidation.filter(v => !v.isValid).slice(0, 2).map((validation, idx) => (
+                <div key={idx} className="text-xs bg-red-50 dark:bg-red-950 p-2 rounded border-l-2 border-red-500">
+                  <span className="font-mono">{validation.originalValue}</span>
+                  <div className="text-red-600 mt-1">{validation.message}</div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
