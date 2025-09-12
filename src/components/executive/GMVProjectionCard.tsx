@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useRealisticProjectionsWithGuardrails } from '@/hooks/useRealisticProjectionsWithGuardrails';
 import { usePreviousMonthData } from '@/hooks/usePreviousMonthData';
-import { Loader2, TrendingUp, Target, DollarSign, AlertTriangle, Brain, Activity } from 'lucide-react';
+import { Loader2, TrendingUp, Target, DollarSign, AlertTriangle, Brain, Activity, CheckCircle } from 'lucide-react';
 import { getPaceStatus, getStatusTextColor } from '@/utils/paceStatus';
 import { getCurrentMonthInfo, getDaysRemainingInMonth, formatMonthlyQuestion, getPreviousMonthName, capitalize } from '@/utils/dynamicDateUtils';
 import { useMemo } from 'react';
@@ -199,22 +199,23 @@ export const GMVProjectionCard = () => {
           </div>
         </div>
 
-        {/* Confidence & Warnings */}
+        {/* Success or Risk Alert */}
         <div className={`p-3 rounded-lg border ${
-          data.confidence.overall === 'high' ? 'bg-success/10 border-success/20' :
-          data.confidence.overall === 'medium' ? 'bg-warning/10 border-warning/20' :
-          'bg-destructive/10 border-destructive/20'
+          calculations.mostLikelyGMV >= previousMonthData.gmv ? 'bg-success/10 border-success/20' : 'bg-destructive/10 border-destructive/20'
         }`}>
           <div className={`flex items-start gap-2 ${
-            data.confidence.overall === 'high' ? 'text-success' :
-            data.confidence.overall === 'medium' ? 'text-warning' : 'text-destructive'
+            calculations.mostLikelyGMV >= previousMonthData.gmv ? 'text-success' : 'text-destructive'
           }`}>
-            <AlertTriangle className="h-4 w-4 mt-0.5" />
+            {calculations.mostLikelyGMV >= previousMonthData.gmv ? (
+              <CheckCircle className="h-4 w-4 mt-0.5" />
+            ) : (
+              <AlertTriangle className="h-4 w-4 mt-0.5" />
+            )}
             <div className="space-y-1">
               <div className="font-medium">
                 {calculations.mostLikelyGMV < previousMonthData.gmv ? 
                   `Riesgo: faltarían $${(previousMonthData.gmv - calculations.mostLikelyGMV).toFixed(1)}M para superar ${previousMonthData.month}. Necesitas ${data.insights.paceNeeded} servicios/día vs ${data.current.dailyPace.toFixed(1)} actual.` :
-                  `En camino de superar ${previousMonthData.month} por $${(calculations.mostLikelyGMV - previousMonthData.gmv).toFixed(1)}M`
+                  `🎯 En camino de superar ${previousMonthData.month} por $${(calculations.mostLikelyGMV - previousMonthData.gmv).toFixed(1)}M`
                 }
               </div>
               {data.confidence.warnings.length > 0 && (
