@@ -119,7 +119,7 @@ export const validateDataBeforeImport = async (
   }
 
   // 6. Enhanced date format validation using robust parsing
-  const dateFields = ['fecha_hora_cita', 'created_at'];
+  const dateFields = ['fecha_hora_cita', 'created_at', 'fecha_contratacion'];
   dateFields.forEach(dbField => {
     const csvField = Object.keys(mapping).find(key => mapping[key] === dbField);
     if (csvField) {

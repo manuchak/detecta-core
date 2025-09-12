@@ -88,7 +88,7 @@ const buildUpdateData = (item: any, fechaCitaResult: any, createdAtResult: any, 
 };
 
 // Build data object for inserting new records (with defaults for empty fields)
-const buildInsertData = (item: any, fechaCitaResult: any, createdAtResult: any) => {
+const buildInsertData = (item: any, fechaCitaResult: any, createdAtResult: any, fechaContratacionResult: any) => {
   return {
     id_servicio: item.id_servicio,
     nombre_cliente: item.nombre_cliente || '',
@@ -97,6 +97,7 @@ const buildInsertData = (item: any, fechaCitaResult: any, createdAtResult: any) 
     origen: item.origen || '',
     destino: item.destino || '',
     fecha_hora_cita: fechaCitaResult.isoString || null,
+    fecha_contratacion: fechaContratacionResult.isoString || null,
     estado: item.estado || 'pendiente',
     tipo_servicio: item.tipo_servicio || 'traslado',
     nombre_custodio: item.nombre_custodio || '',
@@ -177,6 +178,7 @@ export const importCustodianServices = async (
             // Parse and validate dates using robust parsing
             const fechaCitaResult = parseRobustDate(item.fecha_hora_cita);
             const createdAtResult = parseRobustDate(item.created_at);
+            const fechaContratacionResult = parseRobustDate(item.fecha_contratacion);
             
             // Log date parsing results for debugging
             if (item.fecha_hora_cita) {
@@ -198,6 +200,14 @@ export const importCustodianServices = async (
               }
             }
 
+            if (item.fecha_contratacion) {
+              console.log(`Date parsing for record ${current} (fecha_contratacion):`, formatDateParsingResult(fechaContratacionResult));
+              
+              if (!fechaContratacionResult.success) {
+                result.warnings.push(`Registro ${current}: Error en fecha_contratacion - ${fechaContratacionResult.error}`);
+              }
+            }
+
             // Check if record exists first to determine operation type
             const { data: existingRecord } = await supabase
               .from('servicios_custodia')
@@ -208,8 +218,8 @@ export const importCustodianServices = async (
             // Prepare data based on operation type
             const isUpdate = !!existingRecord;
             const servicioData = isUpdate 
-              ? buildUpdateData(item, fechaCitaResult, createdAtResult)
-              : buildInsertData(item, fechaCitaResult, createdAtResult);
+              ? buildUpdateData(item, fechaCitaResult, createdAtResult, fechaContratacionResult)
+              : buildInsertData(item, fechaCitaResult, createdAtResult, fechaContratacionResult);
 
             // Enhanced logging
             if (isUpdate) {
@@ -345,9 +355,9 @@ export const getCustodianServicesDefaultMapping = (): Record<string, string> => 
     'COMENTARIOS_ADICIONALES': 'comentarios_adicionales',
     'observaciones': 'comentarios_adicionales',
     'notas': 'comentarios_adicionales',
-    'fecha_contratacion': 'fecha_hora_cita',
-    'Fecha Contratación': 'fecha_hora_cita',
-    'FECHA_CONTRATACION': 'fecha_hora_cita',
-    'contratacion': 'fecha_hora_cita'
+    'fecha_contratacion': 'fecha_contratacion',
+    'Fecha Contratación': 'fecha_contratacion',
+    'FECHA_CONTRATACION': 'fecha_contratacion',
+    'contratacion': 'fecha_contratacion'
   };
 };
