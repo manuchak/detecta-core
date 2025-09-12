@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { UserPlus, X, Users } from "lucide-react";
 import { Lead } from "@/types/leadTypes";
 import { LeadAssignmentDialog } from "./LeadAssignmentDialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface BulkActionsToolbarProps {
   selectedLeads: Lead[];
@@ -18,8 +19,10 @@ export const BulkActionsToolbar = ({
   onBulkAssignmentComplete 
 }: BulkActionsToolbarProps) => {
   const [showBulkAssignmentDialog, setShowBulkAssignmentDialog] = useState(false);
+  const { permissions } = useAuth();
 
-  if (selectedLeads.length === 0) return null;
+  // Ocultar completamente para roles sin edición
+  if (!permissions.canEditLeads || selectedLeads.length === 0) return null;
 
   const unassignedCount = selectedLeads.filter(lead => !lead.asignado_a).length;
   const assignedCount = selectedLeads.length - unassignedCount;

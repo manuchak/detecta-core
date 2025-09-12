@@ -231,23 +231,23 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
       path: "/dashboard",
     }] : []),
 
-    // Leads - principal funcionalidad - Supply Admin tiene acceso completo
-    ...(hasAnySkill(['leads_management', 'leads_approval', 'custodio_tracking_only']) || isAdminUser || ['supply_admin', 'admin', 'owner'].includes(userRole || '') ? [{
+    // Leads - principal funcionalidad - Supply Admin y Supply Lead tienen acceso (mismos menús, sin asignación)
+    ...(hasAnySkill(['leads_management', 'leads_approval', 'custodio_tracking_only']) || isAdminUser || ['supply_admin', 'supply_lead', 'admin', 'owner'].includes(userRole || '') ? [{
       title: "Candidatos",
       icon: Users,
       path: "/leads",
       subItems: [
         { title: "Lista de Candidatos", path: "/leads" },
-        // Supply admin tiene acceso a aprobaciones
-        ...(hasSkill('leads_approval') || isAdminUser || ['supply_admin', 'admin', 'owner'].includes(userRole || '') ? [
+        // Aprobaciones disponibles para supply_admin/lead y admins
+        ...(hasSkill('leads_approval') || isAdminUser || ['supply_admin', 'supply_lead', 'admin', 'owner'].includes(userRole || '') ? [
           { title: "Aprobaciones", path: "/leads/approvals" }
         ] : []),
         // Estrategia Nacional - solo para coordinadores y administradores
         ...(userRole === 'admin' || userRole === 'owner' || userRole === 'manager' || userRole === 'coordinador_operaciones' ? [
           { title: "Estrategia Nacional", path: "/recruitment-strategy" }
         ] : []),
-        // Evaluación SIERCP - solo para admin, owner, supply_admin
-        ...(userRole === 'admin' || userRole === 'owner' || userRole === 'supply_admin' ? [
+        // Evaluación SIERCP - igual que supply_admin en el menú
+        ...(userRole === 'admin' || userRole === 'owner' || userRole === 'supply_admin' || userRole === 'supply_lead' ? [
           { title: "Evaluación SIERCP", path: "/evaluation/siercp" },
           { title: "Metodología SIERCP", path: "/evaluation/siercp/methodology" }
         ] : []),

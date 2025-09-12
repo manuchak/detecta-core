@@ -27,6 +27,7 @@ import { BulkActionsToolbar } from "./BulkActionsToolbar";
 import { AdvancedFilters, AdvancedFiltersState } from "./AdvancedFilters";
 import { QuickFilters, QuickFilterPreset } from "./QuickFilters";
 import { LeadDetailsDialog } from "./LeadDetailsDialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface LeadsTableProps {
   onEditLead?: (lead: Lead) => void;
@@ -87,7 +88,6 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     error, 
     canAccess, 
     accessReason, 
-    permissions, 
     refetch,
     clearCache
   } = useSimpleLeads({
@@ -95,6 +95,9 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     pagination: { page: currentPage, pageSize: 1000 }, // Aumentado para mostrar más candidatos
     enableCache: true
   });
+
+  // Permisos reales desde AuthContext
+  const { permissions: authPermissions } = useAuth();
 
   // ALL CALLBACK HOOKS
   const handleAdvancedFiltersChange = useCallback((newFilters: AdvancedFiltersState) => {
@@ -344,11 +347,13 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         onResetFilters={handleResetFilters}
       />
 
-      <BulkActionsToolbar 
-        selectedLeads={selectedLeads}
-        onClearSelection={handleClearSelection}
-        onBulkAssignmentComplete={refetch}
-      />
+      {authPermissions.canEditLeads && (
+        <BulkActionsToolbar 
+          selectedLeads={selectedLeads}
+          onClearSelection={handleClearSelection}
+          onBulkAssignmentComplete={refetch}
+        />
+      )}
 
       <div className="flex gap-4 items-center">
         <div className="relative flex-1">
@@ -410,10 +415,12 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
           <TableHeader>
             <TableRow>
               <TableHead className="w-12">
-                <Checkbox
-                  checked={allFilteredSelected}
-                  onCheckedChange={handleSelectAll}
-                />
+                {authPermissions.canEditLeads ? (
+                  <Checkbox
+                    checked={allFilteredSelected}
+                    onCheckedChange={handleSelectAll}
+                  />
+                ) : null}
               </TableHead>
               <TableHead>Nombre</TableHead>
               <TableHead>Email</TableHead>
@@ -434,10 +441,12 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
             return (
               <TableRow key={lead.id} className={rowClass}>
                 <TableCell>
-                  <Checkbox
-                    checked={isLeadSelected(lead.id)}
-                    onCheckedChange={(checked) => handleSelectLead(lead, checked as boolean)}
-                  />
+                  {authPermissions.canEditLeads ? (
+                    <Checkbox
+                      checked={isLeadSelected(lead.id)}
+                      onCheckedChange={(checked) => handleSelectLead(lead, checked as boolean)}
+                    />
+                  ) : null}
                 </TableCell>
                 <TableCell className="font-medium">{lead.nombre}</TableCell>
                 <TableCell>{lead.email}</TableCell>

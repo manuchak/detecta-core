@@ -133,12 +133,12 @@ const Home = () => {
       });
     }
 
-    // Candidatos para supply_lead - su foco principal de trabajo
-    if (['supply_lead'].includes(userRole || '')) {
+    // Candidatos para supply_lead y supply_admin - foco principal de trabajo
+    if (['supply_lead', 'supply_admin'].includes(userRole || '')) {
       roleSpecificActions.push({
         title: 'Gestión de Candidatos',
         icon: Users,
-        href: '/',
+        href: '/leads',
         description: 'Administrar candidatos, entrevistas y aprobaciones',
         color: 'bg-emerald-50 text-emerald-600 border-emerald-100',
         featured: true

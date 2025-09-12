@@ -42,8 +42,8 @@ const SimpleLeadsPage = () => {
     });
   }, []);
 
-  // Roles permitidos para ver leads
-  const allowedRoles = ['admin', 'owner', 'supply_admin', 'ejecutivo_ventas'];
+  // Roles permitidos para ver leads (incluye supply_lead como lead admin)
+  const allowedRoles = ['admin', 'owner', 'supply_admin', 'supply_lead', 'ejecutivo_ventas'];
   const hasAccess = userRole && allowedRoles.includes(userRole);
 
   if (loading) {
