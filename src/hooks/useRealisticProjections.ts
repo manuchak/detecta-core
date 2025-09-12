@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDynamicServiceData } from './useDynamicServiceData';
 import { getCurrentMonthInfo, getPreviousMonthInfo } from '@/utils/dynamicDateUtils';
+import { analyzeWeekdaySeasonality, calculateWeekdayAdjustedProjection } from '@/utils/weekdaySeasonalityAnalysis';
 
 interface ProjectionScenario {
   name: 'Pesimista' | 'Realista' | 'Optimista';
@@ -44,7 +45,9 @@ export const useRealisticProjections = () => {
       if (!user) throw new Error('Usuario no autenticado');
       if (!dynamicData) throw new Error('Dynamic data not available');
 
-      // Use dynamic data instead of hardcoded values
+      console.log('🎯 PROYECCIONES REALISTAS CON ESTACIONALIDAD - Iniciando análisis...');
+
+      // Use dynamic data instead of hardcoded values (corrected for data lag)
       const currentServices = dynamicData.currentMonth.services;
       const currentAOV = dynamicData.currentMonth.aov;
       const currentGMV = dynamicData.currentMonth.gmv;
@@ -52,53 +55,61 @@ export const useRealisticProjections = () => {
       const daysRemaining = dynamicData.daysRemaining;
       const currentDailyPace = dynamicData.currentMonth.dailyPace;
 
+      // Get weekday seasonality analysis
+      const weekdayPattern = await analyzeWeekdaySeasonality();
+      const seasonalProjection = await calculateWeekdayAdjustedProjection(weekdayPattern);
+
+      console.log('📊 Proyección estacional vs simple:', {
+        seasonalProjection: `$${(seasonalProjection.totalProjectedGMV/1000000).toFixed(2)}M`,
+        simpleLinearProjection: `$${(currentGMV * 30 / daysElapsed).toFixed(2)}M`,
+        confidence: seasonalProjection.confidence
+      });
+
       // Dynamic targets based on current month performance
       const currentMonth = getCurrentMonthInfo();
       const previousMonth = getPreviousMonthInfo();
       
-      // Calculate dynamic targets based on historical performance (last 3 months weighted average)
-      // Base target on current trajectory with realistic growth expectations
-      const baseTarget = Math.max(currentServices, currentDailyPace * (daysElapsed + daysRemaining));
-      const currentMonthTargetServices = Math.round(baseTarget * 1.15); // 15% growth target
-      const currentMonthTargetGMV = (currentMonthTargetServices * currentAOV) / 1000000; // Use current AOV, not outdated
+      // Use seasonal projection as base for more accurate targeting
+      const seasonalProjectedServices = Math.round(seasonalProjection.totalProjectedGMV / currentAOV);
+      const baseTarget = Math.max(seasonalProjectedServices, currentDailyPace * (daysElapsed + daysRemaining));
+      const currentMonthTargetServices = Math.round(baseTarget * 1.10); // 10% growth target (more realistic)
+      const currentMonthTargetGMV = seasonalProjection.totalProjectedGMV / 1000000; // Use seasonal projection
 
-      // Calculate realistic scenarios based on trends
+      // Calculate realistic scenarios based on seasonal analysis
       const remainingServices = currentMonthTargetServices - currentServices;
       const paceNeeded = remainingServices / daysRemaining;
 
-      // Scenario calculations
+      // Enhanced scenario calculations using weekday patterns
+      const weekdayAvgGMV = (weekdayPattern.monday.gmv + weekdayPattern.tuesday.gmv + 
+        weekdayPattern.wednesday.gmv + weekdayPattern.thursday.gmv + weekdayPattern.friday.gmv) / 5;
+      const weekendAvgGMV = (weekdayPattern.saturday.gmv + weekdayPattern.sunday.gmv) / 2;
+
       const scenarios: ProjectionScenario[] = [
         {
           name: 'Pesimista',
-          services: Math.round(currentServices + (currentDailyPace * 0.85 * daysRemaining)), // Pace declines 15%
-          gmv: 0,
-          probability: 30,
-          description: 'Ritmo actual declina por fatiga del equipo',
+          services: Math.round(currentServices + (currentDailyPace * 0.90 * daysRemaining)), // 10% decline
+          gmv: seasonalProjection.totalProjectedGMV * 0.92 / 1000000, // 8% below seasonal projection
+          probability: 25,
+          description: 'Ritmo declina, fines de semana débiles',
           color: 'destructive'
         },
         {
           name: 'Realista',
-          services: Math.round(currentServices + (currentDailyPace * 0.95 * daysRemaining)), // Pace slightly declines 5%
-          gmv: 0,
-          probability: 50,
-          description: 'Ritmo se mantiene con ligero declive natural',
+          services: Math.round(seasonalProjection.totalProjectedGMV / currentAOV),
+          gmv: seasonalProjection.totalProjectedGMV / 1000000,
+          probability: 60,
+          description: 'Sigue patrones estacionales históricos',
           color: 'warning'
         },
         {
           name: 'Optimista',
-          services: Math.round(currentServices + (paceNeeded * daysRemaining)), // Achieves needed pace
-          gmv: 0,
-          probability: 20,
-          description: `Equipo acelera para alcanzar meta de ${currentMonth.monthName}`,
+          services: Math.round(seasonalProjection.totalProjectedGMV * 1.08 / currentAOV), // 8% above seasonal
+          gmv: seasonalProjection.totalProjectedGMV * 1.08 / 1000000,
+          probability: 15,
+          description: 'Supera patrones, fuerte momentum weekdays',
           color: 'success'
         }
       ];
-
-      // Calculate GMV for each scenario (with slight AOV decline trend)
-      scenarios.forEach(scenario => {
-        const projectedAOV = currentAOV * 0.98; // 2% AOV decline trend observed
-        scenario.gmv = (scenario.services * projectedAOV) / 1000000;
-      });
 
       // Find most likely scenario (highest probability)
       const mostLikely = scenarios.reduce((prev, current) => 
@@ -122,8 +133,9 @@ export const useRealisticProjections = () => {
         mostLikely,
         insights: {
           paceNeeded: Math.round(paceNeeded * 100) / 100,
-          currentTrend: currentDailyPace < paceNeeded ? 'declining' : 'stable',
-          aovTrend: 'declining' // Based on observed data
+          currentTrend: currentDailyPace >= weekdayAvgGMV / currentAOV ? 'growing' : 
+                       currentDailyPace >= weekdayAvgGMV * 0.9 / currentAOV ? 'stable' : 'declining',
+          aovTrend: currentAOV > 6500 ? 'growing' : currentAOV > 6300 ? 'stable' : 'declining'
         }
       };
     },

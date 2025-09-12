@@ -40,10 +40,12 @@ export const useDynamicServiceData = () => {
     async (): Promise<DynamicServiceData> => {
       
       // Get current date info - Use actual current month/year dynamically
+      // IMPORTANT: Data has 1-day lag, so if today is Sept 11, we only have data until Sept 10
       const now = new Date();
       const currentYear = now.getFullYear(); // 2025 for current year
       const currentMonth = now.getMonth() + 1; // September = 9 (RPC uses 1-12)
-      const currentDay = now.getDate();
+      const actualDataDay = now.getDate() - 1; // Correct for 1-day data lag
+      const currentDay = Math.max(1, actualDataDay); // Ensure minimum day 1
       const daysInMonth = new Date(currentYear, currentMonth, 0).getDate(); // Dynamic days in month
       const daysRemaining = daysInMonth - currentDay;
 
