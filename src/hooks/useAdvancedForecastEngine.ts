@@ -114,12 +114,15 @@ export const useAdvancedForecastEngine = () => {
       
       console.log('🔍 Obteniendo datos actuales para:', { currentYear, currentMonth, currentDay });
       
-      // Obtener servicios del mes actual
+      // Obtener servicios del mes actual (excluyendo cancelados)
       const { data: serviciosData, error: serviciosError } = await supabase
         .from('servicios_custodia')
-        .select('id, fecha_hora_cita')
+        .select('id, fecha_hora_cita, estado')
         .gte('fecha_hora_cita', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
-        .lt('fecha_hora_cita', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+        .lt('fecha_hora_cita', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`)
+        .not('estado', 'ilike', '%cancelado%')
+        .not('estado', 'ilike', '%cancelled%')
+        .not('estado', 'ilike', '%canceled%');
 
       if (serviciosError) throw serviciosError;
 
