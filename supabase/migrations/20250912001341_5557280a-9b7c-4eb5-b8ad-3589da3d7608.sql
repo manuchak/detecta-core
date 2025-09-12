@@ -1,0 +1,79 @@
+-- Update the exact YTD function to exclude cancelled services and improve filtering
+CREATE OR REPLACE FUNCTION public.get_ytd_by_exact_dates(
+  start_date_current date,
+  end_date_current date,
+  start_date_previous date,
+  end_date_previous date
+)
+RETURNS TABLE(
+  current_year integer,
+  current_services integer,
+  current_gmv numeric,
+  previous_year integer,
+  previous_services integer,
+  previous_gmv numeric
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+BEGIN
+  RETURN QUERY
+  WITH current_period AS (
+    SELECT 
+      EXTRACT(YEAR FROM start_date_current)::integer as year,
+      COUNT(*)::integer as services,
+      COALESCE(SUM(CASE WHEN cobro_cliente > 0 THEN cobro_cliente ELSE 0 END), 0) as gmv
+    FROM servicios_custodia 
+    WHERE fecha_hora_cita >= start_date_current::timestamp with time zone
+      AND fecha_hora_cita <= (end_date_current + interval '1 day')::timestamp with time zone
+      AND estado IS NOT NULL
+      AND LOWER(TRIM(COALESCE(estado, ''))) NOT IN ('cancelado', 'cancelled', 'canceled')
+  ),
+  previous_period AS (
+    SELECT 
+      EXTRACT(YEAR FROM start_date_previous)::integer as year,
+      COUNT(*)::integer as services,
+      COALESCE(SUM(CASE WHEN cobro_cliente > 0 THEN cobro_cliente ELSE 0 END), 0) as gmv
+    FROM servicios_custodia 
+    WHERE fecha_hora_cita >= start_date_previous::timestamp with time zone
+      AND fecha_hora_cita <= (end_date_previous + interval '1 day')::timestamp with time zone
+      AND estado IS NOT NULL
+      AND LOWER(TRIM(COALESCE(estado, ''))) NOT IN ('cancelado', 'cancelled', 'canceled')
+  )
+  SELECT 
+    cp.year as current_year,
+    cp.services as current_services,
+    cp.gmv as current_gmv,
+    pp.year as previous_year,
+    pp.services as previous_services,
+    pp.gmv as previous_gmv
+  FROM current_period cp
+  CROSS JOIN previous_period pp;
+END;
+$function$
+
+-- Update the historical monthly data function to exclude cancelled services
+CREATE OR REPLACE FUNCTION public.get_historical_monthly_data()
+ RETURNS TABLE(year integer, month integer, services integer, gmv numeric, services_completed integer)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    EXTRACT(YEAR FROM fecha_hora_cita)::integer as year,
+    EXTRACT(MONTH FROM fecha_hora_cita)::integer as month,
+    COUNT(*)::integer as services,
+    COALESCE(SUM(CASE WHEN cobro_cliente > 0 THEN cobro_cliente ELSE 0 END), 0) as gmv,
+    COUNT(*) FILTER (WHERE LOWER(TRIM(COALESCE(estado, ''))) IN ('finalizado', 'completado'))::integer as services_completed
+  FROM servicios_custodia 
+  WHERE fecha_hora_cita IS NOT NULL 
+    AND fecha_hora_cita >= '2023-01-01'
+    AND estado IS NOT NULL
+    AND LOWER(TRIM(COALESCE(estado, ''))) NOT IN ('cancelado', 'cancelled', 'canceled')
+  GROUP BY EXTRACT(YEAR FROM fecha_hora_cita), EXTRACT(MONTH FROM fecha_hora_cita)
+  ORDER BY year, month;
+END;
+$function$
