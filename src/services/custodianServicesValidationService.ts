@@ -1,3 +1,4 @@
+import { parseRobustDate } from '@/utils/dateUtils';
 export interface ValidationResult {
   isValid: boolean;
   errors: string[];
@@ -47,6 +48,9 @@ export const validateCustodianServicesData = (
 
   duplicateIds.push(...Array.from(duplicatedIds));
 
+  // Count of dates that will be auto-converted (valid but not in preferred format)
+  let convertibleDates = 0;
+
   // Validaciones específicas por fila
   data.forEach((row, index) => {
     const rowNum = index + 1;
@@ -71,15 +75,19 @@ export const validateCustodianServicesData = (
       
       if (value !== null && value !== undefined && String(value).trim() !== '') {
         // Validar fechas
-        if (dbField.includes('fecha') || dbField.includes('hora')) {
-          const dateValue = new Date(value);
-          if (isNaN(dateValue.getTime()) && !String(value).match(/^\d+\.?\d*$/)) {
+        if (dbField && (dbField.includes('fecha') || dbField.includes('hora'))) {
+          const parsed = parseRobustDate(value);
+          if (!parsed.success) {
             invalidData.push({
               row: rowNum,
               field: dbField,
-              value: value,
-              reason: 'Formato de fecha inválido'
+              value,
+              reason: parsed.error || 'Formato de fecha inválido'
             });
+          } else {
+            if (parsed.format && parsed.format !== 'ISO String' && parsed.format !== 'YYYY-MM-DD HH:MM') {
+              convertibleDates++;
+            }
           }
         }
 
@@ -106,6 +114,10 @@ export const validateCustodianServicesData = (
 
   if (invalidData.length > 0) {
     warnings.push(`Se encontraron ${invalidData.length} campos con datos inválidos`);
+  }
+
+  if (convertibleDates > 0) {
+    warnings.push(`Se detectaron ${convertibleDates} fechas en formato no preferido; se convertirán automáticamente`);
   }
 
   return {

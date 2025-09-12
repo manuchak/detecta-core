@@ -31,7 +31,7 @@ const hasValidValue = (value: any, type: 'string' | 'number' | 'date' = 'string'
 };
 
 // Build data object for updating existing records (only include valid CSV values)
-const buildUpdateData = (item: any, fechaCitaResult: any, createdAtResult: any) => {
+const buildUpdateData = (item: any, fechaCitaResult: any, createdAtResult: any, fechaContratacionResult: any) => {
   const updateData: any = {
     id_servicio: item.id_servicio, // Always include for WHERE clause
     updated_time: new Date().toISOString() // Always update timestamp
@@ -55,6 +55,9 @@ const buildUpdateData = (item: any, fechaCitaResult: any, createdAtResult: any) 
   }
   if (fechaCitaResult.success && fechaCitaResult.isoString) {
     updateData.fecha_hora_cita = fechaCitaResult.isoString;
+  }
+  if (fechaContratacionResult.success && fechaContratacionResult.isoString) {
+    updateData.fecha_contratacion = fechaContratacionResult.isoString;
   }
   if (hasValidValue(item.estado, 'string')) {
     updateData.estado = item.estado;

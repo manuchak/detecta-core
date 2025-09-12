@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { useTabVisibility } from '@/hooks/useTabVisibility';
+import { parseRobustDate } from '@/utils/dateUtils';
 
 interface ImportWizardEnhancedProps {
   open: boolean;
