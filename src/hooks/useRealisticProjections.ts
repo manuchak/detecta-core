@@ -129,7 +129,7 @@ export const useRealisticProjections = () => {
           gmv: currentMonthTargetGMV
         },
         scenarios,
-        daysRemaining,
+        daysRemaining: daysRemaining || 0, // Add defensive programming
         mostLikely,
         insights: {
           paceNeeded: Math.round(paceNeeded * 100) / 100,
