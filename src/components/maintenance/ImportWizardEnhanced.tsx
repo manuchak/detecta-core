@@ -160,11 +160,14 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
         return transformed;
       });
 
-      // Early validation before starting import
+      // Early validation before starting import - use original CSV data and reversed mapping
       console.log('🔍 Running early validation...');
-      const earlyValidation = await validateDataBeforeImport(transformedData, 
-        Object.fromEntries(Object.entries(state.mapping).filter(([_, db]) => db !== 'unmapped'))
+      const mappingDbToCsv = Object.fromEntries(
+        Object.entries(state.mapping)
+          .filter(([_, db]) => db !== 'unmapped' && db)
+          .map(([csv, db]) => [db, csv])
       );
+      const earlyValidation = await validateDataBeforeImport(state.parsedData, mappingDbToCsv);
 
       if (!earlyValidation.isValid) {
         toast.error(`Validación fallida: ${earlyValidation.errors.join(', ')}`);
