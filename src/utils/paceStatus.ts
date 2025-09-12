@@ -19,8 +19,8 @@ export const getPaceStatus = (current: number, required: number): StatusConfig =
   
   const ratio = current / required;
   
-  if (ratio >= 1.1) {
-    // 10%+ above target = exceeding
+  if (ratio >= 1.0) {
+    // At target or above = exceeding (success)
     return { status: 'exceeding', color: 'success', icon: 'check' };
   } else if (ratio >= 0.95) {
     // Within 5% of target = on track
