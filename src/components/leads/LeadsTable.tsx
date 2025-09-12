@@ -481,7 +481,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
                 <TableCell className="text-right">
                   <div className="flex gap-2 justify-end">
                     <LeadDetailsDialog lead={lead} />
-                    {permissions.canEditLeads && (
+                    {authPermissions.canEditLeads && (
                       <Button
                         variant={isAssigned ? "secondary" : "default"}
                         size="sm"
@@ -491,7 +491,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
                         {isAssigned ? "Reasignar" : "Asignar"}
                       </Button>
                     )}
-                    {permissions.canEditLeads && onEditLead && (
+                    {authPermissions.canEditLeads && onEditLead && (
                       <Button
                         variant="outline"
                         size="sm"
