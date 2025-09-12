@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useRealisticProjectionsWithGuardrails } from '@/hooks/useRealisticProjectionsWithGuardrails';
+import { usePreviousMonthData } from '@/hooks/usePreviousMonthData';
 import { Loader2, TrendingUp, Target, DollarSign, AlertTriangle, Brain, Activity } from 'lucide-react';
 import { getPaceStatus, getStatusTextColor } from '@/utils/paceStatus';
 import { getCurrentMonthInfo, getDaysRemainingInMonth, formatMonthlyQuestion, getPreviousMonthName, capitalize } from '@/utils/dynamicDateUtils';
@@ -9,6 +10,7 @@ import { useMemo } from 'react';
 
 export const GMVProjectionCard = () => {
   const { data, isLoading } = useRealisticProjectionsWithGuardrails();
+  const previousMonthData = usePreviousMonthData();
   const currentMonth = getCurrentMonthInfo();
   const previousMonth = getPreviousMonthName();
 
@@ -179,19 +181,19 @@ export const GMVProjectionCard = () => {
         <div className="p-4 bg-muted/50 rounded-lg">
           <div className="flex justify-between items-center">
             <div>
-              <div className="font-medium">vs {capitalize(previousMonth)}:</div>
+              <div className="font-medium">vs {previousMonthData.month}:</div>
               <div className="text-sm text-muted-foreground">
-                {capitalize(previousMonth)} cerró con ${data.target.gmv.toFixed(1)}M GMV
+                {previousMonthData.month} cerró con ${previousMonthData.gmv.toFixed(1)}M GMV
               </div>
             </div>
             <div className="text-right">
-            <div className={`text-lg font-bold ${calculations.mostLikelyGMV > data.target.gmv ? 'text-success' : 'text-destructive'}`}>
-                {calculations.mostLikelyGMV > data.target.gmv ? '+' : ''}
-                ${(calculations.mostLikelyGMV - data.target.gmv).toFixed(1)}M
+              <div className={`text-lg font-bold ${calculations.mostLikelyGMV > previousMonthData.gmv ? 'text-success' : 'text-destructive'}`}>
+                {calculations.mostLikelyGMV > previousMonthData.gmv ? '+' : ''}
+                ${(calculations.mostLikelyGMV - previousMonthData.gmv).toFixed(1)}M
               </div>
-              <div className={`text-sm ${calculations.mostLikelyGMV > data.target.gmv ? 'text-success' : 'text-destructive'}`}>
-                {calculations.mostLikelyGMV > data.target.gmv ? '+' : ''}
-                {(((calculations.mostLikelyGMV - data.target.gmv) / data.target.gmv) * 100).toFixed(1)}%
+              <div className={`text-sm ${calculations.mostLikelyGMV > previousMonthData.gmv ? 'text-success' : 'text-destructive'}`}>
+                {calculations.mostLikelyGMV > previousMonthData.gmv ? '+' : ''}
+                {(((calculations.mostLikelyGMV - previousMonthData.gmv) / previousMonthData.gmv) * 100).toFixed(1)}%
               </div>
             </div>
           </div>
@@ -210,9 +212,9 @@ export const GMVProjectionCard = () => {
             <AlertTriangle className="h-4 w-4 mt-0.5" />
             <div className="space-y-1">
               <div className="font-medium">
-                {calculations.mostLikelyGMV < data.target.gmv ? 
-                  `Faltarían $${(data.target.gmv - calculations.mostLikelyGMV).toFixed(1)}M para meta. Necesitas ${data.insights.paceNeeded} servicios/día vs ${data.current.dailyPace.toFixed(1)} actual.` :
-                  `En camino de superar meta por $${(calculations.mostLikelyGMV - data.target.gmv).toFixed(1)}M`
+                {calculations.mostLikelyGMV < previousMonthData.gmv ? 
+                  `Riesgo: faltarían $${(previousMonthData.gmv - calculations.mostLikelyGMV).toFixed(1)}M para superar ${previousMonthData.month}. Necesitas ${data.insights.paceNeeded} servicios/día vs ${data.current.dailyPace.toFixed(1)} actual.` :
+                  `En camino de superar ${previousMonthData.month} por $${(calculations.mostLikelyGMV - previousMonthData.gmv).toFixed(1)}M`
                 }
               </div>
               {data.confidence.warnings.length > 0 && (
