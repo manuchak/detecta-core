@@ -70,7 +70,7 @@ const KPIDashboard = () => {
     if (profileLoading) return 'Usuario';
     if (userProfile?.display_name) return userProfile.display_name;
     if (userProfile?.email) return userProfile.email.split('@')[0];
-    return 'Marbelli';
+    return 'Usuario';
   };
 
   const formatCurrency = (value: number) => {
