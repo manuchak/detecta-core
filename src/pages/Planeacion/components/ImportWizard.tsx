@@ -25,7 +25,7 @@ import ImportMappingStep from './ImportMappingStep';
 import ImportPreviewStep from './ImportPreviewStep';
 import ImportResultsStep from './ImportResultsStep';
 import { parseExcelFile, ExcelData, MappingConfig, getDefaultMapping } from '@/utils/excelImporter';
-import { ImportResult, ImportProgress } from '@/services/importService';
+import { ImportResult, ImportProgress, importServicios } from '@/services/importService';
 
 interface ImportWizardProps {
   open: boolean;
@@ -403,6 +403,7 @@ export default function ImportWizard({
               mapping={state.mapping}
               onConfirm={handleImportConfirm}
               onBack={goToPreviousStep}
+              importFunction={importServicios}
             />
           )}
 
