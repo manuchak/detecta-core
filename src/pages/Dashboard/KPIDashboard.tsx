@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { useExecutiveDashboardKPIs } from '@/hooks/useExecutiveDashboardKPIs';
 import { useDynamicServiceData } from '@/hooks/useDynamicServiceData';
-import { useUserProfile } from '@/hooks/useUserProfile';
+import { useAuth } from '@/contexts/AuthContext';
 import { OperationalOverview } from '@/components/executive/OperationalOverview';
 import { AcquisitionOverview } from '@/components/executive/AcquisitionOverview';
 import { ExecutiveMetricsGrid } from '@/components/executive/ExecutiveMetricsGrid';
@@ -37,7 +37,7 @@ import CalibrationDashboard from '@/components/executive/CalibrationDashboard';
 const KPIDashboard = () => {
   const { kpis, loading: kpisLoading, refreshData } = useExecutiveDashboardKPIs();
   const { data: serviceData, isLoading: serviceDataLoading } = useDynamicServiceData();
-  const { data: userProfile, isLoading: profileLoading } = useUserProfile();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -67,9 +67,12 @@ const KPIDashboard = () => {
   };
 
   const getUserName = () => {
-    if (profileLoading) return 'Usuario';
-    if (userProfile?.display_name) return userProfile.display_name;
-    if (userProfile?.email) return userProfile.email.split('@')[0];
+    if (user?.user_metadata?.display_name) {
+      return user.user_metadata.display_name;
+    }
+    if (user?.email) {
+      return user.email.split('@')[0];
+    }
     return 'Usuario';
   };
 
@@ -196,7 +199,7 @@ const KPIDashboard = () => {
     }
   ];
 
-  if (kpisLoading || serviceDataLoading || profileLoading) {
+  if (kpisLoading || serviceDataLoading) {
     return (
       <div className="min-h-screen bg-background p-6">
         <div className="container mx-auto space-y-6">
