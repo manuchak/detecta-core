@@ -1,6 +1,7 @@
 import { useAuthenticatedQuery } from '@/hooks/useAuthenticatedQuery';
 import { getPaceStatus } from '@/utils/paceStatus';
 import { useDynamicServiceData } from './useDynamicServiceData';
+import { calculateMTDComparison, type MTDComparisonData } from '@/utils/mtdComparison';
 
 interface MonthClosureData {
   current: {
@@ -23,6 +24,7 @@ interface MonthClosureData {
   requiredPace: number;
   currentPace: number;
   paceStatus: ReturnType<typeof getPaceStatus>;
+  mtdComparison: MTDComparisonData;
 }
 
 export const useMonthClosureAnalysis = () => {
@@ -32,6 +34,9 @@ export const useMonthClosureAnalysis = () => {
     ['month-closure-analysis', dynamicData ? 'ready' : 'waiting'],
     async (): Promise<MonthClosureData> => {
       if (!dynamicData) throw new Error('Dynamic data not available');
+
+      // Get MTD comparison data
+      const mtdComparison = await calculateMTDComparison();
 
       // Use dynamic data for consistency across all components
       const currentServices = dynamicData.currentMonth.services;
@@ -79,7 +84,8 @@ export const useMonthClosureAnalysis = () => {
         daysRemaining,
         requiredPace: Math.round(requiredPace * 100) / 100,
         currentPace: Math.round(currentPace * 100) / 100,
-        paceStatus
+        paceStatus,
+        mtdComparison
       };
     },
     {

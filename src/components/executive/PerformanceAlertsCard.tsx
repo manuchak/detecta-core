@@ -27,12 +27,29 @@ export const PerformanceAlertsCard = () => {
 
   const alerts: Alert[] = [];
 
-  // AOV Alert
-  alerts.push({
-    level: 'critical',
-    message: 'AOV septiembre: -8% vs agosto',
-    icon: AlertTriangle
-  });
+  // AOV Alert using MTD comparison
+  const aovGrowth = monthData.mtdComparison.growth.aov;
+  const aovMessage = `AOV ${monthData.mtdComparison.periodLabel.current}: ${aovGrowth >= 0 ? '+' : ''}${aovGrowth.toFixed(1)}% vs ${monthData.mtdComparison.periodLabel.previous}`;
+  
+  if (aovGrowth < -5) {
+    alerts.push({
+      level: 'critical',
+      message: aovMessage,
+      icon: AlertTriangle
+    });
+  } else if (aovGrowth < 0) {
+    alerts.push({
+      level: 'warning',
+      message: aovMessage,
+      icon: AlertCircle
+    });
+  } else {
+    alerts.push({
+      level: 'success',
+      message: aovMessage,
+      icon: CheckCircle
+    });
+  }
 
   // YoY Growth Alert
   if (yearData.growth.servicesPercent < -15) {
@@ -122,10 +139,12 @@ export const PerformanceAlertsCard = () => {
         <div className="border-t pt-4">
           <div className="text-sm font-medium mb-3">PRIORIDADES</div>
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-destructive"></div>
-              <span className="text-sm">PRIORIDAD #1: Recuperar AOV</span>
-            </div>
+            {aovGrowth < 0 && (
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-destructive"></div>
+                <span className="text-sm">PRIORIDAD #1: Recuperar AOV</span>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <div className="h-2 w-2 rounded-full bg-destructive"></div>
               <span className="text-sm">PRIORIDAD #2: Acelerar captación</span>

@@ -9256,6 +9256,25 @@ export type Database = {
           total_services: number
         }[]
       }
+      get_mtd_comparison: {
+        Args: {
+          p_current_day: number
+          p_current_month: number
+          p_current_year: number
+          p_previous_month: number
+          p_previous_year: number
+        }
+        Returns: {
+          current_aov: number
+          current_gmv: number
+          current_services: number
+          current_year: number
+          previous_aov: number
+          previous_gmv: number
+          previous_services: number
+          previous_year: number
+        }[]
+      }
       get_my_permissions: {
         Args: Record<PropertyKey, never>
         Returns: {

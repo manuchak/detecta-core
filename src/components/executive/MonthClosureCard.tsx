@@ -68,7 +68,9 @@ export const MonthClosureCard = () => {
           <div>
             <div className="text-2xl font-bold">${data.current.aov.toLocaleString()}</div>
             <div className="text-sm text-muted-foreground">AOV</div>
-            <div className="text-xs text-destructive">↓8% vs agosto</div>
+            <div className={`text-xs ${data.mtdComparison.growth.aov >= 0 ? 'text-success' : 'text-destructive'}`}>
+              {data.mtdComparison.growth.aov >= 0 ? '↑' : '↓'}{Math.abs(data.mtdComparison.growth.aov).toFixed(1)}% vs {data.mtdComparison.periodLabel.previous}
+            </div>
           </div>
         </div>
 
