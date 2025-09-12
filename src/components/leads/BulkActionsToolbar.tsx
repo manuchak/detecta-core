@@ -21,8 +21,8 @@ export const BulkActionsToolbar = ({
   const [showBulkAssignmentDialog, setShowBulkAssignmentDialog] = useState(false);
   const { permissions } = useAuth();
 
-  // Ocultar completamente para roles sin edición
-  if (!permissions.canEditLeads || selectedLeads.length === 0) return null;
+  // Ocultar completamente para roles sin permisos de asignación
+  if (!permissions.canAssignLeads || selectedLeads.length === 0) return null;
 
   const unassignedCount = selectedLeads.filter(lead => !lead.asignado_a).length;
   const assignedCount = selectedLeads.length - unassignedCount;

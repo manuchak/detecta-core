@@ -347,7 +347,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         onResetFilters={handleResetFilters}
       />
 
-      {authPermissions.canEditLeads && (
+      {authPermissions.canAssignLeads && (
         <BulkActionsToolbar 
           selectedLeads={selectedLeads}
           onClearSelection={handleClearSelection}
@@ -414,14 +414,14 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-12">
-                {authPermissions.canEditLeads ? (
-                  <Checkbox
-                    checked={allFilteredSelected}
-                    onCheckedChange={handleSelectAll}
-                  />
-                ) : null}
-              </TableHead>
+               <TableHead className="w-12">
+                 {authPermissions.canAssignLeads ? (
+                   <Checkbox
+                     checked={allFilteredSelected}
+                     onCheckedChange={handleSelectAll}
+                   />
+                 ) : null}
+               </TableHead>
               <TableHead>Nombre</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Teléfono</TableHead>
@@ -440,14 +440,14 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
             
             return (
               <TableRow key={lead.id} className={rowClass}>
-                <TableCell>
-                  {authPermissions.canEditLeads ? (
-                    <Checkbox
-                      checked={isLeadSelected(lead.id)}
-                      onCheckedChange={(checked) => handleSelectLead(lead, checked as boolean)}
-                    />
-                  ) : null}
-                </TableCell>
+                 <TableCell>
+                   {authPermissions.canAssignLeads ? (
+                     <Checkbox
+                       checked={isLeadSelected(lead.id)}
+                       onCheckedChange={(checked) => handleSelectLead(lead, checked as boolean)}
+                     />
+                   ) : null}
+                 </TableCell>
                 <TableCell className="font-medium">{lead.nombre}</TableCell>
                 <TableCell>{lead.email}</TableCell>
                 <TableCell>{lead.telefono}</TableCell>

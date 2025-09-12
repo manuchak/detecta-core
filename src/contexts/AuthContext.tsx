@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/use-toast";
 interface AuthPermissions {
   canViewLeads: boolean;
   canEditLeads: boolean;
+  canAssignLeads: boolean;
   canManageUsers: boolean;
   canViewDashboard: boolean;
 }
@@ -42,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return {
           canViewLeads: true,
           canEditLeads: true,
+          canAssignLeads: true,
           canManageUsers: true,
           canViewDashboard: true,
         };
@@ -49,6 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return {
           canViewLeads: true,
           canEditLeads: true,
+          canAssignLeads: true,
           canManageUsers: false,
           canViewDashboard: true,
         };
@@ -56,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return {
           canViewLeads: true,
           canEditLeads: true,
+          canAssignLeads: false,
           canManageUsers: false,
           canViewDashboard: false,
         };
@@ -63,6 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return {
           canViewLeads: true,
           canEditLeads: true,
+          canAssignLeads: false,
           canManageUsers: false,
           canViewDashboard: true,
         };
@@ -70,6 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return {
           canViewLeads: true,
           canEditLeads: false,
+          canAssignLeads: false,
           canManageUsers: false,
           canViewDashboard: false,
         };
@@ -81,6 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return {
           canViewLeads: false,
           canEditLeads: false,
+          canAssignLeads: false,
           canManageUsers: false,
           canViewDashboard: true,
         };
@@ -88,6 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return {
           canViewLeads: false,
           canEditLeads: false,
+          canAssignLeads: false,
           canManageUsers: false,
           canViewDashboard: false,
         };

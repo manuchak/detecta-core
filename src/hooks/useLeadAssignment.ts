@@ -41,6 +41,7 @@ export const useLeadAssignment = () => {
         'admin', 
         'owner', 
         'supply_admin', 
+        'supply_lead',
         'supply'
       ];
 
@@ -61,8 +62,13 @@ export const useLeadAssignment = () => {
           index === self.findIndex(a => a.id === analyst.id)
         );
 
-      console.log('Filtered analysts:', filteredAnalysts);
-      setAnalysts(filteredAnalysts);
+      // Ordenar analistas por nombre para mejor UX
+      const sortedAnalysts = filteredAnalysts.sort((a, b) => 
+        a.display_name.localeCompare(b.display_name)
+      );
+
+      console.log('Filtered and sorted analysts:', sortedAnalysts);
+      setAnalysts(sortedAnalysts);
     } catch (error) {
       console.error('Error in fetchAnalysts:', error);
       toast({
