@@ -121,7 +121,7 @@ export const useRealisticProjections = () => {
         daysRemaining,
         mostLikely,
         insights: {
-          paceNeeded: Math.round(paceNeeded * 10) / 10,
+          paceNeeded: Math.round(paceNeeded * 100) / 100,
           currentTrend: currentDailyPace < paceNeeded ? 'declining' : 'stable',
           aovTrend: 'declining' // Based on observed data
         }

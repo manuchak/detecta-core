@@ -95,26 +95,26 @@ export const useDynamicServiceData = () => {
       return {
         currentMonth: {
           services: currentServices,
-          gmv: currentGMV,
+          gmv: Math.round(currentGMV * 100) / 100,
           aov: Math.round(currentAOV),
           days: currentDay,
-          dailyPace: Math.round(dailyPace * 10) / 10
+          dailyPace: Math.round(dailyPace * 100) / 100
         },
         daysRemaining,
         yearToDate: {
           current: {
-            services: ytdCurrent.services,
-            gmv: ytdCurrent.gmv / 1000000
-          },
-          previous: {
-            services: ytdPrevious.services,
-            gmv: ytdPrevious.gmv / 1000000
-          },
-          growth: {
-            services: servicesGrowth,
-            gmv: gmvGrowth,
-            servicesPercentage: Math.round(servicesGrowthPercentage * 10) / 10,
-            gmvPercentage: Math.round(gmvGrowthPercentage * 10) / 10
+          services: ytdCurrent.services,
+          gmv: Math.round((ytdCurrent.gmv / 1000000) * 100) / 100
+        },
+        previous: {
+          services: ytdPrevious.services,
+          gmv: Math.round((ytdPrevious.gmv / 1000000) * 100) / 100
+        },
+        growth: {
+          services: servicesGrowth,
+          gmv: Math.round(gmvGrowth * 100) / 100,
+          servicesPercentage: Math.round(servicesGrowthPercentage * 100) / 100,
+          gmvPercentage: Math.round(gmvGrowthPercentage * 100) / 100
           }
         },
         ytdPeriodLabel

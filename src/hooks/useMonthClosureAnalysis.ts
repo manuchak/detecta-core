@@ -77,8 +77,8 @@ export const useMonthClosureAnalysis = () => {
         },
         status,
         daysRemaining,
-        requiredPace: Math.round(requiredPace * 10) / 10,
-        currentPace: Math.round(currentPace * 10) / 10,
+        requiredPace: Math.round(requiredPace * 100) / 100,
+        currentPace: Math.round(currentPace * 100) / 100,
         paceStatus
       };
     },

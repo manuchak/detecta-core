@@ -41,10 +41,10 @@ export const useYearOverYearComparison = () => {
       
       // Use exact YTD data from calculations
       const ytdServices2025 = exactYTDData.currentServices;
-      const ytdGMV2025 = exactYTDData.currentGMV / 1000000; // Convert to millions
+      const ytdGMV2025 = Math.round((exactYTDData.currentGMV / 1000000) * 100) / 100; // Convert to millions
       
       const ytdServices2024 = exactYTDData.previousServices;
-      const ytdGMV2024 = exactYTDData.previousGMV / 1000000; // Convert to millions
+      const ytdGMV2024 = Math.round((exactYTDData.previousGMV / 1000000) * 100) / 100; // Convert to millions
 
       const current2025 = {
         ytdServices: ytdServices2025,
@@ -57,10 +57,10 @@ export const useYearOverYearComparison = () => {
       };
 
       // Use exact growth calculations
-      const servicesGrowthPercentage = exactYTDData.servicesGrowthPercentage;
-      const gmvGrowthPercentage = exactYTDData.gmvGrowthPercentage;
+      const servicesGrowthPercentage = Math.round(exactYTDData.servicesGrowthPercentage * 100) / 100;
+      const gmvGrowthPercentage = Math.round(exactYTDData.gmvGrowthPercentage * 100) / 100;
       const servicesGrowth = exactYTDData.servicesGrowth;
-      const gmvGrowth = exactYTDData.gmvGrowth / 1000000; // Convert to millions
+      const gmvGrowth = Math.round((exactYTDData.gmvGrowth / 1000000) * 100) / 100; // Convert to millions
 
       // Calculate annual projection based on exact YTD progress
       const currentDate = new Date();
@@ -85,7 +85,7 @@ export const useYearOverYearComparison = () => {
         },
         annualProjection: {
           projected2025,
-          vs2024Percent: Math.round(vs2024Percent * 10) / 10
+          vs2024Percent: Math.round(vs2024Percent * 100) / 100
         },
         periodLabel
       };

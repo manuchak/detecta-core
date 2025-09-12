@@ -222,7 +222,7 @@ export const useRealisticProjectionsWithGuardrails = () => {
         daysRemaining,
         mostLikely,
         insights: {
-          paceNeeded: Math.round(paceNeeded * 10) / 10,
+          paceNeeded: Math.round(paceNeeded * 100) / 100,
           currentTrend: paceRatio < 0.9 ? 'declining' : paceRatio > 1.1 ? 'growing' : 'stable',
           aovTrend: 'stable' // Using current AOV as baseline
         },
