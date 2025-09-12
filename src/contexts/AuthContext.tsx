@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       case 'supply_lead':
         return {
           canViewLeads: true,
-          canEditLeads: false,
+          canEditLeads: true,
           canManageUsers: false,
           canViewDashboard: true,
         };
