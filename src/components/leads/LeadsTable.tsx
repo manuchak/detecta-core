@@ -481,7 +481,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
                 <TableCell className="text-right">
                   <div className="flex gap-2 justify-end">
                     <LeadDetailsDialog lead={lead} />
-                    {authPermissions.canEditLeads && (
+                    {authPermissions.canAssignLeads && (
                       <Button
                         variant={isAssigned ? "secondary" : "default"}
                         size="sm"

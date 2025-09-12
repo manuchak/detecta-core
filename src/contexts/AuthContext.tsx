@@ -462,7 +462,29 @@ export { AuthContext };
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    // Fallback to avoid runtime crash if a component renders before the provider mounts
+    console.warn('useAuth called outside AuthProvider - returning fallback context');
+    const fallback: AuthContextType = {
+      user: null,
+      session: null,
+      userRole: null,
+      loading: true,
+      permissions: {
+        canViewLeads: false,
+        canEditLeads: false,
+        canAssignLeads: false,
+        canManageUsers: false,
+        canViewDashboard: false,
+      },
+      hasPermission: () => false,
+      hasRole: () => false,
+      signIn: async () => { throw new Error('AuthProvider not mounted'); },
+      signUp: async () => { throw new Error('AuthProvider not mounted'); },
+      signOut: async () => { throw new Error('AuthProvider not mounted'); },
+      confirmEmail: async () => { throw new Error('AuthProvider not mounted'); },
+      assignRole: async () => false,
+    };
+    return fallback;
   }
   return context;
 };
