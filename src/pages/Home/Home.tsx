@@ -133,6 +133,18 @@ const Home = () => {
       });
     }
 
+    // Candidatos para supply_lead - su foco principal de trabajo
+    if (['supply_lead'].includes(userRole || '')) {
+      roleSpecificActions.push({
+        title: 'Gestión de Candidatos',
+        icon: Users,
+        href: '/',
+        description: 'Administrar candidatos, entrevistas y aprobaciones',
+        color: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+        featured: true
+      });
+    }
+
     // Leads para ventas y administración
     if (['admin', 'owner', 'supply_admin', 'ejecutivo_ventas'].includes(userRole || '')) {
       roleSpecificActions.push({
