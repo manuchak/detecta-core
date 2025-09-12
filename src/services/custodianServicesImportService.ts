@@ -1,6 +1,111 @@
 import { supabase } from '@/integrations/supabase/client';
 import { parseRobustDate, formatDateParsingResult } from '@/utils/dateUtils';
 
+// Helper function to determine if a value is valid and should be included in updates
+const hasValidValue = (value: any, type: 'string' | 'number' | 'date' = 'string'): boolean => {
+  if (value === null || value === undefined) return false;
+  
+  switch (type) {
+    case 'string':
+      if (typeof value !== 'string') return false;
+      const trimmed = value.trim();
+      return trimmed !== '' && trimmed !== 'N/A' && trimmed !== '#N/A' && trimmed !== 'null' && trimmed !== 'undefined';
+    
+    case 'number':
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (trimmed === '' || trimmed === 'N/A' || trimmed === '#N/A') return false;
+        const parsed = parseFloat(trimmed);
+        return !isNaN(parsed) && isFinite(parsed);
+      }
+      return typeof value === 'number' && !isNaN(value) && isFinite(value);
+    
+    case 'date':
+      if (!value) return false;
+      const dateResult = parseRobustDate(value);
+      return dateResult.success;
+    
+    default:
+      return false;
+  }
+};
+
+// Build data object for updating existing records (only include valid CSV values)
+const buildUpdateData = (item: any, fechaCitaResult: any, createdAtResult: any) => {
+  const updateData: any = {
+    id_servicio: item.id_servicio, // Always include for WHERE clause
+    updated_time: new Date().toISOString() // Always update timestamp
+  };
+
+  // Only include fields that have valid values in the CSV
+  if (hasValidValue(item.nombre_cliente, 'string')) {
+    updateData.nombre_cliente = item.nombre_cliente;
+  }
+  if (hasValidValue(item.telefono, 'string')) {
+    updateData.telefono = item.telefono;
+  }
+  if (hasValidValue(item.telefono_operador, 'string')) {
+    updateData.telefono_operador = item.telefono_operador;
+  }
+  if (hasValidValue(item.origen, 'string')) {
+    updateData.origen = item.origen;
+  }
+  if (hasValidValue(item.destino, 'string')) {
+    updateData.destino = item.destino;
+  }
+  if (fechaCitaResult.success && fechaCitaResult.isoString) {
+    updateData.fecha_hora_cita = fechaCitaResult.isoString;
+  }
+  if (hasValidValue(item.estado, 'string')) {
+    updateData.estado = item.estado;
+  }
+  if (hasValidValue(item.tipo_servicio, 'string')) {
+    updateData.tipo_servicio = item.tipo_servicio;
+  }
+  if (hasValidValue(item.nombre_custodio, 'string')) {
+    updateData.nombre_custodio = item.nombre_custodio;
+  }
+  if (hasValidValue(item.km_recorridos, 'number')) {
+    updateData.km_recorridos = parseFloat(item.km_recorridos);
+  }
+  if (hasValidValue(item.cobro_cliente, 'number')) {
+    updateData.cobro_cliente = parseFloat(item.cobro_cliente);
+  }
+  if (hasValidValue(item.tiempo_retraso, 'number')) {
+    updateData.tiempo_retraso = parseInt(item.tiempo_retraso);
+  }
+  if (hasValidValue(item.comentarios_adicionales, 'string')) {
+    updateData.comentarios_adicionales = item.comentarios_adicionales;
+  }
+  if (createdAtResult.success && createdAtResult.isoString) {
+    updateData.created_at = createdAtResult.isoString;
+  }
+
+  return updateData;
+};
+
+// Build data object for inserting new records (with defaults for empty fields)
+const buildInsertData = (item: any, fechaCitaResult: any, createdAtResult: any) => {
+  return {
+    id_servicio: item.id_servicio,
+    nombre_cliente: item.nombre_cliente || '',
+    telefono: item.telefono || '',
+    telefono_operador: item.telefono_operador || '',
+    origen: item.origen || '',
+    destino: item.destino || '',
+    fecha_hora_cita: fechaCitaResult.isoString || null,
+    estado: item.estado || 'pendiente',
+    tipo_servicio: item.tipo_servicio || 'traslado',
+    nombre_custodio: item.nombre_custodio || '',
+    km_recorridos: item.km_recorridos ? parseFloat(item.km_recorridos) : null,
+    cobro_cliente: item.cobro_cliente ? parseFloat(item.cobro_cliente) : null,
+    tiempo_retraso: item.tiempo_retraso ? parseInt(item.tiempo_retraso) : null,
+    comentarios_adicionales: item.comentarios_adicionales || '',
+    created_at: createdAtResult.isoString || null,
+    updated_time: new Date().toISOString()
+  };
+};
+
 export interface CustodianServiceImportResult {
   success: boolean;
   imported: number;
@@ -90,38 +195,32 @@ export const importCustodianServices = async (
               }
             }
 
-            // Prepare data for upsert (removing internal id field)
-            const servicioData = {
-              id_servicio: item.id_servicio,
-              nombre_cliente: item.nombre_cliente || '',
-              telefono: item.telefono || '',
-              telefono_operador: item.telefono_operador || '',
-              origen: item.origen || '',
-              destino: item.destino || '',
-              fecha_hora_cita: fechaCitaResult.isoString || null,
-              estado: item.estado || 'pendiente',
-              tipo_servicio: item.tipo_servicio || 'traslado',
-              nombre_custodio: item.nombre_custodio || '',
-              km_recorridos: item.km_recorridos ? parseFloat(item.km_recorridos) : null,
-              cobro_cliente: item.cobro_cliente ? parseFloat(item.cobro_cliente) : null,
-              tiempo_retraso: item.tiempo_retraso ? parseInt(item.tiempo_retraso) : null,
-              comentarios_adicionales: item.comentarios_adicionales || '',
-              created_at: createdAtResult.isoString || null,
-              updated_time: new Date().toISOString()
-            };
-
-            console.log(`Processing record ${current}:`, servicioData);
-
-            // Check if record exists first, then insert or update
+            // Check if record exists first to determine operation type
             const { data: existingRecord } = await supabase
               .from('servicios_custodia')
               .select('id')
-              .eq('id_servicio', servicioData.id_servicio)
+              .eq('id_servicio', item.id_servicio)
               .maybeSingle();
 
+            // Prepare data based on operation type
+            const isUpdate = !!existingRecord;
+            const servicioData = isUpdate 
+              ? buildUpdateData(item, fechaCitaResult, createdAtResult)
+              : buildInsertData(item, fechaCitaResult, createdAtResult);
+
+            // Enhanced logging
+            if (isUpdate) {
+              const updatedFields = Object.keys(servicioData).filter(key => key !== 'id_servicio' && key !== 'updated_time');
+              console.log(`UPDATE record ${current} (${item.id_servicio}): updating fields [${updatedFields.join(', ')}]`);
+            } else {
+              console.log(`INSERT record ${current} (${item.id_servicio}): creating new record`);
+            }
+
+            console.log(`Processing record ${current}:`, servicioData);
+
             let upsertError = null;
-            if (existingRecord) {
-              // Update existing record
+            if (isUpdate) {
+              // Update existing record (only with valid CSV values)
               const { error } = await supabase
                 .from('servicios_custodia')
                 .update(servicioData)
@@ -129,7 +228,7 @@ export const importCustodianServices = async (
               upsertError = error;
               if (!error) result.updated++;
             } else {
-              // Insert new record
+              // Insert new record (with defaults for empty fields)
               const { error } = await supabase
                 .from('servicios_custodia')
                 .insert(servicioData);
