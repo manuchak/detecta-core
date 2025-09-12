@@ -1,5 +1,6 @@
 import { useAuthenticatedQuery } from '@/hooks/useAuthenticatedQuery';
 import { supabase } from '@/integrations/supabase/client';
+import { calculateExactYTDComparison, getYTDPeriodLabel } from '@/utils/exactDateYTDCalculations';
 
 interface DynamicServiceData {
   currentMonth: {
@@ -25,6 +26,11 @@ interface DynamicServiceData {
       servicesPercentage: number;
       gmvPercentage: number;
     };
+  };
+  ytdPeriodLabel: {
+    current: string;
+    previous: string;
+    comparison: string;
   };
 }
 
@@ -55,21 +61,24 @@ export const useDynamicServiceData = () => {
         row.year === currentYear && row.month === currentMonth
       );
 
-      // Calculate YTD for current year (2025) - Jan to current month
-      const ytdCurrent = historicalData
-        ?.filter((row: any) => row.year === currentYear && row.month <= currentMonth)
-        ?.reduce((acc: any, row: any) => ({
-          services: acc.services + (row.services || 0),
-          gmv: acc.gmv + (row.gmv || 0)
-        }), { services: 0, gmv: 0 });
+      // Calculate YTD using exact dates for fair comparison
+      const exactYTDData = await calculateExactYTDComparison();
+      const ytdPeriodLabel = getYTDPeriodLabel();
 
-      // Calculate YTD for previous year (2024) - Jan to same month
-      const ytdPrevious = historicalData
-        ?.filter((row: any) => row.year === (currentYear - 1) && row.month <= currentMonth)
-        ?.reduce((acc: any, row: any) => ({
-          services: acc.services + (row.services || 0),
-          gmv: acc.gmv + (row.gmv || 0)
-        }), { services: 0, gmv: 0 });
+      if (!exactYTDData) {
+        throw new Error('No se pudo obtener datos YTD exactos');
+      }
+
+      // Use exact YTD data for calculations
+      const ytdCurrent = {
+        services: exactYTDData.currentServices,
+        gmv: exactYTDData.currentGMV
+      };
+
+      const ytdPrevious = {
+        services: exactYTDData.previousServices,
+        gmv: exactYTDData.previousGMV
+      };
 
       // Current month metrics
       const currentServices = currentMonthData?.services || 0;
@@ -77,15 +86,11 @@ export const useDynamicServiceData = () => {
       const currentAOV = currentServices > 0 ? (currentMonthData?.gmv || 0) / currentServices : 0;
       const dailyPace = currentServices / currentDay;
 
-      // YTD Growth calculations
-      const servicesGrowth = (ytdCurrent?.services || 0) - (ytdPrevious?.services || 0);
-      const gmvGrowth = ((ytdCurrent?.gmv || 0) - (ytdPrevious?.gmv || 0)) / 1000000;
-      const servicesGrowthPercentage = ytdPrevious?.services > 0 
-        ? ((servicesGrowth / ytdPrevious.services) * 100) 
-        : 0;
-      const gmvGrowthPercentage = ytdPrevious?.gmv > 0 
-        ? ((((ytdCurrent?.gmv || 0) - (ytdPrevious?.gmv || 0)) / ytdPrevious.gmv) * 100) 
-        : 0;
+      // YTD Growth calculations (using exact data)
+      const servicesGrowth = exactYTDData.servicesGrowth;
+      const gmvGrowth = exactYTDData.gmvGrowth / 1000000; // Convert to millions
+      const servicesGrowthPercentage = exactYTDData.servicesGrowthPercentage;
+      const gmvGrowthPercentage = exactYTDData.gmvGrowthPercentage;
 
       return {
         currentMonth: {
@@ -98,12 +103,12 @@ export const useDynamicServiceData = () => {
         daysRemaining,
         yearToDate: {
           current: {
-            services: ytdCurrent?.services || 0,
-            gmv: (ytdCurrent?.gmv || 0) / 1000000
+            services: ytdCurrent.services,
+            gmv: ytdCurrent.gmv / 1000000
           },
           previous: {
-            services: ytdPrevious?.services || 0,
-            gmv: (ytdPrevious?.gmv || 0) / 1000000
+            services: ytdPrevious.services,
+            gmv: ytdPrevious.gmv / 1000000
           },
           growth: {
             services: servicesGrowth,
@@ -111,7 +116,8 @@ export const useDynamicServiceData = () => {
             servicesPercentage: Math.round(servicesGrowthPercentage * 10) / 10,
             gmvPercentage: Math.round(gmvGrowthPercentage * 10) / 10
           }
-        }
+        },
+        ytdPeriodLabel
       };
     },
     {

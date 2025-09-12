@@ -9763,6 +9763,22 @@ export type Database = {
           total_viajes: number
         }[]
       }
+      get_ytd_by_exact_dates: {
+        Args: {
+          end_date_current: string
+          end_date_previous: string
+          start_date_current: string
+          start_date_previous: string
+        }
+        Returns: {
+          current_gmv: number
+          current_services: number
+          current_year: number
+          previous_gmv: number
+          previous_services: number
+          previous_year: number
+        }[]
+      }
       get_zonas_trabajo_safe: {
         Args: { ciudad_uuid: string }
         Returns: {

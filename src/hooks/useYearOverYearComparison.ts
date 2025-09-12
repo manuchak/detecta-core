@@ -1,5 +1,5 @@
 import { useAuthenticatedQuery } from '@/hooks/useAuthenticatedQuery';
-import { useDynamicServiceData } from './useDynamicServiceData';
+import { calculateExactYTDComparison, getYTDPeriodLabel } from '@/utils/exactDateYTDCalculations';
 
 interface YearOverYearData {
   current2025: {
@@ -20,22 +20,31 @@ interface YearOverYearData {
     projected2025: number;
     vs2024Percent: number;
   };
+  periodLabel: {
+    current: string;
+    previous: string;
+    comparison: string;
+  };
 }
 
 export const useYearOverYearComparison = () => {
-  const { data: dynamicData, isLoading: dynamicDataLoading } = useDynamicServiceData();
-
   return useAuthenticatedQuery(
-    ['year-over-year-comparison', dynamicData ? 'ready' : 'waiting'],
+    ['year-over-year-comparison-exact'],
     async (): Promise<YearOverYearData> => {
-      if (!dynamicData) throw new Error('Dynamic data not available');
+      // Use exact YTD comparison for fair calculation
+      const exactYTDData = await calculateExactYTDComparison();
+      const periodLabel = getYTDPeriodLabel();
+
+      if (!exactYTDData) {
+        throw new Error('No se pudo obtener datos YTD exactos');
+      }
       
-      // Use real YTD data from dynamic service data
-      const ytdServices2025 = dynamicData.yearToDate.current.services;
-      const ytdGMV2025 = dynamicData.yearToDate.current.gmv;
+      // Use exact YTD data from calculations
+      const ytdServices2025 = exactYTDData.currentServices;
+      const ytdGMV2025 = exactYTDData.currentGMV / 1000000; // Convert to millions
       
-      const ytdServices2024 = dynamicData.yearToDate.previous.services;
-      const ytdGMV2024 = dynamicData.yearToDate.previous.gmv;
+      const ytdServices2024 = exactYTDData.previousServices;
+      const ytdGMV2024 = exactYTDData.previousGMV / 1000000; // Convert to millions
 
       const current2025 = {
         ytdServices: ytdServices2025,
@@ -47,15 +56,18 @@ export const useYearOverYearComparison = () => {
         ytdGmv: ytdGMV2024
       };
 
-      // Use real growth calculations from dynamic data
-      const servicesGrowthPercentage = dynamicData.yearToDate.growth.servicesPercentage;
-      const gmvGrowthPercentage = dynamicData.yearToDate.growth.gmvPercentage;
-      const servicesGrowth = dynamicData.yearToDate.growth.services;
-      const gmvGrowth = dynamicData.yearToDate.growth.gmv;
+      // Use exact growth calculations
+      const servicesGrowthPercentage = exactYTDData.servicesGrowthPercentage;
+      const gmvGrowthPercentage = exactYTDData.gmvGrowthPercentage;
+      const servicesGrowth = exactYTDData.servicesGrowth;
+      const gmvGrowth = exactYTDData.gmvGrowth / 1000000; // Convert to millions
 
-      // Calculate annual projection based on current pace
+      // Calculate annual projection based on exact YTD progress
       const currentDate = new Date();
-      const daysElapsed = Math.floor((currentDate.getTime() - new Date(2025, 0, 1).getTime()) / (1000 * 60 * 60 * 24));
+      const adjustedDate = new Date(currentDate);
+      adjustedDate.setDate(adjustedDate.getDate() - 1); // Account for data lag
+      
+      const daysElapsed = Math.floor((adjustedDate.getTime() - new Date(2025, 0, 1).getTime()) / (1000 * 60 * 60 * 24)) + 1;
       const daysInYear = 365;
       const projected2025 = Math.round((current2025.ytdServices / daysElapsed) * daysInYear);
       
@@ -74,7 +86,8 @@ export const useYearOverYearComparison = () => {
         annualProjection: {
           projected2025,
           vs2024Percent: Math.round(vs2024Percent * 10) / 10
-        }
+        },
+        periodLabel
       };
     },
     {

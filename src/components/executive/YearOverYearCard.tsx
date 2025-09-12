@@ -23,10 +23,17 @@ export const YearOverYearCard = () => {
     <Card className="h-full">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-medium flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-primary" />
-            Crecimiento 2024 vs 2025
-          </CardTitle>
+          <div>
+            <CardTitle className="text-lg font-medium flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              Comparación YTD (Períodos Exactos)
+            </CardTitle>
+            {data.periodLabel && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {data.periodLabel.comparison}
+              </p>
+            )}
+          </div>
           {isNegativeGrowth && (
             <div className="flex items-center gap-1 text-destructive">
               <AlertTriangle className="h-4 w-4" />
