@@ -52,7 +52,7 @@ interface RealisticProjections {
 export const useRealisticProjectionsWithGuardrails = () => {
   const { user } = useAuth();
   const { data: dynamicData, isLoading: dynamicDataLoading } = useDynamicServiceData();
-  const { forecast: advancedForecast } = useAdvancedForecastEngine();
+  const { data: advancedForecast } = useAdvancedForecastEngine();
 
   // Fetch historical data for regime analysis
   const { data: historicalData } = useQuery({

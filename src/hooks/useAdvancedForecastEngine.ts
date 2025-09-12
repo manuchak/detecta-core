@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDynamicServiceData } from './useDynamicServiceData';
 
-interface AdvancedForecastResult {
+export interface AdvancedForecastResult {
   forecast: {
     services: number;
     gmv: number;

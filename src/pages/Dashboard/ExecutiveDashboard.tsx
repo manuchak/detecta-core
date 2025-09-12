@@ -7,7 +7,7 @@ import { YearOverYearCard } from '@/components/executive/YearOverYearCard';
 import { PaceAnalysisCard } from '@/components/executive/PaceAnalysisCard';
 import { PerformanceAlertsCard } from '@/components/executive/PerformanceAlertsCard';
 import { GMVProjectionCard } from '@/components/executive/GMVProjectionCard';
-import { AdvancedForecastDashboard } from '@/components/advanced/AdvancedForecastDashboard';
+// Removed AdvancedForecastDashboard import - component deleted
 
 const ExecutiveDashboard = () => {
   const navigate = useNavigate();
@@ -68,10 +68,10 @@ const ExecutiveDashboard = () => {
             <PerformanceAlertsCard />
           </div>
           
-          {/* Advanced Mathematical Forecast */}
+          {/* Advanced Mathematical Forecast - Coming Soon */}
           <div className="mt-8">
             <h2 className="text-2xl font-bold mb-6">Forecast Matemático Avanzado</h2>
-            <AdvancedForecastDashboard />
+            <p className="text-muted-foreground">Sistema de forecasting avanzado disponible en la pestaña de Calibración</p>
           </div>
       </div>
     </div>

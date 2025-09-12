@@ -17,6 +17,7 @@ import {
   Clock, 
   RefreshCw,
   Activity,
+  Settings,
   Building,
   UserPlus,
   Building2
@@ -31,6 +32,7 @@ import { ClientAnalytics } from '@/components/executive/ClientAnalytics';
 import { DailyLeadsCallsChart } from '@/components/recruitment/DailyLeadsCallsChart';
 import { KPIDetailView } from '@/components/executive/KPIDetailView';
 import { CustodianEngagementDetailView } from '@/components/executive/details/CustodianEngagementDetailView';
+import CalibrationDashboard from '@/components/executive/CalibrationDashboard';
 
 const KPIDashboard = () => {
   const { kpis, loading: kpisLoading, refreshData } = useExecutiveDashboardKPIs();
@@ -264,7 +266,7 @@ const KPIDashboard = () => {
 
         {/* Executive Dashboard Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="operacional" className="flex items-center gap-2">
               <Activity className="h-4 w-4" />
               Operacional
@@ -284,6 +286,10 @@ const KPIDashboard = () => {
             <TabsTrigger value="resumen" className="flex items-center gap-2">
               <Building className="h-4 w-4" />
               Resumen Ejecutivo
+            </TabsTrigger>
+            <TabsTrigger value="calibracion" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Calibración
             </TabsTrigger>
           </TabsList>
 
@@ -435,6 +441,11 @@ const KPIDashboard = () => {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Calibración Tab */}
+          <TabsContent value="calibracion" className="space-y-6">
+            <CalibrationDashboard />
           </TabsContent>
         </Tabs>
 
