@@ -181,7 +181,7 @@ export interface ProductoSerie {
   numero_serie: string;
   imei?: string;
   mac_address?: string;
-  estado: 'disponible' | 'reservado' | 'asignado' | 'instalado' | 'defectuoso' | 'reparacion';
+  estado: 'disponible' | 'reservado' | 'asignado' | 'instalado' | 'defectuoso' | 'reparacion' | 'dado_de_baja';
   fecha_ingreso: string;
   fecha_vencimiento?: string;
   ubicacion_fisica?: string;
