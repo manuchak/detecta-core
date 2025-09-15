@@ -10066,6 +10066,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      save_interview_session: {
+        Args: {
+          p_interview_data: Json
+          p_lead_id: string
+          p_session_id: string
+        }
+        Returns: boolean
+      }
       self_verify_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
