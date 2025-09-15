@@ -64,7 +64,6 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import RoleProtectedRoute from '@/components/RoleProtectedRoute';
 import PermissionProtectedRoute from '@/components/PermissionProtectedRoute';
 import SignUp from '@/pages/Auth/SignUp';
-import { ColorTokens } from '@/components/debug/ColorTokens';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -434,7 +433,7 @@ function App() {
                   }
                 />
                 
-                 {/* Administration routes */}
+                {/* Administration routes */}
                 <Route
                   path="/admin/version-control"
                   element={
@@ -443,18 +442,6 @@ function App() {
                         <DashboardLayout>
                           <VersionControlPage />
                         </DashboardLayout>
-                      </RoleProtectedRoute>
-                    </ProtectedRoute>
-                  }
-                />
-                
-                {/* Color Tokens Preview - Professional Oil Black System */}
-                <Route
-                  path="/admin/color-tokens"
-                  element={
-                    <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner']}>
-                        <ColorTokens />
                       </RoleProtectedRoute>
                     </ProtectedRoute>
                   }

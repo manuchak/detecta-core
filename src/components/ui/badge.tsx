@@ -15,12 +15,6 @@ const badgeVariants = cva(
         destructive:
           "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
         outline: "text-foreground",
-        // Professional Oil Black variants
-        steel: "border-transparent bg-steel-structure text-white hover:bg-steel-structure/80",
-        mocha: "border-transparent bg-mocha text-mocha-foreground hover:bg-mocha/80",
-        minimal: "border-border bg-muted text-muted-foreground hover:bg-muted/80",
-        success: "border-transparent bg-emerald-600 text-white hover:bg-emerald-600/80",
-        warning: "border-transparent bg-amber-600 text-white hover:bg-amber-600/80",
       },
     },
     defaultVariants: {

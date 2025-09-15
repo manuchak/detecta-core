@@ -5,55 +5,44 @@
 
 @layer base {
   :root {
-    /* 60% Oil Black Base - Professional charcoal foundation */
-    --background: 228 26% 6%; /* Oil Black #0A0B0F */
-    --foreground: 215 20% 92%; /* Light Text #EDEEF0 */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 10%; /* Usando un tono cercano al negro corporativo */
 
-    --card: 228 20% 8%; /* Charcoal Surface #12141A */
-    --card-foreground: 215 15% 88%; /* Soft Light #E1E3E6 */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
 
-    --popover: 228 18% 10%; /* Elevated Surface #1A1D24 */
-    --popover-foreground: 215 15% 88%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
 
-    /* 10% Strategic Red - Only for critical elements */
-    --primary: 0 74% 52%; /* Refined Red #DC2626 */
+    --primary: 0 100% 46%; /* Rojo corporativo como color primario */
     --primary-foreground: 0 0% 100%;
 
-    /* 30% Steel Structure - Professional accent system */
-    --secondary: 215 25% 27%; /* Steel Blue #334155 */
-    --secondary-foreground: 215 20% 92%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 10%;
 
-    --muted: 228 15% 15%; /* Warm Gray Surface #24272E */
-    --muted-foreground: 215 10% 70%; /* Medium Gray Text #B0B3B8 */
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 60%; /* Cercano al gris corporativo */
 
-    --accent: 215 20% 35%; /* Steel Blue Light #475569 */
-    --accent-foreground: 215 20% 92%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 100% 46%;
 
-    --destructive: 0 74% 52%; /* Same as primary for consistency */
+    --destructive: 0 100% 46%; /* Rojo corporativo para acciones destructivas */
     --destructive-foreground: 0 0% 100%;
 
-    /* Professional borders and inputs */
-    --border: 228 12% 20%; /* Subtle Border #2A2E37 */
-    --input: 228 15% 15%; /* Input Background #24272E */
-    --ring: 215 25% 35%; /* Steel Focus Ring */
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 0 100% 46%;
 
     --radius: 0.5rem;
     
-    /* Sidebar with oil black system */
-    --sidebar-background: 228 24% 7%; /* Slightly lighter oil black */
-    --sidebar-foreground: 215 20% 92%;
-    --sidebar-primary: 0 74% 52%; /* Strategic red */
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 0 0% 10%;
+    --sidebar-primary: 0 100% 46%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 228 15% 15%;
-    --sidebar-accent-foreground: 215 20% 92%;
-    --sidebar-border: 228 12% 18%;
-    --sidebar-ring: 215 25% 35%;
-
-    /* Additional professional tokens */
-    --mocha: 25 23% 56%; /* Pantone 2025 Mocha #AD8B73 */
-    --mocha-foreground: 0 0% 100%;
-    --strategic-orange: 24 95% 53%; /* Strategic Orange #F97316 */
-    --steel-structure: 215 25% 27%; /* Steel Blue for structure */
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 0 100% 46%;
+    --sidebar-border: 0 0% 90%;
+    --sidebar-ring: 0 100% 46%;
   }
   
   * {
@@ -75,65 +64,35 @@
     @apply flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent transition-colors;
   }
 
-  /* Professional Oil Black Design System */
-  .oil-black-card {
-    @apply bg-card border border-border/40 shadow-sm rounded-xl overflow-hidden;
+  /* Apple-inspired card styles */
+  .card-apple {
+    @apply bg-white border border-border/40 shadow-sm rounded-xl overflow-hidden;
   }
   
-  /* Professional button variants */
-  .btn-professional {
+  /* Minimalist button */
+  .btn-apple {
     @apply rounded-lg font-medium transition-all duration-200 focus:outline-none;
   }
   
-  .btn-steel {
-    @apply bg-steel-structure text-white hover:bg-steel-structure/90 btn-professional;
-  }
-  
-  .btn-strategic {
-    @apply bg-strategic-orange text-white hover:bg-strategic-orange/90 btn-professional shadow-md;
-  }
-  
-  /* Subtle animations with oil black system */
-  .hover-lift-professional {
-    @apply transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/10;
-  }
-  
-  /* Professional text utilities */
-  .text-professional {
-    @apply text-foreground;
-  }
-  
-  .text-subtle {
-    @apply text-muted-foreground;
-  }
-  
-  /* Professional badge system */
-  .badge-steel {
-    @apply bg-steel-structure text-white font-medium text-xs rounded-full px-2 py-0.5;
-  }
-  
-  .badge-mocha {
-    @apply bg-mocha text-mocha-foreground font-medium text-xs rounded-full px-2 py-0.5;
-  }
-  
-  .badge-minimal {
-    @apply bg-muted text-muted-foreground font-medium text-xs rounded-full px-2 py-0.5 border border-border;
+  /* Add subtle animations */
+  .hover-lift {
+    @apply transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md;
   }
 }
 
-/* Estilos corporativos actualizados con Oil Black System */
+/* Estilos corporativos */
 .corporate-btn {
-  @apply bg-primary text-primary-foreground hover:bg-primary/90 transition-all font-medium rounded-lg;
+  @apply bg-corporate-red text-white hover:bg-opacity-90 transition-all font-medium rounded-lg;
 }
 
 .corporate-card {
-  @apply bg-card border border-border/20 rounded-xl shadow-sm;
+  @apply bg-white border border-corporate-gray/20 rounded-xl shadow-apple;
 }
 
 .text-corporate {
-  @apply text-foreground;
+  @apply text-corporate-black;
 }
 
 .corporate-badge {
-  @apply bg-primary text-primary-foreground font-medium text-xs rounded-full px-2 py-0.5;
+  @apply bg-corporate-red text-white font-medium text-xs rounded-full px-2 py-0.5;
 }

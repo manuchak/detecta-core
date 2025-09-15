@@ -20,25 +20,11 @@ export default {
 		},
 		extend: {
 			colors: {
-				// Professional Oil Black System
-				'oil-black': {
-					DEFAULT: '#0A0B0F',
-					surface: '#12141A',
-					elevated: '#1A1D24'
-				},
-				// Strategic color palette
-				mocha: {
-					DEFAULT: 'hsl(var(--mocha))',
-					foreground: 'hsl(var(--mocha-foreground))'
-				},
-				'strategic-orange': 'hsl(var(--strategic-orange))',
-				'steel-structure': 'hsl(var(--steel-structure))',
-				
-				// Colores corporativos (legacy support)
+				// Colores corporativos
 				corporate: {
 					black: '#191919',
 					gray: '#999999',
-					red: '#DC2626', // Updated to refined red
+					red: '#EB0000',
 				},
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
