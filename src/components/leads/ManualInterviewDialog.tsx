@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +20,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Phone, CheckCircle, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useInterviewSession } from "@/hooks/useInterviewSession";
 
 interface ManualInterviewDialogProps {
   open: boolean;
@@ -37,14 +38,83 @@ export const ManualInterviewDialog = ({ open, onOpenChange, lead, onComplete, on
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
+  // Interview session management for auto-save
+  const {
+    session,
+    isLoading: sessionLoading,
+    startSession,
+    updateInterviewData,
+    saveSession,
+    endSession,
+    markAsInterrupted
+  } = useInterviewSession({
+    leadId: lead?.lead_id || '',
+    autoSaveInterval: 10000, // Auto-save every 10 seconds
+    onSessionSaved: () => {
+      console.log('Interview session auto-saved');
+    },
+    onSessionInterrupted: (reason) => {
+      console.log('Interview session interrupted:', reason);
+    }
+  });
+
+  // Auto-save form data whenever fields change
+  const updateFormData = useCallback((field: string, value: any) => {
+    if (session?.sessionId) {
+      updateInterviewData(field, value);
+    }
+  }, [session?.sessionId, updateInterviewData]);
+
+  // Initialize session when dialog opens and lead is available
+  useEffect(() => {
+    if (open && lead?.lead_id && !session?.isActive) {
+      const existingData = lead.last_interview_data ? 
+        JSON.parse(lead.last_interview_data) : {};
+      
+      startSession(existingData);
+      
+      // Load existing data if available
+      if (existingData.interviewNotes) setInterviewNotes(existingData.interviewNotes);
+      if (existingData.decision) setDecision(existingData.decision);
+      if (existingData.decisionReason) setDecisionReason(existingData.decisionReason);
+    }
+  }, [open, lead?.lead_id, startSession, session?.isActive]);
+
+  // Auto-save form data on field changes
+  useEffect(() => {
+    updateFormData('interviewNotes', interviewNotes);
+  }, [interviewNotes, updateFormData]);
+
+  useEffect(() => {
+    updateFormData('decision', decision);
+  }, [decision, updateFormData]);
+  
+  useEffect(() => {
+    updateFormData('decisionReason', decisionReason);
+  }, [decisionReason, updateFormData]);
+
+  // Handle dialog close with auto-save
+  const handleClose = useCallback(async () => {
+    if (session?.isActive) {
+      await saveSession();
+      await markAsInterrupted('Usuario cerró el diálogo');
+    }
+    onOpenChange(false);
+  }, [session?.isActive, saveSession, markAsInterrupted, onOpenChange]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Si la decisión es rechazar, abrir el diálogo de razones de rechazo
     if (decision === 'rejected') {
       if (onReject && lead) {
-        onOpenChange(false); // Cerrar este diálogo
-        onReject(lead); // Abrir el diálogo de razones de rechazo
+        // Save current session before switching
+        if (session?.isActive) {
+          await saveSession();
+          await markAsInterrupted('Usuario seleccionó rechazar - pasando a diálogo de razones');
+        }
+        onOpenChange(false);
+        onReject(lead);
         return;
       }
     }
@@ -60,6 +130,11 @@ export const ManualInterviewDialog = ({ open, onOpenChange, lead, onComplete, on
         finalDecision = 'approved';
       } else if (decision === 'second_interview') {
         stage = 'second_interview';
+      }
+
+      // Save final session data
+      if (session?.isActive) {
+        await saveSession();
       }
 
       // Actualizar el proceso de aprobación
@@ -85,6 +160,11 @@ export const ManualInterviewDialog = ({ open, onOpenChange, lead, onComplete, on
           .eq('id', lead.lead_id);
 
         if (leadError) throw leadError;
+      }
+
+      // End session successfully
+      if (session?.isActive) {
+        await endSession();
       }
 
       toast({
@@ -200,13 +280,13 @@ export const ManualInterviewDialog = ({ open, onOpenChange, lead, onComplete, on
             <Button 
               type="button" 
               variant="outline" 
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
+              onClick={handleClose}
+              disabled={loading || sessionLoading}
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Guardando...' : 'Guardar resultados'}
+            <Button type="submit" disabled={loading || sessionLoading}>
+              {loading ? 'Guardando...' : sessionLoading ? 'Guardando automático...' : 'Guardar resultados'}
             </Button>
           </div>
         </form>

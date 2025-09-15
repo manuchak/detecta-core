@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -25,6 +25,9 @@ import { ScheduledCallsView } from "@/components/leads/approval/ScheduledCallsVi
 import { PoolReservaView } from "@/components/leads/pool/PoolReservaView";
 import { ApprovalAdvancedFiltersState } from "@/components/leads/approval/ApprovalAdvancedFilters";
 import { MoveToPoolDialog } from "@/components/leads/pool/MoveToPoolDialog";
+import { SessionRecoveryDialog } from "@/components/leads/approval/SessionRecoveryDialog";
+import { InterruptedInterviewDialog } from "@/components/leads/approval/InterruptedInterviewDialog";
+import { supabase } from "@/integrations/supabase/client";
 
 export const LeadApprovals = () => {
   const {
@@ -50,6 +53,16 @@ export const LeadApprovals = () => {
   const [showCallLogDialog, setShowCallLogDialog] = useState(false);
   const [showRejectionDialog, setShowRejectionDialog] = useState(false);
   const [showMoveToPoolDialog, setShowMoveToPoolDialog] = useState(false);
+  
+  // Session recovery states
+  const [showSessionRecovery, setShowSessionRecovery] = useState(false);
+  const [showInterruptedDialog, setShowInterruptedDialog] = useState(false);
+  const [recoveryData, setRecoveryData] = useState<{
+    hasRecoveryData: boolean;
+    sessionId?: string;
+    data?: Record<string, any>;
+    interruptionReason?: string;
+  }>({ hasRecoveryData: false });
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
   
@@ -77,8 +90,77 @@ export const LeadApprovals = () => {
     setShowVapiDialog(true);
   };
 
-  const handleManualInterview = (lead: AssignedLead) => {
-    setSelectedLead(lead);
+  const handleManualInterview = async (lead: AssignedLead) => {
+    // Check for interrupted sessions before opening dialog
+    const recovery = await checkForInterruptedSession(lead.lead_id);
+    
+    if (recovery.hasRecoveryData) {
+      setSelectedLead(lead);
+      setRecoveryData(recovery);
+      setShowSessionRecovery(true);
+    } else {
+      setSelectedLead(lead);
+      setShowManualDialog(true);
+    }
+  };
+
+  // Check for interrupted interview sessions
+  const checkForInterruptedSession = async (leadId: string) => {
+    try {
+      const { data: lead, error } = await supabase
+        .from('leads')
+        .select('last_interview_data, interview_session_id, interruption_reason')
+        .eq('id', leadId)
+        .single();
+
+      if (error || !lead) {
+        return { hasRecoveryData: false };
+      }
+
+      const hasData = lead.last_interview_data && 
+                     typeof lead.last_interview_data === 'string' &&
+                     Object.keys(JSON.parse(lead.last_interview_data)).length > 0;
+      
+      if (hasData) {
+        return {
+          hasRecoveryData: true,
+          sessionId: lead.interview_session_id as string,
+          data: JSON.parse(lead.last_interview_data as string),
+          interruptionReason: lead.interruption_reason as string
+        };
+      }
+
+      return { hasRecoveryData: false };
+    } catch (error) {
+      console.error('Error checking for interrupted session:', error);
+      return { hasRecoveryData: false };
+    }
+  };
+
+  // Handle session recovery choices
+  const handleContinueSession = () => {
+    setShowSessionRecovery(false);
+    setShowManualDialog(true);
+  };
+
+  const handleStartNewSession = async () => {
+    if (selectedLead) {
+      // Clear existing session data
+      try {
+        await supabase
+          .from('leads')
+          .update({
+            last_interview_data: null,
+            interview_session_id: null,
+            interruption_reason: null
+          })
+          .eq('id', selectedLead.lead_id);
+      } catch (error) {
+        console.error('Error clearing session data:', error);
+      }
+    }
+    
+    setShowSessionRecovery(false);
     setShowManualDialog(true);
   };
 
@@ -309,6 +391,27 @@ export const LeadApprovals = () => {
           open={showMoveToPoolDialog}
           onOpenChange={setShowMoveToPoolDialog}
           onConfirm={moveToPool}
+        />
+
+        <SessionRecoveryDialog
+          open={showSessionRecovery}
+          onOpenChange={setShowSessionRecovery}
+          lead={selectedLead}
+          recoveryData={recoveryData}
+          onContinueSession={handleContinueSession}
+          onStartNewSession={handleStartNewSession}
+        />
+
+        <InterruptedInterviewDialog
+          open={showInterruptedDialog}
+          onOpenChange={setShowInterruptedDialog}
+          lead={selectedLead}
+          sessionId={recoveryData.sessionId}
+          recoveredData={recoveryData.data}
+          onConfirm={() => {
+            setShowInterruptedDialog(false);
+            fetchAssignedLeads();
+          }}
         />
       </div>
     </TooltipProvider>
