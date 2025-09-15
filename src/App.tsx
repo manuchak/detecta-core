@@ -3,67 +3,73 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { lazy, Suspense } from 'react';
 
 // Layout imports
 import DashboardLayout from '@/layouts/DashboardLayout';
 import AuthLayout from '@/layouts/AuthLayout';
 
-// Page imports - Fixed to use default imports
-import Index from '@/pages/Index';
-import Home from '@/pages/Home/Home';
-import HomeRobust from '@/pages/Home/HomeRobust';
-import Dashboard from '@/pages/Dashboard/Dashboard';
-import ExecutiveDashboard from '@/pages/Dashboard/ExecutiveDashboard';
-import KPIDashboard from '@/pages/Dashboard/KPIDashboard';
-import Login from '@/pages/Auth/Login';
-import Register from '@/pages/Auth/Register';
-import { ForgotPassword } from '@/pages/Auth/ForgotPassword';
-import EmailConfirmation from '@/pages/Auth/EmailConfirmation';
-import Settings from '@/pages/Settings/Settings';
-import NotFound from '@/pages/NotFound';
-import SimpleLeadsPage from '@/pages/Leads/SimpleLeadsPage';
-import LeadApprovals from '@/pages/Leads/LeadApprovals';
-import AssignOwnerRole from '@/pages/Admin/AssignOwnerRole';
-import AssignRole from '@/pages/Admin/AssignRole';
-import LandingManager from '@/pages/Admin/LandingManager';
-import MonitoringPage from '@/pages/Monitoring/MonitoringPage';
-import SupplyChainMonitoring from '@/pages/Monitoring/SupplyChainMonitoring';
-import ForensicAuditPage from '@/pages/Monitoring/ForensicAuditPage';
-import TicketsList from '@/pages/Tickets/TicketsList';
-import { ServicesPage } from '@/pages/Services/ServicesPage';
-import RendimientoPage from '@/pages/Services/RendimientoPage';
-import InstallerManagement from '@/pages/Installers/InstallerManagement';
-import InstallationCalendar from '@/pages/Installers/InstallationCalendar';
-import InstallationSchedule from '@/pages/Installers/InstallationSchedule';
-import InstallerPortal from '@/pages/Installers/InstallerPortal';
-import GestionInstaladores from '@/pages/Installers/GestionInstaladores';
-import { RegistroInstaladores } from '@/pages/Installers/RegistroInstaladores';
-import Landing from '@/pages/Landing/Landing';
-import WMSPage from '@/pages/WMS/WMSPage';
-import CustodianPortal from '@/pages/custodian/CustodianPortal';
-import CustodianDashboard from '@/pages/custodian/CustodianDashboard';
-import CustodianTickets from '@/pages/custodian/CustodianTickets';
-import CustodianPortalAdmin from '@/pages/admin/CustodianPortalAdmin';
-import RecruitmentStrategy from '@/pages/RecruitmentStrategy';
-import ModernRecruitment from '@/pages/ModernRecruitment';
-import SimulationScenarios from '@/pages/SimulationScenarios';
-import ExecutiveRecruitmentDashboard from '@/pages/ExecutiveRecruitmentDashboard';
-import SupplyDashboardExtended from '@/pages/supply/SupplyDashboardExtended';
-import SIERCPPage from '@/pages/evaluation/SIERCPPage';
-import SIERCPMethodologyPage from '@/pages/evaluation/SIERCPMethodologyPage';
-import ServiceWorkflowDocumentation from '@/pages/Documentation/ServiceWorkflowDocumentation';
-import PlaneacionDashboard from '@/pages/Planeacion/PlaneacionDashboard';
-
-import DuplicateCleanupPage from '@/pages/Maintenance/DuplicateCleanupPage';
-import VersionControlPage from '@/pages/Administration/VersionControlPage';
-import SystemTestingPage from '@/pages/SystemTestingPage';
-
+// Lazy load pages to reduce initial bundle size and fix build timeout
+const Index = lazy(() => import('@/pages/Index'));
+const Home = lazy(() => import('@/pages/Home/Home'));
+const HomeRobust = lazy(() => import('@/pages/Home/HomeRobust'));
+const Dashboard = lazy(() => import('@/pages/Dashboard/Dashboard'));
+const ExecutiveDashboard = lazy(() => import('@/pages/Dashboard/ExecutiveDashboard'));
+const KPIDashboard = lazy(() => import('@/pages/Dashboard/KPIDashboard'));
+const Login = lazy(() => import('@/pages/Auth/Login'));
+const Register = lazy(() => import('@/pages/Auth/Register'));
+const ForgotPassword = lazy(() => import('@/pages/Auth/ForgotPassword').then(module => ({ default: module.ForgotPassword })));
+const EmailConfirmation = lazy(() => import('@/pages/Auth/EmailConfirmation'));
+const Settings = lazy(() => import('@/pages/Settings/Settings'));
+const NotFound = lazy(() => import('@/pages/NotFound'));
+const SimpleLeadsPage = lazy(() => import('@/pages/Leads/SimpleLeadsPage'));
+const LeadApprovals = lazy(() => import('@/pages/Leads/LeadApprovals'));
+const AssignOwnerRole = lazy(() => import('@/pages/Admin/AssignOwnerRole'));
+const AssignRole = lazy(() => import('@/pages/Admin/AssignRole'));
+const LandingManager = lazy(() => import('@/pages/Admin/LandingManager'));
+const MonitoringPage = lazy(() => import('@/pages/Monitoring/MonitoringPage'));
+const SupplyChainMonitoring = lazy(() => import('@/pages/Monitoring/SupplyChainMonitoring'));
+const ForensicAuditPage = lazy(() => import('@/pages/Monitoring/ForensicAuditPage'));
+const TicketsList = lazy(() => import('@/pages/Tickets/TicketsList'));
+const ServicesPage = lazy(() => import('@/pages/Services/ServicesPage').then(module => ({ default: module.ServicesPage })));
+const RendimientoPage = lazy(() => import('@/pages/Services/RendimientoPage'));
+const InstallerManagement = lazy(() => import('@/pages/Installers/InstallerManagement'));
+const InstallationCalendar = lazy(() => import('@/pages/Installers/InstallationCalendar'));
+const InstallationSchedule = lazy(() => import('@/pages/Installers/InstallationSchedule'));
+const InstallerPortal = lazy(() => import('@/pages/Installers/InstallerPortal'));
+const GestionInstaladores = lazy(() => import('@/pages/Installers/GestionInstaladores'));
+const RegistroInstaladores = lazy(() => import('@/pages/Installers/RegistroInstaladores').then(module => ({ default: module.RegistroInstaladores })));
+const Landing = lazy(() => import('@/pages/Landing/Landing'));
+const WMSPage = lazy(() => import('@/pages/WMS/WMSPage'));
+const CustodianPortal = lazy(() => import('@/pages/custodian/CustodianPortal'));
+const CustodianDashboard = lazy(() => import('@/pages/custodian/CustodianDashboard'));
+const CustodianTickets = lazy(() => import('@/pages/custodian/CustodianTickets'));
+const CustodianPortalAdmin = lazy(() => import('@/pages/admin/CustodianPortalAdmin'));
+const RecruitmentStrategy = lazy(() => import('@/pages/RecruitmentStrategy'));
+const ModernRecruitment = lazy(() => import('@/pages/ModernRecruitment'));
+const SimulationScenarios = lazy(() => import('@/pages/SimulationScenarios'));
+const ExecutiveRecruitmentDashboard = lazy(() => import('@/pages/ExecutiveRecruitmentDashboard'));
+const SupplyDashboardExtended = lazy(() => import('@/pages/supply/SupplyDashboardExtended'));
+const SIERCPPage = lazy(() => import('@/pages/evaluation/SIERCPPage'));
+const SIERCPMethodologyPage = lazy(() => import('@/pages/evaluation/SIERCPMethodologyPage'));
+const ServiceWorkflowDocumentation = lazy(() => import('@/pages/Documentation/ServiceWorkflowDocumentation'));
+const PlaneacionDashboard = lazy(() => import('@/pages/Planeacion/PlaneacionDashboard'));
+const DuplicateCleanupPage = lazy(() => import('@/pages/Maintenance/DuplicateCleanupPage'));
+const VersionControlPage = lazy(() => import('@/pages/Administration/VersionControlPage'));
+const SystemTestingPage = lazy(() => import('@/pages/SystemTestingPage'));
+const SignUp = lazy(() => import('@/pages/Auth/SignUp'));
 
 // Components
 import ProtectedRoute from '@/components/ProtectedRoute';
 import RoleProtectedRoute from '@/components/RoleProtectedRoute';
 import PermissionProtectedRoute from '@/components/PermissionProtectedRoute';
-import SignUp from '@/pages/Auth/SignUp';
+
+// Loading component
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+  </div>
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -81,7 +87,8 @@ function App() {
         <AuthProvider>
           <Router>
             <div className="min-h-screen bg-background">
-              <Routes>
+              <Suspense fallback={<LoadingFallback />}>
+                <Routes>
                 {/* Main route - Leads as principal page */}
                 <Route path="/" element={<SimpleLeadsPage />} />
                 <Route path="/landing" element={<Landing />} />
@@ -550,7 +557,8 @@ function App() {
                 
                 {/* 404 route - MUST BE LAST */}
                 <Route path="*" element={<NotFound />} />
-              </Routes>
+                </Routes>
+              </Suspense>
             </div>
           </Router>
           <Toaster />
