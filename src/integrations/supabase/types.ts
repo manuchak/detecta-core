@@ -3123,6 +3123,36 @@ export type Database = {
           },
         ]
       }
+      interview_progress: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          lead_id: string
+          progress_data: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          lead_id: string
+          progress_data?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          lead_id?: string
+          progress_data?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       inventario_gps: {
         Row: {
           bateria_estado: number | null
@@ -8559,6 +8589,10 @@ export type Database = {
           duplicates_found: number
           duplicates_removed: number
         }[]
+      }
+      cleanup_expired_interview_progress: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       cleanup_expired_skills: {
         Args: Record<PropertyKey, never>
