@@ -15,6 +15,7 @@ import {
   User,
   BarChart3,
   Calendar,
+  TestTube,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -318,6 +319,7 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
         { title: "Control de Versiones", path: "/admin/version-control" },
         { title: "Gestión de Landing", path: "/admin/landing-manager" },
         { title: "Limpieza de BD", path: "/maintenance/duplicate-cleanup" },
+        { title: "Sistema de Testing", path: "/system-testing" },
       ]
     }] : []),
 
