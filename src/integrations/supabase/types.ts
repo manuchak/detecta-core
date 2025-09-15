@@ -8490,6 +8490,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      can_manage_lead_assignments: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       can_manage_wms: {
         Args: Record<PropertyKey, never>
         Returns: boolean
