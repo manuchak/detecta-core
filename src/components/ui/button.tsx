@@ -19,6 +19,11 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
+        // Professional Oil Black variants
+        steel: "bg-steel-structure text-white hover:bg-steel-structure/90",
+        mocha: "bg-mocha text-mocha-foreground hover:bg-mocha/90",
+        'strategic-cta': "bg-strategic-orange text-white hover:bg-strategic-orange/90 shadow-md",
+        minimal: "bg-muted text-muted-foreground hover:bg-muted/80 border border-border",
       },
       size: {
         default: "h-9 px-4 py-2",
