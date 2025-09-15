@@ -10139,6 +10139,15 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      update_lead_state_after_interview: {
+        Args: {
+          p_interview_notes?: string
+          p_lead_id: string
+          p_new_status: string
+          p_rejection_reason?: string
+        }
+        Returns: boolean
+      }
       update_points_system_config: {
         Args: {
           p_level_names: Json

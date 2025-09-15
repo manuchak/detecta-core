@@ -122,14 +122,10 @@ export const ManualInterviewDialog = ({ open, onOpenChange, lead, onComplete, on
     setLoading(true);
 
     try {
-      let stage = 'phone_interview';
-      let finalDecision = null;
-      
-      if (decision === 'approved') {
-        stage = 'approved';
-        finalDecision = 'approved';
-      } else if (decision === 'second_interview') {
-        stage = 'second_interview';
+      // Determine the correct lead ID (handle both id and lead_id)
+      const leadId = lead.id || lead.lead_id;
+      if (!leadId) {
+        throw new Error('No se pudo encontrar el ID del candidato');
       }
 
       // Save final session data
@@ -137,40 +133,60 @@ export const ManualInterviewDialog = ({ open, onOpenChange, lead, onComplete, on
         await saveSession();
       }
 
-      // Actualizar el proceso de aprobación
+      // Prepare interview notes
+      const fullInterviewNotes = `Notas de entrevista: ${interviewNotes || 'No se proporcionaron notas específicas'}\n\nDecisión: ${decision}\nRazón: ${decisionReason || 'No especificada'}`;
+      
+      // Determine new status based on decision
+      const newStatus = decision === 'approved' ? 'approved' : 
+                       decision === 'second_interview' ? 'second_interview_needed' : 'rejected';
+
+      // Update approval process first
       const { error: approvalError } = await supabase.rpc('update_approval_process', {
-        p_lead_id: lead.lead_id,
-        p_stage: stage,
+        p_lead_id: leadId,
+        p_stage: newStatus === 'approved' ? 'approved' : 'phone_interview',
         p_interview_method: 'manual',
-        p_notes: interviewNotes,
-        p_decision: finalDecision,
+        p_notes: fullInterviewNotes,
+        p_decision: decision === 'approved' ? 'approved' : null,
         p_decision_reason: decisionReason
       });
 
-      if (approvalError) throw approvalError;
+      if (approvalError) {
+        console.error('Error updating approval process:', approvalError);
+        toast({
+          title: "Error",
+          description: "Error al actualizar el proceso de aprobación: " + approvalError.message,
+          variant: "destructive",
+        });
+        return;
+      }
 
-      // Actualizar el estado del lead si fue aprobado
-      if (finalDecision === 'approved') {
-        const { error: leadError } = await supabase
-          .from('leads')
-          .update({
-            estado: 'aprobado',
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', lead.lead_id);
+      // Use the new secure RPC function to update lead state
+      const { error: leadStateError } = await supabase.rpc('update_lead_state_after_interview', {
+        p_lead_id: leadId,
+        p_new_status: newStatus,
+        p_interview_notes: fullInterviewNotes,
+        p_rejection_reason: decision === 'rejected' ? decisionReason : null
+      });
 
-        if (leadError) throw leadError;
+      if (leadStateError) {
+        console.error('Error updating lead state:', leadStateError);
+        // Still show success for process update but warn about status update
+        toast({
+          title: "Advertencia",
+          description: "Proceso de entrevista guardado. Nota: El estado del candidato podría no haberse actualizado debido a permisos.",
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Entrevista completada",
+          description: "Los resultados de la entrevista han sido guardados exitosamente.",
+        });
       }
 
       // End session successfully
       if (session?.isActive) {
         await endSession();
       }
-
-      toast({
-        title: "Entrevista completada",
-        description: "Los resultados de la entrevista han sido guardados.",
-      });
 
       onComplete();
       onOpenChange(false);
@@ -185,7 +201,7 @@ export const ManualInterviewDialog = ({ open, onOpenChange, lead, onComplete, on
       console.error('Error saving interview results:', error);
       toast({
         title: "Error",
-        description: "No se pudieron guardar los resultados de la entrevista.",
+        description: "No se pudieron guardar los resultados de la entrevista: " + (error as Error).message,
         variant: "destructive",
       });
     } finally {
