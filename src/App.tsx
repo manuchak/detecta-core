@@ -56,6 +56,7 @@ import PlaneacionDashboard from '@/pages/Planeacion/PlaneacionDashboard';
 
 import DuplicateCleanupPage from '@/pages/Maintenance/DuplicateCleanupPage';
 import VersionControlPage from '@/pages/Administration/VersionControlPage';
+import SystemTestingPage from '@/pages/SystemTestingPage';
 
 
 // Components
@@ -527,6 +528,20 @@ function App() {
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'coordinador_operaciones', 'planificador']}>
                         <DashboardLayout>
                           <PlaneacionDashboard />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                {/* System Testing Route - Admin Only */}
+                <Route
+                  path="/system-testing"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner']}>
+                        <DashboardLayout>
+                          <SystemTestingPage />
                         </DashboardLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>

@@ -18,14 +18,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   // Controlar la inicialización para evitar parpadeos
   useEffect(() => {
     if (!loading && user) {
-      // Para supply_admin emails, permitir acceso inmediato
-      const email = user.email;
-      if (email === 'brenda.jimenez@detectasecurity.io' || email === 'marbelli.casillas@detectasecurity.io') {
-        setIsInitializing(false);
-        return;
-      }
-      
-      // Para otros usuarios, esperar a que se defina el rol
+      // Esperar a que se defina el rol para todos los usuarios
       if (userRole !== null) {
         setIsInitializing(false);
       }
@@ -56,11 +49,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     return <Navigate to="/auth/login" replace />;
   }
 
-  // Verificación específica para supply_admin
-  const isSupplyAdminEmail = user?.email === 'brenda.jimenez@detectasecurity.io' || user?.email === 'marbelli.casillas@detectasecurity.io';
-  
-  // Solo mostrar pantalla de loading si NO es supply_admin y no tiene rol
-  if (!isSupplyAdminEmail && !userRole) {
+  // Verificación de rol requerida para todos los usuarios
+  if (!userRole) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="space-y-4 text-center">
