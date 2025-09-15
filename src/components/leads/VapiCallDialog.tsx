@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Phone, Loader2 } from "lucide-react";
+import { Bot, Phone, Loader2, CheckCircle, Clock, TrendingUp, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -112,14 +112,47 @@ export const VapiCallDialog = ({ open, onOpenChange, lead, onCallComplete }: Vap
             </CardContent>
           </Card>
 
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <h4 className="font-medium text-blue-900 mb-2">Información de la llamada</h4>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>• El asistente realizará preguntas de validación</li>
-              <li>• Se recopilará información básica del candidato</li>
-              <li>• La llamada será grabada y transcrita</li>
-              <li>• Podrás revisar los resultados después</li>
-            </ul>
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border">
+            <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
+              <Bot className="h-4 w-4" />
+              Entrevista Automatizada con IA
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-blue-800">
+                  <CheckCircle className="h-3 w-3" />
+                  <span>Evaluación estructurada automática</span>
+                </div>
+                <div className="flex items-center gap-2 text-blue-800">
+                  <Clock className="h-3 w-3" />
+                  <span>Duración: 8-12 minutos</span>
+                </div>
+                <div className="flex items-center gap-2 text-blue-800">
+                  <TrendingUp className="h-3 w-3" />
+                  <span>Scoring inteligente (1-10)</span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-purple-800">
+                  <AlertTriangle className="h-3 w-3" />
+                  <span>Detección automática de red flags</span>
+                </div>
+                <div className="flex items-center gap-2 text-purple-800">
+                  <Phone className="h-3 w-3" />
+                  <span>Grabación y transcripción completa</span>
+                </div>
+                <div className="flex items-center gap-2 text-purple-800">
+                  <Bot className="h-3 w-3" />
+                  <span>Decisión automática al finalizar</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-3 p-2 bg-white/50 rounded border-l-4 border-blue-400">
+              <p className="text-xs text-blue-900 font-medium">
+                💡 El asistente evaluará: experiencia, disponibilidad, confiabilidad, comunicación y detectará posibles problemas automáticamente.
+              </p>
+            </div>
           </div>
 
           {callStatus && (

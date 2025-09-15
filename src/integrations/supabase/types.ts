@@ -7735,8 +7735,10 @@ export type Database = {
       vapi_call_logs: {
         Row: {
           analysis: Json | null
+          analysis_score: number | null
           analyst_id: string
           artifacts: Json | null
+          auto_decision: string | null
           call_status: string | null
           call_type: string | null
           cost_usd: number | null
@@ -7746,8 +7748,11 @@ export type Database = {
           id: string
           lead_id: string
           phone_number: string | null
+          recommendation: string | null
           recording_url: string | null
+          red_flags: string[] | null
           started_at: string | null
+          structured_data: Json | null
           summary: string | null
           transcript: string | null
           updated_at: string
@@ -7756,8 +7761,10 @@ export type Database = {
         }
         Insert: {
           analysis?: Json | null
+          analysis_score?: number | null
           analyst_id: string
           artifacts?: Json | null
+          auto_decision?: string | null
           call_status?: string | null
           call_type?: string | null
           cost_usd?: number | null
@@ -7767,8 +7774,11 @@ export type Database = {
           id?: string
           lead_id: string
           phone_number?: string | null
+          recommendation?: string | null
           recording_url?: string | null
+          red_flags?: string[] | null
           started_at?: string | null
+          structured_data?: Json | null
           summary?: string | null
           transcript?: string | null
           updated_at?: string
@@ -7777,8 +7787,10 @@ export type Database = {
         }
         Update: {
           analysis?: Json | null
+          analysis_score?: number | null
           analyst_id?: string
           artifacts?: Json | null
+          auto_decision?: string | null
           call_status?: string | null
           call_type?: string | null
           cost_usd?: number | null
@@ -7788,8 +7800,11 @@ export type Database = {
           id?: string
           lead_id?: string
           phone_number?: string | null
+          recommendation?: string | null
           recording_url?: string | null
+          red_flags?: string[] | null
           started_at?: string | null
+          structured_data?: Json | null
           summary?: string | null
           transcript?: string | null
           updated_at?: string
@@ -8597,11 +8612,22 @@ export type Database = {
         Returns: number
       }
       create_vapi_call_log: {
-        Args: {
-          p_lead_id: string
-          p_phone_number: string
-          p_vapi_call_id: string
-        }
+        Args:
+          | {
+              p_analysis_score?: number
+              p_auto_decision?: string
+              p_lead_id: string
+              p_phone_number: string
+              p_recommendation?: string
+              p_red_flags?: string[]
+              p_structured_data?: Json
+              p_vapi_call_id: string
+            }
+          | {
+              p_lead_id: string
+              p_phone_number: string
+              p_vapi_call_id: string
+            }
         Returns: string
       }
       current_user_has_role: {
@@ -10157,6 +10183,20 @@ export type Database = {
       }
       update_user_role_secure: {
         Args: { new_role: string; target_user_id: string }
+        Returns: boolean
+      }
+      update_vapi_call_with_results: {
+        Args: {
+          p_analysis_score: number
+          p_call_status: string
+          p_cost_usd?: number
+          p_duration_seconds: number
+          p_recording_url?: string
+          p_structured_data: Json
+          p_summary: string
+          p_transcript: string
+          p_vapi_call_id: string
+        }
         Returns: boolean
       }
       upsert_user_profile: {
