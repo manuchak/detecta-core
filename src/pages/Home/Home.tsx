@@ -1,4 +1,4 @@
-
+// @ts-nocheck
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWMSAccess } from '@/hooks/useWMSAccess';

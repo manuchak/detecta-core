@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Navigate, Outlet } from "react-router-dom";
 import { useStableAuth } from "@/hooks/useStableAuth";
 

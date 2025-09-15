@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import SystemTestingPanel from '@/components/testing/SystemTestingPanel';

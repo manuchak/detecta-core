@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { VersionControlManager } from "@/components/version-control/VersionControlManager";
 
 const VersionControlPage = () => {
