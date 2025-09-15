@@ -9763,11 +9763,9 @@ export type Database = {
       get_users_with_roles_secure: {
         Args: Record<PropertyKey, never>
         Returns: {
-          created_at: string
           display_name: string
           email: string
           id: string
-          last_login: string
           role: string
         }[]
       }

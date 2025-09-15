@@ -17,7 +17,7 @@ const PERMISSIONS_MAP: Record<UserRole, AuthPermissions> = {
   owner: { canViewLeads: true, canEditLeads: true, canManageUsers: true, canViewDashboard: true },
   supply_admin: { canViewLeads: true, canEditLeads: true, canManageUsers: false, canViewDashboard: true },
   ejecutivo_ventas: { canViewLeads: true, canEditLeads: true, canManageUsers: false, canViewDashboard: false },
-  supply_lead: { canViewLeads: true, canEditLeads: false, canManageUsers: false, canViewDashboard: true },
+  supply_lead: { canViewLeads: true, canEditLeads: true, canManageUsers: false, canViewDashboard: true },
   supply: { canViewLeads: true, canEditLeads: false, canManageUsers: false, canViewDashboard: false },
   monitoring: { canViewLeads: false, canEditLeads: false, canManageUsers: false, canViewDashboard: true },
   coordinador_operaciones: { canViewLeads: false, canEditLeads: false, canManageUsers: false, canViewDashboard: true },

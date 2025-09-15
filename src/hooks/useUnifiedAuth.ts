@@ -75,7 +75,7 @@ const ROLE_PERMISSIONS: Record<UserRole, AuthState['permissions']> = {
   },
   supply_lead: {
     canViewLeads: true,
-    canEditLeads: false,
+    canEditLeads: true,
     canManageUsers: false,
     canViewDashboard: true,
   },
