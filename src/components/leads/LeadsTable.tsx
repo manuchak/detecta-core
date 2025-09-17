@@ -3,6 +3,7 @@ import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -19,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, Edit, AlertCircle, RefreshCw, CheckCircle, User, UserX } from "lucide-react";
+import { Search, UserPlus, Edit, AlertCircle, RefreshCw, CheckCircle, User, UserX, Users } from "lucide-react";
 import { useSimpleLeads } from "@/hooks/useSimpleLeads";
 import { Lead } from "@/types/leadTypes";
 import { LeadAssignmentDialog } from "./LeadAssignmentDialog";
@@ -28,6 +29,7 @@ import { BulkActionsToolbar } from "./BulkActionsToolbar";
 import { AdvancedFilters, AdvancedFiltersState } from "./AdvancedFilters";
 import { QuickFilters, QuickFilterPreset } from "./QuickFilters";
 import { LeadDetailsDialog } from "./LeadDetailsDialog";
+import { TeamManagementView } from "./TeamManagementView";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface LeadsTableProps {
@@ -35,6 +37,9 @@ interface LeadsTableProps {
 }
 
 export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
+  // Estados para tabs y UI principal
+  const [activeTab, setActiveTab] = useState("leads");
+  
   // Estados para filtros y UI
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -336,37 +341,57 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     );
   }
 
+  // Función para refrescar datos desde gestión de equipo
+  const handleRefreshLeads = useCallback(() => {
+    setCurrentPage(1);
+    clearCache();
+    refetch();
+  }, [clearCache, refetch]);
+
   // MAIN RENDER
   return (
     <div className="space-y-4">
-      <LeadsMetricsDashboard 
-        leads={leads || []} 
-        dateFrom={advancedFilters.dateFrom || undefined}
-        dateTo={advancedFilters.dateTo || undefined}
-      />
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="leads" className="flex items-center space-x-2">
+            <User className="h-4 w-4" />
+            <span>Gestión de Leads</span>
+          </TabsTrigger>
+          <TabsTrigger value="team" className="flex items-center space-x-2">
+            <Users className="h-4 w-4" />
+            <span>Gestión de Equipo</span>
+          </TabsTrigger>
+        </TabsList>
 
-      <QuickFilters 
-        onApplyFilter={handleQuickFilter}
-        activePreset={activeQuickFilter}
-      />
+        <TabsContent value="leads" className="space-y-4">
+          <LeadsMetricsDashboard 
+            leads={leads || []} 
+            dateFrom={advancedFilters.dateFrom || undefined}
+            dateTo={advancedFilters.dateTo || undefined}
+          />
 
-      <AdvancedFilters 
-        filters={advancedFilters}
-        onFiltersChange={handleAdvancedFiltersChange}
-        onResetFilters={handleResetFilters}
-      />
+          <QuickFilters 
+            onApplyFilter={handleQuickFilter}
+            activePreset={activeQuickFilter}
+          />
 
-      {authPermissions.canAssignLeads && (
-        <BulkActionsToolbar 
-          selectedLeads={selectedLeads}
-          onClearSelection={handleClearSelection}
-          onBulkAssignmentComplete={() => {
-            setCurrentPage(1);
-            clearCache();
-            refetch();
-          }}
-        />
-      )}
+          <AdvancedFilters 
+            filters={advancedFilters}
+            onFiltersChange={handleAdvancedFiltersChange}
+            onResetFilters={handleResetFilters}
+          />
+
+          {authPermissions.canAssignLeads && (
+            <BulkActionsToolbar 
+              selectedLeads={selectedLeads}
+              onClearSelection={handleClearSelection}
+              onBulkAssignmentComplete={() => {
+                setCurrentPage(1);
+                clearCache();
+                refetch();
+              }}
+            />
+          )}
 
       {/* Active Filters Display */}
       {(statusFilter !== 'all' || assignmentFilter !== 'all' || debouncedSearchTerm || 
@@ -641,13 +666,33 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         </div>
       </div>
 
-      {leads.length === 0 && !isLoading && (
-        <div className="text-center py-8">
-          <p className="text-muted-foreground">
-            No se encontraron candidatos que coincidan con los filtros aplicados.
-          </p>
-        </div>
-      )}
+          {leads.length === 0 && !isLoading && (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">
+                No se encontraron candidatos que coincidan con los filtros aplicados.
+              </p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="team">
+          {authPermissions.canAssignLeads ? (
+            <TeamManagementView onRefreshLeads={handleRefreshLeads} />
+          ) : (
+            <div className="text-center py-8">
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-6 space-y-3">
+                <div className="flex items-center justify-center space-x-2 text-orange-600">
+                  <AlertCircle className="h-5 w-5" />
+                  <h3 className="font-semibold">Acceso Restringido</h3>
+                </div>
+                <p className="text-orange-700">
+                  Solo los supply admins pueden acceder a la gestión de equipo.
+                </p>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {selectedLead && (
         <LeadAssignmentDialog
