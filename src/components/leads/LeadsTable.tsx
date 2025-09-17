@@ -230,116 +230,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
   const allFilteredSelected = leads.length > 0 && 
     leads.every(lead => isLeadSelected(lead.id));
 
-  // CONDITIONAL RENDERING - AFTER ALL HOOKS
-  if (!canAccess) {
-    return (
-      <div className="text-center py-8">
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-6 space-y-3">
-          <div className="flex items-center justify-center space-x-2 text-orange-600">
-            <AlertCircle className="h-5 w-5" />
-            <h3 className="font-semibold">Acceso Restringido</h3>
-          </div>
-          <p className="text-orange-700 text-lg">
-            {accessReason}
-          </p>
-          {error && (
-            <p className="text-sm text-destructive mt-2">
-              Error técnico: {error.message}
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <span className="text-sm text-muted-foreground">
-            {canAccess ? 'Cargando candidatos...' : 'Verificando permisos...'}
-          </span>
-          {canAccess && (
-            <div className="text-xs text-gray-500 max-w-md text-center">
-              Consultando la base de datos...
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-8 text-center space-y-4">
-        <div className="flex items-center justify-center space-x-2 text-red-600">
-          <AlertCircle className="h-5 w-5" />
-          <span className="font-semibold">Error al cargar candidatos</span>
-        </div>
-        
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
-          <div>
-            <p className="text-red-800 font-medium">Detalles del error:</p>
-            <p className="text-red-700 text-sm font-mono break-words">
-              {error.message}
-            </p>
-          </div>
-          
-          <div className="text-left">
-            <p className="text-red-800 font-medium mb-2">Acciones disponibles:</p>
-            <ul className="text-red-700 text-sm space-y-1 list-disc list-inside">
-              <li>Verificar que estás autenticado correctamente</li>
-              <li>Recargar la página para refrescar la sesión</li>
-              <li>Contactar al administrador si el problema persiste</li>
-            </ul>
-          </div>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button onClick={() => {
-            setCurrentPage(1);
-            clearCache();
-            refetch();
-          }} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Reintentar
-          </Button>
-          <Button 
-            onClick={() => window.location.reload()} 
-            variant="secondary"
-          >
-            Recargar página
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!leads || leads.length === 0) {
-    return (
-      <div className="p-8 text-center space-y-4">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 space-y-3">
-          <div className="flex items-center justify-center space-x-2 text-blue-600">
-            <CheckCircle className="h-5 w-5" />
-            <h3 className="font-semibold">Sistema funcionando correctamente</h3>
-          </div>
-          <div className="space-y-2 text-blue-700">
-            <p>La consulta se ejecutó exitosamente pero no hay candidatos registrados.</p>
-          </div>
-        </div>
-        
-        <Button onClick={() => {
-          setCurrentPage(1);
-          clearCache();
-          refetch();
-        }} variant="outline">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Actualizar
-        </Button>
-      </div>
-    );
-  }
+  // All conditional logic moved to JSX render - no early returns
 
   // Función para refrescar datos desde gestión de equipo
   const handleRefreshLeads = useCallback(() => {
@@ -348,22 +239,128 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     refetch();
   }, [clearCache, refetch]);
 
-  // MAIN RENDER
+  // MAIN RENDER - All conditions handled in JSX
   return (
     <div className="space-y-4">
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="leads" className="flex items-center space-x-2">
-            <User className="h-4 w-4" />
-            <span>Gestión de Leads</span>
-          </TabsTrigger>
-          <TabsTrigger value="team" className="flex items-center space-x-2">
-            <Users className="h-4 w-4" />
-            <span>Gestión de Equipo</span>
-          </TabsTrigger>
-        </TabsList>
+      {/* Access denied */}
+      {!canAccess && (
+        <div className="text-center py-8">
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-6 space-y-3">
+            <div className="flex items-center justify-center space-x-2 text-orange-600">
+              <AlertCircle className="h-5 w-5" />
+              <h3 className="font-semibold">Acceso Restringido</h3>
+            </div>
+            <p className="text-orange-700 text-lg">
+              {accessReason}
+            </p>
+            {error && (
+              <p className="text-sm text-destructive mt-2">
+                Error técnico: {error.message}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
-        <TabsContent value="leads" className="space-y-4">
+      {/* Loading state */}
+      {canAccess && isLoading && (
+        <div className="flex items-center justify-center p-8">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <span className="text-sm text-muted-foreground">
+              Cargando candidatos...
+            </span>
+            <div className="text-xs text-gray-500 max-w-md text-center">
+              Consultando la base de datos...
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error state */}
+      {canAccess && error && !isLoading && (
+        <div className="p-8 text-center space-y-4">
+          <div className="flex items-center justify-center space-x-2 text-red-600">
+            <AlertCircle className="h-5 w-5" />
+            <span className="font-semibold">Error al cargar candidatos</span>
+          </div>
+          
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
+            <div>
+              <p className="text-red-800 font-medium">Detalles del error:</p>
+              <p className="text-red-700 text-sm font-mono break-words">
+                {error.message}
+              </p>
+            </div>
+            
+            <div className="text-left">
+              <p className="text-red-800 font-medium mb-2">Acciones disponibles:</p>
+              <ul className="text-red-700 text-sm space-y-1 list-disc list-inside">
+                <li>Verificar que estás autenticado correctamente</li>
+                <li>Recargar la página para refrescar la sesión</li>
+                <li>Contactar al administrador si el problema persiste</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button onClick={() => {
+              setCurrentPage(1);
+              clearCache();
+              refetch();
+            }} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Reintentar
+            </Button>
+            <Button 
+              onClick={() => window.location.reload()} 
+              variant="secondary"
+            >
+              Recargar página
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {canAccess && !isLoading && !error && (!leads || leads.length === 0) && (
+        <div className="p-8 text-center space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 space-y-3">
+            <div className="flex items-center justify-center space-x-2 text-blue-600">
+              <CheckCircle className="h-5 w-5" />
+              <h3 className="font-semibold">Sistema funcionando correctamente</h3>
+            </div>
+            <div className="space-y-2 text-blue-700">
+              <p>La consulta se ejecutó exitosamente pero no hay candidatos registrados.</p>
+            </div>
+          </div>
+          
+          <Button onClick={() => {
+            setCurrentPage(1);
+            clearCache();
+            refetch();
+          }} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Actualizar
+          </Button>
+        </div>
+      )}
+
+      {/* Main content - only show when we have access and data */}
+      {canAccess && !isLoading && !error && leads && leads.length > 0 && (
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="leads" className="flex items-center space-x-2">
+              <User className="h-4 w-4" />
+              <span>Gestión de Leads</span>
+            </TabsTrigger>
+            <TabsTrigger value="team" className="flex items-center space-x-2">
+              <Users className="h-4 w-4" />
+              <span>Gestión de Equipo</span>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="leads" className="space-y-4">
           <LeadsMetricsDashboard 
             leads={leads || []} 
             dateFrom={advancedFilters.dateFrom || undefined}
@@ -666,34 +663,37 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         </div>
       </div>
 
-          {leads.length === 0 && !isLoading && (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">
-                No se encontraron candidatos que coincidan con los filtros aplicados.
-              </p>
-            </div>
-          )}
-        </TabsContent>
+      {/* Empty results message */}
+      {leads.length === 0 && !isLoading && (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">
+            No se encontraron candidatos que coincidan con los filtros aplicados.
+          </p>
+        </div>
+      )}
+      </TabsContent>
 
-        <TabsContent value="team">
-          {authPermissions.canAssignLeads ? (
-            <TeamManagementView onRefreshLeads={handleRefreshLeads} />
-          ) : (
-            <div className="text-center py-8">
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-6 space-y-3">
-                <div className="flex items-center justify-center space-x-2 text-orange-600">
-                  <AlertCircle className="h-5 w-5" />
-                  <h3 className="font-semibold">Acceso Restringido</h3>
+          <TabsContent value="team">
+            {authPermissions.canAssignLeads ? (
+              <TeamManagementView onRefreshLeads={handleRefreshLeads} />
+            ) : (
+              <div className="text-center py-8">
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-6 space-y-3">
+                  <div className="flex items-center justify-center space-x-2 text-orange-600">
+                    <AlertCircle className="h-5 w-5" />
+                    <h3 className="font-semibold">Acceso Restringido</h3>
+                  </div>
+                  <p className="text-orange-700">
+                    Solo los supply admins pueden acceder a la gestión de equipo.
+                  </p>
                 </div>
-                <p className="text-orange-700">
-                  Solo los supply admins pueden acceder a la gestión de equipo.
-                </p>
               </div>
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+            )}
+          </TabsContent>
+        </Tabs>
+      )}
 
+      {/* Dialogs - always rendered but controlled by state */}
       {selectedLead && (
         <LeadAssignmentDialog
           open={showAssignmentDialog}
