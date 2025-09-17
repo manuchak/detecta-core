@@ -203,7 +203,7 @@ export const useTeamManagement = () => {
     }
   }, [reassignLeads, toast]);
 
-  const distributeEquitably = useCallback(async (fromAnalystId: string) => {
+  const distributeEquitably = useCallback(async (fromAnalystId: string, selectedAnalystIds?: string[]) => {
     try {
       // Obtener todos los leads del analista origen
       const { data: leadsToDistribute, error: fetchError } = await supabase
@@ -221,16 +221,27 @@ export const useTeamManagement = () => {
         return true;
       }
 
-      // Obtener analistas disponibles (excluyendo el origen)
-      const availableAnalysts = analysts.filter(analyst => 
-        analyst.id !== fromAnalystId && 
-        ['admin', 'owner', 'supply_admin', 'supply_lead'].includes(analyst.role)
-      );
+      // Obtener analistas disponibles basado en selección o por defecto
+      let availableAnalysts;
+      if (selectedAnalystIds && selectedAnalystIds.length > 0) {
+        // Usar analistas seleccionados manualmente
+        availableAnalysts = analysts.filter(analyst => 
+          selectedAnalystIds.includes(analyst.id) && analyst.id !== fromAnalystId
+        );
+      } else {
+        // Comportamiento por defecto: usar solo analistas que realizan llamadas
+        availableAnalysts = analysts.filter(analyst => 
+          analyst.id !== fromAnalystId && 
+          ['supply_admin', 'supply_lead', 'ejecutivo_ventas'].includes(analyst.role)
+        );
+      }
 
       if (availableAnalysts.length === 0) {
         toast({
           title: "Error",
-          description: "No hay analistas disponibles para la distribución.",
+          description: selectedAnalystIds && selectedAnalystIds.length > 0 
+            ? "No hay analistas seleccionados válidos para la distribución."
+            : "No hay analistas disponibles para la distribución.",
           variant: "destructive",
         });
         return false;

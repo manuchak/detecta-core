@@ -35,6 +35,11 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedAnalysts, setExpandedAnalysts] = useState<Set<string>>(new Set());
   const [selectedReassignTo, setSelectedReassignTo] = useState<string>('');
+  const [distributionConfig, setDistributionConfig] = useState({
+    fromAnalyst: '',
+    selectedTargetAnalysts: [] as string[],
+    showPreview: false
+  });
   
   const { 
     analysts, 
@@ -72,11 +77,27 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({
   };
 
   const handleDistributeEquitably = async (fromAnalystId: string) => {
-    const success = await distributeEquitably(fromAnalystId);
+    setDistributionConfig({ 
+      fromAnalyst: fromAnalystId, 
+      selectedTargetAnalysts: [],
+      showPreview: true 
+    });
+  };
+
+  const handleConfirmDistribution = async () => {
+    if (!distributionConfig.fromAnalyst) return;
+    
+    const success = await distributeEquitably(
+      distributionConfig.fromAnalyst, 
+      distributionConfig.selectedTargetAnalysts.length > 0 ? distributionConfig.selectedTargetAnalysts : undefined
+    );
+    
     if (success) {
       refreshData();
       onRefreshLeads?.();
     }
+    
+    setDistributionConfig({ fromAnalyst: '', selectedTargetAnalysts: [], showPreview: false });
   };
 
   const handleReassignSpecificLead = async (leadId: string, fromAnalystId: string) => {
@@ -368,35 +389,15 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({
                               </AlertDialogContent>
                             </AlertDialog>
                             
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  className="gap-2"
-                                >
-                                  <Shuffle className="h-3 w-3" />
-                                  Distribuir
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Confirmar Distribución Equitativa</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    ¿Estás seguro de que quieres distribuir equitativamente los {analyst.assignedLeadsCount} leads 
-                                    de {analyst.display_name} entre el resto del equipo?
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDistributeEquitably(analyst.id)}
-                                  >
-                                    Distribuir
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="gap-2"
+                              onClick={() => handleDistributeEquitably(analyst.id)}
+                            >
+                              <Shuffle className="h-3 w-3" />
+                              Distribuir
+                            </Button>
                           </>
                         )}
                         
@@ -482,6 +483,109 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* Distribution Configuration Modal */}
+      {distributionConfig.showPreview && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-2xl mx-4">
+            <CardHeader>
+              <CardTitle>Configurar Distribución Equitativa</CardTitle>
+              <CardDescription>
+                Selecciona los analistas que recibirán los leads distribuidos
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="p-4 bg-muted rounded-lg">
+                  <div className="text-sm">
+                    <p>
+                      <span className="font-medium">Distribuir desde:</span>{' '}
+                      {analysts?.find(a => a.id === distributionConfig.fromAnalyst)?.display_name}
+                    </p>
+                    <p>
+                      <span className="font-medium">Total de leads:</span>{' '}
+                      {analysts?.find(a => a.id === distributionConfig.fromAnalyst)?.assignedLeadsCount || 0}
+                    </p>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium mb-3 block">
+                    Seleccionar analistas destino:
+                  </label>
+                  <div className="grid grid-cols-1 gap-3 max-h-60 overflow-y-auto border rounded-lg p-3">
+                    {analysts
+                      ?.filter(a => a.id !== distributionConfig.fromAnalyst)
+                      .map(analyst => (
+                        <div key={analyst.id} className="flex items-center space-x-3 p-2 hover:bg-muted/50 rounded">
+                          <input
+                            type="checkbox"
+                            id={`analyst-${analyst.id}`}
+                            checked={distributionConfig.selectedTargetAnalysts.includes(analyst.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setDistributionConfig(prev => ({
+                                  ...prev,
+                                  selectedTargetAnalysts: [...prev.selectedTargetAnalysts, analyst.id]
+                                }));
+                              } else {
+                                setDistributionConfig(prev => ({
+                                  ...prev,
+                                  selectedTargetAnalysts: prev.selectedTargetAnalysts.filter(id => id !== analyst.id)
+                                }));
+                              }
+                            }}
+                            className="rounded"
+                          />
+                          <div className="flex-1">
+                            <label 
+                              htmlFor={`analyst-${analyst.id}`}
+                              className="text-sm font-medium cursor-pointer"
+                            >
+                              {analyst.display_name}
+                            </label>
+                            <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                              <Badge variant="outline" className="text-xs">
+                                {analyst.role}
+                              </Badge>
+                              <span>•</span>
+                              <span>{analyst.assignedLeadsCount} leads actuales</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                  <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                    <p className="text-xs text-blue-700">
+                      {distributionConfig.selectedTargetAnalysts.length === 0 
+                        ? "💡 Si no seleccionas ningún analista, se distribuirá solo entre roles que realizan llamadas (supply_admin, supply_lead, ejecutivo_ventas)"
+                        : `✅ Distribución entre ${distributionConfig.selectedTargetAnalysts.length} analistas seleccionados`
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+            <CardContent className="pt-0">
+              <div className="flex justify-end gap-3">
+                <Button 
+                  variant="outline"
+                  onClick={() => setDistributionConfig(prev => ({ 
+                    ...prev, 
+                    showPreview: false,
+                    selectedTargetAnalysts: []
+                  }))}
+                >
+                  Cancelar
+                </Button>
+                <Button onClick={handleConfirmDistribution}>
+                  Confirmar Distribución
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };
