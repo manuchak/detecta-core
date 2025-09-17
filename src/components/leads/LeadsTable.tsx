@@ -292,7 +292,10 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         </div>
         
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button onClick={() => refetch()} variant="outline">
+          <Button onClick={() => {
+            clearCache();
+            refetch();
+          }} variant="outline">
             <RefreshCw className="h-4 w-4 mr-2" />
             Reintentar
           </Button>
@@ -320,7 +323,10 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
           </div>
         </div>
         
-        <Button onClick={() => refetch()} variant="outline">
+        <Button onClick={() => {
+          clearCache();
+          refetch();
+        }} variant="outline">
           <RefreshCw className="h-4 w-4 mr-2" />
           Actualizar
         </Button>
@@ -352,7 +358,10 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         <BulkActionsToolbar 
           selectedLeads={selectedLeads}
           onClearSelection={handleClearSelection}
-          onBulkAssignmentComplete={refetch}
+          onBulkAssignmentComplete={() => {
+            clearCache();
+            refetch();
+          }}
         />
       )}
 
@@ -405,7 +414,13 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
             </SelectItem>
           </SelectContent>
         </Select>
-        <Button onClick={() => refetch()} variant="outline">
+        <Button 
+          onClick={() => {
+            clearCache(); // Limpia cache primero
+            refetch(); // Luego refresca
+          }} 
+          variant="outline"
+        >
           <RefreshCw className="h-4 w-4 mr-2" />
           Actualizar
         </Button>
@@ -554,7 +569,10 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
           leadId={selectedLead.id}
           leadName={selectedLead.nombre}
           currentAssignee={selectedLead.asignado_a}
-          onAssignmentUpdate={() => refetch()}
+          onAssignmentUpdate={() => {
+            clearCache();
+            refetch();
+          }}
         />
       )}
     </div>
