@@ -19,27 +19,35 @@ interface VehicleFormProps {
 }
 
 export const VehicleForm = ({ formData, onInputChange }: VehicleFormProps) => {
+  console.log("🚗 VehicleForm - Rendering with data:", formData);
+  
   const { marcas, loadingMarcas, error, fetchModelosPorMarca } = useVehicleData();
   const [modelos, setModelos] = useState<any[]>([]);
   const [loadingModelos, setLoadingModelos] = useState(false);
+  const [errorModelos, setErrorModelos] = useState<string | null>(null);
 
   const handleMarcaChange = async (marcaNombre: string) => {
+    console.log("🔄 Marca changed to:", marcaNombre);
     onInputChange('marca_vehiculo', marcaNombre);
     onInputChange('modelo_vehiculo', ''); // Limpiar modelo cuando cambia la marca
     
     if (marcaNombre) {
       setLoadingModelos(true);
+      setErrorModelos(null);
       try {
         const modelosData = await fetchModelosPorMarca(marcaNombre);
         setModelos(modelosData);
+        console.log("✅ Modelos loaded:", modelosData);
       } catch (error) {
-        console.error('Error loading modelos:', error);
+        console.error('❌ Error loading modelos:', error);
+        setErrorModelos('Error al cargar modelos');
         setModelos([]);
       } finally {
         setLoadingModelos(false);
       }
     } else {
       setModelos([]);
+      setErrorModelos(null);
     }
   };
 

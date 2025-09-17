@@ -2,7 +2,7 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useEstados, useCiudades } from "@/hooks/useGeograficos";
+import { useEstados, useCiudades, useZonasTrabajo } from "@/hooks/useGeograficos";
 
 interface LocationFormProps {
   formData: {
@@ -14,30 +14,38 @@ interface LocationFormProps {
   onInputChange: (field: string, value: string) => void;
 }
 
-const ZONAS_TRABAJO = [
-  { value: 'local', label: 'Local' },
-  { value: 'foraneo_corto', label: 'Foráneo Corto' },
-  { value: 'foraneo', label: 'Foráneo' }
-];
-
 export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => {
+  console.log("🏠 LocationForm - Rendering with data:", formData);
+  
   const { estados, loading: loadingEstados, error: errorEstados } = useEstados();
   const { ciudades, loading: loadingCiudades, error: errorCiudades } = useCiudades(formData.estado_id);
+  const { zonas, loading: loadingZonas, error: errorZonas } = useZonasTrabajo(formData.ciudad_id);
 
   // Limpiar ciudad cuando cambie el estado
   const handleEstadoChange = (value: string) => {
+    console.log("🔄 Estado changed to:", value);
     onInputChange('estado_id', value);
     onInputChange('ciudad_id', ''); // Limpiar ciudad
     onInputChange('zona_trabajo_id', ''); // Limpiar zona de trabajo
   };
 
+  const handleCiudadChange = (value: string) => {
+    console.log("🏙️ Ciudad changed to:", value);
+    onInputChange('ciudad_id', value);
+    onInputChange('zona_trabajo_id', ''); // Limpiar zona de trabajo
+  };
+
   // Mostrar errores si los hay
   if (errorEstados) {
-    console.error('Error loading estados:', errorEstados);
+    console.error('❌ Error loading estados:', errorEstados);
   }
   
   if (errorCiudades) {
-    console.error('Error loading ciudades:', errorCiudades);
+    console.error('❌ Error loading ciudades:', errorCiudades);
+  }
+
+  if (errorZonas) {
+    console.error('❌ Error loading zonas:', errorZonas);
   }
 
   return (
@@ -67,7 +75,7 @@ export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => 
           <Label htmlFor="ciudad_id">Ciudad *</Label>
           <Select 
             value={formData.ciudad_id} 
-            onValueChange={(value) => onInputChange('ciudad_id', value)}
+            onValueChange={handleCiudadChange}
             disabled={!formData.estado_id || loadingCiudades}
           >
             <SelectTrigger>
@@ -103,16 +111,34 @@ export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => 
         
         <div className="space-y-2 md:col-span-2">
           <Label htmlFor="zona_trabajo_id">Zona de Trabajo Disponible</Label>
-          <Select value={formData.zona_trabajo_id} onValueChange={(value) => onInputChange('zona_trabajo_id', value)}>
+          <Select 
+            value={formData.zona_trabajo_id} 
+            onValueChange={(value) => onInputChange('zona_trabajo_id', value)}
+            disabled={!formData.ciudad_id || loadingZonas}
+          >
             <SelectTrigger>
-              <SelectValue placeholder="Seleccionar zona de trabajo" />
+              <SelectValue placeholder={
+                !formData.ciudad_id 
+                  ? "Primero selecciona una ciudad" 
+                  : loadingZonas 
+                  ? "Cargando zonas..." 
+                  : errorZonas
+                  ? "Error al cargar zonas"
+                  : "Seleccionar zona de trabajo"
+              } />
             </SelectTrigger>
             <SelectContent>
-              {ZONAS_TRABAJO.map((zona) => (
-                <SelectItem key={zona.value} value={zona.value}>
-                  {zona.label}
+              {zonas.length > 0 ? (
+                zonas.map((zona) => (
+                  <SelectItem key={zona.id} value={zona.id}>
+                    {zona.nombre}
+                  </SelectItem>
+                ))
+              ) : (
+                <SelectItem value="no-zones" disabled>
+                  No hay zonas disponibles para esta ciudad
                 </SelectItem>
-              ))}
+              )}
             </SelectContent>
           </Select>
         </div>

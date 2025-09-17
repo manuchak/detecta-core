@@ -104,6 +104,7 @@ export const MissingInfoDialog = ({
   onUpdate,
   onReject
 }: MissingInfoDialogProps) => {
+  const [renderError, setRenderError] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormDataInterface>({
     // Campos básicos
     nombre: "",
@@ -166,15 +167,24 @@ export const MissingInfoDialog = ({
 
   useEffect(() => {
     if (lead && open) {
-      // Parsear datos existentes del lead
-      let notesData: any = {};
       try {
-        if (lead.notas) {
-          notesData = JSON.parse(lead.notas);
+        console.log("🔍 MissingInfoDialog - Loading lead data:", lead.lead_id);
+        setRenderError(null);
+        
+        // Parsear datos existentes del lead con validación mejorada
+        let notesData: any = {};
+        try {
+          if (lead.notas && typeof lead.notas === 'string' && lead.notas.trim()) {
+            // Solo parsear si parece ser JSON válido
+            if (lead.notas.trim().startsWith('{') || lead.notas.trim().startsWith('[')) {
+              notesData = JSON.parse(lead.notas);
+            }
+          }
+        } catch (error) {
+          console.warn("Error parsing lead notes:", error);
+          // Mantener notesData como objeto vacío en caso de error
+          notesData = {};
         }
-      } catch (error) {
-        console.warn("Error parsing lead notes:", error);
-      }
 
       // Cargar datos actuales del lead
       setFormData({
@@ -236,6 +246,12 @@ export const MissingInfoDialog = ({
       
       // Verificar si la entrevista ya fue iniciada
       setInterviewStarted(lead.interview_in_progress || false);
+      
+      console.log("✅ MissingInfoDialog - Lead data loaded successfully");
+      } catch (error) {
+        console.error("❌ MissingInfoDialog - Error loading lead data:", error);
+        setRenderError(`Error loading lead data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
     }
   }, [lead, open]);
 
@@ -538,6 +554,47 @@ export const MissingInfoDialog = ({
 
   if (!lead) return null;
 
+  // Si hay error de renderizado, mostrar mensaje de error
+  if (renderError) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" />
+              Error al cargar información
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {renderError}
+            </p>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setRenderError(null);
+                  onOpenChange(false);
+                }}
+              >
+                Cerrar
+              </Button>
+              <Button 
+                onClick={() => {
+                  setRenderError(null);
+                  // Recargar intentando otra vez
+                  console.log("🔄 Retrying to load lead data...");
+                }}
+              >
+                Reintentar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
@@ -671,15 +728,36 @@ export const MissingInfoDialog = ({
                 </div>
               </AccordionTrigger>
               <AccordionContent>
-                <LocationForm
-                  formData={{
-                    direccion: formData.direccion,
-                    estado_id: formData.estado_id,
-                    ciudad_id: formData.ciudad_id,
-                    zona_trabajo_id: formData.zona_trabajo_id
-                  }}
-                  onInputChange={handleInputChange}
-                />
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="direccion" className="text-sm font-medium">
+              Dirección
+            </Label>
+            <Input
+              id="direccion"
+              value={formData.direccion}
+              onChange={(e) => handleInputChange('direccion', e.target.value)}
+              placeholder="Dirección completa"
+            />
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="estado" className="text-sm font-medium">
+                Estado <span className="text-red-500">*</span>
+              </Label>
+              <LocationForm
+                formData={{
+                  direccion: formData.direccion,
+                  estado_id: formData.estado_id,
+                  ciudad_id: formData.ciudad_id,
+                  zona_trabajo_id: formData.zona_trabajo_id
+                }}
+                onInputChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
               </AccordionContent>
             </AccordionItem>
 
