@@ -10164,14 +10164,14 @@ export type Database = {
       }
       update_approval_process: {
         Args: {
-          p_decision?: string
-          p_decision_reason?: string
-          p_interview_method?: string
+          p_decision: string
+          p_decision_reason: string
+          p_interview_method: string
           p_lead_id: string
-          p_notes?: string
+          p_notes: string
           p_stage: string
         }
-        Returns: undefined
+        Returns: boolean
       }
       update_last_login: {
         Args: Record<PropertyKey, never>
