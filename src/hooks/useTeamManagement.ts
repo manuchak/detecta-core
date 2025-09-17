@@ -33,35 +33,71 @@ export const useTeamManagement = () => {
       setIsLoading(true);
       setError(null);
 
-      // Obtener analistas con roles válidos usando consulta directa
-      const { data: usersData, error: usersError } = await supabase
-        .from('profiles')
-        .select(`
-          id,
-          display_name,
-          email,
-          user_roles!inner(role)
-        `)
-        .in('user_roles.role', ['admin', 'owner', 'supply_admin', 'supply_lead', 'ejecutivo_ventas'])
-        .eq('is_verified', true);
+      console.log('Starting team data fetch...');
+
+      // Verificar usuario actual
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        console.error('Error getting current user:', userError);
+        throw new Error('Usuario no autenticado');
+      }
+      console.log('Current user:', user?.id, user?.email);
+
+      // Primero obtener todos los user roles válidos
+      const { data: userRolesData, error: userRolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
+        .in('role', ['admin', 'owner', 'supply_admin', 'supply_lead', 'ejecutivo_ventas']);
       
-      if (usersError) {
-        console.error('Error fetching users:', usersError);
-        throw usersError;
+      if (userRolesError) {
+        console.error('Error fetching user roles:', userRolesError);
+        throw userRolesError;
       }
 
-      const validAnalysts = usersData?.map((user: any) => ({
-        id: user.id,
-        display_name: user.display_name,
-        email: user.email,
-        role: user.user_roles[0]?.role || 'unknown'
-      })) || [];
+      console.log('User roles data:', userRolesData);
 
-      console.log('Found analysts:', validAnalysts.length);
+      if (!userRolesData || userRolesData.length === 0) {
+        console.log('No valid user roles found');
+        setAnalysts([]);
+        return;
+      }
+
+      // Obtener los IDs únicos de usuarios
+      const userIds = [...new Set(userRolesData.map(ur => ur.user_id))];
+      console.log('Unique user IDs:', userIds);
+
+      // Después obtener la información de los perfiles
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, display_name, email')
+        .in('id', userIds)
+        .eq('is_verified', true);
+      
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        throw profilesError;
+      }
+
+      console.log('Profiles data:', profilesData);
+
+      // Combinar la información de roles y perfiles
+      const validAnalysts = profilesData?.map(profile => {
+        const userRole = userRolesData.find(ur => ur.user_id === profile.id);
+        return {
+          id: profile.id,
+          display_name: profile.display_name,
+          email: profile.email,
+          role: userRole?.role || 'unknown'
+        };
+      }).filter(analyst => analyst.role !== 'unknown') || [];
+
+      console.log('Valid analysts:', validAnalysts);
 
       // Para cada analista, obtener sus leads asignados
       const analystsWithLeads = await Promise.all(
         validAnalysts.map(async (analyst: any) => {
+          console.log(`Fetching leads for analyst ${analyst.id}...`);
+          
           const { data: leadsData, error: leadsError } = await supabase
             .from('leads')
             .select('id, nombre, email, estado, created_at, updated_at')
@@ -73,6 +109,8 @@ export const useTeamManagement = () => {
           }
 
           const leads = leadsData || [];
+          console.log(`Found ${leads.length} leads for analyst ${analyst.display_name}`);
+          
           const pendingLeads = leads.filter(lead => 
             ['nuevo', 'en_proceso', 'pendiente'].includes(lead.estado)
           );
@@ -110,9 +148,23 @@ export const useTeamManagement = () => {
       
       setAnalysts(analystsWithLeads);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      console.error('Full error object:', err);
+      let errorMessage = 'Error desconocido';
+      
+      if (err && typeof err === 'object') {
+        if ('message' in err && typeof err.message === 'string') {
+          errorMessage = err.message;
+        } else if ('details' in err && typeof err.details === 'string') {
+          errorMessage = err.details;
+        } else if ('code' in err) {
+          errorMessage = `Error ${err.code}: ${err.message || 'Error de base de datos'}`;
+        }
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      }
+      
+      console.error('Processed error message:', errorMessage);
       setError(errorMessage);
-      console.error('Error fetching team data:', err);
     } finally {
       setIsLoading(false);
     }
