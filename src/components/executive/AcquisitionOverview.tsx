@@ -54,6 +54,7 @@ export const AcquisitionOverview = () => {
       description: 'Costo por Adquisición',
       icon: DollarSign,
       trend: -12.5,
+      isGoodTrend: true, // Para CPA, menor es mejor
       color: 'text-blue-600',
       bgColor: 'bg-blue-50'
     },
@@ -63,6 +64,7 @@ export const AcquisitionOverview = () => {
       description: 'Leads → Custodios',
       icon: Target,
       trend: 8.2,
+      isGoodTrend: true, // Para conversión, mayor es mejor
       color: 'text-green-600',
       bgColor: 'bg-green-50'
     },
@@ -72,6 +74,7 @@ export const AcquisitionOverview = () => {
       description: 'Leads generados',
       icon: Users,
       trend: 15.7,
+      isGoodTrend: true, // Para leads, mayor es mejor
       color: 'text-purple-600',
       bgColor: 'bg-purple-50'
     },
@@ -81,6 +84,7 @@ export const AcquisitionOverview = () => {
       description: 'Gasto en adquisición',
       icon: TrendingUp,
       trend: 5.3,
+      isGoodTrend: false, // Para gastos, mayor es malo
       color: 'text-orange-600',
       bgColor: 'bg-orange-50'
     }
@@ -92,7 +96,10 @@ export const AcquisitionOverview = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {acquisitionKPIs.map((kpi, index) => {
           const Icon = kpi.icon;
-          const isPositive = kpi.trend > 0;
+          // Lógica corregida: determinar si el trend es bueno basado en el contexto del KPI
+          const isGoodPerformance = kpi.title === 'CPA Real' ? kpi.trend < 0 : // CPA menor es mejor
+                                   kpi.title === 'Inversión Total' ? kpi.trend < 0 : // Gasto menor es mejor
+                                   kpi.trend > 0; // Para otros KPIs, mayor es mejor
           
           return (
             <Card key={index} className="relative overflow-hidden hover:shadow-lg transition-shadow">
@@ -111,10 +118,10 @@ export const AcquisitionOverview = () => {
                 </p>
                 <div className="flex items-center gap-1">
                   <Badge 
-                    variant={isPositive ? "default" : "destructive"}
-                    className="text-xs px-2 py-0"
+                    variant={isGoodPerformance ? "default" : "destructive"}
+                    className={`text-xs px-2 py-0 ${isGoodPerformance ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'}`}
                   >
-                    {isPositive ? '+' : ''}{kpi.trend}%
+                    {kpi.trend > 0 ? '+' : ''}{kpi.trend}%
                   </Badge>
                   <span className="text-xs text-muted-foreground">vs mes anterior</span>
                 </div>
@@ -224,7 +231,7 @@ export const AcquisitionOverview = () => {
                     <span className="text-sm font-medium">{channel.channel}</span>
                     <Badge 
                       variant={channel.roi > 0 ? "default" : "destructive"}
-                      className="text-xs"
+                      className={`text-xs ${channel.roi > 0 ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'}`}
                     >
                       {channel.roi > 0 ? '+' : ''}{channel.roi}%
                     </Badge>
