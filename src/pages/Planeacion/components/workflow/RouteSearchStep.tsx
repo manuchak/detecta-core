@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search, MapPin, DollarSign, AlertTriangle, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useClientes } from '@/hooks/usePlaneacion';
+import { useClientesFromPricing, useDestinosFromPricing } from '@/hooks/useClientesFromPricing';
 
 interface RouteData {
   cliente_nombre: string;
@@ -30,12 +30,19 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
   const [priceEstimate, setPriceEstimate] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
+  const [showDestinoSuggestions, setShowDestinoSuggestions] = useState(false);
 
-  const { data: clientes = [] } = useClientes();
+  const { data: clientesFromPricing = [] } = useClientesFromPricing();
+  const { data: destinosFromPricing = [] } = useDestinosFromPricing(cliente);
 
   // Filtrar clientes para sugerencias
-  const clienteSuggestions = clientes
-    .filter(c => c.nombre.toLowerCase().includes(cliente.toLowerCase()))
+  const clienteSuggestions = clientesFromPricing
+    .filter(c => c.cliente_nombre.toLowerCase().includes(cliente.toLowerCase()))
+    .slice(0, 5);
+
+  // Filtrar destinos para sugerencias
+  const destinoSuggestions = destinosFromPricing
+    .filter(d => d.toLowerCase().includes(destino.toLowerCase()))
     .slice(0, 5);
 
   // Auto-buscar precio cuando se tengan cliente y destino
@@ -95,6 +102,13 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
   const selectClientSuggestion = (clienteNombre: string) => {
     setCliente(clienteNombre);
     setShowClientSuggestions(false);
+    // Limpiar destino cuando se cambia cliente
+    setDestino('');
+  };
+
+  const selectDestinoSuggestion = (destinoText: string) => {
+    setDestino(destinoText);
+    setShowDestinoSuggestions(false);
   };
 
   return (
@@ -127,26 +141,45 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
                 <div className="absolute top-full left-0 right-0 z-10 bg-background border rounded-md shadow-lg max-h-40 overflow-y-auto">
                   {clienteSuggestions.map((c, index) => (
                     <button
-                      key={c.id}
+                      key={index}
                       className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
-                      onClick={() => selectClientSuggestion(c.nombre)}
+                      onClick={() => selectClientSuggestion(c.cliente_nombre)}
                     >
-                      <div className="font-medium">{c.nombre}</div>
-                      {c.rfc && <div className="text-xs text-muted-foreground">{c.rfc}</div>}
+                      <div className="font-medium">{c.cliente_nombre}</div>
+                      <div className="text-xs text-muted-foreground">{c.servicios_count} destinos disponibles</div>
                     </button>
                   ))}
                 </div>
               )}
             </div>
             
-            <div className="space-y-2">
+            <div className="space-y-2 relative">
               <Label htmlFor="destino">Destino *</Label>
               <Input
                 id="destino"
                 placeholder="Ciudad o destino"
                 value={destino}
-                onChange={(e) => setDestino(e.target.value)}
+                onChange={(e) => {
+                  setDestino(e.target.value);
+                  setShowDestinoSuggestions(e.target.value.length > 0 && cliente.length > 0);
+                }}
+                onFocus={() => setShowDestinoSuggestions(destino.length > 0 && cliente.length > 0)}
               />
+              
+              {/* Destino Suggestions */}
+              {showDestinoSuggestions && destinoSuggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 z-10 bg-background border rounded-md shadow-lg max-h-40 overflow-y-auto">
+                  {destinoSuggestions.map((d, index) => (
+                    <button
+                      key={index}
+                      className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
+                      onClick={() => selectDestinoSuggestion(d)}
+                    >
+                      <div className="font-medium">{d}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             
             <div className="space-y-2">
