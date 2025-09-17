@@ -16,23 +16,25 @@ export const useLeadApprovals = () => {
 
   const fetchAssignedLeads = async () => {
     try {
-      console.log('Fetching assigned leads...');
+      console.log('🔍 LeadApprovals: Fetching assigned leads...');
       
       const { data: { user } } = await supabase.auth.getUser();
-      console.log('Current user:', user?.id, user?.email);
+      console.log('🔍 LeadApprovals: Current user:', user?.id, user?.email);
       
       if (!user) {
+        console.error('❌ LeadApprovals: Usuario no autenticado');
         throw new Error('Usuario no autenticado');
       }
       
+      console.log('🔍 LeadApprovals: Calling get_analyst_assigned_leads RPC...');
       const { data, error } = await supabase.rpc('get_analyst_assigned_leads');
       
       if (error) {
-        console.error('RPC Error:', error);
+        console.error('❌ LeadApprovals: RPC Error:', error);
         throw error;
       }
       
-      console.log('Assigned leads data:', data);
+      console.log('✅ LeadApprovals: Assigned leads data received:', data?.length || 0, 'leads');
       // Convertir datos de la DB al tipo AssignedLead con compatibilidad
       const typedLeads: AssignedLead[] = (data || []).map(lead => ({
         ...lead,
@@ -57,19 +59,23 @@ export const useLeadApprovals = () => {
       setAssignedLeads(pendingLeads);
       
       if (!data || data.length === 0) {
+        console.log('📝 LeadApprovals: No leads assigned to current user');
         toast({
           title: "Sin candidatos asignados",
           description: "No tienes candidatos asignados en este momento.",
         });
+      } else {
+        console.log('📊 LeadApprovals: Total leads after filtering:', pendingLeads.length);
       }
     } catch (error) {
-      console.error('Error fetching assigned leads:', error);
+      console.error('❌ LeadApprovals: Error fetching assigned leads:', error);
       toast({
         title: "Error",
         description: `No se pudieron cargar los candidatos asignados: ${error.message}`,
         variant: "destructive",
       });
     } finally {
+      console.log('🏁 LeadApprovals: fetchAssignedLeads completed, setting loading to false');
       setLoading(false);
     }
   };

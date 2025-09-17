@@ -29,7 +29,11 @@ import { SessionRecoveryDialog } from "@/components/leads/approval/SessionRecove
 import { InterruptedInterviewDialog } from "@/components/leads/approval/InterruptedInterviewDialog";
 import { supabase } from "@/integrations/supabase/client";
 
+console.log('🚀 LeadApprovals: Module loaded successfully');
+
 export const LeadApprovals = () => {
+  console.log('🚀 LeadApprovals: Component rendering started');
+  
   const {
     assignedLeads,
     callLogs,
@@ -41,6 +45,8 @@ export const LeadApprovals = () => {
     handleSendToSecondInterview,
     handleRejectWithReasons
   } = useLeadApprovals();
+  
+  console.log('📊 LeadApprovals: Hook state - loading:', loading, 'assignedLeads:', assignedLeads?.length || 0);
   
   const { moveToPool } = usePoolReserva();
 
@@ -230,6 +236,7 @@ export const LeadApprovals = () => {
   };
 
   if (loading) {
+    console.log('⏳ LeadApprovals: Showing loading state');
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -240,9 +247,12 @@ export const LeadApprovals = () => {
     );
   }
 
-  return (
-    <TooltipProvider>
-      <div className="space-y-6 p-6">
+  console.log('🎨 LeadApprovals: Rendering main component with', assignedLeads?.length || 0, 'leads');
+
+  try {
+    return (
+      <TooltipProvider>
+        <div className="space-y-6 p-6">{/* rest of content will be preserved */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Aprobación de Candidatos</h1>
@@ -252,7 +262,10 @@ export const LeadApprovals = () => {
           </div>
           <Button
             variant="outline"
-            onClick={fetchAssignedLeads}
+            onClick={() => {
+              console.log('🔄 LeadApprovals: Manual refresh clicked');
+              fetchAssignedLeads();
+            }}
           >
             Actualizar
           </Button>
@@ -416,6 +429,28 @@ export const LeadApprovals = () => {
       </div>
     </TooltipProvider>
   );
+  } catch (error) {
+    console.error('❌ LeadApprovals: Render error:', error);
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4">
+          <h2 className="text-xl font-semibold text-red-600">Error en la página de aprobaciones</h2>
+          <p className="text-muted-foreground">
+            Ha ocurrido un error al cargar la página. Revisa la consola para más detalles.
+          </p>
+          <Button 
+            onClick={() => {
+              console.log('🔄 LeadApprovals: Error recovery - forcing reload');
+              window.location.reload();
+            }}
+            variant="outline"
+          >
+            Recargar página
+          </Button>
+        </div>
+      </div>
+    );
+  }
 };
 
 export default LeadApprovals;
