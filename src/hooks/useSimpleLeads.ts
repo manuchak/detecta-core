@@ -99,24 +99,28 @@ export const useSimpleLeads = (options: UseSimpleLeadsOptions = {}) => {
       }
 
       if (filters.dateFrom) {
-        query = query.gte('created_at', filters.dateFrom);
+        // Aplicar filtro a ambos campos de fecha
+        query = query.or(`created_at.gte.${filters.dateFrom},fecha_creacion.gte.${filters.dateFrom}`);
       }
 
       if (filters.dateTo) {
         // Agregar 23:59:59 para incluir todo el día
         const endDate = new Date(filters.dateTo);
         endDate.setHours(23, 59, 59, 999);
-        query = query.lte('created_at', endDate.toISOString());
+        const endDateISO = endDate.toISOString();
+        // Aplicar filtro a ambos campos de fecha
+        query = query.or(`created_at.lte.${endDateISO},fecha_creacion.lte.${endDateISO}`);
       }
 
       if (filters.source && filters.source !== 'all') {
         query = query.eq('fuente', filters.source);
       }
 
-      // Aplicar paginación
+      // Aplicar paginación y orden por ambos campos de fecha
       const offset = (pagination.page - 1) * pagination.pageSize;
       query = query
         .order('created_at', { ascending: false })
+        .order('fecha_creacion', { ascending: false, nullsLast: true })
         .range(offset, offset + pagination.pageSize - 1);
 
       const { data, error: fetchError, count } = await query;
@@ -144,7 +148,9 @@ export const useSimpleLeads = (options: UseSimpleLeadsOptions = {}) => {
           });
         }
         
-        console.log(`✅ SimpleLeads: Loaded ${typedLeads.length} of ${totalCountData} leads (page ${pagination.page})`);
+        console.log(`✅ SimpleLeads: Loaded ${typedLeads.length} of ${totalCountData} leads (page ${pagination.page}/${Math.ceil(totalCountData / pagination.pageSize)})`);
+        console.log(`📊 Applied filters:`, filters);
+        console.log(`📄 Pagination: page ${pagination.page}, range ${(pagination.page - 1) * pagination.pageSize + 1}-${Math.min(pagination.page * pagination.pageSize, totalCountData)} of ${totalCountData}`);
       }
     } catch (err) {
       console.error('❌ SimpleLeads: Error:', err);

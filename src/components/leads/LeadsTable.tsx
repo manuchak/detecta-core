@@ -293,6 +293,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Button onClick={() => {
+            setCurrentPage(1);
             clearCache();
             refetch();
           }} variant="outline">
@@ -324,6 +325,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         </div>
         
         <Button onClick={() => {
+          setCurrentPage(1);
           clearCache();
           refetch();
         }} variant="outline">
@@ -359,10 +361,94 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
           selectedLeads={selectedLeads}
           onClearSelection={handleClearSelection}
           onBulkAssignmentComplete={() => {
+            setCurrentPage(1);
             clearCache();
             refetch();
           }}
         />
+      )}
+
+      {/* Active Filters Display */}
+      {(statusFilter !== 'all' || assignmentFilter !== 'all' || debouncedSearchTerm || 
+        advancedFilters.source !== 'all' || advancedFilters.dateFrom || advancedFilters.dateTo) && (
+        <div className="flex flex-wrap gap-2 items-center p-3 bg-muted/50 rounded-lg">
+          <span className="text-sm font-medium text-muted-foreground">Filtros activos:</span>
+          
+          {statusFilter !== 'all' && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Estado: {statusFilter}
+              <button 
+                onClick={() => setStatusFilter('all')}
+                className="ml-1 hover:bg-destructive hover:text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center text-xs"
+              >
+                ×
+              </button>
+            </Badge>
+          )}
+          
+          {assignmentFilter !== 'all' && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Asignación: {assignmentFilter === 'assigned' ? 'Asignados' : 'Sin asignar'}
+              <button 
+                onClick={() => setAssignmentFilter('all')}
+                className="ml-1 hover:bg-destructive hover:text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center text-xs"
+              >
+                ×
+              </button>
+            </Badge>
+          )}
+          
+          {debouncedSearchTerm && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Búsqueda: "{debouncedSearchTerm}"
+              <button 
+                onClick={() => setSearchTerm('')}
+                className="ml-1 hover:bg-destructive hover:text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center text-xs"
+              >
+                ×
+              </button>
+            </Badge>
+          )}
+          
+          {advancedFilters.source !== 'all' && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Fuente: {advancedFilters.source}
+              <button 
+                onClick={() => setAdvancedFilters(prev => ({ ...prev, source: 'all' }))}
+                className="ml-1 hover:bg-destructive hover:text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center text-xs"
+              >
+                ×
+              </button>
+            </Badge>
+          )}
+          
+          {(advancedFilters.dateFrom || advancedFilters.dateTo) && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Fecha: {advancedFilters.dateFrom} - {advancedFilters.dateTo}
+              <button 
+                onClick={() => setAdvancedFilters(prev => ({ ...prev, dateFrom: '', dateTo: '' }))}
+                className="ml-1 hover:bg-destructive hover:text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center text-xs"
+              >
+                ×
+              </button>
+            </Badge>
+          )}
+          
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => {
+              setStatusFilter('all');
+              setAssignmentFilter('all');
+              setSearchTerm('');
+              setAdvancedFilters(prev => ({ ...prev, source: 'all', dateFrom: '', dateTo: '' }));
+              setCurrentPage(1);
+            }}
+            className="text-xs"
+          >
+            Limpiar todos
+          </Button>
+        </div>
       )}
 
       <div className="flex gap-4 items-center">
@@ -416,6 +502,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
         </Select>
         <Button 
           onClick={() => {
+            setCurrentPage(1); // Reset a página 1
             clearCache(); // Limpia cache primero
             refetch(); // Luego refresca
           }} 
@@ -570,6 +657,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
           leadName={selectedLead.nombre}
           currentAssignee={selectedLead.asignado_a}
           onAssignmentUpdate={() => {
+            setCurrentPage(1);
             clearCache();
             refetch();
           }}
