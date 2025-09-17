@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Avatar, AvatarContent, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { 
   Phone, 
   MessageSquare, 
@@ -172,7 +172,7 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
       ...serviceData,
       custodio_asignado_id: selectedCustodio,
       custodio_nombre: custodio?.nombre,
-      estado_comunicacion: comunicacion?.estado
+      estado_comunicacion: comunicacion?.estado === 'pendiente' ? 'sin_responder' : comunicacion?.estado
     };
 
     onComplete(assignmentData);
