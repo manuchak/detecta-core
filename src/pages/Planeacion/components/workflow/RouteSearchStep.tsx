@@ -57,6 +57,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
 
     setLoading(true);
     try {
+      // 1) Intentar vía RPC (preferida)
       const { data, error } = await supabase.rpc('buscar_precio_ruta', {
         p_cliente_nombre: cliente,
         p_destino: destino,
@@ -64,17 +65,94 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
       });
 
       if (error) throw error;
-      
+
       if (data && data.length > 0) {
         setPriceEstimate(data[0]);
+        return;
+      }
+
+      // 2) Fallback directo a la tabla si RPC no devuelve resultado
+      const direct = await supabase
+        .from('matriz_precios_rutas')
+        .select('cliente_nombre, destino_texto, valor_bruto, precio_custodio, costo_operativo, margen_neto_calculado, ruta_base')
+        .eq('activo', true)
+        .eq('cliente_nombre', cliente)
+        .eq('destino_texto', destino)
+        .limit(1)
+        .maybeSingle();
+
+      if (direct.error) throw direct.error;
+
+      if (direct.data) {
+        const row = direct.data as any;
+        setPriceEstimate({
+          precio_sugerido: row.valor_bruto ?? row.precio_sugerido ?? null,
+          precio_custodio: row.precio_custodio ?? null,
+          costo_operativo: row.costo_operativo ?? null,
+          margen_estimado: row.margen_neto_calculado ?? null,
+          ruta_encontrada: row.ruta_base ?? `${row.cliente_nombre} → ${row.destino_texto}`
+        });
+        return;
+      }
+
+      // 3) Segundo intento: búsqueda flexible por destino
+      const like = await supabase
+        .from('matriz_precios_rutas')
+        .select('cliente_nombre, destino_texto, valor_bruto, precio_custodio, costo_operativo, margen_neto_calculado, ruta_base')
+        .eq('activo', true)
+        .eq('cliente_nombre', cliente)
+        .ilike('destino_texto', `%${destino}%`)
+        .limit(1)
+        .maybeSingle();
+
+      if (like.error) throw like.error;
+
+      if (like.data) {
+        const row = like.data as any;
+        setPriceEstimate({
+          precio_sugerido: row.valor_bruto ?? null,
+          precio_custodio: row.precio_custodio ?? null,
+          costo_operativo: row.costo_operativo ?? null,
+          margen_estimado: row.margen_neto_calculado ?? null,
+          ruta_encontrada: row.ruta_base ?? `${row.cliente_nombre} → ${row.destino_texto}`
+        });
       } else {
         setPriceEstimate(null);
         toast.warning('No se encontró pricing para esta ruta');
       }
-    } catch (error) {
-      console.error('Error searching price:', error);
-      toast.error('Error al buscar precio');
-      setPriceEstimate(null);
+    } catch (err: any) {
+      console.error('Error searching price:', err);
+      // Mostrar el mensaje real del error si viene del RPC
+      const msg = err?.message || 'Error al buscar precio';
+      toast.error(msg.includes('ambiguous') ? 'Error en pricing. Usé un método alterno.' : msg);
+
+      // Fallback extra si el error fue inmediato
+      try {
+        const direct = await supabase
+          .from('matriz_precios_rutas')
+          .select('cliente_nombre, destino_texto, valor_bruto, precio_custodio, costo_operativo, margen_neto_calculado, ruta_base')
+          .eq('activo', true)
+          .eq('cliente_nombre', cliente)
+          .eq('destino_texto', destino)
+          .limit(1)
+          .maybeSingle();
+
+        if (direct.data) {
+          const row = direct.data as any;
+          setPriceEstimate({
+            precio_sugerido: row.valor_bruto ?? null,
+            precio_custodio: row.precio_custodio ?? null,
+            costo_operativo: row.costo_operativo ?? null,
+            margen_estimado: row.margen_neto_calculado ?? null,
+            ruta_encontrada: row.ruta_base ?? `${row.cliente_nombre} → ${row.destino_texto}`
+          });
+        } else {
+          setPriceEstimate(null);
+        }
+      } catch (fallbackErr) {
+        console.error('Fallback pricing failed:', fallbackErr);
+        setPriceEstimate(null);
+      }
     } finally {
       setLoading(false);
     }
