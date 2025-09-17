@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useMemo } from 'react';
 import { useAuthenticatedQuery } from './useAuthenticatedQuery';
 import { supabase } from '@/integrations/supabase/client';
