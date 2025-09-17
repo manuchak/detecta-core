@@ -2,10 +2,6 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlusCircle, Settings, BarChart3, Smartphone } from 'lucide-react';
-import { RequestCreationWorkflow } from './components/RequestCreationWorkflow';
-import { OperationalDashboard } from './components/OperationalDashboard';
-import { ComodatosGPSTab } from './components/ComodatosGPSTab';
-import { PlanningConfigurationTab } from './components/PlanningConfigurationTab';
 
 export default function PlanningHub() {
   const [activeTab, setActiveTab] = useState('create-request');
@@ -41,31 +37,76 @@ export default function PlanningHub() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Crear Solicitud - Core Workflow */}
+        {/* Crear Solicitud - Placeholder */}
         <TabsContent value="create-request" className="space-y-6 mt-6">
           <Card>
             <CardHeader>
               <CardTitle>Flujo de Creación de Solicitudes</CardTitle>
             </CardHeader>
             <CardContent>
-              <RequestCreationWorkflow />
+              <div className="text-center p-8">
+                <PlusCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-medium mb-2">Workflow en Construcción</h3>
+                <p className="text-muted-foreground">
+                  El flujo de creación de solicitudes estará disponible pronto.
+                </p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Dashboard Operativo */}
+        {/* Dashboard Placeholder */}
         <TabsContent value="dashboard" className="space-y-6 mt-6">
-          <OperationalDashboard />
+          <Card>
+            <CardHeader>
+              <CardTitle>Dashboard Operativo</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center p-8">
+                <BarChart3 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-medium mb-2">Dashboard en Construcción</h3>
+                <p className="text-muted-foreground">
+                  Los KPIs operativos estarán disponibles pronto.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
-        {/* GPS Comodatos - Workflow Independiente */}
+        {/* GPS Comodatos - Placeholder */}
         <TabsContent value="gps-comodatos" className="space-y-6 mt-6">
-          <ComodatosGPSTab />
+          <Card>
+            <CardHeader>
+              <CardTitle>GPS Comodatos</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center p-8">
+                <Smartphone className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-medium mb-2">Módulo en Construcción</h3>
+                <p className="text-muted-foreground">
+                  El módulo de GPS comodatos estará disponible pronto.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
-        {/* Configuración - Maestros Simplificados */}
+        {/* Configuración Placeholder */}
         <TabsContent value="configuration" className="space-y-6 mt-6">
-          <PlanningConfigurationTab />
+          <Card>
+            <CardHeader>
+              <CardTitle>Configuración</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center p-8">
+                <Settings className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-medium mb-2">Configuración en Construcción</h3>
+                <p className="text-muted-foreground">
+                  Las opciones de configuración estarán disponibles pronto.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

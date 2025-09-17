@@ -6,7 +6,7 @@ import { Settings, Users, MapPin, DollarSign, Database } from 'lucide-react';
 
 // Lazy import de componentes existentes para configuración
 import ClientesTab from './ClientesTab';
-import CustodiosTab, { CustodiosTab as CustodiosTabNamed } from './CustodiosTab';
+import { CustodiosTab } from './CustodiosTab';
 import { MatrizPreciosTab } from './MatrizPreciosTab';
 
 export function PlanningConfigurationTab() {
