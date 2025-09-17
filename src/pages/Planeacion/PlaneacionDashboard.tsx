@@ -18,7 +18,11 @@ import {
   monitorPlaneacionPerformance
 } from '@/utils/performanceOptimizations';
 
+import PlanningHub from './PlanningHub';
+
 export default function PlaneacionDashboard() {
+  return <PlanningHub />;
+}
   const [activeTab, setActiveTab] = useState('dashboard');
   const queryClient = useQueryClient();
 
