@@ -43,53 +43,26 @@ export const useTeamManagement = () => {
       }
       console.log('Current user:', user?.id, user?.email);
 
-      // Primero obtener todos los user roles válidos
-      const { data: userRolesData, error: userRolesError } = await supabase
-        .from('user_roles')
-        .select('user_id, role')
-        .in('role', ['admin', 'owner', 'supply_admin', 'supply_lead', 'ejecutivo_ventas']);
+      // Usar la función RPC existente que ya tiene los permisos correctos
+      const { data: usersData, error: usersError } = await supabase.rpc('get_users_with_roles_secure');
       
-      if (userRolesError) {
-        console.error('Error fetching user roles:', userRolesError);
-        throw userRolesError;
+      if (usersError) {
+        console.error('Error fetching users with RPC:', usersError);
+        throw usersError;
       }
 
-      console.log('User roles data:', userRolesData);
+      console.log('Users data from RPC:', usersData);
 
-      if (!userRolesData || userRolesData.length === 0) {
-        console.log('No valid user roles found');
+      if (!usersData || usersData.length === 0) {
+        console.log('No valid users found');
         setAnalysts([]);
         return;
       }
 
-      // Obtener los IDs únicos de usuarios
-      const userIds = [...new Set(userRolesData.map(ur => ur.user_id))];
-      console.log('Unique user IDs:', userIds);
-
-      // Después obtener la información de los perfiles
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, display_name, email')
-        .in('id', userIds)
-        .eq('is_verified', true);
-      
-      if (profilesError) {
-        console.error('Error fetching profiles:', profilesError);
-        throw profilesError;
-      }
-
-      console.log('Profiles data:', profilesData);
-
-      // Combinar la información de roles y perfiles
-      const validAnalysts = profilesData?.map(profile => {
-        const userRole = userRolesData.find(ur => ur.user_id === profile.id);
-        return {
-          id: profile.id,
-          display_name: profile.display_name,
-          email: profile.email,
-          role: userRole?.role || 'unknown'
-        };
-      }).filter(analyst => analyst.role !== 'unknown') || [];
+      // Filtrar solo roles de gestión de leads
+      const validAnalysts = usersData.filter((user: any) => 
+        ['admin', 'owner', 'supply_admin', 'supply_lead', 'ejecutivo_ventas'].includes(user.role)
+      );
 
       console.log('Valid analysts:', validAnalysts);
 
@@ -109,7 +82,7 @@ export const useTeamManagement = () => {
           }
 
           const leads = leadsData || [];
-          console.log(`Found ${leads.length} leads for analyst ${analyst.display_name}`);
+          console.log(`Found ${leads.length} leads for analyst ${analyst.display_name || analyst.email}`);
           
           const pendingLeads = leads.filter(lead => 
             ['nuevo', 'en_proceso', 'pendiente'].includes(lead.estado)
