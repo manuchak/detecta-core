@@ -133,8 +133,14 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({ onRefres
 
   if (error) {
     return (
-      <div className="text-center py-8 text-red-600">
-        Error al cargar el equipo: {error}
+      <div className="flex flex-col items-center justify-center py-8 space-y-4">
+        <div className="text-red-600 text-center">
+          <h3 className="font-semibold mb-2">Error al cargar el equipo</h3>
+          <p className="text-sm">{error}</p>
+        </div>
+        <Button onClick={refreshData} variant="outline">
+          Reintentar
+        </Button>
       </div>
     );
   }
