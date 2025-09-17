@@ -302,9 +302,9 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({ onRefres
                                 <div key={lead.id} className="flex items-center justify-between bg-white p-2 rounded border">
                                   <div className="flex-1">
                                     <div className="font-medium text-sm">{lead.nombre}</div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {lead.email} • {lead.status}
-                                    </div>
+                                     <div className="text-xs text-muted-foreground">
+                                       {lead.email} • {lead.estado}
+                                     </div>
                                   </div>
                                   <Button
                                     variant="ghost"

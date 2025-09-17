@@ -6,8 +6,9 @@ interface Lead {
   id: string;
   nombre: string;
   email: string;
-  status: string;
+  estado: string;
   created_at: string;
+  updated_at: string;
 }
 
 interface AnalystWithLeads {
@@ -32,22 +33,38 @@ export const useTeamManagement = () => {
       setIsLoading(true);
       setError(null);
 
-      // Obtener analistas con roles válidos
-      const { data: usersData, error: usersError } = await supabase.rpc('get_users_with_roles_secure');
+      // Obtener analistas con roles válidos usando consulta directa
+      const { data: usersData, error: usersError } = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          display_name,
+          email,
+          user_roles!inner(role)
+        `)
+        .in('user_roles.role', ['admin', 'owner', 'supply_admin', 'supply_lead', 'ejecutivo_ventas'])
+        .eq('is_verified', true);
       
-      if (usersError) throw usersError;
+      if (usersError) {
+        console.error('Error fetching users:', usersError);
+        throw usersError;
+      }
 
-      const analystRoles = ['admin', 'owner', 'supply_admin', 'supply_lead'];
-      const validAnalysts = usersData?.filter((user: any) => 
-        analystRoles.includes(user.role)
-      ) || [];
+      const validAnalysts = usersData?.map((user: any) => ({
+        id: user.id,
+        display_name: user.display_name,
+        email: user.email,
+        role: user.user_roles[0]?.role || 'unknown'
+      })) || [];
+
+      console.log('Found analysts:', validAnalysts.length);
 
       // Para cada analista, obtener sus leads asignados
       const analystsWithLeads = await Promise.all(
         validAnalysts.map(async (analyst: any) => {
           const { data: leadsData, error: leadsError } = await supabase
             .from('leads')
-            .select('id, nombre, email, status, created_at, updated_at')
+            .select('id, nombre, email, estado, created_at, updated_at')
             .eq('asignado_a', analyst.id)
             .order('created_at', { ascending: false });
 
@@ -57,7 +74,7 @@ export const useTeamManagement = () => {
 
           const leads = leadsData || [];
           const pendingLeads = leads.filter(lead => 
-            ['nuevo', 'en_proceso', 'pendiente'].includes(lead.status)
+            ['nuevo', 'en_proceso', 'pendiente'].includes(lead.estado)
           );
 
           // Calcular última actividad (última actualización de leads o creación)
@@ -80,8 +97,9 @@ export const useTeamManagement = () => {
               id: lead.id,
               nombre: lead.nombre,
               email: lead.email,
-              status: lead.status,
-              created_at: lead.created_at
+              estado: lead.estado,
+              created_at: lead.created_at,
+              updated_at: lead.updated_at
             }))
           };
         })
