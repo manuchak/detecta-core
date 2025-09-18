@@ -28,6 +28,8 @@ interface ServiceData extends RouteData {
   tipo_servicio: string;
   requiere_gadgets: boolean;
   observaciones?: string;
+  fecha_recepcion: string;
+  hora_recepcion: string;
 }
 
 interface ServiceAutoFillStepProps {
@@ -45,6 +47,14 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
   const [tipoServicio, setTipoServicio] = useState('traslado');
   const [requiereGadgets, setRequiereGadgets] = useState(false);
   const [observaciones, setObservaciones] = useState('');
+  
+  // Campos de recepción de solicitud (auto-llenados con fecha/hora actual)
+  const [fechaRecepcion, setFechaRecepcion] = useState(
+    format(new Date(), 'yyyy-MM-dd')
+  );
+  const [horaRecepcion, setHoraRecepcion] = useState(
+    format(new Date(), 'HH:mm')
+  );
 
   // Auto-fill basado en la ruta y precio
   useEffect(() => {
@@ -80,7 +90,9 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
       hora_ventana_fin: horaFin,
       tipo_servicio: tipoServicio,
       requiere_gadgets: requiereGadgets,
-      observaciones: observaciones.trim() || undefined
+      observaciones: observaciones.trim() || undefined,
+      fecha_recepcion: fechaRecepcion,
+      hora_recepcion: horaRecepcion
     };
 
     onComplete(serviceData);
@@ -150,44 +162,79 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
 
           {/* Service Configuration */}
           <div className="space-y-6">
-            {/* Date and Time */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="fecha" className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Fecha Programada *
-                </Label>
-                <Input
-                  id="fecha"
-                  type="date"
-                  value={fechaProgramada}
-                  onChange={(e) => setFechaProgramada(e.target.value)}
-                  min={format(new Date(), 'yyyy-MM-dd')}
-                />
+            {/* Reception Date and Time */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Calendar className="h-4 w-4" />
+                Recepción de Solicitud
               </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="hora-inicio" className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  Hora Inicio *
-                  {getAutoFillBadge('horario')}
-                </Label>
-                <Input
-                  id="hora-inicio"
-                  type="time"
-                  value={horaInicio}
-                  onChange={(e) => setHoraInicio(e.target.value)}
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-muted/30 p-4 rounded-lg">
+                <div className="space-y-2">
+                  <Label htmlFor="fecha-recepcion">Fecha de Recepción *</Label>
+                  <Input
+                    id="fecha-recepcion"
+                    type="date"
+                    value={fechaRecepcion}
+                    onChange={(e) => setFechaRecepcion(e.target.value)}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="hora-recepcion">Hora de Recepción *</Label>
+                  <Input
+                    id="hora-recepcion"
+                    type="time"
+                    value={horaRecepcion}
+                    onChange={(e) => setHoraRecepcion(e.target.value)}
+                  />
+                </div>
               </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="hora-fin">Hora Fin *</Label>
-                <Input
-                  id="hora-fin"
-                  type="time"
-                  value={horaFin}
-                  onChange={(e) => setHoraFin(e.target.value)}
-                />
+            </div>
+
+            {/* Scheduled Date and Time */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Calendar className="h-4 w-4" />
+                Programación de Cita
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="fecha" className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Fecha Programada *
+                  </Label>
+                  <Input
+                    id="fecha"
+                    type="date"
+                    value={fechaProgramada}
+                    onChange={(e) => setFechaProgramada(e.target.value)}
+                    min={format(new Date(), 'yyyy-MM-dd')}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="hora-inicio" className="flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Hora Inicio *
+                    {getAutoFillBadge('horario')}
+                  </Label>
+                  <Input
+                    id="hora-inicio"
+                    type="time"
+                    value={horaInicio}
+                    onChange={(e) => setHoraInicio(e.target.value)}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="hora-fin">Hora Fin *</Label>
+                  <Input
+                    id="hora-fin"
+                    type="time"
+                    value={horaFin}
+                    onChange={(e) => setHoraFin(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
 
@@ -258,6 +305,16 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
+              <div>
+                <div className="text-sm text-muted-foreground">Solicitud Recibida</div>
+                <div className="font-medium">
+                  {format(new Date(fechaRecepcion), 'EEEE, dd MMMM yyyy', { locale: es })}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  a las {horaRecepcion}
+                </div>
+              </div>
+              
               <div>
                 <div className="text-sm text-muted-foreground">Programado para</div>
                 <div className="font-medium">
