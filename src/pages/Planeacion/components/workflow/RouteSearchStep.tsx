@@ -270,7 +270,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-primary">
                   ${priceEstimate.precio_sugerido?.toLocaleString()}
@@ -289,49 +289,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
                 </div>
                 <div className="text-sm text-muted-foreground">Costo Operativo</div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-success">
-                  ${priceEstimate.margen_estimado?.toLocaleString()}
-                </div>
-                <div className="text-sm text-muted-foreground">Margen Neto</div>
-              </div>
             </div>
-
-            {/* Margin Analysis */}
-            {priceEstimate.precio_sugerido && priceEstimate.margen_estimado && (
-              <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Margen de Utilidad:</span>
-                </div>
-                <Badge 
-                  variant={
-                    (priceEstimate.margen_estimado / priceEstimate.precio_sugerido * 100) >= 20 
-                      ? "default" 
-                      : (priceEstimate.margen_estimado / priceEstimate.precio_sugerido * 100) >= 10 
-                      ? "secondary" 
-                      : "destructive"
-                  }
-                >
-                  {(priceEstimate.margen_estimado / priceEstimate.precio_sugerido * 100).toFixed(1)}%
-                </Badge>
-              </div>
-            )}
-
-            {/* Warning for low margins */}
-            {priceEstimate.precio_sugerido && 
-             priceEstimate.margen_estimado && 
-             (priceEstimate.margen_estimado / priceEstimate.precio_sugerido * 100) < 15 && (
-              <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-warning" />
-                  <span className="text-sm font-medium">Margen Bajo</span>
-                </div>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Este servicio tiene un margen menor al 15%. Considera revisar costos.
-                </p>
-              </div>
-            )}
 
             {/* Source Information */}
             <div className="bg-muted/50 rounded-lg p-3 space-y-2">
