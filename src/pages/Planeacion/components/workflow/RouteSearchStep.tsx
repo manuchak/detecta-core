@@ -58,7 +58,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
       // Búsqueda directa con origen incluido
       const { data, error } = await supabase
         .from('matriz_precios_rutas')
-        .select('cliente_nombre, origen_texto, destino_texto, valor_bruto, precio_custodio, costo_operativo, margen_neto_calculado, ruta_base')
+        .select('cliente_nombre, origen_texto, destino_texto, valor_bruto, precio_custodio, costo_operativo, margen_neto_calculado')
         .eq('activo', true)
         .eq('cliente_nombre', cliente)
         .eq('origen_texto', origen)
@@ -75,7 +75,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
           precio_custodio: row.precio_custodio ?? null,
           costo_operativo: row.costo_operativo ?? null,
           margen_estimado: row.margen_neto_calculado ?? null,
-          ruta_encontrada: row.ruta_base ?? `${row.origen_texto} → ${row.destino_texto}`
+          ruta_encontrada: `${row.origen_texto} → ${row.destino_texto}`
         });
         toast.success('Pricing encontrado');
         return;
@@ -84,7 +84,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
       // Fallback: búsqueda flexible por destino
       const like = await supabase
         .from('matriz_precios_rutas')
-        .select('cliente_nombre, origen_texto, destino_texto, valor_bruto, precio_custodio, costo_operativo, margen_neto_calculado, ruta_base')
+        .select('cliente_nombre, origen_texto, destino_texto, valor_bruto, precio_custodio, costo_operativo, margen_neto_calculado')
         .eq('activo', true)
         .eq('cliente_nombre', cliente)
         .eq('origen_texto', origen)
@@ -99,7 +99,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
           precio_custodio: row.precio_custodio ?? null,
           costo_operativo: row.costo_operativo ?? null,
           margen_estimado: row.margen_neto_calculado ?? null,
-          ruta_encontrada: row.ruta_base ?? `${row.origen_texto} → ${row.destino_texto}`
+          ruta_encontrada: `${row.origen_texto} → ${row.destino_texto}`
         });
         toast.warning('Pricing encontrado con coincidencia parcial');
       } else {
