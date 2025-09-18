@@ -58,7 +58,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
       // Búsqueda directa con origen incluido
       const { data, error } = await supabase
         .from('matriz_precios_rutas')
-        .select('cliente_nombre, origen_texto, destino_texto, valor_bruto, precio_custodio, costo_operativo, margen_neto_calculado')
+        .select('cliente_nombre, origen_texto, destino_texto, valor_bruto, precio_custodio, costo_operativo, margen_neto_calculado, distancia_km')
         .eq('activo', true)
         .eq('cliente_nombre', cliente)
         .eq('origen_texto', origen)
@@ -75,6 +75,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
           precio_custodio: row.precio_custodio ?? null,
           costo_operativo: row.costo_operativo ?? null,
           margen_estimado: row.margen_neto_calculado ?? null,
+          distancia_km: row.distancia_km ?? null,
           ruta_encontrada: `${row.origen_texto} → ${row.destino_texto}`
         });
         toast.success('Pricing encontrado');
@@ -84,7 +85,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
       // Fallback: búsqueda flexible por destino
       const like = await supabase
         .from('matriz_precios_rutas')
-        .select('cliente_nombre, origen_texto, destino_texto, valor_bruto, precio_custodio, costo_operativo, margen_neto_calculado')
+        .select('cliente_nombre, origen_texto, destino_texto, valor_bruto, precio_custodio, costo_operativo, margen_neto_calculado, distancia_km')
         .eq('activo', true)
         .eq('cliente_nombre', cliente)
         .eq('origen_texto', origen)
@@ -99,6 +100,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
           precio_custodio: row.precio_custodio ?? null,
           costo_operativo: row.costo_operativo ?? null,
           margen_estimado: row.margen_neto_calculado ?? null,
+          distancia_km: row.distancia_km ?? null,
           ruta_encontrada: `${row.origen_texto} → ${row.destino_texto}`
         });
         toast.warning('Pricing encontrado con coincidencia parcial');
@@ -129,7 +131,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
       precio_custodio: priceEstimate?.precio_custodio,
       costo_operativo: priceEstimate?.costo_operativo,
       margen_estimado: priceEstimate?.margen_estimado,
-      distancia_km: distanciaKm ? Number(distanciaKm) : undefined
+      distancia_km: priceEstimate?.distancia_km || (distanciaKm ? Number(distanciaKm) : undefined)
     };
 
     onComplete(routeData);
@@ -332,12 +334,19 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
             )}
 
             {/* Source Information */}
-            <div className="bg-muted/50 rounded-lg p-3">
+            <div className="bg-muted/50 rounded-lg p-3 space-y-2">
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium">Ruta base:</span>
                 <span className="text-sm">{priceEstimate.ruta_encontrada}</span>
               </div>
+              {priceEstimate.distancia_km && (
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Distancia:</span>
+                  <Badge variant="outline">{priceEstimate.distancia_km} km</Badge>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
