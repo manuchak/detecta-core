@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, MapPin, DollarSign, AlertTriangle, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -32,8 +33,6 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
   const [priceEstimate, setPriceEstimate] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
-  const [showOrigenSuggestions, setShowOrigenSuggestions] = useState(false);
-  const [showDestinoSuggestions, setShowDestinoSuggestions] = useState(false);
 
   const { data: clientesFromPricing = [] } = useClientesFromPricing();
   const { data: origenesFromPricing = [] } = useOrigenesFromPricing(cliente);
@@ -44,19 +43,9 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
     .filter(c => c.cliente_nombre.toLowerCase().includes(cliente.toLowerCase()))
     .slice(0, 5);
 
-  // Filtrar orígenes para sugerencias
-  const origenSuggestions = origenesFromPricing
-    .filter(o => o.toLowerCase().includes(origen.toLowerCase()))
-    .slice(0, 5);
-
-  // Filtrar destinos para sugerencias
-  const destinoSuggestions = destinosFromPricing
-    .filter(d => d.toLowerCase().includes(destino.toLowerCase()))
-    .slice(0, 5);
-
   // Auto-buscar precio cuando se tengan cliente, origen y destino
   useEffect(() => {
-    if (cliente && origen && destino && cliente.length > 2 && origen.length > 2 && destino.length > 2) {
+    if (cliente && origen && destino) {
       searchPrice();
     }
   }, [cliente, origen, destino]);
@@ -154,18 +143,6 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
     setDestino('');
   };
 
-  const selectOrigenSuggestion = (origenText: string) => {
-    setOrigen(origenText);
-    setShowOrigenSuggestions(false);
-    // Limpiar destino cuando se cambia origen
-    setDestino('');
-  };
-
-  const selectDestinoSuggestion = (destinoText: string) => {
-    setDestino(destinoText);
-    setShowDestinoSuggestions(false);
-  };
-
   return (
     <div className="space-y-6">
       <Card>
@@ -210,62 +187,50 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
             
             <div className="space-y-2 relative">
               <Label htmlFor="origen">Origen *</Label>
-              <Input
-                id="origen"
-                placeholder="¿Desde dónde?"
-                value={origen}
-                onChange={(e) => {
-                  setOrigen(e.target.value);
-                  setShowOrigenSuggestions(e.target.value.length > 0 && cliente.length > 0);
+              <Select 
+                value={origen} 
+                onValueChange={(value) => {
+                  setOrigen(value);
+                  // Limpiar destino cuando se cambia origen
+                  setDestino('');
                 }}
-                onFocus={() => setShowOrigenSuggestions(origen.length > 0 && cliente.length > 0)}
                 disabled={!cliente}
-              />
-              
-              {/* Origen Suggestions */}
-              {showOrigenSuggestions && origenSuggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 z-10 bg-background border rounded-md shadow-lg max-h-40 overflow-y-auto">
-                  {origenSuggestions.map((o, index) => (
-                    <button
-                      key={index}
-                      className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
-                      onClick={() => selectOrigenSuggestion(o)}
-                    >
-                      <div className="font-medium">{o}</div>
-                    </button>
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={cliente ? "Seleccionar origen..." : "Primero selecciona cliente"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {origenesFromPricing.map((origenOption) => (
+                    <SelectItem key={origenOption} value={origenOption}>
+                      {origenOption}
+                    </SelectItem>
                   ))}
-                </div>
-              )}
+                </SelectContent>
+              </Select>
             </div>
             
             <div className="space-y-2 relative">
               <Label htmlFor="destino">Destino *</Label>
-              <Input
-                id="destino"
-                placeholder="¿Hacia dónde?"
-                value={destino}
-                onChange={(e) => {
-                  setDestino(e.target.value);
-                  setShowDestinoSuggestions(e.target.value.length > 0 && cliente.length > 0 && origen.length > 0);
-                }}
-                onFocus={() => setShowDestinoSuggestions(destino.length > 0 && cliente.length > 0 && origen.length > 0)}
+              <Select 
+                value={destino} 
+                onValueChange={setDestino}
                 disabled={!cliente || !origen}
-              />
-              
-              {/* Destino Suggestions */}
-              {showDestinoSuggestions && destinoSuggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 z-10 bg-background border rounded-md shadow-lg max-h-40 overflow-y-auto">
-                  {destinoSuggestions.map((d, index) => (
-                    <button
-                      key={index}
-                      className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
-                      onClick={() => selectDestinoSuggestion(d)}
-                    >
-                      <div className="font-medium">{d}</div>
-                    </button>
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={
+                    !cliente ? "Primero selecciona cliente" : 
+                    !origen ? "Primero selecciona origen" : 
+                    "Seleccionar destino..."
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  {destinosFromPricing.map((destinoOption) => (
+                    <SelectItem key={destinoOption} value={destinoOption}>
+                      {destinoOption}
+                    </SelectItem>
                   ))}
-                </div>
-              )}
+                </SelectContent>
+              </Select>
             </div>
             
             <div className="space-y-2">
