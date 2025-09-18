@@ -24,8 +24,8 @@ interface RouteData {
 interface ServiceData extends RouteData {
   fecha_programada: string;
   hora_ventana_inicio: string;
-  hora_ventana_fin: string;
   tipo_servicio: string;
+  incluye_armado: boolean;
   requiere_gadgets: boolean;
   observaciones?: string;
   fecha_recepcion: string;
@@ -43,8 +43,8 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
     format(addDays(new Date(), 1), 'yyyy-MM-dd')
   );
   const [horaInicio, setHoraInicio] = useState('08:00');
-  const [horaFin, setHoraFin] = useState('10:00');
-  const [tipoServicio, setTipoServicio] = useState('traslado');
+  const [tipoServicio, setTipoServicio] = useState('custodia_sin_arma');
+  const [incluyeArmado, setIncluyeArmado] = useState(false);
   const [requiereGadgets, setRequiereGadgets] = useState(false);
   const [observaciones, setObservaciones] = useState('');
   
@@ -58,16 +58,22 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
 
   // Auto-fill basado en la ruta y precio
   useEffect(() => {
-    // Determinar tipo de servicio basado en la distancia
-    if (routeData.distancia_km) {
-      if (routeData.distancia_km < 50) {
-        setTipoServicio('custodia_local');
-      } else if (routeData.distancia_km > 200) {
-        setTipoServicio('escolta');
-        setRequiereGadgets(true);
-      } else {
-        setTipoServicio('traslado');
-      }
+    // Detectar si incluye armado basado en precio diferenciado
+    const hasArmedService = routeData.precio_custodio && routeData.precio_custodio > 0;
+    
+    if (hasArmedService) {
+      setIncluyeArmado(true);
+      setTipoServicio('custodia_armada');
+    } else {
+      setIncluyeArmado(false);
+      setTipoServicio('custodia_sin_arma');
+    }
+
+    // Determinar servicio reforzado basado en distancia y precio
+    if (routeData.distancia_km && routeData.distancia_km > 200 && routeData.precio_sugerido && routeData.precio_sugerido > 20000) {
+      setTipoServicio('custodia_armada_reforzada');
+      setIncluyeArmado(true);
+      setRequiereGadgets(true);
     }
 
     // Auto-fill gadgets basado en el precio (servicios premium requieren gadgets)
@@ -75,10 +81,9 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
       setRequiereGadgets(true);
     }
 
-    // Ajustar ventana de tiempo basado en tipo de servicio
+    // Ajustar hora de inicio basado en distancia
     if (routeData.distancia_km && routeData.distancia_km > 100) {
       setHoraInicio('07:00');
-      setHoraFin('09:00');
     }
   }, [routeData]);
 
@@ -87,8 +92,8 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
       ...routeData,
       fecha_programada: fechaProgramada,
       hora_ventana_inicio: horaInicio,
-      hora_ventana_fin: horaFin,
       tipo_servicio: tipoServicio,
+      incluye_armado: incluyeArmado,
       requiere_gadgets: requiereGadgets,
       observaciones: observaciones.trim() || undefined,
       fecha_recepcion: fechaRecepcion,
@@ -99,10 +104,9 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
   };
 
   const tiposServicio = [
-    { value: 'traslado', label: 'Traslado', description: 'Traslado punto a punto' },
-    { value: 'custodia_local', label: 'Custodia Local', description: 'Custodia en la ciudad' },
-    { value: 'escolta', label: 'Escolta', description: 'Escolta de larga distancia' },
-    { value: 'vigilancia', label: 'Vigilancia', description: 'Vigilancia estática' }
+    { value: 'custodia_sin_arma', label: 'Custodia Sin Arma', description: 'Custodio civil sin portación' },
+    { value: 'custodia_armada', label: 'Custodia Armada', description: 'Custodio armado certificado' },
+    { value: 'custodia_armada_reforzada', label: 'Custodia Reforzada', description: 'Dos custodios armados' }
   ];
 
   const getAutoFillBadge = (field: string) => {
@@ -197,7 +201,7 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
                 <Calendar className="h-4 w-4" />
                 Programación de Cita
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="fecha" className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
@@ -215,7 +219,7 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
                 <div className="space-y-2">
                   <Label htmlFor="hora-inicio" className="flex items-center gap-2">
                     <Clock className="h-4 w-4" />
-                    Hora Inicio *
+                    Hora de Cita *
                     {getAutoFillBadge('horario')}
                   </Label>
                   <Input
@@ -223,16 +227,6 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
                     type="time"
                     value={horaInicio}
                     onChange={(e) => setHoraInicio(e.target.value)}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="hora-fin">Hora Fin *</Label>
-                  <Input
-                    id="hora-fin"
-                    type="time"
-                    value={horaFin}
-                    onChange={(e) => setHoraFin(e.target.value)}
                   />
                 </div>
               </div>
@@ -260,6 +254,31 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Armed Service Switch */}
+            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+              <div className="space-y-1">
+                <Label className="flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Incluye Custodio Armado
+                  {incluyeArmado && getAutoFillBadge('tipo_servicio')}
+                </Label>
+                <div className="text-sm text-muted-foreground">
+                  Custodio certificado con portación de arma
+                </div>
+              </div>
+              <Switch
+                checked={incluyeArmado}
+                onCheckedChange={(checked) => {
+                  setIncluyeArmado(checked);
+                  if (checked) {
+                    setTipoServicio(tipoServicio === 'custodia_armada_reforzada' ? 'custodia_armada_reforzada' : 'custodia_armada');
+                  } else {
+                    setTipoServicio('custodia_sin_arma');
+                  }
+                }}
+              />
             </div>
 
             {/* Gadgets Switch */}
@@ -321,7 +340,7 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
                   {format(new Date(fechaProgramada), 'EEEE, dd MMMM yyyy', { locale: es })}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {horaInicio} - {horaFin}
+                  a las {horaInicio}
                 </div>
               </div>
               
@@ -334,6 +353,13 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
             </div>
             
             <div className="space-y-3">
+              <div>
+                <div className="text-sm text-muted-foreground">Incluye Armado</div>
+                <Badge variant={incluyeArmado ? "default" : "secondary"}>
+                  {incluyeArmado ? 'Sí' : 'No'}
+                </Badge>
+              </div>
+              
               <div>
                 <div className="text-sm text-muted-foreground">Gadgets Requeridos</div>
                 <Badge variant={requiereGadgets ? "default" : "secondary"}>

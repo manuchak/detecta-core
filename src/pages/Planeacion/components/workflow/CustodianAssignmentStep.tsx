@@ -25,11 +25,13 @@ interface ServiceData {
   destino_texto: string;
   fecha_programada: string;
   hora_ventana_inicio: string;
-  hora_ventana_fin: string;
   tipo_servicio: string;
+  incluye_armado: boolean;
   requiere_gadgets: boolean;
   precio_sugerido?: number;
   observaciones?: string;
+  fecha_recepcion: string;
+  hora_recepcion: string;
 }
 
 interface AssignmentData extends ServiceData {
@@ -217,7 +219,7 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
               <div>
                 <div className="text-sm text-muted-foreground">Fecha y Hora</div>
                 <div className="font-medium">{serviceData.fecha_programada}</div>
-                <div className="text-xs text-muted-foreground">{serviceData.hora_ventana_inicio} - {serviceData.hora_ventana_fin}</div>
+                <div className="text-xs text-muted-foreground">a las {serviceData.hora_ventana_inicio}</div>
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">Tipo</div>

@@ -20,10 +20,12 @@ interface RouteData {
 interface ServiceData extends RouteData {
   fecha_programada: string;
   hora_ventana_inicio: string;
-  hora_ventana_fin: string;
   tipo_servicio: string;
+  incluye_armado: boolean;
   requiere_gadgets: boolean;
   observaciones?: string;
+  fecha_recepcion: string;
+  hora_recepcion: string;
 }
 
 interface AssignmentData extends ServiceData {
