@@ -110,7 +110,7 @@ export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => 
         </div>
         
         <div className="space-y-2 md:col-span-2">
-          <Label htmlFor="zona_trabajo_id">Zona de Trabajo Disponible</Label>
+          <Label htmlFor="zona_trabajo_id">Zona de Trabajo Disponible (Opcional)</Label>
           <Select 
             value={formData.zona_trabajo_id} 
             onValueChange={(value) => onInputChange('zona_trabajo_id', value)}
@@ -128,16 +128,15 @@ export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => 
               } />
             </SelectTrigger>
             <SelectContent>
-              {zonas.length > 0 ? (
+              <SelectItem value="sin-zona-especifica">
+                Sin zona específica
+              </SelectItem>
+              {zonas.length > 0 && (
                 zonas.map((zona) => (
                   <SelectItem key={zona.id} value={zona.id}>
                     {zona.nombre}
                   </SelectItem>
                 ))
-              ) : (
-                <SelectItem value="no-zones" disabled>
-                  No hay zonas disponibles para esta ciudad
-                </SelectItem>
               )}
             </SelectContent>
           </Select>
