@@ -7,10 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { Search, MapPin, DollarSign, AlertTriangle, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useClientesFromPricing, useDestinosFromPricing } from '@/hooks/useClientesFromPricing';
+import { useClientesFromPricing, useOrigenesFromPricing, useDestinosFromPricing } from '@/hooks/useClientesFromPricing';
 
 interface RouteData {
   cliente_nombre: string;
+  origen_texto: string;
   destino_texto: string;
   precio_sugerido?: number;
   precio_custodio?: number;
@@ -25,19 +26,27 @@ interface RouteSearchStepProps {
 
 export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
   const [cliente, setCliente] = useState('');
+  const [origen, setOrigen] = useState('');
   const [destino, setDestino] = useState('');
   const [distanciaKm, setDistanciaKm] = useState('');
   const [priceEstimate, setPriceEstimate] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
+  const [showOrigenSuggestions, setShowOrigenSuggestions] = useState(false);
   const [showDestinoSuggestions, setShowDestinoSuggestions] = useState(false);
 
   const { data: clientesFromPricing = [] } = useClientesFromPricing();
-  const { data: destinosFromPricing = [] } = useDestinosFromPricing(cliente);
+  const { data: origenesFromPricing = [] } = useOrigenesFromPricing(cliente);
+  const { data: destinosFromPricing = [] } = useDestinosFromPricing(cliente, origen);
 
   // Filtrar clientes para sugerencias
   const clienteSuggestions = clientesFromPricing
     .filter(c => c.cliente_nombre.toLowerCase().includes(cliente.toLowerCase()))
+    .slice(0, 5);
+
+  // Filtrar orígenes para sugerencias
+  const origenSuggestions = origenesFromPricing
+    .filter(o => o.toLowerCase().includes(origen.toLowerCase()))
     .slice(0, 5);
 
   // Filtrar destinos para sugerencias
@@ -45,67 +54,54 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
     .filter(d => d.toLowerCase().includes(destino.toLowerCase()))
     .slice(0, 5);
 
-  // Auto-buscar precio cuando se tengan cliente y destino
+  // Auto-buscar precio cuando se tengan cliente, origen y destino
   useEffect(() => {
-    if (cliente && destino && cliente.length > 2 && destino.length > 2) {
+    if (cliente && origen && destino && cliente.length > 2 && origen.length > 2 && destino.length > 2) {
       searchPrice();
     }
-  }, [cliente, destino]);
+  }, [cliente, origen, destino]);
 
   const searchPrice = async () => {
-    if (!cliente || !destino) return;
+    if (!cliente || !origen || !destino) return;
 
     setLoading(true);
     try {
-      // 1) Intentar vía RPC (preferida)
-      const { data, error } = await supabase.rpc('buscar_precio_ruta', {
-        p_cliente_nombre: cliente,
-        p_destino: destino,
-        p_distancia_km: distanciaKm ? Number(distanciaKm) : null
-      });
-
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        setPriceEstimate(data[0]);
-        return;
-      }
-
-      // 2) Fallback directo a la tabla si RPC no devuelve resultado
-      const direct = await supabase
+      // Búsqueda directa con origen incluido
+      const { data, error } = await supabase
         .from('matriz_precios_rutas')
-        .select('cliente_nombre, destino_texto, valor_bruto, precio_custodio, costo_operativo, margen_neto_calculado, ruta_base')
+        .select('cliente_nombre, origen_texto, destino_texto, valor_bruto, precio_custodio, costo_operativo, margen_neto_calculado, ruta_base')
         .eq('activo', true)
         .eq('cliente_nombre', cliente)
+        .eq('origen_texto', origen)
         .eq('destino_texto', destino)
         .limit(1)
         .maybeSingle();
 
-      if (direct.error) throw direct.error;
+      if (error) throw error;
 
-      if (direct.data) {
-        const row = direct.data as any;
+      if (data) {
+        const row = data as any;
         setPriceEstimate({
-          precio_sugerido: row.valor_bruto ?? row.precio_sugerido ?? null,
+          precio_sugerido: row.valor_bruto ?? null,
           precio_custodio: row.precio_custodio ?? null,
           costo_operativo: row.costo_operativo ?? null,
           margen_estimado: row.margen_neto_calculado ?? null,
-          ruta_encontrada: row.ruta_base ?? `${row.cliente_nombre} → ${row.destino_texto}`
+          ruta_encontrada: row.ruta_base ?? `${row.origen_texto} → ${row.destino_texto}`
         });
+        toast.success('Pricing encontrado');
         return;
       }
 
-      // 3) Segundo intento: búsqueda flexible por destino
+      // Fallback: búsqueda flexible por destino
       const like = await supabase
         .from('matriz_precios_rutas')
-        .select('cliente_nombre, destino_texto, valor_bruto, precio_custodio, costo_operativo, margen_neto_calculado, ruta_base')
+        .select('cliente_nombre, origen_texto, destino_texto, valor_bruto, precio_custodio, costo_operativo, margen_neto_calculado, ruta_base')
         .eq('activo', true)
         .eq('cliente_nombre', cliente)
+        .eq('origen_texto', origen)
         .ilike('destino_texto', `%${destino}%`)
         .limit(1)
         .maybeSingle();
-
-      if (like.error) throw like.error;
 
       if (like.data) {
         const row = like.data as any;
@@ -114,58 +110,31 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
           precio_custodio: row.precio_custodio ?? null,
           costo_operativo: row.costo_operativo ?? null,
           margen_estimado: row.margen_neto_calculado ?? null,
-          ruta_encontrada: row.ruta_base ?? `${row.cliente_nombre} → ${row.destino_texto}`
+          ruta_encontrada: row.ruta_base ?? `${row.origen_texto} → ${row.destino_texto}`
         });
+        toast.warning('Pricing encontrado con coincidencia parcial');
       } else {
         setPriceEstimate(null);
-        toast.warning('No se encontró pricing para esta ruta');
+        toast.error(`No se encontró pricing para ${cliente}: ${origen} → ${destino}`);
       }
     } catch (err: any) {
       console.error('Error searching price:', err);
-      // Mostrar el mensaje real del error si viene del RPC
-      const msg = err?.message || 'Error al buscar precio';
-      toast.error(msg.includes('ambiguous') ? 'Error en pricing. Usé un método alterno.' : msg);
-
-      // Fallback extra si el error fue inmediato
-      try {
-        const direct = await supabase
-          .from('matriz_precios_rutas')
-          .select('cliente_nombre, destino_texto, valor_bruto, precio_custodio, costo_operativo, margen_neto_calculado, ruta_base')
-          .eq('activo', true)
-          .eq('cliente_nombre', cliente)
-          .eq('destino_texto', destino)
-          .limit(1)
-          .maybeSingle();
-
-        if (direct.data) {
-          const row = direct.data as any;
-          setPriceEstimate({
-            precio_sugerido: row.valor_bruto ?? null,
-            precio_custodio: row.precio_custodio ?? null,
-            costo_operativo: row.costo_operativo ?? null,
-            margen_estimado: row.margen_neto_calculado ?? null,
-            ruta_encontrada: row.ruta_base ?? `${row.cliente_nombre} → ${row.destino_texto}`
-          });
-        } else {
-          setPriceEstimate(null);
-        }
-      } catch (fallbackErr) {
-        console.error('Fallback pricing failed:', fallbackErr);
-        setPriceEstimate(null);
-      }
+      toast.error('Error al buscar precio');
+      setPriceEstimate(null);
     } finally {
       setLoading(false);
     }
   };
 
   const handleContinue = () => {
-    if (!cliente || !destino) {
-      toast.error('Por favor completa cliente y destino');
+    if (!cliente || !origen || !destino) {
+      toast.error('Por favor completa cliente, origen y destino');
       return;
     }
 
     const routeData: RouteData = {
       cliente_nombre: cliente,
+      origen_texto: origen,
       destino_texto: destino,
       precio_sugerido: priceEstimate?.precio_sugerido,
       precio_custodio: priceEstimate?.precio_custodio,
@@ -180,7 +149,15 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
   const selectClientSuggestion = (clienteNombre: string) => {
     setCliente(clienteNombre);
     setShowClientSuggestions(false);
-    // Limpiar destino cuando se cambia cliente
+    // Limpiar origen y destino cuando se cambia cliente
+    setOrigen('');
+    setDestino('');
+  };
+
+  const selectOrigenSuggestion = (origenText: string) => {
+    setOrigen(origenText);
+    setShowOrigenSuggestions(false);
+    // Limpiar destino cuando se cambia origen
     setDestino('');
   };
 
@@ -200,7 +177,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Input Fields */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2 relative">
               <Label htmlFor="cliente">Cliente *</Label>
               <Input
@@ -232,16 +209,47 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
             </div>
             
             <div className="space-y-2 relative">
+              <Label htmlFor="origen">Origen *</Label>
+              <Input
+                id="origen"
+                placeholder="¿Desde dónde?"
+                value={origen}
+                onChange={(e) => {
+                  setOrigen(e.target.value);
+                  setShowOrigenSuggestions(e.target.value.length > 0 && cliente.length > 0);
+                }}
+                onFocus={() => setShowOrigenSuggestions(origen.length > 0 && cliente.length > 0)}
+                disabled={!cliente}
+              />
+              
+              {/* Origen Suggestions */}
+              {showOrigenSuggestions && origenSuggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 z-10 bg-background border rounded-md shadow-lg max-h-40 overflow-y-auto">
+                  {origenSuggestions.map((o, index) => (
+                    <button
+                      key={index}
+                      className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
+                      onClick={() => selectOrigenSuggestion(o)}
+                    >
+                      <div className="font-medium">{o}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="space-y-2 relative">
               <Label htmlFor="destino">Destino *</Label>
               <Input
                 id="destino"
-                placeholder="Ciudad o destino"
+                placeholder="¿Hacia dónde?"
                 value={destino}
                 onChange={(e) => {
                   setDestino(e.target.value);
-                  setShowDestinoSuggestions(e.target.value.length > 0 && cliente.length > 0);
+                  setShowDestinoSuggestions(e.target.value.length > 0 && cliente.length > 0 && origen.length > 0);
                 }}
-                onFocus={() => setShowDestinoSuggestions(destino.length > 0 && cliente.length > 0)}
+                onFocus={() => setShowDestinoSuggestions(destino.length > 0 && cliente.length > 0 && origen.length > 0)}
+                disabled={!cliente || !origen}
               />
               
               {/* Destino Suggestions */}
@@ -275,7 +283,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
           {/* Search Button */}
           <Button 
             onClick={searchPrice}
-            disabled={loading || !cliente || !destino}
+            disabled={loading || !cliente || !origen || !destino}
             className="w-full gap-2"
             variant={priceEstimate ? "outline" : "default"}
           >
@@ -371,7 +379,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
       )}
 
       {/* Continue Button */}
-      {cliente && destino && (
+      {cliente && origen && destino && (
         <div className="flex justify-end">
           <Button 
             onClick={handleContinue}

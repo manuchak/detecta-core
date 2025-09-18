@@ -42,17 +42,45 @@ export const useClientesFromPricing = () => {
   });
 };
 
-export const useDestinosFromPricing = (clienteNombre?: string) => {
+export const useOrigenesFromPricing = (clienteNombre?: string) => {
   return useQuery({
-    queryKey: ['destinos-from-pricing', clienteNombre],
+    queryKey: ['origenes-from-pricing', clienteNombre],
     queryFn: async (): Promise<string[]> => {
       if (!clienteNombre) return [];
 
       const { data, error } = await supabase
         .from('matriz_precios_rutas')
+        .select('origen_texto')
+        .eq('activo', true)
+        .eq('cliente_nombre', clienteNombre);
+
+      if (error) throw error;
+
+      // Retornar orígenes únicos
+      return Array.from(new Set(data?.map(row => row.origen_texto) || []));
+    },
+    enabled: !!clienteNombre,
+  });
+};
+
+export const useDestinosFromPricing = (clienteNombre?: string, origenTexto?: string) => {
+  return useQuery({
+    queryKey: ['destinos-from-pricing', clienteNombre, origenTexto],
+    queryFn: async (): Promise<string[]> => {
+      if (!clienteNombre) return [];
+
+      let query = supabase
+        .from('matriz_precios_rutas')
         .select('destino_texto')
         .eq('activo', true)
         .eq('cliente_nombre', clienteNombre);
+
+      // Si hay origen seleccionado, filtrar por él también
+      if (origenTexto) {
+        query = query.eq('origen_texto', origenTexto);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
