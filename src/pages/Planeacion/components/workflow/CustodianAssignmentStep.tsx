@@ -179,30 +179,11 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
       pendiente: { variant: 'outline' as const, text: 'Pendiente' },
       enviado: { variant: 'secondary' as const, text: 'Enviado' },
       aceptado: { variant: 'default' as const, text: 'Aceptado' },
-      rechazado: { variant: 'outline' as const, text: 'Rechazado' }, // Cambiar de destructive a outline
+      rechazado: { variant: 'outline' as const, text: 'Rechazado' },
       sin_responder: { variant: 'outline' as const, text: 'Sin responder' }
     };
     
     return variants[estado] || variants.pendiente;
-  };
-
-  const getScoreBadge = (score: number) => {
-    if (score >= 80) return { variant: 'default' as const, color: 'text-emerald-600' };
-    if (score >= 60) return { variant: 'secondary' as const, color: 'text-blue-600' };
-    return { variant: 'outline' as const, color: 'text-muted-foreground' };
-  };
-
-  const getPrioridadBadge = (prioridad: 'alta' | 'media' | 'baja' | undefined) => {
-    switch (prioridad) {
-      case 'alta':
-        return { variant: 'default' as const, text: 'Óptimo', icon: TrendingUp, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
-      case 'media':
-        return { variant: 'secondary' as const, text: 'Compatible', icon: Target, color: 'bg-blue-50 text-blue-700 border-blue-200' };
-      case 'baja':
-        return { variant: 'outline' as const, text: 'Disponible', icon: Clock, color: 'bg-gray-50 text-gray-600 border-gray-200' };
-      default:
-        return { variant: 'outline' as const, text: 'Evaluando', icon: Target, color: 'bg-gray-50 text-gray-600 border-gray-200' };
-    }
   };
 
   return (
@@ -330,152 +311,139 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
                 {custodiosDisponibles.map((custodio) => {
                   const comunicacion = comunicaciones[custodio.id];
                   const estadoBadge = getEstadoBadge(comunicacion?.estado || 'sin_responder');
-                  const scoreBadge = getScoreBadge(custodio.score);
-                  const prioridadBadge = getPrioridadBadge(custodio.prioridad_asignacion);
                   const isSelected = selectedCustodio === custodio.id;
 
                   return (
-                    <Card 
+                    <div
                       key={custodio.id} 
-                      className={`transition-all duration-200 hover:shadow-md ${
-                        isSelected ? 'border-primary bg-primary/5 shadow-sm' : 'hover:border-border'
-                      } ${custodio.fuente === 'historico' ? 'border-dashed bg-muted/30' : ''}`}
+                      className={`group relative transition-all duration-200 rounded-xl border bg-card p-6 hover:shadow-sm ${
+                        isSelected 
+                          ? 'border-primary/40 bg-primary/[0.02] shadow-sm' 
+                          : 'border-border/60 hover:border-border'
+                      }`}
                     >
-                      <CardContent className="p-5">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-start gap-4 flex-1">
-                            <Avatar className="h-12 w-12">
-                              <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                                {custodio.nombre?.split(' ').map(n => n[0]).join('').toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            
-                            <div className="space-y-3 flex-1">
-                              {/* Header con nombre y badges */}
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h3 className="font-semibold text-base">{custodio.nombre}</h3>
-                                
-                                {custodio.fuente === 'candidatos_custodios' && (
-                                  <Badge className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                    NUEVO
-                                  </Badge>
-                                )}
-                                
-                                {custodio.fuente === 'historico' && (
-                                  <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
-                                    HISTÓRICO
-                                  </Badge>
-                                )}
-                                
-                                {/* Badge de prioridad más prominente */}
-                                <Badge className={`text-xs gap-1 ${prioridadBadge.color}`}>
-                                  <prioridadBadge.icon className="h-3 w-3" />
-                                  {prioridadBadge.text}
-                                </Badge>
-                                
-                                {isSelected && (
-                                  <CheckCircle className="h-4 w-4 text-primary" />
-                                )}
-                              </div>
-                              
-                              {/* Métricas principales */}
-                              <div className="grid grid-cols-3 gap-4 text-sm">
-                                <div className="flex items-center gap-1">
-                                  <MapPin className="h-3 w-3 text-muted-foreground" />
-                                  <span className="text-muted-foreground">Distancia:</span>
-                                  <span className="font-medium">{custodio.distancia_km ? `${custodio.distancia_km}km` : 'N/A'}</span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Shield className="h-3 w-3 text-muted-foreground" />
-                                  <span className="text-muted-foreground">Rating:</span>
-                                  <span className="font-medium">{custodio.rating_promedio || 'N/A'}/5</span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Star className="h-3 w-3 text-muted-foreground" />
-                                  <span className="text-muted-foreground">Score:</span>
-                                  <span className={`font-semibold ${scoreBadge.color}`}>{custodio.score}</span>
-                                </div>
-                              </div>
-                              
-                              {/* Razones de recomendación */}
-                              {custodio.razones_recomendacion && custodio.razones_recomendacion.length > 0 && (
-                                <div className="flex flex-wrap gap-1">
-                                  {custodio.razones_recomendacion.slice(0, 3).map((razon, index) => (
-                                    <Badge key={index} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                                      {razon}
-                                    </Badge>
-                                  ))}
-                                  {custodio.razones_recomendacion.length > 3 && (
-                                    <Badge variant="outline" className="text-xs">
-                                      +{custodio.razones_recomendacion.length - 3} más
-                                    </Badge>
-                                  )}
-                                </div>
-                              )}
-                              
-                              {/* Advertencia para históricos */}
-                              {custodio.fuente === 'historico' && (
-                                <div className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-200">
-                                  ⚠️ Requiere validación de disponibilidad
-                                </div>
-                              )}
-                            </div>
+                      {/* Selection indicator */}
+                      {isSelected && (
+                        <div className="absolute top-4 right-4">
+                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary">
+                            <CheckCircle className="h-3 w-3 text-primary-foreground" />
                           </div>
+                        </div>
+                      )}
 
-                          <div className="flex flex-col items-end gap-2">
-                            {/* Estado de comunicación */}
-                            <Badge variant={estadoBadge.variant} className="shrink-0">
-                              {estadoBadge.text}
-                            </Badge>
-
-                            {/* Botones de comunicación */}
-                            {comunicacion?.estado === 'aceptado' ? (
-                              <Badge className="gap-1 bg-emerald-50 text-emerald-700 border-emerald-200">
-                                <CheckCircle className="h-3 w-3" />
-                                Confirmado
+                      <div className="flex items-center gap-4">
+                        {/* Avatar */}
+                        <Avatar className="h-11 w-11 shrink-0">
+                          <AvatarFallback className="bg-muted text-muted-foreground font-medium">
+                            {custodio.nombre?.split(' ').map(n => n[0]).join('').toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        
+                        {/* Main content */}
+                        <div className="flex-1 min-w-0">
+                          {/* Name and essential badges */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-semibold text-lg text-foreground truncate">
+                              {custodio.nombre}
+                            </h3>
+                            
+                            {/* Only show priority badge if high priority */}
+                            {custodio.prioridad_asignacion === 'alta' && (
+                              <Badge variant="secondary" className="text-xs px-2 py-0.5 font-medium">
+                                Óptimo
                               </Badge>
-                            ) : (
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleWhatsApp(custodio.id, custodio.nombre)}
-                                  disabled={comunicacion?.estado === 'enviado'}
-                                  className="gap-1 hover:bg-green-50 hover:text-green-700 hover:border-green-200"
-                                >
-                                  <MessageSquare className="h-3 w-3" />
-                                  {comunicacion?.metodo === 'whatsapp' && comunicacion.estado === 'enviado' 
-                                    ? 'Enviado...' 
-                                    : 'WhatsApp'
-                                  }
-                                </Button>
-                                
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleLlamada(custodio.id, custodio.nombre)}
-                                  disabled={comunicacion?.estado === 'enviado'}
-                                  className="gap-1 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200"
-                                >
-                                  <PhoneCall className="h-3 w-3" />
-                                  {comunicacion?.metodo === 'llamada' && comunicacion.estado === 'enviado'
-                                    ? 'Llamando...'
-                                    : 'Llamar'
-                                  }
-                                </Button>
+                            )}
+                            
+                            {/* New custodian indicator */}
+                            {custodio.fuente === 'candidatos_custodios' && (
+                              <Badge variant="outline" className="text-xs px-2 py-0.5 text-muted-foreground">
+                                Nuevo
+                              </Badge>
+                            )}
+                          </div>
+                          
+                          {/* Key metrics in a clean horizontal layout */}
+                          <div className="flex items-center gap-6 text-sm text-muted-foreground mb-3">
+                            <div className="flex items-center gap-1.5">
+                              <MapPin className="h-4 w-4" />
+                              <span>{custodio.distancia_km ? `${custodio.distancia_km}km` : 'N/A'}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <Star className="h-4 w-4" />
+                              <span>{custodio.score}/100</span>
+                            </div>
+                            {custodio.rating_promedio && (
+                              <div className="flex items-center gap-1.5">
+                                <Shield className="h-4 w-4" />
+                                <span>{custodio.rating_promedio}/5</span>
                               </div>
                             )}
                           </div>
+                          
+                          {/* Communication status - only show if active */}
+                          {comunicacion && comunicacion.estado !== 'sin_responder' && (
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className={`h-2 w-2 rounded-full ${
+                                comunicacion.estado === 'aceptado' ? 'bg-primary' :
+                                comunicacion.estado === 'enviado' ? 'bg-muted-foreground animate-pulse' :
+                                'bg-muted-foreground/40'
+                              }`} />
+                              <span className="text-sm text-muted-foreground">
+                                {estadoBadge.text}
+                                {comunicacion.metodo && (
+                                  <span className="ml-1">
+                                    · {comunicacion.metodo === 'whatsapp' ? 'WhatsApp' : 'Llamada'}
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          )}
                         </div>
-
-                        {comunicacion?.timestamp && (
-                          <div className="mt-2 pt-2 border-t text-xs text-muted-foreground flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            Último contacto: {comunicacion.timestamp.toLocaleTimeString()}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
+                        
+                        {/* Actions */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {!comunicacion || comunicacion.estado === 'sin_responder' ? (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleWhatsApp(custodio.id, custodio.nombre)}
+                                className="gap-1.5 text-muted-foreground hover:text-foreground"
+                              >
+                                <MessageSquare className="h-4 w-4" />
+                                WhatsApp
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleLlamada(custodio.id, custodio.nombre)}
+                                className="gap-1.5 text-muted-foreground hover:text-foreground"
+                              >
+                                <PhoneCall className="h-4 w-4" />
+                                Llamar
+                              </Button>
+                            </>
+                          ) : comunicacion.estado === 'aceptado' ? (
+                            <Button
+                              onClick={() => setSelectedCustodio(custodio.id)}
+                              size="sm"
+                              className="gap-1.5"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                              Seleccionar
+                            </Button>
+                          ) : comunicacion.estado === 'enviado' ? (
+                            <div className="text-sm text-muted-foreground px-3 py-1.5">
+                              Esperando...
+                            </div>
+                          ) : (
+                            <div className="text-sm text-muted-foreground px-3 py-1.5">
+                              {estadoBadge.text}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
