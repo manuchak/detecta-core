@@ -6,8 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, Shield, Settings, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Calendar, Clock, Shield, Settings, CheckCircle, ArrowLeft, Cpu } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -27,6 +28,7 @@ interface ServiceData extends RouteData {
   tipo_servicio: string;
   incluye_armado: boolean;
   requiere_gadgets: boolean;
+  gadgets_seleccionados: string[];
   observaciones?: string;
   fecha_recepcion: string;
   hora_recepcion: string;
@@ -45,7 +47,7 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
   const [horaInicio, setHoraInicio] = useState('08:00');
   const [tipoServicio, setTipoServicio] = useState('custodia_sin_arma');
   const [incluyeArmado, setIncluyeArmado] = useState(false);
-  const [requiereGadgets, setRequiereGadgets] = useState(false);
+  const [gadgetsSeleccionados, setGadgetsSeleccionados] = useState<string[]>([]);
   const [observaciones, setObservaciones] = useState('');
   
   // Campos de recepción de solicitud (auto-llenados con fecha/hora actual)
@@ -73,12 +75,6 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
     if (routeData.distancia_km && routeData.distancia_km > 200 && routeData.precio_sugerido && routeData.precio_sugerido > 20000) {
       setTipoServicio('custodia_armada_reforzada');
       setIncluyeArmado(true);
-      setRequiereGadgets(true);
-    }
-
-    // Auto-fill gadgets basado en el precio (servicios premium requieren gadgets)
-    if (routeData.precio_sugerido && routeData.precio_sugerido > 15000) {
-      setRequiereGadgets(true);
     }
 
     // Ajustar hora de inicio basado en distancia
@@ -94,13 +90,28 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
       hora_ventana_inicio: horaInicio,
       tipo_servicio: tipoServicio,
       incluye_armado: incluyeArmado,
-      requiere_gadgets: requiereGadgets,
+      requiere_gadgets: gadgetsSeleccionados.length > 0,
+      gadgets_seleccionados: gadgetsSeleccionados,
       observaciones: observaciones.trim() || undefined,
       fecha_recepcion: fechaRecepcion,
       hora_recepcion: horaRecepcion
     };
 
     onComplete(serviceData);
+  };
+
+  const gadgetOptions = [
+    { id: 'candado_satelital', label: 'Candado Satelital', description: 'Dispositivo de bloqueo con rastreo GPS' },
+    { id: 'gps_portatil', label: 'GPS Portátil', description: 'Dispositivo de rastreo portátil' },
+    { id: 'gps_portatil_caja_imantada', label: 'GPS Portátil con Caja Imantada', description: 'GPS portátil con instalación magnética' }
+  ];
+
+  const handleGadgetToggle = (gadgetId: string, checked: boolean) => {
+    if (checked) {
+      setGadgetsSeleccionados(prev => [...prev, gadgetId]);
+    } else {
+      setGadgetsSeleccionados(prev => prev.filter(id => id !== gadgetId));
+    }
   };
 
   const tiposServicio = [
@@ -281,21 +292,43 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
               />
             </div>
 
-            {/* Gadgets Switch */}
-            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+            {/* Gadgets Selection */}
+            <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
               <div className="space-y-1">
                 <Label className="flex items-center gap-2">
-                  Requiere Gadgets (GPS, Botón de Pánico)
-                  {requiereGadgets && getAutoFillBadge('gadgets')}
+                  <Cpu className="h-4 w-4" />
+                  Gadgets de Seguridad
                 </Label>
                 <div className="text-sm text-muted-foreground">
-                  Dispositivos de seguridad adicionales para el servicio
+                  Selecciona los dispositivos de seguridad requeridos para este servicio
                 </div>
               </div>
-              <Switch
-                checked={requiereGadgets}
-                onCheckedChange={setRequiereGadgets}
-              />
+              
+              <div className="space-y-3">
+                {gadgetOptions.map((gadget) => (
+                  <div key={gadget.id} className="flex items-start space-x-3 p-3 rounded-lg bg-background/50 border">
+                    <Checkbox
+                      id={gadget.id}
+                      checked={gadgetsSeleccionados.includes(gadget.id)}
+                      onCheckedChange={(checked) => handleGadgetToggle(gadget.id, checked as boolean)}
+                    />
+                    <div className="space-y-1 flex-1">
+                      <Label htmlFor={gadget.id} className="text-sm font-medium cursor-pointer">
+                        {gadget.label}
+                      </Label>
+                      <div className="text-xs text-muted-foreground">
+                        {gadget.description}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {gadgetsSeleccionados.length > 0 && (
+                <div className="text-xs text-muted-foreground bg-primary/5 p-2 rounded border-l-2 border-primary">
+                  <strong>{gadgetsSeleccionados.length}</strong> dispositivo(s) seleccionado(s)
+                </div>
+              )}
             </div>
 
             {/* Observations */}
@@ -361,10 +394,21 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
               </div>
               
               <div>
-                <div className="text-sm text-muted-foreground">Gadgets Requeridos</div>
-                <Badge variant={requiereGadgets ? "default" : "secondary"}>
-                  {requiereGadgets ? 'Sí' : 'No'}
-                </Badge>
+                <div className="text-sm text-muted-foreground">Gadgets Seleccionados</div>
+                {gadgetsSeleccionados.length > 0 ? (
+                  <div className="space-y-1">
+                    {gadgetsSeleccionados.map((gadgetId) => {
+                      const gadget = gadgetOptions.find(g => g.id === gadgetId);
+                      return (
+                        <Badge key={gadgetId} variant="default" className="text-xs">
+                          {gadget?.label}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <Badge variant="secondary">Ninguno</Badge>
+                )}
               </div>
               
               {observaciones && (

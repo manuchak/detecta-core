@@ -23,6 +23,7 @@ interface ServiceData extends RouteData {
   tipo_servicio: string;
   incluye_armado: boolean;
   requiere_gadgets: boolean;
+  gadgets_seleccionados: string[];
   observaciones?: string;
   fecha_recepcion: string;
   hora_recepcion: string;

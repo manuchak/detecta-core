@@ -28,6 +28,7 @@ interface ServiceData {
   tipo_servicio: string;
   incluye_armado: boolean;
   requiere_gadgets: boolean;
+  gadgets_seleccionados: string[];
   precio_sugerido?: number;
   observaciones?: string;
   fecha_recepcion: string;
@@ -226,10 +227,25 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
                 <Badge variant="outline">{serviceData.tipo_servicio.replace('_', ' ')}</Badge>
               </div>
               <div>
-                <div className="text-sm text-muted-foreground">Gadgets</div>
-                <Badge variant={serviceData.requiere_gadgets ? "default" : "secondary"}>
-                  {serviceData.requiere_gadgets ? 'Requeridos' : 'No necesarios'}
-                </Badge>
+                <div className="text-sm text-muted-foreground">Gadgets Específicos</div>
+                {serviceData.gadgets_seleccionados.length > 0 ? (
+                  <div className="space-y-1">
+                    {serviceData.gadgets_seleccionados.map((gadgetId) => {
+                      const gadgetNames = {
+                        candado_satelital: 'Candado Satelital',
+                        gps_portatil: 'GPS Portátil',
+                        gps_portatil_caja_imantada: 'GPS Portátil c/Caja Imantada'
+                      };
+                      return (
+                        <Badge key={gadgetId} variant="default" className="text-xs mr-1">
+                          {gadgetNames[gadgetId as keyof typeof gadgetNames] || gadgetId}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <Badge variant="secondary">No requeridos</Badge>
+                )}
               </div>
             </div>
           </div>
