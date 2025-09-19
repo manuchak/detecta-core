@@ -24,17 +24,18 @@ interface ServiceData {
   fecha_programada: string;
   hora_ventana_inicio: string;
   tipo_servicio: string;
+  incluye_armado: boolean;
   requiere_gadgets: boolean;
   gadgets_seleccionados: string[];
+  observaciones?: string;
+  fecha_recepcion: string;
+  hora_recepcion: string;
 }
 
 interface AssignmentData extends ServiceData {
-  custodio_asignado_id: string;
+  custodio_asignado_id?: string;
   custodio_nombre?: string;
-  estado_comunicacion?: string;
-  incluye_armado: boolean;
-  fecha_recepcion: string;
-  hora_recepcion: string;
+  estado_comunicacion?: 'enviado' | 'aceptado' | 'rechazado' | 'sin_responder';
 }
 
 interface CustodianAssignmentStepProps {
@@ -197,10 +198,7 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
       ...serviceData,
       custodio_asignado_id: selectedCustodio,
       custodio_nombre: custodio?.nombre,
-      estado_comunicacion: comunicacion?.estado === 'pendiente' ? 'sin_responder' : comunicacion?.estado,
-      incluye_armado: serviceData.tipo_servicio === 'armado',
-      fecha_recepcion: new Date().toISOString().split('T')[0],
-      hora_recepcion: new Date().toLocaleTimeString()
+      estado_comunicacion: (comunicacion?.estado === 'pendiente' ? 'sin_responder' : comunicacion?.estado) as 'enviado' | 'aceptado' | 'rechazado' | 'sin_responder'
     };
 
     onComplete(assignmentData);
