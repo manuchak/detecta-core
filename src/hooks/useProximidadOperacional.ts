@@ -71,7 +71,6 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
           disponibilidad,
           estado,
           rating_promedio,
-          numero_servicios,
           certificaciones,
           comentarios,
           zona_base,
@@ -90,10 +89,9 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
         .from('candidatos_custodios')
         .select(`
           id,
-          nombre_completo,
+          nombre,
           telefono,
           email,
-          ciudad,
           estado_proceso,
           created_at,
           updated_at
@@ -112,17 +110,17 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
         .from('servicios_custodia')
         .select(`
           id,
-          custodio_nombre,
-          fecha_servicio,
-          origen_texto,
-          destino_texto,
+          nombre_custodio,
+          fecha_hora_cita,
+          origen,
+          destino,
           tipo_servicio,
-          estado_servicio
+          estado
         `)
-        .not('custodio_nombre', 'is', null)
-        .gte('fecha_servicio', fechaLimite.toISOString())
-        .eq('estado_servicio', 'completado')
-        .order('fecha_servicio', { ascending: false })
+        .not('nombre_custodio', 'is', null)
+        .gte('fecha_hora_cita', fechaLimite.toISOString())
+        .eq('estado', 'finalizado')
+        .order('fecha_hora_cita', { ascending: false })
         .limit(50);
 
       if (historicosError) {
@@ -168,7 +166,7 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
           disponibilidad: custodio.disponibilidad,
           estado: custodio.estado,
           rating_promedio: custodio.rating_promedio,
-          numero_servicios: custodio.numero_servicios,
+          numero_servicios: 0, // Default value since this field doesn't exist in pc_custodios
           certificaciones: custodio.certificaciones || [],
           comentarios: custodio.comentarios,
           zona_base: custodio.zona_base,
@@ -182,10 +180,9 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
         // Candidatos custodios
         ...(candidatosCustodios || []).map(candidato => ({
           id: candidato.id,
-          nombre: candidato.nombre_completo,
+          nombre: candidato.nombre,
           telefono: candidato.telefono,
           email: candidato.email,
-          ciudad: candidato.ciudad,
           estado_proceso: candidato.estado_proceso,
           disponibilidad: 'disponible' as const,
           estado: 'candidato' as const,
@@ -203,8 +200,8 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
         
         // Custodios históricos (como fallback)
         ...(custodiosHistoricos || []).map(historico => ({
-          id: `historico_${historico.custodio_nombre?.replace(/\s+/g, '_')}_${Math.random()}`,
-          nombre: historico.custodio_nombre || 'Custodio Desconocido',
+          id: `historico_${historico.nombre_custodio?.replace(/\s+/g, '_')}_${Math.random()}`,
+          nombre: historico.nombre_custodio || 'Custodio Desconocido',
           disponibilidad: 'inactivo' as const,
           estado: 'historico' as const,
           rating_promedio: null,
@@ -215,16 +212,16 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
           tiene_gadgets: false,
           servicios_historicos: [{
             id: historico.id,
-            fecha_hora_cita: historico.fecha_servicio,
-            origen: historico.origen_texto,
-            destino: historico.destino_texto,
-            estado: historico.estado_servicio,
-            nombre_custodio: historico.custodio_nombre,
+            fecha_hora_cita: historico.fecha_hora_cita,
+            origen: historico.origen,
+            destino: historico.destino,
+            estado: historico.estado,
+            nombre_custodio: historico.nombre_custodio,
             tipo_servicio: historico.tipo_servicio
           }],
           fuente: 'historico' as const,
-          created_at: historico.fecha_servicio,
-          updated_at: historico.fecha_servicio
+          created_at: historico.fecha_hora_cita,
+          updated_at: historico.fecha_hora_cita
         }))
       ];
       
@@ -253,17 +250,16 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
           .from('servicios_custodia')
           .select(`
             id,
-            custodio_nombre,
-            fecha_servicio,
-            hora_programada,
-            origen_texto,
-            destino_texto,
+            nombre_custodio,
+            fecha_hora_cita,
+            origen,
+            destino,
             tipo_servicio,
-            estado_servicio
+            estado
           `)
-          .gte('fecha_servicio', fechaInicio.toISOString())
-          .lte('fecha_servicio', fechaFin.toISOString())
-          .not('custodio_nombre', 'is', null);
+          .gte('fecha_hora_cita', fechaInicio.toISOString())
+          .lte('fecha_hora_cita', fechaFin.toISOString())
+          .not('nombre_custodio', 'is', null);
 
         // Calcular scoring de proximidad para cada custodio
         const custodiosConScoring = await Promise.all(
@@ -274,17 +270,16 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
                 .from('servicios_custodia')
                 .select(`
                   id,
-                  custodio_nombre,
-                  fecha_servicio,
-                  hora_programada,
-                  origen_texto,
-                  destino_texto,
+                  nombre_custodio,
+                  fecha_hora_cita,
+                  origen,
+                  destino,
                   tipo_servicio,
-                  estado_servicio
+                  estado
                 `)
-                .eq('custodio_nombre', custodio.nombre)
-                .eq('estado_servicio', 'completado')
-                .order('fecha_servicio', { ascending: false })
+                .eq('nombre_custodio', custodio.nombre)
+                .eq('estado', 'finalizado')
+                .order('fecha_hora_cita', { ascending: false })
                 .limit(10);
 
               // Actualizar servicios históricos
@@ -292,11 +287,11 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
                 ...custodio,
                 servicios_historicos: (serviciosHistoricosCustodio || []).map(servicio => ({
                   id: servicio.id,
-                  fecha_hora_cita: servicio.fecha_servicio,
-                  origen: servicio.origen_texto,
-                  destino: servicio.destino_texto,
-                  estado: servicio.estado_servicio,
-                  nombre_custodio: servicio.custodio_nombre,
+                  fecha_hora_cita: servicio.fecha_hora_cita,
+                  origen: servicio.origen,
+                  destino: servicio.destino,
+                  estado: servicio.estado,
+                  nombre_custodio: servicio.nombre_custodio,
                   tipo_servicio: servicio.tipo_servicio
                 }))
               };
@@ -311,11 +306,11 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
                 servicioNuevo,
                 (serviciosProximos || []).map(servicio => ({
                   id: servicio.id,
-                  fecha_hora_cita: servicio.fecha_servicio,
-                  origen: servicio.origen_texto,
-                  destino: servicio.destino_texto,
-                  estado: servicio.estado_servicio,
-                  nombre_custodio: servicio.custodio_nombre,
+                  fecha_hora_cita: servicio.fecha_hora_cita,
+                  origen: servicio.origen,
+                  destino: servicio.destino,
+                  estado: servicio.estado,
+                  nombre_custodio: servicio.nombre_custodio,
                   tipo_servicio: servicio.tipo_servicio
                 }))
               );
@@ -411,17 +406,16 @@ export function useServiciosProximos(ventanaHoras: number = 12) {
         .from('servicios_custodia')
         .select(`
           id,
-          custodio_nombre,
-          fecha_servicio,
-          hora_programada,
-          origen_texto,
-          destino_texto,
+          nombre_custodio,
+          fecha_hora_cita,
+          origen,
+          destino,
           tipo_servicio,
-          estado_servicio
+          estado
         `)
-        .gte('fecha_servicio', fechaInicio.toISOString())
-        .lte('fecha_servicio', fechaFin.toISOString())
-        .not('custodio_nombre', 'is', null);
+        .gte('fecha_hora_cita', fechaInicio.toISOString())
+        .lte('fecha_hora_cita', fechaFin.toISOString())
+        .not('nombre_custodio', 'is', null);
 
       if (error) {
         console.error('Error fetching servicios próximos:', error);
@@ -430,11 +424,11 @@ export function useServiciosProximos(ventanaHoras: number = 12) {
 
       return data?.map(servicio => ({
         id: servicio.id,
-        fecha_hora_cita: servicio.fecha_servicio,
-        origen: servicio.origen_texto,
-        destino: servicio.destino_texto,
-        estado: servicio.estado_servicio,
-        nombre_custodio: servicio.custodio_nombre,
+        fecha_hora_cita: servicio.fecha_hora_cita,
+        origen: servicio.origen,
+        destino: servicio.destino,
+        estado: servicio.estado,
+        nombre_custodio: servicio.nombre_custodio,
         tipo_servicio: servicio.tipo_servicio
       })) || [];
     },
