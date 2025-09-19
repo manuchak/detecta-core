@@ -92,43 +92,195 @@ export const clientesService = {
 // =====================================================
 
 export const custodiosService = {
+  // Nueva función unificada que combina múltiples fuentes
+  async getUnifiedCustodios(filtros?: FiltrosCustodios): Promise<Custodio[]> {
+    try {
+      // 1. Obtener custodios de pc_custodios (fuente principal)
+      let pcQuery = supabase
+        .from('pc_custodios')
+        .select('*');
+
+      const { data: pcCustodios, error: pcError } = await pcQuery;
+      if (pcError && pcError.code !== 'PGRST116') throw pcError;
+
+      // 2. Obtener candidatos aprobados como custodios nuevos
+      const { data: candidatos, error: candidatosError } = await supabase
+        .from('candidatos_custodios')
+        .select('*')
+        .in('estado_proceso', ['activo', 'aprobado']);
+
+      if (candidatosError) throw candidatosError;
+
+      // 3. Obtener custodios únicos de servicios como fallback
+      const { data: serviciosData, error: serviciosError } = await supabase
+        .from('servicios_custodia')
+        .select('nombre_custodio, telefono, telefono_operador')
+        .not('nombre_custodio', 'is', null)
+        .neq('nombre_custodio', '')
+        .neq('nombre_custodio', '#N/A')
+        .neq('nombre_custodio', 'Sin Asignar');
+
+      if (serviciosError) throw serviciosError;
+
+      // Combinar y unificar datos
+      const unifiedCustodios: Custodio[] = [];
+      const seenPhones = new Set<string>();
+      const seenNames = new Set<string>();
+
+      // Agregar custodios de pc_custodios (prioridad máxima)
+      (pcCustodios || []).forEach(custodio => {
+        unifiedCustodios.push({
+          ...custodio,
+          fuente: 'pc_custodios',
+          es_nuevo: false
+        });
+        if (custodio.tel) seenPhones.add(custodio.tel);
+        if (custodio.nombre) seenNames.add(custodio.nombre.toLowerCase());
+      });
+
+      // Agregar candidatos aprobados como custodios nuevos
+      (candidatos || []).forEach(candidato => {
+        const telefono = candidato.telefono || '';
+        const nombre = candidato.nombre || '';
+        
+        if (!seenPhones.has(telefono) && !seenNames.has(nombre.toLowerCase()) && telefono && nombre) {
+          unifiedCustodios.push({
+            id: candidato.id,
+            nombre: candidato.nombre,
+            tel: candidato.telefono,
+            email: candidato.email,
+            estado: 'activo',
+            disponibilidad: 'disponible',
+            zona_base: 'Por asignar',
+            tipo_custodia: 'no_armado',
+            tiene_gadgets: false,
+            rating_promedio: null,
+            numero_servicios: 0,
+            dias_sin_actividad: 0,
+            ultima_actividad: candidato.updated_at || candidato.created_at,
+            cuenta_bancaria: null,
+            documentos: [],
+            certificaciones: [],
+            comentarios: `Custodio nuevo - ${candidato.fuente_reclutamiento || 'Directo'}`,
+            created_at: candidato.created_at || new Date().toISOString(),
+            updated_at: candidato.updated_at || new Date().toISOString(),
+            fuente: 'candidatos_custodios',
+            es_nuevo: true,
+            expectativa_ingresos: candidato.expectativa_ingresos,
+            experiencia_seguridad: candidato.experiencia_seguridad,
+            vehiculo_propio: candidato.vehiculo_propio
+          });
+          seenPhones.add(telefono);
+          seenNames.add(nombre.toLowerCase());
+        }
+      });
+
+      // Agregar custodios únicos de servicios como fallback (solo si hay pocos custodios)
+      if (unifiedCustodios.length < 5) {
+        const custodiosServicios = new Map<string, any>();
+        
+        (serviciosData || []).forEach(servicio => {
+          const nombre = servicio.nombre_custodio?.trim();
+          const telefono = servicio.telefono || servicio.telefono_operador;
+          
+          if (nombre && !seenNames.has(nombre.toLowerCase())) {
+            if (!custodiosServicios.has(nombre) || !custodiosServicios.get(nombre).telefono) {
+              custodiosServicios.set(nombre, {
+                nombre,
+                telefono: telefono || 'No disponible'
+              });
+            }
+          }
+        });
+
+        custodiosServicios.forEach((data, nombre) => {
+          if (!seenNames.has(nombre.toLowerCase())) {
+            unifiedCustodios.push({
+              id: `servicio_${Date.now()}_${Math.random()}`,
+              nombre,
+              tel: data.telefono,
+              email: null,
+              estado: 'activo',
+              disponibilidad: 'disponible',
+              zona_base: 'Histórico',
+              tipo_custodia: 'no_armado',
+              tiene_gadgets: false,
+              rating_promedio: null,
+              numero_servicios: null,
+              dias_sin_actividad: 30,
+              ultima_actividad: new Date().toISOString(),
+              cuenta_bancaria: null,
+              documentos: [],
+              certificaciones: [],
+              comentarios: 'Custodio con historial de servicios',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              fuente: 'servicios_custodia',
+              es_nuevo: false
+            });
+            seenNames.add(nombre.toLowerCase());
+          }
+        });
+      }
+
+      // Aplicar filtros
+      let filteredCustodios = unifiedCustodios;
+
+      if (filtros?.estado?.length) {
+        filteredCustodios = filteredCustodios.filter(c => filtros.estado!.includes(c.estado));
+      }
+
+      if (filtros?.disponibilidad?.length) {
+        filteredCustodios = filteredCustodios.filter(c => filtros.disponibilidad!.includes(c.disponibilidad));
+      }
+
+      if (filtros?.tipo_custodia?.length) {
+        filteredCustodios = filteredCustodios.filter(c => filtros.tipo_custodia!.includes(c.tipo_custodia));
+      }
+
+      if (filtros?.tiene_gadgets !== undefined) {
+        filteredCustodios = filteredCustodios.filter(c => c.tiene_gadgets === filtros.tiene_gadgets);
+      }
+
+      if (filtros?.zona_base) {
+        filteredCustodios = filteredCustodios.filter(c => 
+          c.zona_base?.toLowerCase().includes(filtros.zona_base!.toLowerCase())
+        );
+      }
+
+      if (filtros?.rating_minimo) {
+        filteredCustodios = filteredCustodios.filter(c => 
+          c.rating_promedio ? c.rating_promedio >= filtros.rating_minimo! : true
+        );
+      }
+
+      if (filtros?.busqueda) {
+        const busqueda = filtros.busqueda.toLowerCase();
+        filteredCustodios = filteredCustodios.filter(c =>
+          c.nombre?.toLowerCase().includes(busqueda) ||
+          c.tel?.toLowerCase().includes(busqueda) ||
+          c.email?.toLowerCase().includes(busqueda)
+        );
+      }
+
+      return filteredCustodios.sort((a, b) => {
+        // Priorizar custodios de pc_custodios, luego candidatos, luego históricos
+        const prioridadA = a.fuente === 'pc_custodios' ? 0 : a.fuente === 'candidatos_custodios' ? 1 : 2;
+        const prioridadB = b.fuente === 'pc_custodios' ? 0 : b.fuente === 'candidatos_custodios' ? 1 : 2;
+        
+        if (prioridadA !== prioridadB) return prioridadA - prioridadB;
+        return (a.nombre || '').localeCompare(b.nombre || '');
+      });
+
+    } catch (error) {
+      console.error('Error getting unified custodios:', error);
+      throw error;
+    }
+  },
+
   async getAll(filtros?: FiltrosCustodios): Promise<Custodio[]> {
-    let query = supabase
-      .from('pc_custodios')
-      .select('*')
-      .order('nombre');
-
-    if (filtros?.estado?.length) {
-      query = query.in('estado', filtros.estado);
-    }
-
-    if (filtros?.disponibilidad?.length) {
-      query = query.in('disponibilidad', filtros.disponibilidad);
-    }
-
-    if (filtros?.tipo_custodia?.length) {
-      query = query.in('tipo_custodia', filtros.tipo_custodia);
-    }
-
-    if (filtros?.tiene_gadgets !== undefined) {
-      query = query.eq('tiene_gadgets', filtros.tiene_gadgets);
-    }
-
-    if (filtros?.zona_base) {
-      query = query.ilike('zona_base', `%${filtros.zona_base}%`);
-    }
-
-    if (filtros?.rating_minimo) {
-      query = query.gte('rating_promedio', filtros.rating_minimo);
-    }
-
-    if (filtros?.busqueda) {
-      query = query.or(`nombre.ilike.%${filtros.busqueda}%,tel.ilike.%${filtros.busqueda}%,email.ilike.%${filtros.busqueda}%`);
-    }
-
-    const { data, error } = await query;
-    if (error) throw error;
-    return data || [];
+    // Usar la función unificada por defecto
+    return this.getUnifiedCustodios(filtros);
   },
 
   async getById(id: string): Promise<Custodio | null> {
@@ -143,23 +295,20 @@ export const custodiosService = {
   },
 
   async getDisponibles(requiere_gadgets?: boolean, tipo_custodia?: string): Promise<Custodio[]> {
-    let query = supabase
-      .from('pc_custodios')
-      .select('*')
-      .eq('estado', 'activo')
-      .eq('disponibilidad', 'disponible');
+    const filtros: FiltrosCustodios = {
+      estado: ['activo'],
+      disponibilidad: ['disponible']
+    };
 
     if (requiere_gadgets) {
-      query = query.eq('tiene_gadgets', true);
+      filtros.tiene_gadgets = true;
     }
 
     if (tipo_custodia && (tipo_custodia === 'armado' || tipo_custodia === 'no_armado')) {
-      query = query.eq('tipo_custodia', tipo_custodia);
+      filtros.tipo_custodia = [tipo_custodia];
     }
 
-    const { data, error } = await query;
-    if (error) throw error;
-    return data || [];
+    return this.getUnifiedCustodios(filtros);
   },
 
   async create(custodio: CustodioForm): Promise<Custodio> {

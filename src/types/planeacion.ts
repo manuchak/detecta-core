@@ -37,7 +37,7 @@ export interface Custodio {
   nombre: string;
   tel: string;
   email?: string;
-  rating_promedio: number;
+  rating_promedio: number | null;
   dias_sin_actividad: number;
   zona_base?: string;
   lat?: number;
@@ -53,6 +53,13 @@ export interface Custodio {
   comentarios?: string;
   created_at: string;
   updated_at: string;
+  // Nuevas propiedades para el sistema unificado
+  numero_servicios?: number | null;
+  fuente?: 'pc_custodios' | 'candidatos_custodios' | 'servicios_custodia';
+  es_nuevo?: boolean;
+  expectativa_ingresos?: number;
+  experiencia_seguridad?: boolean;
+  vehiculo_propio?: boolean;
 }
 
 export interface RutaFrecuente {
