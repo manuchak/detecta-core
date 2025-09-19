@@ -247,7 +247,7 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
                 <Shield className="h-4 w-4" />
-                Tipo de Servicio *
+                Tipo de Custodia *
                 {getAutoFillBadge('tipo_servicio')}
               </Label>
               <Select value={tipoServicio} onValueChange={setTipoServicio}>
@@ -378,7 +378,7 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
               </div>
               
               <div>
-                <div className="text-sm text-muted-foreground">Tipo de Servicio</div>
+                <div className="text-sm text-muted-foreground">Tipo de Custodia</div>
                 <Badge variant="outline">
                   {tiposServicio.find(t => t.value === tipoServicio)?.label}
                 </Badge>
