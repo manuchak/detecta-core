@@ -306,7 +306,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-primary">
                   ${priceEstimate.precio_sugerido?.toLocaleString()}
@@ -317,20 +317,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
                 <div className="text-2xl font-bold text-blue-600">
                   ${priceEstimate.precio_custodio?.toLocaleString()}
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  Pago Custodio {priceEstimate.incluye_armado ? "(Con Armado)" : ""}
-                </div>
-                {priceEstimate.pago_custodio_sin_arma && priceEstimate.incluye_armado && (
-                  <div className="text-sm text-muted-foreground mt-1">
-                    Sin armado: ${priceEstimate.pago_custodio_sin_arma?.toLocaleString()}
-                  </div>
-                )}
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-destructive">
-                  ${priceEstimate.costo_operativo?.toLocaleString()}
-                </div>
-                <div className="text-sm text-muted-foreground">Costo Operativo</div>
+                <div className="text-sm text-muted-foreground">Pago Custodio</div>
               </div>
             </div>
 
