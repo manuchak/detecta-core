@@ -68,32 +68,21 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
 
   const { data: custodios = [] } = useCustodiosConProximidad(servicioParaProximidad);
 
-  // Filtrar custodios - incluir candidatos activos e históricos
+  // Filtrado menos restrictivo - mostrar todos los custodios disponibles
   const custodiosDisponibles = custodios
-    .filter(custodio => {
-      // Custodios activos
-      if (custodio.disponibilidad === 'disponible' && custodio.estado === 'activo') {
-        return !serviceData.requiere_gadgets || custodio.tiene_gadgets;
-      }
-      
-      // Candidatos activos
-      if (custodio.fuente === 'candidatos_custodios' && custodio.estado_proceso) {
-        return true; // Los candidatos siempre están disponibles para asignación
-      }
-      
-      // Custodios históricos (como fallback)
-      if (custodio.fuente === 'historico') {
-        return true; // Incluir históricos pero con nota de validación
-      }
-      
-      return false;
-    })
     .map(custodio => ({
       ...custodio,
       // Usar el score de proximidad operacional o score base
       score: custodio.scoring_proximidad?.score_total || 50,
       distancia_km: custodio.scoring_proximidad?.detalles?.distancia_estimada || Math.round(Math.random() * 50)
-    }));
+    }))
+    .filter(custodio => {
+      // Solo filtrar custodios claramente no disponibles
+      if (custodio.estado === 'inactivo' && custodio.fuente !== 'historico') {
+        return false;
+      }
+      return true; // Incluir todos los demás
+    });
 
   const handleWhatsApp = (custodioId: string, nombre: string) => {
     // Simular envío de WhatsApp
@@ -190,7 +179,7 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
       pendiente: { variant: 'outline' as const, text: 'Pendiente' },
       enviado: { variant: 'secondary' as const, text: 'Enviado' },
       aceptado: { variant: 'default' as const, text: 'Aceptado' },
-      rechazado: { variant: 'destructive' as const, text: 'Rechazado' },
+      rechazado: { variant: 'outline' as const, text: 'Rechazado' }, // Cambiar de destructive a outline
       sin_responder: { variant: 'outline' as const, text: 'Sin responder' }
     };
     
@@ -198,21 +187,21 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
   };
 
   const getScoreBadge = (score: number) => {
-    if (score >= 80) return { variant: 'default' as const, color: 'text-green-600' };
-    if (score >= 60) return { variant: 'secondary' as const, color: 'text-yellow-600' };
-    return { variant: 'outline' as const, color: 'text-red-600' };
+    if (score >= 80) return { variant: 'default' as const, color: 'text-emerald-600' };
+    if (score >= 60) return { variant: 'secondary' as const, color: 'text-blue-600' };
+    return { variant: 'outline' as const, color: 'text-muted-foreground' };
   };
 
   const getPrioridadBadge = (prioridad: 'alta' | 'media' | 'baja' | undefined) => {
     switch (prioridad) {
       case 'alta':
-        return { variant: 'default' as const, text: 'Alta Prioridad', icon: TrendingUp };
+        return { variant: 'default' as const, text: 'Óptimo', icon: TrendingUp, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
       case 'media':
-        return { variant: 'secondary' as const, text: 'Prioridad Media', icon: Target };
+        return { variant: 'secondary' as const, text: 'Compatible', icon: Target, color: 'bg-blue-50 text-blue-700 border-blue-200' };
       case 'baja':
-        return { variant: 'outline' as const, text: 'Baja Prioridad', icon: Clock };
+        return { variant: 'outline' as const, text: 'Disponible', icon: Clock, color: 'bg-gray-50 text-gray-600 border-gray-200' };
       default:
-        return { variant: 'outline' as const, text: 'Sin Prioridad', icon: Target };
+        return { variant: 'outline' as const, text: 'Evaluando', icon: Target, color: 'bg-gray-50 text-gray-600 border-gray-200' };
     }
   };
 
@@ -314,25 +303,25 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
               <div className="mb-4 p-3 bg-muted/50 rounded-lg">
                 <div className="flex items-center gap-4 text-sm">
                   <div className="flex items-center gap-1">
-                    <Badge variant="default" className="text-xs gap-1">
+                    <Badge className="text-xs gap-1 bg-emerald-50 text-emerald-700 border-emerald-200">
                       <TrendingUp className="h-3 w-3" />
-                      Alta
+                      Óptimo
                     </Badge>
                     <span className="text-muted-foreground">Proximidad temporal y geográfica óptima</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Badge variant="secondary" className="text-xs gap-1">
+                    <Badge className="text-xs gap-1 bg-blue-50 text-blue-700 border-blue-200">
                       <Target className="h-3 w-3" />
-                      Media
+                      Compatible
                     </Badge>
-                    <span className="text-muted-foreground">Compatible con el servicio</span>
+                    <span className="text-muted-foreground">Adecuado para el servicio</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Badge variant="outline" className="text-xs gap-1">
                       <Clock className="h-3 w-3" />
-                      Baja
+                      Disponible
                     </Badge>
-                    <span className="text-muted-foreground">Disponible pero sin ventajas especiales</span>
+                    <span className="text-muted-foreground">Puede ser asignado</span>
                   </div>
                 </div>
               </div>
@@ -348,105 +337,111 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
                   return (
                     <Card 
                       key={custodio.id} 
-                      className={`transition-colors ${
-                        isSelected ? 'border-primary bg-primary/5' : ''
-                      }`}
+                      className={`transition-all duration-200 hover:shadow-md ${
+                        isSelected ? 'border-primary bg-primary/5 shadow-sm' : 'hover:border-border'
+                      } ${custodio.fuente === 'historico' ? 'border-dashed bg-muted/30' : ''}`}
                     >
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <Avatar>
-                              <AvatarFallback>
+                      <CardContent className="p-5">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-start gap-4 flex-1">
+                            <Avatar className="h-12 w-12">
+                              <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                                 {custodio.nombre?.split(' ').map(n => n[0]).join('').toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
                             
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">{custodio.nombre}</span>
+                            <div className="space-y-3 flex-1">
+                              {/* Header con nombre y badges */}
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="font-semibold text-base">{custodio.nombre}</h3>
                                 
                                 {custodio.fuente === 'candidatos_custodios' && (
-                                  <Badge variant="secondary" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                    CANDIDATO
+                                  <Badge className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                    NUEVO
                                   </Badge>
                                 )}
                                 
                                 {custodio.fuente === 'historico' && (
-                                  <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-200">
+                                  <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
                                     HISTÓRICO
                                   </Badge>
                                 )}
+                                
+                                {/* Badge de prioridad más prominente */}
+                                <Badge className={`text-xs gap-1 ${prioridadBadge.color}`}>
+                                  <prioridadBadge.icon className="h-3 w-3" />
+                                  {prioridadBadge.text}
+                                </Badge>
                                 
                                 {isSelected && (
                                   <CheckCircle className="h-4 w-4 text-primary" />
                                 )}
                               </div>
                               
-                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                              {/* Métricas principales */}
+                              <div className="grid grid-cols-3 gap-4 text-sm">
                                 <div className="flex items-center gap-1">
-                                  <MapPin className="h-3 w-3" />
-                                  {custodio.distancia_km ? `~${custodio.distancia_km}km` : 'N/A'}
+                                  <MapPin className="h-3 w-3 text-muted-foreground" />
+                                  <span className="text-muted-foreground">Distancia:</span>
+                                  <span className="font-medium">{custodio.distancia_km ? `${custodio.distancia_km}km` : 'N/A'}</span>
                                 </div>
                                 <div className="flex items-center gap-1">
-                                  <Shield className="h-3 w-3" />
-                                  Rating: {custodio.rating_promedio || 'N/A'}/5
-                                </div>
-                                {/* Indicador de prioridad operacional */}
-                                <div className="flex items-center gap-1">
-                                  <Badge variant={prioridadBadge.variant} className="text-xs gap-1">
-                                    <prioridadBadge.icon className="h-3 w-3" />
-                                    {prioridadBadge.text}
-                                  </Badge>
+                                  <Shield className="h-3 w-3 text-muted-foreground" />
+                                  <span className="text-muted-foreground">Rating:</span>
+                                  <span className="font-medium">{custodio.rating_promedio || 'N/A'}/5</span>
                                 </div>
                                 <div className="flex items-center gap-1">
-                                  <Star className="h-3 w-3" />
-                                  Score: <span className={scoreBadge.color}>{custodio.score}</span>
+                                  <Star className="h-3 w-3 text-muted-foreground" />
+                                  <span className="text-muted-foreground">Score:</span>
+                                  <span className={`font-semibold ${scoreBadge.color}`}>{custodio.score}</span>
                                 </div>
                               </div>
                               
                               {/* Razones de recomendación */}
                               {custodio.razones_recomendacion && custodio.razones_recomendacion.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-2">
-                                  {custodio.razones_recomendacion.map((razon, index) => (
-                                    <Badge key={index} variant="outline" className="text-xs">
+                                <div className="flex flex-wrap gap-1">
+                                  {custodio.razones_recomendacion.slice(0, 3).map((razon, index) => (
+                                    <Badge key={index} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
                                       {razon}
                                     </Badge>
                                   ))}
+                                  {custodio.razones_recomendacion.length > 3 && (
+                                    <Badge variant="outline" className="text-xs">
+                                      +{custodio.razones_recomendacion.length - 3} más
+                                    </Badge>
+                                  )}
                                 </div>
                               )}
                               
-                              {custodio.certificaciones && custodio.certificaciones.length > 0 && (
-                                <div className="flex gap-1">
-                                  {custodio.certificaciones.slice(0, 2).map((cert, index) => (
-                                    <Badge key={index} variant="outline" className="text-xs">
-                                      {cert}
-                                    </Badge>
-                                  ))}
+                              {/* Advertencia para históricos */}
+                              {custodio.fuente === 'historico' && (
+                                <div className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                                  ⚠️ Requiere validación de disponibilidad
                                 </div>
                               )}
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-col items-end gap-2">
                             {/* Estado de comunicación */}
-                            <Badge variant={estadoBadge.variant}>
+                            <Badge variant={estadoBadge.variant} className="shrink-0">
                               {estadoBadge.text}
                             </Badge>
 
                             {/* Botones de comunicación */}
                             {comunicacion?.estado === 'aceptado' ? (
-                              <Badge variant="default" className="gap-1">
+                              <Badge className="gap-1 bg-emerald-50 text-emerald-700 border-emerald-200">
                                 <CheckCircle className="h-3 w-3" />
                                 Confirmado
                               </Badge>
                             ) : (
-                              <div className="flex gap-1">
+                              <div className="flex gap-2">
                                 <Button
                                   size="sm"
                                   variant="outline"
                                   onClick={() => handleWhatsApp(custodio.id, custodio.nombre)}
                                   disabled={comunicacion?.estado === 'enviado'}
-                                  className="gap-1"
+                                  className="gap-1 hover:bg-green-50 hover:text-green-700 hover:border-green-200"
                                 >
                                   <MessageSquare className="h-3 w-3" />
                                   {comunicacion?.metodo === 'whatsapp' && comunicacion.estado === 'enviado' 
@@ -460,7 +455,7 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
                                   variant="outline"
                                   onClick={() => handleLlamada(custodio.id, custodio.nombre)}
                                   disabled={comunicacion?.estado === 'enviado'}
-                                  className="gap-1"
+                                  className="gap-1 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200"
                                 >
                                   <PhoneCall className="h-3 w-3" />
                                   {comunicacion?.metodo === 'llamada' && comunicacion.estado === 'enviado'

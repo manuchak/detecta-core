@@ -20,6 +20,41 @@ export interface CustodioConProximidad extends CustodioConHistorial {
   prioridad_asignacion?: 'alta' | 'media' | 'baja';
 }
 
+// Función auxiliar para normalizar nombres y detectar duplicados
+const normalizarNombre = (nombre: string): string => {
+  return nombre
+    .toLowerCase()
+    .replace(/[áàäâ]/g, 'a')
+    .replace(/[éèëê]/g, 'e')
+    .replace(/[íìïî]/g, 'i')
+    .replace(/[óòöô]/g, 'o')
+    .replace(/[úùüû]/g, 'u')
+    .replace(/ñ/g, 'n')
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+// Función para detectar duplicados por nombre
+const sonNombresSimilares = (nombre1: string, nombre2: string): boolean => {
+  const norm1 = normalizarNombre(nombre1);
+  const norm2 = normalizarNombre(nombre2);
+  
+  // Exacto match
+  if (norm1 === norm2) return true;
+  
+  // Verificar si uno contiene al otro (para casos como "Juan" vs "Juan Carlos")
+  const palabras1 = norm1.split(' ');
+  const palabras2 = norm2.split(' ');
+  
+  // Si ambos nombres tienen al menos 2 palabras en común
+  const palabrasComunes = palabras1.filter(p1 => 
+    palabras2.some(p2 => p1 === p2 && p1.length > 2)
+  ).length;
+  
+  return palabrasComunes >= 2;
+};
+
 /**
  * Hook principal para obtener custodios con scoring de proximidad operacional
  */
@@ -44,347 +79,366 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
           created_at,
           updated_at
         `)
-        .eq('estado', 'activo')
-        .eq('disponibilidad', 'disponible');
+        .eq('estado', 'activo');
 
       if (pcError) {
         console.error('Error fetching pc_custodios:', pcError);
       }
 
-      // 2. Obtener candidatos activos y aprobados de candidatos_custodios
-      const { data: candidatos, error: candidatosError } = await supabase
+      // 2. Obtener candidatos de candidatos_custodios (incluir más estados)
+      const { data: candidatosCustodios, error: candidatosError } = await supabase
         .from('candidatos_custodios')
         .select(`
           id,
-          nombre,
-          email,
+          nombre_completo,
           telefono,
-          zona_preferida_id,
-          disponibilidad_horarios,
-          vehiculo_propio,
-          experiencia_seguridad,
-          expectativa_ingresos,
+          email,
+          ciudad,
           estado_proceso,
-          fuente_reclutamiento,
-          created_at
+          created_at,
+          updated_at
         `)
-        .in('estado_proceso', ['aprobado', 'activo']);
+        .in('estado_proceso', ['activo', 'aprobado', 'pendiente_aprobacion']);
 
       if (candidatosError) {
         console.error('Error fetching candidatos_custodios:', candidatosError);
       }
 
-      // 3. Obtener servicios próximos para análisis temporal
-      const fechaHoy = new Date();
-      const fechaInicio = new Date(fechaHoy);
-      fechaInicio.setHours(fechaHoy.getHours() - 12); // 12 horas atrás
-      const fechaFin = new Date(fechaHoy);
-      fechaFin.setHours(fechaHoy.getHours() + 12); // 12 horas adelante
+      // 3. Obtener custodios históricos como fallback (últimos 6 meses)
+      const fechaLimite = new Date();
+      fechaLimite.setMonth(fechaLimite.getMonth() - 6);
 
-      let serviciosProximos: ServicioHistorico[] = [];
+      const { data: custodiosHistoricos, error: historicosError } = await supabase
+        .from('servicios_custodia')
+        .select(`
+          id,
+          custodio_nombre,
+          fecha_servicio,
+          origen_texto,
+          destino_texto,
+          tipo_servicio,
+          estado_servicio
+        `)
+        .not('custodio_nombre', 'is', null)
+        .gte('fecha_servicio', fechaLimite.toISOString())
+        .eq('estado_servicio', 'completado')
+        .order('fecha_servicio', { ascending: false })
+        .limit(50);
+
+      if (historicosError) {
+        console.error('Error fetching servicios_custodia:', historicosError);
+      }
+
+      // Eliminar duplicados usando comparación de nombres
+      const eliminarDuplicados = (custodios: CustodioConHistorial[]): CustodioConHistorial[] => {
+        const custodiosUnicos: CustodioConHistorial[] = [];
+        const nombresVistos = new Set<string>();
+        
+        // Priorizar por fuente: pc_custodios > candidatos_custodios > historico
+        const custodiosOrdenados = [...custodios].sort((a, b) => {
+          const prioridadFuente = { 'pc_custodios': 0, 'candidatos_custodios': 1, 'historico': 2 };
+          return prioridadFuente[a.fuente] - prioridadFuente[b.fuente];
+        });
+        
+        for (const custodio of custodiosOrdenados) {
+          if (!custodio.nombre) continue;
+          
+          const nombreNormalizado = normalizarNombre(custodio.nombre);
+          
+          // Verificar si ya existe un nombre similar
+          const yaExiste = custodiosUnicos.some(existente => 
+            sonNombresSimilares(existente.nombre, custodio.nombre)
+          );
+          
+          if (!yaExiste && !nombresVistos.has(nombreNormalizado)) {
+            custodiosUnicos.push(custodio);
+            nombresVistos.add(nombreNormalizado);
+          }
+        }
+        
+        return custodiosUnicos;
+      };
+
+      // Procesar y combinar todos los custodios
+      const todosCustodios: CustodioConHistorial[] = [
+        // PC Custodios
+        ...(pcCustodios || []).map(custodio => ({
+          id: custodio.id,
+          nombre: custodio.nombre,
+          disponibilidad: custodio.disponibilidad,
+          estado: custodio.estado,
+          rating_promedio: custodio.rating_promedio,
+          numero_servicios: custodio.numero_servicios,
+          certificaciones: custodio.certificaciones || [],
+          comentarios: custodio.comentarios,
+          zona_base: custodio.zona_base,
+          tiene_gadgets: custodio.tiene_gadgets || false,
+          servicios_historicos: [],
+          fuente: 'pc_custodios' as const,
+          created_at: custodio.created_at,
+          updated_at: custodio.updated_at
+        })),
+        
+        // Candidatos custodios
+        ...(candidatosCustodios || []).map(candidato => ({
+          id: candidato.id,
+          nombre: candidato.nombre_completo,
+          telefono: candidato.telefono,
+          email: candidato.email,
+          ciudad: candidato.ciudad,
+          estado_proceso: candidato.estado_proceso,
+          disponibilidad: 'disponible' as const,
+          estado: 'candidato' as const,
+          rating_promedio: null,
+          numero_servicios: 0,
+          certificaciones: [],
+          comentarios: null,
+          zona_base: null,
+          tiene_gadgets: false,
+          servicios_historicos: [],
+          fuente: 'candidatos_custodios' as const,
+          created_at: candidato.created_at,
+          updated_at: candidato.updated_at
+        })),
+        
+        // Custodios históricos (como fallback)
+        ...(custodiosHistoricos || []).map(historico => ({
+          id: `historico_${historico.custodio_nombre?.replace(/\s+/g, '_')}_${Math.random()}`,
+          nombre: historico.custodio_nombre || 'Custodio Desconocido',
+          disponibilidad: 'inactivo' as const,
+          estado: 'historico' as const,
+          rating_promedio: null,
+          numero_servicios: 1, // Al menos tuvo un servicio
+          certificaciones: [],
+          comentarios: 'Custodio identificado en registros históricos - sujeto a validación',
+          zona_base: null,
+          tiene_gadgets: false,
+          servicios_historicos: [{
+            id: historico.id,
+            fecha_hora_cita: historico.fecha_servicio,
+            origen: historico.origen_texto,
+            destino: historico.destino_texto,
+            estado: historico.estado_servicio,
+            nombre_custodio: historico.custodio_nombre,
+            tipo_servicio: historico.tipo_servicio
+          }],
+          fuente: 'historico' as const,
+          created_at: historico.fecha_servicio,
+          updated_at: historico.fecha_servicio
+        }))
+      ];
       
+      // Eliminar duplicados
+      const custodiosFormateados = eliminarDuplicados(todosCustodios);
+
+      console.log(`📊 Custodios encontrados:`, {
+        pc_custodios: pcCustodios?.length || 0,
+        candidatos: candidatosCustodios?.length || 0,
+        historicos: custodiosHistoricos?.length || 0,
+        total_antes_deduplicacion: todosCustodios.length,
+        total_despues_deduplicacion: custodiosFormateados.length,
+        fallback_historicos_activo: custodiosFormateados.some(c => c.fuente === 'historico')
+      });
+
+      // Si tenemos un servicio nuevo, calcular proximidad operacional para cada custodio
       if (servicioNuevo) {
-        const { data: servicios } = await supabase
+        // Obtener servicios próximos para análisis temporal
+        const fechaHoy = new Date();
+        const fechaInicio = new Date(fechaHoy);
+        fechaInicio.setHours(fechaHoy.getHours() - 12);
+        const fechaFin = new Date(fechaHoy);
+        fechaFin.setHours(fechaHoy.getHours() + 12);
+
+        const { data: serviciosProximos } = await supabase
           .from('servicios_custodia')
           .select(`
             id,
-            fecha_hora_cita,
-            origen,
-            destino,
-            estado,
-            nombre_custodio,
+            custodio_nombre,
+            fecha_servicio,
+            hora_programada,
+            origen_texto,
+            destino_texto,
             tipo_servicio,
-            km_recorridos
+            estado_servicio
           `)
-          .gte('fecha_hora_cita', fechaInicio.toISOString())
-          .lte('fecha_hora_cita', fechaFin.toISOString())
-          .in('estado', ['finalizado', 'en_progreso', 'programado'])
-          .limit(100);
+          .gte('fecha_servicio', fechaInicio.toISOString())
+          .lte('fecha_servicio', fechaFin.toISOString())
+          .not('custodio_nombre', 'is', null);
 
-        serviciosProximos = servicios || [];
-      }
+        // Calcular scoring de proximidad para cada custodio
+        const custodiosConScoring = await Promise.all(
+          custodiosFormateados.map(async (custodio) => {
+            try {
+              // Obtener servicios históricos del custodio para análisis de patrones
+              const { data: serviciosHistoricosCustodio } = await supabase
+                .from('servicios_custodia')
+                .select(`
+                  id,
+                  custodio_nombre,
+                  fecha_servicio,
+                  hora_programada,
+                  origen_texto,
+                  destino_texto,
+                  tipo_servicio,
+                  estado_servicio
+                `)
+                .eq('custodio_nombre', custodio.nombre)
+                .eq('estado_servicio', 'completado')
+                .order('fecha_servicio', { ascending: false })
+                .limit(10);
 
-      // 4. Procesar custodios de pc_custodios
-      const custodiosProcesados: CustodioConProximidad[] = [];
-      
-      if (pcCustodios) {
-        for (const custodio of pcCustodios) {
-          // Obtener historial de servicios del custodio
-          const { data: historialServicios } = await supabase
-            .from('servicios_custodia')
-            .select(`
-              id,
-              fecha_hora_cita,
-              origen,
-              destino,
-              estado,
-              tipo_servicio,
-              km_recorridos
-            `)
-            .eq('nombre_custodio', custodio.nombre)
-            .in('estado', ['finalizado'])
-            .order('fecha_hora_cita', { ascending: false })
-            .limit(20);
+              // Actualizar servicios históricos
+              const custodioActualizado: CustodioConHistorial = {
+                ...custodio,
+                servicios_historicos: (serviciosHistoricosCustodio || []).map(servicio => ({
+                  id: servicio.id,
+                  fecha_hora_cita: servicio.fecha_servicio,
+                  origen: servicio.origen_texto,
+                  destino: servicio.destino_texto,
+                  estado: servicio.estado_servicio,
+                  nombre_custodio: servicio.custodio_nombre,
+                  tipo_servicio: servicio.tipo_servicio
+                }))
+              };
 
-          const serviciosHistoricos = historialServicios || [];
-          
-          // Analizar patrones de trabajo
-          const patronesTrabajo = analizarPatronesTrabajoCustomdio(serviciosHistoricos);
-          
-          const custodioConHistorial: CustodioConHistorial = {
-            ...custodio,
-            fuente: 'pc_custodios',
-            servicios_historicos: serviciosHistoricos,
-            ciudades_frecuentes: patronesTrabajo.ciudades_frecuentes,
-            ultima_actividad: serviciosHistoricos[0]?.fecha_hora_cita
-          };
+              // Analizar patrones de trabajo
+              const patrones = analizarPatronesTrabajoCustomdio(custodioActualizado.servicios_historicos || []);
+              custodioActualizado.ciudades_frecuentes = patrones.ciudades_frecuentes;
 
-          // Calcular scoring de proximidad si tenemos servicio nuevo
-          let scoring: ScoringProximidad | undefined;
-          let razones: string[] = [];
-          let prioridad: 'alta' | 'media' | 'baja' = 'media';
-
-          if (servicioNuevo) {
-            scoring = calcularProximidadOperacional(
-              custodioConHistorial,
-              servicioNuevo,
-              serviciosProximos
-            );
-            
-            razones = generarRazonesRecomendacion(scoring, custodioConHistorial);
-            
-            // Determinar prioridad basada en score
-            if (scoring.score_total >= 75) {
-              prioridad = 'alta';
-            } else if (scoring.score_total >= 50) {
-              prioridad = 'media';
-            } else {
-              prioridad = 'baja';
-            }
-          }
-
-          custodiosProcesados.push({
-            ...custodioConHistorial,
-            scoring_proximidad: scoring,
-            razones_recomendacion: razones,
-            prioridad_asignacion: prioridad
-          });
-        }
-      }
-
-      // 5. Procesar candidatos nuevos
-      if (candidatos) {
-        for (const candidato of candidatos) {
-          const custodioConHistorial: CustodioConHistorial = {
-            id: candidato.id,
-            nombre: candidato.nombre,
-            fuente: 'candidatos_custodios',
-            disponibilidad: 'disponible', // Asumimos que están disponibles
-            estado: 'activo',
-            zona_preferida_id: candidato.zona_preferida_id,
-            disponibilidad_horarios: candidato.disponibilidad_horarios,
-            vehiculo_propio: candidato.vehiculo_propio,
-            experiencia_seguridad: candidato.experiencia_seguridad,
-            expectativa_ingresos: candidato.expectativa_ingresos,
-            estado_proceso: candidato.estado_proceso,
-            servicios_historicos: [],
-            ciudades_frecuentes: []
-          };
-
-          // Calcular scoring de proximidad si tenemos servicio nuevo
-          let scoring: ScoringProximidad | undefined;
-          let razones: string[] = [];
-          let prioridad: 'alta' | 'media' | 'baja' = 'media';
-
-          if (servicioNuevo) {
-            scoring = calcularProximidadOperacional(
-              custodioConHistorial,
-              servicioNuevo,
-              serviciosProximos
-            );
-            
-            razones = generarRazonesRecomendacion(scoring, custodioConHistorial);
-            
-            // Determinar prioridad (candidatos nuevos tienen penalización leve)
-            if (scoring.score_total >= 70) {
-              prioridad = 'alta';
-            } else if (scoring.score_total >= 45) {
-              prioridad = 'media';
-            } else {
-              prioridad = 'baja';
-            }
-          }
-
-          custodiosProcesados.push({
-            ...custodioConHistorial,
-            scoring_proximidad: scoring,
-            razones_recomendacion: razones,
-            prioridad_asignacion: prioridad
-          });
-        }
-      }
-
-      // 6. Si no hay custodios disponibles, obtener custodios históricos como fallback
-      if (custodiosProcesados.length === 0) {
-        console.log('No hay custodios activos ni candidatos, obteniendo históricos como fallback...');
-        
-        const { data: custodiosHistoricos } = await supabase
-          .from('servicios_custodia')
-          .select('nombre_custodio')
-          .not('nombre_custodio', 'is', null)
-          .neq('nombre_custodio', '')
-          .neq('nombre_custodio', '#N/A')
-          .neq('nombre_custodio', 'Sin Asignar')
-          .order('fecha_hora_cita', { ascending: false })
-          .limit(10);
-
-        if (custodiosHistoricos) {
-          const nombresUnicos = [...new Set(custodiosHistoricos.map(c => c.nombre_custodio))];
-          
-          for (const nombreCustodio of nombresUnicos.slice(0, 5)) {
-            // Obtener historial del custodio histórico
-            const { data: historial } = await supabase
-              .from('servicios_custodia')
-              .select(`
-                id,
-                fecha_hora_cita,
-                origen,
-                destino,
-                estado,
-                tipo_servicio,
-                km_recorridos
-              `)
-              .eq('nombre_custodio', nombreCustodio)
-              .in('estado', ['finalizado'])
-              .order('fecha_hora_cita', { ascending: false })
-              .limit(10);
-
-            const serviciosHistoricos = historial || [];
-            const patronesTrabajo = analizarPatronesTrabajoCustomdio(serviciosHistoricos);
-            
-            const custodioHistorico: CustodioConHistorial = {
-              id: `historico-${nombreCustodio.replace(/\s+/g, '-')}`,
-              nombre: nombreCustodio,
-              fuente: 'historico',
-              disponibilidad: 'sujeto_validacion',
-              estado: 'historico',
-              servicios_historicos: serviciosHistoricos,
-              ciudades_frecuentes: patronesTrabajo.ciudades_frecuentes,
-              ultima_actividad: serviciosHistoricos[0]?.fecha_hora_cita
-            };
-
-            let scoring: ScoringProximidad | undefined;
-            let razones: string[] = ['Custodio histórico - Requiere validación de disponibilidad'];
-            let prioridad: 'alta' | 'media' | 'baja' = 'baja';
-
-            if (servicioNuevo && serviciosHistoricos.length > 0) {
-              scoring = calcularProximidadOperacional(
-                custodioHistorico,
+              // Calcular proximidad operacional
+              const scoring = calcularProximidadOperacional(
+                custodioActualizado,
                 servicioNuevo,
-                serviciosProximos
+                (serviciosProximos || []).map(servicio => ({
+                  id: servicio.id,
+                  fecha_hora_cita: servicio.fecha_servicio,
+                  origen: servicio.origen_texto,
+                  destino: servicio.destino_texto,
+                  estado: servicio.estado_servicio,
+                  nombre_custodio: servicio.custodio_nombre,
+                  tipo_servicio: servicio.tipo_servicio
+                }))
               );
-              
-              const razonesProximidad = generarRazonesRecomendacion(scoring, custodioHistorico);
-              razones = ['Custodio histórico - Requiere validación', ...razonesProximidad];
-              
-              // Penalización por ser histórico
-              if (scoring.score_total >= 60) {
+
+              // Generar razones de recomendación
+              const razones = generarRazonesRecomendacion(scoring, custodioActualizado);
+
+              // Determinar prioridad de asignación
+              let prioridad: 'alta' | 'media' | 'baja' = 'baja';
+              if (scoring.score_total >= 80) {
+                prioridad = 'alta';
+              } else if (scoring.score_total >= 60) {
                 prioridad = 'media';
-              } else {
-                prioridad = 'baja';
               }
+
+              return {
+                ...custodioActualizado,
+                scoring_proximidad: scoring,
+                razones_recomendacion: razones,
+                prioridad_asignacion: prioridad
+              };
+            } catch (error) {
+              console.error(`Error processing custodio ${custodio.nombre}:`, error);
+              return {
+                ...custodio,
+                servicios_historicos: [],
+                scoring_proximidad: {
+                  score_total: 50,
+                  score_temporal: 50,
+                  score_geografico: 50,
+                  score_operacional: 50,
+                  detalles: {
+                    razones: []
+                  }
+                },
+                razones_recomendacion: [],
+                prioridad_asignacion: 'baja' as const
+              };
             }
+          })
+        );
 
-            custodiosProcesados.push({
-              ...custodioHistorico,
-              scoring_proximidad: scoring,
-              razones_recomendacion: razones,
-              prioridad_asignacion: prioridad
-            });
-          }
-        }
-      }
-
-      console.log(`Total custodios procesados: ${custodiosProcesados.length}`, {
-        pc_custodios: pcCustodios?.length || 0,
-        candidatos: candidatos?.length || 0,
-        historicos: custodiosProcesados.filter(c => c.fuente === 'historico').length
-      });
-
-      // 7. Ordenar por scoring de proximidad si está disponible
-      if (servicioNuevo) {
-        return custodiosProcesados.sort((a, b) => {
-          // Priorizar por tipo (pc_custodios > candidatos_custodios > historico)
-          const getPrioridadTipo = (fuente: string) => {
-            switch (fuente) {
-              case 'pc_custodios': return 0;
-              case 'candidatos_custodios': return 1;
-              case 'historico': return 2;
-              default: return 3;
-            }
-          };
+        // Ordenar por fuente y luego por score
+        return custodiosConScoring.sort((a, b) => {
+          // Primero por fuente (pc_custodios > candidatos > historico)
+          const prioridadFuente = { 'pc_custodios': 0, 'candidatos_custodios': 1, 'historico': 2 };
+          const diffFuente = prioridadFuente[a.fuente] - prioridadFuente[b.fuente];
+          if (diffFuente !== 0) return diffFuente;
           
-          const prioridadTipoA = getPrioridadTipo(a.fuente || '');
-          const prioridadTipoB = getPrioridadTipo(b.fuente || '');
-          
-          if (prioridadTipoA !== prioridadTipoB) {
-            return prioridadTipoA - prioridadTipoB;
-          }
-          
-          // Luego por scoring de proximidad
+          // Luego por score de proximidad
           const scoreA = a.scoring_proximidad?.score_total || 0;
           const scoreB = b.scoring_proximidad?.score_total || 0;
-          
           return scoreB - scoreA;
         });
       }
 
-      return custodiosProcesados;
+      // Si no hay servicio nuevo, devolver custodios sin scoring
+      return custodiosFormateados.map(custodio => ({
+        ...custodio,
+        servicios_historicos: [],
+        scoring_proximidad: {
+          score_total: 50,
+          score_temporal: 50,
+          score_geografico: 50,
+          score_operacional: 50,
+          detalles: {
+            razones: []
+          }
+        },
+        razones_recomendacion: [],
+        prioridad_asignacion: 'media' as const
+      }));
     },
-    enabled: true,
     staleTime: 5 * 60 * 1000, // 5 minutos
-    refetchInterval: 10 * 60 * 1000 // Refetch cada 10 minutos
+    refetchOnWindowFocus: false
   });
 }
 
 /**
- * Hook simplificado para obtener solo los servicios próximos para análisis
+ * Hook auxiliar para obtener servicios próximos en una ventana de tiempo
  */
-export function useServiciosProximos(horasAtras: number = 12, horasAdelante: number = 12) {
+export function useServiciosProximos(ventanaHoras: number = 12) {
   return useQuery({
-    queryKey: ['servicios-proximos', horasAtras, horasAdelante],
+    queryKey: ['servicios-proximos', ventanaHoras],
     queryFn: async (): Promise<ServicioHistorico[]> => {
       const fechaHoy = new Date();
       const fechaInicio = new Date(fechaHoy);
-      fechaInicio.setHours(fechaHoy.getHours() - horasAtras);
+      fechaInicio.setHours(fechaHoy.getHours() - ventanaHoras);
       const fechaFin = new Date(fechaHoy);
-      fechaFin.setHours(fechaHoy.getHours() + horasAdelante);
+      fechaFin.setHours(fechaHoy.getHours() + ventanaHoras);
 
       const { data, error } = await supabase
         .from('servicios_custodia')
         .select(`
           id,
-          fecha_hora_cita,
-          origen,
-          destino,
-          estado,
-          nombre_custodio,
+          custodio_nombre,
+          fecha_servicio,
+          hora_programada,
+          origen_texto,
+          destino_texto,
           tipo_servicio,
-          km_recorridos
+          estado_servicio
         `)
-        .gte('fecha_hora_cita', fechaInicio.toISOString())
-        .lte('fecha_hora_cita', fechaFin.toISOString())
-        .in('estado', ['finalizado', 'en_progreso', 'programado'])
-        .order('fecha_hora_cita', { ascending: true });
+        .gte('fecha_servicio', fechaInicio.toISOString())
+        .lte('fecha_servicio', fechaFin.toISOString())
+        .not('custodio_nombre', 'is', null);
 
       if (error) {
         console.error('Error fetching servicios próximos:', error);
         return [];
       }
 
-      return data || [];
+      return data?.map(servicio => ({
+        id: servicio.id,
+        fecha_hora_cita: servicio.fecha_servicio,
+        origen: servicio.origen_texto,
+        destino: servicio.destino_texto,
+        estado: servicio.estado_servicio,
+        nombre_custodio: servicio.custodio_nombre,
+        tipo_servicio: servicio.tipo_servicio
+      })) || [];
     },
     staleTime: 2 * 60 * 1000, // 2 minutos
-    refetchInterval: 5 * 60 * 1000 // Refetch cada 5 minutos
+    refetchOnWindowFocus: false
   });
 }
