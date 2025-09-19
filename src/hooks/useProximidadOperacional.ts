@@ -102,9 +102,9 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
         console.error('Error fetching candidatos_custodios:', candidatosError);
       }
 
-      // 3. Obtener custodios históricos como fallback (últimos 6 meses)
+      // 3. Obtener custodios históricos como fallback (últimos 3 meses)
       const fechaLimite = new Date();
-      fechaLimite.setMonth(fechaLimite.getMonth() - 6);
+      fechaLimite.setMonth(fechaLimite.getMonth() - 3);
 
       const { data: custodiosHistoricos, error: historicosError } = await supabase
         .from('servicios_custodia')
@@ -119,9 +119,9 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
         `)
         .not('nombre_custodio', 'is', null)
         .gte('fecha_hora_cita', fechaLimite.toISOString())
-        .eq('estado', 'finalizado')
+        .ilike('estado', 'finalizado')
         .order('fecha_hora_cita', { ascending: false })
-        .limit(50);
+        .limit(100);
 
       if (historicosError) {
         console.error('Error fetching servicios_custodia:', historicosError);
@@ -234,7 +234,9 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
         historicos: custodiosHistoricos?.length || 0,
         total_antes_deduplicacion: todosCustodios.length,
         total_despues_deduplicacion: custodiosFormateados.length,
-        fallback_historicos_activo: custodiosFormateados.some(c => c.fuente === 'historico')
+        fallback_historicos_activo: custodiosFormateados.some(c => c.fuente === 'historico'),
+        estados_candidatos: candidatosCustodios?.map(c => c.estado_proceso) || [],
+        nombres_custodios: custodiosFormateados.map(c => `${c.nombre} (${c.fuente})`).slice(0, 10)
       });
 
       // Si tenemos un servicio nuevo, calcular proximidad operacional para cada custodio
@@ -278,7 +280,7 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
                   estado
                 `)
                 .eq('nombre_custodio', custodio.nombre)
-                .eq('estado', 'finalizado')
+                .ilike('estado', 'finalizado')
                 .order('fecha_hora_cita', { ascending: false })
                 .limit(10);
 
