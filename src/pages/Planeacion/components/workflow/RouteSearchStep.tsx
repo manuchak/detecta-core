@@ -9,6 +9,7 @@ import { Search, MapPin, DollarSign, AlertTriangle, CheckCircle } from 'lucide-r
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useClientesFromPricing, useOrigenesFromPricing, useDestinosFromPricing } from '@/hooks/useClientesFromPricing';
+import { useOrigenesConFrecuencia } from '@/hooks/useOrigenesConFrecuencia';
 
 interface RouteData {
   cliente_nombre: string;
@@ -16,9 +17,12 @@ interface RouteData {
   destino_texto: string;
   precio_sugerido?: number;
   precio_custodio?: number;
+  pago_custodio_sin_arma?: number;
   costo_operativo?: number;
   margen_estimado?: number;
   distancia_km?: number;
+  tipo_servicio?: string;
+  incluye_armado?: boolean;
 }
 
 interface RouteSearchStepProps {
@@ -35,7 +39,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
 
   const { data: clientesFromPricing = [] } = useClientesFromPricing();
-  const { data: origenesFromPricing = [] } = useOrigenesFromPricing(cliente);
+  const { data: origenesConFrecuencia = [] } = useOrigenesConFrecuencia(cliente);
   const { data: destinosFromPricing = [] } = useDestinosFromPricing(cliente, origen);
 
   // Filtrar clientes para sugerencias
@@ -58,7 +62,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
       // Búsqueda directa con origen incluido
       const { data, error } = await supabase
         .from('matriz_precios_rutas')
-        .select('cliente_nombre, origen_texto, destino_texto, valor_bruto, precio_custodio, costo_operativo, margen_neto_calculado, distancia_km')
+        .select('cliente_nombre, origen_texto, destino_texto, valor_bruto, precio_custodio, pago_custodio_sin_arma, costo_operativo, margen_neto_calculado, distancia_km, tipo_servicio')
         .eq('activo', true)
         .eq('cliente_nombre', cliente)
         .eq('origen_texto', origen)
@@ -70,12 +74,16 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
 
       if (data) {
         const row = data as any;
+        const incluye_armado = row.tipo_servicio && !['SIN ARMA', 'Sin arma', 'SN ARMA', 'NO ARMADA', 'No Armada'].includes(row.tipo_servicio);
         setPriceEstimate({
           precio_sugerido: row.valor_bruto ?? null,
           precio_custodio: row.precio_custodio ?? null,
+          pago_custodio_sin_arma: row.pago_custodio_sin_arma ?? null,
           costo_operativo: row.costo_operativo ?? null,
           margen_estimado: row.margen_neto_calculado ?? null,
           distancia_km: row.distancia_km ?? null,
+          tipo_servicio: row.tipo_servicio ?? null,
+          incluye_armado,
           ruta_encontrada: `${row.origen_texto} → ${row.destino_texto}`
         });
         toast.success('Pricing encontrado');
@@ -85,7 +93,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
       // Fallback: búsqueda flexible por destino
       const like = await supabase
         .from('matriz_precios_rutas')
-        .select('cliente_nombre, origen_texto, destino_texto, valor_bruto, precio_custodio, costo_operativo, margen_neto_calculado, distancia_km')
+        .select('cliente_nombre, origen_texto, destino_texto, valor_bruto, precio_custodio, pago_custodio_sin_arma, costo_operativo, margen_neto_calculado, distancia_km, tipo_servicio')
         .eq('activo', true)
         .eq('cliente_nombre', cliente)
         .eq('origen_texto', origen)
@@ -95,12 +103,16 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
 
       if (like.data) {
         const row = like.data as any;
+        const incluye_armado = row.tipo_servicio && !['SIN ARMA', 'Sin arma', 'SN ARMA', 'NO ARMADA', 'No Armada'].includes(row.tipo_servicio);
         setPriceEstimate({
           precio_sugerido: row.valor_bruto ?? null,
           precio_custodio: row.precio_custodio ?? null,
+          pago_custodio_sin_arma: row.pago_custodio_sin_arma ?? null,
           costo_operativo: row.costo_operativo ?? null,
           margen_estimado: row.margen_neto_calculado ?? null,
           distancia_km: row.distancia_km ?? null,
+          tipo_servicio: row.tipo_servicio ?? null,
+          incluye_armado,
           ruta_encontrada: `${row.origen_texto} → ${row.destino_texto}`
         });
         toast.warning('Pricing encontrado con coincidencia parcial');
@@ -129,9 +141,12 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
       destino_texto: destino,
       precio_sugerido: priceEstimate?.precio_sugerido,
       precio_custodio: priceEstimate?.precio_custodio,
+      pago_custodio_sin_arma: priceEstimate?.pago_custodio_sin_arma,
       costo_operativo: priceEstimate?.costo_operativo,
       margen_estimado: priceEstimate?.margen_estimado,
-      distancia_km: priceEstimate?.distancia_km || (distanciaKm ? Number(distanciaKm) : undefined)
+      distancia_km: priceEstimate?.distancia_km || (distanciaKm ? Number(distanciaKm) : undefined),
+      tipo_servicio: priceEstimate?.tipo_servicio,
+      incluye_armado: priceEstimate?.incluye_armado
     };
 
     onComplete(routeData);
@@ -202,9 +217,16 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
                   <SelectValue placeholder={cliente ? "Seleccionar origen..." : "Primero selecciona cliente"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {origenesFromPricing.map((origenOption) => (
-                    <SelectItem key={origenOption} value={origenOption}>
-                      {origenOption}
+                  {origenesConFrecuencia.map((origenData) => (
+                    <SelectItem key={origenData.origen} value={origenData.origen}>
+                      <div className="flex items-center justify-between w-full">
+                        <span>{origenData.origen}</span>
+                        {origenData.frecuencia > 0 && (
+                          <Badge variant="outline" className="ml-2 text-xs">
+                            {origenData.frecuencia > 10 ? '⭐ Frecuente' : `${origenData.frecuencia}x`}
+                          </Badge>
+                        )}
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -270,6 +292,20 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Armado Indicator */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Badge variant={priceEstimate.incluye_armado ? "default" : "secondary"}>
+                  {priceEstimate.incluye_armado ? "Con Armado" : "Sin Armado"}
+                </Badge>
+                {priceEstimate.tipo_servicio && (
+                  <span className="text-sm text-muted-foreground">
+                    ({priceEstimate.tipo_servicio})
+                  </span>
+                )}
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-primary">
@@ -281,7 +317,14 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
                 <div className="text-2xl font-bold text-blue-600">
                   ${priceEstimate.precio_custodio?.toLocaleString()}
                 </div>
-                <div className="text-sm text-muted-foreground">Pago Custodio</div>
+                <div className="text-sm text-muted-foreground">
+                  Pago Custodio {priceEstimate.incluye_armado ? "(Con Armado)" : ""}
+                </div>
+                {priceEstimate.pago_custodio_sin_arma && priceEstimate.incluye_armado && (
+                  <div className="text-sm text-muted-foreground mt-1">
+                    Sin armado: ${priceEstimate.pago_custodio_sin_arma?.toLocaleString()}
+                  </div>
+                )}
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-destructive">
