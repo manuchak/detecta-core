@@ -13,10 +13,13 @@ import {
   MapPin,
   Shield,
   Star,
-  Clock
+  Clock,
+  TrendingUp,
+  Route
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useCustodios } from '@/hooks/usePlaneacion';
+import { useCustodiosConProximidad, type CustodioConProximidad } from '@/hooks/useProximidadOperacional';
+import type { ServicioNuevo } from '@/utils/proximidadOperacional';
 
 interface ServiceData {
   cliente_nombre: string;
@@ -52,67 +55,32 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
     timestamp?: Date;
   }>>({});
 
-  const { data: custodios = [] } = useCustodios();
+  // Preparar datos del servicio para la lógica de proximidad
+  const servicioParaProximidad: ServicioNuevo = {
+    origen_texto: `${serviceData.cliente_nombre} → ${serviceData.destino_texto}`,
+    destino_texto: serviceData.destino_texto,
+    fecha_programada: serviceData.fecha_programada,
+    hora_ventana_inicio: serviceData.hora_ventana_inicio,
+    tipo_servicio: serviceData.tipo_servicio,
+    incluye_armado: serviceData.incluye_armado,
+    requiere_gadgets: serviceData.requiere_gadgets
+  };
 
-  // Filtrar custodios disponibles y calcular scoring
+  const { data: custodios = [] } = useCustodiosConProximidad(servicioParaProximidad);
+
+  // Filtrar custodios disponibles - ahora ya vienen con scoring de proximidad operacional
   const custodiosDisponibles = custodios
     .filter(custodio => 
       custodio.disponibilidad === 'disponible' &&
       custodio.estado === 'activo' &&
       (!serviceData.requiere_gadgets || custodio.tiene_gadgets)
     )
-    .map(custodio => {
-      // Calcular score basado en criterios y tipo de custodio
-      let score = 50; // Score base más conservador
-      
-      // Bonificación por experiencia
-      if (custodio.rating_promedio && custodio.rating_promedio > 4) {
-        score += 30;
-      } else if (custodio.rating_promedio && custodio.rating_promedio > 3) {
-        score += 15;
-      }
-      
-      // Bonificación por número de servicios
-      if (custodio.numero_servicios && custodio.numero_servicios > 10) {
-        score += 25;
-      } else if (custodio.numero_servicios && custodio.numero_servicios > 5) {
-        score += 15;
-      }
-      
-      // Bonificación por certificaciones
-      if (custodio.certificaciones && custodio.certificaciones.length > 0) {
-        score += 10;
-      }
-
-      // Ajustes por fuente del custodio
-      if (custodio.fuente === 'pc_custodios') {
-        score += 20; // Custodios verificados
-      } else if (custodio.fuente === 'candidatos_custodios') {
-        score += 10; // Candidatos nuevos pero aprobados
-        if (custodio.experiencia_seguridad) score += 15;
-        if (custodio.vehiculo_propio) score += 10;
-      }
-      
-      // Penalización por distancia (simulada)
-      const distanciaEstimada = Math.random() * 50;
-      if (distanciaEstimada < 10) score += 20;
-      else if (distanciaEstimada < 25) score += 5;
-      else score -= 5;
-
-      return {
-        ...custodio,
-        score: Math.max(0, Math.min(100, score)),
-        distancia_km: Math.round(distanciaEstimada)
-      };
-    })
-    .sort((a, b) => {
-      // Ordenar por fuente primero, luego por score
-      const prioridadA = a.fuente === 'pc_custodios' ? 0 : a.fuente === 'candidatos_custodios' ? 1 : 2;
-      const prioridadB = b.fuente === 'pc_custodios' ? 0 : b.fuente === 'candidatos_custodios' ? 1 : 2;
-      
-      if (prioridadA !== prioridadB) return prioridadA - prioridadB;
-      return b.score - a.score;
-    });
+    .map(custodio => ({
+      ...custodio,
+      // Usar el score de proximidad operacional o score base
+      score: custodio.scoring_proximidad?.score_total || 50,
+      distancia_km: custodio.scoring_proximidad?.detalles.distancia_estimada || Math.round(Math.random() * 50)
+    }));
 
   const handleWhatsApp = (custodioId: string, nombre: string) => {
     // Simular envío de WhatsApp
@@ -222,6 +190,19 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
     return { variant: 'outline' as const, color: 'text-red-600' };
   };
 
+  const getPrioridadBadge = (prioridad: 'alta' | 'media' | 'baja' | undefined) => {
+    switch (prioridad) {
+      case 'alta':
+        return { variant: 'default' as const, text: 'Alta Prioridad', icon: TrendingUp };
+      case 'media':
+        return { variant: 'secondary' as const, text: 'Prioridad Media', icon: Target };
+      case 'baja':
+        return { variant: 'outline' as const, text: 'Baja Prioridad', icon: Clock };
+      default:
+        return { variant: 'outline' as const, text: 'Sin Prioridad', icon: Target };
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -284,7 +265,10 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
               Custodios Disponibles ({custodiosDisponibles.length})
             </span>
             <div className="flex items-center gap-2">
-              <Badge variant="outline">Ordenados por scoring</Badge>
+              <Badge variant="outline" className="gap-1">
+                <Route className="h-3 w-3" />
+                Proximidad Operacional
+              </Badge>
               {custodiosDisponibles.some(c => c.fuente === 'candidatos_custodios') && (
                 <Badge variant="secondary" className="gap-1">
                   <span className="text-xs">🆕</span>
@@ -307,20 +291,29 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
             </div>
           ) : (
             <>
-              {/* Información sobre tipos de custodios */}
+              {/* Información sobre scoring de proximidad */}
               <div className="mb-4 p-3 bg-muted/50 rounded-lg">
                 <div className="flex items-center gap-4 text-sm">
                   <div className="flex items-center gap-1">
-                    <Badge variant="default" className="text-xs">✓ Verificado</Badge>
-                    <span className="text-muted-foreground">Custodios activos con experiencia</span>
+                    <Badge variant="default" className="text-xs gap-1">
+                      <TrendingUp className="h-3 w-3" />
+                      Alta
+                    </Badge>
+                    <span className="text-muted-foreground">Proximidad temporal y geográfica óptima</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Badge variant="secondary" className="text-xs">🆕 Nuevo</Badge>
-                    <span className="text-muted-foreground">Candidatos aprobados sin servicios previos</span>
+                    <Badge variant="secondary" className="text-xs gap-1">
+                      <Target className="h-3 w-3" />
+                      Media
+                    </Badge>
+                    <span className="text-muted-foreground">Compatible con el servicio</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Badge variant="outline" className="text-xs">📊 Histórico</Badge>
-                    <span className="text-muted-foreground">Custodios con historial de servicios</span>
+                    <Badge variant="outline" className="text-xs gap-1">
+                      <Clock className="h-3 w-3" />
+                      Baja
+                    </Badge>
+                    <span className="text-muted-foreground">Disponible pero sin ventajas especiales</span>
                   </div>
                 </div>
               </div>
@@ -330,6 +323,7 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
                   const comunicacion = comunicaciones[custodio.id];
                   const estadoBadge = getEstadoBadge(comunicacion?.estado || 'sin_responder');
                   const scoreBadge = getScoreBadge(custodio.score);
+                  const prioridadBadge = getPrioridadBadge(custodio.prioridad_asignacion);
                   const isSelected = selectedCustodio === custodio.id;
 
                   return (
@@ -359,21 +353,17 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
                               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                                 <div className="flex items-center gap-1">
                                   <MapPin className="h-3 w-3" />
-                                  ~{custodio.distancia_km}km
+                                  {custodio.distancia_km ? `~${custodio.distancia_km}km` : 'N/A'}
                                 </div>
                                 <div className="flex items-center gap-1">
                                   <Shield className="h-3 w-3" />
                                   Rating: {custodio.rating_promedio || 'N/A'}/5
                                 </div>
-                                {/* Indicador de tipo de custodio */}
+                                {/* Indicador de prioridad operacional */}
                                 <div className="flex items-center gap-1">
-                                  <Badge 
-                                    variant={custodio.fuente === 'pc_custodios' ? 'default' : 
-                                            custodio.fuente === 'candidatos_custodios' ? 'secondary' : 'outline'} 
-                                    className="text-xs"
-                                  >
-                                    {custodio.fuente === 'pc_custodios' ? '✓ Verificado' :
-                                     custodio.fuente === 'candidatos_custodios' ? '🆕 Nuevo' : '📊 Histórico'}
+                                  <Badge variant={prioridadBadge.variant} className="text-xs gap-1">
+                                    <prioridadBadge.icon className="h-3 w-3" />
+                                    {prioridadBadge.text}
                                   </Badge>
                                 </div>
                                 <div className="flex items-center gap-1">
@@ -381,6 +371,17 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
                                   Score: <span className={scoreBadge.color}>{custodio.score}</span>
                                 </div>
                               </div>
+                              
+                              {/* Razones de recomendación */}
+                              {custodio.razones_recomendacion && custodio.razones_recomendacion.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {custodio.razones_recomendacion.map((razon, index) => (
+                                    <Badge key={index} variant="outline" className="text-xs">
+                                      {razon}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
                               
                               {custodio.certificaciones && custodio.certificaciones.length > 0 && (
                                 <div className="flex gap-1">
