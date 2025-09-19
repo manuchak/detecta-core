@@ -32,6 +32,7 @@ export interface CustodioConHistorial {
   vehiculo_propio?: boolean;
   experiencia_seguridad?: boolean;
   expectativa_ingresos?: number;
+  estado_proceso?: string;
   
   // Datos calculados
   servicios_historicos?: ServicioHistorico[];

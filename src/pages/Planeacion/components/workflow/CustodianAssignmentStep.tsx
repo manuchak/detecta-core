@@ -68,18 +68,31 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
 
   const { data: custodios = [] } = useCustodiosConProximidad(servicioParaProximidad);
 
-  // Filtrar custodios disponibles - ahora ya vienen con scoring de proximidad operacional
+  // Filtrar custodios - incluir candidatos activos e históricos
   const custodiosDisponibles = custodios
-    .filter(custodio => 
-      custodio.disponibilidad === 'disponible' &&
-      custodio.estado === 'activo' &&
-      (!serviceData.requiere_gadgets || custodio.tiene_gadgets)
-    )
+    .filter(custodio => {
+      // Custodios activos
+      if (custodio.disponibilidad === 'disponible' && custodio.estado === 'activo') {
+        return !serviceData.requiere_gadgets || custodio.tiene_gadgets;
+      }
+      
+      // Candidatos activos
+      if (custodio.fuente === 'candidatos_custodios' && custodio.estado_proceso) {
+        return true; // Los candidatos siempre están disponibles para asignación
+      }
+      
+      // Custodios históricos (como fallback)
+      if (custodio.fuente === 'historico') {
+        return true; // Incluir históricos pero con nota de validación
+      }
+      
+      return false;
+    })
     .map(custodio => ({
       ...custodio,
       // Usar el score de proximidad operacional o score base
       score: custodio.scoring_proximidad?.score_total || 50,
-      distancia_km: custodio.scoring_proximidad?.detalles.distancia_estimada || Math.round(Math.random() * 50)
+      distancia_km: custodio.scoring_proximidad?.detalles?.distancia_estimada || Math.round(Math.random() * 50)
     }));
 
   const handleWhatsApp = (custodioId: string, nombre: string) => {
@@ -275,6 +288,12 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
                   Incluye custodios nuevos
                 </Badge>
               )}
+              {custodiosDisponibles.some(c => c.fuente === 'historico') && (
+                <Badge variant="outline" className="gap-1 border-orange-300 text-orange-700">
+                  <span className="text-xs">📊</span>
+                  Incluye históricos
+                </Badge>
+              )}
             </div>
           </CardTitle>
         </CardHeader>
@@ -345,6 +364,19 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
                                 <span className="font-medium">{custodio.nombre}</span>
+                                
+                                {custodio.fuente === 'candidatos_custodios' && (
+                                  <Badge variant="secondary" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                    CANDIDATO
+                                  </Badge>
+                                )}
+                                
+                                {custodio.fuente === 'historico' && (
+                                  <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-200">
+                                    HISTÓRICO
+                                  </Badge>
+                                )}
+                                
                                 {isSelected && (
                                   <CheckCircle className="h-4 w-4 text-primary" />
                                 )}
