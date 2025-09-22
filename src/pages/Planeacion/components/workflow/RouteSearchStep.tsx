@@ -175,7 +175,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
             {/* Row 1: Client Selection */}
             <div className="space-y-2 relative">
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">
+                <div className="w-6 h-6 rounded-full bg-muted text-muted-foreground text-xs font-medium flex items-center justify-center border">
                   1
                 </div>
                 <Label htmlFor="cliente" className="text-sm font-semibold">
@@ -223,7 +223,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 mb-2">
-                 <div className="w-6 h-6 rounded-full bg-blue-500 text-white text-xs font-bold flex items-center justify-center">
+                 <div className="w-6 h-6 rounded-full bg-muted text-muted-foreground text-xs font-medium flex items-center justify-center border">
                    2
                  </div>
                     <Label htmlFor="origen" className="text-sm font-semibold">
@@ -261,7 +261,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
                 
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 mb-2">
-                 <div className="w-6 h-6 rounded-full bg-success text-success-foreground text-xs font-bold flex items-center justify-center">
+                 <div className="w-6 h-6 rounded-full bg-muted text-muted-foreground text-xs font-medium flex items-center justify-center border">
                    3
                  </div>
                     <Label htmlFor="destino" className="text-sm font-semibold">
@@ -291,7 +291,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
                 
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 mb-2">
-                 <div className="w-6 h-6 rounded-full bg-warning text-warning-foreground text-xs font-bold flex items-center justify-center">
+                 <div className="w-6 h-6 rounded-full bg-muted text-muted-foreground text-xs font-medium flex items-center justify-center border">
                    4
                  </div>
                     <Label htmlFor="distancia" className="text-sm font-semibold">
@@ -329,7 +329,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
               ) : (
                 <>
                   <Search className="h-5 w-5" />
-                  {priceEstimate ? '🔄 Actualizar Pricing' : '🔍 Buscar Pricing'}
+                  {priceEstimate ? 'Actualizar Pricing' : 'Buscar Pricing'}
                 </>
               )}
             </Button>
@@ -337,13 +337,13 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
         </CardContent>
       </Card>
 
-      {/* Enhanced Price Results - 2025 Design */}
+      {/* Minimal Price Results */}
       {priceEstimate && (
-        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-background shadow-lg">
+        <Card className="border-border bg-background">
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center gap-3">
-              <div className="p-2 rounded-full bg-primary/10">
-                <CheckCircle className="h-5 w-5 text-primary" />
+              <div className="p-2 rounded-lg bg-muted border">
+                <CheckCircle className="h-4 w-4 text-muted-foreground" />
               </div>
               <div>
                 <div className="text-lg font-semibold">Ruta Confirmada</div>
@@ -354,12 +354,12 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Highlighted Route Info - Key Missing Element */}
-            <div className="bg-background/80 backdrop-blur-sm rounded-xl p-4 border border-primary/20">
+            {/* Minimal Route Info */}
+            <div className="bg-muted/50 rounded-lg p-4 border border-border">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                    <MapPin className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  <div className="p-2 rounded-lg bg-background border">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <div>
                     <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -370,8 +370,8 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
                 </div>
                 
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-green-50 dark:bg-green-900/20">
-                    <MapPin className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <div className="p-2 rounded-lg bg-background border">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <div>
                     <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -382,8 +382,8 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-900/20">
-                    <DollarSign className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                  <div className="p-2 rounded-lg bg-background border">
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <div>
                     <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -400,10 +400,10 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <Badge 
-                    variant={priceEstimate.incluye_armado ? "default" : "secondary"} 
+                    variant="outline"
                     className="text-sm px-3 py-1.5"
                   >
-                    {priceEstimate.incluye_armado ? "🛡️ Con Armado" : "👤 Sin Armado"}
+                    {priceEstimate.incluye_armado ? "Con Armado" : "Sin Armado"}
                   </Badge>
                   {priceEstimate.tipo_servicio && (
                     <span className="text-sm text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">

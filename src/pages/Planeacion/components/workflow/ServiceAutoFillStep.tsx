@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, Shield, Settings, CheckCircle, ArrowLeft, Cpu, MapPin, DollarSign, AlertTriangle } from 'lucide-react';
+import { Calendar, Clock, Shield, Settings, CheckCircle, ArrowLeft, Cpu, MapPin, DollarSign, AlertTriangle, User } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -167,54 +167,54 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {/* Enhanced Route Summary - Now Including Origin! */}
-          <div className="bg-gradient-to-r from-primary/10 via-blue-50/50 to-green-50/50 dark:from-primary/5 dark:via-blue-900/10 dark:to-green-900/10 rounded-xl p-6 mb-6 border border-primary/20">
+          {/* Minimal Route Summary */}
+          <div className="bg-muted/50 rounded-lg p-6 mb-6 border border-border">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-lg bg-purple-100 dark:bg-purple-900/30">
-                  <DollarSign className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                <div className="p-2 rounded-lg bg-background border">
+                  <User className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div>
                   <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     Cliente
                   </div>
-                  <div className="font-bold text-foreground text-lg">{routeData.cliente_nombre}</div>
+                  <div className="font-semibold text-foreground">{routeData.cliente_nombre}</div>
                 </div>
               </div>
               
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                  <MapPin className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <div className="p-2 rounded-lg bg-background border">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div>
                   <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     Origen
                   </div>
-                  <div className="font-bold text-foreground text-lg">{routeData.origen_texto}</div>
+                  <div className="font-semibold text-foreground">{routeData.origen_texto}</div>
                 </div>
               </div>
               
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-lg bg-green-100 dark:bg-green-900/30">
-                  <MapPin className="h-5 w-5 text-green-600 dark:text-green-400" />
+                <div className="p-2 rounded-lg bg-background border">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div>
                   <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     Destino
                   </div>
-                  <div className="font-bold text-foreground text-lg">{routeData.destino_texto}</div>
+                  <div className="font-semibold text-foreground">{routeData.destino_texto}</div>
                 </div>
               </div>
               
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-lg bg-orange-100 dark:bg-orange-900/30">
-                  <DollarSign className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                <div className="p-2 rounded-lg bg-background border">
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div>
                   <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     Precio Base
                   </div>
-                  <div className="font-bold text-primary text-lg">${routeData.precio_sugerido?.toLocaleString()}</div>
+                  <div className="font-semibold text-foreground">${routeData.precio_sugerido?.toLocaleString()}</div>
                 </div>
               </div>
             </div>
@@ -225,8 +225,8 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
             {/* Service ID - Prominent Required Field */}
             <div className="space-y-3">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center">
-                  ⚙️
+                <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center">
+                  <Settings className="h-4 w-4" />
                 </div>
                 <div>
                   <Label htmlFor="servicio-id" className="text-lg font-bold">
@@ -260,10 +260,10 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
             {/* Enhanced Date/Time Fields - Single Row Layout */}
             <div className="space-y-6">
               {/* Reception Info */}
-              <div className="bg-blue-50/50 dark:bg-blue-900/10 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
+              <div className="bg-muted/30 rounded-lg p-6 border border-border">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                    <Calendar className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  <div className="p-2 rounded-lg bg-background border">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg">Recepción de Solicitud</h3>
@@ -302,10 +302,10 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
               </div>
 
               {/* Appointment Scheduling */}
-              <div className="bg-green-50/50 dark:bg-green-900/10 rounded-xl p-6 border border-green-200 dark:border-green-800">
+              <div className="bg-muted/30 rounded-lg p-6 border border-border">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
-                    <Clock className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <div className="p-2 rounded-lg bg-background border">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg">Programación de Cita</h3>
