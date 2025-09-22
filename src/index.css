@@ -6,32 +6,46 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 0 0% 10%; /* Usando un tono cercano al negro corporativo */
+    --foreground: 220 13% 18%; /* Neutral dark gray */
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 10%;
+    --card-foreground: 220 13% 18%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 10%;
+    --popover-foreground: 220 13% 18%;
 
-    --primary: 0 100% 46%; /* Rojo corporativo como color primario */
+    /* Modern blue primary instead of aggressive red */
+    --primary: 217 91% 60%; /* Professional blue #3B82F6 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 10%;
+    --secondary: 220 14% 96%; /* Soft neutral */
+    --secondary-foreground: 220 13% 18%;
 
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 60%; /* Cercano al gris corporativo */
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 8% 46%; /* Better contrast gray */
 
-    --accent: 0 0% 96%;
-    --accent-foreground: 0 100% 46%;
+    --accent: 220 14% 96%;
+    --accent-foreground: 217 91% 60%; /* Blue accent */
 
-    --destructive: 0 100% 46%; /* Rojo corporativo para acciones destructivas */
+    /* Reserve red for critical errors only */
+    --destructive: 0 84% 60%; /* Softer red #EF4444 */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 0 100% 46%;
+    /* Success state for completed forms */
+    --success: 142 76% 36%; /* Green #16A34A */
+    --success-foreground: 0 0% 100%;
+
+    /* Information state */
+    --info: 217 91% 60%; /* Blue for info */
+    --info-foreground: 0 0% 100%;
+
+    /* Warning state */
+    --warning: 38 92% 50%; /* Amber #F59E0B */
+    --warning-foreground: 0 0% 100%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 217 91% 60%; /* Blue focus ring */
 
     --radius: 0.5rem;
     
@@ -80,19 +94,49 @@
   }
 }
 
-/* Estilos corporativos */
+/* Modern corporate styles */
 .corporate-btn {
-  @apply bg-corporate-red text-white hover:bg-opacity-90 transition-all font-medium rounded-lg;
+  @apply bg-primary text-primary-foreground hover:bg-primary/90 transition-all font-medium rounded-lg;
 }
 
 .corporate-card {
-  @apply bg-white border border-corporate-gray/20 rounded-xl shadow-apple;
+  @apply bg-card border border-border rounded-xl shadow-apple;
 }
 
 .text-corporate {
-  @apply text-corporate-black;
+  @apply text-foreground;
 }
 
 .corporate-badge {
-  @apply bg-corporate-red text-white font-medium text-xs rounded-full px-2 py-0.5;
+  @apply bg-muted text-muted-foreground font-medium text-xs rounded-full px-2 py-0.5;
+}
+
+/* Modern form states */
+.form-field-required {
+  @apply border-primary/60 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20;
+}
+
+.form-field-completed {
+  @apply border-success/60 bg-success/5;
+}
+
+.form-field-error {
+  @apply border-destructive focus-within:border-destructive focus-within:ring-1 focus-within:ring-destructive/20;
+}
+
+/* Step indicators */
+.step-indicator {
+  @apply rounded-full w-8 h-8 flex items-center justify-center text-sm font-medium transition-colors;
+}
+
+.step-indicator-active {
+  @apply bg-primary text-primary-foreground;
+}
+
+.step-indicator-completed {
+  @apply bg-success text-success-foreground;
+}
+
+.step-indicator-pending {
+  @apply bg-muted text-muted-foreground border border-border;
 }

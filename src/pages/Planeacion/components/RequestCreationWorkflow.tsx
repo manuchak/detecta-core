@@ -153,33 +153,38 @@ export function RequestCreationWorkflow() {
               
               return (
                 <div key={step.id} className="flex items-center">
-                  <div className="flex flex-col items-center space-y-2">
-                    <div className={`
-                      flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors
-                      ${status === 'completed' 
-                        ? 'bg-primary border-primary text-primary-foreground' 
-                        : status === 'current'
-                        ? 'border-primary text-primary'
-                        : 'border-muted-foreground text-muted-foreground'
-                      }
-                    `}>
-                      {status === 'completed' ? (
-                        <CheckCircle className="h-5 w-5" />
-                      ) : (
-                        <Icon className="h-5 w-5" />
-                      )}
+                  {/* Step Circle */}
+                  <div className={`step-indicator ${
+                    status === 'completed' ? 'step-indicator-completed' :
+                    status === 'current' ? 'step-indicator-active' : 
+                    'step-indicator-pending'
+                  }`}>
+                    {status === 'completed' ? (
+                      <CheckCircle className="h-4 w-4" />
+                    ) : (
+                      <Icon className="h-4 w-4" />
+                    )}
+                  </div>
+
+                  {/* Step Info */}
+                  <div className="ml-4 min-w-0">
+                    <div className={`text-sm font-medium ${
+                      status === 'current' ? 'text-foreground' : 
+                      status === 'completed' ? 'text-success' : 'text-muted-foreground'
+                    }`}>
+                      {step.label}
                     </div>
-                    <div className="text-center">
-                      <div className="text-sm font-medium">{step.label}</div>
-                      <div className="text-xs text-muted-foreground">{step.description}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {step.description}
                     </div>
                   </div>
-                  
+
+                  {/* Connector Line */}
                   {index < filteredSteps.length - 1 && (
-                    <div className={`
-                      flex-1 h-0.5 mx-4 transition-colors
-                      ${getStepStatus(filteredSteps[index + 1].id) !== 'pending' ? 'bg-primary' : 'bg-muted-foreground'}
-                    `} />
+                    <div className={`h-px flex-1 mx-4 ${
+                      getStepStatus(filteredSteps[index + 1].id) !== 'pending' ? 
+                        'bg-success' : 'bg-border'
+                    }`} />
                   )}
                 </div>
               );

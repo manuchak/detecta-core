@@ -193,7 +193,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
                     setShowClientSuggestions(e.target.value.length > 0);
                   }}
                   onFocus={() => setShowClientSuggestions(cliente.length > 0)}
-                  className={`h-12 text-base ${cliente ? 'border-green-300 bg-green-50/50 dark:bg-green-900/10' : 'border-destructive/50'}`}
+                  className={`h-12 text-base ${cliente ? 'form-field-completed' : 'form-field-required'}`}
                 />
                 <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               </div>
@@ -223,9 +223,9 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 rounded-full bg-blue-500 text-white text-xs font-bold flex items-center justify-center">
-                      2
-                    </div>
+                 <div className="w-6 h-6 rounded-full bg-blue-500 text-white text-xs font-bold flex items-center justify-center">
+                   2
+                 </div>
                     <Label htmlFor="origen" className="text-sm font-semibold">
                       Punto de Origen
                       <span className="text-destructive ml-1">*</span>
@@ -239,7 +239,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
                     }}
                     disabled={!cliente}
                   >
-                    <SelectTrigger className={`h-12 ${origen ? 'border-green-300 bg-green-50/50 dark:bg-green-900/10' : 'border-destructive/50'}`}>
+                    <SelectTrigger className={`h-12 ${origen ? 'form-field-completed' : 'form-field-required'}`}>
                       <SelectValue placeholder="Seleccionar origen..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -261,9 +261,9 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
                 
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 rounded-full bg-green-500 text-white text-xs font-bold flex items-center justify-center">
-                      3
-                    </div>
+                 <div className="w-6 h-6 rounded-full bg-success text-success-foreground text-xs font-bold flex items-center justify-center">
+                   3
+                 </div>
                     <Label htmlFor="destino" className="text-sm font-semibold">
                       Destino Final
                       <span className="text-destructive ml-1">*</span>
@@ -274,7 +274,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
                     onValueChange={setDestino}
                     disabled={!cliente || !origen}
                   >
-                    <SelectTrigger className={`h-12 ${destino ? 'border-green-300 bg-green-50/50 dark:bg-green-900/10' : !origen ? 'opacity-50' : 'border-destructive/50'}`}>
+                    <SelectTrigger className={`h-12 ${destino ? 'form-field-completed' : !origen ? 'opacity-50' : 'form-field-required'}`}>
                       <SelectValue placeholder={
                         !origen ? "Primero selecciona origen" : "Seleccionar destino..."
                       } />
@@ -291,9 +291,9 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
                 
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 rounded-full bg-orange-500 text-white text-xs font-bold flex items-center justify-center">
-                      4
-                    </div>
+                 <div className="w-6 h-6 rounded-full bg-warning text-warning-foreground text-xs font-bold flex items-center justify-center">
+                   4
+                 </div>
                     <Label htmlFor="distancia" className="text-sm font-semibold">
                       Distancia (KM)
                       <span className="text-muted-foreground text-xs ml-1">opcional</span>
@@ -318,7 +318,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
               onClick={searchPrice}
               disabled={loading}
               size="lg"
-              className="w-full h-12 gap-3 text-base font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg"
+              className="w-full h-12 gap-3 text-base font-semibold shadow-lg"
               variant="default"
             >
               {loading ? (
