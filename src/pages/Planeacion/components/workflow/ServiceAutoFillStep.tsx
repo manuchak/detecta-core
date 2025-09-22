@@ -260,13 +260,13 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
             {/* Enhanced Date/Time Fields - Single Row Layout */}
             <div className="space-y-6">
               {/* Reception Info */}
-              <div className="bg-muted/30 rounded-lg p-6 border border-border">
+              <div className="bg-gray-100/80 rounded-lg p-6 border border-gray-300 border-l-4 border-l-gray-600">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 rounded-lg bg-background border">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">Recepción de Solicitud</h3>
+                    <h3 className="font-bold text-lg">Recepción de Solicitud</h3>
                     <p className="text-sm text-muted-foreground">
                       Información de cuando se recibió la solicitud
                     </p>
@@ -302,13 +302,13 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
               </div>
 
               {/* Appointment Scheduling */}
-              <div className="bg-muted/30 rounded-lg p-6 border border-border">
+              <div className="bg-gray-100/80 rounded-lg p-6 border border-gray-300 border-l-4 border-l-gray-600">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 rounded-lg bg-background border">
                     <Clock className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">Programación de Cita</h3>
+                    <h3 className="font-bold text-lg">Programación de Cita</h3>
                     <p className="text-sm text-muted-foreground">
                       Fecha y hora programada para el servicio
                     </p>
