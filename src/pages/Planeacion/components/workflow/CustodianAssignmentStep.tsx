@@ -157,6 +157,23 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
     return variants[estado] || variants.pendiente;
   };
 
+  const getBorderColor = (estado: string, isSelected: boolean) => {
+    const baseClasses = "border rounded-lg p-4 transition-all";
+    
+    switch (estado) {
+      case 'aceptado':
+        return `${baseClasses} border-green-500 bg-green-50 ${isSelected ? 'ring-2 ring-green-200' : 'hover:border-green-600'}`;
+      case 'rechazado':
+        return `${baseClasses} border-red-500 bg-red-50 ${isSelected ? 'ring-2 ring-red-200' : 'hover:border-red-600'}`;
+      case 'contactar_despues':
+        return `${baseClasses} border-yellow-500 bg-yellow-50 ${isSelected ? 'ring-2 ring-yellow-200' : 'hover:border-yellow-600'}`;
+      case 'sin_responder':
+        return `${baseClasses} border-gray-400 bg-gray-50 ${isSelected ? 'ring-2 ring-gray-200' : 'hover:border-gray-500'}`;
+      default: // pendiente
+        return `${baseClasses} ${isSelected ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : 'border-border hover:border-primary/50'}`;
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -284,11 +301,7 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
                 return (
                   <div
                     key={custodio.id}
-                    className={`border rounded-lg p-4 transition-all ${
-                      isSelected 
-                        ? 'border-primary bg-primary/5 ring-2 ring-primary/20' 
-                        : 'border-border hover:border-primary/50'
-                    }`}
+                    className={getBorderColor(comunicacion.estado, isSelected)}
                   >
                     <div className="flex items-start justify-between gap-4">
                       {/* Custodian Info - Compact Version */}
