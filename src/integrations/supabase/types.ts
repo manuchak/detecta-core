@@ -1490,6 +1490,138 @@ export type Database = {
         }
         Relationships: []
       }
+      custodio_communications: {
+        Row: {
+          contenido: string | null
+          created_at: string
+          custodio_id: string
+          custodio_nombre: string
+          custodio_telefono: string
+          direccion: string
+          estado: string
+          id: string
+          metadata: Json | null
+          servicio_id: string | null
+          timestamp_comunicacion: string
+          tipo_comunicacion: string
+        }
+        Insert: {
+          contenido?: string | null
+          created_at?: string
+          custodio_id: string
+          custodio_nombre: string
+          custodio_telefono: string
+          direccion: string
+          estado?: string
+          id?: string
+          metadata?: Json | null
+          servicio_id?: string | null
+          timestamp_comunicacion?: string
+          tipo_comunicacion: string
+        }
+        Update: {
+          contenido?: string | null
+          created_at?: string
+          custodio_id?: string
+          custodio_nombre?: string
+          custodio_telefono?: string
+          direccion?: string
+          estado?: string
+          id?: string
+          metadata?: Json | null
+          servicio_id?: string | null
+          timestamp_comunicacion?: string
+          tipo_comunicacion?: string
+        }
+        Relationships: []
+      }
+      custodio_performance_metrics: {
+        Row: {
+          created_at: string
+          custodio_id: string
+          custodio_nombre: string
+          custodio_telefono: string
+          id: string
+          no_shows: number | null
+          notas_performance: string | null
+          score_aceptacion: number | null
+          score_comunicacion: number | null
+          score_confiabilidad: number | null
+          score_total: number | null
+          servicios_cancelados: number | null
+          servicios_completados: number | null
+          tasa_aceptacion: number | null
+          tasa_confiabilidad: number | null
+          tasa_respuesta: number | null
+          tiempo_promedio_respuesta_minutos: number | null
+          total_aceptaciones: number | null
+          total_comunicaciones: number | null
+          total_ofertas: number | null
+          total_rechazos: number | null
+          total_respuestas: number | null
+          ultima_comunicacion: string | null
+          ultimo_servicio: string | null
+          updated_at: string
+          zona_operacion: string | null
+        }
+        Insert: {
+          created_at?: string
+          custodio_id: string
+          custodio_nombre: string
+          custodio_telefono: string
+          id?: string
+          no_shows?: number | null
+          notas_performance?: string | null
+          score_aceptacion?: number | null
+          score_comunicacion?: number | null
+          score_confiabilidad?: number | null
+          score_total?: number | null
+          servicios_cancelados?: number | null
+          servicios_completados?: number | null
+          tasa_aceptacion?: number | null
+          tasa_confiabilidad?: number | null
+          tasa_respuesta?: number | null
+          tiempo_promedio_respuesta_minutos?: number | null
+          total_aceptaciones?: number | null
+          total_comunicaciones?: number | null
+          total_ofertas?: number | null
+          total_rechazos?: number | null
+          total_respuestas?: number | null
+          ultima_comunicacion?: string | null
+          ultimo_servicio?: string | null
+          updated_at?: string
+          zona_operacion?: string | null
+        }
+        Update: {
+          created_at?: string
+          custodio_id?: string
+          custodio_nombre?: string
+          custodio_telefono?: string
+          id?: string
+          no_shows?: number | null
+          notas_performance?: string | null
+          score_aceptacion?: number | null
+          score_comunicacion?: number | null
+          score_confiabilidad?: number | null
+          score_total?: number | null
+          servicios_cancelados?: number | null
+          servicios_completados?: number | null
+          tasa_aceptacion?: number | null
+          tasa_confiabilidad?: number | null
+          tasa_respuesta?: number | null
+          tiempo_promedio_respuesta_minutos?: number | null
+          total_aceptaciones?: number | null
+          total_comunicaciones?: number | null
+          total_ofertas?: number | null
+          total_rechazos?: number | null
+          total_respuestas?: number | null
+          ultima_comunicacion?: string | null
+          ultimo_servicio?: string | null
+          updated_at?: string
+          zona_operacion?: string | null
+        }
+        Relationships: []
+      }
       custodio_points: {
         Row: {
           created_at: string
@@ -1525,6 +1657,62 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      custodio_responses: {
+        Row: {
+          communication_id: string
+          created_at: string
+          custodio_id: string
+          disponibilidad_propuesta: string | null
+          id: string
+          metadata: Json | null
+          precio_propuesto: number | null
+          processed: boolean | null
+          razon_rechazo: string | null
+          respuesta_texto: string | null
+          servicio_id: string | null
+          tiempo_respuesta_minutos: number | null
+          tipo_respuesta: string
+        }
+        Insert: {
+          communication_id: string
+          created_at?: string
+          custodio_id: string
+          disponibilidad_propuesta?: string | null
+          id?: string
+          metadata?: Json | null
+          precio_propuesto?: number | null
+          processed?: boolean | null
+          razon_rechazo?: string | null
+          respuesta_texto?: string | null
+          servicio_id?: string | null
+          tiempo_respuesta_minutos?: number | null
+          tipo_respuesta: string
+        }
+        Update: {
+          communication_id?: string
+          created_at?: string
+          custodio_id?: string
+          disponibilidad_propuesta?: string | null
+          id?: string
+          metadata?: Json | null
+          precio_propuesto?: number | null
+          processed?: boolean | null
+          razon_rechazo?: string | null
+          respuesta_texto?: string | null
+          servicio_id?: string | null
+          tiempo_respuesta_minutos?: number | null
+          tipo_respuesta?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custodio_responses_communication_id_fkey"
+            columns: ["communication_id"]
+            isOneToOne: false
+            referencedRelation: "custodio_communications"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       custodios_primer_servicio_zona: {
         Row: {
@@ -8471,6 +8659,10 @@ export type Database = {
       calculate_custodian_level_dynamic: {
         Args: { total_points: number }
         Returns: number
+      }
+      calculate_custodio_scores: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       calculate_monthly_retention: {
         Args: { target_month: string }

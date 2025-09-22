@@ -26,13 +26,23 @@ export interface CustodioConHistorial {
   certificaciones?: string[];
   tiene_gadgets?: boolean;
   
+  // Datos de pc_custodios
+  zona_base?: string;
+  comentarios?: string;
+  
   // Datos de candidatos_custodios
+  telefono?: string;
+  email?: string;
   zona_preferida_id?: string;
   disponibilidad_horarios?: any;
   vehiculo_propio?: boolean;
   experiencia_seguridad?: boolean;
   expectativa_ingresos?: number;
   estado_proceso?: string;
+  
+  // Timestamps
+  created_at?: string;
+  updated_at?: string;
   
   // Datos calculados
   servicios_historicos?: ServicioHistorico[];
