@@ -56,13 +56,42 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
       }
 
       // Procesar custodios y agregar scoring de proximidad
-      const custodiosConProximidad: CustodioConProximidad[] = custodiosDisponibles.map(custodio => {
+      const custodiosConProximidad: CustodioConProximidad[] = [];
+      
+      for (const custodio of custodiosDisponibles) {
         const custodioProcessed: CustodioConProximidad = {
           ...custodio,
           fuente: 'custodios_operativos' as const,
           indisponibilidades_activas: custodio.indisponibilidades_activas || [],
           disponibilidad_efectiva: custodio.disponibilidad_efectiva
         };
+
+        // Verificar disponibilidad automática si hay servicio nuevo y está habilitado
+        if (servicioNuevo) {
+          try {
+            const { data: disponibilidadResult } = await supabase.rpc('verificar_disponibilidad_custodio', {
+              p_custodio_id: custodio.id,
+              p_fecha_hora_inicio: `${servicioNuevo.fecha_programada}T${servicioNuevo.hora_ventana_inicio}`,
+              p_km_teoricos: 0, // Usar 0 como valor por defecto ya que ServicioNuevo no tiene km_teoricos
+              p_zona_id: null
+            });
+
+            // Si no está disponible por bloqueo automático, marcar como tal
+            if (disponibilidadResult && !disponibilidadResult.disponible) {
+              custodioProcessed.disponibilidad_efectiva = 'temporalmente_indisponible';
+              custodioProcessed.indisponibilidades_activas = [
+                ...(custodioProcessed.indisponibilidades_activas || []),
+                {
+                  motivo: disponibilidadResult.razon || 'Conflicto de horario automático',
+                  fecha_fin: disponibilidadResult.proxima_disponibilidad || null
+                }
+              ];
+            }
+          } catch (error) {
+            console.warn('⚠️ Error verificando disponibilidad automática:', error);
+            // Continuar sin bloqueo automático en caso de error
+          }
+        }
 
         // Calcular scoring de proximidad solo si hay servicio nuevo
         if (servicioNuevo) {
@@ -88,8 +117,8 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
           }
         }
 
-        return custodioProcessed;
-      });
+        custodiosConProximidad.push(custodioProcessed);
+      }
 
       // Filtrar custodios temporalmente indisponibles
       const custodiosActivos = custodiosConProximidad.filter(custodio => 

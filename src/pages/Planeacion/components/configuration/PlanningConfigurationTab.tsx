@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Settings, Shield, Users, Database } from 'lucide-react';
 import ProveedoresArmadosTab from './ProveedoresArmadosTab';
+import ParametrosOperacionalesTab from './ParametrosOperacionalesTab';
 
 export function PlanningConfigurationTab() {
   const [activeTab, setActiveTab] = useState('proveedores-armados');
@@ -61,19 +62,7 @@ export function PlanningConfigurationTab() {
         </TabsContent>
 
         <TabsContent value="parametros">
-          <Card>
-            <CardHeader>
-              <CardTitle>Parámetros Operacionales</CardTitle>
-              <CardDescription>
-                Configura algoritmos de asignación, scoring y parámetros del sistema
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center h-32">
-                <p className="text-muted-foreground">Parámetros operacionales - Próximamente</p>
-              </div>
-            </CardContent>
-          </Card>
+          <ParametrosOperacionalesTab />
         </TabsContent>
 
         <TabsContent value="datos">

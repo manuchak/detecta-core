@@ -6352,6 +6352,44 @@ export type Database = {
           },
         ]
       }
+      planning_operational_config: {
+        Row: {
+          bloqueo_automatico_habilitado: boolean
+          created_at: string
+          id: string
+          tiempo_descanso_minutos: number
+          updated_at: string
+          velocidad_promedio_kmh: number
+          zona_id: string | null
+        }
+        Insert: {
+          bloqueo_automatico_habilitado?: boolean
+          created_at?: string
+          id?: string
+          tiempo_descanso_minutos?: number
+          updated_at?: string
+          velocidad_promedio_kmh?: number
+          zona_id?: string | null
+        }
+        Update: {
+          bloqueo_automatico_habilitado?: boolean
+          created_at?: string
+          id?: string
+          tiempo_descanso_minutos?: number
+          updated_at?: string
+          velocidad_promedio_kmh?: number
+          zona_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planning_operational_config_zona_id_fkey"
+            columns: ["zona_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_trabajo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       point_rules: {
         Row: {
           category: string
@@ -9297,6 +9335,14 @@ export type Database = {
         Args: { lat1: number; lat2: number; lng1: number; lng2: number }
         Returns: number
       }
+      calcular_hora_fin_estimada_servicio: {
+        Args: {
+          p_fecha_hora_inicio: string
+          p_km_teoricos: number
+          p_zona_id?: string
+        }
+        Returns: string
+      }
       calcular_puntos_viaje: {
         Args: { estado_viaje: string; km_viaje: number }
         Returns: number
@@ -11246,6 +11292,15 @@ export type Database = {
       verificar_cumplimiento_referido: {
         Args: { p_referido_id: string }
         Returns: boolean
+      }
+      verificar_disponibilidad_custodio: {
+        Args: {
+          p_custodio_id: string
+          p_fecha_hora_inicio: string
+          p_km_teoricos?: number
+          p_zona_id?: string
+        }
+        Returns: Json
       }
       verify_user_account: {
         Args: { target_user_id: string; verify_status: boolean }
