@@ -66,11 +66,22 @@ export const useCustodiosWithTracking = ({
         const searchKey = `${custodio.nombre.toLowerCase().trim()}_${custodio.telefono || ''}`;
         const metrics = metricsMap.get(searchKey);
         
+        // Si el custodio viene de custodios_operativos, usar scores operativos reales
+        const isFromOperativos = custodio.fuente === 'custodios_operativos';
+        
         // Valores calculados dinámicamente para custodios sin métricas
         const defaultScores = calcularScoresIniciales(custodio);
 
-        // Usar métricas reales o valores por defecto
-        const scores = metrics ? {
+        // Priorizar scores operativos, luego métricas de tracking, luego por defecto
+        const scores = isFromOperativos ? {
+          score_comunicacion: custodio.score_comunicacion || defaultScores.score_comunicacion,
+          score_aceptacion: custodio.score_aceptacion || defaultScores.score_aceptacion,
+          score_confiabilidad: custodio.score_confiabilidad || defaultScores.score_confiabilidad,
+          score_total: custodio.score_total || defaultScores.score_total,
+          tasa_aceptacion: custodio.tasa_aceptacion || defaultScores.tasa_aceptacion,
+          tasa_respuesta: custodio.tasa_respuesta || defaultScores.tasa_respuesta,
+          tasa_confiabilidad: custodio.tasa_confiabilidad || defaultScores.tasa_confiabilidad
+        } : metrics ? {
           score_comunicacion: metrics.score_comunicacion,
           score_aceptacion: metrics.score_aceptacion,
           score_confiabilidad: metrics.score_confiabilidad,

@@ -18,6 +18,15 @@ export interface CustodioConProximidad extends CustodioConHistorial {
   scoring_proximidad?: ScoringProximidad;
   razones_recomendacion?: string[];
   prioridad_asignacion?: 'alta' | 'media' | 'baja';
+  // Scores operativos (cuando vienen de custodios_operativos)
+  score_comunicacion?: number;
+  score_aceptacion?: number;
+  score_confiabilidad?: number;
+  score_total?: number;
+  tasa_aceptacion?: number;
+  tasa_respuesta?: number;
+  tasa_confiabilidad?: number;
+  fuente: 'custodios_operativos' | 'pc_custodios' | 'candidatos_custodios' | 'historico';
 }
 
 // Función auxiliar para normalizar nombres y detectar duplicados
@@ -62,7 +71,39 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
   return useQuery({
     queryKey: ['custodios-proximidad', servicioNuevo],
     queryFn: async (): Promise<CustodioConProximidad[]> => {
-      // 1. Obtener custodios activos de pc_custodios
+      // 1. Obtener custodios operativos (fuente primaria con scores reales)
+      const { data: custodiosOperativos, error: operativosError } = await supabase
+        .from('custodios_operativos')
+        .select(`
+          id,
+          nombre,
+          telefono,
+          zona_base,
+          disponibilidad,
+          estado,
+          experiencia_seguridad,
+          vehiculo_propio,
+          numero_servicios,
+          rating_promedio,
+          tasa_aceptacion,
+          tasa_respuesta,
+          tasa_confiabilidad,
+          score_comunicacion,
+          score_aceptacion,
+          score_confiabilidad,
+          score_total,
+          fuente,
+          fecha_ultimo_servicio,
+          created_at,
+          updated_at
+        `)
+        .eq('estado', 'activo');
+
+      if (operativosError) {
+        console.error('Error fetching custodios_operativos:', operativosError);
+      }
+
+      // 2. Obtener custodios de pc_custodios como respaldo
       const { data: pcCustodios, error: pcError } = await supabase
         .from('pc_custodios')
         .select(`
@@ -84,7 +125,7 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
         console.error('Error fetching pc_custodios:', pcError);
       }
 
-      // 2. Obtener candidatos de candidatos_custodios (incluir más estados)
+      // 3. Obtener candidatos de candidatos_custodios (incluir más estados)
       const { data: candidatosCustodios, error: candidatosError } = await supabase
         .from('candidatos_custodios')
         .select(`
@@ -93,6 +134,9 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
           telefono,
           email,
           estado_proceso,
+          experiencia_seguridad,
+          vehiculo_propio,
+          expectativa_ingresos,
           created_at,
           updated_at
         `)
@@ -132,9 +176,14 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
         const custodiosUnicos: CustodioConHistorial[] = [];
         const nombresVistos = new Set<string>();
         
-        // Priorizar por fuente: pc_custodios > candidatos_custodios > historico
+        // Priorizar por fuente: custodios_operativos > pc_custodios > candidatos_custodios > historico
         const custodiosOrdenados = [...custodios].sort((a, b) => {
-          const prioridadFuente = { 'pc_custodios': 0, 'candidatos_custodios': 1, 'historico': 2 };
+          const prioridadFuente = { 
+            'custodios_operativos': 0, 
+            'pc_custodios': 1, 
+            'candidatos_custodios': 2, 
+            'historico': 3 
+          };
           return prioridadFuente[a.fuente] - prioridadFuente[b.fuente];
         });
         
@@ -159,7 +208,36 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
 
       // Procesar y combinar todos los custodios
       const todosCustodios: CustodioConHistorial[] = [
-        // PC Custodios
+        // 1. Custodios Operativos (PRIORIDAD MÁXIMA - con scores reales)
+        ...(custodiosOperativos || []).map(custodio => ({
+          id: custodio.id,
+          nombre: custodio.nombre,
+          telefono: custodio.telefono,
+          disponibilidad: custodio.disponibilidad,
+          estado: custodio.estado,
+          rating_promedio: custodio.rating_promedio,
+          numero_servicios: custodio.numero_servicios || 0,
+          certificaciones: [],
+          comentarios: `Custodio operativo - ${custodio.fuente || 'migrado'}`,
+          zona_base: custodio.zona_base,
+          tiene_gadgets: false,
+          servicios_historicos: [],
+          experiencia_seguridad: custodio.experiencia_seguridad,
+          vehiculo_propio: custodio.vehiculo_propio,
+          fuente: 'custodios_operativos' as const,
+          created_at: custodio.created_at,
+          updated_at: custodio.updated_at,
+          // Incluir scores operativos reales
+          score_comunicacion: custodio.score_comunicacion,
+          score_aceptacion: custodio.score_aceptacion,
+          score_confiabilidad: custodio.score_confiabilidad,
+          score_total: custodio.score_total,
+          tasa_aceptacion: custodio.tasa_aceptacion,
+          tasa_respuesta: custodio.tasa_respuesta,
+          tasa_confiabilidad: custodio.tasa_confiabilidad
+        })),
+        
+        // 2. PC Custodios (respaldo)
         ...(pcCustodios || []).map(custodio => ({
           id: custodio.id,
           nombre: custodio.nombre,
@@ -177,13 +255,16 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
           updated_at: custodio.updated_at
         })),
         
-        // Candidatos custodios
+        // 3. Candidatos custodios (nuevos)
         ...(candidatosCustodios || []).map(candidato => ({
           id: candidato.id,
           nombre: candidato.nombre,
           telefono: candidato.telefono,
           email: candidato.email,
           estado_proceso: candidato.estado_proceso,
+          experiencia_seguridad: candidato.experiencia_seguridad,
+          vehiculo_propio: candidato.vehiculo_propio,
+          expectativa_ingresos: candidato.expectativa_ingresos,
           disponibilidad: 'disponible' as const,
           estado: 'candidato' as const,
           rating_promedio: null,
@@ -229,13 +310,14 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
       const custodiosFormateados = eliminarDuplicados(todosCustodios);
 
       console.log(`📊 Custodios encontrados:`, {
+        custodios_operativos: custodiosOperativos?.length || 0,
         pc_custodios: pcCustodios?.length || 0,
         candidatos: candidatosCustodios?.length || 0,
         historicos: custodiosHistoricos?.length || 0,
         total_antes_deduplicacion: todosCustodios.length,
         total_despues_deduplicacion: custodiosFormateados.length,
         fallback_historicos_activo: custodiosFormateados.some(c => c.fuente === 'historico'),
-        estados_candidatos: candidatosCustodios?.map(c => c.estado_proceso) || [],
+        custodios_con_scores_operativos: custodiosFormateados.filter(c => c.fuente === 'custodios_operativos').length,
         nombres_custodios: custodiosFormateados.map(c => `${c.nombre} (${c.fuente})`).slice(0, 10)
       });
 

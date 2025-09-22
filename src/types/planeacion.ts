@@ -55,11 +55,19 @@ export interface Custodio {
   updated_at: string;
   // Nuevas propiedades para el sistema unificado
   numero_servicios?: number | null;
-  fuente?: 'pc_custodios' | 'candidatos_custodios' | 'servicios_custodia';
+  fuente?: 'pc_custodios' | 'candidatos_custodios' | 'servicios_custodia' | 'custodios_operativos';
   es_nuevo?: boolean;
   expectativa_ingresos?: number;
   experiencia_seguridad?: boolean;
   vehiculo_propio?: boolean;
+  // Scores operativos (cuando vienen de custodios_operativos)
+  score_comunicacion?: number;
+  score_aceptacion?: number;
+  score_confiabilidad?: number;
+  score_total?: number;
+  tasa_aceptacion?: number;
+  tasa_respuesta?: number;
+  tasa_confiabilidad?: number;
 }
 
 export interface RutaFrecuente {

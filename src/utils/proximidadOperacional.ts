@@ -18,7 +18,7 @@ export interface ServicioHistorico {
 export interface CustodioConHistorial {
   id: string;
   nombre: string;
-  fuente: 'pc_custodios' | 'candidatos_custodios' | 'historico';
+  fuente: 'pc_custodios' | 'candidatos_custodios' | 'historico' | 'custodios_operativos';
   disponibilidad: string;
   estado: string;
   rating_promedio?: number;
@@ -48,6 +48,15 @@ export interface CustodioConHistorial {
   servicios_historicos?: ServicioHistorico[];
   ciudades_frecuentes?: string[];
   ultima_actividad?: string;
+  
+  // Scores operativos (cuando vienen de custodios_operativos)
+  score_comunicacion?: number;
+  score_aceptacion?: number;
+  score_confiabilidad?: number;
+  score_total?: number;
+  tasa_aceptacion?: number;
+  tasa_respuesta?: number;
+  tasa_confiabilidad?: number;
 }
 
 export interface ServicioNuevo {

@@ -95,7 +95,15 @@ export const custodiosService = {
   // Nueva función unificada que combina múltiples fuentes
   async getUnifiedCustodios(filtros?: FiltrosCustodios): Promise<Custodio[]> {
     try {
-      // 1. Obtener custodios de pc_custodios (fuente principal)
+      // 1. Obtener custodios operativos (fuente principal con scores reales)
+      const { data: custodiosOperativos, error: operativosError } = await supabase
+        .from('custodios_operativos')
+        .select('*')
+        .eq('estado', 'activo');
+
+      if (operativosError && operativosError.code !== 'PGRST116') throw operativosError;
+
+      // 2. Obtener custodios de pc_custodios como respaldo
       let pcQuery = supabase
         .from('pc_custodios')
         .select('*');
@@ -103,7 +111,7 @@ export const custodiosService = {
       const { data: pcCustodios, error: pcError } = await pcQuery;
       if (pcError && pcError.code !== 'PGRST116') throw pcError;
 
-      // 2. Obtener candidatos aprobados como custodios nuevos
+      // 3. Obtener candidatos aprobados como custodios nuevos
       const { data: candidatos, error: candidatosError } = await supabase
         .from('candidatos_custodios')
         .select('*')
@@ -127,15 +135,34 @@ export const custodiosService = {
       const seenPhones = new Set<string>();
       const seenNames = new Set<string>();
 
-      // Agregar custodios de pc_custodios (prioridad máxima)
-      (pcCustodios || []).forEach(custodio => {
+      // Agregar custodios operativos (prioridad máxima - con scores reales)
+      (custodiosOperativos || []).forEach(custodio => {
         unifiedCustodios.push({
           ...custodio,
-          fuente: 'pc_custodios',
-          es_nuevo: false
+          tel: custodio.telefono, // Mapear telefono a tel para compatibilidad
+          fuente: 'custodios_operativos',
+          es_nuevo: false,
+          // Usar scores operativos reales
+          score_comunicacion: custodio.score_comunicacion,
+          score_aceptacion: custodio.score_aceptacion,
+          score_confiabilidad: custodio.score_confiabilidad,
+          score_total: custodio.score_total
         });
-        if (custodio.tel) seenPhones.add(custodio.tel);
+        if (custodio.telefono) seenPhones.add(custodio.telefono);
         if (custodio.nombre) seenNames.add(custodio.nombre.toLowerCase());
+      });
+
+      // Agregar custodios de pc_custodios (prioridad media)
+      (pcCustodios || []).forEach(custodio => {
+        if (!seenNames.has(custodio.nombre?.toLowerCase()) && !seenPhones.has(custodio.tel)) {
+          unifiedCustodios.push({
+            ...custodio,
+            fuente: 'pc_custodios',
+            es_nuevo: false
+          });
+          if (custodio.tel) seenPhones.add(custodio.tel);
+          if (custodio.nombre) seenNames.add(custodio.nombre.toLowerCase());
+        }
       });
 
       // Agregar candidatos aprobados como custodios nuevos
@@ -264,11 +291,21 @@ export const custodiosService = {
       }
 
       return filteredCustodios.sort((a, b) => {
-        // Priorizar custodios de pc_custodios, luego candidatos, luego históricos
-        const prioridadA = a.fuente === 'pc_custodios' ? 0 : a.fuente === 'candidatos_custodios' ? 1 : 2;
-        const prioridadB = b.fuente === 'pc_custodios' ? 0 : b.fuente === 'candidatos_custodios' ? 1 : 2;
+        // Priorizar custodios operativos, luego pc_custodios, luego candidatos, luego históricos
+        const prioridadA = a.fuente === 'custodios_operativos' ? 0 : 
+                         a.fuente === 'pc_custodios' ? 1 : 
+                         a.fuente === 'candidatos_custodios' ? 2 : 3;
+        const prioridadB = b.fuente === 'custodios_operativos' ? 0 : 
+                         b.fuente === 'pc_custodios' ? 1 : 
+                         b.fuente === 'candidatos_custodios' ? 2 : 3;
         
         if (prioridadA !== prioridadB) return prioridadA - prioridadB;
+        
+        // Dentro de la misma fuente, ordenar por score total (si existe) y luego por nombre
+        if (a.score_total !== undefined && b.score_total !== undefined) {
+          return b.score_total - a.score_total;
+        }
+        
         return (a.nombre || '').localeCompare(b.nombre || '');
       });
 
