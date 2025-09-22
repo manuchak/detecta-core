@@ -10275,6 +10275,10 @@ export type Database = {
         Args: { p_lead_id: string; p_reason: string; p_session_id: string }
         Returns: boolean
       }
+      migrar_custodios_historicos: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       migrate_existing_categories: {
         Args: Record<PropertyKey, never>
         Returns: undefined
