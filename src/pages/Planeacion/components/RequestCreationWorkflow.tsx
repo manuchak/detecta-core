@@ -6,7 +6,8 @@ import { CheckCircle, Circle, MapPin, User, UserCheck, Shield } from 'lucide-rea
 import { RouteSearchStep } from './workflow/RouteSearchStep';
 import { ServiceAutoFillStep } from './workflow/ServiceAutoFillStep';
 import { CustodianAssignmentStep } from './workflow/CustodianAssignmentStep';
-import { ArmedGuardAssignmentStep } from './workflow/ArmedGuardAssignmentStep';
+import { EnhancedArmedGuardAssignmentStep } from './workflow/EnhancedArmedGuardAssignmentStep';
+import { useCustodianVehicles } from '@/hooks/useCustodianVehicles';
 
 interface RouteData {
   cliente_nombre: string;
@@ -54,6 +55,12 @@ export function RequestCreationWorkflow() {
   const [serviceData, setServiceData] = useState<ServiceData | null>(null);
   const [assignmentData, setAssignmentData] = useState<AssignmentData | null>(null);
   const [armedAssignmentData, setArmedAssignmentData] = useState<ArmedAssignmentData | null>(null);
+  
+  // Get vehicle information for assigned custodian (with safety check)
+  const { getPrincipalVehicle } = useCustodianVehicles(assignmentData?.custodio_asignado_id);
+  const custodianVehicle = assignmentData?.custodio_asignado_id 
+    ? getPrincipalVehicle(assignmentData.custodio_asignado_id) 
+    : null;
 
   const steps = [
     { 
@@ -216,7 +223,7 @@ export function RequestCreationWorkflow() {
         )}
         
         {currentStep === 'armed_assignment' && serviceData && assignmentData && (
-          <ArmedGuardAssignmentStep 
+          <EnhancedArmedGuardAssignmentStep 
             serviceData={{...serviceData, ...assignmentData}}
             onComplete={handleArmedAssignmentComplete}
             onBack={() => setCurrentStep('assignment')}
@@ -250,6 +257,11 @@ export function RequestCreationWorkflow() {
               <div>
                 <div className="text-sm text-muted-foreground">Custodio Asignado</div>
                 <div className="font-medium">{(armedAssignmentData || assignmentData)?.custodio_nombre || 'Pendiente'}</div>
+                {custodianVehicle && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Vehículo: {custodianVehicle.marca} {custodianVehicle.modelo} ({custodianVehicle.placa})
+                  </div>
+                )}
               </div>
             </div>
             

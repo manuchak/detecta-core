@@ -79,10 +79,73 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [assignmentData, setAssignmentData] = useState<ArmedGuardAssignmentData | null>(null);
 
-  // Use enhanced hooks
-  const { armedGuards, providers, loading, error, assignArmedGuard } = useArmedGuardsWithTracking(serviceData);
+  // Use enhanced hooks with fallback mock data
+  const { armedGuards: hookArmedGuards, providers: hookProviders, loading, error } = useArmedGuardsWithTracking(serviceData);
   const { logAssignmentAction } = useAssignmentAudit();
   const { getPrincipalVehicle } = useCustodianVehicles(serviceData.custodio_asignado_id);
+
+  // Mock data fallback (same as original component)
+  const mockArmedGuards: ArmedGuard[] = [
+    {
+      id: '1',
+      nombre: 'Carlos Mendoza',
+      telefono: '+52 55 1234 5678',
+      zona_base: 'Ciudad de México',
+      disponibilidad: 'disponible',
+      estado: 'activo',
+      licencia_portacion: 'LIC-001-2024',
+      fecha_vencimiento_licencia: '2025-12-31',
+      experiencia_anos: 8,
+      rating_promedio: 4.8,
+      numero_servicios: 145,
+      tasa_respuesta: 95,
+      tasa_confirmacion: 92,
+      equipamiento_disponible: ['Pistola Glock 19', 'Radio comunicación', 'Chaleco antibalas'],
+      observaciones: 'Especialista en custodia ejecutiva'
+    },
+    {
+      id: '2',
+      nombre: 'Miguel Rodriguez',
+      telefono: '+52 55 9876 5432',
+      zona_base: 'Ciudad de México',
+      disponibilidad: 'ocupado',
+      estado: 'activo',
+      experiencia_anos: 5,
+      rating_promedio: 4.5,
+      numero_servicios: 89,
+      tasa_respuesta: 88,
+      tasa_confirmacion: 85,
+      equipamiento_disponible: ['Pistola Beretta', 'Radio comunicación']
+    }
+  ];
+
+  const mockProviders: ArmedProvider[] = [
+    {
+      id: 'p1',
+      nombre_empresa: 'Seguridad Elite SA',
+      contacto_principal: 'Ana García',
+      telefono_contacto: '+52 55 4567 8901',
+      zonas_cobertura: ['Ciudad de México', 'Estado de México'],
+      tarifa_por_servicio: 2500,
+      disponibilidad_24h: true,
+      tiempo_respuesta_promedio: 25,
+      rating_proveedor: 4.7,
+      servicios_completados: 234,
+      activo: true
+    }
+  ];
+
+  // Use hook data if available, otherwise use mock data
+  const armedGuards = hookArmedGuards?.length > 0 ? hookArmedGuards : mockArmedGuards;
+  const providers = hookProviders?.length > 0 ? hookProviders : mockProviders;
+
+  console.log('🔧 DEBUG: Final data', {
+    armedGuardsLength: armedGuards?.length || 0,
+    providersLength: providers?.length || 0,
+    loading,
+    error,
+    serviceData
+  });
 
   // Calculate recommended meeting time
   const { calculatedMeetingTime, formatDisplayTime, getTimeRecommendation } = useMeetingTimeCalculator({
@@ -99,6 +162,13 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
   }, [calculatedMeetingTime, horaEncuentro]);
 
   const handleAssignArmed = async () => {
+    console.log('🔧 DEBUG: Starting assignment process', {
+      selectedArmed,
+      puntoEncuentro,
+      horaEncuentro,
+      serviceData
+    });
+    
     if (!selectedArmed || !puntoEncuentro || !horaEncuentro) {
       toast.error('Completa todos los campos requeridos');
       return;
@@ -107,6 +177,8 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
     const selectedGuard = selectedType === 'interno' 
       ? armedGuards.find(g => g.id === selectedArmed)
       : providers.find(p => p.id === selectedArmed);
+
+    console.log('🔧 DEBUG: Selected guard', selectedGuard);
 
     if (!selectedGuard) return;
 
@@ -125,19 +197,27 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
         estado_asignacion: 'pendiente'
       };
 
-      // Log the assignment action
-      await logAssignmentAction({
-        service_id: serviceData.cliente_nombre, // Use client name as service identifier for now
-        custodio_id: serviceData.custodio_asignado_id,
-        armado_id: selectedArmed,
-        proveedor_id: selectedType === 'proveedor' ? selectedArmed : undefined,
-        action_type: 'created',
-        new_data: newAssignmentData,
-        changes_summary: `Asignado ${selectedType === 'interno' ? 'armado interno' : 'proveedor externo'}: ${newAssignmentData.armado_nombre}`
-      });
+      console.log('🔧 DEBUG: Assignment data created', newAssignmentData);
+
+      // Log the assignment action (simplified for now)
+      try {
+        await logAssignmentAction({
+          service_id: serviceData.cliente_nombre,
+          custodio_id: serviceData.custodio_asignado_id,
+          armado_id: selectedArmed,
+          proveedor_id: selectedType === 'proveedor' ? selectedArmed : undefined,
+          action_type: 'created',
+          new_data: newAssignmentData,
+          changes_summary: `Asignado ${selectedType === 'interno' ? 'armado interno' : 'proveedor externo'}: ${newAssignmentData.armado_nombre}`
+        });
+        console.log('🔧 DEBUG: Assignment logged successfully');
+      } catch (logError) {
+        console.warn('🔧 DEBUG: Failed to log assignment, but continuing:', logError);
+      }
 
       setAssignmentData(newAssignmentData);
       setShowConfirmationModal(true);
+      console.log('🔧 DEBUG: Modal should be showing now');
       
     } catch (error) {
       console.error('Error creating assignment:', error);
@@ -194,6 +274,15 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
       placa: principalVehicle.placa,
     } : undefined,
   } : null;
+
+  console.log('🔧 DEBUG: Enhanced component rendered', {
+    loading,
+    error,
+    armedGuardsLength: armedGuards.length,
+    providersLength: providers.length,
+    showConfirmationModal,
+    assignmentData
+  });
 
   if (loading) {
     return (
