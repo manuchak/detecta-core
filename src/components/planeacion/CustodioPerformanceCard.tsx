@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Clock, MessageSquare, CheckCircle, AlertTriangle, TrendingUp, Phone } from "lucide-react";
+import { Clock, MessageSquare, CheckCircle, AlertTriangle, TrendingUp, Phone, Target } from "lucide-react";
 import type { CustodioEnriquecido } from "@/hooks/useCustodiosWithTracking";
 
 interface CustodioPerformanceCardProps {
@@ -62,8 +62,8 @@ export const CustodioPerformanceCard = ({
               {custodio.performance_level}
             </Badge>
             <div className="flex items-center gap-1">
-              <span className="text-xs font-medium">{custodio.score_total.toFixed(1)}</span>
-              {getSpeedIcon(custodio.response_speed)}
+              <Target className="h-3 w-3 text-primary" />
+              <span className="text-xs font-medium">{custodio.score_total.toFixed(0)}%</span>
             </div>
           </div>
         </div>
@@ -119,10 +119,13 @@ export const CustodioPerformanceCard = ({
               </Badge>
             </div>
             <div className="text-right">
-              <div className="text-lg font-bold text-primary">
-                {custodio.score_total.toFixed(1)}
+              <div className="flex items-center justify-end gap-1">
+                <Target className="h-4 w-4 text-primary" />
+                <span className="text-lg font-bold text-primary">
+                  {custodio.score_total.toFixed(0)}%
+                </span>
               </div>
-              <div className="text-xs text-muted-foreground">Score Total</div>
+              <div className="text-xs text-muted-foreground">Compatibilidad</div>
             </div>
           </div>
         </div>
