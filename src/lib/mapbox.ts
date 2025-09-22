@@ -10,13 +10,26 @@ export interface MapboxError {
 
 // Function to get token from Supabase edge function with retry logic
 async function getMapboxToken(retries = 2): Promise<string | null> {
+  const { supabase } = await import('@/integrations/supabase/client');
+  
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
+      // Get the current session to include auth headers
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5ZHp6ZWxqYWV3c2ZobWlsbmhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc2OTc1MjIsImV4cCI6MjA2MzI3MzUyMn0.iP9UG12mKESneZq7XwY6vHvqRGH3hq3D1Hu0qneu8B8'
+      };
+      
+      // Add authorization header if user is authenticated
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+      
       const response = await fetch('https://yydzzeljaewsfhmilnhm.supabase.co/functions/v1/mapbox-token', {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
       
       if (response.ok) {
