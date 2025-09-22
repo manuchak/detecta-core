@@ -278,31 +278,90 @@ const getCustodioCategory = (custodio: any): 'nuevo' | 'experimentado' | 'sin_hi
  * Calcula scores iniciales dinámicos basados en el perfil del custodio
  */
 const calcularScoresIniciales = (custodio: any) => {
+  console.log('Calculando scores para custodio:', custodio.nombre, {
+    fuente: custodio.fuente,
+    numero_servicios: custodio.numero_servicios,
+    rating_promedio: custodio.rating_promedio,
+    experiencia_seguridad: custodio.experiencia_seguridad,
+    vehiculo_propio: custodio.vehiculo_propio,
+    certificaciones: custodio.certificaciones
+  });
+
   // Score de comunicación basado en disponibilidad y experiencia
-  let scoreComunicacion = 6.0; // Base neutral
-  if (custodio.experiencia_seguridad) scoreComunicacion += 1.5;
-  if (custodio.disponibilidad_horarios?.lunes_viernes) scoreComunicacion += 0.5;
-  if (custodio.disponibilidad_horarios?.sabados) scoreComunicacion += 0.3;
-  if (custodio.fuente === 'pc_custodios') scoreComunicacion += 1.0; // Custodios establecidos
-
-  // Score de aceptación basado en motivación y experiencia
-  let scoreAceptacion = 7.0; // Base optimista
-  if (custodio.experiencia_seguridad) scoreAceptacion += 1.0;
-  if (custodio.vehiculo_propio) scoreAceptacion += 0.5;
-  if (custodio.expectativa_ingresos && custodio.expectativa_ingresos > 25000) scoreAceptacion += 0.8;
-  if (custodio.fuente === 'candidatos_custodios' && custodio.estado_proceso === 'lead') scoreAceptacion -= 1.0;
-
-  // Score de confiabilidad - empezar con fe inicial pero realista
-  let scoreConfiabilidad = 8.5; // Base alta pero no perfecta
-  if (custodio.experiencia_seguridad) scoreConfiabilidad += 0.5;
-  if (custodio.certificaciones && custodio.certificaciones.length > 0) {
-    scoreConfiabilidad += Math.min(0.8, custodio.certificaciones.length * 0.2);
+  let scoreComunicacion = 5.0; // Base más baja para diferenciación
+  
+  // Bonificaciones específicas por tipo de custodio
+  if (custodio.fuente === 'historico' && custodio.numero_servicios) {
+    // Custodios históricos: usar datos reales de servicios
+    if (custodio.numero_servicios >= 200) scoreComunicacion = 9.8;
+    else if (custodio.numero_servicios >= 100) scoreComunicacion = 9.2;
+    else if (custodio.numero_servicios >= 50) scoreComunicacion = 8.5;
+    else if (custodio.numero_servicios >= 20) scoreComunicacion = 7.8;
+    else if (custodio.numero_servicios >= 10) scoreComunicacion = 7.0;
+    else scoreComunicacion = 6.2;
+    
+    // Bonus por rating alto para históricos
+    if (custodio.rating_promedio >= 4.5) scoreComunicacion += 0.5;
+    else if (custodio.rating_promedio >= 4.0) scoreComunicacion += 0.3;
+  } else {
+    // Custodios nuevos: usar perfil y experiencia
+    if (custodio.experiencia_seguridad) scoreComunicacion += 2.0;
+    if (custodio.disponibilidad_horarios?.lunes_viernes) scoreComunicacion += 0.8;
+    if (custodio.disponibilidad_horarios?.sabados) scoreComunicacion += 0.5;
+    if (custodio.fuente === 'pc_custodios') scoreComunicacion += 1.5;
+    if (custodio.certificaciones?.length > 0) scoreComunicacion += custodio.certificaciones.length * 0.3;
   }
 
-  // Calcular tasas iniciales realistas basadas en perfil
-  const tasaAceptacion = Math.min(95, scoreAceptacion * 10 + 15); // 85-95% inicial
-  const tasaRespuesta = Math.min(95, scoreComunicacion * 10 + 20); // 80-95% inicial
-  const tasaConfiabilidad = Math.min(98, scoreConfiabilidad * 10 + 5); // 85-98% inicial
+  // Score de aceptación basado en experiencia y motivación
+  let scoreAceptacion = 6.0; // Base más conservadora
+  
+  if (custodio.fuente === 'historico' && custodio.numero_servicios) {
+    // Para históricos, usar experiencia real
+    if (custodio.numero_servicios >= 200) scoreAceptacion = 9.5;
+    else if (custodio.numero_servicios >= 100) scoreAceptacion = 8.8;
+    else if (custodio.numero_servicios >= 50) scoreAceptacion = 8.2;
+    else if (custodio.numero_servicios >= 20) scoreAceptacion = 7.5;
+    else scoreAceptacion = 7.0;
+    
+    // Ajustar por rating para históricos
+    if (custodio.rating_promedio >= 4.5) scoreAceptacion += 0.8;
+    else if (custodio.rating_promedio >= 4.0) scoreAceptacion += 0.5;
+    else if (custodio.rating_promedio < 3.5) scoreAceptacion -= 0.5;
+  } else {
+    // Para nuevos, usar perfil
+    if (custodio.experiencia_seguridad) scoreAceptacion += 1.2;
+    if (custodio.vehiculo_propio) scoreAceptacion += 0.8;
+    if (custodio.expectativa_ingresos && custodio.expectativa_ingresos > 25000) scoreAceptacion += 0.6;
+    if (custodio.fuente === 'candidatos_custodios' && custodio.estado_proceso === 'lead') scoreAceptacion -= 0.8;
+    if (custodio.certificaciones?.length >= 3) scoreAceptacion += 0.5;
+  }
+
+  // Score de confiabilidad - empezar con fe inicial pero realista
+  let scoreConfiabilidad = 8.2; // Base alta pero no perfecta
+  if (custodio.fuente === 'historico') {
+    // Para históricos, confiabilidad basada en experiencia
+    if (custodio.numero_servicios >= 100) scoreConfiabilidad = 9.2;
+    else if (custodio.numero_servicios >= 50) scoreConfiabilidad = 8.8;
+    else if (custodio.numero_servicios >= 20) scoreConfiabilidad = 8.4;
+    else scoreConfiabilidad = 8.0;
+    
+    // Ajustar por rating
+    if (custodio.rating_promedio >= 4.5) scoreConfiabilidad += 0.6;
+    else if (custodio.rating_promedio >= 4.0) scoreConfiabilidad += 0.3;
+    else if (custodio.rating_promedio < 3.5) scoreConfiabilidad -= 0.8;
+  } else {
+    // Para nuevos, usar perfil
+    if (custodio.experiencia_seguridad) scoreConfiabilidad += 0.8;
+    if (custodio.certificaciones && custodio.certificaciones.length > 0) {
+      scoreConfiabilidad += Math.min(1.0, custodio.certificaciones.length * 0.25);
+    }
+    if (custodio.vehiculo_propio) scoreConfiabilidad += 0.3;
+  }
+
+  // Calcular tasas iniciales realistas basadas en perfil con más variación
+  const tasaAceptacion = Math.min(98, Math.max(70, scoreAceptacion * 9.5 + 15)); // 70-98% rango más amplio
+  const tasaRespuesta = Math.min(95, Math.max(65, scoreComunicacion * 9 + 20)); // 65-95% más variación  
+  const tasaConfiabilidad = Math.min(98, Math.max(80, scoreConfiabilidad * 10 + 5)); // 80-98% más realista
 
   // Score total como promedio ponderado
   const scoreTotal = (scoreComunicacion * 0.3 + scoreAceptacion * 0.4 + scoreConfiabilidad * 0.3);

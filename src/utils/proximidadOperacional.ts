@@ -445,34 +445,47 @@ export function generarRazonesRecomendacion(scoring: ScoringProximidad, custodio
  * Calcula score base dinámico para el componente operacional
  */
 function calcularScoreBaseDinamico(custodio: CustodioConHistorial): number {
-  let baseScore = 15; // Mínimo para cualquier custodio
+  let baseScore = 10; // Base más bajo para mayor diferenciación
   
-  // Bonificación por experiencia en seguridad (+0-15 puntos)
+  // Bonificación mayor por número real de servicios (históricos)
+  if (custodio.numero_servicios) {
+    if (custodio.numero_servicios >= 200) baseScore += 25;
+    else if (custodio.numero_servicios >= 100) baseScore += 22;
+    else if (custodio.numero_servicios >= 50) baseScore += 18;
+    else if (custodio.numero_servicios >= 20) baseScore += 15;
+    else if (custodio.numero_servicios >= 10) baseScore += 12;
+    else if (custodio.numero_servicios >= 5) baseScore += 8;
+    else baseScore += 5;
+  }
+  
+  // Bonificación por experiencia en seguridad (+0-12 puntos)
   if (custodio.experiencia_seguridad) {
-    baseScore += 15;
+    baseScore += 12;
   } else if (custodio.fuente === 'pc_custodios') {
     // Si es de pc_custodios, asumimos cierta experiencia
+    baseScore += 6;
+  }
+  
+  // Bonificación por certificaciones (+0-10 puntos)
+  if (custodio.certificaciones && custodio.certificaciones.length > 0) {
+    baseScore += Math.min(10, custodio.certificaciones.length * 2.5);
+  }
+  
+  // Bonificación por vehículo propio (+0-8 puntos)
+  if (custodio.vehiculo_propio) {
     baseScore += 8;
   }
   
-  // Bonificación por certificaciones (+0-8 puntos)
-  if (custodio.certificaciones && custodio.certificaciones.length > 0) {
-    baseScore += Math.min(8, custodio.certificaciones.length * 2);
-  }
-  
-  // Bonificación por vehículo propio (+0-5 puntos)
-  if (custodio.vehiculo_propio) {
-    baseScore += 5;
-  }
-  
-  // Bonificación por rating histórico (+0-7 puntos)
+  // Bonificación por rating histórico (+0-15 puntos)
   if (custodio.rating_promedio) {
-    if (custodio.rating_promedio >= 4.5) baseScore += 7;
-    else if (custodio.rating_promedio >= 4.0) baseScore += 5;
-    else if (custodio.rating_promedio >= 3.5) baseScore += 3;
+    if (custodio.rating_promedio >= 4.7) baseScore += 15;
+    else if (custodio.rating_promedio >= 4.5) baseScore += 12;
+    else if (custodio.rating_promedio >= 4.0) baseScore += 8;
+    else if (custodio.rating_promedio >= 3.5) baseScore += 4;
+    else baseScore -= 2; // Penalización por rating bajo
   }
   
-  return Math.min(40, baseScore); // Máximo 40 puntos base
+  return Math.min(65, baseScore); // Máximo 65 puntos base (fue 40)
 }
 
 /**
@@ -513,24 +526,34 @@ function calcularScoreTemporalBase(custodio: CustodioConHistorial, servicioNuevo
  * Calcula score geográfico base basado en conocimiento de zona del custodio
  */
 function calcularScoreGeograficoBase(custodio: CustodioConHistorial): number {
-  let baseScore = 10; // Mínimo para cualquier custodio
+  let baseScore = 8; // Base más bajo para mayor diferenciación
   
   // Bonificación por zona base definida
   if (custodio.zona_base) {
-    baseScore += 10;
+    baseScore += 12;
   }
   
-  // Bonificación por ciudades frecuentes (experiencia geográfica)
+  // Mayor bonificación por ciudades frecuentes (experiencia geográfica real)
   if (custodio.ciudades_frecuentes && custodio.ciudades_frecuentes.length > 0) {
-    baseScore += Math.min(15, custodio.ciudades_frecuentes.length * 3);
+    baseScore += Math.min(20, custodio.ciudades_frecuentes.length * 4);
   }
   
-  // Bonificación por número de servicios (conocimiento acumulado)
+  // Bonificación significativa por número de servicios (conocimiento acumulado)
   if (custodio.numero_servicios) {
-    if (custodio.numero_servicios >= 20) baseScore += 5;
-    else if (custodio.numero_servicios >= 10) baseScore += 3;
-    else if (custodio.numero_servicios >= 5) baseScore += 1;
+    if (custodio.numero_servicios >= 100) baseScore += 18;
+    else if (custodio.numero_servicios >= 50) baseScore += 15;
+    else if (custodio.numero_servicios >= 20) baseScore += 12;
+    else if (custodio.numero_servicios >= 10) baseScore += 8;
+    else if (custodio.numero_servicios >= 5) baseScore += 5;
+    else baseScore += 2;
   }
   
-  return Math.min(30, baseScore); // Máximo 30 puntos base
+  // Bonificación por tipo de custodio
+  if (custodio.fuente === 'historico') {
+    baseScore += 8; // Históricos tienen ventaja geográfica
+  } else if (custodio.fuente === 'pc_custodios') {
+    baseScore += 5;
+  }
+  
+  return Math.min(45, baseScore); // Máximo 45 puntos base (fue 30)
 }
