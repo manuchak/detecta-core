@@ -243,10 +243,44 @@ export const CustodianContactDialog: React.FC<CustodianContactDialogProps> = ({
                     <span>{custodian.zona_base || 'Sin zona definida'}</span>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Target className="h-4 w-4 text-primary" />
-                    <span className="text-sm">Score: {custodian.score_total}%</span>
+                <div className="space-y-3">
+                  {/* Score General del Custodio */}
+                  <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      <div className="flex flex-col">
+                        <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">Score General</span>
+                        <span className="text-sm text-muted-foreground">Historial completo</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className={`text-lg font-bold ${
+                        custodian.score_total >= 8 ? 'text-green-600' : 
+                        custodian.score_total >= 6 ? 'text-yellow-600' : 'text-red-600'
+                      }`}>
+                        {(custodian.score_total * 10).toFixed(1)}%
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Score Operacional del Servicio */}
+                  <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
+                    <div className="flex items-center gap-2">
+                      <Target className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      <div className="flex flex-col">
+                        <span className="text-xs text-green-600 dark:text-green-400 font-medium">Compatibilidad</span>
+                        <span className="text-sm text-muted-foreground">Para este servicio</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className={`text-lg font-bold ${
+                        (custodian.scoring_proximidad?.score_operacional || 0) >= 80 ? 'text-green-600' : 
+                        (custodian.scoring_proximidad?.score_operacional || 0) >= 60 ? 'text-yellow-600' : 'text-red-600'
+                      }`}>
+                        {custodian.scoring_proximidad?.score_operacional || 0}
+                      </div>
+                      <div className="text-xs text-muted-foreground">/ 100</div>
+                    </div>
                   </div>
                   {custodian.scoring_proximidad?.detalles?.distancia_estimada && (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
