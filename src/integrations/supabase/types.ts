@@ -7204,41 +7204,81 @@ export type Database = {
       puntos_encuentro_predefinidos: {
         Row: {
           activo: boolean | null
+          armado_interno_id: string | null
+          auto_agregado: boolean
+          base_empresa: string | null
           categoria: string | null
           coordenadas: unknown | null
           created_at: string | null
           descripcion: string | null
           direccion_completa: string
+          frecuencia_uso: number
           id: string
           nombre: string
+          proveedor_id: string | null
+          tipo_operacion: string
           updated_at: string | null
           zona: string | null
         }
         Insert: {
           activo?: boolean | null
+          armado_interno_id?: string | null
+          auto_agregado?: boolean
+          base_empresa?: string | null
           categoria?: string | null
           coordenadas?: unknown | null
           created_at?: string | null
           descripcion?: string | null
           direccion_completa: string
+          frecuencia_uso?: number
           id?: string
           nombre: string
+          proveedor_id?: string | null
+          tipo_operacion?: string
           updated_at?: string | null
           zona?: string | null
         }
         Update: {
           activo?: boolean | null
+          armado_interno_id?: string | null
+          auto_agregado?: boolean
+          base_empresa?: string | null
           categoria?: string | null
           coordenadas?: unknown | null
           created_at?: string | null
           descripcion?: string | null
           direccion_completa?: string
+          frecuencia_uso?: number
           id?: string
           nombre?: string
+          proveedor_id?: string | null
+          tipo_operacion?: string
           updated_at?: string | null
           zona?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "puntos_encuentro_predefinidos_armado_interno_id_fkey"
+            columns: ["armado_interno_id"]
+            isOneToOne: false
+            referencedRelation: "armados_operativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "puntos_encuentro_predefinidos_armado_interno_id_fkey"
+            columns: ["armado_interno_id"]
+            isOneToOne: false
+            referencedRelation: "armados_operativos_disponibles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "puntos_encuentro_predefinidos_proveedor_id_fkey"
+            columns: ["proveedor_id"]
+            isOneToOne: false
+            referencedRelation: "proveedores_armados"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       recepciones_mercancia: {
         Row: {
@@ -9182,6 +9222,10 @@ export type Database = {
         Args: { operation: string; record_id?: string; table_name: string }
         Returns: undefined
       }
+      auto_add_personal_address: {
+        Args: { p_armado_id: string; p_coordenadas?: Json; p_direccion: string }
+        Returns: string
+      }
       auto_asignar_kit_instalacion: {
         Args: {
           p_forzar_asignacion?: boolean
@@ -10856,6 +10900,10 @@ export type Database = {
       has_role: {
         Args: { role_name: string; user_uuid: string }
         Returns: boolean
+      }
+      increment_meeting_point_usage: {
+        Args: { point_id: string }
+        Returns: undefined
       }
       is_admin: {
         Args: Record<PropertyKey, never> | { user_id: string }

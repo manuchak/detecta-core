@@ -8,7 +8,7 @@ import { Settings, Users, MapPin, DollarSign, Database, Navigation } from 'lucid
 import ClientesTab from './ClientesTab';
 import { CustodiosTab } from './CustodiosTab';
 import { MatrizPreciosTab } from './MatrizPreciosTab';
-import { ManageMeetingPointsTab } from './configuration/ManageMeetingPointsTab';
+import { ContextualMeetingPointsTab } from './configuration/ContextualMeetingPointsTab';
 
 export function PlanningConfigurationTab() {
   const [activeConfigTab, setActiveConfigTab] = useState('clientes');
@@ -84,7 +84,7 @@ export function PlanningConfigurationTab() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ManageMeetingPointsTab />
+              <ContextualMeetingPointsTab />
             </CardContent>
           </Card>
         </TabsContent>

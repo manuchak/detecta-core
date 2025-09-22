@@ -13,6 +13,12 @@ export interface MeetingPoint {
   coordenadas?: any;
   created_at: string;
   updated_at: string;
+  tipo_operacion: 'base_empresa' | 'direccion_personal' | 'base_proveedor' | 'general';
+  armado_interno_id?: string;
+  proveedor_id?: string;
+  base_empresa?: string;
+  auto_agregado: boolean;
+  frecuencia_uso: number;
 }
 
 export interface CreateMeetingPointData {
@@ -22,23 +28,49 @@ export interface CreateMeetingPointData {
   categoria: string;
   zona: string;
   coordenadas?: any;
+  tipo_operacion?: 'base_empresa' | 'direccion_personal' | 'base_proveedor' | 'general';
+  armado_interno_id?: string;
+  proveedor_id?: string;
+  base_empresa?: string;
 }
 
 export interface UpdateMeetingPointData extends CreateMeetingPointData {
   activo?: boolean;
 }
 
-// Hook para obtener puntos de encuentro
-export function usePredefinedMeetingPoints() {
+// Hook para obtener puntos de encuentro con filtros contextuales
+export function usePredefinedMeetingPoints(filters?: {
+  tipo_operacion?: string;
+  armado_interno_id?: string;
+  proveedor_id?: string;
+  include_general?: boolean;
+}) {
   return useQuery({
-    queryKey: ['predefined-meeting-points'],
+    queryKey: ['predefined-meeting-points', filters],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('puntos_encuentro_predefinidos')
         .select('*')
-        .order('zona', { ascending: true })
-        .order('nombre', { ascending: true });
+        .eq('activo', true);
 
+      // Apply contextual filters
+      if (filters?.tipo_operacion) {
+        query = query.eq('tipo_operacion', filters.tipo_operacion);
+      }
+      
+      if (filters?.armado_interno_id) {
+        query = query.or(`armado_interno_id.eq.${filters.armado_interno_id},tipo_operacion.eq.general${filters.include_general !== false ? ',tipo_operacion.eq.base_empresa' : ''}`);
+      }
+      
+      if (filters?.proveedor_id) {
+        query = query.or(`proveedor_id.eq.${filters.proveedor_id},tipo_operacion.eq.general`);
+      }
+
+      // Order by frequency and then by name
+      query = query.order('frecuencia_uso', { ascending: false })
+                  .order('nombre', { ascending: true });
+
+      const { data, error } = await query;
       if (error) throw error;
       return data as MeetingPoint[];
     }
@@ -53,7 +85,10 @@ export function useCreateMeetingPoint() {
     mutationFn: async (data: CreateMeetingPointData) => {
       const { data: result, error } = await supabase
         .from('puntos_encuentro_predefinidos')
-        .insert([data])
+        .insert([{
+          ...data,
+          tipo_operacion: data.tipo_operacion || 'general'
+        }])
         .select()
         .single();
 
@@ -137,6 +172,61 @@ export function useDeleteMeetingPoint() {
         description: error.message || 'No se pudo eliminar el punto de encuentro.',
         variant: 'destructive'
       });
+    }
+  });
+}
+
+// Hook para incrementar uso de punto de encuentro
+export function useIncrementMeetingPointUsage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (pointId: string) => {
+      const { error } = await supabase.rpc('increment_meeting_point_usage', {
+        point_id: pointId
+      });
+
+      if (error) throw error;
+      return pointId;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['predefined-meeting-points'] });
+    }
+  });
+}
+
+// Hook para auto-agregar dirección personal
+export function useAutoAddPersonalAddress() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      armadoId,
+      direccion,
+      coordenadas
+    }: {
+      armadoId: string;
+      direccion: string;
+      coordenadas?: any;
+    }) => {
+      const { data, error } = await supabase.rpc('auto_add_personal_address', {
+        p_armado_id: armadoId,
+        p_direccion: direccion,
+        p_coordenadas: coordenadas
+      });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['predefined-meeting-points'] });
+      toast({
+        title: '📍 Dirección guardada',
+        description: 'La dirección se agregó como favorita para este armado.'
+      });
+    },
+    onError: (error: any) => {
+      console.error('Error auto-adding personal address:', error);
     }
   });
 }
