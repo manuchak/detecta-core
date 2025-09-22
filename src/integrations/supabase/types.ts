@@ -864,6 +864,57 @@ export type Database = {
         }
         Relationships: []
       }
+      assignment_audit_log: {
+        Row: {
+          action_type: string
+          armado_id: string | null
+          assignment_id: string | null
+          changes_summary: string | null
+          created_at: string
+          custodio_id: string | null
+          id: string
+          ip_address: unknown | null
+          new_data: Json | null
+          performed_by: string
+          previous_data: Json | null
+          proveedor_id: string | null
+          service_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          action_type: string
+          armado_id?: string | null
+          assignment_id?: string | null
+          changes_summary?: string | null
+          created_at?: string
+          custodio_id?: string | null
+          id?: string
+          ip_address?: unknown | null
+          new_data?: Json | null
+          performed_by: string
+          previous_data?: Json | null
+          proveedor_id?: string | null
+          service_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          action_type?: string
+          armado_id?: string | null
+          assignment_id?: string | null
+          changes_summary?: string | null
+          created_at?: string
+          custodio_id?: string | null
+          id?: string
+          ip_address?: unknown | null
+          new_data?: Json | null
+          performed_by?: string
+          previous_data?: Json | null
+          proveedor_id?: string | null
+          service_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       audit_api_credentials: {
         Row: {
           action: string
@@ -2358,6 +2409,54 @@ export type Database = {
           total_servicios_historicos?: number | null
           updated_at?: string
           zona_operacion?: string
+        }
+        Relationships: []
+      }
+      custodios_vehiculos: {
+        Row: {
+          año: number | null
+          color: string | null
+          created_at: string
+          custodio_id: string
+          es_principal: boolean
+          estado: string
+          id: string
+          marca: string
+          modelo: string
+          numero_serie: string | null
+          observaciones: string | null
+          placa: string
+          updated_at: string
+        }
+        Insert: {
+          año?: number | null
+          color?: string | null
+          created_at?: string
+          custodio_id: string
+          es_principal?: boolean
+          estado?: string
+          id?: string
+          marca: string
+          modelo: string
+          numero_serie?: string | null
+          observaciones?: string | null
+          placa: string
+          updated_at?: string
+        }
+        Update: {
+          año?: number | null
+          color?: string | null
+          created_at?: string
+          custodio_id?: string
+          es_principal?: boolean
+          estado?: string
+          id?: string
+          marca?: string
+          modelo?: string
+          numero_serie?: string | null
+          observaciones?: string | null
+          placa?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -10539,6 +10638,16 @@ export type Database = {
           permission_type: string
           role: string
           updated_at: string
+        }[]
+      }
+      get_scheduled_services_summary: {
+        Args: { date_filter?: string }
+        Returns: {
+          assigned_services: number
+          confirmed_services: number
+          pending_services: number
+          services_data: Json
+          total_services: number
         }[]
       }
       get_services_by_exact_phone: {
