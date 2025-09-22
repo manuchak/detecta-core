@@ -24,6 +24,9 @@ export interface CustodioEnriquecido extends CustodioConProximidad {
   rejection_risk: 'bajo' | 'medio' | 'alto';
   response_speed: 'rapido' | 'normal' | 'lento';
   experience_category: 'experimentado' | 'intermedio' | 'rookie' | 'nuevo' | 'candidato';
+  
+  // Razones de recomendación para UI
+  razones_recomendacion?: string[];
 }
 
 interface UseCustodiosWithTrackingParams {
@@ -122,9 +125,14 @@ export const useCustodiosWithTracking = ({
       
       if (filtros.disponibilidad !== undefined) {
         if (filtros.disponibilidad) {
-          filtered = filtered.filter(c => c.disponibilidad === 'disponible');
+          // Excluir custodios temporalmente indisponibles
+          filtered = filtered.filter(c => 
+            c.disponibilidad === 'disponible'
+          );
         } else {
-          filtered = filtered.filter(c => c.disponibilidad !== 'disponible');
+          filtered = filtered.filter(c => 
+            c.disponibilidad !== 'disponible'
+          );
         }
       }
       

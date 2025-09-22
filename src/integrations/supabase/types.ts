@@ -1535,6 +1535,75 @@ export type Database = {
         }
         Relationships: []
       }
+      custodio_indisponibilidades: {
+        Row: {
+          created_at: string | null
+          custodio_id: string
+          estado: string
+          fecha_fin_estimada: string | null
+          fecha_fin_real: string | null
+          fecha_inicio: string
+          id: string
+          metadata: Json | null
+          motivo: string
+          notas: string | null
+          reportado_por: string | null
+          requiere_seguimiento: boolean | null
+          severidad: string | null
+          tipo_indisponibilidad: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          custodio_id: string
+          estado?: string
+          fecha_fin_estimada?: string | null
+          fecha_fin_real?: string | null
+          fecha_inicio?: string
+          id?: string
+          metadata?: Json | null
+          motivo: string
+          notas?: string | null
+          reportado_por?: string | null
+          requiere_seguimiento?: boolean | null
+          severidad?: string | null
+          tipo_indisponibilidad: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          custodio_id?: string
+          estado?: string
+          fecha_fin_estimada?: string | null
+          fecha_fin_real?: string | null
+          fecha_inicio?: string
+          id?: string
+          metadata?: Json | null
+          motivo?: string
+          notas?: string | null
+          reportado_por?: string | null
+          requiere_seguimiento?: boolean | null
+          severidad?: string | null
+          tipo_indisponibilidad?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custodio_indisponibilidades_custodio_id_fkey"
+            columns: ["custodio_id"]
+            isOneToOne: false
+            referencedRelation: "custodios_operativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custodio_indisponibilidades_custodio_id_fkey"
+            columns: ["custodio_id"]
+            isOneToOne: false
+            referencedRelation: "custodios_operativos_disponibles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custodio_performance_metrics: {
         Row: {
           created_at: string
@@ -8461,6 +8530,98 @@ export type Database = {
         }
         Relationships: []
       }
+      custodios_operativos_disponibles: {
+        Row: {
+          certificaciones: string[] | null
+          created_at: string | null
+          disponibilidad: string | null
+          disponibilidad_efectiva:
+            | Database["public"]["Enums"]["disponibilidad_custodio"]
+            | null
+          email: string | null
+          estado: string | null
+          experiencia_seguridad: boolean | null
+          fecha_ultimo_servicio: string | null
+          fuente: string | null
+          id: string | null
+          indisponibilidades_activas: Json | null
+          lat: number | null
+          lng: number | null
+          nombre: string | null
+          numero_servicios: number | null
+          rating_promedio: number | null
+          score_aceptacion: number | null
+          score_comunicacion: number | null
+          score_confiabilidad: number | null
+          score_total: number | null
+          tasa_aceptacion: number | null
+          tasa_confiabilidad: number | null
+          tasa_respuesta: number | null
+          telefono: string | null
+          updated_at: string | null
+          vehiculo_propio: boolean | null
+          zona_base: string | null
+        }
+        Insert: {
+          certificaciones?: string[] | null
+          created_at?: string | null
+          disponibilidad?: string | null
+          disponibilidad_efectiva?: never
+          email?: string | null
+          estado?: string | null
+          experiencia_seguridad?: boolean | null
+          fecha_ultimo_servicio?: string | null
+          fuente?: string | null
+          id?: string | null
+          indisponibilidades_activas?: never
+          lat?: number | null
+          lng?: number | null
+          nombre?: string | null
+          numero_servicios?: number | null
+          rating_promedio?: number | null
+          score_aceptacion?: number | null
+          score_comunicacion?: number | null
+          score_confiabilidad?: number | null
+          score_total?: number | null
+          tasa_aceptacion?: number | null
+          tasa_confiabilidad?: number | null
+          tasa_respuesta?: number | null
+          telefono?: string | null
+          updated_at?: string | null
+          vehiculo_propio?: boolean | null
+          zona_base?: string | null
+        }
+        Update: {
+          certificaciones?: string[] | null
+          created_at?: string | null
+          disponibilidad?: string | null
+          disponibilidad_efectiva?: never
+          email?: string | null
+          estado?: string | null
+          experiencia_seguridad?: boolean | null
+          fecha_ultimo_servicio?: string | null
+          fuente?: string | null
+          id?: string | null
+          indisponibilidades_activas?: never
+          lat?: number | null
+          lng?: number | null
+          nombre?: string | null
+          numero_servicios?: number | null
+          rating_promedio?: number | null
+          score_aceptacion?: number | null
+          score_comunicacion?: number | null
+          score_confiabilidad?: number | null
+          score_total?: number | null
+          tasa_aceptacion?: number | null
+          tasa_confiabilidad?: number | null
+          tasa_respuesta?: number | null
+          telefono?: string | null
+          updated_at?: string | null
+          vehiculo_propio?: boolean | null
+          zona_base?: string | null
+        }
+        Relationships: []
+      }
       user_skills_view: {
         Row: {
           display_name: string | null
@@ -8528,6 +8689,10 @@ export type Database = {
           p_tipo_vehiculo?: string
         }
         Returns: Json
+      }
+      auto_reactivar_custodios: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       award_points: {
         Args: {

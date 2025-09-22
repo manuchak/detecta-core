@@ -15,6 +15,7 @@ export type TipoServicioCustodia = 'traslado' | 'custodia_local' | 'escolta' | '
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import * as planeacionService from '@/services/planeacionService';
 import { FiltrosServicios, FiltrosCustodios, FiltrosClientes, ClienteForm, CustodioForm, ServicioForm } from '@/types/planeacion';
 
@@ -89,8 +90,33 @@ export const useDeleteCliente = () => {
 
 export const useCustodios = (filtros?: FiltrosCustodios) => {
   return useQuery({
-    queryKey: ['custodios', JSON.stringify(filtros)],
-    queryFn: () => planeacionService.custodiosService.getAll(filtros),
+    queryKey: ['custodios-operativos-disponibles', JSON.stringify(filtros)],
+    queryFn: async () => {
+      // Usar la vista optimizada que filtra automáticamente por actividad e indisponibilidades
+      const { data, error } = await supabase
+        .from('custodios_operativos_disponibles')
+        .select('*')
+        .order('score_total', { ascending: false });
+
+      if (error) throw error;
+      
+      let custodios = data || [];
+      
+      // Aplicar filtros adicionales si existen
+      if (filtros?.disponibilidad && custodios.length > 0) {
+        custodios = custodios.filter(c => 
+          c.disponibilidad_efectiva === filtros.disponibilidad
+        );
+      }
+      
+      if (filtros?.zona_base && custodios.length > 0) {
+        custodios = custodios.filter(c => 
+          c.zona_base?.toLowerCase().includes(filtros.zona_base!.toLowerCase())
+        );
+      }
+      
+      return custodios;
+    },
   });
 };
 

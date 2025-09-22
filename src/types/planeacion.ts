@@ -3,7 +3,7 @@
 // =====================================================
 
 export type EstadoCustodio = 'activo' | 'inactivo';
-export type DisponibilidadCustodio = 'disponible' | 'ocupado' | 'off';
+export type DisponibilidadCustodio = 'disponible' | 'ocupado' | 'off' | 'temporalmente_indisponible';
 export type TipoCustodia = 'armado' | 'no_armado';
 export type EstadoServicio = 'nuevo' | 'en_oferta' | 'asignado' | 'en_curso' | 'finalizado' | 'cancelado';
 export type EstadoOferta = 'enviada' | 'aceptada' | 'rechazada' | 'expirada';

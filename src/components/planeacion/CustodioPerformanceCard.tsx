@@ -279,11 +279,11 @@ export const CustodioPerformanceCard = ({
         </div>
 
         {/* Razones de recomendación si existen */}
-        {custodio.razones_recomendacion && custodio.razones_recomendacion.length > 0 && (
+        {custodio.scoring_proximidad?.detalles?.razones && custodio.scoring_proximidad.detalles.razones.length > 0 && (
           <div className="mt-2 pt-2 border-t border-border">
             <div className="text-xs text-muted-foreground mb-1">Factores clave:</div>
             <div className="flex flex-wrap gap-1">
-              {custodio.razones_recomendacion.slice(0, 2).map((razon, index) => (
+              {custodio.scoring_proximidad.detalles.razones.slice(0, 2).map((razon, index) => (
                 <Badge key={index} variant="secondary" className="text-xs">
                   {razon}
                 </Badge>
