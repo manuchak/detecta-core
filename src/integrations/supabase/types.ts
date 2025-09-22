@@ -7201,6 +7201,45 @@ export type Database = {
         }
         Relationships: []
       }
+      puntos_encuentro_predefinidos: {
+        Row: {
+          activo: boolean | null
+          categoria: string | null
+          coordenadas: unknown | null
+          created_at: string | null
+          descripcion: string | null
+          direccion_completa: string
+          id: string
+          nombre: string
+          updated_at: string | null
+          zona: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          categoria?: string | null
+          coordenadas?: unknown | null
+          created_at?: string | null
+          descripcion?: string | null
+          direccion_completa: string
+          id?: string
+          nombre: string
+          updated_at?: string | null
+          zona?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          categoria?: string | null
+          coordenadas?: unknown | null
+          created_at?: string | null
+          descripcion?: string | null
+          direccion_completa?: string
+          id?: string
+          nombre?: string
+          updated_at?: string | null
+          zona?: string | null
+        }
+        Relationships: []
+      }
       recepciones_mercancia: {
         Row: {
           created_at: string | null

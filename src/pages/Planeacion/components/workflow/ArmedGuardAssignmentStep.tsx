@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Shield, User, MapPin, Clock, Phone, MessageCircle, CheckCircle2, AlertCircle } from 'lucide-react';
+import { AppleTimePicker } from '@/components/ui/apple-time-picker';
+import { SmartLocationDropdown } from '@/components/ui/smart-location-dropdown';
+import { useMeetingTimeCalculator } from '@/hooks/useMeetingTimeCalculator';
+import { Shield, User, MapPin, Clock, Phone, MessageCircle, CheckCircle2, AlertCircle, Info } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ArmedGuard {
@@ -72,6 +75,20 @@ export function ArmedGuardAssignmentStep({ serviceData, onComplete, onBack }: Ar
   const [loading, setLoading] = useState(true);
   const [puntoEncuentro, setPuntoEncuentro] = useState('');
   const [horaEncuentro, setHoraEncuentro] = useState('');
+
+  // Calculate recommended meeting time
+  const { calculatedMeetingTime, formatDisplayTime, getTimeRecommendation } = useMeetingTimeCalculator({
+    appointmentTime: serviceData.hora_ventana_inicio,
+    appointmentDate: serviceData.fecha_programada,
+    preparationMinutes: 90
+  });
+
+  // Set default meeting time when calculated
+  useEffect(() => {
+    if (calculatedMeetingTime && !horaEncuentro) {
+      setHoraEncuentro(calculatedMeetingTime);
+    }
+  }, [calculatedMeetingTime, horaEncuentro]);
 
   // Mock data for now - replace with actual API calls
   useEffect(() => {
@@ -386,30 +403,62 @@ export function ArmedGuardAssignmentStep({ serviceData, onComplete, onBack }: Ar
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Punto de Encuentro *
-                </label>
-                <input
-                  type="text"
+            <div className="space-y-6">
+              {/* Time Recommendation */}
+              {calculatedMeetingTime && (
+                <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <Info className="h-5 w-5 text-primary mt-0.5" />
+                    <div>
+                      <div className="font-medium text-sm text-primary">
+                        Hora recomendada: {formatDisplayTime(calculatedMeetingTime)}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {getTimeRecommendation(serviceData.hora_ventana_inicio || '', horaEncuentro)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <SmartLocationDropdown
                   value={puntoEncuentro}
-                  onChange={(e) => setPuntoEncuentro(e.target.value)}
-                  placeholder="Ej: Oficinas centrales, Estación metro..."
-                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                  onChange={setPuntoEncuentro}
+                  label="Punto de Encuentro"
+                  placeholder="Buscar ubicación favorita o escribir nueva dirección"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Hora de Encuentro *
-                </label>
-                <input
-                  type="time"
+                
+                <AppleTimePicker
                   value={horaEncuentro}
-                  onChange={(e) => setHoraEncuentro(e.target.value)}
-                  className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                  onChange={setHoraEncuentro}
+                  defaultTime={calculatedMeetingTime || undefined}
+                  label="Hora de Encuentro"
                 />
               </div>
+
+              {/* Meeting Summary */}
+              {puntoEncuentro && horaEncuentro && (
+                <div className="bg-accent/50 border border-border rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <Clock className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div>
+                      <div className="font-medium text-sm">Resumen del Encuentro</div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        📍 {puntoEncuentro}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        🕐 {formatDisplayTime(horaEncuentro)}
+                      </div>
+                      {serviceData.hora_ventana_inicio && (
+                        <div className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border">
+                          Cita con cliente: {formatDisplayTime(serviceData.hora_ventana_inicio)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
