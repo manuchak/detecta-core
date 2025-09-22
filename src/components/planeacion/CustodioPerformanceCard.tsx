@@ -82,7 +82,7 @@ export const CustodioPerformanceCard = ({
       <div 
         className={`
           p-3 border rounded-lg cursor-pointer transition-all hover:shadow-md
-          ${selected ? 'ring-2 ring-primary border-primary bg-primary/5' : 'border-border hover:border-primary/50'}
+          ${selected ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50 dark:bg-blue-950/20' : 'border-border hover:border-primary/50'}
         `}
         onClick={() => onSelect?.(custodio)}
       >
@@ -97,7 +97,7 @@ export const CustodioPerformanceCard = ({
             </Badge>
             <div className="flex items-center gap-1">
               <Target className="h-3 w-3 text-primary" />
-              <span className="text-xs font-medium">{custodio.score_total.toFixed(0)}%</span>
+              <span className="text-xs font-medium">{(custodio.score_total * 10).toFixed(0)}%</span>
             </div>
           </div>
         </div>
@@ -135,7 +135,7 @@ export const CustodioPerformanceCard = ({
       <div 
         className={`
           p-4 border rounded-xl cursor-pointer transition-all hover:shadow-lg
-          ${selected ? 'ring-2 ring-primary border-primary bg-primary/5' : 'border-border hover:border-primary/50'}
+          ${selected ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50 dark:bg-blue-950/20' : 'border-border hover:border-primary/50'}
         `}
         onClick={() => onSelect?.(custodio)}
       >
@@ -165,7 +165,7 @@ export const CustodioPerformanceCard = ({
               <div className="flex items-center justify-end gap-1">
                 <Target className="h-4 w-4 text-primary" />
                 <span className="text-lg font-bold text-primary">
-                  {custodio.score_total.toFixed(0)}%
+                  {(custodio.score_total * 10).toFixed(0)}%
                 </span>
               </div>
               <div className="text-xs text-muted-foreground">Compatibilidad</div>
