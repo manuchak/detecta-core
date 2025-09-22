@@ -43,6 +43,44 @@ export const CustodioPerformanceCard = ({
     }
   };
 
+  const getBadgeInfo = (custodio: CustodioEnriquecido) => {
+    // Para custodios históricos con múltiples servicios
+    if (custodio.fuente === 'historico') {
+      const serviciosCount = custodio.servicios_historicos?.length || 0;
+      if (serviciosCount > 0) {
+        return {
+          label: 'Experimentado',
+          description: `${serviciosCount}+ servicios completados`,
+          color: 'bg-blue-500/10 text-blue-700 border-blue-500/20'
+        };
+      }
+    }
+    
+    // Para custodios en proceso de candidatura
+    if (custodio.fuente === 'candidatos_custodios') {
+      return {
+        label: 'Candidato',
+        description: 'En proceso de validación',
+        color: 'bg-orange-500/10 text-orange-700 border-orange-500/20'
+      };
+    }
+    
+    // Usar performance level por defecto
+    const levelMap = {
+      'excelente': { label: 'Excelente', color: 'bg-green-500/10 text-green-700 border-green-500/20' },
+      'bueno': { label: 'Bueno', color: 'bg-blue-500/10 text-blue-700 border-blue-500/20' },
+      'regular': { label: 'Regular', color: 'bg-yellow-500/10 text-yellow-700 border-yellow-500/20' },
+      'malo': { label: 'Bajo', color: 'bg-red-500/10 text-red-700 border-red-500/20' },
+      'nuevo': { label: 'Nuevo', color: 'bg-purple-500/10 text-purple-700 border-purple-500/20' }
+    };
+    
+    return {
+      label: levelMap[custodio.performance_level].label,
+      description: `Rendimiento ${custodio.performance_level}`,
+      color: levelMap[custodio.performance_level].color
+    };
+  };
+
   if (compact) {
     return (
       <div 
@@ -58,8 +96,8 @@ export const CustodioPerformanceCard = ({
             <p className="text-xs text-muted-foreground">{custodio.telefono}</p>
           </div>
           <div className="flex flex-col items-end gap-1 ml-2">
-            <Badge className={`text-xs px-1.5 py-0.5 ${getPerformanceBadgeColor(custodio.performance_level)}`}>
-              {custodio.performance_level}
+            <Badge className={`text-xs px-1.5 py-0.5 ${getBadgeInfo(custodio).color}`}>
+              {getBadgeInfo(custodio).label}
             </Badge>
             <div className="flex items-center gap-1">
               <Target className="h-3 w-3 text-primary" />
@@ -120,8 +158,8 @@ export const CustodioPerformanceCard = ({
           
           <div className="flex flex-col items-end gap-2">
             <div className="flex flex-col items-end gap-1">
-              <Badge className={`${getPerformanceBadgeColor(custodio.performance_level)}`}>
-                {custodio.performance_level}
+              <Badge className={`${getBadgeInfo(custodio).color}`}>
+                {getBadgeInfo(custodio).label}
               </Badge>
               <Badge className={`text-xs ${getRejectionBadgeColor(custodio.rejection_risk)}`}>
                 Rechazo: {custodio.rejection_risk}

@@ -82,8 +82,9 @@ export const useCustodiosWithTracking = ({
 
         // Calcular niveles categorizados
         const isNew = esNuevoCustodio(custodio);
-        const performance_level = getPerformanceLevel(scores.score_total, !!metrics, isNew);
-        const rejection_risk = getRejectionRisk(scores.tasa_aceptacion, !!metrics, isNew);
+        const custodioCategory = getCustodioCategory(custodio);
+        const performance_level = getPerformanceLevel(scores.score_total, !!metrics, custodioCategory);
+        const rejection_risk = getRejectionRisk(scores.tasa_aceptacion, !!metrics, custodioCategory);
         const response_speed = getResponseSpeed(metrics?.tiempo_promedio_respuesta_minutos || 0);
 
         return {
@@ -153,20 +154,38 @@ export const useCustodiosWithTracking = ({
   }, [custodios, JSON.stringify(filtros)]);
 
   // Funciones helper para categorizar performance
-  const getPerformanceLevel = (score: number, hasData: boolean, isNew: boolean): CustodioEnriquecido['performance_level'] => {
-    if (isNew) return 'nuevo';
-    if (!hasData) return 'nuevo'; // Sin historial reciente
+  const getPerformanceLevel = (score: number, hasData: boolean, category: string): CustodioEnriquecido['performance_level'] => {
+    // Custodios experimentados siempre usan datos reales
+    if (category === 'experimentado') {
+      if (score >= 8.5) return 'excelente';
+      if (score >= 7.0) return 'bueno';
+      if (score >= 5.5) return 'regular';
+      return 'malo';
+    }
+    
+    // Custodios nuevos
+    if (category === 'nuevo') return 'nuevo';
+    
+    // Sin historial o candidatos
+    if (!hasData) return 'nuevo';
+    
+    // Usar score para determinar nivel
     if (score >= 8.5) return 'excelente';
     if (score >= 7.0) return 'bueno';
     if (score >= 5.5) return 'regular';
     return 'malo';
   };
 
-  const getRejectionRisk = (tasaAceptacion: number, hasData: boolean, isNew: boolean): CustodioEnriquecido['rejection_risk'] => {
-    if (isNew || !hasData) return 'medio'; // Riesgo medio para nuevos
-    if (tasaAceptacion >= 70) return 'bajo';
-    if (tasaAceptacion >= 40) return 'medio';
-    return 'alto';
+  const getRejectionRisk = (tasaAceptacion: number, hasData: boolean, category: string): CustodioEnriquecido['rejection_risk'] => {
+    // Para custodios experimentados, usar datos reales
+    if (category === 'experimentado' && hasData) {
+      if (tasaAceptacion >= 70) return 'bajo';
+      if (tasaAceptacion >= 40) return 'medio';
+      return 'alto';
+    }
+    
+    // Para nuevos o sin historial, riesgo medio por defecto
+    return 'medio';
   };
 
   const getResponseSpeed = (tiempoPromedio: number): CustodioEnriquecido['response_speed'] => {
@@ -212,8 +231,13 @@ export const useCustodiosWithTracking = ({
 
 /**
  * Determina si un custodio es realmente nuevo (menos de 7 días de registro)
+ * Custodios históricos nunca se consideran nuevos
  */
 const esNuevoCustodio = (custodio: any): boolean => {
+  // Los custodios históricos nunca son "nuevos"
+  if (custodio.fuente === 'historico') return false;
+  
+  // Para custodios sin created_at, no son nuevos
   if (!custodio.created_at) return false;
   
   const fechaRegistro = new Date(custodio.created_at);
@@ -221,6 +245,33 @@ const esNuevoCustodio = (custodio: any): boolean => {
   const diasTranscurridos = (ahora.getTime() - fechaRegistro.getTime()) / (1000 * 60 * 60 * 24);
   
   return diasTranscurridos <= 7;
+};
+
+/**
+ * Determina la categoría del custodio basado en su fuente y experiencia
+ */
+const getCustodioCategory = (custodio: any): 'nuevo' | 'experimentado' | 'sin_historial' | 'candidato' => {
+  // Custodios históricos son siempre experimentados
+  if (custodio.fuente === 'historico') return 'experimentado';
+  
+  // Candidatos en proceso
+  if (custodio.fuente === 'candidatos_custodios') return 'candidato';
+  
+  // Custodios de pc_custodios
+  if (custodio.fuente === 'pc_custodios') {
+    // Si tiene servicios históricos, es experimentado
+    if (custodio.servicios_historicos && custodio.servicios_historicos.length > 0) {
+      return 'experimentado';
+    }
+    
+    // Si es nuevo (menos de 7 días), es nuevo
+    if (esNuevoCustodio(custodio)) return 'nuevo';
+    
+    // Si lleva tiempo registrado pero no tiene servicios, sin historial
+    return 'sin_historial';
+  }
+  
+  return 'sin_historial';
 };
 
 /**
