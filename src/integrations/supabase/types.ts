@@ -574,10 +574,232 @@ export type Database = {
         }
         Relationships: []
       }
+      armados_indisponibilidades: {
+        Row: {
+          activo: boolean | null
+          armado_id: string
+          created_at: string
+          fecha_fin: string | null
+          fecha_inicio: string
+          id: string
+          motivo: string | null
+          tipo: string
+        }
+        Insert: {
+          activo?: boolean | null
+          armado_id: string
+          created_at?: string
+          fecha_fin?: string | null
+          fecha_inicio: string
+          id?: string
+          motivo?: string | null
+          tipo: string
+        }
+        Update: {
+          activo?: boolean | null
+          armado_id?: string
+          created_at?: string
+          fecha_fin?: string | null
+          fecha_inicio?: string
+          id?: string
+          motivo?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "armados_indisponibilidades_armado_id_fkey"
+            columns: ["armado_id"]
+            isOneToOne: false
+            referencedRelation: "armados_operativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "armados_indisponibilidades_armado_id_fkey"
+            columns: ["armado_id"]
+            isOneToOne: false
+            referencedRelation: "armados_operativos_disponibles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      armados_operativos: {
+        Row: {
+          created_at: string
+          disponibilidad: string
+          email: string | null
+          equipamiento_disponible: string[] | null
+          estado: string
+          experiencia_anos: number | null
+          fecha_ultimo_servicio: string | null
+          fecha_vencimiento_licencia: string | null
+          fuente: string | null
+          id: string
+          licencia_portacion: string | null
+          nombre: string
+          numero_servicios: number | null
+          proveedor_id: string | null
+          rating_promedio: number | null
+          restricciones_horario: Json | null
+          score_comunicacion: number | null
+          score_confiabilidad: number | null
+          score_disponibilidad: number | null
+          score_total: number | null
+          servicios_permitidos: string[] | null
+          tasa_confiabilidad: number | null
+          tasa_confirmacion: number | null
+          tasa_respuesta: number | null
+          telefono: string | null
+          tipo_armado: string
+          updated_at: string
+          zona_base: string | null
+          zonas_permitidas: string[] | null
+        }
+        Insert: {
+          created_at?: string
+          disponibilidad?: string
+          email?: string | null
+          equipamiento_disponible?: string[] | null
+          estado?: string
+          experiencia_anos?: number | null
+          fecha_ultimo_servicio?: string | null
+          fecha_vencimiento_licencia?: string | null
+          fuente?: string | null
+          id?: string
+          licencia_portacion?: string | null
+          nombre: string
+          numero_servicios?: number | null
+          proveedor_id?: string | null
+          rating_promedio?: number | null
+          restricciones_horario?: Json | null
+          score_comunicacion?: number | null
+          score_confiabilidad?: number | null
+          score_disponibilidad?: number | null
+          score_total?: number | null
+          servicios_permitidos?: string[] | null
+          tasa_confiabilidad?: number | null
+          tasa_confirmacion?: number | null
+          tasa_respuesta?: number | null
+          telefono?: string | null
+          tipo_armado?: string
+          updated_at?: string
+          zona_base?: string | null
+          zonas_permitidas?: string[] | null
+        }
+        Update: {
+          created_at?: string
+          disponibilidad?: string
+          email?: string | null
+          equipamiento_disponible?: string[] | null
+          estado?: string
+          experiencia_anos?: number | null
+          fecha_ultimo_servicio?: string | null
+          fecha_vencimiento_licencia?: string | null
+          fuente?: string | null
+          id?: string
+          licencia_portacion?: string | null
+          nombre?: string
+          numero_servicios?: number | null
+          proveedor_id?: string | null
+          rating_promedio?: number | null
+          restricciones_horario?: Json | null
+          score_comunicacion?: number | null
+          score_confiabilidad?: number | null
+          score_disponibilidad?: number | null
+          score_total?: number | null
+          servicios_permitidos?: string[] | null
+          tasa_confiabilidad?: number | null
+          tasa_confirmacion?: number | null
+          tasa_respuesta?: number | null
+          telefono?: string | null
+          tipo_armado?: string
+          updated_at?: string
+          zona_base?: string | null
+          zonas_permitidas?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_armados_proveedor"
+            columns: ["proveedor_id"]
+            isOneToOne: false
+            referencedRelation: "proveedores_armados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      armados_performance_metrics: {
+        Row: {
+          armado_id: string
+          id: string
+          no_shows: number | null
+          score_comunicacion: number | null
+          score_profesionalismo: number | null
+          score_puntualidad: number | null
+          score_total: number | null
+          tasa_confiabilidad: number | null
+          tasa_confirmacion: number | null
+          tiempo_respuesta_promedio: number | null
+          total_asignaciones: number | null
+          total_cancelaciones: number | null
+          total_confirmaciones: number | null
+          total_servicios_completados: number | null
+          updated_at: string
+        }
+        Insert: {
+          armado_id: string
+          id?: string
+          no_shows?: number | null
+          score_comunicacion?: number | null
+          score_profesionalismo?: number | null
+          score_puntualidad?: number | null
+          score_total?: number | null
+          tasa_confiabilidad?: number | null
+          tasa_confirmacion?: number | null
+          tiempo_respuesta_promedio?: number | null
+          total_asignaciones?: number | null
+          total_cancelaciones?: number | null
+          total_confirmaciones?: number | null
+          total_servicios_completados?: number | null
+          updated_at?: string
+        }
+        Update: {
+          armado_id?: string
+          id?: string
+          no_shows?: number | null
+          score_comunicacion?: number | null
+          score_profesionalismo?: number | null
+          score_puntualidad?: number | null
+          score_total?: number | null
+          tasa_confiabilidad?: number | null
+          tasa_confirmacion?: number | null
+          tiempo_respuesta_promedio?: number | null
+          total_asignaciones?: number | null
+          total_cancelaciones?: number | null
+          total_confirmaciones?: number | null
+          total_servicios_completados?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "armados_performance_metrics_armado_id_fkey"
+            columns: ["armado_id"]
+            isOneToOne: true
+            referencedRelation: "armados_operativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "armados_performance_metrics_armado_id_fkey"
+            columns: ["armado_id"]
+            isOneToOne: true
+            referencedRelation: "armados_operativos_disponibles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       asignacion_armados: {
         Row: {
           armado_id: string | null
           asignado_por: string | null
+          calificacion_servicio: number | null
           confirmado_por_armado: boolean | null
           confirmado_por_custodio: boolean | null
           coordenadas_encuentro: unknown | null
@@ -586,16 +808,20 @@ export type Database = {
           estado_asignacion: string
           hora_encuentro: string | null
           id: string
+          moneda: string | null
           observaciones: string | null
           proveedor_armado_id: string | null
           punto_encuentro: string | null
           servicio_custodia_id: string | null
+          tarifa_acordada: number | null
+          tiempo_respuesta_minutos: number | null
           tipo_asignacion: string
           updated_at: string
         }
         Insert: {
           armado_id?: string | null
           asignado_por?: string | null
+          calificacion_servicio?: number | null
           confirmado_por_armado?: boolean | null
           confirmado_por_custodio?: boolean | null
           coordenadas_encuentro?: unknown | null
@@ -604,16 +830,20 @@ export type Database = {
           estado_asignacion?: string
           hora_encuentro?: string | null
           id?: string
+          moneda?: string | null
           observaciones?: string | null
           proveedor_armado_id?: string | null
           punto_encuentro?: string | null
           servicio_custodia_id?: string | null
+          tarifa_acordada?: number | null
+          tiempo_respuesta_minutos?: number | null
           tipo_asignacion?: string
           updated_at?: string
         }
         Update: {
           armado_id?: string | null
           asignado_por?: string | null
+          calificacion_servicio?: number | null
           confirmado_por_armado?: boolean | null
           confirmado_por_custodio?: boolean | null
           coordenadas_encuentro?: unknown | null
@@ -622,10 +852,13 @@ export type Database = {
           estado_asignacion?: string
           hora_encuentro?: string | null
           id?: string
+          moneda?: string | null
           observaciones?: string | null
           proveedor_armado_id?: string | null
           punto_encuentro?: string | null
           servicio_custodia_id?: string | null
+          tarifa_acordada?: number | null
+          tiempo_respuesta_minutos?: number | null
           tipo_asignacion?: string
           updated_at?: string
         }
@@ -6846,57 +7079,87 @@ export type Database = {
       proveedores_armados: {
         Row: {
           activo: boolean | null
+          capacidad_actual: number | null
+          capacidad_maxima: number | null
           contacto_principal: string
           created_at: string
+          descuento_volumen: number | null
           disponibilidad_24h: boolean | null
           documentacion_legal: string[] | null
-          email_contacto: string | null
+          documentos_completos: boolean | null
+          email_contacto: string
           id: string
+          licencias_vigentes: boolean | null
           nombre_empresa: string
+          numero_servicios_empresa: number | null
           observaciones: string | null
           rating_proveedor: number | null
-          servicios_completados: number | null
-          tarifa_por_servicio: number | null
+          rfc: string | null
+          servicios_disponibles: string[] | null
+          tarifa_alta_seguridad: number | null
+          tarifa_base_foraneo: number | null
+          tarifa_base_local: number | null
+          tasa_confirmacion_empresa: number | null
           telefono_contacto: string
           tiempo_respuesta_promedio: number | null
           updated_at: string
-          zonas_cobertura: string[] | null
+          zonas_cobertura: string[]
         }
         Insert: {
           activo?: boolean | null
+          capacidad_actual?: number | null
+          capacidad_maxima?: number | null
           contacto_principal: string
           created_at?: string
+          descuento_volumen?: number | null
           disponibilidad_24h?: boolean | null
           documentacion_legal?: string[] | null
-          email_contacto?: string | null
+          documentos_completos?: boolean | null
+          email_contacto: string
           id?: string
+          licencias_vigentes?: boolean | null
           nombre_empresa: string
+          numero_servicios_empresa?: number | null
           observaciones?: string | null
           rating_proveedor?: number | null
-          servicios_completados?: number | null
-          tarifa_por_servicio?: number | null
+          rfc?: string | null
+          servicios_disponibles?: string[] | null
+          tarifa_alta_seguridad?: number | null
+          tarifa_base_foraneo?: number | null
+          tarifa_base_local?: number | null
+          tasa_confirmacion_empresa?: number | null
           telefono_contacto: string
           tiempo_respuesta_promedio?: number | null
           updated_at?: string
-          zonas_cobertura?: string[] | null
+          zonas_cobertura?: string[]
         }
         Update: {
           activo?: boolean | null
+          capacidad_actual?: number | null
+          capacidad_maxima?: number | null
           contacto_principal?: string
           created_at?: string
+          descuento_volumen?: number | null
           disponibilidad_24h?: boolean | null
           documentacion_legal?: string[] | null
-          email_contacto?: string | null
+          documentos_completos?: boolean | null
+          email_contacto?: string
           id?: string
+          licencias_vigentes?: boolean | null
           nombre_empresa?: string
+          numero_servicios_empresa?: number | null
           observaciones?: string | null
           rating_proveedor?: number | null
-          servicios_completados?: number | null
-          tarifa_por_servicio?: number | null
+          rfc?: string | null
+          servicios_disponibles?: string[] | null
+          tarifa_alta_seguridad?: number | null
+          tarifa_base_foraneo?: number | null
+          tarifa_base_local?: number | null
+          tasa_confirmacion_empresa?: number | null
           telefono_contacto?: string
           tiempo_respuesta_promedio?: number | null
           updated_at?: string
-          zonas_cobertura?: string[] | null
+          zonas_cobertura?: string[]
         }
         Relationships: []
       }
@@ -8698,6 +8961,53 @@ export type Database = {
       }
     }
     Views: {
+      armados_operativos_disponibles: {
+        Row: {
+          created_at: string | null
+          disponibilidad: string | null
+          disponible_hoy: boolean | null
+          email: string | null
+          equipamiento_disponible: string[] | null
+          estado: string | null
+          experiencia_anos: number | null
+          fecha_ultimo_servicio: string | null
+          fecha_vencimiento_licencia: string | null
+          fuente: string | null
+          id: string | null
+          licencia_portacion: string | null
+          nombre: string | null
+          numero_servicios: number | null
+          proveedor_capacidad_actual: number | null
+          proveedor_capacidad_maxima: number | null
+          proveedor_id: string | null
+          proveedor_nombre: string | null
+          rating_promedio: number | null
+          restricciones_horario: Json | null
+          score_comunicacion: number | null
+          score_confiabilidad: number | null
+          score_disponibilidad: number | null
+          score_disponibilidad_efectiva: number | null
+          score_total: number | null
+          servicios_permitidos: string[] | null
+          tasa_confiabilidad: number | null
+          tasa_confirmacion: number | null
+          tasa_respuesta: number | null
+          telefono: string | null
+          tipo_armado: string | null
+          updated_at: string | null
+          zona_base: string | null
+          zonas_permitidas: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_armados_proveedor"
+            columns: ["proveedor_id"]
+            isOneToOne: false
+            referencedRelation: "proveedores_armados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custodios_operativos_activos: {
         Row: {
           km_promedio: number | null
@@ -10620,6 +10930,10 @@ export type Database = {
         Args: { p_lead_id: string; p_reason: string; p_session_id: string }
         Returns: boolean
       }
+      migrar_armados_historicos: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       migrar_custodios_historicos: {
         Args: Record<PropertyKey, never>
         Returns: number
@@ -10725,6 +11039,10 @@ export type Database = {
       redeem_points: {
         Args: { p_quantity?: number; p_reward_id: string; p_user_id: string }
         Returns: string
+      }
+      refresh_armados_operativos_disponibles: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       refresh_custodios_operativos_activos: {
         Args: Record<PropertyKey, never>
