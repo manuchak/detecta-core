@@ -1,0 +1,453 @@
+import React, { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { MessageCircle, Phone, User, MapPin, Target, Clock, CheckCircle, XCircle, ClockIcon } from 'lucide-react';
+import { toast } from 'sonner';
+import { useCustodioTracking } from '@/hooks/useCustodioTracking';
+import type { CustodioEnriquecido } from '@/hooks/useCustodiosWithTracking';
+
+// Catálogo estructurado de razones de rechazo
+const REJECTION_CATEGORIES = {
+  'disponibilidad_personal': {
+    label: 'Disponibilidad Personal',
+    reasons: [
+      'Asuntos familiares',
+      'Cita médica',
+      'Compromiso familiar',
+      'Custodio cansado',
+      'Enfermo',
+      'Familiar enfermo',
+      'Temas personales',
+      'Vacaciones'
+    ]
+  },
+  'problemas_vehiculo': {
+    label: 'Problemas del Vehículo',
+    reasons: [
+      'Auto en taller',
+      'Falla mecánica',
+      'No circula',
+      'Va a verificar su auto',
+      'Vehículo en servicio'
+    ]
+  },
+  'preferencias_servicio': {
+    label: 'Preferencias del Servicio',
+    reasons: [
+      'Cancela servicio',
+      'Dáselo a otro compañero',
+      'Me espero a otro servicio mejor',
+      'No quiere servicio con armado',
+      'Quiere solo que salga de la CDMX',
+      'Solo quiere servicio foráneo'
+    ]
+  },
+  'limitaciones_geograficas': {
+    label: 'Limitaciones Geográficas/Operativas',
+    reasons: [
+      'Distancia del servicio',
+      'No se encuentra en la ciudad',
+      'No va a Nuevo Laredo',
+      'Cita en el SAT'
+    ]
+  },
+  'problemas_economicos': {
+    label: 'Problemas Económicos/Documentales',
+    reasons: [
+      'Costo del servicio',
+      'No tengo capital',
+      'Documentación incompleta',
+      'No tiene su documentación completa'
+    ]
+  },
+  'comunicacion_otros': {
+    label: 'Comunicación/Otros',
+    reasons: [
+      'No disponible',
+      'No responde el medio',
+      'Otro'
+    ]
+  }
+};
+
+export interface CustodianContactDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  custodian: CustodioEnriquecido;
+  serviceDetails: {
+    origen: string;
+    destino: string;
+    fecha_hora: string;
+    tipo_servicio: string;
+  };
+  onResult: (result: {
+    status: 'acepta' | 'rechaza' | 'contactar_despues' | 'sin_respuesta';
+    razon_rechazo?: string;
+    categoria_rechazo?: string; 
+    detalles?: string;
+    contactar_en?: string;
+  }) => void;
+}
+
+export const CustodianContactDialog: React.FC<CustodianContactDialogProps> = ({
+  open,
+  onOpenChange,
+  custodian,
+  serviceDetails,
+  onResult
+}) => {
+  const [contactMethod, setContactMethod] = useState<'whatsapp' | 'llamada' | null>(null);
+  const [resultStatus, setResultStatus] = useState<'acepta' | 'rechaza' | 'contactar_despues' | 'sin_respuesta' | null>(null);
+  const [rejectionCategory, setRejectionCategory] = useState<string>('');
+  const [rejectionReason, setRejectionReason] = useState<string>('');
+  const [details, setDetails] = useState<string>('');
+  const [contactLater, setContactLater] = useState<string>('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [communicationId, setCommunicationId] = useState<string>('');
+
+  const { logCommunication, logResponse } = useCustodioTracking();
+
+  const handleContactStart = async (method: 'whatsapp' | 'llamada') => {
+    setContactMethod(method);
+    setIsProcessing(true);
+
+    try {
+      // Registrar inicio de comunicación
+      const communicationData = await logCommunication({
+        custodio_id: custodian.id!,
+        custodio_nombre: custodian.nombre,
+        custodio_telefono: custodian.telefono || '',
+        tipo_comunicacion: method,
+        contenido: `Oferta de servicio: ${serviceDetails.origen} → ${serviceDetails.destino}`,
+        metadata: {
+          servicio_detalle: serviceDetails,
+          metodo_contacto: method
+        }
+      });
+
+      // Guardar el ID de comunicación para usarlo en la respuesta
+      if (communicationData?.id) {
+        setCommunicationId(communicationData.id);
+      }
+
+      toast.success(`Iniciando contacto por ${method === 'whatsapp' ? 'WhatsApp' : 'llamada'}...`);
+    } catch (error) {
+      console.error('Error logging communication:', error);
+      toast.error('Error al registrar comunicación');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleSubmitResult = async () => {
+    if (!resultStatus || !contactMethod || !communicationId) return;
+
+    setIsProcessing(true);
+
+    try {
+      // Mapear nuestros estados a los tipos esperados por la API
+      const tipoRespuestaMap: Record<string, 'aceptacion' | 'rechazo' | 'consulta'> = {
+        'acepta': 'aceptacion',
+        'rechaza': 'rechazo',
+        'contactar_despues': 'consulta',
+        'sin_respuesta': 'rechazo' // Tratamos sin respuesta como rechazo
+      };
+
+      const responseData = {
+        communication_id: communicationId,
+        custodio_id: custodian.id!,
+        tipo_respuesta: tipoRespuestaMap[resultStatus],
+        respuesta_texto: details || undefined,
+        razon_rechazo: resultStatus === 'rechaza' ? 
+          `${REJECTION_CATEGORIES[rejectionCategory as keyof typeof REJECTION_CATEGORIES]?.label}: ${rejectionReason}` 
+          : resultStatus === 'sin_respuesta' ? 'Sin respuesta del custodio' : undefined,
+        metadata: {
+          estado_original: resultStatus,
+          categoria_rechazo: rejectionCategory,
+          razon_especifica: rejectionReason,
+          contactar_en: contactLater,
+          metodo_contacto: contactMethod,
+          servicio_detalle: serviceDetails
+        }
+      };
+
+      await logResponse(responseData);
+
+      onResult({
+        status: resultStatus,
+        categoria_rechazo: rejectionCategory,
+        razon_rechazo: rejectionReason,
+        detalles: details,
+        contactar_en: contactLater
+      });
+
+      toast.success('Resultado registrado exitosamente');
+      onOpenChange(false);
+      
+      // Reset form
+      resetForm();
+
+    } catch (error) {
+      console.error('Error logging response:', error);
+      toast.error('Error al registrar respuesta');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const resetForm = () => {
+    setContactMethod(null);
+    setResultStatus(null);
+    setRejectionCategory('');
+    setRejectionReason('');
+    setDetails('');
+    setContactLater('');
+    setCommunicationId('');
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(open) => {
+      onOpenChange(open);
+      if (!open) resetForm();
+    }}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <User className="h-5 w-5" />
+            Contactar Custodio
+          </DialogTitle>
+          <DialogDescription>
+            Realiza el contacto con el custodio y registra el resultado
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* Información del Custodio */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-lg">{custodian.nombre}</h4>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Phone className="h-4 w-4" />
+                    <span>{custodian.telefono}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <MapPin className="h-4 w-4" />
+                    <span>{custodian.zona_base || 'Sin zona definida'}</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Target className="h-4 w-4 text-primary" />
+                    <span className="text-sm">Score: {custodian.score_total}%</span>
+                  </div>
+                  {custodian.scoring_proximidad?.detalles?.distancia_estimada && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <MapPin className="h-4 w-4" />
+                      <span>Distancia: {custodian.scoring_proximidad.detalles.distancia_estimada.toFixed(1)}km</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">
+                      {custodian.performance_level || 'Nuevo'}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Detalles del Servicio */}
+          <Card>
+            <CardContent className="p-4">
+              <h4 className="font-semibold mb-2">Detalles del Servicio</h4>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Origen:</span>
+                  <p className="font-medium">{serviceDetails.origen}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Destino:</span>
+                  <p className="font-medium">{serviceDetails.destino}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Fecha/Hora:</span>
+                  <p className="font-medium">{serviceDetails.fecha_hora}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Tipo:</span>
+                  <p className="font-medium">{serviceDetails.tipo_servicio}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Botones de Contacto */}
+          {!contactMethod && (
+            <div className="grid grid-cols-2 gap-4">
+              <Button
+                onClick={() => handleContactStart('whatsapp')}
+                disabled={isProcessing}
+                className="flex items-center gap-2"
+                variant="outline"
+              >
+                <MessageCircle className="h-4 w-4" />
+                WhatsApp
+              </Button>
+              <Button
+                onClick={() => handleContactStart('llamada')}
+                disabled={isProcessing}
+                className="flex items-center gap-2"
+                variant="outline"
+              >
+                <Phone className="h-4 w-4" />
+                Llamar
+              </Button>
+            </div>
+          )}
+
+          {/* Formulario de Resultado */}
+          {contactMethod && (
+            <Card>
+              <CardContent className="p-4 space-y-4">
+                <h4 className="font-semibold">
+                  Resultado del contacto por {contactMethod === 'whatsapp' ? 'WhatsApp' : 'llamada'}
+                </h4>
+
+                {/* Estado del resultado */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <Button
+                    variant={resultStatus === 'acepta' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setResultStatus('acepta')}
+                    className="flex items-center gap-2"
+                  >
+                    <CheckCircle className="h-4 w-4" />
+                    Acepta
+                  </Button>
+                  <Button
+                    variant={resultStatus === 'rechaza' ? 'destructive' : 'outline'}
+                    size="sm"
+                    onClick={() => setResultStatus('rechaza')}
+                    className="flex items-center gap-2"
+                  >
+                    <XCircle className="h-4 w-4" />
+                    Rechaza
+                  </Button>
+                  <Button
+                    variant={resultStatus === 'contactar_despues' ? 'secondary' : 'outline'}
+                    size="sm"
+                    onClick={() => setResultStatus('contactar_despues')}
+                    className="flex items-center gap-2"
+                  >
+                    <ClockIcon className="h-4 w-4" />
+                    Contactar después
+                  </Button>
+                  <Button
+                    variant={resultStatus === 'sin_respuesta' ? 'outline' : 'outline'}
+                    size="sm"
+                    onClick={() => setResultStatus('sin_respuesta')}
+                  >
+                    Sin respuesta
+                  </Button>
+                </div>
+
+                {/* Formulario para rechazos */}
+                {resultStatus === 'rechaza' && (
+                  <div className="space-y-4 border rounded-lg p-4 bg-muted/20">
+                    <Label htmlFor="rejection-category">Categoría del rechazo</Label>
+                    <Select value={rejectionCategory} onValueChange={setRejectionCategory}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona una categoría" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(REJECTION_CATEGORIES).map(([key, category]) => (
+                          <SelectItem key={key} value={key}>
+                            {category.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    {rejectionCategory && (
+                      <>
+                        <Label htmlFor="rejection-reason">Razón específica</Label>
+                        <Select value={rejectionReason} onValueChange={setRejectionReason}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona la razón" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {REJECTION_CATEGORIES[rejectionCategory as keyof typeof REJECTION_CATEGORIES]?.reasons.map((reason) => (
+                              <SelectItem key={reason} value={reason}>
+                                {reason}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Campo para contactar después */}  
+                {resultStatus === 'contactar_despues' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="contact-later">¿Cuándo contactar?</Label>
+                    <Input
+                      id="contact-later"
+                      placeholder="Ej: En 2 horas, mañana por la mañana, etc."
+                      value={contactLater}
+                      onChange={(e) => setContactLater(e.target.value)}
+                    />
+                  </div>
+                )}
+
+                {/* Campo de detalles adicionales */}
+                <div className="space-y-2">
+                  <Label htmlFor="details">Detalles adicionales (opcional)</Label>
+                  <Textarea
+                    id="details"
+                    placeholder="Notas adicionales sobre la comunicación..."
+                    value={details}
+                    onChange={(e) => setDetails(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+
+                {/* Botones de acción */}
+                <div className="flex gap-2 pt-4">
+                  <Button
+                    onClick={handleSubmitResult}
+                    disabled={
+                      !resultStatus || 
+                      isProcessing ||
+                      (resultStatus === 'rechaza' && (!rejectionCategory || !rejectionReason)) ||
+                      (resultStatus === 'contactar_despues' && !contactLater)
+                    }
+                    className="flex-1"
+                  >
+                    {isProcessing ? 'Registrando...' : 'Confirmar Resultado'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={resetForm}
+                    disabled={isProcessing}
+                  >
+                    Reiniciar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
