@@ -10651,7 +10651,11 @@ export type Database = {
         | "coordinador_operaciones"
         | "tecnico_instalador"
       canal_comunicacion: "whatsapp" | "app" | "telefono" | "email"
-      disponibilidad_custodio: "disponible" | "ocupado" | "off"
+      disponibilidad_custodio:
+        | "disponible"
+        | "ocupado"
+        | "off"
+        | "temporalmente_indisponible"
       estado_custodio: "activo" | "inactivo"
       estado_oferta: "enviada" | "aceptada" | "rechazada" | "expirada"
       estado_servicio:
@@ -10845,7 +10849,12 @@ export const Constants = {
         "tecnico_instalador",
       ],
       canal_comunicacion: ["whatsapp", "app", "telefono", "email"],
-      disponibilidad_custodio: ["disponible", "ocupado", "off"],
+      disponibilidad_custodio: [
+        "disponible",
+        "ocupado",
+        "off",
+        "temporalmente_indisponible",
+      ],
       estado_custodio: ["activo", "inactivo"],
       estado_oferta: ["enviada", "aceptada", "rechazada", "expirada"],
       estado_servicio: [
