@@ -1714,6 +1714,90 @@ export type Database = {
           },
         ]
       }
+      custodios_operativos: {
+        Row: {
+          certificaciones: string[] | null
+          created_at: string | null
+          disponibilidad: string | null
+          email: string | null
+          estado: string | null
+          experiencia_seguridad: boolean | null
+          fecha_ultimo_servicio: string | null
+          fuente: string | null
+          id: string
+          lat: number | null
+          lng: number | null
+          nombre: string
+          numero_servicios: number | null
+          rating_promedio: number | null
+          score_aceptacion: number | null
+          score_comunicacion: number | null
+          score_confiabilidad: number | null
+          score_total: number | null
+          tasa_aceptacion: number | null
+          tasa_confiabilidad: number | null
+          tasa_respuesta: number | null
+          telefono: string | null
+          updated_at: string | null
+          vehiculo_propio: boolean | null
+          zona_base: string | null
+        }
+        Insert: {
+          certificaciones?: string[] | null
+          created_at?: string | null
+          disponibilidad?: string | null
+          email?: string | null
+          estado?: string | null
+          experiencia_seguridad?: boolean | null
+          fecha_ultimo_servicio?: string | null
+          fuente?: string | null
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          nombre: string
+          numero_servicios?: number | null
+          rating_promedio?: number | null
+          score_aceptacion?: number | null
+          score_comunicacion?: number | null
+          score_confiabilidad?: number | null
+          score_total?: number | null
+          tasa_aceptacion?: number | null
+          tasa_confiabilidad?: number | null
+          tasa_respuesta?: number | null
+          telefono?: string | null
+          updated_at?: string | null
+          vehiculo_propio?: boolean | null
+          zona_base?: string | null
+        }
+        Update: {
+          certificaciones?: string[] | null
+          created_at?: string | null
+          disponibilidad?: string | null
+          email?: string | null
+          estado?: string | null
+          experiencia_seguridad?: boolean | null
+          fecha_ultimo_servicio?: string | null
+          fuente?: string | null
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          nombre?: string
+          numero_servicios?: number | null
+          rating_promedio?: number | null
+          score_aceptacion?: number | null
+          score_comunicacion?: number | null
+          score_confiabilidad?: number | null
+          score_total?: number | null
+          tasa_aceptacion?: number | null
+          tasa_confiabilidad?: number | null
+          tasa_respuesta?: number | null
+          telefono?: string | null
+          updated_at?: string | null
+          vehiculo_propio?: boolean | null
+          zona_base?: string | null
+        }
+        Relationships: []
+      }
       custodios_primer_servicio_zona: {
         Row: {
           created_at: string
