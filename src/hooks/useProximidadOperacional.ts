@@ -284,9 +284,17 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
                 .order('fecha_hora_cita', { ascending: false })
                 .limit(10);
 
-              // Actualizar servicios históricos
+              // Obtener conteo real de servicios finalizados para diferenciar experiencia
+              const { count: serviciosCount } = await supabase
+                .from('servicios_custodia')
+                .select('id', { count: 'exact', head: true })
+                .eq('nombre_custodio', custodio.nombre)
+                .ilike('estado', 'finalizado');
+
+              // Actualizar servicios históricos y número de servicios
               const custodioActualizado: CustodioConHistorial = {
                 ...custodio,
+                numero_servicios: serviciosCount ?? (serviciosHistoricosCustodio?.length || custodio.numero_servicios || 0),
                 servicios_historicos: (serviciosHistoricosCustodio || []).map(servicio => ({
                   id: servicio.id,
                   fecha_hora_cita: servicio.fecha_hora_cita,

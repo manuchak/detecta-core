@@ -358,6 +358,21 @@ const calcularScoresIniciales = (custodio: any) => {
     if (custodio.vehiculo_propio) scoreConfiabilidad += 0.3;
   }
 
+  // Variabilidad determinística para quienes no tienen historial (misma entrada => mismo jitter)
+  if ((!custodio.numero_servicios || custodio.numero_servicios === 0) && custodio.fuente !== 'historico') {
+    const seedFrom = (s: string) => {
+      let h = 2166136261; // FNV-1a simple
+      for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+      return ((h >>> 0) % 1000) / 1000; // 0..1
+    };
+    const jitter = (key: string, amp: number) => (seedFrom(key) - 0.5) * 2 * amp; // -amp..+amp
+    const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+
+    scoreComunicacion = clamp(scoreComunicacion + jitter(`${custodio.nombre}_c`, 0.5), 4.5, 9.8);
+    scoreAceptacion = clamp(scoreAceptacion + jitter(`${custodio.nombre}_a`, 0.7), 4.8, 9.6);
+    scoreConfiabilidad = clamp(scoreConfiabilidad + jitter(`${custodio.nombre}_r`, 0.4), 5.5, 9.7);
+  }
+
   // Calcular tasas iniciales realistas basadas en perfil con más variación
   const tasaAceptacion = Math.min(98, Math.max(70, scoreAceptacion * 9.5 + 15)); // 70-98% rango más amplio
   const tasaRespuesta = Math.min(95, Math.max(65, scoreComunicacion * 9 + 20)); // 65-95% más variación  
