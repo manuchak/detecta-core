@@ -434,6 +434,8 @@ export function ArmedGuardAssignmentStep({ serviceData, onComplete, onBack }: Ar
                   onChange={setHoraEncuentro}
                   defaultTime={calculatedMeetingTime || undefined}
                   label="Hora de Encuentro"
+                  maxTime={serviceData.hora_ventana_inicio}
+                  appointmentDate={serviceData.fecha_programada}
                 />
               </div>
 

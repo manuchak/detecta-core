@@ -8,6 +8,8 @@ interface AppleTimePickerProps {
   defaultTime?: string;
   label?: string;
   className?: string;
+  maxTime?: string;
+  appointmentDate?: string;
 }
 
 export function AppleTimePicker({ 
@@ -15,7 +17,9 @@ export function AppleTimePicker({
   onChange, 
   defaultTime, 
   label = "Hora de encuentro",
-  className 
+  className,
+  maxTime,
+  appointmentDate
 }: AppleTimePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedHour, setSelectedHour] = useState(9);
@@ -40,7 +44,31 @@ export function AppleTimePicker({
   const hours = Array.from({ length: 12 }, (_, i) => i + 1);
   const minutes = Array.from({ length: 60 }, (_, i) => i);
 
+  // Check if a time is valid (before maxTime)
+  const isTimeValid = (hour: number, minute: number, period: 'AM' | 'PM') => {
+    if (!maxTime) return true;
+    
+    // Convert selected time to 24h format
+    let hour24 = hour === 12 ? 0 : hour;
+    if (period === 'PM' && hour !== 12) hour24 += 12;
+    if (period === 'AM' && hour === 12) hour24 = 0;
+    
+    // Parse maxTime
+    const [maxHour, maxMinute] = maxTime.split(':').map(Number);
+    
+    // Compare times in minutes from midnight
+    const selectedTimeMinutes = hour24 * 60 + minute;
+    const maxTimeMinutes = maxHour * 60 + maxMinute;
+    
+    return selectedTimeMinutes < maxTimeMinutes;
+  };
+
   const handleTimeChange = (hour: number, minute: number, period: 'AM' | 'PM') => {
+    // Check if the time is valid
+    if (!isTimeValid(hour, minute, period)) {
+      return; // Don't update if time is invalid
+    }
+
     setSelectedHour(hour);
     setSelectedMinute(minute);
     setSelectedPeriod(period);
@@ -89,20 +117,26 @@ export function AppleTimePicker({
               <div className="flex flex-col items-center">
                 <div className="text-xs text-muted-foreground mb-2">Hora</div>
                 <div className="h-32 overflow-y-auto scrollbar-thin">
-                  {hours.map((hour) => (
-                    <button
-                      key={hour}
-                      onClick={() => handleTimeChange(hour, selectedMinute, selectedPeriod)}
-                      className={cn(
-                        "w-12 h-8 text-center transition-colors rounded",
-                        selectedHour === hour
-                          ? "bg-primary text-primary-foreground"
-                          : "hover:bg-accent"
-                      )}
-                    >
-                      {hour}
-                    </button>
-                  ))}
+                  {hours.map((hour) => {
+                    const isValid = isTimeValid(hour, selectedMinute, selectedPeriod);
+                    return (
+                      <button
+                        key={hour}
+                        onClick={() => handleTimeChange(hour, selectedMinute, selectedPeriod)}
+                        disabled={!isValid}
+                        className={cn(
+                          "w-12 h-8 text-center transition-colors rounded",
+                          selectedHour === hour
+                            ? "bg-primary text-primary-foreground"
+                            : isValid
+                            ? "hover:bg-accent"
+                            : "text-muted-foreground/50 cursor-not-allowed"
+                        )}
+                      >
+                        {hour}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -112,20 +146,26 @@ export function AppleTimePicker({
               <div className="flex flex-col items-center">
                 <div className="text-xs text-muted-foreground mb-2">Min</div>
                 <div className="h-32 overflow-y-auto scrollbar-thin">
-                  {minutes.filter(m => m % 5 === 0).map((minute) => (
-                    <button
-                      key={minute}
-                      onClick={() => handleTimeChange(selectedHour, minute, selectedPeriod)}
-                      className={cn(
-                        "w-12 h-8 text-center transition-colors rounded",
-                        selectedMinute === minute
-                          ? "bg-primary text-primary-foreground"
-                          : "hover:bg-accent"
-                      )}
-                    >
-                      {minute.toString().padStart(2, '0')}
-                    </button>
-                  ))}
+                  {minutes.filter(m => m % 5 === 0).map((minute) => {
+                    const isValid = isTimeValid(selectedHour, minute, selectedPeriod);
+                    return (
+                      <button
+                        key={minute}
+                        onClick={() => handleTimeChange(selectedHour, minute, selectedPeriod)}
+                        disabled={!isValid}
+                        className={cn(
+                          "w-12 h-8 text-center transition-colors rounded",
+                          selectedMinute === minute
+                            ? "bg-primary text-primary-foreground"
+                            : isValid
+                            ? "hover:bg-accent"
+                            : "text-muted-foreground/50 cursor-not-allowed"
+                        )}
+                      >
+                        {minute.toString().padStart(2, '0')}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -133,20 +173,26 @@ export function AppleTimePicker({
               <div className="flex flex-col items-center">
                 <div className="text-xs text-muted-foreground mb-2">Periodo</div>
                 <div className="flex flex-col gap-1">
-                  {(['AM', 'PM'] as const).map((period) => (
-                    <button
-                      key={period}
-                      onClick={() => handleTimeChange(selectedHour, selectedMinute, period)}
-                      className={cn(
-                        "w-12 h-8 text-center transition-colors rounded text-sm",
-                        selectedPeriod === period
-                          ? "bg-primary text-primary-foreground"
-                          : "hover:bg-accent"
-                      )}
-                    >
-                      {period}
-                    </button>
-                  ))}
+                  {(['AM', 'PM'] as const).map((period) => {
+                    const isValid = isTimeValid(selectedHour, selectedMinute, period);
+                    return (
+                      <button
+                        key={period}
+                        onClick={() => handleTimeChange(selectedHour, selectedMinute, period)}
+                        disabled={!isValid}
+                        className={cn(
+                          "w-12 h-8 text-center transition-colors rounded text-sm",
+                          selectedPeriod === period
+                            ? "bg-primary text-primary-foreground"
+                            : isValid
+                            ? "hover:bg-accent"
+                            : "text-muted-foreground/50 cursor-not-allowed"
+                        )}
+                      >
+                        {period}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
