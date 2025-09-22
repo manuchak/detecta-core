@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { MessageCircle, Phone, User, MapPin, Target, Clock, CheckCircle, XCircle, ClockIcon, Calendar, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCustodioTracking } from '@/hooks/useCustodioTracking';
@@ -532,17 +533,15 @@ export const CustodianContactDialog: React.FC<CustodianContactDialogProps> = ({
                          </p>
                          
                          <div className="space-y-3">
-                           <div>
-                             <Label htmlFor="unavailability-end-date">¿Hasta cuándo estará indisponible? *</Label>
-                             <Input
-                               id="unavailability-end-date"
-                               type="datetime-local"
-                               value={unavailabilityEndDate}
-                               onChange={(e) => setUnavailabilityEndDate(e.target.value)}
-                               className="mt-1"
-                               min={new Date().toISOString().slice(0, 16)}
-                             />
-                           </div>
+                            <DateTimePicker
+                              label="¿Hasta cuándo estará indisponible?"
+                              placeholder="Selecciona fecha y hora de disponibilidad"
+                              value={unavailabilityEndDate}
+                              onChange={setUnavailabilityEndDate}
+                              required
+                              minDate={new Date()}
+                              className="mt-1"
+                            />
                            
                            <div>
                              <Label htmlFor="unavailability-notes">Notas adicionales (opcional)</Label>
