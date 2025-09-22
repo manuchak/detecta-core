@@ -9986,6 +9986,32 @@ export type Database = {
           ultimo_bono_fecha: string
         }[]
       }
+      get_custodios_activos_disponibles: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string
+          disponibilidad: string
+          estado: string
+          experiencia_seguridad: boolean
+          fecha_ultimo_servicio: string
+          fuente: string
+          id: string
+          nombre: string
+          numero_servicios: number
+          rating_promedio: number
+          score_aceptacion: number
+          score_comunicacion: number
+          score_confiabilidad: number
+          score_total: number
+          tasa_aceptacion: number
+          tasa_confiabilidad: number
+          tasa_respuesta: number
+          telefono: string
+          updated_at: string
+          vehiculo_propio: boolean
+          zona_base: string
+        }[]
+      }
       get_custodios_activos_safe: {
         Args: { search_term?: string }
         Returns: {

@@ -10,10 +10,11 @@ export interface CustodioConProximidad extends CustodioConHistorial {
 
 /**
  * Hook para obtener custodios con scoring de proximidad operacional
- * Usa la vista custodios_operativos_disponibles que filtra automáticamente por:
- * - Actividad en últimos 90 días O nuevos (creados en últimos 30 días)
+ * Usa la función get_custodios_activos_disponibles() que filtra automáticamente por:
+ * - Custodios con servicios completados en últimos 90 días O custodios nuevos (no migrados)
  * - Estado activo
  * - Disponibilidad efectiva considerando indisponibilidades
+ * - Excluye custodios históricos sin actividad reciente (ahora marcados como inactivo_temporal)
  */
 export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
   return useQuery({
@@ -21,12 +22,9 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
     queryFn: async () => {
       console.log('🔍 Obteniendo custodios con proximidad operacional...');
       
-      // Usar la vista optimizada que excluye custodios inactivos automáticamente
+      // Usar la función segura que filtra custodios con actividad reciente (90 días)
       const { data: custodiosDisponibles, error } = await supabase
-        .from('custodios_operativos_disponibles')
-        .select('*')
-        .eq('estado', 'activo')
-        .order('score_total', { ascending: false });
+        .rpc('get_custodios_activos_disponibles');
 
       if (error) {
         console.error('❌ Error al obtener custodios disponibles:', error);
