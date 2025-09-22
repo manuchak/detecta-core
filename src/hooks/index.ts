@@ -17,3 +17,6 @@ export { useCurrencyConverter } from './useCurrencyConverter';
 export { useProgramacionInstalaciones } from './useProgramacionInstalaciones';
 export { useEmpresasInstaladora } from './useEmpresasInstaladora';
 export { useServiceCapacity } from './useServiceCapacity';
+export { useArmedGuardsWithTracking } from './useArmedGuardsWithTracking';
+export { useArmedGuardsOperativos } from './useArmedGuardsOperativos';
+export { useProveedoresArmados } from './useProveedoresArmados';
