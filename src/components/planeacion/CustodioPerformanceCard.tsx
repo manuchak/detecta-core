@@ -82,7 +82,7 @@ export const CustodioPerformanceCard = ({
       <div 
         className={`
           p-3 border rounded-lg cursor-pointer transition-all hover:shadow-md
-          ${selected ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50 dark:bg-blue-950/20' : 'border-border hover:border-primary/50'}
+          ${selected ? 'ring-2 ring-gray-400 border-gray-400 bg-gray-50 dark:bg-gray-800/20' : 'border-border hover:border-gray-300'}
         `}
         onClick={() => onSelect?.(custodio)}
       >
@@ -135,7 +135,7 @@ export const CustodioPerformanceCard = ({
       <div 
         className={`
           p-4 border rounded-xl cursor-pointer transition-all hover:shadow-lg
-          ${selected ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50 dark:bg-blue-950/20' : 'border-border hover:border-primary/50'}
+          ${selected ? 'ring-2 ring-gray-400 border-gray-400 bg-gray-50 dark:bg-gray-800/20' : 'border-border hover:border-gray-300'}
         `}
         onClick={() => onSelect?.(custodio)}
       >
