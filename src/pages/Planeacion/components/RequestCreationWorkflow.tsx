@@ -10,6 +10,7 @@ import { ArmedGuardAssignmentStep } from './workflow/ArmedGuardAssignmentStep';
 
 interface RouteData {
   cliente_nombre: string;
+  origen_texto: string;
   destino_texto: string;
   precio_sugerido?: number;
   precio_custodio?: number;

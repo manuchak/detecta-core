@@ -169,172 +169,278 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
             1. Búsqueda de Ruta y Pricing
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Input Fields */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <CardContent className="space-y-6">
+          {/* Enhanced Input Fields - Single Line Layout */}
+          <div className="space-y-6">
+            {/* Row 1: Client Selection */}
             <div className="space-y-2 relative">
-              <Label htmlFor="cliente">Cliente *</Label>
-              <Input
-                id="cliente"
-                placeholder="Buscar cliente..."
-                value={cliente}
-                onChange={(e) => {
-                  setCliente(e.target.value);
-                  setShowClientSuggestions(e.target.value.length > 0);
-                }}
-                onFocus={() => setShowClientSuggestions(cliente.length > 0)}
-              />
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">
+                  1
+                </div>
+                <Label htmlFor="cliente" className="text-sm font-semibold">
+                  Seleccionar Cliente
+                  <span className="text-destructive ml-1">*</span>
+                </Label>
+              </div>
+              <div className="relative">
+                <Input
+                  id="cliente"
+                  placeholder="Escriba el nombre del cliente..."
+                  value={cliente}
+                  onChange={(e) => {
+                    setCliente(e.target.value);
+                    setShowClientSuggestions(e.target.value.length > 0);
+                  }}
+                  onFocus={() => setShowClientSuggestions(cliente.length > 0)}
+                  className={`h-12 text-base ${cliente ? 'border-green-300 bg-green-50/50 dark:bg-green-900/10' : 'border-destructive/50'}`}
+                />
+                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              </div>
               
-              {/* Client Suggestions */}
+              {/* Enhanced Client Suggestions */}
               {showClientSuggestions && clienteSuggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 z-10 bg-background border rounded-md shadow-lg max-h-40 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 z-20 bg-background border border-border rounded-lg shadow-xl max-h-60 overflow-y-auto mt-1">
                   {clienteSuggestions.map((c, index) => (
                     <button
                       key={index}
-                      className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
+                      className="w-full text-left px-4 py-3 hover:bg-muted/80 border-b border-border last:border-b-0 transition-colors"
                       onClick={() => selectClientSuggestion(c.cliente_nombre)}
                     >
-                      <div className="font-medium">{c.cliente_nombre}</div>
-                      <div className="text-xs text-muted-foreground">{c.servicios_count} destinos disponibles</div>
+                      <div className="font-semibold text-foreground">{c.cliente_nombre}</div>
+                      <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                        <MapPin className="h-3 w-3" />
+                        {c.servicios_count} rutas disponibles
+                      </div>
                     </button>
                   ))}
                 </div>
               )}
             </div>
-            
-            <div className="space-y-2 relative">
-              <Label htmlFor="origen">Origen *</Label>
-              <Select 
-                value={origen} 
-                onValueChange={(value) => {
-                  setOrigen(value);
-                  // Limpiar destino cuando se cambia origen
-                  setDestino('');
-                }}
-                disabled={!cliente}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={cliente ? "Seleccionar origen..." : "Primero selecciona cliente"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {origenesConFrecuencia.map((origenData) => (
-                    <SelectItem key={origenData.origen} value={origenData.origen}>
-                      <div className="flex items-center justify-between w-full">
-                        <span>{origenData.origen}</span>
-                        {origenData.frecuencia > 0 && (
-                          <Badge variant="outline" className="ml-2 text-xs">
-                            {origenData.frecuencia > 10 ? '⭐ Frecuente' : `${origenData.frecuencia}x`}
-                          </Badge>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2 relative">
-              <Label htmlFor="destino">Destino *</Label>
-              <Select 
-                value={destino} 
-                onValueChange={setDestino}
-                disabled={!cliente || !origen}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={
-                    !cliente ? "Primero selecciona cliente" : 
-                    !origen ? "Primero selecciona origen" : 
-                    "Seleccionar destino..."
-                  } />
-                </SelectTrigger>
-                <SelectContent>
-                  {destinosFromPricing.map((destinoOption) => (
-                    <SelectItem key={destinoOption} value={destinoOption}>
-                      {destinoOption}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="distancia">Distancia (KM)</Label>
-              <Input
-                id="distancia"
-                type="number"
-                placeholder="Opcional"
-                value={distanciaKm}
-                onChange={(e) => setDistanciaKm(e.target.value)}
-              />
-            </div>
+
+            {/* Row 2: Route Selection (Single Line) */}
+            {cliente && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-6 h-6 rounded-full bg-blue-500 text-white text-xs font-bold flex items-center justify-center">
+                      2
+                    </div>
+                    <Label htmlFor="origen" className="text-sm font-semibold">
+                      Punto de Origen
+                      <span className="text-destructive ml-1">*</span>
+                    </Label>
+                  </div>
+                  <Select 
+                    value={origen} 
+                    onValueChange={(value) => {
+                      setOrigen(value);
+                      setDestino('');
+                    }}
+                    disabled={!cliente}
+                  >
+                    <SelectTrigger className={`h-12 ${origen ? 'border-green-300 bg-green-50/50 dark:bg-green-900/10' : 'border-destructive/50'}`}>
+                      <SelectValue placeholder="Seleccionar origen..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {origenesConFrecuencia.map((origenData) => (
+                        <SelectItem key={origenData.origen} value={origenData.origen}>
+                          <div className="flex items-center justify-between w-full">
+                            <span className="font-medium">{origenData.origen}</span>
+                            {origenData.frecuencia > 0 && (
+                              <Badge variant="outline" className="ml-2 text-xs">
+                                {origenData.frecuencia > 10 ? '⭐ Frecuente' : `${origenData.frecuencia}x`}
+                              </Badge>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-6 h-6 rounded-full bg-green-500 text-white text-xs font-bold flex items-center justify-center">
+                      3
+                    </div>
+                    <Label htmlFor="destino" className="text-sm font-semibold">
+                      Destino Final
+                      <span className="text-destructive ml-1">*</span>
+                    </Label>
+                  </div>
+                  <Select 
+                    value={destino} 
+                    onValueChange={setDestino}
+                    disabled={!cliente || !origen}
+                  >
+                    <SelectTrigger className={`h-12 ${destino ? 'border-green-300 bg-green-50/50 dark:bg-green-900/10' : !origen ? 'opacity-50' : 'border-destructive/50'}`}>
+                      <SelectValue placeholder={
+                        !origen ? "Primero selecciona origen" : "Seleccionar destino..."
+                      } />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {destinosFromPricing.map((destinoOption) => (
+                        <SelectItem key={destinoOption} value={destinoOption}>
+                          <div className="font-medium">{destinoOption}</div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-6 h-6 rounded-full bg-orange-500 text-white text-xs font-bold flex items-center justify-center">
+                      4
+                    </div>
+                    <Label htmlFor="distancia" className="text-sm font-semibold">
+                      Distancia (KM)
+                      <span className="text-muted-foreground text-xs ml-1">opcional</span>
+                    </Label>
+                  </div>
+                  <Input
+                    id="distancia"
+                    type="number"
+                    placeholder="Ej: 150"
+                    value={distanciaKm}
+                    onChange={(e) => setDistanciaKm(e.target.value)}
+                    className="h-12"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Search Button */}
-          <Button 
-            onClick={searchPrice}
-            disabled={loading || !cliente || !origen || !destino}
-            className="w-full gap-2"
-            variant={priceEstimate ? "outline" : "default"}
-          >
-            <Search className="h-4 w-4" />
-            {loading ? 'Buscando...' : priceEstimate ? 'Actualizar Pricing' : 'Buscar Pricing'}
-          </Button>
+          {/* Enhanced Search Button */}
+          {cliente && origen && destino && (
+            <Button 
+              onClick={searchPrice}
+              disabled={loading}
+              size="lg"
+              className="w-full h-12 gap-3 text-base font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg"
+              variant="default"
+            >
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  Buscando pricing...
+                </>
+              ) : (
+                <>
+                  <Search className="h-5 w-5" />
+                  {priceEstimate ? '🔄 Actualizar Pricing' : '🔍 Buscar Pricing'}
+                </>
+              )}
+            </Button>
+          )}
         </CardContent>
       </Card>
 
-      {/* Price Estimate Results */}
+      {/* Enhanced Price Results - 2025 Design */}
       {priceEstimate && (
-        <Card className="border-primary/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-primary" />
-              Pricing Encontrado
+        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-background shadow-lg">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-primary/10">
+                <CheckCircle className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <div className="text-lg font-semibold">Ruta Confirmada</div>
+                <div className="text-sm text-muted-foreground font-normal">
+                  Pricing encontrado en matriz de precios
+                </div>
+              </div>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Armado Indicator */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Badge variant={priceEstimate.incluye_armado ? "default" : "secondary"}>
-                  {priceEstimate.incluye_armado ? "Con Armado" : "Sin Armado"}
-                </Badge>
-                {priceEstimate.tipo_servicio && (
-                  <span className="text-sm text-muted-foreground">
-                    ({priceEstimate.tipo_servicio})
-                  </span>
+          <CardContent className="space-y-6">
+            {/* Highlighted Route Info - Key Missing Element */}
+            <div className="bg-background/80 backdrop-blur-sm rounded-xl p-4 border border-primary/20">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                    <MapPin className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Punto de Origen
+                    </div>
+                    <div className="font-semibold text-foreground">{origen}</div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-green-50 dark:bg-green-900/20">
+                    <MapPin className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Destino Final
+                    </div>
+                    <div className="font-semibold text-foreground">{destino}</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-900/20">
+                    <DollarSign className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Cliente
+                    </div>
+                    <div className="font-semibold text-foreground">{cliente}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Service Type & Pricing */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Badge 
+                    variant={priceEstimate.incluye_armado ? "default" : "secondary"} 
+                    className="text-sm px-3 py-1.5"
+                  >
+                    {priceEstimate.incluye_armado ? "🛡️ Con Armado" : "👤 Sin Armado"}
+                  </Badge>
+                  {priceEstimate.tipo_servicio && (
+                    <span className="text-sm text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
+                      {priceEstimate.tipo_servicio}
+                    </span>
+                  )}
+                </div>
+                
+                {priceEstimate.distancia_km && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Distancia:</span>
+                    <Badge variant="outline" className="font-mono">
+                      {priceEstimate.distancia_km} km
+                    </Badge>
+                  </div>
                 )}
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary">
-                  ${priceEstimate.precio_sugerido?.toLocaleString()}
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-4 rounded-xl bg-primary/5 border border-primary/20">
+                  <div className="text-2xl font-bold text-primary mb-1">
+                    ${priceEstimate.precio_sugerido?.toLocaleString()}
+                  </div>
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Precio Cliente
+                  </div>
                 </div>
-                <div className="text-sm text-muted-foreground">Precio Cliente</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">
-                  ${priceEstimate.precio_custodio?.toLocaleString()}
+                <div className="text-center p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">
+                    ${priceEstimate.precio_custodio?.toLocaleString()}
+                  </div>
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Pago Custodio
+                  </div>
                 </div>
-                <div className="text-sm text-muted-foreground">Pago Custodio</div>
               </div>
-            </div>
-
-            {/* Source Information */}
-            <div className="bg-muted/50 rounded-lg p-3 space-y-2">
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Ruta base:</span>
-                <span className="text-sm">{priceEstimate.ruta_encontrada}</span>
-              </div>
-              {priceEstimate.distancia_km && (
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Distancia:</span>
-                  <Badge variant="outline">{priceEstimate.distancia_km} km</Badge>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>

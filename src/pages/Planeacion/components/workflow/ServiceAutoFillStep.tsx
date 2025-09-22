@@ -8,13 +8,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, Shield, Settings, CheckCircle, ArrowLeft, Cpu } from 'lucide-react';
+import { Calendar, Clock, Shield, Settings, CheckCircle, ArrowLeft, Cpu, MapPin, DollarSign, AlertTriangle } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
 
 interface RouteData {
   cliente_nombre: string;
+  origen_texto: string;
   destino_texto: string;
   precio_sugerido?: number;
   precio_custodio?: number;
@@ -166,106 +167,184 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {/* Route Summary */}
-          <div className="bg-muted/50 rounded-lg p-4 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <div className="text-sm text-muted-foreground">Cliente</div>
-                <div className="font-medium">{routeData.cliente_nombre}</div>
+          {/* Enhanced Route Summary - Now Including Origin! */}
+          <div className="bg-gradient-to-r from-primary/10 via-blue-50/50 to-green-50/50 dark:from-primary/5 dark:via-blue-900/10 dark:to-green-900/10 rounded-xl p-6 mb-6 border border-primary/20">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-lg bg-purple-100 dark:bg-purple-900/30">
+                  <DollarSign className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Cliente
+                  </div>
+                  <div className="font-bold text-foreground text-lg">{routeData.cliente_nombre}</div>
+                </div>
               </div>
-              <div>
-                <div className="text-sm text-muted-foreground">Destino</div>
-                <div className="font-medium">{routeData.destino_texto}</div>
+              
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                  <MapPin className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Origen
+                  </div>
+                  <div className="font-bold text-foreground text-lg">{routeData.origen_texto}</div>
+                </div>
               </div>
-              <div>
-                <div className="text-sm text-muted-foreground">Precio Base</div>
-                <div className="font-medium">${routeData.precio_sugerido?.toLocaleString()}</div>
+              
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-lg bg-green-100 dark:bg-green-900/30">
+                  <MapPin className="h-5 w-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Destino
+                  </div>
+                  <div className="font-bold text-foreground text-lg">{routeData.destino_texto}</div>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-lg bg-orange-100 dark:bg-orange-900/30">
+                  <DollarSign className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                </div>
+                <div>
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Precio Base
+                  </div>
+                  <div className="font-bold text-primary text-lg">${routeData.precio_sugerido?.toLocaleString()}</div>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Service Configuration */}
-          <div className="space-y-6">
-            {/* Service ID */}
-            <div className="space-y-2">
-              <Label htmlFor="servicio-id" className="flex items-center gap-2">
-                <Settings className="h-4 w-4" />
-                ID del Servicio *
-              </Label>
+          {/* Enhanced Service Configuration */}
+          <div className="space-y-8">
+            {/* Service ID - Prominent Required Field */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center">
+                  ⚙️
+                </div>
+                <div>
+                  <Label htmlFor="servicio-id" className="text-lg font-bold">
+                    ID del Servicio
+                    <span className="text-destructive ml-2 text-xl">*</span>
+                  </Label>
+                  <div className="text-sm text-muted-foreground">
+                    Identificador único para seguimiento en sistema
+                  </div>
+                </div>
+              </div>
               <Input
                 id="servicio-id"
-                placeholder="Ej: SRV-2024-001"
+                placeholder="Ejemplo: prueba123, SRV-2024-001"
                 value={servicioId}
                 onChange={(e) => setServicioId(e.target.value)}
-                className={!servicioId.trim() ? 'border-red-200 focus:border-red-400' : ''}
+                className={`h-14 text-lg font-mono ${
+                  servicioId.trim() 
+                    ? 'border-green-300 bg-green-50/50 dark:bg-green-900/10' 
+                    : 'border-destructive border-2 bg-destructive/5'
+                }`}
               />
-              <div className="text-xs text-muted-foreground">
-                Este ID conectará con la tabla de servicios custodia para seguimiento
-              </div>
+              {!servicioId.trim() && (
+                <div className="flex items-center gap-2 text-destructive text-sm font-medium">
+                  <AlertTriangle className="h-4 w-4" />
+                  Este campo es obligatorio para continuar
+                </div>
+              )}
             </div>
 
-            {/* Reception Date and Time */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <Calendar className="h-4 w-4" />
-                Recepción de Solicitud
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-muted/30 p-4 rounded-lg">
-                <div className="space-y-2">
-                  <Label htmlFor="fecha-recepcion">Fecha de Recepción *</Label>
-                  <Input
-                    id="fecha-recepcion"
-                    type="date"
-                    value={fechaRecepcion}
-                    onChange={(e) => setFechaRecepcion(e.target.value)}
-                  />
+            {/* Enhanced Date/Time Fields - Single Row Layout */}
+            <div className="space-y-6">
+              {/* Reception Info */}
+              <div className="bg-blue-50/50 dark:bg-blue-900/10 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                    <Calendar className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">Recepción de Solicitud</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Información de cuando se recibió la solicitud
+                    </p>
+                  </div>
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="hora-recepcion">Hora de Recepción *</Label>
-                  <Input
-                    id="hora-recepcion"
-                    type="time"
-                    value={horaRecepcion}
-                    onChange={(e) => setHoraRecepcion(e.target.value)}
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="fecha-recepcion" className="font-semibold">
+                      Fecha de Recepción <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="fecha-recepcion"
+                      type="date"
+                      value={fechaRecepcion}
+                      onChange={(e) => setFechaRecepcion(e.target.value)}
+                      className="h-12 text-base"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="hora-recepcion" className="font-semibold">
+                      Hora de Recepción <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="hora-recepcion"
+                      type="time"
+                      value={horaRecepcion}
+                      onChange={(e) => setHoraRecepcion(e.target.value)}
+                      className="h-12 text-base"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Scheduled Date and Time */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <Calendar className="h-4 w-4" />
-                Programación de Cita
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fecha" className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Fecha Programada *
-                  </Label>
-                  <Input
-                    id="fecha"
-                    type="date"
-                    value={fechaProgramada}
-                    onChange={(e) => setFechaProgramada(e.target.value)}
-                    min={format(new Date(), 'yyyy-MM-dd')}
-                  />
+              {/* Appointment Scheduling */}
+              <div className="bg-green-50/50 dark:bg-green-900/10 rounded-xl p-6 border border-green-200 dark:border-green-800">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
+                    <Clock className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">Programación de Cita</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Fecha y hora programada para el servicio
+                    </p>
+                  </div>
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="hora-inicio" className="flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    Hora de Cita *
-                    {getAutoFillBadge('horario')}
-                  </Label>
-                  <Input
-                    id="hora-inicio"
-                    type="time"
-                    value={horaInicio}
-                    onChange={(e) => setHoraInicio(e.target.value)}
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="fecha" className="font-semibold flex items-center gap-2">
+                      Fecha Programada <span className="text-destructive">*</span>
+                      <Badge variant="outline" className="text-xs">
+                        Optimizado
+                      </Badge>
+                    </Label>
+                    <Input
+                      id="fecha"
+                      type="date"
+                      value={fechaProgramada}
+                      onChange={(e) => setFechaProgramada(e.target.value)}
+                      min={format(new Date(), 'yyyy-MM-dd')}
+                      className="h-12 text-base"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="hora-inicio" className="font-semibold flex items-center gap-2">
+                      Hora de Cita <span className="text-destructive">*</span>
+                      {getAutoFillBadge('horario')}
+                    </Label>
+                    <Input
+                      id="hora-inicio"
+                      type="time"
+                      value={horaInicio}
+                      onChange={(e) => setHoraInicio(e.target.value)}
+                      className="h-12 text-base"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
