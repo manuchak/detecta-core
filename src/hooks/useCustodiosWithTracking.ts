@@ -23,7 +23,7 @@ export interface CustodioEnriquecido extends CustodioConProximidad {
   performance_level: 'excelente' | 'bueno' | 'regular' | 'malo' | 'nuevo';
   rejection_risk: 'bajo' | 'medio' | 'alto';
   response_speed: 'rapido' | 'normal' | 'lento';
-  experience_category: 'experimentado' | 'intermedio' | 'sin_historial' | 'nuevo' | 'candidato';
+  experience_category: 'experimentado' | 'intermedio' | 'rookie' | 'nuevo' | 'candidato';
 }
 
 interface UseCustodiosWithTrackingParams {
@@ -142,7 +142,7 @@ export const useCustodiosWithTracking = ({
           switch (cat) {
             case 'experimentado': return 4;
             case 'intermedio': return 3;
-            case 'sin_historial': return 2;
+            case 'rookie': return 2;
             case 'nuevo': return 1;
             case 'candidato': return 0;
             default: return 0;
@@ -205,8 +205,8 @@ export const useCustodiosWithTracking = ({
     // Custodios nuevos
     if (category === 'nuevo') return 'nuevo';
     
-    // Sin historial o candidatos - usar score si disponible
-    if (hasData || category === 'sin_historial') {
+    // Rookies o candidatos - usar score si disponible
+    if (hasData || category === 'rookie') {
       if (score >= 8.0) return 'bueno';
       if (score >= 6.5) return 'regular';
       return 'malo';
@@ -224,7 +224,7 @@ export const useCustodiosWithTracking = ({
     }
     
     // Para custodios con algún historial
-    if (category === 'sin_historial' && hasData) {
+    if (category === 'rookie' && hasData) {
       if (tasaAceptacion >= 75) return 'bajo';
       if (tasaAceptacion >= 50) return 'medio';
       return 'alto';
@@ -263,7 +263,7 @@ export const useCustodiosWithTracking = ({
     // Estadísticas por experiencia
     experimentados: custodiosEnriquecidos.filter(c => c.experience_category === 'experimentado').length,
     intermedios: custodiosEnriquecidos.filter(c => c.experience_category === 'intermedio').length,
-    establecidos: custodiosEnriquecidos.filter(c => c.experience_category === 'sin_historial').length,
+    rookies: custodiosEnriquecidos.filter(c => c.experience_category === 'rookie').length,
     candidatos: custodiosEnriquecidos.filter(c => c.experience_category === 'candidato').length,
     score_promedio: custodiosEnriquecidos.length > 0 
       ? custodiosEnriquecidos.reduce((sum, c) => sum + c.score_total, 0) / custodiosEnriquecidos.length 
@@ -303,7 +303,7 @@ const esNuevoCustodio = (custodio: any): boolean => {
 /**
  * Determina la categoría del custodio basado en su fuente y experiencia
  */
-const getCustodioCategory = (custodio: any): 'nuevo' | 'experimentado' | 'intermedio' | 'sin_historial' | 'candidato' => {
+const getCustodioCategory = (custodio: any): 'nuevo' | 'experimentado' | 'intermedio' | 'rookie' | 'candidato' => {
   // Custodios históricos migrados son siempre experimentados
   if (custodio.fuente === 'historico' || custodio.fuente === 'migracion_historico') return 'experimentado';
   
@@ -312,8 +312,8 @@ const getCustodioCategory = (custodio: any): 'nuevo' | 'experimentado' | 'interm
     const servicios = custodio.numero_servicios || 0;
     if (servicios >= 50) return 'experimentado';
     if (servicios >= 10) return 'intermedio';
-    if (servicios > 0) return 'sin_historial';
-    return esNuevoCustodio(custodio) ? 'nuevo' : 'sin_historial';
+    if (servicios > 0) return 'rookie';
+    return esNuevoCustodio(custodio) ? 'nuevo' : 'rookie';
   }
   
   // Candidatos en proceso
@@ -326,17 +326,17 @@ const getCustodioCategory = (custodio: any): 'nuevo' | 'experimentado' | 'interm
       const servicios = custodio.servicios_historicos.length;
       if (servicios >= 50) return 'experimentado';
       if (servicios >= 10) return 'intermedio';
-      return 'sin_historial';
+      return 'rookie';
     }
     
     // Si es nuevo (menos de 7 días), es nuevo
     if (esNuevoCustodio(custodio)) return 'nuevo';
     
-    // Si lleva tiempo registrado pero no tiene servicios, sin historial
-    return 'sin_historial';
+    // Si lleva tiempo registrado pero no tiene servicios, rookie
+    return 'rookie';
   }
   
-  return 'sin_historial';
+  return 'rookie';
 };
 
 /**

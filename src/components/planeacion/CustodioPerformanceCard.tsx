@@ -56,10 +56,10 @@ export const CustodioPerformanceCard = ({
         description: `${custodio.numero_servicios || 10}+ servicios`,
         color: 'bg-indigo-500/10 text-indigo-700 border-indigo-500/20'
       },
-      'sin_historial': {
-        label: 'Establecido',
-        description: 'Custodio registrado',
-        color: 'bg-slate-500/10 text-slate-700 border-slate-500/20'
+      'rookie': {
+        label: 'Rookie',
+        description: 'Custodio en desarrollo',
+        color: 'bg-cyan-500/10 text-cyan-700 border-cyan-500/20'
       },
       'nuevo': {
         label: 'Nuevo',
@@ -73,8 +73,8 @@ export const CustodioPerformanceCard = ({
       }
     };
 
-    const category = custodio.experience_category || 'sin_historial';
-    return categoryInfo[category] || categoryInfo.sin_historial;
+    const category = custodio.experience_category || 'rookie';
+    return categoryInfo[category] || categoryInfo.rookie;
   };
 
   if (compact) {
