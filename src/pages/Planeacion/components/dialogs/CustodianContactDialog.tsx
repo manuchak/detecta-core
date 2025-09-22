@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -7,13 +7,20 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { MessageCircle, Phone, User, MapPin, Target, Clock, CheckCircle, XCircle, ClockIcon } from 'lucide-react';
+import { MessageCircle, Phone, User, MapPin, Target, Clock, CheckCircle, XCircle, ClockIcon, Calendar, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCustodioTracking } from '@/hooks/useCustodioTracking';
+import { useCustodioIndisponibilidades, type CrearIndisponibilidadData } from '@/hooks/useCustodioIndisponibilidades';
 import type { CustodioEnriquecido } from '@/hooks/useCustodiosWithTracking';
 
 // Catálogo estructurado de razones de rechazo
-const REJECTION_CATEGORIES = {
+interface RejectionCategory {
+  label: string;
+  reasons: string[];
+  requiresUnavailability?: string[];
+}
+
+const REJECTION_CATEGORIES: Record<string, RejectionCategory> = {
   'disponibilidad_personal': {
     label: 'Disponibilidad Personal',
     reasons: [
@@ -35,7 +42,8 @@ const REJECTION_CATEGORIES = {
       'No circula',
       'Va a verificar su auto',
       'Vehículo en servicio'
-    ]
+    ],
+    requiresUnavailability: ['Auto en taller', 'Falla mecánica', 'Vehículo en servicio']
   },
   'preferencias_servicio': {
     label: 'Preferencias del Servicio',
@@ -108,10 +116,14 @@ export const CustodianContactDialog: React.FC<CustodianContactDialogProps> = ({
   const [rejectionReason, setRejectionReason] = useState<string>('');
   const [details, setDetails] = useState<string>('');
   const [contactLater, setContactLater] = useState<string>('');
+  const [unavailabilityEndDate, setUnavailabilityEndDate] = useState<string>('');
+  const [unavailabilityNotes, setUnavailabilityNotes] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [communicationId, setCommunicationId] = useState<string>('');
+  const [showUnavailabilityForm, setShowUnavailabilityForm] = useState(false);
 
   const { logCommunication, logResponse } = useCustodioTracking();
+  const { crearIndisponibilidad } = useCustodioIndisponibilidades();
 
   const handleContactStart = async (method: 'whatsapp' | 'llamada') => {
     setContactMethod(method);
@@ -148,9 +160,32 @@ export const CustodianContactDialog: React.FC<CustodianContactDialogProps> = ({
   const handleSubmitResult = async () => {
     if (!resultStatus || !contactMethod || !communicationId) return;
 
+    // Validar si se requiere fecha de indisponibilidad
+    if (showUnavailabilityForm && !unavailabilityEndDate) {
+      toast.error('Por favor especifica hasta cuándo estará indisponible el custodio');
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
+      // Crear indisponibilidad si es necesario
+      if (showUnavailabilityForm && unavailabilityEndDate) {
+        const tipoIndisponibilidad = rejectionReason === 'Falla mecánica' ? 'falla_mecanica' : 'mantenimiento';
+        
+        const indisponibilidadData: CrearIndisponibilidadData = {
+          custodio_id: custodian.id!,
+          tipo_indisponibilidad: tipoIndisponibilidad,
+          motivo: rejectionReason,
+          fecha_fin_estimada: unavailabilityEndDate,
+          severidad: 'media',
+          requiere_seguimiento: true,
+          notas: unavailabilityNotes || `Indisponibilidad registrada por rechazo de servicio: ${rejectionReason}`
+        };
+
+        await crearIndisponibilidad.mutateAsync(indisponibilidadData);
+      }
+
       // Mapear nuestros estados a los tipos esperados por la API
       const tipoRespuestaMap: Record<string, 'aceptacion' | 'rechazo' | 'consulta'> = {
         'acepta': 'aceptacion',
@@ -173,7 +208,8 @@ export const CustodianContactDialog: React.FC<CustodianContactDialogProps> = ({
           razon_especifica: rejectionReason,
           contactar_en: contactLater,
           metodo_contacto: contactMethod,
-          servicio_detalle: serviceDetails
+          servicio_detalle: serviceDetails,
+          indisponibilidad_hasta: unavailabilityEndDate || undefined
         }
       };
 
@@ -187,7 +223,11 @@ export const CustodianContactDialog: React.FC<CustodianContactDialogProps> = ({
         contactar_en: contactLater
       });
 
-      toast.success('Resultado registrado exitosamente');
+      const successMessage = showUnavailabilityForm 
+        ? 'Resultado registrado e indisponibilidad creada exitosamente'
+        : 'Resultado registrado exitosamente';
+      
+      toast.success(successMessage);
       onOpenChange(false);
       
       // Reset form
@@ -208,8 +248,30 @@ export const CustodianContactDialog: React.FC<CustodianContactDialogProps> = ({
     setRejectionReason('');
     setDetails('');
     setContactLater('');
+    setUnavailabilityEndDate('');
+    setUnavailabilityNotes('');
+    setShowUnavailabilityForm(false);
     setCommunicationId('');
   };
+
+  // Detectar si se requiere formulario de indisponibilidad
+  useEffect(() => {
+    if (resultStatus === 'rechaza' && rejectionCategory === 'problemas_vehiculo' && rejectionReason) {
+      const categoryData = REJECTION_CATEGORIES[rejectionCategory as keyof typeof REJECTION_CATEGORIES];
+      const requiresUnavailability = categoryData?.requiresUnavailability?.includes(rejectionReason);
+      setShowUnavailabilityForm(requiresUnavailability || false);
+      
+      // Auto-clear unavailability data if not required
+      if (!requiresUnavailability) {
+        setUnavailabilityEndDate('');
+        setUnavailabilityNotes('');
+      }
+    } else {
+      setShowUnavailabilityForm(false);
+      setUnavailabilityEndDate('');
+      setUnavailabilityNotes('');
+    }
+  }, [resultStatus, rejectionCategory, rejectionReason]);
 
   return (
     <Dialog open={open} onOpenChange={(open) => {
@@ -413,22 +475,63 @@ export const CustodianContactDialog: React.FC<CustodianContactDialogProps> = ({
                     {rejectionCategory && (
                       <>
                         <Label htmlFor="rejection-reason">Razón específica</Label>
-                        <Select value={rejectionReason} onValueChange={setRejectionReason}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecciona la razón" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {REJECTION_CATEGORIES[rejectionCategory as keyof typeof REJECTION_CATEGORIES]?.reasons.map((reason) => (
-                              <SelectItem key={reason} value={reason}>
-                                {reason}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </>
-                    )}
-                  </div>
-                )}
+                         <Select value={rejectionReason} onValueChange={setRejectionReason}>
+                           <SelectTrigger>
+                             <SelectValue placeholder="Selecciona la razón" />
+                           </SelectTrigger>
+                           <SelectContent>
+                             {REJECTION_CATEGORIES[rejectionCategory as keyof typeof REJECTION_CATEGORIES]?.reasons.map((reason) => (
+                               <SelectItem key={reason} value={reason}>
+                                 {reason}
+                               </SelectItem>
+                             ))}
+                           </SelectContent>
+                         </Select>
+                       </>
+                     )}
+
+                     {/* Formulario de indisponibilidad para problemas del vehículo */}
+                     {showUnavailabilityForm && (
+                       <div className="mt-4 p-4 border-2 border-orange-200 dark:border-orange-800 rounded-lg bg-orange-50 dark:bg-orange-950/20">
+                         <div className="flex items-center gap-2 mb-3">
+                           <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                           <h5 className="font-medium text-orange-800 dark:text-orange-200">
+                             Registrar Indisponibilidad
+                           </h5>
+                         </div>
+                         <p className="text-sm text-orange-700 dark:text-orange-300 mb-4">
+                           Este tipo de rechazo requiere registrar hasta cuándo estará indisponible el custodio.
+                         </p>
+                         
+                         <div className="space-y-3">
+                           <div>
+                             <Label htmlFor="unavailability-end-date">¿Hasta cuándo estará indisponible? *</Label>
+                             <Input
+                               id="unavailability-end-date"
+                               type="datetime-local"
+                               value={unavailabilityEndDate}
+                               onChange={(e) => setUnavailabilityEndDate(e.target.value)}
+                               className="mt-1"
+                               min={new Date().toISOString().slice(0, 16)}
+                             />
+                           </div>
+                           
+                           <div>
+                             <Label htmlFor="unavailability-notes">Notas adicionales (opcional)</Label>
+                             <Textarea
+                               id="unavailability-notes"
+                               placeholder="Detalles sobre la reparación, taller, tiempo estimado, etc."
+                               value={unavailabilityNotes}
+                               onChange={(e) => setUnavailabilityNotes(e.target.value)}
+                               rows={2}
+                               className="mt-1"
+                             />
+                           </div>
+                         </div>
+                       </div>
+                     )}
+                   </div>
+                 )}
 
                 {/* Campo para contactar después */}  
                 {resultStatus === 'contactar_despues' && (
@@ -457,18 +560,20 @@ export const CustodianContactDialog: React.FC<CustodianContactDialogProps> = ({
 
                 {/* Botones de acción */}
                 <div className="flex gap-2 pt-4">
-                  <Button
-                    onClick={handleSubmitResult}
-                    disabled={
-                      !resultStatus || 
-                      isProcessing ||
-                      (resultStatus === 'rechaza' && (!rejectionCategory || !rejectionReason)) ||
-                      (resultStatus === 'contactar_despues' && !contactLater)
-                    }
-                    className="flex-1"
-                  >
-                    {isProcessing ? 'Registrando...' : 'Confirmar Resultado'}
-                  </Button>
+                   <Button
+                     onClick={handleSubmitResult}
+                     disabled={
+                       !resultStatus || 
+                       isProcessing ||
+                       (resultStatus === 'rechaza' && (!rejectionCategory || !rejectionReason)) ||
+                       (resultStatus === 'contactar_despues' && !contactLater) ||
+                       (showUnavailabilityForm && !unavailabilityEndDate)
+                     }
+                     className="flex-1"
+                   >
+                     {isProcessing ? 'Registrando...' : 
+                      showUnavailabilityForm ? 'Confirmar y Registrar Indisponibilidad' : 'Confirmar Resultado'}
+                   </Button>
                   <Button
                     variant="outline"
                     onClick={resetForm}
