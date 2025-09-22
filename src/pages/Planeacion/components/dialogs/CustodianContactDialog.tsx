@@ -32,7 +32,8 @@ const REJECTION_CATEGORIES: Record<string, RejectionCategory> = {
       'Familiar enfermo',
       'Temas personales',
       'Vacaciones'
-    ]
+    ],
+    requiresUnavailability: ['Enfermo', 'Familiar enfermo', 'Vacaciones', 'Cita médica']
   },
   'problemas_vehiculo': {
     label: 'Problemas del Vehículo',
@@ -63,7 +64,8 @@ const REJECTION_CATEGORIES: Record<string, RejectionCategory> = {
       'No se encuentra en la ciudad',
       'No va a Nuevo Laredo',
       'Cita en el SAT'
-    ]
+    ],
+    requiresUnavailability: ['No se encuentra en la ciudad', 'Cita en el SAT']
   },
   'problemas_economicos': {
     label: 'Problemas Económicos/Documentales',
@@ -72,7 +74,8 @@ const REJECTION_CATEGORIES: Record<string, RejectionCategory> = {
       'No tengo capital',
       'Documentación incompleta',
       'No tiene su documentación completa'
-    ]
+    ],
+    requiresUnavailability: ['Documentación incompleta', 'No tiene su documentación completa']
   },
   'comunicacion_otros': {
     label: 'Comunicación/Otros',
@@ -171,7 +174,32 @@ export const CustodianContactDialog: React.FC<CustodianContactDialogProps> = ({
     try {
       // Crear indisponibilidad si es necesario
       if (showUnavailabilityForm && unavailabilityEndDate) {
-        const tipoIndisponibilidad = rejectionReason === 'Falla mecánica' ? 'falla_mecanica' : 'mantenimiento';
+        // Mapear razón específica a tipo de indisponibilidad
+        const getTipoIndisponibilidad = (razon: string): 'falla_mecanica' | 'enfermedad' | 'familiar' | 'personal' | 'mantenimiento' | 'capacitacion' | 'otro' => {
+          const razonLower = razon.toLowerCase();
+          
+          // Problemas de salud
+          if (razonLower.includes('enfermo') || razonLower.includes('médica')) return 'enfermedad';
+          
+          // Vacaciones y asuntos personales
+          if (razonLower.includes('vacaciones')) return 'personal';
+          if (razonLower.includes('asuntos familiares') || razonLower.includes('familiar enfermo')) return 'familiar';
+          
+          // Problemas vehiculares
+          if (razonLower.includes('falla mecánica') || razonLower.includes('taller')) return 'falla_mecanica';
+          if (razonLower.includes('vehículo en servicio') || razonLower.includes('verificar su auto')) return 'mantenimiento';
+          
+          // Problemas geográficos/operativos y documentales
+          if (razonLower.includes('no se encuentra en la ciudad') || 
+              razonLower.includes('cita en el sat') || 
+              razonLower.includes('documentación incompleta') || 
+              razonLower.includes('documentación completa')) return 'personal';
+          
+          // Default
+          return 'otro';
+        };
+        
+        const tipoIndisponibilidad = getTipoIndisponibilidad(rejectionReason);
         
         const indisponibilidadData: CrearIndisponibilidadData = {
           custodio_id: custodian.id!,
@@ -256,7 +284,7 @@ export const CustodianContactDialog: React.FC<CustodianContactDialogProps> = ({
 
   // Detectar si se requiere formulario de indisponibilidad
   useEffect(() => {
-    if (resultStatus === 'rechaza' && rejectionCategory === 'problemas_vehiculo' && rejectionReason) {
+    if (resultStatus === 'rechaza' && rejectionCategory && rejectionReason) {
       const categoryData = REJECTION_CATEGORIES[rejectionCategory as keyof typeof REJECTION_CATEGORIES];
       const requiresUnavailability = categoryData?.requiresUnavailability?.includes(rejectionReason);
       setShowUnavailabilityForm(requiresUnavailability || false);
