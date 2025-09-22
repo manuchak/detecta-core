@@ -28,26 +28,50 @@ export function usePlanningOperationalConfig(zona_id?: string) {
     queryFn: async () => {
       console.log('🔍 Obteniendo configuración operacional...');
       
-      let query = supabase
-        .from('planning_operational_config')
-        .select('*')
-        .order('zona_id', { nullsFirst: false }); // Global config first
-      
-      if (zona_id) {
-        query = query.or(`zona_id.eq.${zona_id},zona_id.is.null`);
-      } else {
-        query = query.is('zona_id', null);
-      }
-      
-      const { data, error } = await query.limit(1);
-      
-      if (error) {
-        console.error('❌ Error al obtener configuración operacional:', error);
-        throw error;
-      }
+      try {
+        let query = supabase
+          .from('planning_operational_config' as any)
+          .select('*')
+          .order('zona_id', { nullsFirst: false }); // Global config first
+        
+        if (zona_id) {
+          query = query.or(`zona_id.eq.${zona_id},zona_id.is.null`);
+        } else {
+          query = query.is('zona_id', null);
+        }
+        
+        const { data, error } = await query.limit(1);
+        
+        if (error) {
+          console.error('❌ Error al obtener configuración operacional:', error);
+          // Return default config if table doesn't exist yet
+          if (error.code === '42P01') { // Table doesn't exist
+            return {
+              id: 'default',
+              velocidad_promedio_kmh: 70,
+              tiempo_descanso_minutos: 120,
+              bloqueo_automatico_habilitado: true,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            } as PlanningOperationalConfig;
+          }
+          throw error;
+        }
 
-      console.log(`✅ Configuración operacional obtenida:`, data?.[0]);
-      return data?.[0] as PlanningOperationalConfig || null;
+        console.log(`✅ Configuración operacional obtenida:`, data?.[0]);
+        return data?.[0] as PlanningOperationalConfig || null;
+      } catch (err) {
+        console.warn('⚠️ Tabla planning_operational_config no encontrada, usando configuración por defecto');
+        // Return default configuration if table doesn't exist
+        return {
+          id: 'default',
+          velocidad_promedio_kmh: 70,
+          tiempo_descanso_minutos: 120,
+          bloqueo_automatico_habilitado: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        } as PlanningOperationalConfig;
+      }
     },
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
@@ -69,8 +93,14 @@ export function useUpdatePlanningOperationalConfig() {
     }) => {
       console.log('⚙️ Actualizando configuración operacional:', config);
 
+      // Skip update if using default config
+      if (id === 'default') {
+        console.log('⚠️ Usando configuración por defecto, no se puede actualizar');
+        throw new Error('No se puede actualizar la configuración por defecto');
+      }
+
       const { data, error } = await supabase
-        .from('planning_operational_config')
+        .from('planning_operational_config' as any)
         .update(config)
         .eq('id', id)
         .select()
@@ -108,7 +138,7 @@ export function useCreatePlanningOperationalConfig() {
       console.log('➕ Creando configuración operacional:', config);
 
       const { data, error } = await supabase
-        .from('planning_operational_config')
+        .from('planning_operational_config' as any)
         .insert(config)
         .select()
         .single();

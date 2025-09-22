@@ -87,9 +87,13 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
                 }
               ];
             }
-          } catch (error) {
+          } catch (error: any) {
             console.warn('⚠️ Error verificando disponibilidad automática:', error);
             // Continuar sin bloqueo automático en caso de error
+            // Si la función no existe, simplemente no aplicar bloqueo automático
+            if (error?.code === '42883') { // Function does not exist
+              console.log('📝 Función de verificación de disponibilidad no encontrada, continuando sin validación automática');
+            }
           }
         }
 

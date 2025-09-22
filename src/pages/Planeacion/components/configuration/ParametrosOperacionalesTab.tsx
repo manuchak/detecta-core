@@ -97,7 +97,27 @@ export default function ParametrosOperacionalesTab() {
         <Badge variant={formData.bloqueo_automatico_habilitado ? "default" : "secondary"}>
           {formData.bloqueo_automatico_habilitado ? 'Activo' : 'Inactivo'}
         </Badge>
+        {config?.id === 'default' && (
+          <Badge variant="outline" className="text-yellow-600">
+            Configuración Temporal
+          </Badge>
+        )}
       </div>
+
+      {config?.id === 'default' && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-start space-x-2">
+            <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+            <div>
+              <h4 className="font-medium text-yellow-800">Usando Configuración Temporal</h4>
+              <p className="text-sm text-yellow-700 mt-1">
+                La tabla de configuración aún no está disponible. Se están usando valores por defecto.
+                Los cambios no se guardarán hasta que la base de datos esté completamente configurada.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Configuración Principal */}
@@ -174,15 +194,15 @@ export default function ParametrosOperacionalesTab() {
               </p>
             </div>
 
-            {/* Acciones */}
             <div className="flex space-x-3 pt-4">
               <Button
                 onClick={handleSave}
-                disabled={updateConfig.isPending}
+                disabled={updateConfig.isPending || config?.id === 'default'}
                 size="sm"
                 className="flex-1"
               >
-                {updateConfig.isPending ? 'Guardando...' : 'Guardar Cambios'}
+                {updateConfig.isPending ? 'Guardando...' : 
+                 config?.id === 'default' ? 'No Disponible' : 'Guardar Cambios'}
               </Button>
               <Button
                 onClick={handleReset}
