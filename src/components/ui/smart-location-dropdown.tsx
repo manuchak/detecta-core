@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { MapPin, Search, Plus, Star } from 'lucide-react';
 import { initializeMapboxToken } from '@/lib/mapbox';
+import { usePredefinedMeetingPoints } from '@/hooks/usePredefinedMeetingPoints';
 
 interface LocationSuggestion {
   id: string;
@@ -36,12 +37,14 @@ export function SmartLocationDropdown({
 }: SmartLocationDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState(value);
-  const [predefinedLocations, setPredefinedLocations] = useState<LocationSuggestion[]>([]);
   const [mapboxSuggestions, setMapboxSuggestions] = useState<MapboxSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const debounceRef = useRef<NodeJS.Timeout>();
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Use the hook for predefined locations
+  const { data: predefinedLocations = [] } = usePredefinedMeetingPoints();
 
   // Initialize Mapbox token
   useEffect(() => {
@@ -50,38 +53,6 @@ export function SmartLocationDropdown({
       setMapboxToken(token);
     };
     initToken();
-  }, []);
-
-  // Load predefined locations
-  useEffect(() => {
-    // Mock data - replace with actual Supabase query
-    const mockLocations: LocationSuggestion[] = [
-      {
-        id: '1',
-        nombre: 'Centro Comercial Santa Fe',
-        direccion_completa: 'Av. Vasco de Quiroga 3800, Santa Fe, Álvaro Obregón, CDMX',
-        zona: 'Santa Fe',
-        categoria: 'centro_comercial',
-        descripcion: 'Estacionamiento nivel B2'
-      },
-      {
-        id: '2',
-        nombre: 'Metro Polanco',
-        direccion_completa: 'Av. Presidente Masaryk, Polanco, Miguel Hidalgo, CDMX',
-        zona: 'Polanco',
-        categoria: 'estacion',
-        descripcion: 'Salida 2, junto al Oxxo'
-      },
-      {
-        id: '3',
-        nombre: 'Plaza Carso',
-        direccion_completa: 'Lago Zurich 245, Ampliación Granada, Miguel Hidalgo, CDMX',
-        zona: 'Polanco',
-        categoria: 'centro_comercial',
-        descripcion: 'Lobby principal'
-      }
-    ];
-    setPredefinedLocations(mockLocations);
   }, []);
 
   // Debounced search for Mapbox suggestions
@@ -126,9 +97,10 @@ export function SmartLocationDropdown({
   };
 
   const filteredPredefined = predefinedLocations.filter(loc =>
-    loc.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    loc.activo &&
+    (loc.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
     loc.direccion_completa.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    loc.zona?.toLowerCase().includes(searchQuery.toLowerCase())
+    loc.zona?.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const getCategoryIcon = (categoria: string) => {

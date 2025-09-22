@@ -20,3 +20,4 @@ export { useServiceCapacity } from './useServiceCapacity';
 export { useArmedGuardsWithTracking } from './useArmedGuardsWithTracking';
 export { useArmedGuardsOperativos } from './useArmedGuardsOperativos';
 export { useProveedoresArmados } from './useProveedoresArmados';
+export { usePredefinedMeetingPoints, useCreateMeetingPoint, useUpdateMeetingPoint, useDeleteMeetingPoint } from './usePredefinedMeetingPoints';

@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, Users, MapPin, DollarSign, Database } from 'lucide-react';
+import { Settings, Users, MapPin, DollarSign, Database, Navigation } from 'lucide-react';
 
 // Lazy import de componentes existentes para configuración
 import ClientesTab from './ClientesTab';
 import { CustodiosTab } from './CustodiosTab';
 import { MatrizPreciosTab } from './MatrizPreciosTab';
+import { ManageMeetingPointsTab } from './configuration/ManageMeetingPointsTab';
 
 export function PlanningConfigurationTab() {
   const [activeConfigTab, setActiveConfigTab] = useState('clientes');
@@ -24,7 +25,7 @@ export function PlanningConfigurationTab() {
 
       {/* Configuration Tabs */}
       <Tabs value={activeConfigTab} onValueChange={setActiveConfigTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
+        <TabsList className="grid w-full grid-cols-4 lg:w-[800px]">
           <TabsTrigger value="clientes" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Clientes
@@ -32,6 +33,10 @@ export function PlanningConfigurationTab() {
           <TabsTrigger value="custodios" className="flex items-center gap-2">
             <MapPin className="h-4 w-4" />
             Custodios
+          </TabsTrigger>
+          <TabsTrigger value="ubicaciones" className="flex items-center gap-2">
+            <Navigation className="h-4 w-4" />
+            Ubicaciones
           </TabsTrigger>
           <TabsTrigger value="precios" className="flex items-center gap-2">
             <DollarSign className="h-4 w-4" />
@@ -65,6 +70,21 @@ export function PlanningConfigurationTab() {
             </CardHeader>
             <CardContent>
               <CustodiosTab />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Ubicaciones Tab */}
+        <TabsContent value="ubicaciones" className="space-y-6 mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Navigation className="h-5 w-5" />
+                Gestión de Ubicaciones Favoritas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ManageMeetingPointsTab />
             </CardContent>
           </Card>
         </TabsContent>
