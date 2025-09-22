@@ -369,8 +369,8 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
                               <span>{custodio.distancia_km ? `${custodio.distancia_km}km` : 'N/A'}</span>
                             </div>
                             <div className="flex items-center gap-1.5">
-                              <Star className="h-4 w-4" />
-                              <span>{custodio.score}/100</span>
+                              <Target className="h-4 w-4 text-primary" />
+                              <span>{custodio.score}%</span>
                             </div>
                             {custodio.rating_promedio && (
                               <div className="flex items-center gap-1.5">
