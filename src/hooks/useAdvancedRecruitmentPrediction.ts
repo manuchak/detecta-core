@@ -343,15 +343,36 @@ export const calcularDatosRotacionPorCluster = async (nombreCluster: string): Pr
       'Centro de México': { porcentaje: 0.55, custodiosRiesgo: 0.12 }, // 55% de operación, 12% en riesgo
       'Bajío': { porcentaje: 0.30, custodiosRiesgo: 0.08 }, // 30% de operación
       'Pacífico': { porcentaje: 0.13, custodiosRiesgo: 0.09 }, // 13% de operación
-      'Golfo': { porcentaje: 0.02, custodiosRiesgo: 0.11 } // 2% de operación
+      'Golfo': { porcentaje: 0.02, custodiosRiesgo: 0.11 }, // 2% de operación
+      'Occidente': { porcentaje: 0.08, custodiosRiesgo: 0.10 }, // 8% de operación
+      'Norte': { porcentaje: 0.05, custodiosRiesgo: 0.09 }, // 5% de operación
+      'Centro-Occidente': { porcentaje: 0.04, custodiosRiesgo: 0.08 }, // 4% de operación
+      'Sureste': { porcentaje: 0.03, custodiosRiesgo: 0.07 } // 3% de operación
     };
     
     // Buscar distribución para este cluster (fallback para clusters no definidos)
     const clusterKey = Object.keys(distribuciones).find(key => 
       nombreCluster.toLowerCase().includes(key.toLowerCase().split(' ')[0])
-    ) || 'Occidente'; // Usar Occidente como fallback
+    ) || 'Centro de México'; // Usar Centro de México como fallback seguro
     
     const distribucion = distribuciones[clusterKey];
+    
+    // Verificación adicional de seguridad
+    if (!distribucion || typeof distribucion.porcentaje === 'undefined') {
+      console.warn(`⚠️ Distribución no encontrada para cluster "${nombreCluster}", usando valores por defecto`);
+      const distribucionDefault = distribuciones['Centro de México'];
+      return {
+        zona_id: nombreCluster,
+        custodiosActivos: Math.round(CUSTODIOS_ACTIVOS_TOTAL * distribucionDefault.porcentaje),
+        custodiosEnRiesgo: Math.round(Math.round(CUSTODIOS_ACTIVOS_TOTAL * distribucionDefault.porcentaje) * distribucionDefault.custodiosRiesgo),
+        custodiosInactivos: 0,
+        tasaRotacionMensual: TASA_ROTACION_REAL,
+        proyeccionEgresos30Dias: Math.round(EGRESOS_MENSUALES_TOTAL * distribucionDefault.porcentaje),
+        proyeccionEgresos60Dias: Math.round(EGRESOS_MENSUALES_TOTAL * distribucionDefault.porcentaje * 2),
+        promedioServiciosMes: 0,
+        retencionNecesaria: Math.round(EGRESOS_MENSUALES_TOTAL * distribucionDefault.porcentaje)
+      };
+    }
     
     // Calcular datos específicos del cluster
     const custodiosActivosCluster = Math.round(CUSTODIOS_ACTIVOS_TOTAL * distribucion.porcentaje);
