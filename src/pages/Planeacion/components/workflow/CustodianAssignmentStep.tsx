@@ -145,10 +145,10 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
   };
 
   const getEstadoBadge = (estado: string) => {
-    const variants: Record<string, { variant: 'outline' | 'secondary' | 'default' | 'destructive', text: string }> = {
+    const variants: Record<string, { variant: 'outline' | 'secondary' | 'success' | 'destructive', text: string }> = {
       pendiente: { variant: 'outline' as const, text: 'Pendiente' },
       enviado: { variant: 'secondary' as const, text: 'Enviado' },
-      aceptado: { variant: 'default' as const, text: 'Aceptado' },
+      aceptado: { variant: 'success' as const, text: 'Aceptado' },
       rechazado: { variant: 'destructive' as const, text: 'Rechazado' },
       sin_responder: { variant: 'outline' as const, text: 'Sin responder' },
       contactar_despues: { variant: 'secondary' as const, text: 'Contactar después' }

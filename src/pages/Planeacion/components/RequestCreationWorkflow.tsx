@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle, Circle, MapPin, User, UserCheck } from 'lucide-react';
+import { CheckCircle, Circle, MapPin, User, UserCheck, Shield } from 'lucide-react';
 import { RouteSearchStep } from './workflow/RouteSearchStep';
 import { ServiceAutoFillStep } from './workflow/ServiceAutoFillStep';
 import { CustodianAssignmentStep } from './workflow/CustodianAssignmentStep';
+import { ArmedGuardAssignmentStep } from './workflow/ArmedGuardAssignmentStep';
 
 interface RouteData {
   cliente_nombre: string;
@@ -35,11 +36,22 @@ interface AssignmentData extends ServiceData {
   estado_comunicacion?: 'enviado' | 'aceptado' | 'rechazado' | 'sin_responder';
 }
 
+interface ArmedAssignmentData extends AssignmentData {
+  armado_asignado_id?: string;
+  armado_nombre?: string;
+  tipo_asignacion?: 'interno' | 'proveedor';
+  proveedor_id?: string;
+  punto_encuentro?: string;
+  hora_encuentro?: string;
+  estado_asignacion?: 'pendiente' | 'confirmado' | 'rechazado';
+}
+
 export function RequestCreationWorkflow() {
-  const [currentStep, setCurrentStep] = useState<'route' | 'service' | 'assignment'>('route');
+  const [currentStep, setCurrentStep] = useState<'route' | 'service' | 'assignment' | 'armed_assignment'>('route');
   const [routeData, setRouteData] = useState<RouteData | null>(null);
   const [serviceData, setServiceData] = useState<ServiceData | null>(null);
   const [assignmentData, setAssignmentData] = useState<AssignmentData | null>(null);
+  const [armedAssignmentData, setArmedAssignmentData] = useState<ArmedAssignmentData | null>(null);
 
   const steps = [
     { 
@@ -59,6 +71,12 @@ export function RequestCreationWorkflow() {
       label: 'Asignar Custodio', 
       icon: UserCheck,
       description: 'Comunicación y confirmación'
+    },
+    { 
+      id: 'armed_assignment', 
+      label: 'Asignar Armado', 
+      icon: Shield,
+      description: 'Coordinar con armado'
     }
   ];
 
@@ -66,11 +84,14 @@ export function RequestCreationWorkflow() {
     if (stepId === 'route') return routeData ? 'completed' : currentStep === 'route' ? 'current' : 'pending';
     if (stepId === 'service') return serviceData ? 'completed' : currentStep === 'service' ? 'current' : 'pending';
     if (stepId === 'assignment') return assignmentData ? 'completed' : currentStep === 'assignment' ? 'current' : 'pending';
+    if (stepId === 'armed_assignment') return armedAssignmentData ? 'completed' : currentStep === 'armed_assignment' ? 'current' : 'pending';
     return 'pending';
   };
 
   const canProceedToService = routeData !== null;
   const canProceedToAssignment = serviceData !== null;
+  const canProceedToArmedAssignment = assignmentData !== null && serviceData?.incluye_armado === true;
+  const shouldShowArmedStep = serviceData?.incluye_armado === true;
 
   // Auto-advance cuando se completen los pasos
   useEffect(() => {
@@ -91,8 +112,18 @@ export function RequestCreationWorkflow() {
 
   const handleAssignmentComplete = (data: AssignmentData) => {
     setAssignmentData(data);
-    // Aquí se podría crear el servicio en la base de datos
-    console.log('🎉 Solicitud completada:', data);
+    // Si el servicio incluye armado, avanzar al siguiente paso
+    if (serviceData?.incluye_armado) {
+      setCurrentStep('armed_assignment');
+    } else {
+      // Si no incluye armado, completar el workflow
+      console.log('🎉 Solicitud completada:', data);
+    }
+  };
+
+  const handleArmedAssignmentComplete = (data: ArmedAssignmentData) => {
+    setArmedAssignmentData(data);
+    console.log('🎉 Solicitud con armado completada:', data);
   };
 
   const resetWorkflow = () => {
@@ -100,6 +131,7 @@ export function RequestCreationWorkflow() {
     setRouteData(null);
     setServiceData(null);
     setAssignmentData(null);
+    setArmedAssignmentData(null);
   };
 
   return (
@@ -111,7 +143,9 @@ export function RequestCreationWorkflow() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
-            {steps.map((step, index) => {
+            {steps.filter(step => 
+              step.id !== 'armed_assignment' || shouldShowArmedStep
+            ).map((step, index, filteredSteps) => {
               const status = getStepStatus(step.id);
               const Icon = step.icon;
               
@@ -139,10 +173,10 @@ export function RequestCreationWorkflow() {
                     </div>
                   </div>
                   
-                  {index < steps.length - 1 && (
+                  {index < filteredSteps.length - 1 && (
                     <div className={`
                       flex-1 h-0.5 mx-4 transition-colors
-                      ${getStepStatus(steps[index + 1].id) !== 'pending' ? 'bg-primary' : 'bg-muted-foreground'}
+                      ${getStepStatus(filteredSteps[index + 1].id) !== 'pending' ? 'bg-primary' : 'bg-muted-foreground'}
                     `} />
                   )}
                 </div>
@@ -173,10 +207,18 @@ export function RequestCreationWorkflow() {
             onBack={() => setCurrentStep('service')}
           />
         )}
+        
+        {currentStep === 'armed_assignment' && serviceData && assignmentData && (
+          <ArmedGuardAssignmentStep 
+            serviceData={{...serviceData, ...assignmentData}}
+            onComplete={handleArmedAssignmentComplete}
+            onBack={() => setCurrentStep('assignment')}
+          />
+        )}
       </div>
 
       {/* Summary cuando se complete */}
-      {assignmentData && (
+      {(assignmentData && !serviceData?.incluye_armado) || armedAssignmentData && (
         <Card className="border-primary">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -188,20 +230,51 @@ export function RequestCreationWorkflow() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <div className="text-sm text-muted-foreground">Cliente - Destino</div>
-                <div className="font-medium">{assignmentData.cliente_nombre} → {assignmentData.destino_texto}</div>
+                <div className="font-medium">
+                  {(armedAssignmentData || assignmentData)?.cliente_nombre} → {(armedAssignmentData || assignmentData)?.destino_texto}
+                </div>
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">Custodio Asignado</div>
-                <div className="font-medium">{assignmentData.custodio_nombre || 'Pendiente'}</div>
+                <div className="font-medium">{(armedAssignmentData || assignmentData)?.custodio_nombre || 'Pendiente'}</div>
               </div>
               <div>
-                <div className="text-sm text-muted-foreground">Precio</div>
-                <div className="font-medium">${assignmentData.precio_sugerido?.toLocaleString()}</div>
+                <div className="text-sm text-muted-foreground">
+                  {serviceData?.incluye_armado ? 'Armado Asignado' : 'Precio'}
+                </div>
+                <div className="font-medium">
+                  {serviceData?.incluye_armado 
+                    ? armedAssignmentData?.armado_nombre || 'Pendiente'
+                    : `$${assignmentData?.precio_sugerido?.toLocaleString()}`
+                  }
+                </div>
               </div>
             </div>
+            
+            {serviceData?.incluye_armado && armedAssignmentData && (
+              <>
+                <Separator />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-sm text-muted-foreground">Punto de Encuentro</div>
+                    <div className="font-medium">{armedAssignmentData.punto_encuentro}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Hora de Encuentro</div>
+                    <div className="font-medium">{armedAssignmentData.hora_encuentro}</div>
+                  </div>
+                </div>
+              </>
+            )}
+            
             <Separator />
             <div className="flex items-center justify-between">
-              <Badge variant="default">Solicitud creada exitosamente</Badge>
+              <Badge variant="success">
+                {serviceData?.incluye_armado 
+                  ? 'Servicio armado creado exitosamente' 
+                  : 'Solicitud creada exitosamente'
+                }
+              </Badge>
               <button 
                 onClick={resetWorkflow}
                 className="text-sm text-primary hover:underline"
