@@ -44,41 +44,37 @@ export const CustodioPerformanceCard = ({
   };
 
   const getBadgeInfo = (custodio: CustodioEnriquecido) => {
-    // Para custodios históricos con múltiples servicios
-    if (custodio.fuente === 'historico') {
-      const serviciosCount = custodio.servicios_historicos?.length || 0;
-      if (serviciosCount > 0) {
-        return {
-          label: 'Experimentado',
-          description: `${serviciosCount}+ servicios completados`,
-          color: 'bg-blue-500/10 text-blue-700 border-blue-500/20'
-        };
-      }
-    }
-    
-    // Para custodios en proceso de candidatura
-    if (custodio.fuente === 'candidatos_custodios') {
-      return {
+    // Usar la nueva categoría de experiencia calculada
+    const categoryInfo = {
+      'experimentado': {
+        label: 'Experimentado',
+        description: `${custodio.numero_servicios || 50}+ servicios completados`,
+        color: 'bg-blue-500/10 text-blue-700 border-blue-500/20'
+      },
+      'intermedio': {
+        label: 'Intermedio',
+        description: `${custodio.numero_servicios || 10}+ servicios`,
+        color: 'bg-indigo-500/10 text-indigo-700 border-indigo-500/20'
+      },
+      'sin_historial': {
+        label: 'Establecido',
+        description: 'Custodio registrado',
+        color: 'bg-slate-500/10 text-slate-700 border-slate-500/20'
+      },
+      'nuevo': {
+        label: 'Nuevo',
+        description: 'Recién registrado',
+        color: 'bg-purple-500/10 text-purple-700 border-purple-500/20'
+      },
+      'candidato': {
         label: 'Candidato',
         description: 'En proceso de validación',
         color: 'bg-orange-500/10 text-orange-700 border-orange-500/20'
-      };
-    }
-    
-    // Usar performance level por defecto
-    const levelMap = {
-      'excelente': { label: 'Excelente', color: 'bg-green-500/10 text-green-700 border-green-500/20' },
-      'bueno': { label: 'Bueno', color: 'bg-blue-500/10 text-blue-700 border-blue-500/20' },
-      'regular': { label: 'Regular', color: 'bg-yellow-500/10 text-yellow-700 border-yellow-500/20' },
-      'malo': { label: 'Bajo', color: 'bg-red-500/10 text-red-700 border-red-500/20' },
-      'nuevo': { label: 'Nuevo', color: 'bg-purple-500/10 text-purple-700 border-purple-500/20' }
+      }
     };
-    
-    return {
-      label: levelMap[custodio.performance_level].label,
-      description: `Rendimiento ${custodio.performance_level}`,
-      color: levelMap[custodio.performance_level].color
-    };
+
+    const category = custodio.experience_category || 'sin_historial';
+    return categoryInfo[category] || categoryInfo.sin_historial;
   };
 
   if (compact) {

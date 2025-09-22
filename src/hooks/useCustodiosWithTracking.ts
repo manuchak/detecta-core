@@ -23,6 +23,7 @@ export interface CustodioEnriquecido extends CustodioConProximidad {
   performance_level: 'excelente' | 'bueno' | 'regular' | 'malo' | 'nuevo';
   rejection_risk: 'bajo' | 'medio' | 'alto';
   response_speed: 'rapido' | 'normal' | 'lento';
+  experience_category: 'experimentado' | 'intermedio' | 'sin_historial' | 'nuevo' | 'candidato';
 }
 
 interface UseCustodiosWithTrackingParams {
@@ -104,7 +105,8 @@ export const useCustodiosWithTracking = ({
           ...scores,
           performance_level,
           rejection_risk,
-          response_speed
+          response_speed,
+          experience_category: custodioCategory
         };
       });
 
@@ -130,16 +132,41 @@ export const useCustodiosWithTracking = ({
         filtered = filtered.filter(c => c.score_total >= filtros.score_minimo!);
       }
 
-      // Ordenar por score total (más alto primero) y luego por proximidad si existe
+      // Ordenar con prioridad por experiencia y luego por score
       filtered.sort((a, b) => {
-        // Primero por score total
-        if (b.score_total !== a.score_total) {
+        const aCat = getCustodioCategory(a);
+        const bCat = getCustodioCategory(b);
+        
+        // Mapear categorías a valores de prioridad
+        const getPriority = (cat: string) => {
+          switch (cat) {
+            case 'experimentado': return 4;
+            case 'intermedio': return 3;
+            case 'sin_historial': return 2;
+            case 'nuevo': return 1;
+            case 'candidato': return 0;
+            default: return 0;
+          }
+        };
+        
+        const aPriority = getPriority(aCat);
+        const bPriority = getPriority(bCat);
+        
+        // Primero por categoría de experiencia
+        if (bPriority !== aPriority) {
+          return bPriority - aPriority;
+        }
+        
+        // Dentro de la misma categoría, por score total
+        if (Math.abs(b.score_total - a.score_total) > 0.1) {
           return b.score_total - a.score_total;
         }
-        // Luego por proximidad si existe
+        
+        // Como tiebreaker, proximidad operacional si existe
         if (a.scoring_proximidad && b.scoring_proximidad) {
           return b.scoring_proximidad.score_operacional - a.scoring_proximidad.score_operacional;
         }
+        
         return 0;
       });
 
@@ -152,7 +179,8 @@ export const useCustodiosWithTracking = ({
         ...calcularScoresIniciales(custodio),
         performance_level: 'nuevo' as const,
         rejection_risk: 'medio' as const,
-        response_speed: 'normal' as const
+        response_speed: 'normal' as const,
+        experience_category: getCustodioCategory(custodio)
       }));
       setCustodiosEnriquecidos(fallback);
     } finally {
@@ -166,8 +194,8 @@ export const useCustodiosWithTracking = ({
 
   // Funciones helper para categorizar performance
   const getPerformanceLevel = (score: number, hasData: boolean, category: string): CustodioEnriquecido['performance_level'] => {
-    // Custodios experimentados siempre usan datos reales
-    if (category === 'experimentado') {
+    // Custodios experimentados e intermedios usan datos reales
+    if (category === 'experimentado' || category === 'intermedio') {
       if (score >= 8.5) return 'excelente';
       if (score >= 7.0) return 'bueno';
       if (score >= 5.5) return 'regular';
@@ -177,25 +205,32 @@ export const useCustodiosWithTracking = ({
     // Custodios nuevos
     if (category === 'nuevo') return 'nuevo';
     
-    // Sin historial o candidatos
-    if (!hasData) return 'nuevo';
+    // Sin historial o candidatos - usar score si disponible
+    if (hasData || category === 'sin_historial') {
+      if (score >= 8.0) return 'bueno';
+      if (score >= 6.5) return 'regular';
+      return 'malo';
+    }
     
-    // Usar score para determinar nivel
-    if (score >= 8.5) return 'excelente';
-    if (score >= 7.0) return 'bueno';
-    if (score >= 5.5) return 'regular';
-    return 'malo';
+    return 'nuevo';
   };
 
   const getRejectionRisk = (tasaAceptacion: number, hasData: boolean, category: string): CustodioEnriquecido['rejection_risk'] => {
-    // Para custodios experimentados, usar datos reales
-    if (category === 'experimentado' && hasData) {
-      if (tasaAceptacion >= 70) return 'bajo';
-      if (tasaAceptacion >= 40) return 'medio';
+    // Para custodios experimentados e intermedios, usar datos reales o estimados
+    if (category === 'experimentado' || category === 'intermedio') {
+      if (tasaAceptacion >= 80) return 'bajo';
+      if (tasaAceptacion >= 60) return 'medio';
       return 'alto';
     }
     
-    // Para nuevos o sin historial, riesgo medio por defecto
+    // Para custodios con algún historial
+    if (category === 'sin_historial' && hasData) {
+      if (tasaAceptacion >= 75) return 'bajo';
+      if (tasaAceptacion >= 50) return 'medio';
+      return 'alto';
+    }
+    
+    // Para nuevos o candidatos, riesgo medio por defecto
     return 'medio';
   };
 
@@ -225,6 +260,11 @@ export const useCustodiosWithTracking = ({
     regulares: custodiosEnriquecidos.filter(c => c.performance_level === 'regular').length,
     malos: custodiosEnriquecidos.filter(c => c.performance_level === 'malo').length,
     nuevos: custodiosEnriquecidos.filter(c => c.performance_level === 'nuevo').length,
+    // Estadísticas por experiencia
+    experimentados: custodiosEnriquecidos.filter(c => c.experience_category === 'experimentado').length,
+    intermedios: custodiosEnriquecidos.filter(c => c.experience_category === 'intermedio').length,
+    establecidos: custodiosEnriquecidos.filter(c => c.experience_category === 'sin_historial').length,
+    candidatos: custodiosEnriquecidos.filter(c => c.experience_category === 'candidato').length,
     score_promedio: custodiosEnriquecidos.length > 0 
       ? custodiosEnriquecidos.reduce((sum, c) => sum + c.score_total, 0) / custodiosEnriquecidos.length 
       : 0
@@ -242,11 +282,13 @@ export const useCustodiosWithTracking = ({
 
 /**
  * Determina si un custodio es realmente nuevo (menos de 7 días de registro)
- * Custodios históricos nunca se consideran nuevos
+ * Custodios históricos y operativos nunca se consideran nuevos
  */
 const esNuevoCustodio = (custodio: any): boolean => {
-  // Los custodios históricos nunca son "nuevos"
-  if (custodio.fuente === 'historico') return false;
+  // Los custodios históricos y operativos nunca son "nuevos"
+  if (custodio.fuente === 'historico' || 
+      custodio.fuente === 'migracion_historico' || 
+      custodio.fuente === 'custodios_operativos') return false;
   
   // Para custodios sin created_at, no son nuevos
   if (!custodio.created_at) return false;
@@ -261,18 +303,30 @@ const esNuevoCustodio = (custodio: any): boolean => {
 /**
  * Determina la categoría del custodio basado en su fuente y experiencia
  */
-const getCustodioCategory = (custodio: any): 'nuevo' | 'experimentado' | 'sin_historial' | 'candidato' => {
-  // Custodios históricos son siempre experimentados
-  if (custodio.fuente === 'historico') return 'experimentado';
+const getCustodioCategory = (custodio: any): 'nuevo' | 'experimentado' | 'intermedio' | 'sin_historial' | 'candidato' => {
+  // Custodios históricos migrados son siempre experimentados
+  if (custodio.fuente === 'historico' || custodio.fuente === 'migracion_historico') return 'experimentado';
+  
+  // Custodios de la tabla operativa con experiencia comprobada
+  if (custodio.fuente === 'custodios_operativos') {
+    const servicios = custodio.numero_servicios || 0;
+    if (servicios >= 50) return 'experimentado';
+    if (servicios >= 10) return 'intermedio';
+    if (servicios > 0) return 'sin_historial';
+    return esNuevoCustodio(custodio) ? 'nuevo' : 'sin_historial';
+  }
   
   // Candidatos en proceso
   if (custodio.fuente === 'candidatos_custodios') return 'candidato';
   
   // Custodios de pc_custodios
   if (custodio.fuente === 'pc_custodios') {
-    // Si tiene servicios históricos, es experimentado
+    // Si tiene servicios históricos, clasificar por cantidad
     if (custodio.servicios_historicos && custodio.servicios_historicos.length > 0) {
-      return 'experimentado';
+      const servicios = custodio.servicios_historicos.length;
+      if (servicios >= 50) return 'experimentado';
+      if (servicios >= 10) return 'intermedio';
+      return 'sin_historial';
     }
     
     // Si es nuevo (menos de 7 días), es nuevo
