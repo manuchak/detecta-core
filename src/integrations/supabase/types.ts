@@ -9022,21 +9022,13 @@ export type Database = {
       }
       custodios_operativos_disponibles: {
         Row: {
-          certificaciones: string[] | null
           created_at: string | null
           disponibilidad: string | null
-          disponibilidad_efectiva:
-            | Database["public"]["Enums"]["disponibilidad_custodio"]
-            | null
-          email: string | null
           estado: string | null
           experiencia_seguridad: boolean | null
           fecha_ultimo_servicio: string | null
           fuente: string | null
           id: string | null
-          indisponibilidades_activas: Json | null
-          lat: number | null
-          lng: number | null
           nombre: string | null
           numero_servicios: number | null
           rating_promedio: number | null
@@ -9051,64 +9043,6 @@ export type Database = {
           updated_at: string | null
           vehiculo_propio: boolean | null
           zona_base: string | null
-        }
-        Insert: {
-          certificaciones?: string[] | null
-          created_at?: string | null
-          disponibilidad?: string | null
-          disponibilidad_efectiva?: never
-          email?: string | null
-          estado?: string | null
-          experiencia_seguridad?: boolean | null
-          fecha_ultimo_servicio?: string | null
-          fuente?: string | null
-          id?: string | null
-          indisponibilidades_activas?: never
-          lat?: number | null
-          lng?: number | null
-          nombre?: string | null
-          numero_servicios?: number | null
-          rating_promedio?: number | null
-          score_aceptacion?: number | null
-          score_comunicacion?: number | null
-          score_confiabilidad?: number | null
-          score_total?: number | null
-          tasa_aceptacion?: number | null
-          tasa_confiabilidad?: number | null
-          tasa_respuesta?: number | null
-          telefono?: string | null
-          updated_at?: string | null
-          vehiculo_propio?: boolean | null
-          zona_base?: string | null
-        }
-        Update: {
-          certificaciones?: string[] | null
-          created_at?: string | null
-          disponibilidad?: string | null
-          disponibilidad_efectiva?: never
-          email?: string | null
-          estado?: string | null
-          experiencia_seguridad?: boolean | null
-          fecha_ultimo_servicio?: string | null
-          fuente?: string | null
-          id?: string | null
-          indisponibilidades_activas?: never
-          lat?: number | null
-          lng?: number | null
-          nombre?: string | null
-          numero_servicios?: number | null
-          rating_promedio?: number | null
-          score_aceptacion?: number | null
-          score_comunicacion?: number | null
-          score_confiabilidad?: number | null
-          score_total?: number | null
-          tasa_aceptacion?: number | null
-          tasa_confiabilidad?: number | null
-          tasa_respuesta?: number | null
-          telefono?: string | null
-          updated_at?: string | null
-          vehiculo_propio?: boolean | null
-          zona_base?: string | null
         }
         Relationships: []
       }
@@ -9605,6 +9539,10 @@ export type Database = {
       }
       current_user_is_coordinator_or_admin: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      custodio_tiene_actividad_reciente: {
+        Args: { p_nombre_custodio: string }
         Returns: boolean
       }
       daily_duplicate_cleanup: {
