@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, Shield, Settings, CheckCircle, ArrowLeft, Cpu } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { toast } from 'sonner';
 
 interface RouteData {
   cliente_nombre: string;
@@ -23,6 +24,7 @@ interface RouteData {
 }
 
 interface ServiceData extends RouteData {
+  servicio_id: string;
   fecha_programada: string;
   hora_ventana_inicio: string;
   tipo_servicio: string;
@@ -41,6 +43,7 @@ interface ServiceAutoFillStepProps {
 }
 
 export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAutoFillStepProps) {
+  const [servicioId, setServicioId] = useState('');
   const [fechaProgramada, setFechaProgramada] = useState(
     format(addDays(new Date(), 1), 'yyyy-MM-dd')
   );
@@ -84,8 +87,14 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
   }, [routeData]);
 
   const handleContinue = () => {
+    if (!servicioId.trim()) {
+      toast.error('El ID del servicio es requerido');
+      return;
+    }
+
     const serviceData: ServiceData = {
       ...routeData,
+      servicio_id: servicioId.trim(),
       fecha_programada: fechaProgramada,
       hora_ventana_inicio: horaInicio,
       tipo_servicio: tipoServicio,
@@ -177,6 +186,24 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
 
           {/* Service Configuration */}
           <div className="space-y-6">
+            {/* Service ID */}
+            <div className="space-y-2">
+              <Label htmlFor="servicio-id" className="flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                ID del Servicio *
+              </Label>
+              <Input
+                id="servicio-id"
+                placeholder="Ej: SRV-2024-001"
+                value={servicioId}
+                onChange={(e) => setServicioId(e.target.value)}
+                className={!servicioId.trim() ? 'border-red-200 focus:border-red-400' : ''}
+              />
+              <div className="text-xs text-muted-foreground">
+                Este ID conectará con la tabla de servicios custodia para seguimiento
+              </div>
+            </div>
+
             {/* Reception Date and Time */}
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
@@ -358,6 +385,11 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
               <div>
+                <div className="text-sm text-muted-foreground">ID del Servicio</div>
+                <div className="font-medium text-primary">{servicioId || 'Pendiente'}</div>
+              </div>
+              
+              <div>
                 <div className="text-sm text-muted-foreground">Solicitud Recibida</div>
                 <div className="font-medium">
                   {format(new Date(fechaRecepcion), 'EEEE, dd MMMM yyyy', { locale: es })}
@@ -431,7 +463,12 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
           Regresar
         </Button>
         
-        <Button onClick={handleContinue} size="lg" className="gap-2">
+        <Button 
+          onClick={handleContinue} 
+          size="lg" 
+          className="gap-2"
+          disabled={!servicioId.trim()}
+        >
           Continuar a Asignación
           <CheckCircle className="h-4 w-4" />
         </Button>

@@ -19,6 +19,7 @@ interface RouteData {
 }
 
 interface ServiceData extends RouteData {
+  servicio_id: string;
   fecha_programada: string;
   hora_ventana_inicio: string;
   tipo_servicio: string;
@@ -229,6 +230,12 @@ export function RequestCreationWorkflow() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
+                <div className="text-sm text-muted-foreground">ID de Servicio</div>
+                <div className="font-medium text-primary">
+                  {(armedAssignmentData || assignmentData)?.servicio_id || 'No especificado'}
+                </div>
+              </div>
+              <div>
                 <div className="text-sm text-muted-foreground">Cliente - Destino</div>
                 <div className="font-medium">
                   {(armedAssignmentData || assignmentData)?.cliente_nombre} → {(armedAssignmentData || assignmentData)?.destino_texto}
@@ -238,6 +245,9 @@ export function RequestCreationWorkflow() {
                 <div className="text-sm text-muted-foreground">Custodio Asignado</div>
                 <div className="font-medium">{(armedAssignmentData || assignmentData)?.custodio_nombre || 'Pendiente'}</div>
               </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <div>
                 <div className="text-sm text-muted-foreground">
                   {serviceData?.incluye_armado ? 'Armado Asignado' : 'Precio'}
@@ -247,6 +257,12 @@ export function RequestCreationWorkflow() {
                     ? armedAssignmentData?.armado_nombre || 'Pendiente'
                     : `$${assignmentData?.precio_sugerido?.toLocaleString()}`
                   }
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Fecha Programada</div>
+                <div className="font-medium">
+                  {(armedAssignmentData || assignmentData)?.fecha_programada || 'Por definir'}
                 </div>
               </div>
             </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { User, MessageCircle, Phone, MapPin, Target, Clock, Car, AlertCircle, CheckCircle2, Shield } from 'lucide-react';
+import { User, MessageCircle, Phone, MapPin, Target, Clock, Car, AlertCircle, CheckCircle2, Shield, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { CustodioPerformanceCard } from '@/components/planeacion/CustodioPerformanceCard';
 import { CustodianContactDialog } from '../dialogs/CustodianContactDialog';
@@ -10,6 +10,7 @@ import { useCustodiosWithTracking, type CustodioEnriquecido } from '@/hooks/useC
 import type { ServicioNuevo } from '@/utils/proximidadOperacional';
 
 interface ServiceData {
+  servicio_id?: string;
   origen?: string;
   destino?: string;
   fecha_hora_cita?: string;
@@ -119,6 +120,18 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
     if (result.status === 'acepta') {
       setSelectedCustodio(custodianId);
       toast.success(`¡${custodian?.nombre} ha aceptado el servicio!`);
+      
+      // Auto-advance: proceder automáticamente al siguiente paso
+      setTimeout(() => {
+        const assignmentData: AssignmentData = {
+          ...serviceData,
+          custodio_asignado_id: custodianId,
+          custodio_nombre: custodian?.nombre,
+          estado_comunicacion: 'aceptado'
+        };
+        onComplete(assignmentData);
+      }, 1500); // Breve delay para mostrar el mensaje de éxito
+      
     } else if (result.status === 'rechaza') {
       toast.error(`${custodian?.nombre} ha rechazado el servicio: ${result.razon_rechazo}`);
     } else if (result.status === 'contactar_despues') {
@@ -212,6 +225,12 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
           <div className="bg-muted/50 rounded-lg p-4 mb-6">
             <h3 className="font-semibold mb-2">Resumen del Servicio</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <Settings className="h-4 w-4 text-muted-foreground" />
+                <span>
+                  <strong>ID:</strong> {serviceData.servicio_id || 'No especificado'}
+                </span>
+              </div>
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-muted-foreground" />
                 <span>
