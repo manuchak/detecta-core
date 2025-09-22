@@ -66,16 +66,8 @@ export const useCustodiosWithTracking = ({
         const searchKey = `${custodio.nombre.toLowerCase().trim()}_${custodio.telefono || ''}`;
         const metrics = metricsMap.get(searchKey);
         
-        // Valores por defecto para custodios nuevos
-        const defaultScores = {
-          score_comunicacion: 5.0,
-          score_aceptacion: 5.0, 
-          score_confiabilidad: 10.0,
-          score_total: 6.7,
-          tasa_aceptacion: 0,
-          tasa_respuesta: 0,
-          tasa_confiabilidad: 100
-        };
+        // Valores calculados dinámicamente para custodios sin métricas
+        const defaultScores = calcularScoresIniciales(custodio);
 
         // Usar métricas reales o valores por defecto
         const scores = metrics ? {
@@ -89,8 +81,9 @@ export const useCustodiosWithTracking = ({
         } : defaultScores;
 
         // Calcular niveles categorizados
-        const performance_level = getPerformanceLevel(scores.score_total, !!metrics);
-        const rejection_risk = getRejectionRisk(scores.tasa_aceptacion, !!metrics);
+        const isNew = esNuevoCustodio(custodio);
+        const performance_level = getPerformanceLevel(scores.score_total, !!metrics, isNew);
+        const rejection_risk = getRejectionRisk(scores.tasa_aceptacion, !!metrics, isNew);
         const response_speed = getResponseSpeed(metrics?.tiempo_promedio_respuesta_minutos || 0);
 
         return {
@@ -144,13 +137,7 @@ export const useCustodiosWithTracking = ({
       // En caso de error, devolver custodios originales con valores por defecto
       const fallback: CustodioEnriquecido[] = custodios.map(custodio => ({
         ...custodio,
-        score_comunicacion: 5.0,
-        score_aceptacion: 5.0,
-        score_confiabilidad: 10.0,
-        score_total: 6.7,
-        tasa_aceptacion: 0,
-        tasa_respuesta: 0,
-        tasa_confiabilidad: 100,
+        ...calcularScoresIniciales(custodio),
         performance_level: 'nuevo' as const,
         rejection_risk: 'medio' as const,
         response_speed: 'normal' as const
@@ -166,16 +153,17 @@ export const useCustodiosWithTracking = ({
   }, [custodios, JSON.stringify(filtros)]);
 
   // Funciones helper para categorizar performance
-  const getPerformanceLevel = (score: number, hasData: boolean): CustodioEnriquecido['performance_level'] => {
-    if (!hasData) return 'nuevo';
+  const getPerformanceLevel = (score: number, hasData: boolean, isNew: boolean): CustodioEnriquecido['performance_level'] => {
+    if (isNew) return 'nuevo';
+    if (!hasData) return 'nuevo'; // Sin historial reciente
     if (score >= 8.5) return 'excelente';
     if (score >= 7.0) return 'bueno';
     if (score >= 5.5) return 'regular';
     return 'malo';
   };
 
-  const getRejectionRisk = (tasaAceptacion: number, hasData: boolean): CustodioEnriquecido['rejection_risk'] => {
-    if (!hasData) return 'medio';
+  const getRejectionRisk = (tasaAceptacion: number, hasData: boolean, isNew: boolean): CustodioEnriquecido['rejection_risk'] => {
+    if (isNew || !hasData) return 'medio'; // Riesgo medio para nuevos
     if (tasaAceptacion >= 70) return 'bajo';
     if (tasaAceptacion >= 40) return 'medio';
     return 'alto';
@@ -219,5 +207,62 @@ export const useCustodiosWithTracking = ({
     getTopCustodios,
     stats,
     refetch: enrichCustodios
+  };
+};
+
+/**
+ * Determina si un custodio es realmente nuevo (menos de 7 días de registro)
+ */
+const esNuevoCustodio = (custodio: any): boolean => {
+  if (!custodio.created_at) return false;
+  
+  const fechaRegistro = new Date(custodio.created_at);
+  const ahora = new Date();
+  const diasTranscurridos = (ahora.getTime() - fechaRegistro.getTime()) / (1000 * 60 * 60 * 24);
+  
+  return diasTranscurridos <= 7;
+};
+
+/**
+ * Calcula scores iniciales dinámicos basados en el perfil del custodio
+ */
+const calcularScoresIniciales = (custodio: any) => {
+  // Score de comunicación basado en disponibilidad y experiencia
+  let scoreComunicacion = 6.0; // Base neutral
+  if (custodio.experiencia_seguridad) scoreComunicacion += 1.5;
+  if (custodio.disponibilidad_horarios?.lunes_viernes) scoreComunicacion += 0.5;
+  if (custodio.disponibilidad_horarios?.sabados) scoreComunicacion += 0.3;
+  if (custodio.fuente === 'pc_custodios') scoreComunicacion += 1.0; // Custodios establecidos
+
+  // Score de aceptación basado en motivación y experiencia
+  let scoreAceptacion = 7.0; // Base optimista
+  if (custodio.experiencia_seguridad) scoreAceptacion += 1.0;
+  if (custodio.vehiculo_propio) scoreAceptacion += 0.5;
+  if (custodio.expectativa_ingresos && custodio.expectativa_ingresos > 25000) scoreAceptacion += 0.8;
+  if (custodio.fuente === 'candidatos_custodios' && custodio.estado_proceso === 'lead') scoreAceptacion -= 1.0;
+
+  // Score de confiabilidad - empezar con fe inicial pero realista
+  let scoreConfiabilidad = 8.5; // Base alta pero no perfecta
+  if (custodio.experiencia_seguridad) scoreConfiabilidad += 0.5;
+  if (custodio.certificaciones && custodio.certificaciones.length > 0) {
+    scoreConfiabilidad += Math.min(0.8, custodio.certificaciones.length * 0.2);
+  }
+
+  // Calcular tasas iniciales realistas basadas en perfil
+  const tasaAceptacion = Math.min(95, scoreAceptacion * 10 + 15); // 85-95% inicial
+  const tasaRespuesta = Math.min(95, scoreComunicacion * 10 + 20); // 80-95% inicial
+  const tasaConfiabilidad = Math.min(98, scoreConfiabilidad * 10 + 5); // 85-98% inicial
+
+  // Score total como promedio ponderado
+  const scoreTotal = (scoreComunicacion * 0.3 + scoreAceptacion * 0.4 + scoreConfiabilidad * 0.3);
+
+  return {
+    score_comunicacion: Math.round(scoreComunicacion * 10) / 10,
+    score_aceptacion: Math.round(scoreAceptacion * 10) / 10,
+    score_confiabilidad: Math.round(scoreConfiabilidad * 10) / 10,
+    score_total: Math.round(scoreTotal * 10) / 10,
+    tasa_aceptacion: Math.round(tasaAceptacion * 10) / 10,
+    tasa_respuesta: Math.round(tasaRespuesta * 10) / 10,
+    tasa_confiabilidad: Math.round(tasaConfiabilidad * 10) / 10
   };
 };

@@ -78,9 +78,18 @@ export const CustodioPerformanceCard = ({
             {custodio.tasa_respuesta.toFixed(0)}%
           </span>
           {custodio.scoring_proximidad && (
-            <span className="text-primary font-medium">
-              Prox: {custodio.scoring_proximidad.score_operacional.toFixed(1)}
-            </span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-primary font-medium cursor-help">
+                    P.Op: {custodio.scoring_proximidad.score_operacional.toFixed(1)}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Puntaje Operacional: Compatibilidad con el servicio basada en experiencia, ubicación y disponibilidad</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
         </div>
       </div>
@@ -210,9 +219,16 @@ export const CustodioPerformanceCard = ({
         {/* Información adicional */}
         <div className="flex justify-between items-center text-xs text-muted-foreground">
           {custodio.scoring_proximidad && (
-            <span className="text-primary font-medium">
-              Proximidad: {custodio.scoring_proximidad.score_operacional.toFixed(1)}
-            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-primary font-medium cursor-help">
+                  Puntaje Operacional: {custodio.scoring_proximidad.score_operacional.toFixed(1)}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Evaluación integral de compatibilidad operacional con el servicio</p>
+              </TooltipContent>
+            </Tooltip>
           )}
           
           {custodio.performance_metrics && (

@@ -132,7 +132,8 @@ function calcularScoreTemporal(
   servicioNuevo: ServicioNuevo,
   serviciosProximos: ServicioHistorico[]
 ): number {
-  let score = 30; // Score base para disponibilidad general
+  // Score base dinámico basado en disponibilidad declarada del custodio
+  let score = calcularScoreTemporalBase(custodio, servicioNuevo);
   
   const fechaServicio = new Date(`${servicioNuevo.fecha_programada}T${servicioNuevo.hora_ventana_inicio}`);
   const diaSemana = fechaServicio.getDay(); // 0 = domingo, 1 = lunes, etc.
@@ -187,7 +188,8 @@ function calcularScoreGeografico(
   custodio: CustodioConHistorial,
   servicioNuevo: ServicioNuevo
 ): { score: number; distancia?: number; mismaRegion: boolean; zonaPreferidaMatch: boolean } {
-  let score = 20; // Score base
+  // Score base dinámico basado en familiaridad geográfica del custodio
+  let score = calcularScoreGeograficoBase(custodio);
   
   const ciudadOrigen = extraerCiudad(servicioNuevo.origen_texto);
   const ciudadDestino = extraerCiudad(servicioNuevo.destino_texto);
@@ -263,7 +265,8 @@ function calcularScoreOperacional(
   custodio: CustodioConHistorial,
   servicioNuevo: ServicioNuevo
 ): { score: number; experienciaTipo: boolean; vehiculoVentaja: boolean } {
-  let score = 25; // Score base
+  // Score base dinámico basado en perfil del custodio
+  let score = calcularScoreBaseDinamico(custodio);
   let experienciaTipo = false;
   let vehiculoVentaja = false;
   
@@ -436,4 +439,98 @@ export function generarRazonesRecomendacion(scoring: ScoringProximidad, custodio
   }
   
   return razones.slice(0, 3); // Máximo 3 razones para no saturar la UI
+}
+
+/**
+ * Calcula score base dinámico para el componente operacional
+ */
+function calcularScoreBaseDinamico(custodio: CustodioConHistorial): number {
+  let baseScore = 15; // Mínimo para cualquier custodio
+  
+  // Bonificación por experiencia en seguridad (+0-15 puntos)
+  if (custodio.experiencia_seguridad) {
+    baseScore += 15;
+  } else if (custodio.fuente === 'pc_custodios') {
+    // Si es de pc_custodios, asumimos cierta experiencia
+    baseScore += 8;
+  }
+  
+  // Bonificación por certificaciones (+0-8 puntos)
+  if (custodio.certificaciones && custodio.certificaciones.length > 0) {
+    baseScore += Math.min(8, custodio.certificaciones.length * 2);
+  }
+  
+  // Bonificación por vehículo propio (+0-5 puntos)
+  if (custodio.vehiculo_propio) {
+    baseScore += 5;
+  }
+  
+  // Bonificación por rating histórico (+0-7 puntos)
+  if (custodio.rating_promedio) {
+    if (custodio.rating_promedio >= 4.5) baseScore += 7;
+    else if (custodio.rating_promedio >= 4.0) baseScore += 5;
+    else if (custodio.rating_promedio >= 3.5) baseScore += 3;
+  }
+  
+  return Math.min(40, baseScore); // Máximo 40 puntos base
+}
+
+/**
+ * Calcula score temporal base basado en disponibilidad del custodio
+ */
+function calcularScoreTemporalBase(custodio: CustodioConHistorial, servicioNuevo: ServicioNuevo): number {
+  let baseScore = 20; // Mínimo base
+  
+  const fechaServicio = new Date(`${servicioNuevo.fecha_programada}T${servicioNuevo.hora_ventana_inicio}`);
+  const horaServicio = fechaServicio.getHours();
+  
+  // Bonificación por disponibilidad amplia
+  if (custodio.disponibilidad_horarios) {
+    const disponibilidad = custodio.disponibilidad_horarios;
+    let flexibilidad = 0;
+    
+    if (disponibilidad.lunes_viernes) flexibilidad++;
+    if (disponibilidad.sabados) flexibilidad++;
+    if (disponibilidad.domingos) flexibilidad++;
+    
+    baseScore += flexibilidad * 5; // 5 puntos por cada tipo de disponibilidad
+  } else if (custodio.fuente === 'pc_custodios') {
+    // Asumimos flexibilidad para custodios establecidos
+    baseScore += 10;
+  }
+  
+  // Bonificación por horario conveniente (9-18h = más puntos)
+  if (horaServicio >= 9 && horaServicio <= 18) {
+    baseScore += 5;
+  } else if (horaServicio >= 6 && horaServicio <= 22) {
+    baseScore += 2;
+  }
+  
+  return Math.min(35, baseScore); // Máximo 35 puntos base
+}
+
+/**
+ * Calcula score geográfico base basado en conocimiento de zona del custodio
+ */
+function calcularScoreGeograficoBase(custodio: CustodioConHistorial): number {
+  let baseScore = 10; // Mínimo para cualquier custodio
+  
+  // Bonificación por zona base definida
+  if (custodio.zona_base) {
+    baseScore += 10;
+  }
+  
+  // Bonificación por ciudades frecuentes (experiencia geográfica)
+  if (custodio.ciudades_frecuentes && custodio.ciudades_frecuentes.length > 0) {
+    baseScore += Math.min(15, custodio.ciudades_frecuentes.length * 3);
+  }
+  
+  // Bonificación por número de servicios (conocimiento acumulado)
+  if (custodio.numero_servicios) {
+    if (custodio.numero_servicios >= 20) baseScore += 5;
+    else if (custodio.numero_servicios >= 10) baseScore += 3;
+    else if (custodio.numero_servicios >= 5) baseScore += 1;
+  }
+  
+  return Math.min(30, baseScore); // Máximo 30 puntos base
 }
