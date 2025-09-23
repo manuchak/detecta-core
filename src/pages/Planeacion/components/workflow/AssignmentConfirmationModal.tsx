@@ -3,10 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, MapPin, Clock, User, Shield, Car, Copy, Info } from 'lucide-react';
+import { CheckCircle2, MapPin, Clock, User, Shield, Car, Phone, Copy, Info } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { useCustodioVehicleData } from '@/hooks/useCustodioVehicleData';
 
 interface AssignmentConfirmationData {
   servicio: {
@@ -26,13 +27,6 @@ interface AssignmentConfirmationData {
     punto_encuentro: string;
     hora_encuentro: string;
   };
-  vehiculo?: {
-    marca?: string;
-    modelo?: string;
-    placa?: string;
-    color?: string;
-    fuente?: string;
-  };
 }
 
 interface AssignmentConfirmationModalProps {
@@ -51,6 +45,11 @@ export function AssignmentConfirmationModal({
   data
 }: AssignmentConfirmationModalProps) {
   const [isConfirming, setIsConfirming] = React.useState(false);
+  
+  // Obtener datos del vehículo del custodio
+  const { vehicleData, loading: vehicleLoading, formatVehicleInfo } = useCustodioVehicleData(
+    data.servicio.custodio_nombre
+  );
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -83,14 +82,11 @@ Tipo de servicio: ${data.servicio.tipo_servicio}
 
 👤 CUSTODIO ASIGNADO (DATOS PARA ACCESO AL CEDIS):
 Nombre: ${data.servicio.custodio_nombre}
-${data.vehiculo?.marca && data.vehiculo?.modelo 
-  ? `Vehículo: ${data.vehiculo.marca} ${data.vehiculo.modelo}${data.vehiculo.color ? ` ${data.vehiculo.color}` : ''}` 
-  : 'Vehículo: No especificado'
-}
-${data.vehiculo?.placa ? `Placas: ${data.vehiculo.placa}` : 'Placas: No especificadas'}
+Vehículo: ${formatVehicleInfo()}
 
 🛡️ ARMADO ASIGNADO:
 Nombre: ${data.armado.nombre}
+Tipo: ${data.armado.tipo_asignacion === 'interno' ? 'Armado Interno' : 'Proveedor Externo'}
 
 ✅ INFORMACIÓN IMPORTANTE:
 - Su servicio ha sido confirmado exitosamente
@@ -166,22 +162,20 @@ Para cualquier duda o emergencia, contacte a nuestro centro de operaciones.`;
                     <span className="text-muted-foreground">Nombre:</span>
                     <span className="ml-2 font-medium">{data.servicio.custodio_nombre}</span>
                   </div>
-                  {data.vehiculo?.marca && (
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Car className="h-4 w-4 text-muted-foreground" />
-                        <span>
-                          <strong>Vehículo:</strong> {data.vehiculo.marca} {data.vehiculo.modelo || ''}
-                          {data.vehiculo.color && ` (${data.vehiculo.color})`}
-                        </span>
-                      </div>
-                      {data.vehiculo.placa && (
-                        <div className="text-sm text-muted-foreground ml-6">
-                          <strong>Placas:</strong> {data.vehiculo.placa}
-                        </div>
+                  <div className="flex items-center gap-2">
+                    <Car className="h-4 w-4 text-muted-foreground" />
+                    <span>
+                      <strong>Vehículo:</strong> 
+                      {vehicleLoading ? (
+                        <span className="ml-1 text-muted-foreground">Cargando...</span>
+                      ) : (
+                        <span className="ml-1">{formatVehicleInfo()}</span>
                       )}
-                    </div>
-                  )}
+                      {vehicleData?.fuente === 'servicios_custodia' && (
+                        <span className="ml-1 text-xs text-amber-600">(datos históricos)</span>
+                      )}
+                    </span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -197,6 +191,11 @@ Para cualquier duda o emergencia, contacte a nuestro centro de operaciones.`;
                   <div>
                     <span className="text-muted-foreground">Nombre:</span>
                     <span className="ml-2 font-medium">{data.armado.nombre}</span>
+                  </div>
+                  <div>
+                    <Badge variant={data.armado.tipo_asignacion === 'interno' ? 'success' : 'secondary'}>
+                      {data.armado.tipo_asignacion === 'interno' ? 'Armado Interno' : 'Proveedor Externo'}
+                    </Badge>
                   </div>
                 </div>
               </CardContent>

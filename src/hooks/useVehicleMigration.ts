@@ -2,68 +2,40 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-export const useVehicleMigration = () => {
+export function useVehicleMigration() {
   const [isMigrating, setIsMigrating] = useState(false);
-  const [migrationStatus, setMigrationStatus] = useState<{
-    completed: boolean;
-    recordCount?: number;
-    error?: string;
-  }>({ completed: false });
+  const [migrationResults, setMigrationResults] = useState<number | null>(null);
 
   const runMigration = async () => {
     setIsMigrating(true);
+    setMigrationResults(null);
+    
     try {
-      console.log('🚀 Iniciando migración de datos de vehículos...');
-      
       const { data, error } = await supabase.rpc('migrate_vehicle_data_from_services');
       
-      if (error) {
-        console.error('❌ Error en migración:', error);
-        setMigrationStatus({
-          completed: false,
-          error: error.message
-        });
-        toast.error(`Error en migración: ${error.message}`);
-        return false;
-      }
-
-      const recordCount = data || 0;
-      console.log(`✅ Migración completada: ${recordCount} vehículos migrados`);
+      if (error) throw error;
       
-      setMigrationStatus({
-        completed: true,
-        recordCount
-      });
-
-      if (recordCount > 0) {
-        toast.success(`Migración exitosa: ${recordCount} vehículos migrados desde servicios históricos`);
+      setMigrationResults(data);
+      
+      if (data > 0) {
+        toast.success(`Migración completada: ${data} vehículos migrados`);
       } else {
-        toast.info('Migración completada: no se encontraron nuevos vehículos por migrar');
+        toast.info('No se encontraron vehículos nuevos para migrar');
       }
-
-      return true;
+      
+      return data;
     } catch (err) {
-      console.error('❌ Error en migración:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido en migración';
-      setMigrationStatus({
-        completed: false,
-        error: errorMessage
-      });
-      toast.error(`Error en migración: ${errorMessage}`);
-      return false;
+      console.error('Error running migration:', err);
+      toast.error('Error al ejecutar la migración de vehículos');
+      throw err;
     } finally {
       setIsMigrating(false);
     }
   };
 
-  const resetMigrationStatus = () => {
-    setMigrationStatus({ completed: false });
-  };
-
   return {
-    runMigration,
     isMigrating,
-    migrationStatus,
-    resetMigrationStatus
+    migrationResults,
+    runMigration
   };
-};
+}
