@@ -14,8 +14,6 @@ export function useCustodioVehicleData(custodioNombre?: string) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  console.log('useCustodioVehicleData hook initialized with:', custodioNombre);
-
   const fetchVehicleData = async (nombre?: string) => {
     if (!nombre || nombre.trim() === '') {
       setVehicleData(null);
