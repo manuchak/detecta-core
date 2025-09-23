@@ -13,51 +13,26 @@ export const useOrigenesConFrecuencia = (clienteNombre?: string) => {
     queryFn: async (): Promise<OrigenConFrecuencia[]> => {
       if (!clienteNombre) return [];
 
-      // Obtener orígenes disponibles en pricing
-      const { data: origenesPrecios, error: errorPrecios } = await supabase
-        .from('matriz_precios_rutas')
-        .select('origen_texto')
-        .eq('activo', true)
-        .eq('cliente_nombre', clienteNombre);
+      // Usar la función RPC optimizada para obtener orígenes con frecuencia en una sola query
+      const { data, error } = await supabase.rpc('get_origenes_con_frecuencia', {
+        cliente_nombre_param: clienteNombre
+      });
 
-      if (errorPrecios) throw errorPrecios;
-
-      const origenesUnicos = Array.from(new Set(origenesPrecios?.map(row => row.origen_texto) || []));
-
-      // Obtener frecuencia histórica para cada origen
-      const origenesConFrecuencia: OrigenConFrecuencia[] = [];
-
-      for (const origen of origenesUnicos) {
-        // Buscar frecuencia en servicios históricos
-        const { data: frecuenciaData, error: errorFrecuencia } = await supabase
-          .from('servicios_custodia')
-          .select('fecha_hora_cita')
-          .eq('nombre_cliente', clienteNombre)
-          .eq('origen', origen)
-          .order('fecha_hora_cita', { ascending: false });
-
-        if (errorFrecuencia) {
-          console.warn(`Error fetching frequency for ${origen}:`, errorFrecuencia);
-        }
-
-        const frecuencia = frecuenciaData?.length || 0;
-        const ultimoUso = frecuenciaData?.[0]?.fecha_hora_cita;
-
-        origenesConFrecuencia.push({
-          origen,
-          frecuencia,
-          ultimoUso
-        });
+      if (error) {
+        console.error('Error fetching origins with frequency:', error);
+        throw error;
       }
 
-      // Ordenar por frecuencia descendente, luego por nombre
-      return origenesConFrecuencia.sort((a, b) => {
-        if (b.frecuencia !== a.frecuencia) {
-          return b.frecuencia - a.frecuencia;
-        }
-        return a.origen.localeCompare(b.origen);
-      });
+      // Transformar la respuesta al formato esperado
+      return (data || []).map(row => ({
+        origen: row.origen,
+        frecuencia: Number(row.frecuencia),
+        ultimoUso: row.ultimo_uso
+      }));
     },
     enabled: !!clienteNombre,
+    staleTime: 5 * 60 * 1000, // Considerar datos frescos por 5 minutos
+    gcTime: 15 * 60 * 1000, // Mantener en cache por 15 minutos
+    refetchOnWindowFocus: false, // No refetch al cambiar de ventana
   });
 };

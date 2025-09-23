@@ -10474,6 +10474,14 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_origenes_con_frecuencia: {
+        Args: { cliente_nombre_param: string }
+        Returns: {
+          frecuencia: number
+          origen: string
+          ultimo_uso: string
+        }[]
+      }
       get_points_system_config: {
         Args: Record<PropertyKey, never>
         Returns: {
