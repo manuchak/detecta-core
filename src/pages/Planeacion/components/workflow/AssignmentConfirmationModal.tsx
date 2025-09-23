@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, MapPin, Clock, User, Shield, Car, Phone, Copy } from 'lucide-react';
+import { CheckCircle2, MapPin, Clock, User, Shield, Car, Phone, Copy, Info } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -37,7 +37,7 @@ interface AssignmentConfirmationData {
 interface AssignmentConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => Promise<void>;
   onCreateNew: () => void;
   data: AssignmentConfirmationData;
 }
@@ -49,10 +49,25 @@ export function AssignmentConfirmationModal({
   onCreateNew,
   data
 }: AssignmentConfirmationModalProps) {
+  const [isConfirming, setIsConfirming] = React.useState(false);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success('Copiado al portapapeles');
+  };
+
+  const handleConfirm = async () => {
+    setIsConfirming(true);
+    try {
+      await onConfirm();
+      toast.success('Asignación confirmada y registrada exitosamente');
+      // El onConfirm ya debe cerrar el modal y limpiar el formulario
+    } catch (error) {
+      console.error('Error confirming assignment:', error);
+      toast.error('Error al confirmar la asignación');
+    } finally {
+      setIsConfirming(false);
+    }
   };
 
   const generateClientMessage = () => {
@@ -63,11 +78,12 @@ Cliente: ${data.servicio.cliente_nombre}
 Ruta: ${data.servicio.origen} → ${data.servicio.destino}
 Fecha: ${format(new Date(data.servicio.fecha_programada), 'PPP', { locale: es })}
 Hora del servicio: ${data.servicio.hora_ventana_inicio}
+Tipo de servicio: ${data.servicio.tipo_servicio}
 
-👤 CUSTODIO ASIGNADO:
+👤 CUSTODIO ASIGNADO (DATOS PARA ACCESO AL CEDIS):
 Nombre: ${data.servicio.custodio_nombre}
-${data.vehiculo?.auto ? `Vehículo: ${data.vehiculo.auto}` : ''}
-${data.vehiculo?.placa ? `Placas: ${data.vehiculo.placa}` : ''}
+${data.vehiculo?.auto ? `Vehículo: ${data.vehiculo.auto}` : 'Vehículo: No especificado'}
+${data.vehiculo?.placa ? `Placas: ${data.vehiculo.placa}` : 'Placas: No especificadas'}
 
 🛡️ ARMADO ASIGNADO:
 Nombre: ${data.armado.nombre}
@@ -75,11 +91,11 @@ Tipo: ${data.armado.tipo_asignacion === 'interno' ? 'Armado Interno' : 'Proveedo
 ${data.armado.telefono ? `Teléfono: ${data.armado.telefono}` : ''}
 ${data.armado.licencia_portacion ? `Licencia: ${data.armado.licencia_portacion}` : ''}
 
-📍 PUNTO DE ENCUENTRO:
-Ubicación: ${data.encuentro.punto_encuentro}
-Hora de encuentro: ${data.encuentro.hora_encuentro}
-
-✅ Su servicio ha sido confirmado. El custodio y armado estarán en el punto de encuentro a la hora acordada.
+✅ INFORMACIÓN IMPORTANTE:
+- Su servicio ha sido confirmado exitosamente
+- Los datos del custodio y vehículo son necesarios para el acceso al CEDIS
+- El armado acompañará al custodio durante todo el servicio
+- Conserve estos datos para consultas futuras
 
 Para cualquier duda o emergencia, contacte a nuestro centro de operaciones.`;
 
@@ -196,22 +212,26 @@ Para cualquier duda o emergencia, contacte a nuestro centro de operaciones.`;
             </Card>
           </div>
 
-          {/* Meeting Details */}
-          <Card className="border-blue-200 bg-blue-50/50">
+          {/* Meeting Details - Solo para operaciones internas */}
+          <Card className="border-amber-200 bg-amber-50/50">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-3">
-                <Clock className="h-5 w-5 text-blue-600" />
-                <span className="font-semibold text-blue-800">Detalles del Encuentro</span>
+                <Clock className="h-5 w-5 text-amber-600" />
+                <span className="font-semibold text-amber-800">Coordinación Interna</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-muted-foreground">Punto de encuentro:</span>
+                  <span className="text-muted-foreground">Punto de encuentro (interno):</span>
                   <span className="ml-2 font-medium">{data.encuentro.punto_encuentro}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Hora de encuentro:</span>
+                  <span className="text-muted-foreground">Hora de encuentro (interno):</span>
                   <span className="ml-2 font-medium">{data.encuentro.hora_encuentro}</span>
                 </div>
+              </div>
+              <div className="mt-2 p-2 bg-amber-100 rounded text-xs text-amber-700">
+                <Info className="h-3 w-3 inline mr-1" />
+                Esta información es solo para coordinación interna. No se incluye en el mensaje al cliente.
               </div>
             </CardContent>
           </Card>
@@ -238,15 +258,19 @@ Para cualquier duda o emergencia, contacte a nuestro centro de operaciones.`;
         </div>
 
         <DialogFooter className="flex gap-2">
-          <Button onClick={onClose} variant="outline">
+          <Button onClick={onClose} variant="outline" disabled={isConfirming}>
             Cerrar
           </Button>
-          <Button onClick={onCreateNew} variant="outline">
+          <Button onClick={onCreateNew} variant="outline" disabled={isConfirming}>
             Crear Nuevo Servicio
           </Button>
-          <Button onClick={onConfirm} className="bg-green-600 hover:bg-green-700">
-            <CheckCircle2 className="h-4 w-4 mr-2" />
-            Confirmar Completado
+          <Button onClick={handleConfirm} className="bg-green-600 hover:bg-green-700" disabled={isConfirming}>
+            {isConfirming ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+            ) : (
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+            )}
+            {isConfirming ? 'Guardando...' : 'Confirmar y Registrar'}
           </Button>
         </DialogFooter>
       </DialogContent>

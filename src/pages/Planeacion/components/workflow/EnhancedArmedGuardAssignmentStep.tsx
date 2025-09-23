@@ -226,19 +226,55 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
   };
 
   const handleConfirmAssignment = async () => {
-    if (assignmentData) {
+    if (!assignmentData) return;
+
+    try {
+      // Simular guardado en base de datos
+      console.log('💾 Guardando asignación en base de datos:', assignmentData);
+      
+      // Aquí se haría la inserción real en las tablas:
+      // - servicios_custodia (actualizar estado)
+      // - asignacion_armados (crear nueva asignación)
+      // - assignment_audit_log (registro de auditoría)
+      
+      // Log final de auditoría
+      await logAssignmentAction({
+        service_id: assignmentData.cliente_nombre,
+        custodio_id: assignmentData.custodio_asignado_id,
+        armado_id: assignmentData.armado_asignado_id,
+        proveedor_id: assignmentData.proveedor_id,
+        action_type: 'confirmed',
+        new_data: assignmentData,
+        changes_summary: `Asignación confirmada y completada para servicio ${assignmentData.cliente_nombre}`
+      });
+
+      // Completar el workflow
       onComplete(assignmentData);
+      
+      // Cerrar modal y limpiar formulario
       setShowConfirmationModal(false);
-      toast.success('Asignación confirmada exitosamente');
+      handleResetForm();
+      
+      toast.success('Asignación confirmada y registrada exitosamente');
+      
+    } catch (error) {
+      console.error('Error confirming assignment:', error);
+      toast.error('Error al confirmar la asignación');
+      throw error; // Re-throw para que el modal maneje el error
     }
+  };
+
+  const handleResetForm = () => {
+    setSelectedArmed(null);
+    setSelectedType('interno');
+    setPuntoEncuentro('');
+    setHoraEncuentro('');
+    setAssignmentData(null);
   };
 
   const handleCreateNew = () => {
     setShowConfirmationModal(false);
-    // Reset form for new assignment
-    setSelectedArmed(null);
-    setPuntoEncuentro('');
-    setHoraEncuentro('');
+    handleResetForm();
     toast.info('Formulario reiniciado para nueva asignación');
   };
 

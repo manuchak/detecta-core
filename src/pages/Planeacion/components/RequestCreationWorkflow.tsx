@@ -133,6 +133,10 @@ export function RequestCreationWorkflow() {
   const handleArmedAssignmentComplete = (data: ArmedAssignmentData) => {
     setArmedAssignmentData(data);
     console.log('🎉 Solicitud con armado completada:', data);
+    // Después de completar, automáticamente resetear para nueva asignación
+    setTimeout(() => {
+      resetWorkflow();
+    }, 2000); // Delay para mostrar la confirmación antes de resetear
   };
 
   const resetWorkflow = () => {
