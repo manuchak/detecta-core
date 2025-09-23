@@ -10,6 +10,8 @@ import { ScheduledServicesTab } from './components/ScheduledServicesTab';
 import { AdminPerformanceTab } from './components/AdminPerformanceTab';
 import { useSecurityAudit } from '@/hooks/useSecurityAudit';
 
+console.log('PlanningHub module loading...');
+
 export default function PlanningHub() {
   const [activeTab, setActiveTab] = useState('create-request');
   const { logSecurityEvent } = useSecurityAudit();

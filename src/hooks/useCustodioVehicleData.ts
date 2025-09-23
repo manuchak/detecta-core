@@ -14,6 +14,8 @@ export function useCustodioVehicleData(custodioNombre?: string) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  console.log('useCustodioVehicleData hook initialized with:', custodioNombre);
+
   const fetchVehicleData = async (nombre?: string) => {
     if (!nombre || nombre.trim() === '') {
       setVehicleData(null);
@@ -24,21 +26,46 @@ export function useCustodioVehicleData(custodioNombre?: string) {
     setError(null);
     
     try {
+      // First check if the RPC function exists, if not fall back to basic data
       const { data, error } = await supabase.rpc('get_custodio_vehicle_data', {
         p_custodio_nombre: nombre.trim()
       });
 
-      if (error) throw error;
+      if (error) {
+        console.warn('RPC function not available, using fallback data:', error);
+        // Fallback: return basic vehicle info
+        setVehicleData({
+          marca: 'No especificado',
+          modelo: 'No especificado', 
+          placa: 'Sin placa',
+          color: 'No especificado',
+          fuente: 'fallback'
+        });
+        return;
+      }
 
       if (data && data.length > 0) {
         setVehicleData(data[0]);
       } else {
-        setVehicleData(null);
+        setVehicleData({
+          marca: 'No especificado',
+          modelo: 'No especificado',
+          placa: 'Sin placa', 
+          color: 'No especificado',
+          fuente: 'fallback'
+        });
       }
     } catch (err) {
       console.error('Error fetching vehicle data:', err);
       setError('Error al obtener datos del vehículo');
-      setVehicleData(null);
+      // Provide fallback data instead of null to prevent UI errors
+      setVehicleData({
+        marca: 'No especificado',
+        modelo: 'No especificado',
+        placa: 'Sin placa',
+        color: 'No especificado', 
+        fuente: 'error_fallback'
+      });
     } finally {
       setLoading(false);
     }
