@@ -10659,7 +10659,7 @@ export type Database = {
         }[]
       }
       get_scheduled_services_summary: {
-        Args: { date_filter?: string }
+        Args: { date_filter: string }
         Returns: {
           assigned_services: number
           confirmed_services: number
