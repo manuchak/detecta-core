@@ -10214,6 +10214,16 @@ export type Database = {
           ultimo_bono_fecha: string
         }[]
       }
+      get_custodio_vehicle_data: {
+        Args: { p_custodio_nombre: string }
+        Returns: {
+          color: string
+          fuente: string
+          marca: string
+          modelo: string
+          placa: string
+        }[]
+      }
       get_custodios_activos_disponibles: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -11161,6 +11171,10 @@ export type Database = {
         Returns: undefined
       }
       migrate_roles_to_skills: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      migrate_vehicle_data_from_services: {
         Args: Record<PropertyKey, never>
         Returns: number
       }

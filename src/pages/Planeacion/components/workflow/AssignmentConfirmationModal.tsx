@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, MapPin, Clock, User, Shield, Car, Phone, Copy, Info } from 'lucide-react';
+import { CheckCircle2, MapPin, Clock, User, Shield, Car, Copy, Info } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -20,17 +20,18 @@ interface AssignmentConfirmationData {
   };
   armado: {
     nombre: string;
-    telefono?: string;
     tipo_asignacion: 'interno' | 'proveedor';
-    licencia_portacion?: string;
   };
   encuentro: {
     punto_encuentro: string;
     hora_encuentro: string;
   };
   vehiculo?: {
-    auto?: string;
+    marca?: string;
+    modelo?: string;
     placa?: string;
+    color?: string;
+    fuente?: string;
   };
 }
 
@@ -82,14 +83,14 @@ Tipo de servicio: ${data.servicio.tipo_servicio}
 
 👤 CUSTODIO ASIGNADO (DATOS PARA ACCESO AL CEDIS):
 Nombre: ${data.servicio.custodio_nombre}
-${data.vehiculo?.auto ? `Vehículo: ${data.vehiculo.auto}` : 'Vehículo: No especificado'}
+${data.vehiculo?.marca && data.vehiculo?.modelo 
+  ? `Vehículo: ${data.vehiculo.marca} ${data.vehiculo.modelo}${data.vehiculo.color ? ` ${data.vehiculo.color}` : ''}` 
+  : 'Vehículo: No especificado'
+}
 ${data.vehiculo?.placa ? `Placas: ${data.vehiculo.placa}` : 'Placas: No especificadas'}
 
 🛡️ ARMADO ASIGNADO:
 Nombre: ${data.armado.nombre}
-Tipo: ${data.armado.tipo_asignacion === 'interno' ? 'Armado Interno' : 'Proveedor Externo'}
-${data.armado.telefono ? `Teléfono: ${data.armado.telefono}` : ''}
-${data.armado.licencia_portacion ? `Licencia: ${data.armado.licencia_portacion}` : ''}
 
 ✅ INFORMACIÓN IMPORTANTE:
 - Su servicio ha sido confirmado exitosamente
@@ -165,13 +166,20 @@ Para cualquier duda o emergencia, contacte a nuestro centro de operaciones.`;
                     <span className="text-muted-foreground">Nombre:</span>
                     <span className="ml-2 font-medium">{data.servicio.custodio_nombre}</span>
                   </div>
-                  {data.vehiculo?.auto && (
-                    <div className="flex items-center gap-2">
-                      <Car className="h-4 w-4 text-muted-foreground" />
-                      <span>
-                        <strong>Vehículo:</strong> {data.vehiculo.auto}
-                        {data.vehiculo.placa && ` (${data.vehiculo.placa})`}
-                      </span>
+                  {data.vehiculo?.marca && (
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Car className="h-4 w-4 text-muted-foreground" />
+                        <span>
+                          <strong>Vehículo:</strong> {data.vehiculo.marca} {data.vehiculo.modelo || ''}
+                          {data.vehiculo.color && ` (${data.vehiculo.color})`}
+                        </span>
+                      </div>
+                      {data.vehiculo.placa && (
+                        <div className="text-sm text-muted-foreground ml-6">
+                          <strong>Placas:</strong> {data.vehiculo.placa}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -190,23 +198,6 @@ Para cualquier duda o emergencia, contacte a nuestro centro de operaciones.`;
                     <span className="text-muted-foreground">Nombre:</span>
                     <span className="ml-2 font-medium">{data.armado.nombre}</span>
                   </div>
-                  <div>
-                    <Badge variant={data.armado.tipo_asignacion === 'interno' ? 'success' : 'secondary'}>
-                      {data.armado.tipo_asignacion === 'interno' ? 'Armado Interno' : 'Proveedor Externo'}
-                    </Badge>
-                  </div>
-                  {data.armado.telefono && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span>{data.armado.telefono}</span>
-                    </div>
-                  )}
-                  {data.armado.licencia_portacion && (
-                    <div>
-                      <span className="text-muted-foreground">Licencia:</span>
-                      <span className="ml-2 font-medium">{data.armado.licencia_portacion}</span>
-                    </div>
-                  )}
                 </div>
               </CardContent>
             </Card>
