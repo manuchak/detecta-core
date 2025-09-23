@@ -109,12 +109,12 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
     setError(null);
 
     try {
-      // Use the optimized materialized view
+      // Query the actual armados_operativos table
       let guardsQuery = supabase
-        .from('armados_operativos_disponibles')
+        .from('armados_operativos')
         .select('*')
         .eq('estado', 'activo')
-        .order('score_disponibilidad_efectiva', { ascending: false });
+        .order('score_total', { ascending: false });
 
       // Apply zone filter
       if (filters?.zona_base) {
@@ -126,9 +126,9 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
         guardsQuery = guardsQuery.contains('servicios_permitidos', [filters.tipo_servicio]);
       }
 
-      // Check availability for specific date
+      // Filter by availability
       if (filters?.fecha_programada) {
-        guardsQuery = guardsQuery.eq('disponible_hoy', true);
+        guardsQuery = guardsQuery.eq('disponibilidad', 'disponible');
       }
 
       const { data: guardsData, error: guardsError } = await guardsQuery;
@@ -139,35 +139,51 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
       }
 
       // Load external providers
-      let providersQuery = supabase
+      const { data: providersData, error: providersError } = await supabase
         .from('proveedores_armados')
         .select('*')
         .eq('activo', true)
         .order('rating_proveedor', { ascending: false });
 
-      // Apply zone filter for providers
-      if (filters?.zona_base) {
-        providersQuery = providersQuery.contains('zonas_cobertura', [filters.zona_base]);
-      }
-
-      // Apply service type filter for providers
-      if (filters?.tipo_servicio) {
-        providersQuery = providersQuery.contains('servicios_disponibles', [filters.tipo_servicio]);
-      }
-
-      // Check capacity availability  
-      providersQuery = providersQuery.filter('capacidad_actual', 'lt', 'capacidad_maxima');
-
-      const { data: providersData, error: providersError } = await providersQuery;
-
       if (providersError) {
         console.error('Error loading providers:', providersError);
-        throw providersError;
+        // Don't throw error for providers, just log and continue
+        setProviders([]);
+      } else {
+        // Apply filters to providers and check capacity
+        let filteredProviders = (providersData || []).filter(provider => 
+          provider.capacidad_actual < provider.capacidad_maxima
+        );
+        
+        if (filters?.zona_base) {
+          filteredProviders = filteredProviders.filter(provider => 
+            provider.zonas_cobertura?.includes(filters.zona_base!)
+          );
+        }
+
+        if (filters?.tipo_servicio) {
+          filteredProviders = filteredProviders.filter(provider => 
+            provider.servicios_disponibles?.includes(filters.tipo_servicio!)
+          );
+        }
+
+        setProviders(filteredProviders);
       }
 
+      // Process armed guards data
+      const processedGuards = (guardsData || []).map(guard => ({
+        ...guard,
+        // Add computed fields for compatibility
+        disponible_hoy: guard.disponibilidad === 'disponible',
+        score_disponibilidad_efectiva: guard.score_total || 0,
+        proveedor_nombre: guard.proveedor_id ? 'Proveedor Externo' : undefined,
+        proveedor_capacidad_maxima: undefined,
+        proveedor_capacidad_actual: undefined
+      }));
+
       // Separate internal guards from provider guards
-      const internalGuards = (guardsData || []).filter(guard => guard.tipo_armado === 'interno');
-      const providerGuards = (guardsData || []).filter(guard => guard.tipo_armado === 'proveedor_externo');
+      const internalGuards = processedGuards.filter(guard => guard.tipo_armado === 'interno');
+      const providerGuards = processedGuards.filter(guard => guard.tipo_armado === 'proveedor_externo');
 
       // Sort by availability and score
       const sortedInternalGuards = internalGuards.sort((a, b) => {
@@ -176,11 +192,10 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
         if (a.disponibilidad !== 'disponible' && b.disponibilidad === 'disponible') return 1;
         
         // Then by score
-        return (b.score_disponibilidad_efectiva || 0) - (a.score_disponibilidad_efectiva || 0);
+        return (b.score_total || 0) - (a.score_total || 0);
       });
 
       setArmedGuards([...sortedInternalGuards, ...providerGuards]);
-      setProviders(providersData || []);
 
     } catch (error: any) {
       console.error('Error in useArmedGuardsOperativos:', error);
@@ -290,8 +305,7 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
 
   const refreshAvailability = async () => {
     try {
-      // Refresh the materialized view
-      await supabase.rpc('refresh_armados_operativos_disponibles');
+      // Simply reload the data instead of calling non-existent RPC
       await loadArmedGuards();
       toast.success('Disponibilidad actualizada');
     } catch (error: any) {
