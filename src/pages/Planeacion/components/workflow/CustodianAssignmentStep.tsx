@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { User, MessageCircle, Phone, MapPin, Target, Clock, Car, AlertCircle, CheckCircle2, Shield, Settings } from 'lucide-react';
+import { User, MessageCircle, Phone, MapPin, Target, Clock, Car, AlertCircle, CheckCircle2, Shield, Settings, AlertTriangle, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { CustodioPerformanceCard } from '@/components/planeacion/CustodioPerformanceCard';
 import { CustodianContactDialog } from '../dialogs/CustodianContactDialog';
 import { useCustodiosWithTracking, type CustodioEnriquecido } from '@/hooks/useCustodiosWithTracking';
+import { useServiciosPlanificados, type ConflictInfo } from '@/hooks/useServiciosPlanificados';
 import type { ServicioNuevo } from '@/utils/proximidadOperacional';
 
 interface ServiceData {
@@ -52,10 +53,13 @@ interface CustodianAssignmentStepProps {
 export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: CustodianAssignmentStepProps) {
   const [selectedCustodio, setSelectedCustodio] = useState<string | null>(null);
   const [comunicaciones, setComunicaciones] = useState<Record<string, ComunicacionState>>({});
+  const [custodianConflicts, setCustodianConflicts] = useState<Record<string, ConflictInfo[]>>({});
   
   // Estado para el diálogo de contacto
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [contactingCustodian, setContactingCustodian] = useState<CustodioEnriquecido | null>(null);
+
+  const { checkCustodianConflicts } = useServiciosPlanificados();
 
   // Preparar datos del servicio para el hook
   const servicioNuevo: ServicioNuevo = {
@@ -72,7 +76,7 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
     servicioNuevo
   });
 
-  // Inicializar estados de comunicación
+  // Inicializar estados de comunicación y verificar conflictos
   useEffect(() => {
     const initialComunicaciones: Record<string, ComunicacionState> = {};
     custodiosDisponibles.forEach(custodio => {
@@ -83,7 +87,38 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
       }
     });
     setComunicaciones(prev => ({ ...prev, ...initialComunicaciones }));
+
+    // Check conflicts for all custodians
+    checkConflictsForCustodians();
   }, [custodiosDisponibles]);
+
+  const checkConflictsForCustodians = async () => {
+    if (!serviceData.fecha_hora_cita && !serviceData.fecha_programada) return;
+
+    const targetDate = serviceData.fecha_hora_cita || serviceData.fecha_programada;
+    const conflictsMap: Record<string, ConflictInfo[]> = {};
+
+    for (const custodio of custodiosDisponibles) {
+      if (custodio.id) {
+        try {
+          const result = await checkCustodianConflicts(
+            custodio.id,
+            targetDate!,
+            serviceData.servicio_id
+          );
+          
+          if (result.hasConflicts) {
+            conflictsMap[custodio.id] = result.conflicts;
+            console.debug(`Custodian ${custodio.nombre} has ${result.conflicts.length} conflicts:`, result.conflicts);
+          }
+        } catch (error) {
+          console.warn(`Error checking conflicts for custodian ${custodio.nombre}:`, error);
+        }
+      }
+    }
+
+    setCustodianConflicts(conflictsMap);
+  };
 
   const handleOpenContactDialog = (custodian: CustodioEnriquecido) => {
     setContactingCustodian(custodian);
@@ -146,6 +181,15 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
 
     const custodio = custodiosDisponibles.find(c => c.id === selectedCustodio);
     const comunicacion = comunicaciones[selectedCustodio];
+    const conflicts = custodianConflicts[selectedCustodio] || [];
+
+    // Check for conflicts before proceeding
+    if (conflicts.length > 0) {
+      toast.error('No se puede asignar custodio con conflictos de horario', {
+        description: `Este custodio tiene ${conflicts.length} servicio(s) conflictivo(s). Resuelve los conflictos primero.`
+      });
+      return;
+    }
 
     const assignmentData: AssignmentData = {
       ...serviceData,
@@ -155,6 +199,48 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
     };
 
     onComplete(assignmentData);
+  };
+
+  const getConflictBadge = (conflicts: ConflictInfo[]) => {
+    if (conflicts.length === 0) {
+      return (
+        <Badge variant="outline" className="border-green-500 text-green-700 bg-green-50">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          Sin conflictos
+        </Badge>
+      );
+    }
+
+    return (
+      <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-300">
+        <AlertTriangle className="h-3 w-3 mr-1" />
+        {conflicts.length} conflicto{conflicts.length > 1 ? 's' : ''}
+      </Badge>
+    );
+  };
+
+  const ConflictsList = ({ conflicts }: { conflicts: ConflictInfo[] }) => {
+    if (conflicts.length === 0) return null;
+
+    return (
+      <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
+        <div className="flex items-center gap-2 mb-2">
+          <AlertTriangle className="h-4 w-4 text-red-600" />
+          <span className="text-sm font-medium text-red-800">Servicios en conflicto:</span>
+        </div>
+        <div className="space-y-2 max-h-20 overflow-y-auto">
+          {conflicts.map((conflict, index) => (
+            <div key={index} className="text-xs text-red-700 bg-white p-2 rounded border">
+              <div className="font-medium">{conflict.id_servicio}</div>
+              <div className="text-red-600">
+                {conflict.cliente} • {new Date(conflict.fecha_hora_cita).toLocaleString('es-MX')}
+              </div>
+              <div className="text-red-500">{conflict.origen} → {conflict.destino}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   const getEstadoBadge = (estado: string) => {
@@ -315,12 +401,14 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
               {custodiosDisponibles.map((custodio) => {
                 const comunicacion = comunicaciones[custodio.id!] || { estado: 'pendiente' };
                 const badge = getEstadoBadge(comunicacion.estado);
+                const conflicts = custodianConflicts[custodio.id!] || [];
                 const isSelected = selectedCustodio === custodio.id;
+                const hasConflicts = conflicts.length > 0;
 
                 return (
                   <div
                     key={custodio.id}
-                    className={getBorderColor(comunicacion.estado, isSelected)}
+                    className={`${getBorderColor(comunicacion.estado, isSelected)} ${hasConflicts ? 'border-red-300 bg-red-50/50' : ''}`}
                   >
                     <div className="flex items-start justify-between gap-4">
                       {/* Custodian Info - Compact Version */}
@@ -328,20 +416,32 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
                         <CustodioPerformanceCard
                           custodio={custodio}
                           compact={true}
-                          selected={isSelected}
-                          onSelect={() => custodio.id && setSelectedCustodio(custodio.id)}
+                          selected={isSelected && !hasConflicts}
+                          onSelect={() => {
+                            if (custodio.id && !hasConflicts) {
+                              setSelectedCustodio(custodio.id);
+                            } else if (hasConflicts) {
+                              toast.warning('No se puede seleccionar custodio con conflictos de horario');
+                            }
+                          }}
                         />
+                        
+                        {/* Conflict display */}
+                        <ConflictsList conflicts={conflicts} />
                       </div>
 
                       {/* Actions Column */}
                       <div className="flex flex-col items-end gap-2 min-w-[200px]">
+                        {/* Conflict Badge */}
+                        {getConflictBadge(conflicts)}
+                        
                         {/* Status Badge */}
                         <Badge variant={badge.variant}>
                           {badge.text}
                         </Badge>
 
                         {/* Contact Buttons */}
-                        {comunicacion.estado === 'pendiente' && (
+                        {comunicacion.estado === 'pendiente' && !hasConflicts && (
                           <div className="flex gap-2">
                             <Button
                               size="sm"
@@ -361,6 +461,14 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
                               <Phone className="h-4 w-4" />
                               Llamar
                             </Button>
+                          </div>
+                        )}
+
+                        {/* Conflict Warning for Contact Buttons */}
+                        {comunicacion.estado === 'pendiente' && hasConflicts && (
+                          <div className="text-xs text-red-600 text-center max-w-[180px]">
+                            <X className="h-4 w-4 mx-auto mb-1" />
+                            No disponible por conflictos
                           </div>
                         )}
 
@@ -407,13 +515,26 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
         </Button>
         <Button 
           onClick={handleComplete} 
-          disabled={!selectedCustodio}
+          disabled={!selectedCustodio || (selectedCustodio && custodianConflicts[selectedCustodio]?.length > 0)}
           className="flex items-center gap-2"
         >
           <CheckCircle2 className="h-4 w-4" />
           Confirmar Asignación
         </Button>
       </div>
+
+      {/* Help text for conflicts */}
+      {selectedCustodio && custodianConflicts[selectedCustodio]?.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 text-red-800">
+            <AlertTriangle className="h-5 w-5" />
+            <span className="font-medium">No se puede confirmar la asignación</span>
+          </div>
+          <p className="text-red-700 text-sm mt-1">
+            El custodio seleccionado tiene conflictos de horario. Resuelve los conflictos o selecciona otro custodio.
+          </p>
+        </div>
+      )}
 
       {/* Diálogo de Contacto */}
       {contactingCustodian && (

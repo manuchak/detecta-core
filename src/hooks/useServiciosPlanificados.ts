@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -31,6 +31,97 @@ export interface ServicioPlanificadoData {
   hora_encuentro?: string;
   estado_planeacion?: string;
 }
+
+export interface ConflictInfo {
+  id_servicio: string;
+  fecha_hora_cita: string;
+  cliente: string;
+  origen: string;
+  destino: string;
+}
+
+export interface ConflictCheckResult {
+  hasConflicts: boolean;
+  conflicts: ConflictInfo[];
+}
+
+// Helper function to check custodian conflicts
+export const checkCustodianConflicts = async (
+  custodioId: string,
+  fechaHoraCita: string,
+  currentServiceUuid?: string
+): Promise<ConflictCheckResult> => {
+  console.debug('Checking conflicts for custodian:', custodioId, 'at:', fechaHoraCita);
+  
+  const conflicts: ConflictInfo[] = [];
+  
+  try {
+    // 1. Check via RPC for existing conflicts
+    const { data: rpcResult, error: rpcError } = await supabase
+      .rpc('check_custodian_availability', {
+        p_custodio_id: custodioId,
+        p_fecha_hora_cita: fechaHoraCita,
+        p_exclude_service_id: currentServiceUuid
+      });
+
+    if (!rpcError && rpcResult?.has_conflicts) {
+      const rpcConflicts = rpcResult.conflicting_services || [];
+      conflicts.push(...rpcConflicts.map((service: any) => ({
+        id_servicio: service.id_servicio || service.service_id || 'N/A',
+        fecha_hora_cita: service.fecha_hora_cita || service.scheduled_time || '',
+        cliente: service.nombre_cliente || service.client_name || 'Cliente no especificado',
+        origen: service.origen || 'Origen no especificado',
+        destino: service.destino || 'Destino no especificado'
+      })));
+    }
+
+    // 2. Additional check in servicios_planificados (±8h window)
+    const targetTime = new Date(fechaHoraCita);
+    const startTime = new Date(targetTime.getTime() - 8 * 60 * 60 * 1000); // -8h
+    const endTime = new Date(targetTime.getTime() + 8 * 60 * 60 * 1000); // +8h
+
+    const { data: plannedConflicts, error: plannedError } = await supabase
+      .from('servicios_planificados')
+      .select('id, id_servicio, fecha_hora_cita, nombre_cliente, origen, destino')
+      .eq('custodio_id', custodioId)
+      .in('estado_planeacion', ['confirmado', 'asignado'])
+      .gte('fecha_hora_cita', startTime.toISOString())
+      .lte('fecha_hora_cita', endTime.toISOString())
+      .neq('id', currentServiceUuid || '');
+
+    if (!plannedError && plannedConflicts?.length > 0) {
+      // Add planned conflicts that weren't already found by RPC
+      const existingIds = new Set(conflicts.map(c => c.id_servicio));
+      
+      plannedConflicts.forEach(service => {
+        if (!existingIds.has(service.id_servicio)) {
+          conflicts.push({
+            id_servicio: service.id_servicio,
+            fecha_hora_cita: service.fecha_hora_cita,
+            cliente: service.nombre_cliente || 'Cliente no especificado',
+            origen: service.origen || 'Origen no especificado',
+            destino: service.destino || 'Destino no especificado'
+          });
+        }
+      });
+    }
+
+    console.debug(`Found ${conflicts.length} conflicts for custodian ${custodioId}:`, conflicts);
+
+    return {
+      hasConflicts: conflicts.length > 0,
+      conflicts
+    };
+
+  } catch (error) {
+    console.error('Error checking custodian conflicts:', error);
+    // Return no conflicts on error to avoid blocking UI
+    return {
+      hasConflicts: false,
+      conflicts: []
+    };
+  }
+};
 
 export function useServiciosPlanificados() {
   const [isLoading, setIsLoading] = useState(false);
@@ -246,6 +337,22 @@ export function useServiciosPlanificados() {
     }
   });
 
+  // Hook to check custodian conflicts reactively
+  const useCheckCustodianConflicts = (
+    custodioId?: string,
+    fechaHoraCita?: string,
+    currentServiceUuid?: string,
+    enabled: boolean = true
+  ) => {
+    return useQuery({
+      queryKey: ['custodian-conflicts', custodioId, fechaHoraCita, currentServiceUuid],
+      queryFn: () => checkCustodianConflicts(custodioId!, fechaHoraCita!, currentServiceUuid),
+      enabled: enabled && !!custodioId && !!fechaHoraCita,
+      staleTime: 30000, // 30 seconds
+      refetchInterval: 60000, // Refetch every minute
+    });
+  };
+
   return {
     createServicioPlanificado: createServicioPlanificado.mutate,
     updateServicioPlanificado: updateServicioPlanificado.mutate,
@@ -253,6 +360,8 @@ export function useServiciosPlanificados() {
     assignArmedGuard: assignArmedGuard.mutate,
     isCreating: createServicioPlanificado.isPending,
     isUpdating: updateServicioPlanificado.isPending,
-    isLoading: isLoading || createServicioPlanificado.isPending || updateServicioPlanificado.isPending
+    isLoading: isLoading || createServicioPlanificado.isPending || updateServicioPlanificado.isPending,
+    checkCustodianConflicts,
+    useCheckCustodianConflicts
   };
 }
