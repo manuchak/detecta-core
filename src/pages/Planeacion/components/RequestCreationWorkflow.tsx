@@ -57,13 +57,14 @@ export function RequestCreationWorkflow() {
   const [serviceData, setServiceData] = useState<ServiceData | null>(null);
   const [assignmentData, setAssignmentData] = useState<AssignmentData | null>(null);
   const [armedAssignmentData, setArmedAssignmentData] = useState<ArmedAssignmentData | null>(null);
+  const [createdServiceDbId, setCreatedServiceDbId] = useState<string | null>(null);
   
   // Hook para manejar servicios planificados
-  const { createServicioPlanificado, updateServicioPlanificado, isLoading } = useServiciosPlanificados();
+  const { createServicioPlanificado, assignArmedGuard, isLoading } = useServiciosPlanificados();
   
   // Get vehicle information for assigned custodian (with safety check)
-  const { getPrincipalVehicle } = useCustodianVehicles(assignmentData?.custodio_asignado_id);
-  const custodianVehicle = assignmentData?.custodio_asignado_id 
+  const { vehicles, getPrincipalVehicle, loading: vehiclesLoading } = useCustodianVehicles(assignmentData?.custodio_asignado_id);
+  const custodianVehicle = assignmentData?.custodio_asignado_id && vehicles.length > 0
     ? getPrincipalVehicle(assignmentData.custodio_asignado_id) 
     : null;
 
@@ -128,6 +129,15 @@ export function RequestCreationWorkflow() {
     setAssignmentData(data);
     
     try {
+      // Preparar información del vehículo con manejo de casos undefined
+      const vehicleInfo = custodianVehicle ? {
+        auto: `${custodianVehicle.marca} ${custodianVehicle.modelo}`.trim(),
+        placa: custodianVehicle.placa || 'Sin placa'
+      } : {
+        auto: 'Vehículo no asignado',
+        placa: 'Sin placa'
+      };
+
       // Crear el servicio planificado en la base de datos
       const servicioData: ServicioPlanificadoData = {
         id_servicio: data.servicio_id,
@@ -141,10 +151,9 @@ export function RequestCreationWorkflow() {
         requiere_armado: data.incluye_armado,
         tarifa_acordada: data.precio_custodio,
         observaciones: data.observaciones,
-        auto: custodianVehicle?.marca + ' ' + custodianVehicle?.modelo,
-        placa: custodianVehicle?.placa
+        ...vehicleInfo
       };
-      
+      // Crear el servicio usando la función de mutación
       createServicioPlanificado(servicioData);
       
       // Si el servicio incluye armado, avanzar al siguiente paso
@@ -165,19 +174,19 @@ export function RequestCreationWorkflow() {
     setArmedAssignmentData(data);
     
     try {
-      // Actualizar el servicio planificado con la información del armado
+      // Usar el hook de assignArmedGuard en lugar de updateServicioPlanificado
       if (assignmentData?.servicio_id) {
-        await updateServicioPlanificado({
-          id: assignmentData.servicio_id,
-          data: {
-            armado_asignado: data.armado_nombre,
-            armado_id: data.armado_asignado_id
-          }
+        assignArmedGuard({
+          serviceId: assignmentData.servicio_id,
+          armadoName: data.armado_nombre || '',
+          armadoId: data.armado_asignado_id || ''
         });
+        
+        console.log('🎉 Solicitud con armado completada y guardada:', data);
+        toast.success('Servicio con armado guardado exitosamente');
+      } else {
+        throw new Error('ID del servicio no encontrado');
       }
-      
-      console.log('🎉 Solicitud con armado completada y guardada:', data);
-      toast.success('Servicio con armado guardado exitosamente');
       
       // Después de completar, automáticamente resetear para nueva asignación
       setTimeout(() => {
@@ -195,6 +204,7 @@ export function RequestCreationWorkflow() {
     setServiceData(null);
     setAssignmentData(null);
     setArmedAssignmentData(null);
+    setCreatedServiceDbId(null);
   };
 
   return (

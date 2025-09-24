@@ -27,6 +27,8 @@ export interface ServicioPlanificadoData {
   observaciones?: string;
   comentarios_adicionales?: string;
   condiciones_especiales?: string[];
+  punto_encuentro?: string;
+  hora_encuentro?: string;
 }
 
 export function useServiciosPlanificados() {
