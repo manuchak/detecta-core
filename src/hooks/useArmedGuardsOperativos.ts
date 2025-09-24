@@ -118,38 +118,38 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
         .eq('estado', 'activo')
         .order('score_total', { ascending: false });
 
-      // Apply zone filter with proper escaping and token-based search
+      // Apply zone filter with safe token-based search and valid cs syntax
       if (filters?.zona_base && filters.zona_base.trim()) {
-        const zoneName = filters.zona_base.trim();
-        
-        // Extract main zone tokens for flexible matching
-        const zoneTokens = zoneName.split(/[,\s]+/).filter(token => token.length > 2);
-        
+        const rawZone = filters.zona_base.trim();
+
+        // Extract tokens (avoid including commas in ilike values)
+        const zoneTokens = rawZone.split(/[\s,]+/).filter(t => t.length > 2);
+
+        // Escape quotes for array literal elements
+        const esc = (v: string) => v.replace(/\\/g, "\\\\").replace(/\"/g, '\\"');
+
         try {
-          // Build flexible search conditions
           const searchConditions: string[] = [];
-          
-          // Search in zona_base field
-          searchConditions.push(`zona_base.ilike.%${zoneName}%`);
-          
-          // Search for individual tokens in zona_base
-          zoneTokens.forEach(token => {
+
+          // ilike on zona_base only for individual tokens (never the full string if it contains commas)
+          for (const token of zoneTokens) {
             searchConditions.push(`zona_base.ilike.%${token}%`);
-          });
-          
-          // Search in zonas_permitidas array (properly escaped JSON)
-          searchConditions.push(`zonas_permitidas.cs.["${zoneName}"]`);
-          
-          // Search for tokens in zonas_permitidas
-          zoneTokens.forEach(token => {
-            searchConditions.push(`zonas_permitidas.cs.["${token}"]`);
-          });
-          
+          }
+
+          // cs on zonas_permitidas supports quoted array literal elements
+          // Include full zone (quoted) to match entries like "ACATZINGO, PUEBLA"
+          searchConditions.push(`zonas_permitidas.cs.{"${esc(rawZone)}"}`);
+
+          // And each token as individual options
+          for (const token of zoneTokens) {
+            searchConditions.push(`zonas_permitidas.cs.{"${esc(token)}"}`);
+          }
+
           guardsQuery = guardsQuery.or(searchConditions.join(','));
-          console.log('Applied zone filter for:', zoneName, 'with tokens:', zoneTokens);
+          console.log('Applied zone filter for:', rawZone, 'tokens:', zoneTokens, 'conds:', searchConditions);
         } catch (error) {
-          console.warn('Zone filter failed, proceeding without zone filter:', error);
-          // Continue without zone filter as fallback
+          console.warn('Zone filter build failed, proceeding without zone filter:', error);
+          // Fallback: continue without zone filter
         }
       }
 
@@ -163,14 +163,41 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
         guardsQuery = guardsQuery.eq('disponibilidad', 'disponible');
       }
 
+      let finalGuardsData: any[] | null = null;
       const { data: guardsData, error: guardsError } = await guardsQuery;
 
       if (guardsError) {
-        console.error('Error loading armed guards:', guardsError);
-        throw guardsError;
+        if (guardsError.message && guardsError.message.toLowerCase().includes('logic tree')) {
+          console.warn('Zone OR parse error detected, retrying without zone filter');
+          // Retry without zone filter but keep the other filters
+          let retryQuery = supabase
+            .from('armados_operativos')
+            .select('*')
+            .eq('estado', 'activo')
+            .order('score_total', { ascending: false });
+
+          if (filters?.tipo_servicio && ['local', 'foraneo', 'alta_seguridad'].includes(filters.tipo_servicio)) {
+            retryQuery = retryQuery.contains('servicios_permitidos', [filters.tipo_servicio]);
+          }
+          if (filters?.fecha_programada) {
+            retryQuery = retryQuery.eq('disponibilidad', 'disponible');
+          }
+
+          const { data: retryData, error: retryError } = await retryQuery;
+          if (retryError) {
+            console.error('Retry without zone filter failed:', retryError);
+            throw retryError;
+          }
+          finalGuardsData = retryData;
+        } else {
+          console.error('Error loading armed guards:', guardsError);
+          throw guardsError;
+        }
+      } else {
+        finalGuardsData = guardsData;
       }
 
-      console.log(`Loaded ${guardsData?.length || 0} armed guards from database`);
+      console.log(`Loaded ${finalGuardsData?.length || 0} armed guards from database`);
 
       // Load external providers
       const { data: providersData, error: providersError } = await supabase
@@ -236,7 +263,7 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
       }
 
       // Process armed guards data
-      const processedGuards = (guardsData || []).map(guard => ({
+      const processedGuards = (finalGuardsData || []).map(guard => ({
         ...guard,
         // Add computed fields for compatibility
         disponible_hoy: guard.disponibilidad === 'disponible',
