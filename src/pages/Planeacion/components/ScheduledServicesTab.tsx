@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useScheduledServices } from '@/hooks/useScheduledServices';
 import { usePendingServices } from '@/hooks/usePendingServices';
 import { PendingAssignmentModal } from '@/components/planeacion/PendingAssignmentModal';
-import { MultiDateSelector } from '@/components/planeacion/MultiDateSelector';
+import { AirlineDateSelector } from '@/components/planeacion/AirlineDateSelector';
 import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Users, Timer } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -64,17 +64,23 @@ export function ScheduledServicesTab() {
   return (
     <div className="space-y-6">
       {/* Header with Date Selector and Summary Cards */}
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Multi Date Selector */}
-        <div className="lg:w-80">
-          <MultiDateSelector 
-            selectedDate={selectedDate}
-            onDateChange={setSelectedDate}
-          />
+      <div className="space-y-6">
+        {/* Date Selector */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <h2 className="text-lg font-semibold">Servicios Programados</h2>
+            <AirlineDateSelector 
+              selectedDate={selectedDate}
+              onDateChange={setSelectedDate}
+            />
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {format(selectedDate, 'PPP', { locale: es })}
+          </div>
         </div>
 
         {/* Summary Cards */}
-        <div className="flex-1 grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {/* Total Services */}
           <Card className="border-slate-200">
             <CardContent className="p-4">
@@ -136,15 +142,15 @@ export function ScheduledServicesTab() {
           </Card>
 
           {/* Unassigned Services */}
-          <Card className="border-red-200 bg-red-50/30">
+          <Card className="border-amber-200 bg-amber-50/30">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <AlertCircle className="h-5 w-5 text-red-600" />
+                <div className="p-2 bg-amber-100 rounded-lg">
+                  <AlertCircle className="h-5 w-5 text-amber-600" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-red-700">{pendingSummary?.total_pending || 0}</div>
-                  <div className="text-xs text-red-600 font-medium">Por Asignar</div>
+                  <div className="text-2xl font-bold text-amber-700">{pendingSummary?.total_pending || 0}</div>
+                  <div className="text-xs text-amber-600 font-medium">Por Asignar</div>
                 </div>
               </div>
             </CardContent>
@@ -256,13 +262,13 @@ export function ScheduledServicesTab() {
 
       {/* Critical Unassigned Services Section */}
       {pendingSummary?.total_pending && pendingSummary.total_pending > 0 && (
-        <Card className="border-red-200 bg-gradient-to-br from-red-50 to-orange-50">
+        <Card className="border-slate-200 bg-slate-50/30">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-red-700 flex items-center gap-2">
-              <AlertCircle className="h-5 w-5" />
-              Servicios Críticos por Asignar ({pendingSummary.total_pending})
+            <CardTitle className="text-slate-700 flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-600" />
+              Servicios por Asignar ({pendingSummary.total_pending})
             </CardTitle>
-            <Button onClick={refetchPending} variant="outline" size="sm" className="border-red-200">
+            <Button onClick={refetchPending} variant="outline" size="sm" className="border-slate-200">
               Actualizar
             </Button>
           </CardHeader>
@@ -271,48 +277,48 @@ export function ScheduledServicesTab() {
               {pendingSummary.pending_services.map((pendingService) => (
                 <div
                   key={pendingService.id}
-                  className="border rounded-lg p-4 hover:bg-red-50/50 transition-colors border-red-200 bg-white shadow-sm"
+                  className="border rounded-lg p-4 hover:bg-slate-50 transition-colors border-slate-200 bg-white shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 space-y-3">
                       {/* Service Header */}
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-red-100 rounded-lg">
-                          <AlertCircle className="h-4 w-4 text-red-600" />
+                        <div className="p-2 bg-amber-100 rounded-lg">
+                          <AlertCircle className="h-4 w-4 text-amber-600" />
                         </div>
                         <div>
-                          <h3 className="font-semibold text-red-900">{pendingService.nombre_cliente}</h3>
-                          <div className="flex items-center gap-2 text-sm text-red-600">
+                          <h3 className="font-semibold text-slate-900">{pendingService.nombre_cliente}</h3>
+                          <div className="flex items-center gap-2 text-sm text-slate-600">
                             <span className="font-mono">ID: {pendingService.id_servicio}</span>
                           </div>
                         </div>
                       </div>
 
                       {/* Route */}
-                      <div className="flex items-center gap-2 text-sm bg-red-50 p-2 rounded">
-                        <MapPin className="h-4 w-4 text-red-600" />
-                        <span className="font-medium text-red-800">{pendingService.origen}</span>
-                        <span className="text-red-600">→</span>
-                        <span className="font-medium text-red-800">{pendingService.destino}</span>
+                      <div className="flex items-center gap-2 text-sm bg-slate-50 p-2 rounded border border-slate-200">
+                        <MapPin className="h-4 w-4 text-slate-600" />
+                        <span className="font-medium text-slate-800">{pendingService.origen}</span>
+                        <span className="text-slate-600">→</span>
+                        <span className="font-medium text-slate-800">{pendingService.destino}</span>
                       </div>
 
                       {/* Service Details */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <Clock className="h-4 w-4 text-slate-600" />
                           <span><strong>Fecha:</strong> {format(new Date(pendingService.fecha_hora_cita), 'PPP', { locale: es })}</span>
                         </div>
                         
                         <div className="flex items-center gap-2">
-                          <Shield className="h-4 w-4 text-muted-foreground" />
+                          <Shield className="h-4 w-4 text-slate-600" />
                           <span><strong>Tipo:</strong> {pendingService.tipo_servicio}</span>
                         </div>
                       </div>
 
                       {pendingService.observaciones && (
-                        <div className="bg-amber-50 border border-amber-200 rounded-md p-2 text-sm">
-                          <strong className="text-amber-800">Observaciones:</strong> 
-                          <span className="text-amber-700 ml-1">{pendingService.observaciones}</span>
+                        <div className="bg-slate-50 border border-slate-200 rounded-md p-2 text-sm">
+                          <strong className="text-slate-800">Observaciones:</strong> 
+                          <span className="text-slate-700 ml-1">{pendingService.observaciones}</span>
                         </div>
                       )}
                     </div>
@@ -325,18 +331,18 @@ export function ScheduledServicesTab() {
                           setSelectedPendingService(pendingService);
                           setAssignmentModalOpen(true);
                         }}
-                        className="bg-red-600 hover:bg-red-700 text-white"
+                        className="bg-amber-600 hover:bg-amber-700 text-white"
                       >
                         <User className="h-4 w-4 mr-2" />
-                        Asignar Urgente
+                        Asignar
                       </Button>
                       
-                      <Badge variant="destructive" className="text-xs justify-center">
+                      <Badge className="text-xs justify-center bg-slate-100 text-slate-700 hover:bg-slate-200">
                         Sin Custodio
                       </Badge>
                       
                       {pendingService.requiere_armado && (
-                        <Badge className="text-xs bg-orange-100 text-orange-700 border-orange-200">
+                        <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-200">
                           + Armado
                         </Badge>
                       )}
