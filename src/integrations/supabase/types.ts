@@ -8338,6 +8338,7 @@ export type Database = {
           fecha_comunicacion: string | null
           fecha_hora_cita: string
           fecha_respuesta: string | null
+          hora_encuentro: string | null
           id: string
           id_servicio: string
           metodo_comunicacion: string | null
@@ -8348,6 +8349,7 @@ export type Database = {
           origen: string
           placa: string | null
           prioridad: number | null
+          punto_encuentro: string | null
           requiere_armado: boolean | null
           respuesta_custodio: string | null
           tarifa_acordada: number | null
@@ -8377,6 +8379,7 @@ export type Database = {
           fecha_comunicacion?: string | null
           fecha_hora_cita: string
           fecha_respuesta?: string | null
+          hora_encuentro?: string | null
           id?: string
           id_servicio: string
           metodo_comunicacion?: string | null
@@ -8387,6 +8390,7 @@ export type Database = {
           origen: string
           placa?: string | null
           prioridad?: number | null
+          punto_encuentro?: string | null
           requiere_armado?: boolean | null
           respuesta_custodio?: string | null
           tarifa_acordada?: number | null
@@ -8416,6 +8420,7 @@ export type Database = {
           fecha_comunicacion?: string | null
           fecha_hora_cita?: string
           fecha_respuesta?: string | null
+          hora_encuentro?: string | null
           id?: string
           id_servicio?: string
           metodo_comunicacion?: string | null
@@ -8426,6 +8431,7 @@ export type Database = {
           origen?: string
           placa?: string | null
           prioridad?: number | null
+          punto_encuentro?: string | null
           requiere_armado?: boolean | null
           respuesta_custodio?: string | null
           tarifa_acordada?: number | null
