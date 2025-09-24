@@ -485,17 +485,265 @@ export function useServiciosPlanificados() {
     }
   });
 
+  // SPRINT 2: Reassignment functions
+  const reassignCustodian = useMutation({
+    mutationFn: async ({ serviceId, newCustodioName, newCustodioId, reason }: {
+      serviceId: string;
+      newCustodioName: string;
+      newCustodioId?: string;
+      reason: string;
+    }) => {
+      console.log('🔄 Reassigning custodian for service:', serviceId);
+      
+      // Get current service data
+      const { data: currentService, error: fetchError } = await supabase
+        .from('servicios_planificados')
+        .select('custodio_asignado, custodio_id, fecha_hora_cita, requiere_armado, armado_asignado')
+        .eq('id', serviceId)
+        .single();
+
+      if (fetchError) throw new Error('Error al obtener datos del servicio');
+
+      // Check conflicts if custodioId is provided
+      if (newCustodioId) {
+        const conflictResult = await checkCustodianConflicts(newCustodioId, currentService.fecha_hora_cita, serviceId);
+        if (conflictResult.hasConflicts) {
+          throw new Error(`El custodio ${newCustodioName} ya tiene ${conflictResult.conflicts.length} servicio(s) asignado(s) en horarios conflictivos.`);
+        }
+      }
+
+      // Update assignment
+      const { error: updateError } = await supabase
+        .from('servicios_planificados')
+        .update({
+          custodio_asignado: newCustodioName,
+          custodio_id: newCustodioId,
+          fecha_asignacion: new Date().toISOString(),
+          asignado_por: (await supabase.auth.getUser()).data.user?.id
+        })
+        .eq('id', serviceId);
+
+      if (updateError) throw updateError;
+
+      // Log the change
+      await logServiceChange({
+        serviceId,
+        actionType: 'reassign_custodian',
+        previousValue: currentService.custodio_asignado,
+        newValue: newCustodioName,
+        reason
+      });
+
+      return { 
+        previousCustodian: currentService.custodio_asignado,
+        newCustodian: newCustodioName 
+      };
+    },
+    onSuccess: (data) => {
+      toast.success('Custodio reasignado exitosamente', {
+        description: `Cambiado de "${data.previousCustodian}" a "${data.newCustodian}"`
+      });
+      queryClient.invalidateQueries({ queryKey: ['scheduled-services'] });
+      queryClient.invalidateQueries({ queryKey: ['planned-services'] });
+    },
+    onError: (error) => {
+      console.error('Error reassigning custodian:', error);
+      toast.error('Error al reasignar custodio', {
+        description: error.message || 'Error desconocido'
+      });
+    }
+  });
+
+  const reassignArmedGuard = useMutation({
+    mutationFn: async ({ serviceId, newArmadoName, newArmadoId, reason }: {
+      serviceId: string;
+      newArmadoName: string;
+      newArmadoId?: string;
+      reason: string;
+    }) => {
+      console.log('🛡️ Reassigning armed guard for service:', serviceId);
+      
+      // Get current service data
+      const { data: currentService, error: fetchError } = await supabase
+        .from('servicios_planificados')
+        .select('armado_asignado, armado_id')
+        .eq('id', serviceId)
+        .single();
+
+      if (fetchError) throw new Error('Error al obtener datos del servicio');
+
+      // Update assignment
+      const { error: updateError } = await supabase
+        .from('servicios_planificados')
+        .update({
+          armado_asignado: newArmadoName,
+          armado_id: newArmadoId,
+          fecha_asignacion_armado: new Date().toISOString()
+        })
+        .eq('id', serviceId);
+
+      if (updateError) throw updateError;
+
+      // Log the change
+      await logServiceChange({
+        serviceId,
+        actionType: 'reassign_armed_guard',
+        previousValue: currentService.armado_asignado,
+        newValue: newArmadoName,
+        reason
+      });
+
+      return { 
+        previousArmado: currentService.armado_asignado,
+        newArmado: newArmadoName 
+      };
+    },
+    onSuccess: (data) => {
+      toast.success('Armado reasignado exitosamente', {
+        description: `Cambiado de "${data.previousArmado}" a "${data.newArmado}"`
+      });
+      queryClient.invalidateQueries({ queryKey: ['scheduled-services'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-armado-services'] });
+    },
+    onError: (error) => {
+      console.error('Error reassigning armed guard:', error);
+      toast.error('Error al reasignar armado', {
+        description: error.message || 'Error desconocido'
+      });
+    }
+  });
+
+  const removeAssignment = useMutation({
+    mutationFn: async ({ serviceId, assignmentType, reason }: {
+      serviceId: string;
+      assignmentType: 'custodian' | 'armed_guard';
+      reason: string;
+    }) => {
+      console.log('🗑️ Removing assignment for service:', serviceId, 'type:', assignmentType);
+      
+      // Get current service data
+      const { data: currentService, error: fetchError } = await supabase
+        .from('servicios_planificados')
+        .select('custodio_asignado, armado_asignado, requiere_armado')
+        .eq('id', serviceId)
+        .single();
+
+      if (fetchError) throw new Error('Error al obtener datos del servicio');
+
+      let updateData: any = {};
+      let previousValue = '';
+      let newState = currentService.estado_planeacion;
+
+      if (assignmentType === 'custodian') {
+        updateData = {
+          custodio_asignado: null,
+          custodio_id: null,
+          fecha_asignacion: null,
+          asignado_por: null,
+          estado_planeacion: 'planificado' // Reset to initial state
+        };
+        previousValue = currentService.custodio_asignado;
+      } else if (assignmentType === 'armed_guard') {
+        updateData = {
+          armado_asignado: null,
+          armado_id: null,
+          fecha_asignacion_armado: null
+        };
+        previousValue = currentService.armado_asignado;
+        
+        // If custodian is assigned but armado is removed, mark as confirmed
+        if (currentService.custodio_asignado) {
+          updateData.estado_planeacion = 'confirmado';
+        }
+      }
+
+      // Update assignment
+      const { error: updateError } = await supabase
+        .from('servicios_planificados')
+        .update(updateData)
+        .eq('id', serviceId);
+
+      if (updateError) throw updateError;
+
+      // Log the change
+      await logServiceChange({
+        serviceId,
+        actionType: `remove_${assignmentType}`,
+        previousValue,
+        newValue: null,
+        reason
+      });
+
+      return { assignmentType, previousValue };
+    },
+    onSuccess: (data) => {
+      const typeText = data.assignmentType === 'custodian' ? 'Custodio' : 'Armado';
+      toast.success(`${typeText} removido exitosamente`, {
+        description: `Se removió "${data.previousValue}" del servicio`
+      });
+      queryClient.invalidateQueries({ queryKey: ['scheduled-services'] });
+      queryClient.invalidateQueries({ queryKey: ['planned-services'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-services'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-armado-services'] });
+    },
+    onError: (error) => {
+      console.error('Error removing assignment:', error);
+      toast.error('Error al remover asignación', {
+        description: error.message || 'Error desconocido'
+      });
+    }
+  });
+
+  // SPRINT 3: Service change logging helper function
+  const logServiceChange = async ({
+    serviceId,
+    actionType,
+    previousValue,
+    newValue,
+    reason
+  }: {
+    serviceId: string;
+    actionType: string;
+    previousValue: any;
+    newValue: any;
+    reason?: string;
+  }) => {
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      
+      await supabase
+        .from('service_modification_log')
+        .insert({
+          service_id: serviceId,
+          action_type: actionType,
+          previous_value: previousValue ? JSON.stringify(previousValue) : null,
+          new_value: newValue ? JSON.stringify(newValue) : null,
+          modified_by: user.data.user?.id,
+          reason: reason,
+          timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+      console.warn('Error logging service change:', error);
+      // Don't throw error to avoid breaking the main operation
+    }
+  };
+
   return {
     createServicioPlanificado: createServicioPlanificado.mutate,
     updateServicioPlanificado: updateServicioPlanificado.mutate,
     updateServiceConfiguration: updateServiceConfiguration.mutate,
     assignCustodian: assignCustodian.mutate,
     assignArmedGuard: assignArmedGuard.mutate,
+    reassignCustodian: reassignCustodian.mutate,
+    reassignArmedGuard: reassignArmedGuard.mutate,
+    removeAssignment: removeAssignment.mutate,
     isCreating: createServicioPlanificado.isPending,
     isUpdating: updateServicioPlanificado.isPending,
     isUpdatingConfiguration: updateServiceConfiguration.isPending,
-    isLoading: isLoading || createServicioPlanificado.isPending || updateServicioPlanificado.isPending || updateServiceConfiguration.isPending,
+    isReassigning: reassignCustodian.isPending || reassignArmedGuard.isPending || removeAssignment.isPending,
+    isLoading: isLoading || createServicioPlanificado.isPending || updateServicioPlanificado.isPending || updateServiceConfiguration.isPending || reassignCustodian.isPending || reassignArmedGuard.isPending || removeAssignment.isPending,
     checkCustodianConflicts,
-    useCheckCustodianConflicts
+    useCheckCustodianConflicts,
+    logServiceChange
   };
 }
