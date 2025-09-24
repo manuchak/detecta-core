@@ -8,8 +8,10 @@ import { usePendingArmadoServices } from '@/hooks/usePendingArmadoServices';
 import { useServiciosPlanificados } from '@/hooks/useServiciosPlanificados';
 import { PendingAssignmentModal } from '@/components/planeacion/PendingAssignmentModal';
 import { EditServiceModal, type EditableService } from '@/components/planeacion/EditServiceModal';
+import { ReassignmentModal, type ServiceForReassignment } from '@/components/planeacion/ReassignmentModal';
+import { ServiceHistoryModal } from '@/components/planeacion/ServiceHistoryModal';
 import { AirlineDateSelector } from '@/components/planeacion/AirlineDateSelector';
-import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Users, Timer, Edit } from 'lucide-react';
+import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Users, Timer, Edit, RefreshCw, History } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -18,7 +20,14 @@ export function ScheduledServicesTab() {
   const { summary, loading, error, refetch } = useScheduledServices(selectedDate);
   const { summary: pendingSummary, loading: pendingLoading, refetch: refetchPending } = usePendingServices();
   const { summary: pendingArmadoSummary, loading: pendingArmadoLoading, refetch: refetchPendingArmado } = usePendingArmadoServices();
-  const { updateServiceConfiguration, isUpdatingConfiguration } = useServiciosPlanificados();
+  const { 
+    updateServiceConfiguration, 
+    isUpdatingConfiguration,
+    reassignCustodian,
+    reassignArmedGuard,
+    removeAssignment,
+    isReassigning
+  } = useServiciosPlanificados();
   
   // Estado para el modal de asignación
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false);
@@ -27,6 +36,15 @@ export function ScheduledServicesTab() {
   // Estado para el modal de edición
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedEditService, setSelectedEditService] = useState<EditableService | null>(null);
+  
+  // Estado para modales de Sprint 2 y 3
+  const [reassignmentModalOpen, setReassignmentModalOpen] = useState(false);
+  const [reassignmentService, setReassignmentService] = useState<ServiceForReassignment | null>(null);
+  const [reassignmentType, setReassignmentType] = useState<'custodian' | 'armed_guard'>('custodian');
+  
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [historyServiceId, setHistoryServiceId] = useState<string | null>(null);
+  const [historyServiceName, setHistoryServiceName] = useState<string>('');
 
   const getStatusBadge = (service: any) => {
     if (service.incluye_armado && !service.armado_asignado) {
@@ -96,6 +114,57 @@ export function ScheduledServicesTab() {
     if (data.fecha_hora_cita) {
       setSelectedDate(new Date(data.fecha_hora_cita));
     }
+  };
+
+  const handleReassignCustodian = (service: any) => {
+    const serviceForReassignment: ServiceForReassignment = {
+      id: service.id,
+      id_servicio: service.id_servicio || service.id,
+      nombre_cliente: service.cliente_nombre || service.nombre_cliente,
+      origen: service.origen,
+      destino: service.destino,
+      fecha_hora_cita: service.fecha_hora_cita,
+      custodio_asignado: service.custodio_nombre,
+      armado_asignado: service.armado_asignado,
+      requiere_armado: service.incluye_armado || service.requiere_armado || false,
+      estado_planeacion: service.estado
+    };
+    setReassignmentService(serviceForReassignment);
+    setReassignmentType('custodian');
+    setReassignmentModalOpen(true);
+  };
+
+  const handleReassignArmedGuard = (service: any) => {
+    const serviceForReassignment: ServiceForReassignment = {
+      id: service.id,
+      id_servicio: service.id_servicio || service.id,
+      nombre_cliente: service.cliente_nombre || service.nombre_cliente,
+      origen: service.origen,
+      destino: service.destino,
+      fecha_hora_cita: service.fecha_hora_cita,
+      custodio_asignado: service.custodio_nombre,
+      armado_asignado: service.armado_asignado,
+      requiere_armado: service.incluye_armado || service.requiere_armado || false,
+      estado_planeacion: service.estado
+    };
+    setReassignmentService(serviceForReassignment);
+    setReassignmentType('armed_guard');
+    setReassignmentModalOpen(true);
+  };
+
+  const handleShowHistory = (service: any) => {
+    setHistoryServiceId(service.id);
+    setHistoryServiceName(`${service.cliente_nombre} - ${service.id_servicio}`);
+    setHistoryModalOpen(true);
+  };
+
+  const handleReassignmentComplete = async () => {
+    // Refresh all data after successful reassignment
+    await Promise.all([
+      refetch(),
+      refetchPending(),
+      refetchPendingArmado()
+    ]);
   };
 
   if (loading) {
@@ -274,15 +343,48 @@ export function ScheduledServicesTab() {
 
                     {/* Status Badges and Actions */}
                     <div className="flex flex-col gap-2 items-end">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEditService(service)}
-                        className="h-8 px-3 border-slate-200 text-slate-600 hover:bg-slate-50"
-                      >
-                        <Edit className="h-3 w-3 mr-1" />
-                        Editar
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEditService(service)}
+                          className="h-8 px-2 border-slate-200 text-slate-600 hover:bg-slate-50"
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleShowHistory(service)}
+                          className="h-8 px-2 border-slate-200 text-slate-600 hover:bg-slate-50"
+                        >
+                          <History className="h-3 w-3" />
+                        </Button>
+                        
+                        {service.custodio_nombre && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleReassignCustodian(service)}
+                            className="h-8 px-2 border-blue-200 text-blue-600 hover:bg-blue-50"
+                          >
+                            <RefreshCw className="h-3 w-3" />
+                          </Button>
+                        )}
+                        
+                        {service.armado_asignado && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleReassignArmedGuard(service)}
+                            className="h-8 px-2 border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+                          >
+                            <Shield className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                      
                       {getStatusBadge(service)}
                       <Badge variant="outline" className="text-xs border-slate-300 text-slate-600">
                         {service.estado}
@@ -520,6 +622,49 @@ export function ScheduledServicesTab() {
         service={selectedEditService}
         onSave={handleSaveServiceEdit}
         isLoading={isUpdatingConfiguration}
+      />
+
+      {/* Modal de Reasignación */}
+      <ReassignmentModal
+        open={reassignmentModalOpen}
+        onOpenChange={setReassignmentModalOpen}
+        service={reassignmentService}
+        assignmentType={reassignmentType}
+        onReassign={async (data) => {
+          if (reassignmentType === 'custodian') {
+            await reassignCustodian({
+              serviceId: data.serviceId,
+              newCustodioName: data.newName,
+              newCustodioId: data.newId,
+              reason: data.reason
+            });
+          } else {
+            await reassignArmedGuard({
+              serviceId: data.serviceId,
+              newArmadoName: data.newName,
+              newArmadoId: data.newId,
+              reason: data.reason
+            });
+          }
+          await handleReassignmentComplete();
+        }}
+        onRemove={async (data) => {
+          await removeAssignment({
+            serviceId: data.serviceId,
+            assignmentType: data.assignmentType,
+            reason: data.reason
+          });
+          await handleReassignmentComplete();
+        }}
+        isLoading={isReassigning}
+      />
+
+      {/* Modal de Historial */}
+      <ServiceHistoryModal
+        open={historyModalOpen}
+        onOpenChange={setHistoryModalOpen}
+        serviceId={historyServiceId}
+        serviceName={historyServiceName}
       />
     </div>
   );

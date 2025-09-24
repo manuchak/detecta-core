@@ -7988,6 +7988,42 @@ export type Database = {
           },
         ]
       }
+      service_modification_log: {
+        Row: {
+          action_type: string
+          created_at: string
+          id: string
+          modified_by: string | null
+          new_value: string | null
+          previous_value: string | null
+          reason: string | null
+          service_id: string
+          timestamp: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          id?: string
+          modified_by?: string | null
+          new_value?: string | null
+          previous_value?: string | null
+          reason?: string | null
+          service_id: string
+          timestamp?: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          id?: string
+          modified_by?: string | null
+          new_value?: string | null
+          previous_value?: string | null
+          reason?: string | null
+          service_id?: string
+          timestamp?: string
+        }
+        Relationships: []
+      }
       servicios_custodia: {
         Row: {
           armado: string | null

@@ -624,7 +624,7 @@ export function useServiciosPlanificados() {
       // Get current service data
       const { data: currentService, error: fetchError } = await supabase
         .from('servicios_planificados')
-        .select('custodio_asignado, armado_asignado, requiere_armado')
+        .select('custodio_asignado, armado_asignado, requiere_armado, estado_planeacion')
         .eq('id', serviceId)
         .single();
 
@@ -718,7 +718,7 @@ export function useServiciosPlanificados() {
           action_type: actionType,
           previous_value: previousValue ? JSON.stringify(previousValue) : null,
           new_value: newValue ? JSON.stringify(newValue) : null,
-          modified_by: user.data.user?.id,
+          modified_by: user.user?.id,
           reason: reason,
           timestamp: new Date().toISOString()
         });
