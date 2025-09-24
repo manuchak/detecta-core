@@ -142,10 +142,9 @@ export function useServiciosPlanificados() {
         .from('servicios_planificados')
         .select('id_servicio')
         .eq('id_servicio', data.id_servicio)
-        .single();
+        .maybeSingle();
 
-      if (checkError && checkError.code !== 'PGRST116') {
-        // PGRST116 is "not found" which is what we want
+      if (checkError) {
         throw new Error('Error verificando ID del servicio');
       }
 
@@ -258,9 +257,10 @@ export function useServiciosPlanificados() {
           .from('servicios_planificados')
           .select('fecha_hora_cita, id_servicio, origen, destino')
           .eq('id', serviceId) // Use UUID id, not id_servicio
-          .single();
+          .maybeSingle();
 
         if (serviceError) throw new Error('Error al obtener datos del servicio');
+        if (!service) throw new Error('Servicio no encontrado');
 
         // Check for conflicts
         const { data: conflictCheck, error: conflictError } = await supabase
@@ -286,9 +286,10 @@ export function useServiciosPlanificados() {
         .from('servicios_planificados')
         .select('requiere_armado, armado_asignado')
         .eq('id', serviceId)
-        .single();
+        .maybeSingle();
 
       if (fetchError) throw new Error('Error al obtener datos del servicio');
+      if (!currentService) throw new Error('Servicio no encontrado');
 
       // Determine final state based on armed guard requirement
       const shouldBeConfirmed = !currentService.requiere_armado || currentService.armado_asignado;
@@ -408,10 +409,14 @@ export function useServiciosPlanificados() {
         .from('servicios_planificados')
         .select('requiere_armado, armado_asignado, armado_id, custodio_asignado, estado_planeacion')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
       if (fetchError) {
         throw new Error(`Error al obtener datos del servicio: ${fetchError.message}`);
+      }
+      
+      if (!currentService) {
+        throw new Error('Servicio no encontrado');
       }
 
       let updateData = { ...data };
@@ -500,9 +505,10 @@ export function useServiciosPlanificados() {
         .from('servicios_planificados')
         .select('custodio_asignado, custodio_id, fecha_hora_cita, requiere_armado, armado_asignado')
         .eq('id', serviceId)
-        .single();
+        .maybeSingle();
 
       if (fetchError) throw new Error('Error al obtener datos del servicio');
+      if (!currentService) throw new Error('Servicio no encontrado');
 
       // Check conflicts if custodioId is provided
       if (newCustodioId) {
@@ -568,9 +574,10 @@ export function useServiciosPlanificados() {
         .from('servicios_planificados')
         .select('armado_asignado, armado_id')
         .eq('id', serviceId)
-        .single();
+        .maybeSingle();
 
       if (fetchError) throw new Error('Error al obtener datos del servicio');
+      if (!currentService) throw new Error('Servicio no encontrado');
 
       // Update assignment
       const { error: updateError } = await supabase
@@ -626,9 +633,10 @@ export function useServiciosPlanificados() {
         .from('servicios_planificados')
         .select('custodio_asignado, armado_asignado, requiere_armado, estado_planeacion')
         .eq('id', serviceId)
-        .single();
+        .maybeSingle();
 
       if (fetchError) throw new Error('Error al obtener datos del servicio');
+      if (!currentService) throw new Error('Servicio no encontrado');
 
       let updateData: any = {};
       let previousValue = '';
