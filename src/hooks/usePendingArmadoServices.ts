@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-export interface PendingService {
+export interface PendingArmadoService {
   id: string;
   id_servicio: string;
   nombre_cliente: string;
@@ -10,37 +10,39 @@ export interface PendingService {
   destino: string;
   fecha_hora_cita: string;
   tipo_servicio: string;
-  requiere_armado: boolean;
+  custodio_asignado: string;
   observaciones?: string;
   created_at: string;
 }
 
-export interface PendingServicesSummary {
-  total_pending: number;
-  pending_services: PendingService[];
+export interface PendingArmadoServicesSummary {
+  total_pending_armado: number;
+  pending_armado_services: PendingArmadoService[];
 }
 
-export function usePendingServices() {
-  const [summary, setSummary] = useState<PendingServicesSummary | null>(null);
+export function usePendingArmadoServices() {
+  const [summary, setSummary] = useState<PendingArmadoServicesSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadPendingServices = async () => {
+  const loadPendingArmadoServices = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      // Obtener servicios planificados sin custodio asignado
+      // Obtener servicios con custodio asignado pero sin armado
       const { data, error } = await supabase
         .from('servicios_planificados')
         .select('*')
-        .is('custodio_asignado', null)
+        .eq('requiere_armado', true)
+        .is('armado_asignado', null)
+        .not('custodio_asignado', 'is', null)
         .not('estado_planeacion', 'in', '(cancelado,completado)')
         .order('fecha_hora_cita', { ascending: true });
 
       if (error) throw error;
 
-      const pendingServices: PendingService[] = (data || []).map(service => ({
+      const pendingArmadoServices: PendingArmadoService[] = (data || []).map(service => ({
         id: service.id,
         id_servicio: service.id_servicio,
         nombre_cliente: service.nombre_cliente,
@@ -48,29 +50,29 @@ export function usePendingServices() {
         destino: service.destino,
         fecha_hora_cita: service.fecha_hora_cita,
         tipo_servicio: service.tipo_servicio,
-        requiere_armado: service.requiere_armado || false,
+        custodio_asignado: service.custodio_asignado,
         observaciones: service.observaciones,
         created_at: service.created_at
       }));
 
       setSummary({
-        total_pending: pendingServices.length,
-        pending_services: pendingServices
+        total_pending_armado: pendingArmadoServices.length,
+        pending_armado_services: pendingArmadoServices
       });
     } catch (err) {
-      console.error('Error loading pending services:', err);
-      setError('Error al cargar servicios pendientes');
-      toast.error('Error al cargar servicios pendientes');
+      console.error('Error loading pending armado services:', err);
+      setError('Error al cargar servicios pendientes de armado');
+      toast.error('Error al cargar servicios pendientes de armado');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadPendingServices();
+    loadPendingArmadoServices();
   }, []);
 
-  const refetch = () => loadPendingServices();
+  const refetch = () => loadPendingArmadoServices();
 
   return {
     summary,

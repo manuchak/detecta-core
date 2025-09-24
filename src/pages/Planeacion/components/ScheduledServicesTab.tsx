@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useScheduledServices } from '@/hooks/useScheduledServices';
 import { usePendingServices } from '@/hooks/usePendingServices';
+import { usePendingArmadoServices } from '@/hooks/usePendingArmadoServices';
 import { PendingAssignmentModal } from '@/components/planeacion/PendingAssignmentModal';
 import { AirlineDateSelector } from '@/components/planeacion/AirlineDateSelector';
 import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Users, Timer } from 'lucide-react';
@@ -14,6 +15,7 @@ export function ScheduledServicesTab() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const { summary, loading, error, refetch } = useScheduledServices(selectedDate);
   const { summary: pendingSummary, loading: pendingLoading, refetch: refetchPending } = usePendingServices();
+  const { summary: pendingArmadoSummary, loading: pendingArmadoLoading, refetch: refetchPendingArmado } = usePendingArmadoServices();
   
   // Estado para el modal de asignación
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false);
@@ -131,7 +133,7 @@ export function ScheduledServicesTab() {
               <div className="status-dot status-dot-warning w-3 h-3"></div>
               <div>
                 <div className="text-2xl font-semibold text-orange-800">{pendingSummary?.total_pending || 0}</div>
-                <div className="text-caption text-orange-700">Por Asignar</div>
+                <div className="text-caption text-orange-700">Sin Custodio</div>
               </div>
             </div>
           </div>
@@ -246,7 +248,7 @@ export function ScheduledServicesTab() {
           <div className="flex flex-row items-center justify-between pb-4 border-b border-orange-200/40">
             <h3 className="text-title text-lg flex items-center gap-3">
               <div className="status-dot status-dot-warning w-3 h-3"></div>
-              <span className="text-slate-800">Servicios por Asignar</span>
+              <span className="text-slate-800">Servicios sin Custodio</span>
               <Badge className="bg-orange-100 text-orange-700 border-orange-200 text-sm px-2 py-1">
                 {pendingSummary.total_pending}
               </Badge>
@@ -334,6 +336,98 @@ export function ScheduledServicesTab() {
         </div>
       )}
 
+      {/* Pending Armed Guard Services Section */}
+      {pendingArmadoSummary?.total_pending_armado && pendingArmadoSummary.total_pending_armado > 0 && (
+        <div className="card-refined border-blue-200/50 bg-gradient-to-br from-blue-50/40 to-blue-100/20">
+          <div className="flex flex-row items-center justify-between pb-4 border-b border-blue-200/40">
+            <h3 className="text-title text-lg flex items-center gap-3">
+              <Shield className="h-5 w-5 text-blue-600" />
+              <span className="text-slate-800">Pendientes de Armado</span>
+              <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-sm px-2 py-1">
+                {pendingArmadoSummary.total_pending_armado}
+              </Badge>
+            </h3>
+            <Button onClick={refetchPendingArmado} variant="outline" size="sm" className="border-blue-200 text-blue-700 hover:bg-blue-50">
+              Actualizar
+            </Button>
+          </div>
+          <div className="space-y-4 pt-4">
+            {pendingArmadoSummary.pending_armado_services.map((pendingArmadoService) => (
+              <div
+                key={pendingArmadoService.id}
+                className="border border-blue-200/60 rounded-lg p-4 bg-white/80 hover:bg-blue-50/30 transition-all duration-200"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 space-y-3">
+                    {/* Service Header */}
+                    <div className="flex items-center gap-3">
+                      <Shield className="h-4 w-4 text-blue-600" />
+                      <div>
+                        <h3 className="text-subtitle text-slate-900">{pendingArmadoService.nombre_cliente}</h3>
+                        <div className="flex items-center gap-2 text-caption">
+                          <span className="font-mono">ID: {pendingArmadoService.id_servicio}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Route */}
+                    <div className="flex items-center gap-2 text-sm bg-white/60 p-3 rounded-lg border border-blue-200/60">
+                      <MapPin className="h-4 w-4 text-slate-600" />
+                      <span className="text-subtitle">{pendingArmadoService.origen}</span>
+                      <span className="text-slate-400">→</span>
+                      <span className="text-subtitle">{pendingArmadoService.destino}</span>
+                    </div>
+
+                    {/* Service Details */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-slate-500" />
+                        <span className="text-body"><strong className="text-slate-700">Fecha:</strong> {format(new Date(pendingArmadoService.fecha_hora_cita), 'PPP', { locale: es })}</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-slate-500" />
+                        <span className="text-body"><strong className="text-slate-700">Custodio:</strong> {pendingArmadoService.custodio_asignado}</span>
+                      </div>
+                    </div>
+
+                    {pendingArmadoService.observaciones && (
+                      <div className="bg-white/60 border border-blue-200/60 rounded-lg p-3 text-sm">
+                        <strong className="text-slate-800">Observaciones:</strong> 
+                        <span className="text-body ml-1">{pendingArmadoService.observaciones}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setSelectedPendingService(pendingArmadoService);
+                        setAssignmentModalOpen(true);
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm"
+                    >
+                      <Shield className="h-4 w-4 mr-2" />
+                      Asignar Armado
+                    </Button>
+                    
+                    <Badge className="text-xs justify-center bg-green-100 text-green-700 border-green-200">
+                      Custodio: ✓
+                    </Badge>
+                    
+                    <Badge className="text-xs bg-blue-100 text-blue-700 border-blue-200">
+                      Armado: Pendiente
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Modal de Asignación */}
       <PendingAssignmentModal
         open={assignmentModalOpen}
@@ -341,7 +435,12 @@ export function ScheduledServicesTab() {
         service={selectedPendingService}
         onAssignmentComplete={() => {
           refetchPending();
+          refetchPendingArmado();
           refetch();
+          // Automatically navigate to the service date to see updated status
+          if (selectedPendingService?.fecha_hora_cita) {
+            setSelectedDate(new Date(selectedPendingService.fecha_hora_cita));
+          }
         }}
       />
     </div>
