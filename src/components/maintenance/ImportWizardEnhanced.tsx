@@ -10,6 +10,7 @@ import { validateCustodianServicesData, getQuickValidationSample, ValidationResu
 import { validateDataBeforeImport, getValidationSummary } from '@/services/custodianServicesEarlyValidationService';
 import { applyIntelligentMapping } from "@/services/intelligentMappingService";
 import { useSavedMappings, SavedMapping } from "@/hooks/useSavedMappings";
+import { useServiceIdValidation } from "@/hooks/useServiceIdValidation";
 import { ValidationStep } from "./ValidationStep";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,6 +47,8 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
   onOpenChange,
   onComplete
 }) => {
+  const { validateMultipleIds, isValidating: isValidatingIds } = useServiceIdValidation();
+  
   const [state, setState] = useState<WizardState>({
     step: 'upload',
     file: null,
@@ -188,6 +191,45 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
 
       if (earlyValidation.warnings.length > 0) {
         toast.warning(`Advertencias: ${earlyValidation.warnings.join(', ')}`);
+      }
+
+      // Validate service IDs for duplicates
+      const serviceIds = state.parsedData
+        .map(row => {
+          const idField = Object.keys(state.mapping).find(csvField => state.mapping[csvField] === 'id_servicio');
+          return idField ? row[idField] : null;
+        })
+        .filter(id => id && typeof id === 'string' && id.trim());
+
+      if (serviceIds.length > 0) {
+        console.log('🔍 Validating service IDs...');
+        const idValidation = await validateMultipleIds(serviceIds, true);
+        
+        if (!idValidation.is_valid) {
+          const errorMessage = `IDs duplicados o finalizados detectados: ${idValidation.summary}`;
+          toast.error(errorMessage);
+          
+          // Show detailed errors
+          if (idValidation.invalid_services.length > 0) {
+            console.warn('Invalid service IDs:', idValidation.invalid_services);
+          }
+          
+          setState(prev => ({ 
+            ...prev, 
+            step: 'mapping',
+            result: {
+              success: false,
+              imported: 0,
+              updated: 0,
+              failed: transformedData.length,
+              errors: [errorMessage, ...idValidation.invalid_services.map(inv => inv.message)],
+              warnings: []
+            }
+          }));
+          return;
+        } else {
+          toast.success(`Validación de IDs exitosa: ${idValidation.summary}`);
+        }
       }
 
       const result = await importCustodianServices(transformedData, (progress) => {

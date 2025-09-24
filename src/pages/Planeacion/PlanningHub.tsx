@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlusCircle, Settings, BarChart3, Smartphone, Calendar, TrendingUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { RequestCreationWorkflow } from './components/RequestCreationWorkflow';
 import { OperationalDashboard } from './components/OperationalDashboard';
 import { ComodatosGPSTab } from './components/ComodatosGPSTab';
@@ -9,10 +11,17 @@ import { PlanningConfigurationTab } from './components/PlanningConfigurationTab'
 import { ScheduledServicesTab } from './components/ScheduledServicesTab';
 import { AdminPerformanceTab } from './components/AdminPerformanceTab';
 import { useSecurityAudit } from '@/hooks/useSecurityAudit';
+import { useDuplicateCleanup } from '@/hooks/useDuplicateCleanup';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertTriangle, ExternalLink } from 'lucide-react';
 
 export default function PlanningHub() {
   const [activeTab, setActiveTab] = useState('create-request');
+  const navigate = useNavigate();
   const { logSecurityEvent } = useSecurityAudit();
+  const { duplicates, checkingDuplicates } = useDuplicateCleanup();
+
+  const totalDuplicates = duplicates?.reduce((sum, dup) => sum + dup.duplicate_count - 1, 0) || 0;
 
   return (
     <div className="container mx-auto p-6 space-y-8">
@@ -23,6 +32,29 @@ export default function PlanningHub() {
           Gestiona solicitudes de servicios desde clientes hasta asignación de custodios
         </p>
       </div>
+
+      {/* Duplicate Services Alert */}
+      {!checkingDuplicates && totalDuplicates > 0 && (
+        <Alert className="border-amber-200 bg-amber-50">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="flex items-center justify-between">
+            <div>
+              <strong className="text-amber-800">¡Atención!</strong> Se detectaron{' '}
+              <strong className="text-amber-900">{totalDuplicates} servicios duplicados</strong>{' '}
+              en el sistema. Esto puede causar conflictos en la asignación.
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => navigate('/maintenance/duplicate-cleanup')}
+              className="ml-4 border-amber-300 text-amber-800 hover:bg-amber-100"
+            >
+              <ExternalLink className="h-4 w-4 mr-1" />
+              Ver Limpieza
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

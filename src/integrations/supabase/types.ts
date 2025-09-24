@@ -11477,6 +11477,10 @@ export type Database = {
         Args: { input_text: string; max_length?: number }
         Returns: string
       }
+      validate_multiple_service_ids: {
+        Args: { p_exclude_finished?: boolean; p_service_ids: string[] }
+        Returns: Json
+      }
       validate_role_change_secure: {
         Args: { new_role: string; target_user_id: string }
         Returns: boolean
@@ -11498,6 +11502,10 @@ export type Database = {
           should_flag: boolean
           suggested_km: number
         }[]
+      }
+      validate_unique_service_id: {
+        Args: { p_exclude_finished?: boolean; p_id_servicio: string }
+        Returns: Json
       }
       validate_user_session: {
         Args: Record<PropertyKey, never>
