@@ -2,12 +2,11 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useScheduledServices } from '@/hooks/useScheduledServices';
 import { usePendingServices } from '@/hooks/usePendingServices';
 import { PendingAssignmentModal } from '@/components/planeacion/PendingAssignmentModal';
-import { Calendar as CalendarIcon, Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Calendar as CalendarIcon2 } from 'lucide-react';
+import { MultiDateSelector } from '@/components/planeacion/MultiDateSelector';
+import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Users, Timer } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -22,28 +21,34 @@ export function ScheduledServicesTab() {
 
   const getStatusBadge = (service: any) => {
     if (service.incluye_armado && !service.armado_asignado) {
-      return <Badge variant="destructive">Armado Pendiente</Badge>;
+      return <Badge className="bg-red-100 text-red-700 border-red-200">Armado Pendiente</Badge>;
     }
     if (service.incluye_armado && service.estado_asignacion === 'confirmado') {
-      return <Badge variant="success">Confirmado</Badge>;
+      return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Completamente Confirmado</Badge>;
     }
     if (service.incluye_armado && service.estado_asignacion === 'pendiente') {
-      return <Badge variant="secondary">Pendiente Confirmación</Badge>;
+      return <Badge className="bg-amber-100 text-amber-700 border-amber-200">Confirmación Pendiente</Badge>;
+    }
+    if (!service.incluye_armado && service.estado === 'confirmado') {
+      return <Badge className="bg-blue-100 text-blue-700 border-blue-200">Confirmado</Badge>;
     }
     if (!service.incluye_armado) {
-      return <Badge variant="outline">Solo Custodia</Badge>;
+      return <Badge className="bg-slate-100 text-slate-700 border-slate-200">Solo Custodia</Badge>;
     }
-    return <Badge variant="secondary">En Proceso</Badge>;
+    return <Badge className="bg-gray-100 text-gray-700 border-gray-200">En Proceso</Badge>;
   };
 
   const getStatusIcon = (service: any) => {
     if (service.incluye_armado && service.estado_asignacion === 'confirmado') {
-      return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+      return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
     }
     if (service.incluye_armado && !service.armado_asignado) {
       return <AlertCircle className="h-4 w-4 text-red-600" />;
     }
-    return <Clock className="h-4 w-4 text-blue-600" />;
+    if (service.estado === 'confirmado') {
+      return <CheckCircle2 className="h-4 w-4 text-blue-600" />;
+    }
+    return <Timer className="h-4 w-4 text-amber-600" />;
   };
 
   if (loading) {
@@ -60,102 +65,86 @@ export function ScheduledServicesTab() {
     <div className="space-y-6">
       {/* Header with Date Selector and Summary Cards */}
       <div className="flex flex-col lg:flex-row gap-6">
-        {/* Date Selector */}
-        <Card className="lg:w-80">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CalendarIcon2 className="h-5 w-5" />
-              Seleccionar Fecha
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-start">
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {format(selectedDate, 'PPP', { locale: es })}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => date && setSelectedDate(date)}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </CardContent>
-        </Card>
+        {/* Multi Date Selector */}
+        <div className="lg:w-80">
+          <MultiDateSelector 
+            selectedDate={selectedDate}
+            onDateChange={setSelectedDate}
+          />
+        </div>
 
         {/* Summary Cards */}
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-4">
-          <Card>
+        <div className="flex-1 grid grid-cols-2 md:grid-cols-5 gap-4">
+          {/* Total Services */}
+          <Card className="border-slate-200">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <CalendarIcon className="h-5 w-5 text-blue-600" />
+                <div className="p-2 bg-slate-100 rounded-lg">
+                  <Users className="h-5 w-5 text-slate-600" />
                 </div>
                 <div>
                   <div className="text-2xl font-bold">{summary?.total_services || 0}</div>
-                  <div className="text-sm text-muted-foreground">Total</div>
+                  <div className="text-xs text-muted-foreground">Total Servicios</div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          {/* Assigned Services */}
+          <Card className="border-emerald-200 bg-emerald-50/30">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <div className="p-2 bg-emerald-100 rounded-lg">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">{summary?.assigned_services || 0}</div>
-                  <div className="text-sm text-muted-foreground">Asignados</div>
+                  <div className="text-2xl font-bold text-emerald-700">{summary?.assigned_services || 0}</div>
+                  <div className="text-xs text-emerald-600 font-medium">Asignados</div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          {/* Pending Confirmation */}
+          <Card className="border-amber-200 bg-amber-50/30">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-100 rounded-lg">
-                  <AlertCircle className="h-5 w-5 text-orange-600" />
+                <div className="p-2 bg-amber-100 rounded-lg">
+                  <Timer className="h-5 w-5 text-amber-600" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">{summary?.pending_services || 0}</div>
-                  <div className="text-sm text-muted-foreground">Pendientes</div>
+                  <div className="text-2xl font-bold text-amber-700">{summary?.pending_services || 0}</div>
+                  <div className="text-xs text-amber-600 font-medium">Pendientes Confirmación</div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          {/* Confirmed Services */}
+          <Card className="border-blue-200 bg-blue-50/30">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Shield className="h-5 w-5 text-purple-600" />
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Shield className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">{summary?.confirmed_services || 0}</div>
-                  <div className="text-sm text-muted-foreground">Confirmados</div>
+                  <div className="text-2xl font-bold text-blue-700">{summary?.confirmed_services || 0}</div>
+                  <div className="text-xs text-blue-600 font-medium">Confirmados</div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Nueva tarjeta para pendientes por asignar */}
-          <Card className="border-orange-200">
+          {/* Unassigned Services */}
+          <Card className="border-red-200 bg-red-50/30">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <Clock className="h-5 w-5 text-yellow-600" />
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <AlertCircle className="h-5 w-5 text-red-600" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">{pendingSummary?.total_pending || 0}</div>
-                  <div className="text-sm text-muted-foreground">Por Asignar</div>
+                  <div className="text-2xl font-bold text-red-700">{pendingSummary?.total_pending || 0}</div>
+                  <div className="text-xs text-red-600 font-medium">Por Asignar</div>
                 </div>
               </div>
             </CardContent>
@@ -235,25 +224,25 @@ export function ScheduledServicesTab() {
 
                       {/* Armed Guard Info */}
                       {service.incluye_armado && (
-                        <div className="bg-accent/30 rounded-md p-3 text-sm">
+                        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-md p-3 text-sm">
                           <div className="flex items-center gap-2 mb-1">
-                            <Shield className="h-4 w-4 text-primary" />
-                            <span className="font-medium">Servicio con Armado</span>
+                            <Shield className="h-4 w-4 text-purple-600" />
+                            <span className="font-medium text-purple-800">Servicio con Armado</span>
                           </div>
-                          <div className="text-muted-foreground">
+                          <div className="text-purple-700">
                             {service.armado_asignado 
-                              ? `Estado: ${service.estado_asignacion || 'Asignado'}`
-                              : 'Armado pendiente por asignar'
+                              ? `✓ Armado asignado - ${service.estado_asignacion || 'Confirmando'}`
+                              : '⚠️ Armado pendiente por asignar'
                             }
                           </div>
                         </div>
                       )}
                     </div>
 
-                    {/* Status Badge */}
-                    <div className="flex flex-col gap-2">
+                    {/* Status Badges */}
+                    <div className="flex flex-col gap-2 items-end">
                       {getStatusBadge(service)}
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className="text-xs border-slate-300 text-slate-600">
                         {service.estado}
                       </Badge>
                     </div>
@@ -265,14 +254,15 @@ export function ScheduledServicesTab() {
         </CardContent>
       </Card>
 
-      {/* Pending Services Section */}
+      {/* Critical Unassigned Services Section */}
       {pendingSummary?.total_pending && pendingSummary.total_pending > 0 && (
-        <Card className="border-orange-200">
+        <Card className="border-red-200 bg-gradient-to-br from-red-50 to-orange-50">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-orange-700">
-              Servicios Pendientes por Asignar ({pendingSummary.total_pending})
+            <CardTitle className="text-red-700 flex items-center gap-2">
+              <AlertCircle className="h-5 w-5" />
+              Servicios Críticos por Asignar ({pendingSummary.total_pending})
             </CardTitle>
-            <Button onClick={refetchPending} variant="outline" size="sm">
+            <Button onClick={refetchPending} variant="outline" size="sm" className="border-red-200">
               Actualizar
             </Button>
           </CardHeader>
@@ -281,33 +271,35 @@ export function ScheduledServicesTab() {
               {pendingSummary.pending_services.map((pendingService) => (
                 <div
                   key={pendingService.id}
-                  className="border rounded-lg p-4 hover:bg-orange-50/50 transition-colors border-orange-200"
+                  className="border rounded-lg p-4 hover:bg-red-50/50 transition-colors border-red-200 bg-white shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 space-y-3">
                       {/* Service Header */}
                       <div className="flex items-center gap-3">
-                        <Clock className="h-4 w-4 text-orange-600" />
+                        <div className="p-2 bg-red-100 rounded-lg">
+                          <AlertCircle className="h-4 w-4 text-red-600" />
+                        </div>
                         <div>
-                          <h3 className="font-semibold">{pendingService.nombre_cliente}</h3>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <span>ID: {pendingService.id_servicio}</span>
+                          <h3 className="font-semibold text-red-900">{pendingService.nombre_cliente}</h3>
+                          <div className="flex items-center gap-2 text-sm text-red-600">
+                            <span className="font-mono">ID: {pendingService.id_servicio}</span>
                           </div>
                         </div>
                       </div>
 
                       {/* Route */}
-                      <div className="flex items-center gap-2 text-sm">
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{pendingService.origen}</span>
-                        <span className="text-muted-foreground">→</span>
-                        <span className="font-medium">{pendingService.destino}</span>
+                      <div className="flex items-center gap-2 text-sm bg-red-50 p-2 rounded">
+                        <MapPin className="h-4 w-4 text-red-600" />
+                        <span className="font-medium text-red-800">{pendingService.origen}</span>
+                        <span className="text-red-600">→</span>
+                        <span className="font-medium text-red-800">{pendingService.destino}</span>
                       </div>
 
                       {/* Service Details */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <Clock className="h-4 w-4 text-muted-foreground" />
                           <span><strong>Fecha:</strong> {format(new Date(pendingService.fecha_hora_cita), 'PPP', { locale: es })}</span>
                         </div>
                         
@@ -318,8 +310,9 @@ export function ScheduledServicesTab() {
                       </div>
 
                       {pendingService.observaciones && (
-                        <div className="bg-muted/50 rounded-md p-2 text-sm">
-                          <strong>Observaciones:</strong> {pendingService.observaciones}
+                        <div className="bg-amber-50 border border-amber-200 rounded-md p-2 text-sm">
+                          <strong className="text-amber-800">Observaciones:</strong> 
+                          <span className="text-amber-700 ml-1">{pendingService.observaciones}</span>
                         </div>
                       )}
                     </div>
@@ -332,19 +325,19 @@ export function ScheduledServicesTab() {
                           setSelectedPendingService(pendingService);
                           setAssignmentModalOpen(true);
                         }}
-                        className="bg-orange-600 hover:bg-orange-700"
+                        className="bg-red-600 hover:bg-red-700 text-white"
                       >
                         <User className="h-4 w-4 mr-2" />
-                        Asignar Custodio
+                        Asignar Urgente
                       </Button>
                       
-                      <Badge variant="outline" className="text-xs border-orange-200 text-orange-700">
-                        Sin Asignar
+                      <Badge variant="destructive" className="text-xs justify-center">
+                        Sin Custodio
                       </Badge>
                       
                       {pendingService.requiere_armado && (
-                        <Badge variant="secondary" className="text-xs">
-                          Con Armado
+                        <Badge className="text-xs bg-orange-100 text-orange-700 border-orange-200">
+                          + Armado
                         </Badge>
                       )}
                     </div>
