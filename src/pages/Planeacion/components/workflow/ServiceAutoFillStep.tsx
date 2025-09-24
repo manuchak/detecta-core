@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,11 +8,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, Shield, Settings, CheckCircle, ArrowLeft, Cpu, MapPin, DollarSign, AlertTriangle, User, RefreshCw } from 'lucide-react';
+import { Calendar, Clock, Shield, Settings, CheckCircle, ArrowLeft, Cpu, MapPin, DollarSign, AlertTriangle, User, RefreshCw, XCircle, Loader2 } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { generateServiceId, suggestAlternativeServiceId } from '@/utils/serviceIdGenerator';
+import { useServiceIdValidation } from '@/hooks/useServiceIdValidation';
 
 interface RouteData {
   cliente_nombre: string;
@@ -64,16 +64,46 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
     format(new Date(), 'HH:mm')
   );
 
-  // Generar ID automáticamente al cargar el componente
-  useEffect(() => {
-    if (!servicioId) {
-      setServicioId(generateServiceId());
-    }
-  }, []);
+  // Hook para validación de IDs
+  const { validateSingleId, isValidating } = useServiceIdValidation();
+  const [validationResult, setValidationResult] = useState<any>(null);
+  const [hasValidated, setHasValidated] = useState(false);
 
-  const handleGenerateNewId = () => {
-    setServicioId(generateServiceId());
-    toast.success('Nuevo ID generado automáticamente');
+  // Validar ID cuando cambia (con debounce)
+  const validateServiceId = useCallback(async (id: string) => {
+    if (!id?.trim()) {
+      setValidationResult(null);
+      setHasValidated(false);
+      return;
+    }
+
+    setHasValidated(true);
+    const result = await validateSingleId(id.trim(), true);
+    setValidationResult(result);
+  }, [validateSingleId]);
+
+  // Debounce para validación automática
+  useEffect(() => {
+    if (!servicioId?.trim()) {
+      setValidationResult(null);
+      setHasValidated(false);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      validateServiceId(servicioId);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [servicioId, validateServiceId]);
+
+  const handleServiceIdChange = (value: string) => {
+    setServicioId(value);
+    // Reset validation when user is typing
+    if (hasValidated && validationResult) {
+      setValidationResult(null);
+      setHasValidated(false);
+    }
   };
 
   // Auto-fill basado en la ruta y precio
@@ -107,6 +137,11 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
       return;
     }
 
+    if (validationResult && !validationResult.is_valid) {
+      toast.error('Debe usar un ID válido antes de continuar');
+      return;
+    }
+
     const serviceData: ServiceData = {
       ...routeData,
       servicio_id: servicioId.trim(),
@@ -127,6 +162,11 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
   const handleSaveAsPending = () => {
     if (!servicioId.trim()) {
       toast.error('El ID del servicio es requerido');
+      return;
+    }
+
+    if (validationResult && !validationResult.is_valid) {
+      toast.error('Debe usar un ID válido antes de guardar como pendiente');
       return;
     }
 
@@ -261,7 +301,7 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
 
           {/* Enhanced Service Configuration */}
           <div className="space-y-8">
-            {/* Service ID - Prominent Required Field */}
+            {/* Service ID - Enhanced with Real-time Validation */}
             <div className="space-y-3">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center">
@@ -269,46 +309,85 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
                 </div>
                 <div>
                   <Label htmlFor="servicio-id" className="text-lg font-bold">
-                    ID del Servicio
+                    ID del Servicio (Sistema de Facturación)
                     <span className="text-destructive ml-2 text-xl">*</span>
                   </Label>
                   <div className="text-sm text-muted-foreground">
-                    Identificador único para seguimiento en sistema
+                    Ingrese el ID único del sistema de facturación
                   </div>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="relative">
                 <Input
                   id="servicio-id"
-                  placeholder="Ejemplo: SRV-20241225-ABC123"
+                  placeholder="Ingrese el ID del sistema de facturación (ej: INV-2024-001234)"
                   value={servicioId}
-                  onChange={(e) => setServicioId(e.target.value)}
-                  className={`h-14 text-lg font-mono flex-1 ${
-                    servicioId.trim() 
-                      ? 'border-green-300 bg-green-50/50 dark:bg-green-900/10' 
-                      : 'border-destructive border-2 bg-destructive/5'
+                  onChange={(e) => handleServiceIdChange(e.target.value)}
+                  className={`h-14 text-lg font-mono pr-12 ${
+                    !servicioId.trim() 
+                      ? 'border-destructive border-2 bg-destructive/5'
+                      : isValidating
+                      ? 'border-yellow-300 bg-yellow-50/50 dark:bg-yellow-900/10'
+                      : validationResult?.is_valid === false
+                      ? 'border-destructive border-2 bg-destructive/5'
+                      : validationResult?.is_valid === true
+                      ? 'border-green-300 bg-green-50/50 dark:bg-green-900/10'
+                      : 'border-input'
                   }`}
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleGenerateNewId}
-                  className="h-14 px-3"
-                  title="Generar ID automático"
-                >
-                  <RefreshCw className="h-5 w-5" />
-                </Button>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {isValidating ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-yellow-500" />
+                  ) : validationResult?.is_valid === false ? (
+                    <XCircle className="h-5 w-5 text-destructive" />
+                  ) : validationResult?.is_valid === true ? (
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  ) : null}
+                </div>
               </div>
+
+              {/* Validation Messages */}
               {!servicioId.trim() && (
                 <div className="flex items-center gap-2 text-destructive text-sm font-medium">
                   <AlertTriangle className="h-4 w-4" />
-                  Este campo es obligatorio para continuar
+                  Este campo es obligatorio - ingrese el ID del sistema de facturación
                 </div>
               )}
-              {servicioId.trim() && (
+              
+              {isValidating && servicioId.trim() && (
+                <div className="flex items-center gap-2 text-yellow-600 text-sm font-medium">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Validando ID en el sistema...
+                </div>
+              )}
+
+              {validationResult?.is_valid === false && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-destructive text-sm font-medium">
+                    <XCircle className="h-4 w-4" />
+                    {validationResult.message}
+                  </div>
+                  {validationResult.existing_service && (
+                    <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm">
+                      <div className="font-medium text-destructive mb-1">ID ya registrado:</div>
+                      <div className="space-y-1 text-muted-foreground">
+                        <div>• Cliente: {validationResult.existing_service.cliente}</div>
+                        <div>• Estado: {validationResult.existing_service.estado}</div>
+                        <div>• Fecha: {new Date(validationResult.existing_service.fecha).toLocaleDateString()}</div>
+                        <div>• Tabla: {validationResult.existing_service.tabla}</div>
+                      </div>
+                      <div className="mt-2 text-xs text-destructive font-medium">
+                        Verifique con el sistema de facturación o use un ID diferente
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {validationResult?.is_valid === true && (
                 <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
                   <CheckCircle className="h-4 w-4" />
-                  ID válido y listo para usar
+                  ID válido y disponible para usar
                 </div>
               )}
             </div>

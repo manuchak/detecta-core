@@ -46,14 +46,14 @@ export const useServiceIdValidation = () => {
     setIsValidating(true);
     
     try {
+      // Usar la nueva función global que valida en ambas tablas
       const { data, error } = await supabase
-        .rpc('validate_unique_service_id', {
-          p_id_servicio: idServicio.trim(),
-          p_exclude_finished: excludeFinished
+        .rpc('validate_service_id_globally', {
+          p_id_servicio: idServicio.trim()
         });
 
       if (error) {
-        console.error('Error validating service ID:', error);
+        console.error('Error validating service ID globally:', error);
         toast.error('Error al validar ID de servicio');
         return {
           is_valid: false,
