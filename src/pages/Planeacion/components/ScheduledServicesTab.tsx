@@ -47,35 +47,55 @@ export function ScheduledServicesTab() {
   const [historyServiceName, setHistoryServiceName] = useState<string>('');
 
   const getStatusBadge = (service: any) => {
+    // Check if service is fully planned and confirmed
+    const isFullyPlanned = service.custodio_nombre && (!service.incluye_armado || service.armado_asignado);
+    const isConfirmed = service.estado === 'confirmado';
+    
+    if (isFullyPlanned && isConfirmed) {
+      return <Badge className="bg-success/10 text-success border-success/20">✅ Completamente Planeado</Badge>;
+    }
+    
     if (service.incluye_armado && !service.armado_asignado) {
-      return <Badge className="bg-red-100 text-red-700 border-red-200">Armado Pendiente</Badge>;
+      return <Badge className="bg-destructive/10 text-destructive border-destructive/20">🛡️ Armado Pendiente</Badge>;
     }
-    if (service.incluye_armado && service.estado_asignacion === 'confirmado') {
-      return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Completamente Confirmado</Badge>;
+    
+    if (!service.custodio_nombre) {
+      return <Badge className="bg-destructive/10 text-destructive border-destructive/20">👤 Custodio Pendiente</Badge>;
     }
-    if (service.incluye_armado && service.estado_asignacion === 'pendiente') {
-      return <Badge className="bg-amber-100 text-amber-700 border-amber-200">Confirmación Pendiente</Badge>;
+    
+    if (isFullyPlanned && !isConfirmed) {
+      return <Badge className="bg-warning/10 text-warning border-warning/20">⏳ Pendiente Confirmación</Badge>;
     }
-    if (!service.incluye_armado && service.estado === 'confirmado') {
-      return <Badge className="bg-blue-100 text-blue-700 border-blue-200">Confirmado</Badge>;
+    
+    if (service.estado === 'confirmado') {
+      return <Badge className="bg-info/10 text-info border-info/20">✓ Confirmado</Badge>;
     }
-    if (!service.incluye_armado) {
-      return <Badge className="bg-slate-100 text-slate-700 border-slate-200">Solo Custodia</Badge>;
-    }
-    return <Badge className="bg-gray-100 text-gray-700 border-gray-200">En Proceso</Badge>;
+    
+    return <Badge className="bg-muted text-muted-foreground border-muted">🔄 En Proceso</Badge>;
   };
 
   const getStatusIcon = (service: any) => {
-    if (service.incluye_armado && service.estado_asignacion === 'confirmado') {
-      return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
+    // Check if service is fully planned and confirmed
+    const isFullyPlanned = service.custodio_nombre && (!service.incluye_armado || service.armado_asignado);
+    const isConfirmed = service.estado === 'confirmado';
+    
+    if (isFullyPlanned && isConfirmed) {
+      return <CheckCircle2 className="h-4 w-4 text-success" />;
     }
+    
     if (service.incluye_armado && !service.armado_asignado) {
-      return <AlertCircle className="h-4 w-4 text-red-600" />;
+      return <AlertCircle className="h-4 w-4 text-destructive" />;
     }
+    
+    if (!service.custodio_nombre) {
+      return <AlertCircle className="h-4 w-4 text-destructive" />;
+    }
+    
     if (service.estado === 'confirmado') {
-      return <CheckCircle2 className="h-4 w-4 text-blue-600" />;
+      return <CheckCircle2 className="h-4 w-4 text-info" />;
     }
-    return <Timer className="h-4 w-4 text-amber-600" />;
+    
+    return <Timer className="h-4 w-4 text-warning" />;
   };
 
   const handleEditService = (service: any) => {
@@ -289,8 +309,13 @@ export function ScheduledServicesTab() {
                       {/* Service Header */}
                       <div className="flex items-center gap-3">
                         {getStatusIcon(service)}
-                        <div>
-                          <h3 className="text-subtitle">{service.cliente_nombre}</h3>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-1">
+                            <h3 className="text-subtitle">{service.cliente_nombre}</h3>
+                            <Badge variant="outline" className="text-xs font-mono bg-muted text-muted-foreground border-muted">
+                              ID: {service.id}
+                            </Badge>
+                          </div>
                           <div className="flex items-center gap-2 text-caption">
                             <Clock className="h-3 w-3" />
                             {format(new Date(service.fecha_hora_cita), 'HH:mm')}
@@ -386,9 +411,6 @@ export function ScheduledServicesTab() {
                       </div>
                       
                       {getStatusBadge(service)}
-                      <Badge variant="outline" className="text-xs border-slate-300 text-slate-600">
-                        {service.estado}
-                      </Badge>
                     </div>
                   </div>
                 </div>

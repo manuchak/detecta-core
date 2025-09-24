@@ -518,6 +518,10 @@ export function useServiciosPlanificados() {
         }
       }
 
+      // Determine final state - maintain confirmado if service was already confirmed and all requirements are met
+      const shouldBeConfirmed = !currentService.requiere_armado || currentService.armado_asignado;
+      const finalState = shouldBeConfirmed ? 'confirmado' : 'pendiente_asignacion';
+
       // Update assignment
       const { error: updateError } = await supabase
         .from('servicios_planificados')
@@ -525,7 +529,8 @@ export function useServiciosPlanificados() {
           custodio_asignado: newCustodioName,
           custodio_id: newCustodioId,
           fecha_asignacion: new Date().toISOString(),
-          asignado_por: (await supabase.auth.getUser()).data.user?.id
+          asignado_por: (await supabase.auth.getUser()).data.user?.id,
+          estado_planeacion: finalState
         })
         .eq('id', serviceId);
 
@@ -572,12 +577,16 @@ export function useServiciosPlanificados() {
       // Get current service data
       const { data: currentService, error: fetchError } = await supabase
         .from('servicios_planificados')
-        .select('armado_asignado, armado_id')
+        .select('armado_asignado, armado_id, custodio_asignado, estado_planeacion')
         .eq('id', serviceId)
         .maybeSingle();
 
       if (fetchError) throw new Error('Error al obtener datos del servicio');
       if (!currentService) throw new Error('Servicio no encontrado');
+
+      // If custodian is assigned and we're assigning armed guard, service should be confirmed
+      const shouldBeConfirmed = currentService.custodio_asignado;
+      const finalState = shouldBeConfirmed ? 'confirmado' : currentService.estado_planeacion;
 
       // Update assignment
       const { error: updateError } = await supabase
@@ -585,7 +594,8 @@ export function useServiciosPlanificados() {
         .update({
           armado_asignado: newArmadoName,
           armado_id: newArmadoId,
-          fecha_asignacion_armado: new Date().toISOString()
+          fecha_asignacion_armado: new Date().toISOString(),
+          estado_planeacion: finalState
         })
         .eq('id', serviceId);
 
