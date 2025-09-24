@@ -109,6 +109,8 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
     setError(null);
 
     try {
+      console.log('Loading armed guards with filters:', filters);
+      
       // Query the actual armados_operativos table
       let guardsQuery = supabase
         .from('armados_operativos')
@@ -116,13 +118,13 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
         .eq('estado', 'activo')
         .order('score_total', { ascending: false });
 
-      // Apply zone filter
-      if (filters?.zona_base) {
+      // Apply zone filter (more flexible)
+      if (filters?.zona_base && filters.zona_base.trim()) {
         guardsQuery = guardsQuery.or(`zona_base.ilike.%${filters.zona_base}%,zonas_permitidas.cs.{${filters.zona_base}}`);
       }
 
-      // Apply service type filter
-      if (filters?.tipo_servicio) {
+      // Apply service type filter (more flexible - skip if no valid type)
+      if (filters?.tipo_servicio && ['local', 'foraneo', 'alta_seguridad'].includes(filters.tipo_servicio)) {
         guardsQuery = guardsQuery.contains('servicios_permitidos', [filters.tipo_servicio]);
       }
 
@@ -137,6 +139,8 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
         console.error('Error loading armed guards:', guardsError);
         throw guardsError;
       }
+
+      console.log(`Loaded ${guardsData?.length || 0} armed guards from database`);
 
       // Load external providers
       const { data: providersData, error: providersError } = await supabase
@@ -155,18 +159,23 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
           provider.capacidad_actual < provider.capacidad_maxima
         );
         
-        if (filters?.zona_base) {
+        if (filters?.zona_base && filters.zona_base.trim()) {
           filteredProviders = filteredProviders.filter(provider => 
-            provider.zonas_cobertura?.includes(filters.zona_base!)
+            provider.zonas_cobertura?.includes(filters.zona_base!) ||
+            provider.zonas_cobertura?.some(zona => 
+              zona.toLowerCase().includes(filters.zona_base!.toLowerCase())
+            )
           );
         }
 
-        if (filters?.tipo_servicio) {
+        if (filters?.tipo_servicio && ['local', 'foraneo', 'alta_seguridad'].includes(filters.tipo_servicio)) {
           filteredProviders = filteredProviders.filter(provider => 
-            provider.servicios_disponibles?.includes(filters.tipo_servicio!)
+            provider.servicios_disponibles?.includes(filters.tipo_servicio!) ||
+            provider.servicios_disponibles?.includes('general') // Allow general providers
           );
         }
 
+        console.log(`Filtered to ${filteredProviders.length} providers from ${providersData?.length || 0} total`);
         setProviders(filteredProviders);
       }
 

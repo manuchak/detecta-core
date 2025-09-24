@@ -49,11 +49,12 @@ export function ArmedGuardAssignmentStep({
   const [observations, setObservations] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Prepare filters for armed guards
+  // Prepare filters for armed guards - fix field mapping
   const serviceFilters = serviceData.fecha_hora_cita ? {
-    zona: serviceData.origen || '',
-    fecha: serviceData.fecha_hora_cita.split('T')[0],
-    tipo_servicio: 'custodia'
+    zona_base: serviceData.origen || '',
+    fecha_programada: serviceData.fecha_hora_cita.split('T')[0],
+    tipo_servicio: 'local', // Map custodia_armada to local service type
+    incluye_armado: true
   } : undefined;
 
   const { armedGuards, providers, loading, error } = useArmedGuardsWithTracking(serviceFilters);
