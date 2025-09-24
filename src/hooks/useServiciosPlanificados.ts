@@ -345,7 +345,7 @@ export function useServiciosPlanificados() {
       const { data: currentService, error: fetchError } = await supabase
         .from('servicios_planificados')
         .select('custodio_asignado, estado_planeacion')
-        .eq('id_servicio', serviceId)
+        .eq('id', serviceId)
         .single();
 
       if (fetchError) throw new Error('Error al obtener datos del servicio');
@@ -368,7 +368,7 @@ export function useServiciosPlanificados() {
           fecha_asignacion_armado: new Date().toISOString(),
           estado_planeacion: newState
         })
-        .eq('id_servicio', serviceId);
+        .eq('id', serviceId);
 
       if (error) throw error;
     },

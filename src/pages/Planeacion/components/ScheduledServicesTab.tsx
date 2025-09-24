@@ -10,6 +10,7 @@ import { PendingAssignmentModal } from '@/components/planeacion/PendingAssignmen
 import { EditServiceModal, type EditableService } from '@/components/planeacion/EditServiceModal';
 import { ReassignmentModal, type ServiceForReassignment } from '@/components/planeacion/ReassignmentModal';
 import { ServiceHistoryModal } from '@/components/planeacion/ServiceHistoryModal';
+import { BugFixSummary } from '@/components/planeacion/BugFixSummary';
 import { AirlineDateSelector } from '@/components/planeacion/AirlineDateSelector';
 import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Users, Timer, Edit, RefreshCw, History } from 'lucide-react';
 import { format } from 'date-fns';
@@ -179,6 +180,9 @@ export function ScheduledServicesTab() {
 
   return (
     <div className="space-y-6">
+      {/* Sprint 4 Bug Fix Summary */}
+      <BugFixSummary />
+      
       {/* Header with Date Selector and Summary Cards */}
       <div className="space-y-6">
         {/* Date Selector */}
