@@ -5,9 +5,11 @@ import { Button } from '@/components/ui/button';
 import { useScheduledServices } from '@/hooks/useScheduledServices';
 import { usePendingServices } from '@/hooks/usePendingServices';
 import { usePendingArmadoServices } from '@/hooks/usePendingArmadoServices';
+import { useServiciosPlanificados } from '@/hooks/useServiciosPlanificados';
 import { PendingAssignmentModal } from '@/components/planeacion/PendingAssignmentModal';
+import { EditServiceModal, type EditableService } from '@/components/planeacion/EditServiceModal';
 import { AirlineDateSelector } from '@/components/planeacion/AirlineDateSelector';
-import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Users, Timer } from 'lucide-react';
+import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Users, Timer, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -16,10 +18,15 @@ export function ScheduledServicesTab() {
   const { summary, loading, error, refetch } = useScheduledServices(selectedDate);
   const { summary: pendingSummary, loading: pendingLoading, refetch: refetchPending } = usePendingServices();
   const { summary: pendingArmadoSummary, loading: pendingArmadoLoading, refetch: refetchPendingArmado } = usePendingArmadoServices();
+  const { updateServiceConfiguration, isUpdatingConfiguration } = useServiciosPlanificados();
   
   // Estado para el modal de asignación
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false);
   const [selectedPendingService, setSelectedPendingService] = useState<any>(null);
+  
+  // Estado para el modal de edición
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedEditService, setSelectedEditService] = useState<EditableService | null>(null);
 
   const getStatusBadge = (service: any) => {
     if (service.incluye_armado && !service.armado_asignado) {
@@ -51,6 +58,44 @@ export function ScheduledServicesTab() {
       return <CheckCircle2 className="h-4 w-4 text-blue-600" />;
     }
     return <Timer className="h-4 w-4 text-amber-600" />;
+  };
+
+  const handleEditService = (service: any) => {
+    const editableService: EditableService = {
+      id: service.id,
+      id_servicio: service.id_servicio || service.id,
+      nombre_cliente: service.cliente_nombre || service.nombre_cliente,
+      empresa_cliente: service.empresa_cliente,
+      email_cliente: service.email_cliente,
+      telefono_cliente: service.telefono_cliente,
+      origen: service.origen,
+      destino: service.destino,
+      fecha_hora_cita: service.fecha_hora_cita,
+      tipo_servicio: service.tipo_servicio || 'custodia',
+      requiere_armado: service.incluye_armado || service.requiere_armado || false,
+      custodio_asignado: service.custodio_nombre,
+      armado_asignado: service.armado_asignado,
+      observaciones: service.observaciones,
+      estado_planeacion: service.estado
+    };
+    setSelectedEditService(editableService);
+    setEditModalOpen(true);
+  };
+
+  const handleSaveServiceEdit = async (id: string, data: Partial<EditableService>) => {
+    await updateServiceConfiguration({ id, data });
+    
+    // Automatically refresh after successful update
+    await Promise.all([
+      refetch(),
+      refetchPending(),
+      refetchPendingArmado()
+    ]);
+    
+    // Set selected date to the service's date to show updated status immediately
+    if (data.fecha_hora_cita) {
+      setSelectedDate(new Date(data.fecha_hora_cita));
+    }
   };
 
   if (loading) {
@@ -227,8 +272,17 @@ export function ScheduledServicesTab() {
                       )}
                     </div>
 
-                    {/* Status Badges */}
+                    {/* Status Badges and Actions */}
                     <div className="flex flex-col gap-2 items-end">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEditService(service)}
+                        className="h-8 px-3 border-slate-200 text-slate-600 hover:bg-slate-50"
+                      >
+                        <Edit className="h-3 w-3 mr-1" />
+                        Editar
+                      </Button>
                       {getStatusBadge(service)}
                       <Badge variant="outline" className="text-xs border-slate-300 text-slate-600">
                         {service.estado}
@@ -319,6 +373,16 @@ export function ScheduledServicesTab() {
                       Asignar
                     </Button>
                     
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleEditService(pendingService)}
+                      className="border-slate-200 text-slate-600 hover:bg-slate-50"
+                    >
+                      <Edit className="h-3 w-3 mr-1" />
+                      Editar
+                    </Button>
+                    
                     <Badge className="text-xs justify-center bg-slate-100 text-slate-600 border-slate-200">
                       Sin Custodio
                     </Badge>
@@ -401,32 +465,40 @@ export function ScheduledServicesTab() {
 
                   {/* Action Buttons */}
                   <div className="flex flex-col gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setSelectedPendingService(pendingArmadoService);
-                        setAssignmentModalOpen(true);
-                      }}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm"
-                    >
-                      <Shield className="h-4 w-4 mr-2" />
-                      Asignar Armado
-                    </Button>
-                    
-                    <Badge className="text-xs justify-center bg-green-100 text-green-700 border-green-200">
-                      Custodio: ✓
-                    </Badge>
-                    
-                    <Badge className="text-xs bg-blue-100 text-blue-700 border-blue-200">
-                      Armado: Pendiente
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+                   {/* Action Buttons */}
+                   <div className="flex flex-col gap-2">
+                     <Button
+                       size="sm"
+                       onClick={() => {
+                         // TODO: Implement armed guard assignment for this service
+                         console.log('Assign armed guard to:', pendingArmadoService.id_servicio);
+                       }}
+                       className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm"
+                     >
+                       <Shield className="h-4 w-4 mr-2" />
+                       Asignar Armado
+                     </Button>
+                     
+                     <Button
+                       size="sm"
+                       variant="outline"
+                       onClick={() => handleEditService(pendingArmadoService)}
+                       className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                     >
+                       <Edit className="h-3 w-3 mr-1" />
+                       Editar
+                     </Button>
+                     
+                     <Badge className="text-xs bg-blue-100 text-blue-700 border-blue-200">
+                       Armado: Pendiente
+                     </Badge>
+                   </div>
+                 </div>
+               </div>
+               ))}
+           </div>
+         </div>
+       )}
 
       {/* Modal de Asignación */}
       <PendingAssignmentModal
@@ -437,11 +509,19 @@ export function ScheduledServicesTab() {
           refetchPending();
           refetchPendingArmado();
           refetch();
-          // Automatically navigate to the service date to see updated status
           if (selectedPendingService?.fecha_hora_cita) {
             setSelectedDate(new Date(selectedPendingService.fecha_hora_cita));
           }
         }}
+      />
+
+      {/* Modal de Edición */}
+      <EditServiceModal
+        open={editModalOpen}
+        onOpenChange={setEditModalOpen}
+        service={selectedEditService}
+        onSave={handleSaveServiceEdit}
+        isLoading={isUpdatingConfiguration}
       />
     </div>
   );

@@ -19,6 +19,7 @@ export interface ServicioPlanificadoData {
   requiere_armado?: boolean;
   armado_asignado?: string;
   armado_id?: string;
+  fecha_asignacion_armado?: string;
   auto?: string;
   placa?: string;
   num_vehiculos?: number;
@@ -397,14 +398,103 @@ export function useServiciosPlanificados() {
     });
   };
 
+  // New function for updating service configuration with smart state management
+  const updateServiceConfiguration = useMutation({
+    mutationFn: async ({ id, data }: { id: string, data: Partial<ServicioPlanificadoData> }) => {
+      console.log('Updating service configuration:', id, data);
+
+      // Get current service state to handle armado logic
+      const { data: currentService, error: fetchError } = await supabase
+        .from('servicios_planificados')
+        .select('requiere_armado, armado_asignado, armado_id, custodio_asignado, estado_planeacion')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) {
+        throw new Error(`Error al obtener datos del servicio: ${fetchError.message}`);
+      }
+
+      let updateData = { ...data };
+      let newState = currentService.estado_planeacion;
+
+      // Handle requiere_armado logic changes
+      if ('requiere_armado' in data && data.requiere_armado !== currentService.requiere_armado) {
+        console.log('🔄 requiere_armado changed from', currentService.requiere_armado, 'to', data.requiere_armado);
+        
+        if (data.requiere_armado === false && currentService.requiere_armado === true) {
+          // Changed from requiring armado to not requiring it
+          console.log('🚮 Removing armado assignment since service no longer requires it');
+          updateData.armado_asignado = null;
+          updateData.armado_id = null;
+          updateData.fecha_asignacion_armado = null;
+          
+          // If custodian is assigned, mark as confirmed
+          if (currentService.custodio_asignado) {
+            newState = 'confirmado';
+            console.log('✅ Service confirmed with custodian only');
+          }
+        } 
+        else if (data.requiere_armado === true && currentService.requiere_armado === false) {
+          // Changed from not requiring armado to requiring it
+          console.log('🛡️ Service now requires armado assignment');
+          
+          // If custodian is assigned but no armado, set to pending assignment
+          if (currentService.custodio_asignado && !currentService.armado_asignado) {
+            newState = 'pendiente_asignacion';
+            console.log('⏳ Service pending armado assignment');
+          }
+        }
+      }
+
+      // Update estado_planeacion if it changed
+      if (newState !== currentService.estado_planeacion) {
+        updateData.estado_planeacion = newState;
+      }
+
+      const { data: result, error } = await supabase
+        .from('servicios_planificados')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating service configuration:', error);
+        throw new Error(`Error al actualizar configuración: ${error.message}`);
+      }
+
+      console.log('🎉 Service configuration updated successfully:', result);
+      return result;
+    },
+    onSuccess: (data) => {
+      toast.success('Configuración del servicio actualizada', {
+        description: 'Los cambios se han guardado exitosamente'
+      });
+      
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['scheduled-services'] });
+      queryClient.invalidateQueries({ queryKey: ['planned-services'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-services'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-armado-services'] });
+    },
+    onError: (error) => {
+      console.error('Error updating service configuration:', error);
+      toast.error('Error al actualizar configuración', {
+        description: error.message || 'Error desconocido'
+      });
+    }
+  });
+
   return {
     createServicioPlanificado: createServicioPlanificado.mutate,
     updateServicioPlanificado: updateServicioPlanificado.mutate,
+    updateServiceConfiguration: updateServiceConfiguration.mutate,
     assignCustodian: assignCustodian.mutate,
     assignArmedGuard: assignArmedGuard.mutate,
     isCreating: createServicioPlanificado.isPending,
     isUpdating: updateServicioPlanificado.isPending,
-    isLoading: isLoading || createServicioPlanificado.isPending || updateServicioPlanificado.isPending,
+    isUpdatingConfiguration: updateServiceConfiguration.isPending,
+    isLoading: isLoading || createServicioPlanificado.isPending || updateServicioPlanificado.isPending || updateServiceConfiguration.isPending,
     checkCustodianConflicts,
     useCheckCustodianConflicts
   };
