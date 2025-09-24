@@ -49,7 +49,7 @@ export function ArmedGuardAssignmentStep({
   const [meetingTime, setMeetingTime] = useState('');
   const [observations, setObservations] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [showAllAvailable, setShowAllAvailable] = useState(false);
+  const [showAllAvailable, setShowAllAvailable] = useState(true);
 
   // Prepare filters for armed guards - conditionally apply zone filtering
   const serviceFilters = (serviceData.fecha_hora_cita && !showAllAvailable) ? {
