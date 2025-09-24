@@ -99,25 +99,37 @@ export function ScheduledServicesTab() {
   };
 
   const handleEditService = (service: any) => {
-    const editableService: EditableService = {
-      id: service.id,
-      id_servicio: service.id_servicio || service.id,
-      nombre_cliente: service.cliente_nombre || service.nombre_cliente,
-      empresa_cliente: service.empresa_cliente,
-      email_cliente: service.email_cliente,
-      telefono_cliente: service.telefono_cliente,
-      origen: service.origen,
-      destino: service.destino,
-      fecha_hora_cita: service.fecha_hora_cita,
-      tipo_servicio: service.tipo_servicio || 'custodia',
-      requiere_armado: service.incluye_armado || service.requiere_armado || false,
-      custodio_asignado: service.custodio_nombre,
-      armado_asignado: service.armado_asignado,
-      observaciones: service.observaciones,
-      estado_planeacion: service.estado
-    };
-    setSelectedEditService(editableService);
-    setEditModalOpen(true);
+    // Check if service needs assignment (custodian or armed guard missing)
+    const needsCustodianAssignment = !service.custodio_nombre;
+    const needsArmedGuardAssignment = (service.incluye_armado || service.requiere_armado) && !service.armado_asignado;
+    const isPendingAssignment = needsCustodianAssignment || needsArmedGuardAssignment;
+
+    if (isPendingAssignment) {
+      // Use PendingAssignmentModal for services that need assignments
+      setSelectedPendingService(service);
+      setAssignmentModalOpen(true);
+    } else {
+      // Use EditServiceModal for fully assigned services
+      const editableService: EditableService = {
+        id: service.id,
+        id_servicio: service.id_servicio || service.id,
+        nombre_cliente: service.cliente_nombre || service.nombre_cliente,
+        empresa_cliente: service.empresa_cliente,
+        email_cliente: service.email_cliente,
+        telefono_cliente: service.telefono_cliente,
+        origen: service.origen,
+        destino: service.destino,
+        fecha_hora_cita: service.fecha_hora_cita,
+        tipo_servicio: service.tipo_servicio || 'custodia',
+        requiere_armado: service.incluye_armado || service.requiere_armado || false,
+        custodio_asignado: service.custodio_nombre,
+        armado_asignado: service.armado_asignado,
+        observaciones: service.observaciones,
+        estado_planeacion: service.estado
+      };
+      setSelectedEditService(editableService);
+      setEditModalOpen(true);
+    }
   };
 
   const handleSaveServiceEdit = async (id: string, data: Partial<EditableService>) => {
@@ -631,6 +643,7 @@ export function ScheduledServicesTab() {
           refetchPending();
           refetchPendingArmado();
           refetch();
+          // Update selected date to show the assigned service
           if (selectedPendingService?.fecha_hora_cita) {
             setSelectedDate(new Date(selectedPendingService.fecha_hora_cita));
           }
