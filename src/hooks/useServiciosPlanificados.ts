@@ -44,6 +44,22 @@ export function useServiciosPlanificados() {
         throw new Error('Campos requeridos faltantes: ID servicio, cliente, origen, destino y fecha/hora');
       }
 
+      // Check if service ID already exists
+      const { data: existingService, error: checkError } = await supabase
+        .from('servicios_planificados')
+        .select('id_servicio')
+        .eq('id_servicio', data.id_servicio)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        // PGRST116 is "not found" which is what we want
+        throw new Error('Error verificando ID del servicio');
+      }
+
+      if (existingService) {
+        throw new Error(`El ID de servicio "${data.id_servicio}" ya existe. Por favor, usa un ID diferente.`);
+      }
+
       const { data: result, error } = await supabase
         .from('servicios_planificados')
         .insert([{
@@ -93,7 +109,17 @@ export function useServiciosPlanificados() {
     },
     onError: (error) => {
       console.error('Error creating planned service:', error);
-      toast.error(error.message || 'Error al crear el servicio planificado');
+      
+      // Handle duplicate key error with suggestion
+      if (error.message && error.message.includes('ya existe')) {
+        toast.error(error.message, {
+          description: 'Intenta con un ID diferente o usa el botón de generar ID automático'
+        });
+      } else {
+        toast.error('Error al crear servicio planificado', {
+          description: error.message || 'Error desconocido'
+        });
+      }
     }
   });
 

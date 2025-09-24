@@ -8,10 +8,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, Shield, Settings, CheckCircle, ArrowLeft, Cpu, MapPin, DollarSign, AlertTriangle, User } from 'lucide-react';
+import { Calendar, Clock, Shield, Settings, CheckCircle, ArrowLeft, Cpu, MapPin, DollarSign, AlertTriangle, User, RefreshCw } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { generateServiceId, suggestAlternativeServiceId } from '@/utils/serviceIdGenerator';
 
 interface RouteData {
   cliente_nombre: string;
@@ -62,6 +63,18 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
   const [horaRecepcion, setHoraRecepcion] = useState(
     format(new Date(), 'HH:mm')
   );
+
+  // Generar ID automáticamente al cargar el componente
+  useEffect(() => {
+    if (!servicioId) {
+      setServicioId(generateServiceId());
+    }
+  }, []);
+
+  const handleGenerateNewId = () => {
+    setServicioId(generateServiceId());
+    toast.success('Nuevo ID generado automáticamente');
+  };
 
   // Auto-fill basado en la ruta y precio
   useEffect(() => {
@@ -264,21 +277,38 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
                   </div>
                 </div>
               </div>
-              <Input
-                id="servicio-id"
-                placeholder="Ejemplo: prueba123, SRV-2024-001"
-                value={servicioId}
-                onChange={(e) => setServicioId(e.target.value)}
-                className={`h-14 text-lg font-mono ${
-                  servicioId.trim() 
-                    ? 'border-green-300 bg-green-50/50 dark:bg-green-900/10' 
-                    : 'border-destructive border-2 bg-destructive/5'
-                }`}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="servicio-id"
+                  placeholder="Ejemplo: SRV-20241225-ABC123"
+                  value={servicioId}
+                  onChange={(e) => setServicioId(e.target.value)}
+                  className={`h-14 text-lg font-mono flex-1 ${
+                    servicioId.trim() 
+                      ? 'border-green-300 bg-green-50/50 dark:bg-green-900/10' 
+                      : 'border-destructive border-2 bg-destructive/5'
+                  }`}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleGenerateNewId}
+                  className="h-14 px-3"
+                  title="Generar ID automático"
+                >
+                  <RefreshCw className="h-5 w-5" />
+                </Button>
+              </div>
               {!servicioId.trim() && (
                 <div className="flex items-center gap-2 text-destructive text-sm font-medium">
                   <AlertTriangle className="h-4 w-4" />
                   Este campo es obligatorio para continuar
+                </div>
+              )}
+              {servicioId.trim() && (
+                <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
+                  <CheckCircle className="h-4 w-4" />
+                  ID válido y listo para usar
                 </div>
               )}
             </div>
