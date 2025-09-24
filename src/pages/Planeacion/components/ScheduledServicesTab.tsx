@@ -465,40 +465,38 @@ export function ScheduledServicesTab() {
 
                   {/* Action Buttons */}
                   <div className="flex flex-col gap-2">
-                   {/* Action Buttons */}
-                   <div className="flex flex-col gap-2">
-                     <Button
-                       size="sm"
-                       onClick={() => {
-                         // TODO: Implement armed guard assignment for this service
-                         console.log('Assign armed guard to:', pendingArmadoService.id_servicio);
-                       }}
-                       className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm"
-                     >
-                       <Shield className="h-4 w-4 mr-2" />
-                       Asignar Armado
-                     </Button>
-                     
-                     <Button
-                       size="sm"
-                       variant="outline"
-                       onClick={() => handleEditService(pendingArmadoService)}
-                       className="border-blue-200 text-blue-600 hover:bg-blue-50"
-                     >
-                       <Edit className="h-3 w-3 mr-1" />
-                       Editar
-                     </Button>
-                     
-                     <Badge className="text-xs bg-blue-100 text-blue-700 border-blue-200">
-                       Armado: Pendiente
-                     </Badge>
-                   </div>
-                 </div>
-               </div>
-               ))}
-           </div>
-         </div>
-       )}
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        // TODO: Implement armed guard assignment for this service
+                        console.log('Assign armed guard to:', pendingArmadoService.id_servicio);
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm"
+                    >
+                      <Shield className="h-4 w-4 mr-2" />
+                      Asignar Armado
+                    </Button>
+                    
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleEditService(pendingArmadoService)}
+                      className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                    >
+                      <Edit className="h-3 w-3 mr-1" />
+                      Editar
+                    </Button>
+                    
+                    <Badge className="text-xs bg-blue-100 text-blue-700 border-blue-200">
+                      Armado: Pendiente
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Modal de Asignación */}
       <PendingAssignmentModal
