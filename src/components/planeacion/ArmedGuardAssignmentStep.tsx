@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Shield, Clock, MapPin, AlertTriangle, CheckCircle2, Search } from 'lucide-react';
+import { AddressAutocomplete } from '@/components/ui/address-autocomplete';
+import { Shield, Clock, MapPin, AlertTriangle, CheckCircle2, Search, Eye, EyeOff } from 'lucide-react';
 import { useArmedGuardsWithTracking } from '@/hooks/useArmedGuardsWithTracking';
 import { toast } from 'sonner';
 
@@ -48,9 +49,10 @@ export function ArmedGuardAssignmentStep({
   const [meetingTime, setMeetingTime] = useState('');
   const [observations, setObservations] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showAllAvailable, setShowAllAvailable] = useState(false);
 
-  // Prepare filters for armed guards - fix field mapping
-  const serviceFilters = serviceData.fecha_hora_cita ? {
+  // Prepare filters for armed guards - conditionally apply zone filtering
+  const serviceFilters = (serviceData.fecha_hora_cita && !showAllAvailable) ? {
     zona_base: serviceData.origen || '',
     fecha_programada: serviceData.fecha_hora_cita.split('T')[0],
     tipo_servicio: 'local', // Map custodia_armada to local service type
@@ -215,23 +217,59 @@ export function ArmedGuardAssignmentStep({
             </Button>
           </div>
 
-          {/* Search */}
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder={`Buscar ${assignmentType === 'interno' ? 'armados' : 'proveedores'}...`}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-            />
+          {/* Search and Filters */}
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={`Buscar ${assignmentType === 'interno' ? 'armados' : 'proveedores'}...`}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            {showAllAvailable && (
+              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg text-sm">
+                <Eye className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">
+                  Mostrando todos los {assignmentType === 'interno' ? 'armados' : 'proveedores'} disponibles
+                </span>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setShowAllAvailable(false)}
+                  className="ml-auto h-6 px-2"
+                >
+                  <EyeOff className="h-3 w-3" />
+                  Solo zona actual
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Guards/Providers List */}
           <div className="space-y-3 max-h-60 overflow-y-auto">
             {assignmentType === 'interno' ? (
               filteredGuards.length === 0 ? (
-                <div className="text-center py-4 text-muted-foreground">
-                  No hay armados internos disponibles
+                <div className="text-center py-6">
+                  <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground mb-3">
+                    {!showAllAvailable ? 
+                      `No hay armados internos disponibles en la zona: ${serviceData.origen}` :
+                      'No hay armados internos disponibles'
+                    }
+                  </p>
+                  {!showAllAvailable && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowAllAvailable(true)}
+                      className="flex items-center gap-2"
+                    >
+                      <Eye className="h-4 w-4" />
+                      Mostrar todos los disponibles
+                    </Button>
+                  )}
                 </div>
               ) : (
                 filteredGuards.map((guard) => (
@@ -248,7 +286,17 @@ export function ArmedGuardAssignmentStep({
                       <div>
                         <div className="font-medium">{guard.nombre}</div>
                         <div className="text-sm text-muted-foreground">
-                          {guard.zona_base && `Zona: ${guard.zona_base}`}
+                          {guard.zona_base && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
+                              Zona: {guard.zona_base}
+                              {showAllAvailable && guard.zona_base !== serviceData.origen && (
+                                <Badge variant="secondary" className="ml-1 text-xs">
+                                  Zona diferente
+                                </Badge>
+                              )}
+                            </span>
+                          )}
                         </div>
                         {guard.experiencia_anos && (
                           <div className="text-sm text-muted-foreground">
@@ -272,8 +320,25 @@ export function ArmedGuardAssignmentStep({
               )
             ) : (
               filteredProviders.length === 0 ? (
-                <div className="text-center py-4 text-muted-foreground">
-                  No hay proveedores disponibles
+                <div className="text-center py-6">
+                  <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground mb-3">
+                    {!showAllAvailable ? 
+                      `No hay proveedores que cubran la zona: ${serviceData.origen}` :
+                      'No hay proveedores disponibles'
+                    }
+                  </p>
+                  {!showAllAvailable && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowAllAvailable(true)}
+                      className="flex items-center gap-2"
+                    >
+                      <Eye className="h-4 w-4" />
+                      Mostrar todos los disponibles
+                    </Button>
+                  )}
                 </div>
               ) : (
                 filteredProviders.map((provider) => (
@@ -290,9 +355,17 @@ export function ArmedGuardAssignmentStep({
                       <div>
                         <div className="font-medium">{provider.nombre_empresa}</div>
                         <div className="text-sm text-muted-foreground">
-                          {provider.zonas_cobertura && provider.zonas_cobertura.length > 0 && 
-                            `Cobertura: ${provider.zonas_cobertura.join(', ')}`
-                          }
+                          {provider.zonas_cobertura && provider.zonas_cobertura.length > 0 && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
+                              Cobertura: {provider.zonas_cobertura.join(', ')}
+                              {showAllAvailable && !provider.zonas_cobertura.includes(serviceData.origen || '') && (
+                                <Badge variant="secondary" className="ml-1 text-xs">
+                                  Zona no cubierta
+                                </Badge>
+                              )}
+                            </span>
+                          )}
                         </div>
                         {provider.tarifa_por_servicio && (
                           <div className="text-sm text-muted-foreground">
@@ -328,11 +401,11 @@ export function ArmedGuardAssignmentStep({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="meetingPoint">Punto de Encuentro *</Label>
-              <Input
-                id="meetingPoint"
-                placeholder="Ej: Oficinas del cliente, Plaza central..."
+              <AddressAutocomplete
                 value={meetingPoint}
-                onChange={(e) => setMeetingPoint(e.target.value)}
+                onChange={(value) => setMeetingPoint(value)}
+                placeholder="Buscar punto de encuentro..."
+                className="w-full"
               />
             </div>
             <div className="space-y-2">
