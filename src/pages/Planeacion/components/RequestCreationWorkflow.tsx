@@ -8,6 +8,8 @@ import { ServiceAutoFillStep } from './workflow/ServiceAutoFillStep';
 import { CustodianAssignmentStep } from './workflow/CustodianAssignmentStep';
 import { EnhancedArmedGuardAssignmentStep } from './workflow/EnhancedArmedGuardAssignmentStep';
 import { useCustodianVehicles } from '@/hooks/useCustodianVehicles';
+import { useServiciosPlanificados, type ServicioPlanificadoData } from '@/hooks/useServiciosPlanificados';
+import { toast } from 'sonner';
 
 interface RouteData {
   cliente_nombre: string;
@@ -55,6 +57,9 @@ export function RequestCreationWorkflow() {
   const [serviceData, setServiceData] = useState<ServiceData | null>(null);
   const [assignmentData, setAssignmentData] = useState<AssignmentData | null>(null);
   const [armedAssignmentData, setArmedAssignmentData] = useState<ArmedAssignmentData | null>(null);
+  
+  // Hook para manejar servicios planificados
+  const { createServicioPlanificado, updateServicioPlanificado, isLoading } = useServiciosPlanificados();
   
   // Get vehicle information for assigned custodian (with safety check)
   const { getPrincipalVehicle } = useCustodianVehicles(assignmentData?.custodio_asignado_id);
@@ -119,24 +124,69 @@ export function RequestCreationWorkflow() {
     setCurrentStep('assignment');
   };
 
-  const handleAssignmentComplete = (data: AssignmentData) => {
+  const handleAssignmentComplete = async (data: AssignmentData) => {
     setAssignmentData(data);
-    // Si el servicio incluye armado, avanzar al siguiente paso
-    if (serviceData?.incluye_armado) {
-      setCurrentStep('armed_assignment');
-    } else {
-      // Si no incluye armado, completar el workflow
-      console.log('🎉 Solicitud completada:', data);
+    
+    try {
+      // Crear el servicio planificado en la base de datos
+      const servicioData: ServicioPlanificadoData = {
+        id_servicio: data.servicio_id,
+        nombre_cliente: data.cliente_nombre,
+        origen: data.origen_texto,
+        destino: data.destino_texto,
+        fecha_hora_cita: `${data.fecha_programada}T${data.hora_ventana_inicio}:00.000Z`,
+        tipo_servicio: data.tipo_servicio,
+        custodio_asignado: data.custodio_nombre,
+        custodio_id: data.custodio_asignado_id,
+        requiere_armado: data.incluye_armado,
+        tarifa_acordada: data.precio_custodio,
+        observaciones: data.observaciones,
+        auto: custodianVehicle?.marca + ' ' + custodianVehicle?.modelo,
+        placa: custodianVehicle?.placa
+      };
+      
+      createServicioPlanificado(servicioData);
+      
+      // Si el servicio incluye armado, avanzar al siguiente paso
+      if (serviceData?.incluye_armado) {
+        setCurrentStep('armed_assignment');
+      } else {
+        // Si no incluye armado, completar el workflow
+        console.log('🎉 Solicitud completada y guardada:', data);
+        toast.success('Solicitud guardada en servicios planificados');
+      }
+    } catch (error) {
+      console.error('Error al guardar el servicio:', error);
+      toast.error('Error al guardar el servicio planificado');
     }
   };
 
-  const handleArmedAssignmentComplete = (data: ArmedAssignmentData) => {
+  const handleArmedAssignmentComplete = async (data: ArmedAssignmentData) => {
     setArmedAssignmentData(data);
-    console.log('🎉 Solicitud con armado completada:', data);
-    // Después de completar, automáticamente resetear para nueva asignación
-    setTimeout(() => {
-      resetWorkflow();
-    }, 2000); // Delay para mostrar la confirmación antes de resetear
+    
+    try {
+      // Actualizar el servicio planificado con la información del armado
+      if (assignmentData?.servicio_id) {
+        await updateServicioPlanificado({
+          id: assignmentData.servicio_id,
+          data: {
+            armado_asignado: data.armado_nombre,
+            armado_id: data.armado_asignado_id
+          }
+        });
+      }
+      
+      console.log('🎉 Solicitud con armado completada y guardada:', data);
+      toast.success('Servicio con armado guardado exitosamente');
+      
+      // Después de completar, automáticamente resetear para nueva asignación
+      setTimeout(() => {
+        resetWorkflow();
+      }, 2000); // Delay para mostrar la confirmación antes de resetear
+    } catch (error) {
+      console.error('Error al actualizar servicio con armado:', error);
+      toast.error('Error al guardar información del armado');
+    }
   };
 
   const resetWorkflow = () => {

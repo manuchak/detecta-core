@@ -37,7 +37,8 @@ export function useScheduledServices(selectedDate: Date = new Date()) {
     try {
       const dateStr = date.toISOString().split('T')[0];
       
-      const { data, error } = await supabase.rpc('get_scheduled_services_summary', {
+      // Use the new function for planned services
+      const { data, error } = await supabase.rpc('get_planned_services_summary', {
         date_filter: dateStr
       });
 
@@ -62,9 +63,9 @@ export function useScheduledServices(selectedDate: Date = new Date()) {
         });
       }
     } catch (err) {
-      console.error('Error loading scheduled services:', err);
-      setError('Error al cargar servicios programados');
-      toast.error('Error al cargar servicios programados');
+      console.error('Error loading planned services:', err);
+      setError('Error al cargar servicios planificados');
+      toast.error('Error al cargar servicios planificados');
     } finally {
       setLoading(false);
     }

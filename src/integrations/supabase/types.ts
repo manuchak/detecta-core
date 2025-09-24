@@ -8316,6 +8316,126 @@ export type Database = {
           },
         ]
       }
+      servicios_planificados: {
+        Row: {
+          armado_asignado: string | null
+          armado_id: string | null
+          asignado_por: string | null
+          auto: string | null
+          comentarios_adicionales: string | null
+          comunicacion_enviada: boolean | null
+          condiciones_especiales: string[] | null
+          created_at: string
+          created_by: string | null
+          custodio_asignado: string | null
+          custodio_id: string | null
+          destino: string
+          email_cliente: string | null
+          empresa_cliente: string | null
+          estado_planeacion: string
+          fecha_asignacion: string | null
+          fecha_asignacion_armado: string | null
+          fecha_comunicacion: string | null
+          fecha_hora_cita: string
+          fecha_respuesta: string | null
+          id: string
+          id_servicio: string
+          metodo_comunicacion: string | null
+          moneda: string | null
+          nombre_cliente: string
+          num_vehiculos: number | null
+          observaciones: string | null
+          origen: string
+          placa: string | null
+          prioridad: number | null
+          requiere_armado: boolean | null
+          respuesta_custodio: string | null
+          tarifa_acordada: number | null
+          telefono_cliente: string | null
+          tipo_servicio: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          armado_asignado?: string | null
+          armado_id?: string | null
+          asignado_por?: string | null
+          auto?: string | null
+          comentarios_adicionales?: string | null
+          comunicacion_enviada?: boolean | null
+          condiciones_especiales?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          custodio_asignado?: string | null
+          custodio_id?: string | null
+          destino: string
+          email_cliente?: string | null
+          empresa_cliente?: string | null
+          estado_planeacion?: string
+          fecha_asignacion?: string | null
+          fecha_asignacion_armado?: string | null
+          fecha_comunicacion?: string | null
+          fecha_hora_cita: string
+          fecha_respuesta?: string | null
+          id?: string
+          id_servicio: string
+          metodo_comunicacion?: string | null
+          moneda?: string | null
+          nombre_cliente: string
+          num_vehiculos?: number | null
+          observaciones?: string | null
+          origen: string
+          placa?: string | null
+          prioridad?: number | null
+          requiere_armado?: boolean | null
+          respuesta_custodio?: string | null
+          tarifa_acordada?: number | null
+          telefono_cliente?: string | null
+          tipo_servicio?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          armado_asignado?: string | null
+          armado_id?: string | null
+          asignado_por?: string | null
+          auto?: string | null
+          comentarios_adicionales?: string | null
+          comunicacion_enviada?: boolean | null
+          condiciones_especiales?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          custodio_asignado?: string | null
+          custodio_id?: string | null
+          destino?: string
+          email_cliente?: string | null
+          empresa_cliente?: string | null
+          estado_planeacion?: string
+          fecha_asignacion?: string | null
+          fecha_asignacion_armado?: string | null
+          fecha_comunicacion?: string | null
+          fecha_hora_cita?: string
+          fecha_respuesta?: string | null
+          id?: string
+          id_servicio?: string
+          metodo_comunicacion?: string | null
+          moneda?: string | null
+          nombre_cliente?: string
+          num_vehiculos?: number | null
+          observaciones?: string | null
+          origen?: string
+          placa?: string | null
+          prioridad?: number | null
+          requiere_armado?: boolean | null
+          respuesta_custodio?: string | null
+          tarifa_acordada?: number | null
+          telefono_cliente?: string | null
+          tipo_servicio?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       servicios_segmentados: {
         Row: {
           complejidad_score: number | null
@@ -10490,6 +10610,16 @@ export type Database = {
           frecuencia: number
           origen: string
           ultimo_uso: string
+        }[]
+      }
+      get_planned_services_summary: {
+        Args: { date_filter: string }
+        Returns: {
+          assigned_services: number
+          confirmed_services: number
+          pending_services: number
+          services_data: Json
+          total_services: number
         }[]
       }
       get_points_system_config: {
