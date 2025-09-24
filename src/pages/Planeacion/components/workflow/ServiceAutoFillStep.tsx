@@ -365,7 +365,11 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-destructive text-sm font-medium">
                     <XCircle className="h-4 w-4" />
-                    {validationResult.message}
+                    {validationResult.type === 'duplicate_service' 
+                      ? 'ID ya existe en el sistema' 
+                      : validationResult.type === 'finished_service' 
+                      ? 'ID ya existe - pertenece a un servicio finalizado'
+                      : validationResult.message}
                   </div>
                   {validationResult.existing_service && (
                     <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm">
@@ -374,10 +378,14 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
                         <div>• Cliente: {validationResult.existing_service.cliente}</div>
                         <div>• Estado: {validationResult.existing_service.estado}</div>
                         <div>• Fecha: {new Date(validationResult.existing_service.fecha).toLocaleDateString()}</div>
-                        <div>• Tabla: {validationResult.existing_service.tabla}</div>
+                        {validationResult.existing_service.tabla && (
+                          <div>• Tabla: {validationResult.existing_service.tabla}</div>
+                        )}
                       </div>
                       <div className="mt-2 text-xs text-destructive font-medium">
-                        Verifique con el sistema de facturación o use un ID diferente
+                        {validationResult.type === 'finished_service' 
+                          ? 'Los IDs de servicios finalizados no se pueden reutilizar. Use un ID diferente.'
+                          : 'Verifique con el sistema de facturación o use un ID diferente'}
                       </div>
                     </div>
                   )}

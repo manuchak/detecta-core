@@ -54,14 +54,32 @@ export const useServiceIdValidation = () => {
 
       if (error) {
         console.error('Error validating service ID globally:', error);
-        toast.error('Error al validar ID de servicio');
+        
+        // Distinguir entre errores técnicos y problemas de validación
+        if (error.message?.includes('function') || error.message?.includes('type')) {
+          toast.error('Error de validación - problema técnico');
+          return {
+            is_valid: false,
+            message: 'Error técnico de validación'
+          };
+        }
+        
+        toast.error('Error de conexión al validar ID');
         return {
           is_valid: false,
           message: 'Error de conexión al validar ID'
         };
       }
 
-      return data as ValidationResult;
+      // Mejorar mensajes según el tipo de error
+      const result = data as ValidationResult;
+      if (!result.is_valid && result.type === 'duplicate_service') {
+        result.message = 'ID ya existe en el sistema';
+      } else if (!result.is_valid && result.type === 'finished_service') {
+        result.message = 'ID ya existe - pertenece a un servicio finalizado';
+      }
+
+      return result;
     } catch (error) {
       console.error('Error validating service ID:', error);
       return {
