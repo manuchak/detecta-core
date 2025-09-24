@@ -11640,13 +11640,7 @@ export type Database = {
         }[]
       }
       validate_service_id_globally: {
-        Args:
-          | { p_id_servicio: string; p_record_id?: string }
-          | {
-              p_id_servicio: string
-              p_record_id?: string
-              p_table_name?: string
-            }
+        Args: { p_id_servicio: string; p_record_id?: string }
         Returns: Json
       }
       validate_unique_service_id: {
