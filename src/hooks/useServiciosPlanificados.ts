@@ -29,6 +29,7 @@ export interface ServicioPlanificadoData {
   condiciones_especiales?: string[];
   punto_encuentro?: string;
   hora_encuentro?: string;
+  estado_planeacion?: string;
 }
 
 export function useServiciosPlanificados() {
@@ -86,7 +87,7 @@ export function useServiciosPlanificados() {
           observaciones: data.observaciones,
           comentarios_adicionales: data.comentarios_adicionales,
           condiciones_especiales: data.condiciones_especiales,
-          estado_planeacion: 'planificado'
+          estado_planeacion: data.estado_planeacion || 'planificado'
         }])
         .select()
         .single();

@@ -30,11 +30,11 @@ export function usePendingServices() {
     setError(null);
     
     try {
-      // Obtener servicios planificados sin custodio asignado (pendientes)
+      // Obtener servicios planificados con estado pendiente_asignacion
       const { data, error } = await supabase
         .from('servicios_planificados')
         .select('*')
-        .is('custodio_asignado', null)
+        .eq('estado_planeacion', 'pendiente_asignacion')
         .order('created_at', { ascending: false });
 
       if (error) throw error;

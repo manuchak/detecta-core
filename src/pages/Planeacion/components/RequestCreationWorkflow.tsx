@@ -211,6 +211,7 @@ export function RequestCreationWorkflow() {
         custodio_asignado: null, // Sin asignar
         custodio_id: null, // Sin asignar
         requiere_armado: data.incluye_armado,
+        estado_planeacion: 'pendiente_asignacion',
         tarifa_acordada: null, 
         observaciones: data.observaciones,
         auto: null,
