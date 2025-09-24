@@ -21,3 +21,4 @@ export { useArmedGuardsWithTracking } from './useArmedGuardsWithTracking';
 export { useArmedGuardsOperativos } from './useArmedGuardsOperativos';
 export { useProveedoresArmados } from './useProveedoresArmados';
 export { usePredefinedMeetingPoints, useCreateMeetingPoint, useUpdateMeetingPoint, useDeleteMeetingPoint, useAutoAddPersonalAddress, useIncrementMeetingPointUsage } from './usePredefinedMeetingPoints';
+export { useCreateServicioCustodia } from './useServiciosCustodia';

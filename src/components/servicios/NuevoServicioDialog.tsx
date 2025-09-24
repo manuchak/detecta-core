@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { User, MapPin, Car, Settings, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
 import { useServiceIdValidation } from '@/hooks/useServiceIdValidation';
+import { useCreateServicioCustodia } from '@/hooks/useServiciosCustodia';
 import { cn } from '@/lib/utils';
 
 interface NuevoServicioDialogProps {
@@ -19,6 +20,7 @@ interface NuevoServicioDialogProps {
 
 export const NuevoServicioDialog = ({ open, onOpenChange }: NuevoServicioDialogProps) => {
   const { validateSingleId, isValidating } = useServiceIdValidation();
+  const createServicio = useCreateServicioCustodia();
   
   const [formData, setFormData] = useState({
     id_servicio: '',
@@ -72,7 +74,7 @@ export const NuevoServicioDialog = ({ open, onOpenChange }: NuevoServicioDialogP
     return () => clearTimeout(timeoutId);
   }, [formData.id_servicio, validateSingleId]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.id_servicio.trim()) {
@@ -84,9 +86,46 @@ export const NuevoServicioDialog = ({ open, onOpenChange }: NuevoServicioDialogP
       return;
     }
 
-    // TODO: Implementar creación de servicio
-    console.log('Crear servicio:', formData);
-    onOpenChange(false);
+    // Validar campos requeridos
+    if (!formData.nombre_cliente.trim() || !formData.tipo_servicio || !formData.direccion_cliente.trim()) {
+      setValidationState({ status: 'invalid', message: 'Todos los campos requeridos deben completarse' });
+      return;
+    }
+
+    try {
+      await createServicio.mutateAsync({
+        id_servicio: formData.id_servicio,
+        nombre_cliente: formData.nombre_cliente,
+        empresa_cliente: formData.empresa,
+        telefono_contacto: formData.telefono_contacto,
+        email_cliente: formData.email_contacto,
+        ubicacion_completa: formData.direccion_cliente,
+        tipo_servicio: formData.tipo_servicio,
+        prioridad: formData.prioridad,
+        num_vehiculos: formData.cantidad_vehiculos,
+        observaciones: formData.observaciones
+      });
+
+      // Reset form and close dialog on success
+      setFormData({
+        id_servicio: '',
+        nombre_cliente: '',
+        empresa: '',
+        telefono_contacto: '',
+        email_contacto: '',
+        direccion_cliente: '',
+        tipo_servicio: '',
+        cantidad_vehiculos: 1,
+        prioridad: 'media',
+        observaciones: ''
+      });
+      
+      setValidationState({ status: 'idle', message: '' });
+      onOpenChange(false);
+    } catch (error) {
+      // Error is handled by the mutation hook
+      console.error('Error creating service:', error);
+    }
   };
 
   return (
@@ -291,10 +330,14 @@ export const NuevoServicioDialog = ({ open, onOpenChange }: NuevoServicioDialogP
             </Button>
             <Button 
               type="submit" 
-              disabled={validationState.status !== 'valid' || isValidating}
+              disabled={
+                validationState.status !== 'valid' || 
+                isValidating || 
+                createServicio.isPending
+              }
               className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
             >
-              {isValidating ? 'Validando...' : 'Crear Servicio'}
+              {createServicio.isPending ? 'Creando...' : isValidating ? 'Validando...' : 'Crear Servicio'}
             </Button>
           </div>
         </form>
