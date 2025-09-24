@@ -50,7 +50,7 @@ async function verifyUserPermissions(connection: PoolClient, userId: string): Pr
       return false;
     }
     
-    const userRole = userRoleResult.rows[0].role as string;
+    const userRole = (userRoleResult.rows[0] as any).role as string;
     console.log('Rol del usuario:', userRole);
     return userRole === 'owner' || userRole === 'admin';
   } catch (error) {
@@ -158,7 +158,7 @@ serve(async (req) => {
     } catch (error) {
       return new Response(JSON.stringify({ 
         success: false,
-        error: 'Error al procesar la solicitud: ' + error.message 
+        error: 'Error al procesar la solicitud: ' + (error as Error).message 
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -274,7 +274,7 @@ serve(async (req) => {
       console.log('Permisos otorgados al rol');
     } catch (error) {
       console.error('Error al otorgar permisos al rol:', error);
-      throw new Error(`Error al otorgar permisos: ${error.message}`);
+      throw new Error(`Error al otorgar permisos: ${(error as Error).message}`);
     }
     
     try {
@@ -294,7 +294,7 @@ serve(async (req) => {
       console.log('Usuario creado o actualizado:', userName);
     } catch (error) {
       console.error('Error al crear/actualizar usuario:', error);
-      throw new Error(`Error al crear o actualizar usuario: ${error.message}`);
+      throw new Error(`Error al crear o actualizar usuario: ${(error as Error).message}`);
     }
     
     try {
@@ -306,7 +306,7 @@ serve(async (req) => {
       console.log('Rol otorgado al usuario');
     } catch (error) {
       console.error('Error al otorgar rol al usuario:', error);
-      throw new Error(`Error al otorgar rol al usuario: ${error.message}`);
+      throw new Error(`Error al otorgar rol al usuario: ${(error as Error).message}`);
     }
     
     // Generar cadena de conexión

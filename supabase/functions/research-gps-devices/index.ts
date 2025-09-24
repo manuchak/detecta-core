@@ -269,7 +269,7 @@ Incluye al menos 5-10 dispositivos GPS tracking populares y confiables del merca
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message
+        error: (error as Error).message
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

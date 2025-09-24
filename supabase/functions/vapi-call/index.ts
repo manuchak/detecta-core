@@ -161,7 +161,7 @@ La entrevista debe durar 8-12 minutos. Al final, proporciona una evaluación com
   } catch (error) {
     console.error('Error in vapi-call function:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: (error as Error).message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }

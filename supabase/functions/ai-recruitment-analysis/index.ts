@@ -228,7 +228,7 @@ Enfócate especialmente en correlaciones no obvias y en identificar factores pre
     console.error('💥 Error in AI analysis:', error);
     
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: (error as Error).message,
       timestamp: new Date().toISOString(),
       success: false
     }), {

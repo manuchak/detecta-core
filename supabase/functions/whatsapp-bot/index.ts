@@ -94,7 +94,7 @@ serve(async (req) => {
           return new Response(
             JSON.stringify({ 
               error: 'Failed to create WhatsApp connection', 
-              details: error.message 
+              details: (error as Error).message 
             }), 
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
@@ -114,7 +114,7 @@ serve(async (req) => {
         } catch (error) {
           console.error('Error disconnecting WhatsApp:', error);
           return new Response(
-            JSON.stringify({ error: error.message }),
+            JSON.stringify({ error: (error as Error).message }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -133,7 +133,7 @@ serve(async (req) => {
         } catch (error) {
           console.error('Error sending message:', error);
           return new Response(
-            JSON.stringify({ error: error.message }),
+            JSON.stringify({ error: (error as Error).message }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -152,7 +152,7 @@ serve(async (req) => {
         } catch (error) {
           console.error('Error getting status:', error);
           return new Response(
-            JSON.stringify({ error: error.message }),
+            JSON.stringify({ error: (error as Error).message }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -167,7 +167,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in whatsapp-bot function:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: (error as Error).message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

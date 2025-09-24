@@ -54,7 +54,7 @@ serve(async (req) => {
     console.error('Error en SIERCP AI Assistant:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: (error as Error).message,
         connected: false 
       }), 
       { 
@@ -94,7 +94,7 @@ async function validateConnection() {
     return new Response(
       JSON.stringify({ 
         connected: false,
-        error: `Error de conexión: ${error.message}`
+        error: `Error de conexión: ${(error as Error).message}`
       }), 
       { 
         status: 500, 
@@ -168,7 +168,7 @@ Responde en formato JSON con la estructura:
     return new Response(
       JSON.stringify({ 
         success: false,
-        error: `Error en análisis: ${error.message}`
+        error: `Error en análisis: ${(error as Error).message}`
       }), 
       { 
         status: 500, 
@@ -247,7 +247,7 @@ Mantén un enfoque científico y objetivo. Responde en formato JSON:
     return new Response(
       JSON.stringify({ 
         success: false,
-        error: `Error generando insights: ${error.message}`
+        error: `Error generando insights: ${(error as Error).message}`
       }), 
       { 
         status: 500, 

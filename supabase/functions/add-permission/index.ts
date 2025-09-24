@@ -92,7 +92,7 @@ serve(async (req) => {
         LIMIT 1
       `;
       
-      if (userRoleResult.rows.length === 0 || (userRoleResult.rows[0].role !== 'owner' && userRoleResult.rows[0].role !== 'admin')) {
+      if (userRoleResult.rows.length === 0 || ((userRoleResult.rows[0] as any).role !== 'owner' && (userRoleResult.rows[0] as any).role !== 'admin')) {
         return new Response(JSON.stringify({ error: 'Only owner or admin can create permissions' }), {
           status: 403,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -109,7 +109,7 @@ serve(async (req) => {
       `;
       
       if (checkResult.rows.length > 0) {
-        const existingId = checkResult.rows[0].id;
+        const existingId = (checkResult.rows[0] as any).id;
         // Convert BigInt to string to avoid serialization issues
         return new Response(JSON.stringify({ 
           error: 'Permission already exists', 
@@ -128,7 +128,7 @@ serve(async (req) => {
       `;
       
       // Make sure we safely convert BigInt values to strings to avoid serialization issues
-      const insertedId = insertResult.rows[0]?.id;
+      const insertedId = (insertResult.rows[0] as any)?.id;
       const stringifiedId = typeof insertedId === 'bigint' ? insertedId.toString() : String(insertedId);
       
       const responseData = {

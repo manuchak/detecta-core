@@ -70,7 +70,7 @@ serve(async (req) => {
         LIMIT 1
       `;
       
-      if (userRoleResult.rows.length === 0 || userRoleResult.rows[0].role !== 'owner') {
+      if (userRoleResult.rows.length === 0 || (userRoleResult.rows[0] as any).role !== 'owner') {
         // Segunda estrategia: decodificar el JWT directamente
         try {
           const payload = JSON.parse(atob(token.split('.')[1]));
@@ -98,7 +98,7 @@ serve(async (req) => {
           `;
           
           if (directRoleResult.rows.length === 0 || 
-              (directRoleResult.rows[0].role !== 'owner' && directRoleResult.rows[0].role !== 'admin')) {
+              ((directRoleResult.rows[0] as any).role !== 'owner' && (directRoleResult.rows[0] as any).role !== 'admin')) {
             return new Response(JSON.stringify({ error: 'Solo propietarios o administradores pueden crear roles' }), {
               status: 403,
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
