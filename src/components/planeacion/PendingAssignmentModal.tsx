@@ -41,14 +41,14 @@ export function PendingAssignmentModal({
     tipo_servicio: service.tipo_servicio,
     cliente_nombre: service.nombre_cliente,
     destino_texto: service.destino,
-    fecha_programada: service.fecha_hora_cita.split('T')[0],
-    hora_ventana_inicio: service.fecha_hora_cita.split('T')[1]?.substring(0, 5) || '09:00',
+    fecha_programada: service.fecha_hora_cita ? service.fecha_hora_cita.split('T')[0] : new Date().toISOString().split('T')[0],
+    hora_ventana_inicio: service.fecha_hora_cita ? (service.fecha_hora_cita.split('T')[1]?.substring(0, 5) || '09:00') : '09:00',
     incluye_armado: service.requiere_armado,
     requiere_gadgets: false,
     gadgets_seleccionados: [],
     observaciones: service.observaciones,
-    fecha_recepcion: service.created_at.split('T')[0],
-    hora_recepcion: service.created_at.split('T')[1]?.substring(0, 5) || '09:00'
+    fecha_recepcion: service.created_at ? service.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+    hora_recepcion: service.created_at ? (service.created_at.split('T')[1]?.substring(0, 5) || '09:00') : '09:00'
   };
 
   const handleCustodianAssignmentComplete = async (assignmentData: any) => {
