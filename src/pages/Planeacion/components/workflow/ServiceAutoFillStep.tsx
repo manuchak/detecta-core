@@ -40,10 +40,11 @@ interface ServiceData extends RouteData {
 interface ServiceAutoFillStepProps {
   routeData: RouteData;
   onComplete: (data: ServiceData) => void;
+  onSaveAsPending?: (data: ServiceData) => void;
   onBack: () => void;
 }
 
-export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAutoFillStepProps) {
+export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, onBack }: ServiceAutoFillStepProps) {
   const [servicioId, setServicioId] = useState('');
   const [fechaProgramada, setFechaProgramada] = useState(
     format(addDays(new Date(), 1), 'yyyy-MM-dd')
@@ -108,6 +109,31 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
     };
 
     onComplete(serviceData);
+  };
+
+  const handleSaveAsPending = () => {
+    if (!servicioId.trim()) {
+      toast.error('El ID del servicio es requerido');
+      return;
+    }
+
+    const serviceData: ServiceData = {
+      ...routeData,
+      servicio_id: servicioId.trim(),
+      fecha_programada: fechaProgramada,
+      hora_ventana_inicio: horaInicio,
+      tipo_servicio: tipoServicio,
+      incluye_armado: incluyeArmado,
+      requiere_gadgets: gadgetsSeleccionados.length > 0,
+      gadgets_seleccionados: gadgetsSeleccionados,
+      observaciones: observaciones.trim() || undefined,
+      fecha_recepcion: fechaRecepcion,
+      hora_recepcion: horaRecepcion
+    };
+
+    if (onSaveAsPending) {
+      onSaveAsPending(serviceData);
+    }
   };
 
   const gadgetOptions = [
@@ -542,15 +568,27 @@ export function ServiceAutoFillStep({ routeData, onComplete, onBack }: ServiceAu
           Regresar
         </Button>
         
-        <Button 
-          onClick={handleContinue} 
-          size="lg" 
-          className="gap-2"
-          disabled={!servicioId.trim()}
-        >
-          Continuar a Asignación
-          <CheckCircle className="h-4 w-4" />
-        </Button>
+        <div className="flex gap-3">
+          <Button 
+            variant="outline"
+            onClick={handleSaveAsPending}
+            disabled={!servicioId.trim()}
+            className="border-orange-300 text-orange-600 hover:bg-orange-50"
+          >
+            <Clock className="h-4 w-4 mr-2" />
+            Guardar como Pendiente
+          </Button>
+          
+          <Button 
+            onClick={handleContinue} 
+            size="lg" 
+            className="gap-2"
+            disabled={!servicioId.trim()}
+          >
+            Continuar a Asignación
+            <CheckCircle className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );

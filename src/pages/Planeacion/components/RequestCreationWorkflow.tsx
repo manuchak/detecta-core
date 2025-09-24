@@ -198,6 +198,43 @@ export function RequestCreationWorkflow() {
     }
   };
 
+  const handleSaveAsPending = async (data: ServiceData) => {
+    try {
+      // Crear el servicio planificado con estado pendiente_asignacion
+      const servicioData: ServicioPlanificadoData = {
+        id_servicio: data.servicio_id,
+        nombre_cliente: data.cliente_nombre,
+        origen: data.origen_texto,
+        destino: data.destino_texto,
+        fecha_hora_cita: `${data.fecha_programada}T${data.hora_ventana_inicio}:00.000Z`,
+        tipo_servicio: data.tipo_servicio,
+        custodio_asignado: null, // Sin asignar
+        custodio_id: null, // Sin asignar
+        requiere_armado: data.incluye_armado,
+        tarifa_acordada: null, 
+        observaciones: data.observaciones,
+        auto: null,
+        placa: null
+      };
+      
+      // Guardar como pendiente
+      createServicioPlanificado(servicioData);
+      
+      console.log('💾 Solicitud guardada como pendiente:', data);
+      toast.success('Solicitud guardada como pendiente por asignar', {
+        description: 'Puedes completar la asignación desde el dashboard de servicios programados'
+      });
+      
+      // Resetear el workflow después de guardar
+      setTimeout(() => {
+        resetWorkflow();
+      }, 1500);
+    } catch (error) {
+      console.error('Error al guardar servicio como pendiente:', error);
+      toast.error('Error al guardar la solicitud como pendiente');
+    }
+  };
+
   const resetWorkflow = () => {
     setCurrentStep('route');
     setRouteData(null);
@@ -274,6 +311,7 @@ export function RequestCreationWorkflow() {
           <ServiceAutoFillStep 
             routeData={routeData}
             onComplete={handleServiceComplete}
+            onSaveAsPending={handleSaveAsPending}
             onBack={() => setCurrentStep('route')}
           />
         )}
