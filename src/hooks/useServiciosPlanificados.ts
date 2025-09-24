@@ -273,8 +273,11 @@ export function useServiciosPlanificados() {
           console.warn('Error checking conflicts:', conflictError);
         } else if (conflictCheck?.has_conflicts) {
           const conflicts = conflictCheck.conflicting_services || [];
+          console.log('🚫 Conflicto detectado para custodio:', custodioName, 'Conflictos:', conflicts);
           throw new Error(`El custodio ${custodioName} ya tiene ${conflicts.length} servicio(s) asignado(s) en horarios conflictivos. Revise los servicios existentes antes de continuar.`);
         }
+        
+        console.log('✅ Custodio disponible, procediendo con asignación:', custodioName);
       }
 
       // Get current service state to determine final status
@@ -289,6 +292,12 @@ export function useServiciosPlanificados() {
       // Determine final state based on armed guard requirement
       const shouldBeConfirmed = !currentService.requiere_armado || currentService.armado_asignado;
       const newState = shouldBeConfirmed ? 'confirmado' : 'pendiente_asignacion';
+      
+      console.log('📊 Estado del servicio antes de asignar custodio:', {
+        requiere_armado: currentService.requiere_armado,
+        armado_asignado: currentService.armado_asignado,
+        estado_calculado: newState
+      });
 
       // Update the service with custodian assignment
       const { error } = await supabase
@@ -303,6 +312,8 @@ export function useServiciosPlanificados() {
         .eq('id', serviceId); // Use UUID id, not id_servicio
 
       if (error) throw error;
+      
+      console.log('🎉 Custodio asignado exitosamente. Nuevo estado:', newState);
     },
     onSuccess: () => {
       toast.success('Custodio asignado exitosamente');
@@ -342,6 +353,11 @@ export function useServiciosPlanificados() {
       const newState = currentService.custodio_asignado 
         ? 'confirmado'  // If custodian is assigned, mark as confirmed
         : 'pendiente_asignacion'; // If no custodian, keep pending
+        
+      console.log('🛡️ Asignando armado. Estado del servicio:', {
+        custodio_asignado: currentService.custodio_asignado,
+        estado_calculado: newState
+      });
 
       const { error } = await supabase
         .from('servicios_planificados')
