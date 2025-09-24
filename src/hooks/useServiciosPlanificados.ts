@@ -277,6 +277,19 @@ export function useServiciosPlanificados() {
         }
       }
 
+      // Get current service state to determine final status
+      const { data: currentService, error: fetchError } = await supabase
+        .from('servicios_planificados')
+        .select('requiere_armado, armado_asignado')
+        .eq('id', serviceId)
+        .single();
+
+      if (fetchError) throw new Error('Error al obtener datos del servicio');
+
+      // Determine final state based on armed guard requirement
+      const shouldBeConfirmed = !currentService.requiere_armado || currentService.armado_asignado;
+      const newState = shouldBeConfirmed ? 'confirmado' : 'pendiente_asignacion';
+
       // Update the service with custodian assignment
       const { error } = await supabase
         .from('servicios_planificados')
@@ -284,7 +297,7 @@ export function useServiciosPlanificados() {
           custodio_asignado: custodioName,
           custodio_id: custodioId,
           fecha_asignacion: new Date().toISOString(),
-          estado_planeacion: 'confirmado', // Changed from 'asignado' to 'confirmado'
+          estado_planeacion: newState,
           asignado_por: (await supabase.auth.getUser()).data.user?.id
         })
         .eq('id', serviceId); // Use UUID id, not id_servicio
@@ -316,12 +329,27 @@ export function useServiciosPlanificados() {
       armadoName: string; 
       armadoId?: string;
     }) => {
+      // Get current service state to determine final status
+      const { data: currentService, error: fetchError } = await supabase
+        .from('servicios_planificados')
+        .select('custodio_asignado, estado_planeacion')
+        .eq('id_servicio', serviceId)
+        .single();
+
+      if (fetchError) throw new Error('Error al obtener datos del servicio');
+
+      // Determine new state based on custodian assignment
+      const newState = currentService.custodio_asignado 
+        ? 'confirmado'  // If custodian is assigned, mark as confirmed
+        : 'pendiente_asignacion'; // If no custodian, keep pending
+
       const { error } = await supabase
         .from('servicios_planificados')
         .update({
           armado_asignado: armadoName,
           armado_id: armadoId,
-          fecha_asignacion_armado: new Date().toISOString()
+          fecha_asignacion_armado: new Date().toISOString(),
+          estado_planeacion: newState
         })
         .eq('id_servicio', serviceId);
 
