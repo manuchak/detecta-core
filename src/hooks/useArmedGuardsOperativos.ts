@@ -118,9 +118,39 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
         .eq('estado', 'activo')
         .order('score_total', { ascending: false });
 
-      // Apply zone filter (more flexible)
+      // Apply zone filter with proper escaping and token-based search
       if (filters?.zona_base && filters.zona_base.trim()) {
-        guardsQuery = guardsQuery.or(`zona_base.ilike.%${filters.zona_base}%,zonas_permitidas.cs.{${filters.zona_base}}`);
+        const zoneName = filters.zona_base.trim();
+        
+        // Extract main zone tokens for flexible matching
+        const zoneTokens = zoneName.split(/[,\s]+/).filter(token => token.length > 2);
+        
+        try {
+          // Build flexible search conditions
+          const searchConditions: string[] = [];
+          
+          // Search in zona_base field
+          searchConditions.push(`zona_base.ilike.%${zoneName}%`);
+          
+          // Search for individual tokens in zona_base
+          zoneTokens.forEach(token => {
+            searchConditions.push(`zona_base.ilike.%${token}%`);
+          });
+          
+          // Search in zonas_permitidas array (properly escaped JSON)
+          searchConditions.push(`zonas_permitidas.cs.["${zoneName}"]`);
+          
+          // Search for tokens in zonas_permitidas
+          zoneTokens.forEach(token => {
+            searchConditions.push(`zonas_permitidas.cs.["${token}"]`);
+          });
+          
+          guardsQuery = guardsQuery.or(searchConditions.join(','));
+          console.log('Applied zone filter for:', zoneName, 'with tokens:', zoneTokens);
+        } catch (error) {
+          console.warn('Zone filter failed, proceeding without zone filter:', error);
+          // Continue without zone filter as fallback
+        }
       }
 
       // Apply service type filter (more flexible - skip if no valid type)
@@ -159,13 +189,39 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
           provider.capacidad_actual < provider.capacidad_maxima
         );
         
+        // Filter providers based on criteria with improved zone matching
         if (filters?.zona_base && filters.zona_base.trim()) {
-          filteredProviders = filteredProviders.filter(provider => 
-            provider.zonas_cobertura?.includes(filters.zona_base!) ||
-            provider.zonas_cobertura?.some(zona => 
-              zona.toLowerCase().includes(filters.zona_base!.toLowerCase())
-            )
-          );
+          const zoneName = filters.zona_base.trim();
+          const zoneTokens = zoneName.split(/[,\s]+/).filter(token => token.length > 2);
+          
+          filteredProviders = filteredProviders.filter(provider => {
+            if (!provider.zonas_cobertura || provider.zonas_cobertura.length === 0) {
+              return false;
+            }
+            
+            // Check for exact match first
+            if (provider.zonas_cobertura.includes(zoneName)) {
+              return true;
+            }
+            
+            // Check for partial matches in zone coverage
+            return provider.zonas_cobertura.some(zona => {
+              const zonaLower = zona.toLowerCase();
+              const zoneNameLower = zoneName.toLowerCase();
+              
+              // Check if zone contains the search term or vice versa
+              if (zonaLower.includes(zoneNameLower) || zoneNameLower.includes(zonaLower)) {
+                return true;
+              }
+              
+              // Check for token matches
+              return zoneTokens.some(token => 
+                zonaLower.includes(token.toLowerCase()) || token.toLowerCase().includes(zonaLower)
+              );
+            });
+          });
+          
+          console.log(`Zone filter applied for providers: ${zoneName} -> ${filteredProviders.length} results`);
         }
 
         if (filters?.tipo_servicio && ['local', 'foraneo', 'alta_seguridad'].includes(filters.tipo_servicio)) {
