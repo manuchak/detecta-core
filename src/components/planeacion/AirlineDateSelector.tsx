@@ -27,26 +27,24 @@ export function AirlineDateSelector({ selectedDate, onDateChange }: AirlineDateS
     format(date, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
 
   const getChipClass = (date: Date) => cn(
-    "px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 border",
-    isSelected(date)
-      ? "bg-primary text-primary-foreground border-primary shadow-sm"
-      : "bg-background text-muted-foreground border-border hover:bg-accent hover:text-accent-foreground"
+    "date-chip",
+    isSelected(date) ? "date-chip-selected" : "date-chip-default"
   );
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-2">
       {/* Previous Day Navigation */}
       <Button
         variant="ghost"
         size="sm"
         onClick={() => onDateChange(addDays(selectedDate, -1))}
-        className="h-8 w-8 p-0 hover:bg-accent"
+        className="h-8 w-8 p-0 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
       >
         <ChevronLeft className="h-4 w-4" />
       </Button>
 
       {/* Date Chips */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-2">
         <button
           onClick={() => onDateChange(yesterday)}
           className={getChipClass(yesterday)}
@@ -74,7 +72,7 @@ export function AirlineDateSelector({ selectedDate, onDateChange }: AirlineDateS
         variant="ghost"
         size="sm"
         onClick={() => onDateChange(addDays(selectedDate, 1))}
-        className="h-8 w-8 p-0 hover:bg-accent"
+        className="h-8 w-8 p-0 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
       >
         <ChevronRight className="h-4 w-4" />
       </Button>
@@ -82,7 +80,11 @@ export function AirlineDateSelector({ selectedDate, onDateChange }: AirlineDateS
       {/* Custom Date Picker */}
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 ml-2 hover:bg-accent">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 w-8 p-0 ml-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+          >
             <CalendarIcon className="h-4 w-4" />
           </Button>
         </PopoverTrigger>

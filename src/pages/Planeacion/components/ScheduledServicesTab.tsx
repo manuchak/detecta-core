@@ -68,13 +68,13 @@ export function ScheduledServicesTab() {
         {/* Date Selector */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <h2 className="text-lg font-semibold">Servicios Programados</h2>
+            <h2 className="text-title text-xl">Servicios Programados</h2>
             <AirlineDateSelector 
               selectedDate={selectedDate}
               onDateChange={setSelectedDate}
             />
           </div>
-          <div className="text-sm text-muted-foreground">
+          <div className="text-caption">
             {format(selectedDate, 'PPP', { locale: es })}
           </div>
         </div>
@@ -82,93 +82,73 @@ export function ScheduledServicesTab() {
         {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {/* Total Services */}
-          <Card className="border-slate-200">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-slate-100 rounded-lg">
-                  <Users className="h-5 w-5 text-slate-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{summary?.total_services || 0}</div>
-                  <div className="text-xs text-muted-foreground">Total Servicios</div>
-                </div>
+          <div className="card-refined">
+            <div className="flex items-center gap-3">
+              <div className="status-dot status-dot-pending w-3 h-3"></div>
+              <div>
+                <div className="text-2xl font-semibold text-slate-900">{summary?.total_services || 0}</div>
+                <div className="text-caption">Total Servicios</div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Assigned Services */}
-          <Card className="border-emerald-200 bg-emerald-50/30">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-100 rounded-lg">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-emerald-700">{summary?.assigned_services || 0}</div>
-                  <div className="text-xs text-emerald-600 font-medium">Asignados</div>
-                </div>
+          <div className="card-refined border-emerald-200/60 bg-emerald-50/20">
+            <div className="flex items-center gap-3">
+              <div className="status-dot status-dot-success w-3 h-3"></div>
+              <div>
+                <div className="text-2xl font-semibold text-emerald-800">{summary?.assigned_services || 0}</div>
+                <div className="text-caption text-emerald-700">Asignados</div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Pending Confirmation */}
-          <Card className="border-amber-200 bg-amber-50/30">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-amber-100 rounded-lg">
-                  <Timer className="h-5 w-5 text-amber-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-amber-700">{summary?.pending_services || 0}</div>
-                  <div className="text-xs text-amber-600 font-medium">Pendientes Confirmación</div>
-                </div>
+          <div className="card-refined border-orange-200/60 bg-orange-50/20">
+            <div className="flex items-center gap-3">
+              <div className="status-dot status-dot-warning w-3 h-3"></div>
+              <div>
+                <div className="text-2xl font-semibold text-orange-800">{summary?.pending_services || 0}</div>
+                <div className="text-caption text-orange-700">Pendientes Confirmación</div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Confirmed Services */}
-          <Card className="border-blue-200 bg-blue-50/30">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Shield className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-blue-700">{summary?.confirmed_services || 0}</div>
-                  <div className="text-xs text-blue-600 font-medium">Confirmados</div>
-                </div>
+          <div className="card-refined border-blue-200/60 bg-blue-50/20">
+            <div className="flex items-center gap-3">
+              <div className="status-dot bg-blue-500 w-3 h-3"></div>
+              <div>
+                <div className="text-2xl font-semibold text-blue-800">{summary?.confirmed_services || 0}</div>
+                <div className="text-caption text-blue-700">Confirmados</div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Unassigned Services */}
-          <Card className="border-amber-200 bg-amber-50/30">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-amber-100 rounded-lg">
-                  <AlertCircle className="h-5 w-5 text-amber-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-amber-700">{pendingSummary?.total_pending || 0}</div>
-                  <div className="text-xs text-amber-600 font-medium">Por Asignar</div>
-                </div>
+          <div className="card-refined border-orange-200/60 bg-orange-50/20">
+            <div className="flex items-center gap-3">
+              <div className="status-dot status-dot-warning w-3 h-3"></div>
+              <div>
+                <div className="text-2xl font-semibold text-orange-800">{pendingSummary?.total_pending || 0}</div>
+                <div className="text-caption text-orange-700">Por Asignar</div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Services List */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>
+      <div className="card-refined">
+        <div className="flex flex-row items-center justify-between pb-4 border-b border-slate-200/60">
+          <h3 className="text-title text-lg">
             Servicios del {format(selectedDate, 'PPP', { locale: es })}
-          </CardTitle>
-          <Button onClick={refetch} variant="outline" size="sm">
+          </h3>
+          <Button onClick={refetch} variant="outline" size="sm" className="border-slate-200 text-slate-600 hover:bg-slate-50">
             Actualizar
           </Button>
-        </CardHeader>
-        <CardContent>
+        </div>
+        <div className="pt-4">
           {error && (
             <div className="text-center py-8 text-red-600">
               {error}
@@ -176,7 +156,7 @@ export function ScheduledServicesTab() {
           )}
 
           {!error && summary?.services_data && summary.services_data.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
+            <div className="text-center py-8 text-body">
               No hay servicios programados para esta fecha
             </div>
           )}
@@ -186,7 +166,7 @@ export function ScheduledServicesTab() {
               {summary.services_data.map((service, index) => (
                 <div
                   key={service.id || index}
-                  className="border rounded-lg p-4 hover:bg-accent/50 transition-colors"
+                  className="border border-slate-200/60 rounded-lg p-4 hover:bg-slate-50/60 hover:border-slate-200 transition-all duration-200"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 space-y-3">
@@ -194,8 +174,8 @@ export function ScheduledServicesTab() {
                       <div className="flex items-center gap-3">
                         {getStatusIcon(service)}
                         <div>
-                          <h3 className="font-semibold">{service.cliente_nombre}</h3>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <h3 className="text-subtitle">{service.cliente_nombre}</h3>
+                          <div className="flex items-center gap-2 text-caption">
                             <Clock className="h-3 w-3" />
                             {format(new Date(service.fecha_hora_cita), 'HH:mm')}
                           </div>
@@ -204,24 +184,24 @@ export function ScheduledServicesTab() {
 
                       {/* Route */}
                       <div className="flex items-center gap-2 text-sm">
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{service.origen}</span>
-                        <span className="text-muted-foreground">→</span>
-                        <span className="font-medium">{service.destino}</span>
+                        <MapPin className="h-4 w-4 text-slate-500" />
+                        <span className="text-subtitle">{service.origen}</span>
+                        <span className="text-slate-400">→</span>
+                        <span className="text-subtitle">{service.destino}</span>
                       </div>
 
                       {/* Custodian and Vehicle Info */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          <span><strong>Custodio:</strong> {service.custodio_nombre}</span>
+                          <User className="h-4 w-4 text-slate-500" />
+                          <span className="text-body"><strong className="text-slate-700">Custodio:</strong> {service.custodio_nombre}</span>
                         </div>
                         
                         {(service.auto || service.placa) && (
                           <div className="flex items-center gap-2">
-                            <Car className="h-4 w-4 text-muted-foreground" />
-                            <span>
-                              <strong>Vehículo:</strong> {service.auto} 
+                            <Car className="h-4 w-4 text-slate-500" />
+                            <span className="text-body">
+                              <strong className="text-slate-700">Vehículo:</strong> {service.auto} 
                               {service.placa && ` (${service.placa})`}
                             </span>
                           </div>
@@ -230,12 +210,12 @@ export function ScheduledServicesTab() {
 
                       {/* Armed Guard Info */}
                       {service.incluye_armado && (
-                        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-md p-3 text-sm">
+                        <div className="bg-gradient-to-r from-slate-50 to-slate-100/60 border border-slate-200/60 rounded-lg p-3 text-sm">
                           <div className="flex items-center gap-2 mb-1">
-                            <Shield className="h-4 w-4 text-purple-600" />
-                            <span className="font-medium text-purple-800">Servicio con Armado</span>
+                            <Shield className="h-4 w-4 text-slate-600" />
+                            <span className="text-subtitle text-slate-800">Servicio con Armado</span>
                           </div>
-                          <div className="text-purple-700">
+                          <div className="text-body text-slate-700">
                             {service.armado_asignado 
                               ? `✓ Armado asignado - ${service.estado_asignacion || 'Confirmando'}`
                               : '⚠️ Armado pendiente por asignar'
@@ -257,102 +237,101 @@ export function ScheduledServicesTab() {
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Critical Unassigned Services Section */}
       {pendingSummary?.total_pending && pendingSummary.total_pending > 0 && (
-        <Card className="border-slate-200 bg-slate-50/30">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-slate-700 flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-amber-600" />
-              Servicios por Asignar ({pendingSummary.total_pending})
-            </CardTitle>
-            <Button onClick={refetchPending} variant="outline" size="sm" className="border-slate-200">
+        <div className="card-refined border-orange-200/50 bg-gradient-to-br from-orange-50/40 to-orange-100/20">
+          <div className="flex flex-row items-center justify-between pb-4 border-b border-orange-200/40">
+            <h3 className="text-title text-lg flex items-center gap-3">
+              <div className="status-dot status-dot-warning w-3 h-3"></div>
+              <span className="text-slate-800">Servicios por Asignar</span>
+              <Badge className="bg-orange-100 text-orange-700 border-orange-200 text-sm px-2 py-1">
+                {pendingSummary.total_pending}
+              </Badge>
+            </h3>
+            <Button onClick={refetchPending} variant="outline" size="sm" className="border-orange-200 text-orange-700 hover:bg-orange-50">
               Actualizar
             </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {pendingSummary.pending_services.map((pendingService) => (
-                <div
-                  key={pendingService.id}
-                  className="border rounded-lg p-4 hover:bg-slate-50 transition-colors border-slate-200 bg-white shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 space-y-3">
-                      {/* Service Header */}
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-amber-100 rounded-lg">
-                          <AlertCircle className="h-4 w-4 text-amber-600" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-slate-900">{pendingService.nombre_cliente}</h3>
-                          <div className="flex items-center gap-2 text-sm text-slate-600">
-                            <span className="font-mono">ID: {pendingService.id_servicio}</span>
-                          </div>
+          </div>
+          <div className="space-y-4 pt-4">
+            {pendingSummary.pending_services.map((pendingService) => (
+              <div
+                key={pendingService.id}
+                className="pending-card"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 space-y-3">
+                    {/* Service Header */}
+                    <div className="flex items-center gap-3">
+                      <div className="status-dot status-dot-warning w-3 h-3"></div>
+                      <div>
+                        <h3 className="text-subtitle text-slate-900">{pendingService.nombre_cliente}</h3>
+                        <div className="flex items-center gap-2 text-caption">
+                          <span className="font-mono">ID: {pendingService.id_servicio}</span>
                         </div>
                       </div>
-
-                      {/* Route */}
-                      <div className="flex items-center gap-2 text-sm bg-slate-50 p-2 rounded border border-slate-200">
-                        <MapPin className="h-4 w-4 text-slate-600" />
-                        <span className="font-medium text-slate-800">{pendingService.origen}</span>
-                        <span className="text-slate-600">→</span>
-                        <span className="font-medium text-slate-800">{pendingService.destino}</span>
-                      </div>
-
-                      {/* Service Details */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-slate-600" />
-                          <span><strong>Fecha:</strong> {format(new Date(pendingService.fecha_hora_cita), 'PPP', { locale: es })}</span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Shield className="h-4 w-4 text-slate-600" />
-                          <span><strong>Tipo:</strong> {pendingService.tipo_servicio}</span>
-                        </div>
-                      </div>
-
-                      {pendingService.observaciones && (
-                        <div className="bg-slate-50 border border-slate-200 rounded-md p-2 text-sm">
-                          <strong className="text-slate-800">Observaciones:</strong> 
-                          <span className="text-slate-700 ml-1">{pendingService.observaciones}</span>
-                        </div>
-                      )}
                     </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex flex-col gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setSelectedPendingService(pendingService);
-                          setAssignmentModalOpen(true);
-                        }}
-                        className="bg-amber-600 hover:bg-amber-700 text-white"
-                      >
-                        <User className="h-4 w-4 mr-2" />
-                        Asignar
-                      </Button>
+                    {/* Route */}
+                    <div className="flex items-center gap-2 text-sm bg-white/60 p-3 rounded-lg border border-slate-200/60">
+                      <MapPin className="h-4 w-4 text-slate-600" />
+                      <span className="text-subtitle">{pendingService.origen}</span>
+                      <span className="text-slate-400">→</span>
+                      <span className="text-subtitle">{pendingService.destino}</span>
+                    </div>
+
+                    {/* Service Details */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-slate-500" />
+                        <span className="text-body"><strong className="text-slate-700">Fecha:</strong> {format(new Date(pendingService.fecha_hora_cita), 'PPP', { locale: es })}</span>
+                      </div>
                       
-                      <Badge className="text-xs justify-center bg-slate-100 text-slate-700 hover:bg-slate-200">
-                        Sin Custodio
+                      <div className="flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-slate-500" />
+                        <span className="text-body"><strong className="text-slate-700">Tipo:</strong> {pendingService.tipo_servicio}</span>
+                      </div>
+                    </div>
+
+                    {pendingService.observaciones && (
+                      <div className="bg-white/60 border border-slate-200/60 rounded-lg p-3 text-sm">
+                        <strong className="text-slate-800">Observaciones:</strong> 
+                        <span className="text-body ml-1">{pendingService.observaciones}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setSelectedPendingService(pendingService);
+                        setAssignmentModalOpen(true);
+                      }}
+                      className="bg-orange-600 hover:bg-orange-700 text-white font-medium shadow-sm"
+                    >
+                      <User className="h-4 w-4 mr-2" />
+                      Asignar
+                    </Button>
+                    
+                    <Badge className="text-xs justify-center bg-slate-100 text-slate-600 border-slate-200">
+                      Sin Custodio
+                    </Badge>
+                    
+                    {pendingService.requiere_armado && (
+                      <Badge className="text-xs bg-orange-100 text-orange-700 border-orange-200">
+                        + Armado
                       </Badge>
-                      
-                      {pendingService.requiere_armado && (
-                        <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-200">
-                          + Armado
-                        </Badge>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Modal de Asignación */}

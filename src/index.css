@@ -125,19 +125,82 @@
     @apply flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent transition-colors;
   }
 
-  /* Apple-inspired card styles */
+  /* Refined Apple-inspired design system */
   .card-apple {
-    @apply bg-white border border-border/40 shadow-sm rounded-xl overflow-hidden;
+    @apply bg-card border border-slate-200/60 shadow-apple rounded-xl overflow-hidden;
   }
   
-  /* Minimalist button */
-  .btn-apple {
-    @apply rounded-lg font-medium transition-all duration-200 focus:outline-none;
+  .card-refined {
+    @apply bg-card border border-slate-200/50 shadow-apple rounded-lg p-6 transition-all duration-200;
   }
   
-  /* Add subtle animations */
+  .card-refined:hover {
+    @apply shadow-apple-md border-slate-200;
+  }
+  
+  /* Refined typography */
+  .text-title {
+    @apply text-slate-900 font-semibold tracking-tight;
+  }
+  
+  .text-subtitle {
+    @apply text-slate-700 font-medium;
+  }
+  
+  .text-body {
+    @apply text-slate-600 font-normal;
+  }
+  
+  .text-caption {
+    @apply text-slate-500 text-sm font-medium;
+  }
+  
+  /* Date selector chips - refined */
+  .date-chip {
+    @apply px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border border-slate-200;
+  }
+  
+  .date-chip-selected {
+    @apply bg-slate-900 text-white border-slate-900;
+  }
+  
+  .date-chip-default {
+    @apply bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300;
+  }
+  
+  /* Pending assignment card - refined */
+  .pending-card {
+    @apply bg-gradient-to-br from-slate-50/80 to-slate-100/60 border border-orange-200/40 rounded-lg p-4 transition-all duration-200;
+  }
+  
+  .pending-card:hover {
+    @apply from-slate-50 to-slate-100/80 border-orange-200/60 shadow-sm;
+  }
+  
+  /* Status indicators */
+  .status-dot {
+    @apply w-2 h-2 rounded-full;
+  }
+  
+  .status-dot-success {
+    @apply bg-emerald-500;
+  }
+  
+  .status-dot-warning {
+    @apply bg-orange-500;
+  }
+  
+  .status-dot-pending {
+    @apply bg-slate-400;
+  }
+  
+  .status-dot-error {
+    @apply bg-red-500;
+  }
+  
+  /* Hover effects */
   .hover-lift {
-    @apply transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md;
+    @apply transition-all duration-200 hover:-translate-y-0.5 hover:shadow-apple-md;
   }
 }
 
