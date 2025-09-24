@@ -159,25 +159,63 @@ export function useServiciosPlanificados() {
       custodioName: string; 
       custodioId?: string;
     }) => {
+      // First check for conflicts if custodioId is provided
+      if (custodioId) {
+        // Get service details first to check conflicts
+        const { data: service, error: serviceError } = await supabase
+          .from('servicios_planificados')
+          .select('fecha_hora_cita, id_servicio, origen, destino')
+          .eq('id', serviceId) // Use UUID id, not id_servicio
+          .single();
+
+        if (serviceError) throw new Error('Error al obtener datos del servicio');
+
+        // Check for conflicts
+        const { data: conflictCheck, error: conflictError } = await supabase
+          .rpc('check_custodian_availability', {
+            p_custodio_id: custodioId,
+            p_fecha_hora_cita: service.fecha_hora_cita,
+            p_exclude_service_id: serviceId
+          });
+
+        if (conflictError) {
+          console.warn('Error checking conflicts:', conflictError);
+        } else if (conflictCheck?.has_conflicts) {
+          const conflicts = conflictCheck.conflicting_services || [];
+          throw new Error(`El custodio ${custodioName} ya tiene ${conflicts.length} servicio(s) asignado(s) en horarios conflictivos. Revise los servicios existentes antes de continuar.`);
+        }
+      }
+
+      // Update the service with custodian assignment
       const { error } = await supabase
         .from('servicios_planificados')
         .update({
           custodio_asignado: custodioName,
           custodio_id: custodioId,
           fecha_asignacion: new Date().toISOString(),
-          estado_planeacion: 'asignado'
+          estado_planeacion: 'confirmado', // Changed from 'asignado' to 'confirmado'
+          asignado_por: (await supabase.auth.getUser()).data.user?.id
         })
-        .eq('id_servicio', serviceId);
+        .eq('id', serviceId); // Use UUID id, not id_servicio
 
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success('Custodio asignado exitosamente');
       queryClient.invalidateQueries({ queryKey: ['scheduled-services'] });
+      queryClient.invalidateQueries({ queryKey: ['planned-services'] });
     },
     onError: (error) => {
-      toast.error('Error al asignar custodio');
-      console.error(error);
+      console.error('Error assigning custodian:', error);
+      if (error.message && error.message.includes('conflictivos')) {
+        toast.error('Conflicto de horario detectado', {
+          description: error.message
+        });
+      } else {
+        toast.error('Error al asignar custodio', {
+          description: error.message || 'Error desconocido'
+        });
+      }
     }
   });
 

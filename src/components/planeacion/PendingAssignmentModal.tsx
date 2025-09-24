@@ -7,6 +7,7 @@ import { User, MapPin, Clock, Shield, Calendar, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CustodianAssignmentStep } from '@/pages/Planeacion/components/workflow/CustodianAssignmentStep';
+import { ArmedGuardAssignmentStep } from '@/components/planeacion/ArmedGuardAssignmentStep';
 import { useServiciosPlanificados } from '@/hooks/useServiciosPlanificados';
 import { toast } from 'sonner';
 import type { PendingService } from '@/hooks/usePendingServices';
@@ -25,7 +26,9 @@ export function PendingAssignmentModal({
   onAssignmentComplete
 }: PendingAssignmentModalProps) {
   const [isAssigning, setIsAssigning] = useState(false);
-  const { assignCustodian } = useServiciosPlanificados();
+  const [currentStep, setCurrentStep] = useState<'custodian' | 'armed'>('custodian');
+  const [custodianAssigned, setCustodianAssigned] = useState<any>(null);
+  const { assignCustodian, assignArmedGuard } = useServiciosPlanificados();
 
   if (!service) return null;
 
@@ -48,7 +51,7 @@ export function PendingAssignmentModal({
     hora_recepcion: service.created_at.split('T')[1]?.substring(0, 5) || '09:00'
   };
 
-  const handleAssignmentComplete = async (assignmentData: any) => {
+  const handleCustodianAssignmentComplete = async (assignmentData: any) => {
     setIsAssigning(true);
     try {
       // Asignar custodio al servicio
@@ -58,19 +61,58 @@ export function PendingAssignmentModal({
         custodioId: assignmentData.custodio_asignado_id
       });
 
-      toast.success('Custodio asignado exitosamente', {
-        description: `${assignmentData.custodio_nombre} ha sido asignado al servicio ${service.id_servicio}`
-      });
+      setCustodianAssigned(assignmentData);
 
-      // Cerrar modal y refrescar datos
-      onOpenChange(false);
-      onAssignmentComplete();
+      // Check if service requires armed guard
+      if (service.requiere_armado) {
+        toast.success('Custodio asignado exitosamente', {
+          description: 'Ahora proceda a asignar el armado requerido'
+        });
+        setCurrentStep('armed');
+      } else {
+        toast.success('Servicio asignado exitosamente', {
+          description: `${assignmentData.custodio_nombre} ha sido asignado al servicio ${service.id_servicio}`
+        });
+        onOpenChange(false);
+        onAssignmentComplete();
+      }
     } catch (error) {
-      console.error('Error al asignar custodio:', error);
-      toast.error('Error al asignar custodio');
+      console.error('Error assigning custodian:', error);
+      // Error handling is now done in the hook
     } finally {
       setIsAssigning(false);
     }
+  };
+
+  const handleArmedGuardAssignmentComplete = async (armedData: any) => {
+    setIsAssigning(true);
+    try {
+      await assignArmedGuard({
+        serviceId: service.id_servicio, // Use id_servicio for armed guard assignment  
+        armadoName: armedData.armado_nombre,
+        armadoId: armedData.armado_id
+      });
+
+      toast.success('Servicio completamente asignado', {
+        description: `Custodio: ${custodianAssigned?.custodio_nombre} | Armado: ${armedData.armado_nombre}`
+      });
+
+      onOpenChange(false);
+      onAssignmentComplete();
+    } catch (error) {
+      console.error('Error assigning armed guard:', error);
+      toast.error('Error al asignar armado');
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleArmedGuardSkip = () => {
+    toast.success('Servicio asignado exitosamente', {
+      description: `${custodianAssigned?.custodio_nombre} ha sido asignado al servicio ${service.id_servicio}`
+    });
+    onOpenChange(false);
+    onAssignmentComplete();
   };
 
   return (
@@ -158,11 +200,26 @@ export function PendingAssignmentModal({
 
         {/* Component de Asignación */}
         <div className="space-y-4">
-          <CustodianAssignmentStep
-            serviceData={serviceData}
-            onComplete={handleAssignmentComplete}
-            onBack={() => onOpenChange(false)}
-          />
+          {currentStep === 'custodian' && (
+            <CustodianAssignmentStep
+              serviceData={serviceData}
+              onComplete={handleCustodianAssignmentComplete}
+              onBack={() => onOpenChange(false)}
+            />
+          )}
+          
+          {currentStep === 'armed' && custodianAssigned && (
+            <ArmedGuardAssignmentStep
+              serviceData={{
+                ...serviceData,
+                custodio_asignado: custodianAssigned.custodio_nombre,
+                custodio_id: custodianAssigned.custodio_asignado_id
+              }}
+              onComplete={handleArmedGuardAssignmentComplete}
+              onSkip={handleArmedGuardSkip}
+              onBack={() => setCurrentStep('custodian')}
+            />
+          )}
         </div>
       </DialogContent>
     </Dialog>

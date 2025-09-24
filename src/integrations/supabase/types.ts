@@ -9763,6 +9763,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      check_custodian_availability: {
+        Args: {
+          p_custodio_id: string
+          p_exclude_service_id?: string
+          p_fecha_hora_cita: string
+        }
+        Returns: Json
+      }
       check_duplicate_service_ids: {
         Args: Record<PropertyKey, never>
         Returns: {
