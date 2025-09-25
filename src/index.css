@@ -690,3 +690,36 @@
 .apple-zone-availability {
   @apply apple-text-caption text-muted-foreground;
 }
+
+/* Missing Apple Components */
+.apple-metric-value {
+  @apply apple-text-largetitle font-bold text-foreground mb-1;
+}
+
+.apple-metric-label {
+  @apply apple-text-caption text-muted-foreground;
+}
+
+.apple-card {
+  @apply bg-background border border-border/30 rounded-xl p-6 apple-hover-lift;
+}
+
+.apple-section-header {
+  @apply mb-6;
+}
+
+.apple-list {
+  @apply space-y-4;
+}
+
+.apple-list-item {
+  @apply p-4 bg-background/50 rounded-lg border border-border/20;
+}
+
+.apple-zone-card {
+  @apply p-4 bg-background/50 rounded-lg border border-border/20;
+}
+
+.apple-empty-state {
+  @apply text-center py-8;
+}

@@ -1,22 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
-  BarChart3, 
   Users, 
   AlertCircle, 
   CheckCircle, 
   Clock, 
   MapPin,
   TrendingUp,
-  Calendar,
-  User,
   PlusCircle,
-  Upload,
-  Settings,
   AlertTriangle,
   MessageSquare
 } from 'lucide-react';
@@ -24,14 +16,10 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { usePlaneacionStats, useServicios, useCustodios } from '@/hooks/usePlaneacion';
 import { RequestCreationWorkflow } from './RequestCreationWorkflow';
-import { ExcelImportWizard } from './ExcelImportWizard';
-import ServicioDialog from './ServicioDialog';
 
 export function OperationalDashboard() {
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString('es-ES'));
   const [showCreateWorkflow, setShowCreateWorkflow] = useState(false);
-  const [showImportWizard, setShowImportWizard] = useState(false);
-  const [showQuickCreate, setShowQuickCreate] = useState(false);
   
   const { data: stats } = usePlaneacionStats();
   const { data: servicios = [] } = useServicios();
@@ -78,48 +66,23 @@ export function OperationalDashboard() {
         </div>
       </div>
 
-      {/* Quick Actions Hero Section */}
+      {/* Primary Action Hero Section */}
       <div className="apple-section">
         <div className="apple-section-header">
-          <h2 className="apple-section-title">Acciones Principales</h2>
+          <h2 className="apple-section-title">Acción Principal</h2>
+          <p className="apple-section-description">Crear un nuevo servicio con el flujo completo guiado</p>
         </div>
-        <div className="apple-quick-actions">
+        <div className="flex justify-center">
           <button 
             onClick={() => setShowCreateWorkflow(true)}
-            className="apple-quick-action apple-quick-action-primary"
+            className="apple-quick-action apple-quick-action-primary w-full max-w-lg"
           >
             <div className="apple-quick-action-icon">
-              <PlusCircle className="h-6 w-6" />
+              <PlusCircle className="h-8 w-8" />
             </div>
-            <div>
-              <div className="apple-quick-action-title">Crear Servicio</div>
-              <div className="apple-quick-action-subtitle">Flujo completo paso a paso</div>
-            </div>
-          </button>
-          
-          <button 
-            onClick={() => setShowImportWizard(true)}
-            className="apple-quick-action"
-          >
-            <div className="apple-quick-action-icon">
-              <Upload className="h-6 w-6" />
-            </div>
-            <div>
-              <div className="apple-quick-action-title">Importar Excel</div>
-              <div className="apple-quick-action-subtitle">Carga masiva de servicios</div>
-            </div>
-          </button>
-
-          <button 
-            onClick={() => setShowQuickCreate(true)}
-            className="apple-quick-action"
-          >
-            <div className="apple-quick-action-icon">
-              <Settings className="h-6 w-6" />
-            </div>
-            <div>
-              <div className="apple-quick-action-title">Creación Rápida</div>
-              <div className="apple-quick-action-subtitle">Formulario directo</div>
+            <div className="text-left">
+              <div className="apple-quick-action-title text-lg">Crear Nuevo Servicio</div>
+              <div className="apple-quick-action-subtitle">Flujo completo paso a paso con validación</div>
             </div>
           </button>
         </div>
@@ -284,7 +247,7 @@ export function OperationalDashboard() {
         </div>
       </div>
 
-      {/* Modals */}
+      {/* Create Service Modal */}
       <Dialog open={showCreateWorkflow} onOpenChange={setShowCreateWorkflow}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -293,30 +256,6 @@ export function OperationalDashboard() {
           <RequestCreationWorkflow />
         </DialogContent>
       </Dialog>
-
-      {/* Excel Import Wizard Modal */}
-      <Dialog open={showImportWizard} onOpenChange={setShowImportWizard}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Importar Servicios desde Excel</DialogTitle>
-          </DialogHeader>
-          <ExcelImportWizard 
-            onSuccess={() => {
-              setShowImportWizard(false);
-              // Refresh data here if needed
-            }}
-          />
-        </DialogContent>
-      </Dialog>
-
-      <ServicioDialog
-        open={showQuickCreate}
-        onOpenChange={setShowQuickCreate}
-        onSubmit={async (data) => {
-          console.log('Quick create:', data);
-          setShowQuickCreate(false);
-        }}
-      />
     </div>
   );
 }
