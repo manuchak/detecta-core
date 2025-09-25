@@ -244,6 +244,15 @@ export const CustodianContactDialog: React.FC<CustodianContactDialogProps> = ({
 
       await logResponse(responseData);
 
+      // Log detallado para debugging del auto-advance
+      console.log('📞 Resultado del contacto registrado:', {
+        custodianId: custodian.id,
+        custodianName: custodian.nombre,
+        resultStatus,
+        serviceDetails,
+        timestamp: new Date().toISOString()
+      });
+
       onResult({
         status: resultStatus,
         categoria_rechazo: rejectionCategory,
@@ -257,10 +266,16 @@ export const CustodianContactDialog: React.FC<CustodianContactDialogProps> = ({
         : 'Resultado registrado exitosamente';
       
       toast.success(successMessage);
-      onOpenChange(false);
       
-      // Reset form
-      resetForm();
+      // Cerrar diálogo inmediatamente si acepta para no bloquear el auto-advance
+      if (resultStatus === 'acepta') {
+        console.log('✅ Custodio aceptó - cerrando diálogo inmediatamente');
+        onOpenChange(false);
+        resetForm();
+      } else {
+        onOpenChange(false);
+        resetForm();
+      }
 
     } catch (error) {
       console.error('Error logging response:', error);

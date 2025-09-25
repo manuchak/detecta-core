@@ -177,16 +177,22 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
       setSelectedCustodio(custodianId);
       toast.success(`¡${custodian?.nombre} ha aceptado el servicio!`);
       
-      // Auto-advance: proceder automáticamente al siguiente paso
-      setTimeout(() => {
-        const assignmentData: AssignmentData = {
-          ...serviceData,
-          custodio_asignado_id: custodianId,
-          custodio_nombre: custodian?.nombre,
-          estado_comunicacion: 'aceptado'
-        };
-        onComplete(assignmentData);
-      }, 1500); // Breve delay para mostrar el mensaje de éxito
+      // Auto-advance: proceder inmediatamente al siguiente paso
+      console.log('🚀 Custodio aceptó, avanzando automáticamente al siguiente paso:', {
+        custodianId,
+        custodianName: custodian?.nombre,
+        serviceId: serviceData.servicio_id
+      });
+      
+      const assignmentData: AssignmentData = {
+        ...serviceData,
+        custodio_asignado_id: custodianId,
+        custodio_nombre: custodian?.nombre,
+        estado_comunicacion: 'aceptado'
+      };
+      
+      // Llamar onComplete inmediatamente
+      onComplete(assignmentData);
       
     } else if (result.status === 'rechaza') {
       toast.error(`${custodian?.nombre} ha rechazado el servicio: ${result.razon_rechazo}`);
@@ -534,14 +540,37 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
         <Button variant="outline" onClick={onBack}>
           Atrás
         </Button>
-        <Button 
-          onClick={handleComplete} 
-          disabled={!selectedCustodio || (selectedCustodio && custodianConflicts[selectedCustodio]?.length > 0)}
-          className="flex items-center gap-2"
-        >
-          <CheckCircle2 className="h-4 w-4" />
-          Confirmar Asignación
-        </Button>
+        <div className="flex gap-2">
+          {/* Auto-advance fallback: mostrar botón cuando alguien haya aceptado pero no avanzó automáticamente */}
+          {Object.values(comunicaciones).some(c => c.estado === 'aceptado') && !selectedCustodio && (
+            <Button 
+              variant="secondary"
+              onClick={() => {
+                const acceptedCustodianId = Object.entries(comunicaciones)
+                  .find(([_, comm]) => comm.estado === 'aceptado')?.[0];
+                if (acceptedCustodianId) {
+                  setSelectedCustodio(acceptedCustodianId);
+                  const custodio = custodiosDisponibles.find(c => c.id === acceptedCustodianId);
+                  console.log('🔧 Fallback manual: seleccionando custodio que aceptó', { acceptedCustodianId, custodio });
+                  toast.info('Custodio seleccionado automáticamente por aceptación previa');
+                }
+              }}
+              className="flex items-center gap-2"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Continuar con aceptación
+            </Button>
+          )}
+          
+          <Button 
+            onClick={handleComplete} 
+            disabled={!selectedCustodio || (selectedCustodio && custodianConflicts[selectedCustodio]?.length > 0)}
+            className="flex items-center gap-2"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            Confirmar Asignación
+          </Button>
+        </div>
       </div>
 
       {/* Help text for conflicts */}
