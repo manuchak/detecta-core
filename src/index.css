@@ -527,3 +527,166 @@
 .step-indicator-pending {
   @apply bg-background border-border text-muted-foreground;
 }
+
+/* Apple Layout System */
+.apple-layout {
+  @apply min-h-screen bg-background p-6 space-y-8;
+}
+
+.apple-header {
+  @apply flex items-center justify-between mb-8;
+}
+
+.apple-title {
+  @apply apple-text-largetitle font-bold text-foreground;
+}
+
+.apple-subtitle {
+  @apply apple-text-body text-muted-foreground mt-1;
+}
+
+.apple-section {
+  @apply space-y-6;
+}
+
+.apple-section-title {
+  @apply apple-text-headline font-semibold text-foreground;
+}
+
+.apple-section-description {
+  @apply apple-text-body text-muted-foreground mt-1;
+}
+
+/* Apple Quick Actions */
+.apple-quick-actions {
+  @apply grid grid-cols-1 md:grid-cols-3 gap-4;
+}
+
+.apple-quick-action {
+  @apply flex items-center gap-4 p-6 bg-background border border-border/30 rounded-xl hover:bg-background/80 transition-all duration-200 cursor-pointer apple-hover-lift;
+}
+
+.apple-quick-action-primary {
+  @apply bg-primary/5 border-primary/30 hover:bg-primary/10 hover:border-primary/40;
+}
+
+.apple-quick-action-icon {
+  @apply flex items-center justify-center w-12 h-12 bg-primary/10 rounded-xl text-primary flex-shrink-0;
+}
+
+.apple-quick-action-primary .apple-quick-action-icon {
+  @apply bg-primary text-primary-foreground;
+}
+
+.apple-quick-action-title {
+  @apply apple-text-headline font-semibold text-foreground;
+}
+
+.apple-quick-action-subtitle {
+  @apply apple-text-body text-muted-foreground mt-0.5;
+}
+
+/* Apple Alert System */
+.apple-alert {
+  @apply bg-destructive/5 border border-destructive/30 rounded-xl p-6 hover:shadow-sm transition-all duration-200;
+}
+
+.apple-alert-title {
+  @apply apple-text-headline font-semibold text-destructive;
+}
+
+.apple-alert-description {
+  @apply apple-text-body text-destructive/80 mt-1;
+}
+
+/* Apple Metrics Grid */
+.apple-metrics {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6;
+}
+
+.apple-metric {
+  @apply bg-background border border-border/30 rounded-xl p-6 transition-all duration-200 apple-hover-lift;
+}
+
+.apple-metric-primary {
+  @apply bg-primary/5 border-primary/30;
+}
+
+.apple-metric-success {
+  @apply bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800/30;
+}
+
+.apple-metric-warning {
+  @apply bg-orange-50 border-orange-200 dark:bg-orange-950/20 dark:border-orange-800/30;
+}
+
+.apple-metric-neutral {
+  @apply bg-purple-50 border-purple-200 dark:bg-purple-950/20 dark:border-purple-800/30;
+}
+
+.apple-metric-icon {
+  @apply flex items-center justify-center w-12 h-12 bg-background/50 rounded-xl text-muted-foreground mb-4;
+}
+
+.apple-metric-primary .apple-metric-icon {
+  @apply text-primary bg-primary/10;
+}
+
+.apple-metric-success .apple-metric-icon {
+  @apply text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30;
+}
+
+.apple-metric-warning .apple-metric-icon {
+  @apply text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-900/30;
+}
+
+.apple-metric-neutral .apple-metric-icon {
+  @apply text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/30;
+}
+
+.apple-metric-content {
+  @apply space-y-1;
+}
+
+/* Apple Actions Grid */
+.apple-actions {
+  @apply grid grid-cols-1 lg:grid-cols-2 gap-6;
+}
+
+/* Apple List System Extended */
+.apple-list-title {
+  @apply apple-text-headline font-semibold text-foreground;
+}
+
+.apple-list-description {
+  @apply apple-text-body text-muted-foreground;
+}
+
+.apple-list-actions {
+  @apply flex items-center gap-2;
+}
+
+.apple-button {
+  @apply bg-primary text-primary-foreground hover:bg-primary/90;
+}
+
+/* Apple Zone System */
+.apple-zones {
+  @apply grid grid-cols-2 gap-4;
+}
+
+.apple-zone-header {
+  @apply flex items-center justify-between mb-3;
+}
+
+.apple-zone-title {
+  @apply apple-text-headline font-semibold text-foreground;
+}
+
+.apple-zone-percentage {
+  @apply apple-text-largetitle font-bold text-foreground mb-1;
+}
+
+.apple-zone-availability {
+  @apply apple-text-caption text-muted-foreground;
+}
