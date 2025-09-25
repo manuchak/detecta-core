@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useCustodiosConProximidad } from './useProximidadOperacional';
 import { useCustodioTracking } from './useCustodioTracking';
 import type { CustodioConProximidad } from './useProximidadOperacional';
@@ -49,12 +49,13 @@ export const useCustodiosWithTracking = ({
   const { getAllCustodioMetrics } = useCustodioTracking();
 
   // Combinar todas las categorías en un array plano para compatibilidad  
-  const custodios = custodiosCategorizados ? [
-    ...custodiosCategorizados.disponibles,
-    ...custodiosCategorizados.parcialmenteOcupados,
-    ...custodiosCategorizados.ocupados
-    // No incluir no_disponibles en el array principal
-  ] : [];
+  const custodios = useMemo(() => (
+    custodiosCategorizados ? [
+      ...custodiosCategorizados.disponibles,
+      ...custodiosCategorizados.parcialmenteOcupados,
+      ...custodiosCategorizados.ocupados
+    ] : []
+  ), [custodiosCategorizados]);
 
   const enrichCustodios = async () => {
     if (!custodios || custodios.length === 0) return;

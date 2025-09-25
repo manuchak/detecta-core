@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -63,7 +63,7 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
   const { checkCustodianConflicts } = useServiciosPlanificados();
 
   // Preparar datos del servicio para el hook
-  const servicioNuevo: ServicioNuevo = {
+  const servicioNuevo: ServicioNuevo = useMemo(() => ({
     origen_texto: serviceData.origen || serviceData.cliente_nombre || 'No especificado',
     destino_texto: serviceData.destino || serviceData.destino_texto || 'No especificado',
     fecha_programada: serviceData.fecha_programada || serviceData.fecha_hora_cita || new Date().toISOString(),
@@ -71,7 +71,18 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
     tipo_servicio: serviceData.tipo_servicio || 'custodia',
     incluye_armado: serviceData.incluye_armado || false,
     requiere_gadgets: serviceData.requiere_gadgets || false
-  };
+  }), [
+    serviceData.origen,
+    serviceData.cliente_nombre,
+    serviceData.destino,
+    serviceData.destino_texto,
+    serviceData.fecha_programada,
+    serviceData.fecha_hora_cita,
+    serviceData.hora_ventana_inicio,
+    serviceData.tipo_servicio,
+    serviceData.incluye_armado,
+    serviceData.requiere_gadgets
+  ]);
 
   const { custodios: custodiosDisponibles, loading } = useCustodiosWithTracking({
     servicioNuevo

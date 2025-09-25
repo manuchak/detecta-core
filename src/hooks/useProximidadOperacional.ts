@@ -38,8 +38,18 @@ export interface CustodiosCategorizados {
  * - Factor de oportunidad/rotación (15%)
  */
 export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
+  // Usar un queryKey estable basado en primitivos para evitar re-fetch en loop
+  const stableKey = servicioNuevo ? [
+    servicioNuevo.fecha_programada ?? null,
+    servicioNuevo.hora_ventana_inicio ?? null,
+    servicioNuevo.origen_texto ?? null,
+    servicioNuevo.destino_texto ?? null,
+    servicioNuevo.tipo_servicio ?? null,
+    servicioNuevo.incluye_armado ?? null,
+  ] : ['sin-servicio'];
+
   return useQuery({
-    queryKey: ['custodios-con-proximidad-equitativo', servicioNuevo],
+    queryKey: ['custodios-con-proximidad-equitativo', ...stableKey],
     queryFn: async (): Promise<CustodiosCategorizados> => {
       console.log('🔍 Obteniendo custodios con algoritmo equitativo...');
       
@@ -107,13 +117,17 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
         // NUEVO: Verificar disponibilidad equitativa si hay servicio nuevo
         if (servicioNuevo) {
           try {
-            const { data: disponibilidadEquitativa } = await supabase.rpc('verificar_disponibilidad_equitativa_custodio', {
+            const { data: disponibilidadEquitativa, error: rpcError } = await supabase.rpc('verificar_disponibilidad_equitativa_custodio', {
               p_custodio_id: custodio.id,
               p_custodio_nombre: custodio.nombre,
               p_fecha_servicio: servicioNuevo.fecha_programada,
               p_hora_inicio: servicioNuevo.hora_ventana_inicio,
               p_duracion_estimada_horas: 4
             });
+
+            if (rpcError) {
+              console.warn('⚠️ Error RPC verificar_disponibilidad_equitativa_custodio:', rpcError.message);
+            }
 
             if (disponibilidadEquitativa) {
               // Crear factor de equidad desde la respuesta de la función
