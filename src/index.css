@@ -295,21 +295,207 @@
   }
 }
 
-/* Minimalist corporate styles */
-.corporate-btn {
-  @apply bg-muted text-muted-foreground hover:bg-muted/80 transition-all font-medium rounded-lg border border-border;
+/* Apple Layout System */
+.apple-container {
+  @apply max-w-7xl mx-auto px-6;
 }
 
-.corporate-card {
-  @apply bg-card border border-border rounded-lg shadow-sm;
+.apple-section {
+  @apply space-y-6;
 }
 
-.text-corporate {
-  @apply text-foreground;
+.apple-section-header {
+  @apply flex items-center justify-between mb-6;
 }
 
-.corporate-badge {
-  @apply bg-muted text-muted-foreground font-medium text-xs rounded-full px-2 py-0.5;
+.apple-grid-metrics {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4;
+}
+
+.apple-grid-actions {
+  @apply grid grid-cols-1 lg:grid-cols-2 gap-6;
+}
+
+/* Apple Card System Extended */
+.apple-card-metric {
+  @apply bg-background/95 border border-border/20 rounded-xl p-4 hover:bg-background/80 transition-all duration-200 hover:shadow-sm;
+}
+
+.apple-surface-elevated {
+  @apply bg-background border border-border/30 shadow-sm rounded-xl;
+}
+
+/* Apple List System */
+.apple-list {
+  @apply space-y-2;
+}
+
+.apple-list-item {
+  @apply bg-background border border-border/20 rounded-lg p-4 hover:bg-background/80 transition-colors duration-200;
+}
+
+.apple-list-item-active {
+  @apply bg-primary/5 border-primary/20 hover:bg-primary/10;
+}
+
+/* Apple Metrics Cards */
+.apple-metrics-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4;
+}
+
+.apple-metric-card {
+  @apply bg-background border border-border/20 rounded-xl p-6 hover:bg-background/80 transition-all duration-200 hover:shadow-sm;
+}
+
+.apple-metric-value {
+  @apply apple-text-largetitle font-bold mb-1;
+}
+
+.apple-metric-label {
+  @apply apple-text-caption text-muted-foreground;
+}
+
+.apple-metric-critical .apple-metric-value {
+  @apply text-primary;
+}
+
+.apple-metric-success .apple-metric-value {
+  @apply text-green-600 dark:text-green-500;
+}
+
+.apple-metric-warning .apple-metric-value {
+  @apply text-orange-600 dark:text-orange-500;
+}
+
+.apple-metric-neutral .apple-metric-value {
+  @apply text-purple-600 dark:text-purple-500;
+}
+
+/* Apple Header System */
+.apple-header-section {
+  @apply flex items-center justify-between;
+}
+
+/* Apple Alert System */
+.apple-alert-critical {
+  @apply bg-destructive/5 border border-destructive/20 rounded-xl p-4;
+}
+
+/* Apple Action List */
+.apple-action-list {
+  @apply space-y-3;
+}
+
+.apple-action-item {
+  @apply flex items-center gap-4 p-4 bg-background border border-border/20 rounded-lg hover:bg-background/80 transition-colors duration-200;
+}
+
+/* Apple Empty States */
+.apple-empty-state {
+  @apply text-center py-12;
+}
+
+/* Apple Zone System */
+.apple-zone-grid {
+  @apply grid grid-cols-2 md:grid-cols-4 gap-4;
+}
+
+.apple-zone-card {
+  @apply p-4 bg-background border border-border/20 rounded-lg relative;
+}
+
+.apple-zone-indicator {
+  @apply absolute top-3 right-3 w-2 h-2 rounded-full;
+}
+
+.apple-zone-indicator.active {
+  @apply bg-green-500;
+}
+
+.apple-zone-indicator.inactive {
+  @apply bg-muted-foreground;
+}
+
+/* Apple Loading States */
+.apple-loading-state {
+  @apply flex items-center justify-center py-12;
+}
+
+/* Apple Agenda System */
+.apple-date-header {
+  @apply flex items-center justify-between p-4 bg-background border border-border/20 rounded-xl;
+}
+
+.apple-summary-compact {
+  @apply flex items-center gap-6;
+}
+
+.apple-summary-item {
+  @apply flex flex-col items-center gap-1;
+}
+
+.apple-summary-value {
+  @apply apple-text-title font-bold;
+}
+
+.apple-summary-label {
+  @apply apple-text-caption text-muted-foreground;
+}
+
+.apple-text-success {
+  @apply text-green-600 dark:text-green-500;
+}
+
+.apple-text-warning {
+  @apply text-orange-600 dark:text-orange-500;
+}
+
+.apple-agenda-list {
+  @apply space-y-3;
+}
+
+.apple-service-item {
+  @apply flex gap-4 p-4 bg-background border border-border/20 rounded-xl hover:bg-background/80 transition-colors duration-200;
+}
+
+.apple-service-time {
+  @apply apple-text-headline font-bold text-primary shrink-0 w-16 text-center;
+}
+
+.apple-service-content {
+  @apply flex-1 space-y-3;
+}
+
+.apple-service-header {
+  @apply flex items-center justify-between;
+}
+
+.apple-service-title {
+  @apply apple-text-headline font-semibold;
+}
+
+.apple-service-actions {
+  @apply flex items-center gap-2;
+}
+
+.apple-service-route {
+  @apply flex items-center gap-2 apple-text-body text-muted-foreground;
+}
+
+.apple-service-details {
+  @apply flex items-center gap-4;
+}
+
+.apple-service-assignment {
+  @apply flex items-center gap-2;
+}
+
+.apple-service-armed {
+  @apply flex items-center gap-2 apple-text-caption text-muted-foreground;
+}
+
+.apple-service-status {
+  @apply flex items-center gap-2;
 }
 
 /* Minimal Form Field States */

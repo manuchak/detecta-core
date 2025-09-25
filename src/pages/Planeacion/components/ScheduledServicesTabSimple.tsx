@@ -167,13 +167,13 @@ export function ScheduledServicesTab() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="apple-container space-y-8">
       {/* Header */}
-      <div className="apple-header-section">
+      <div className="apple-section-header">
         <div>
-          <h1 className="apple-text-largetitle">Servicios</h1>
-          <p className="apple-text-body text-secondary">
-            Agenda de servicios programados
+          <h1 className="apple-text-largetitle text-foreground">Servicios Programados</h1>
+          <p className="apple-text-body text-muted-foreground">
+            Agenda de servicios del día
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -181,9 +181,12 @@ export function ScheduledServicesTab() {
             selectedDate={selectedDate}
             onDateChange={setSelectedDate}
           />
-          <Button variant="ghost" size="sm" onClick={refetch} className="apple-button-ghost">
+          <button
+            onClick={() => refetch()}
+            className="apple-button-ghost"
+          >
             <RefreshCw className="h-4 w-4" />
-          </Button>
+          </button>
         </div>
       </div>
 
