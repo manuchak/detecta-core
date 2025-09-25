@@ -508,15 +508,7 @@ export function RequestCreationWorkflow() {
               isSubmitting={isLoading || isValidating}
             />
             
-            {/* Monitor de conflictos para esta página */}
-            <ConflictMonitor 
-              className="mt-4"
-              onConflictDetected={(conflicts) => {
-                if (conflicts.length > 0) {
-                  console.warn('⚠️ Conflictos detectados durante creación:', conflicts);
-                }
-              }}
-            />
+            {/* Monitor de conflictos REMOVIDO - ahora la validación es preventiva */}
           </>
         )}
       </div>

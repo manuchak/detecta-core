@@ -6,8 +6,10 @@ export interface CustodioConProximidad extends CustodioConHistorial {
   scoring_proximidad?: ScoringProximidad;
   indisponibilidades_activas?: any[];
   disponibilidad_efectiva?: string;
-  categoria_disponibilidad?: 'libre' | 'parcialmente_ocupado' | 'ocupado_disponible' | 'no_disponible';
+  categoria_disponibilidad?: 'disponible' | 'parcialmente_ocupado' | 'ocupado' | 'no_disponible';
   datos_equidad?: FactorEquidad;
+  conflictos_detectados?: boolean;
+  razon_no_disponible?: string;
   
   // Properties needed for CustodioPerformanceCard compatibility
   performance_level: 'excelente' | 'bueno' | 'regular' | 'malo' | 'nuevo';
@@ -24,10 +26,10 @@ export interface CustodioConProximidad extends CustodioConHistorial {
 }
 
 export interface CustodiosCategorizados {
-  disponibles: CustodioConProximidad[];      // 0-1 servicios hoy
-  parcialmenteOcupados: CustodioConProximidad[]; // 2 servicios hoy  
-  ocupados: CustodioConProximidad[];         // 2+ servicios pero disponibles
-  noDisponibles: CustodioConProximidad[];    // Conflictos horarios o límites
+  disponibles: CustodioConProximidad[];      // Sin conflictos, disponibles
+  parcialmenteOcupados: CustodioConProximidad[]; // Con servicios pero sin conflictos  
+  ocupados: CustodioConProximidad[];         // Muchos servicios pero sin conflictos
+  noDisponibles: CustodioConProximidad[];    // Con conflictos o indisponibles
 }
 
 /**
@@ -135,7 +137,7 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
                   serviciosProximos
                 );
                 custodioProcessed.scoring_proximidad = scoring;
-                custodioProcessed.categoria_disponibilidad = 'libre';
+                custodioProcessed.categoria_disponibilidad = 'disponible';
               }
               custodiosProcessed.push(custodioProcessed);
               continue; // Skip to next custodian
@@ -154,11 +156,26 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
               };
 
               custodioProcessed.datos_equidad = factorEquidad;
-              custodioProcessed.categoria_disponibilidad = factorEquidad.categoria_disponibilidad;
+  // Mapear categorías del RPC al formato estándar
+  const mapearCategoria = (categoria: string): 'disponible' | 'parcialmente_ocupado' | 'ocupado' | 'no_disponible' => {
+    switch (categoria) {
+      case 'libre': return 'disponible';
+      case 'parcialmente_ocupado': return 'parcialmente_ocupado';
+      case 'ocupado_disponible': return 'ocupado';
+      case 'no_disponible': return 'no_disponible';
+      default: return 'disponible';
+    }
+  };
+
+  // Aplicar el mapeo
+  custodioProcessed.categoria_disponibilidad = mapearCategoria(factorEquidad.categoria_disponibilidad);
 
               // Si no está disponible, marcar como tal
               if (!disponibilidadEquitativa.disponible) {
                 custodioProcessed.disponibilidad_efectiva = 'temporalmente_indisponible';
+                custodioProcessed.categoria_disponibilidad = 'no_disponible';
+                custodioProcessed.conflictos_detectados = true;
+                custodioProcessed.razon_no_disponible = disponibilidadEquitativa.razon_no_disponible || 'Límite de servicios alcanzado';
                 custodioProcessed.indisponibilidades_activas = [
                   ...(custodioProcessed.indisponibilidades_activas || []),
                   {
@@ -196,7 +213,7 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
         custodiosProcessed.push(custodioProcessed);
       }
 
-      // NUEVO: Separar en categorías según disponibilidad
+      // NUEVO: Separar en categorías según disponibilidad REAL (sin conflictos)
       const categorizado: CustodiosCategorizados = {
         disponibles: [],
         parcialmenteOcupados: [],
@@ -205,25 +222,34 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
       };
 
       for (const custodio of custodiosProcessed) {
-        // Filtrar completamente indisponibles
-        if (custodio.disponibilidad_efectiva === 'temporalmente_indisponible') {
+        // CRÍTICO: Filtrar completamente indisponibles y con conflictos
+        if (custodio.disponibilidad_efectiva === 'temporalmente_indisponible' || 
+            custodio.conflictos_detectados) {
           categorizado.noDisponibles.push(custodio);
           continue;
         }
 
-        // Categorizar por disponibilidad
+        // Categorizar solo custodios SIN conflictos
         switch (custodio.categoria_disponibilidad) {
-          case 'libre':
+          case 'disponible':
             categorizado.disponibles.push(custodio);
             break;
           case 'parcialmente_ocupado':
             categorizado.parcialmenteOcupados.push(custodio);
             break;
-          case 'ocupado_disponible':
+          case 'ocupado':
             categorizado.ocupados.push(custodio);
             break;
+          case 'no_disponible':
+            // No agregar a ninguna categoría de disponibles
+            break;
           default:
-            categorizado.disponibles.push(custodio); // Fallback
+            // Solo agregar a disponibles si NO tiene conflictos
+            if (!custodio.conflictos_detectados) {
+              categorizado.disponibles.push(custodio);
+            } else {
+              categorizado.noDisponibles.push(custodio);
+            }
         }
       }
 

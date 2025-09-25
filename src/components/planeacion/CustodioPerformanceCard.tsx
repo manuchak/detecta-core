@@ -9,13 +9,19 @@ interface CustodioPerformanceCardProps {
   onSelect?: (custodio: CustodioEnriquecido) => void;
   selected?: boolean;
   compact?: boolean;
+  disabled?: boolean;
+  availabilityStatus?: 'disponible' | 'parcialmente_ocupado' | 'ocupado' | 'no_disponible';
+  unavailableReason?: string;
 }
 
 export const CustodioPerformanceCard = ({ 
   custodio, 
   onSelect, 
   selected = false,
-  compact = false 
+  compact = false,
+  disabled = false,
+  availabilityStatus = 'disponible',
+  unavailableReason
 }: CustodioPerformanceCardProps) => {
   const getPerformanceBadgeColor = (level: CustodioEnriquecido['performance_level']) => {
     switch (level) {
@@ -77,14 +83,32 @@ export const CustodioPerformanceCard = ({
     return categoryInfo[category] || categoryInfo.rookie;
   };
 
+  const getAvailabilityIndicator = () => {
+    switch (availabilityStatus) {
+      case 'disponible':
+        return { color: 'bg-green-500', label: 'Disponible', icon: '🟢' };
+      case 'parcialmente_ocupado':
+        return { color: 'bg-yellow-500', label: 'Parcialmente ocupado', icon: '🟡' };
+      case 'ocupado':
+        return { color: 'bg-orange-500', label: 'Ocupado disponible', icon: '🟠' };
+      case 'no_disponible':
+        return { color: 'bg-red-500', label: 'No disponible', icon: '🔴' };
+      default:
+        return { color: 'bg-gray-500', label: 'Sin información', icon: '⚪' };
+    }
+  };
+
+  const availabilityInfo = getAvailabilityIndicator();
+
   if (compact) {
     return (
       <div 
         className={`
-          p-3 border rounded-lg cursor-pointer transition-all hover:shadow-md
-          ${selected ? 'ring-2 ring-gray-400 border-gray-400 bg-gray-50 dark:bg-gray-800/20' : 'border-border hover:border-gray-300'}
+          p-3 border rounded-lg transition-all 
+          ${disabled ? 'opacity-50 cursor-not-allowed bg-gray-100' : 'cursor-pointer hover:shadow-md'}
+          ${selected ? 'ring-2 ring-primary border-primary bg-primary/5' : disabled ? 'border-gray-200' : 'border-border hover:border-gray-300'}
         `}
-        onClick={() => onSelect?.(custodio)}
+        onClick={() => !disabled && onSelect?.(custodio)}
       >
         <div className="flex justify-between items-start mb-2">
           <div className="flex-1 min-w-0">
@@ -92,6 +116,12 @@ export const CustodioPerformanceCard = ({
             <p className="text-xs text-muted-foreground">{custodio.telefono}</p>
           </div>
           <div className="flex flex-col items-end gap-1 ml-2">
+            <div className="flex items-center gap-1 mb-1">
+              <span className="text-xs">{availabilityInfo.icon}</span>
+              <Badge variant={disabled ? "secondary" : "outline"} className={`text-xs px-1.5 py-0.5`}>
+                {availabilityInfo.label}
+              </Badge>
+            </div>
             <Badge className={`text-xs px-1.5 py-0.5 ${getBadgeInfo(custodio).color}`}>
               {getBadgeInfo(custodio).label}
             </Badge>
@@ -126,6 +156,13 @@ export const CustodioPerformanceCard = ({
             </TooltipProvider>
           )}
         </div>
+        
+        {/* Mostrar razón si no está disponible */}
+        {disabled && unavailableReason && (
+          <div className="mt-2 text-xs text-red-600 bg-red-50 p-1 rounded">
+            {unavailableReason}
+          </div>
+        )}
       </div>
     );
   }
@@ -134,10 +171,11 @@ export const CustodioPerformanceCard = ({
     <TooltipProvider>
       <div 
         className={`
-          p-4 border rounded-xl cursor-pointer transition-all hover:shadow-lg
-          ${selected ? 'ring-2 ring-gray-400 border-gray-400 bg-gray-50 dark:bg-gray-800/20' : 'border-border hover:border-gray-300'}
+          p-4 border rounded-xl transition-all 
+          ${disabled ? 'opacity-50 cursor-not-allowed bg-gray-100' : 'cursor-pointer hover:shadow-lg'}
+          ${selected ? 'ring-2 ring-primary border-primary bg-primary/5' : disabled ? 'border-gray-200' : 'border-border hover:border-gray-300'}
         `}
-        onClick={() => onSelect?.(custodio)}
+        onClick={() => !disabled && onSelect?.(custodio)}
       >
         {/* Header */}
         <div className="flex justify-between items-start mb-3">
@@ -153,6 +191,12 @@ export const CustodioPerformanceCard = ({
           </div>
           
           <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-sm">{availabilityInfo.icon}</span>
+              <Badge variant={disabled ? "secondary" : "outline"} className="text-xs">
+                {availabilityInfo.label}
+              </Badge>
+            </div>
             <div className="flex flex-col items-end gap-1">
               <Badge className={`${getBadgeInfo(custodio).color}`}>
                 {getBadgeInfo(custodio).label}
@@ -288,6 +332,19 @@ export const CustodioPerformanceCard = ({
                   {razon}
                 </Badge>
               ))}
+            </div>
+          </div>
+        )}
+        
+        {/* Mostrar razón si no está disponible */}
+        {disabled && unavailableReason && (
+          <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded-md">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5" />
+              <div>
+                <div className="text-xs font-medium text-red-800">No disponible</div>
+                <div className="text-xs text-red-700 mt-1">{unavailableReason}</div>
+              </div>
             </div>
           </div>
         )}

@@ -2,14 +2,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { User, MessageCircle, Phone, MapPin, Target, Clock, Car, AlertCircle, CheckCircle2, Shield, Settings, AlertTriangle, X } from 'lucide-react';
+import { User, MessageCircle, Phone, MapPin, Target, Clock, Car, AlertCircle, CheckCircle2, Shield, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { CustodioPerformanceCard } from '@/components/planeacion/CustodioPerformanceCard';
 import { CustodianContactDialog } from '../dialogs/CustodianContactDialog';
-import { useCustodiosWithTracking, type CustodioEnriquecido } from '@/hooks/useCustodiosWithTracking';
-import { useServiciosPlanificados, type ConflictInfo } from '@/hooks/useServiciosPlanificados';
+import { useCustodiosConProximidad, type CustodioConProximidad } from '@/hooks/useProximidadOperacional';
 import type { ServicioNuevo } from '@/utils/proximidadOperacional';
-import { safeUuidForDatabase, isValidUuid } from '@/utils/uuidHelpers';
 
 interface ServiceData {
   servicio_id?: string;
@@ -54,13 +52,10 @@ interface CustodianAssignmentStepProps {
 export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: CustodianAssignmentStepProps) {
   const [selectedCustodio, setSelectedCustodio] = useState<string | null>(null);
   const [comunicaciones, setComunicaciones] = useState<Record<string, ComunicacionState>>({});
-  const [custodianConflicts, setCustodianConflicts] = useState<Record<string, ConflictInfo[]>>({});
   
   // Estado para el diálogo de contacto
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
-  const [contactingCustodian, setContactingCustodian] = useState<CustodioEnriquecido | null>(null);
-
-  const { checkCustodianConflicts } = useServiciosPlanificados();
+  const [contactingCustodian, setContactingCustodian] = useState<CustodioConProximidad | null>(null);
 
   // Preparar datos del servicio para el hook
   const servicioNuevo: ServicioNuevo = useMemo(() => ({
@@ -84,12 +79,23 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
     serviceData.requiere_gadgets
   ]);
 
-  const { custodios: custodiosDisponibles, loading } = useCustodiosWithTracking({
-    servicioNuevo
-  });
+  // Usar el hook mejorado con validación preventiva
+  const { data: custodiosCategorizados, isLoading: loading } = useCustodiosConProximidad(servicioNuevo);
 
-  // Inicializar estados de comunicación y verificar conflictos
+  // Combinar todos los custodios disponibles (sin conflictos)
+  const custodiosDisponibles = useMemo(() => {
+    if (!custodiosCategorizados) return [];
+    return [
+      ...custodiosCategorizados.disponibles,
+      ...custodiosCategorizados.parcialmenteOcupados,
+      ...custodiosCategorizados.ocupados
+    ];
+  }, [custodiosCategorizados]);
+
+  // Inicializar estados de comunicación SOLO para custodios disponibles
   useEffect(() => {
+    if (!custodiosDisponibles.length) return;
+    
     const initialComunicaciones: Record<string, ComunicacionState> = {};
     custodiosDisponibles.forEach(custodio => {
       if (custodio.id && !comunicaciones[custodio.id]) {
@@ -99,49 +105,9 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
       }
     });
     setComunicaciones(prev => ({ ...prev, ...initialComunicaciones }));
-
-    // Check conflicts for all custodians
-    checkConflictsForCustodians();
   }, [custodiosDisponibles]);
 
-  const checkConflictsForCustodians = async () => {
-    if (!serviceData.fecha_hora_cita && !serviceData.fecha_programada) return;
-
-    const targetDate = serviceData.fecha_hora_cita || serviceData.fecha_programada;
-    const conflictsMap: Record<string, ConflictInfo[]> = {};
-
-    for (const custodio of custodiosDisponibles) {
-      if (custodio.id) {
-        try {
-          // Validate custodio.id before processing
-          if (!custodio.id || !isValidUuid(custodio.id)) {
-            console.warn(`Skipping custodian ${custodio.nombre} - invalid ID:`, custodio.id);
-            continue;
-          }
-          
-          // Only pass servicio_id if it's a valid UUID format
-          const excludeServiceId = safeUuidForDatabase(serviceData.servicio_id);
-          
-          const result = await checkCustodianConflicts(
-            custodio.id,
-            targetDate!,
-            excludeServiceId
-          );
-          
-          if (result.hasConflicts) {
-            conflictsMap[custodio.id] = result.conflicts;
-            console.debug(`Custodian ${custodio.nombre} has ${result.conflicts.length} conflicts:`, result.conflicts);
-          }
-        } catch (error) {
-          console.warn(`Error checking conflicts for custodian ${custodio.nombre}:`, error);
-        }
-      }
-    }
-
-    setCustodianConflicts(conflictsMap);
-  };
-
-  const handleOpenContactDialog = (custodian: CustodioEnriquecido) => {
+  const handleOpenContactDialog = (custodian: CustodioConProximidad) => {
     setContactingCustodian(custodian);
     setContactDialogOpen(true);
   };
@@ -208,15 +174,8 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
 
     const custodio = custodiosDisponibles.find(c => c.id === selectedCustodio);
     const comunicacion = comunicaciones[selectedCustodio];
-    const conflicts = custodianConflicts[selectedCustodio] || [];
 
-    // Check for conflicts before proceeding
-    if (conflicts.length > 0) {
-      toast.error('No se puede asignar custodio con conflictos de horario', {
-        description: `Este custodio tiene ${conflicts.length} servicio(s) conflictivo(s). Resuelve los conflictos primero.`
-      });
-      return;
-    }
+    // YA NO HAY CONFLICTOS - todos los custodios mostrados están disponibles
 
     const assignmentData: AssignmentData = {
       ...serviceData,
@@ -228,46 +187,14 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
     onComplete(assignmentData);
   };
 
-  const getConflictBadge = (conflicts: ConflictInfo[]) => {
-    if (conflicts.length === 0) {
-      return (
-        <Badge variant="outline" className="border-green-500 text-green-700 bg-green-50">
-          <CheckCircle2 className="h-3 w-3 mr-1" />
-          Sin conflictos
-        </Badge>
-      );
-    }
-
-    return (
-      <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-300">
-        <AlertTriangle className="h-3 w-3 mr-1" />
-        {conflicts.length} conflicto{conflicts.length > 1 ? 's' : ''}
-      </Badge>
-    );
-  };
-
-  const ConflictsList = ({ conflicts }: { conflicts: ConflictInfo[] }) => {
-    if (conflicts.length === 0) return null;
-
-    return (
-      <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
-        <div className="flex items-center gap-2 mb-2">
-          <AlertTriangle className="h-4 w-4 text-red-600" />
-          <span className="text-sm font-medium text-red-800">Servicios en conflicto:</span>
-        </div>
-        <div className="space-y-2 max-h-20 overflow-y-auto">
-          {conflicts.map((conflict, index) => (
-            <div key={index} className="text-xs text-red-700 bg-white p-2 rounded border">
-              <div className="font-medium">{conflict.id_servicio}</div>
-              <div className="text-red-600">
-                {conflict.cliente} • {new Date(conflict.fecha_hora_cita).toLocaleString('es-MX')}
-              </div>
-              <div className="text-red-500">{conflict.origen} → {conflict.destino}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+  const getAvailabilityCategory = (custodio: CustodioConProximidad) => {
+    if (!custodiosCategorizados) return 'disponible';
+    
+    if (custodiosCategorizados.disponibles.includes(custodio)) return 'disponible';
+    if (custodiosCategorizados.parcialmenteOcupados.includes(custodio)) return 'parcialmente_ocupado';
+    if (custodiosCategorizados.ocupados.includes(custodio)) return 'ocupado';
+    
+    return 'no_disponible';
   };
 
   const getEstadoBadge = (estado: string) => {
@@ -281,23 +208,6 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
     };
     
     return variants[estado] || variants.pendiente;
-  };
-
-  const getBorderColor = (estado: string, isSelected: boolean) => {
-    const baseClasses = "border rounded-lg p-4 transition-all";
-    
-    switch (estado) {
-      case 'aceptado':
-        return `${baseClasses} border-green-500 bg-green-50 ${isSelected ? 'ring-2 ring-green-200' : 'hover:border-green-600'}`;
-      case 'rechazado':
-        return `${baseClasses} border-red-500 bg-red-50 ${isSelected ? 'ring-2 ring-red-200' : 'hover:border-red-600'}`;
-      case 'contactar_despues':
-        return `${baseClasses} border-yellow-500 bg-yellow-50 ${isSelected ? 'ring-2 ring-yellow-200' : 'hover:border-yellow-600'}`;
-      case 'sin_responder':
-        return `${baseClasses} border-gray-400 bg-gray-50 ${isSelected ? 'ring-2 ring-gray-200' : 'hover:border-gray-500'}`;
-      default: // pendiente
-        return `${baseClasses} ${isSelected ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : 'border-border hover:border-primary/50'}`;
-    }
   };
 
   if (loading) {
@@ -372,27 +282,35 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <Card>
               <CardContent className="p-4">
                 <div className="text-2xl font-bold text-primary">{custodiosDisponibles.length}</div>
-                <p className="text-sm text-muted-foreground">Custodios disponibles</p>
+                <p className="text-sm text-muted-foreground">Disponibles</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
                 <div className="text-2xl font-bold text-green-600">
-                  {Object.values(comunicaciones).filter(c => c.estado === 'aceptado').length}
+                  {custodiosCategorizados?.disponibles.length || 0}
                 </div>
-                <p className="text-sm text-muted-foreground">Aceptaciones</p>
+                <p className="text-sm text-muted-foreground">🟢 Ideales</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="text-2xl font-bold text-yellow-600">
+                  {custodiosCategorizados?.parcialmenteOcupados.length || 0}
+                </div>
+                <p className="text-sm text-muted-foreground">🟡 Ocupados</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
                 <div className="text-2xl font-bold text-red-600">
-                  {Object.values(comunicaciones).filter(c => c.estado === 'rechazado').length}
+                  {custodiosCategorizados?.noDisponibles.length || 0}
                 </div>
-                <p className="text-sm text-muted-foreground">Rechazos</p>
+                <p className="text-sm text-muted-foreground">🔴 Filtrados</p>
               </CardContent>
             </Card>
           </div>
@@ -403,7 +321,7 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>Custodios Recomendados</span>
+            <span>Custodios Disponibles (Sin Conflictos)</span>
             {custodiosDisponibles.length > 0 && (
               <Badge variant="secondary">
                 {custodiosDisponibles.length} disponibles
@@ -417,7 +335,7 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
               <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No hay custodios disponibles</h3>
               <p className="text-muted-foreground mb-4">
-                No se encontraron custodios disponibles para este servicio en este momento.
+                Todos los custodios tienen conflictos de horario o están fuera de límites operacionales.
               </p>
               <Button variant="outline" onClick={onBack}>
                 Volver atrás
@@ -428,105 +346,87 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
               {custodiosDisponibles.map((custodio) => {
                 const comunicacion = comunicaciones[custodio.id!] || { estado: 'pendiente' };
                 const badge = getEstadoBadge(comunicacion.estado);
-                const conflicts = custodianConflicts[custodio.id!] || [];
                 const isSelected = selectedCustodio === custodio.id;
-                const hasConflicts = conflicts.length > 0;
+                const availabilityCategory = getAvailabilityCategory(custodio);
 
                 return (
                   <div
                     key={custodio.id}
-                    className={`${getBorderColor(comunicacion.estado, isSelected)} ${hasConflicts ? 'border-red-300 bg-red-50/50' : ''}`}
+                    className="border rounded-lg p-4 transition-all hover:shadow-md border-border hover:border-primary/50"
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      {/* Custodian Info - Compact Version */}
-                      <div className="flex-1">
-                        <CustodioPerformanceCard
-                          custodio={custodio}
-                          compact={true}
-                          selected={isSelected && !hasConflicts}
-                          onSelect={() => {
-                            if (custodio.id && !hasConflicts) {
-                              setSelectedCustodio(custodio.id);
-                            } else if (hasConflicts) {
-                              toast.warning('No se puede seleccionar custodio con conflictos de horario');
-                            }
-                          }}
-                        />
-                        
-                        {/* Conflict display */}
-                        <ConflictsList conflicts={conflicts} />
-                      </div>
+                    <CustodioPerformanceCard 
+                      custodio={custodio}
+                      compact={true}
+                      selected={isSelected}
+                      onSelect={() => setSelectedCustodio(custodio.id!)}
+                      availabilityStatus={availabilityCategory}
+                      disabled={false} // Todos están disponibles
+                    />
 
-                      {/* Actions Column */}
-                      <div className="flex flex-col items-end gap-2 min-w-[200px]">
-                        {/* Conflict Badge */}
-                        {getConflictBadge(conflicts)}
-                        
-                        {/* Status Badge */}
-                        <Badge variant={badge.variant}>
-                          {badge.text}
-                        </Badge>
-
-                        {/* Contact Buttons */}
-                        {comunicacion.estado === 'pendiente' && !hasConflicts && (
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleOpenContactDialog(custodio)}
-                              className="flex items-center gap-1.5"
-                            >
-                              <MessageCircle className="h-4 w-4" />
-                              WhatsApp
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleOpenContactDialog(custodio)}
-                              className="flex items-center gap-1.5"
-                            >
-                              <Phone className="h-4 w-4" />
-                              Llamar
-                            </Button>
-                          </div>
-                        )}
-
-                        {/* Conflict Warning for Contact Buttons */}
-                        {comunicacion.estado === 'pendiente' && hasConflicts && (
-                          <div className="text-xs text-red-600 text-center max-w-[180px]">
-                            <X className="h-4 w-4 mx-auto mb-1" />
-                            No disponible por conflictos
-                          </div>
-                        )}
-
-                        {/* Rejection Details */}
-                        {comunicacion.estado === 'rechazado' && comunicacion.razon_rechazo && (
-                          <div className="text-xs text-muted-foreground text-right max-w-[180px]">
-                            <strong>Razón:</strong> {comunicacion.razon_rechazo}
-                            {comunicacion.detalles && (
-                              <div className="mt-1 italic">{comunicacion.detalles}</div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Contact Later Details */}
-                        {comunicacion.estado === 'contactar_despues' && comunicacion.contactar_en && (
-                          <div className="text-xs text-muted-foreground text-right max-w-[180px]">
-                            <strong>Contactar:</strong> {comunicacion.contactar_en}
-                            {comunicacion.detalles && (
-                              <div className="mt-1 italic">{comunicacion.detalles}</div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Timestamp */}
-                        {comunicacion.timestamp && (
-                          <div className="text-xs text-muted-foreground">
-                            {comunicacion.timestamp.toLocaleTimeString()}
-                          </div>
-                        )}
-                      </div>
+                    {/* Status badges */}
+                    <div className="flex items-center justify-between mt-3">
+                      <Badge {...badge}>
+                        {badge.text}
+                      </Badge>
+                      
+                      <Badge variant="outline" className="border-green-500 text-green-700 bg-green-50">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Sin conflictos
+                      </Badge>
                     </div>
+
+                    {/* Contact Buttons */}
+                    {comunicacion.estado === 'pendiente' && (
+                      <div className="flex gap-2 mt-3">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleOpenContactDialog(custodio)}
+                          className="flex items-center gap-1.5 flex-1"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                          WhatsApp
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleOpenContactDialog(custodio)}
+                          className="flex items-center gap-1.5 flex-1"
+                        >
+                          <Phone className="h-4 w-4" />
+                          Llamar
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Rejection Details */}
+                    {comunicacion.estado === 'rechazado' && comunicacion.razon_rechazo && (
+                      <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded-md">
+                        <div className="text-xs text-red-800">
+                          <strong>Razón:</strong> {comunicacion.razon_rechazo}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Contact After Details */}
+                    {comunicacion.estado === 'contactar_despues' && comunicacion.contactar_en && (
+                      <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+                        <div className="text-xs text-yellow-800">
+                          <strong>Contactar:</strong> {comunicacion.contactar_en}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Información de equidad si existe */}
+                    {custodio.datos_equidad && (
+                      <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                        <div className="text-xs text-blue-800">
+                          Servicios hoy: {custodio.datos_equidad.servicios_hoy} • 
+                          Score equidad: {custodio.datos_equidad.score_equidad}/100 •
+                          Balance: {custodio.datos_equidad.balance_recommendation}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -535,70 +435,36 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
         </CardContent>
       </Card>
 
-      {/* Actions */}
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack}>
-          Atrás
-        </Button>
-        <div className="flex gap-2">
-          {/* Auto-advance fallback: mostrar botón cuando alguien haya aceptado pero no avanzó automáticamente */}
-          {Object.values(comunicaciones).some(c => c.estado === 'aceptado') && !selectedCustodio && (
-            <Button 
-              variant="secondary"
-              onClick={() => {
-                const acceptedCustodianId = Object.entries(comunicaciones)
-                  .find(([_, comm]) => comm.estado === 'aceptado')?.[0];
-                if (acceptedCustodianId) {
-                  setSelectedCustodio(acceptedCustodianId);
-                  const custodio = custodiosDisponibles.find(c => c.id === acceptedCustodianId);
-                  console.log('🔧 Fallback manual: seleccionando custodio que aceptó', { acceptedCustodianId, custodio });
-                  toast.info('Custodio seleccionado automáticamente por aceptación previa');
-                }
-              }}
-              className="flex items-center gap-2"
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              Continuar con aceptación
+      {/* Footer */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <Button variant="outline" onClick={onBack}>
+              Volver
             </Button>
-          )}
-          
-          <Button 
-            onClick={handleComplete} 
-            disabled={!selectedCustodio || (selectedCustodio && custodianConflicts[selectedCustodio]?.length > 0)}
-            className="flex items-center gap-2"
-          >
-            <CheckCircle2 className="h-4 w-4" />
-            Confirmar Asignación
-          </Button>
-        </div>
-      </div>
-
-      {/* Help text for conflicts */}
-      {selectedCustodio && custodianConflicts[selectedCustodio]?.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center gap-2 text-red-800">
-            <AlertTriangle className="h-5 w-5" />
-            <span className="font-medium">No se puede confirmar la asignación</span>
+            
+            <div className="text-sm text-muted-foreground">
+              {selectedCustodio ? 'Custodio seleccionado' : 'Selecciona un custodio'}
+            </div>
+            
+            <Button
+              onClick={handleComplete}
+              disabled={!selectedCustodio}
+              className="min-w-[120px]"
+            >
+              {selectedCustodio ? 'Continuar' : 'Selecciona custodio'}
+            </Button>
           </div>
-          <p className="text-red-700 text-sm mt-1">
-            El custodio seleccionado tiene conflictos de horario. Resuelve los conflictos o selecciona otro custodio.
-          </p>
-        </div>
-      )}
+        </CardContent>
+      </Card>
 
-      {/* Diálogo de Contacto */}
+      {/* Contact Dialog */}
       {contactingCustodian && (
         <CustodianContactDialog
           open={contactDialogOpen}
           onOpenChange={setContactDialogOpen}
           custodian={contactingCustodian}
-          serviceDetails={{
-            origen: serviceData.origen || serviceData.cliente_nombre || 'No especificado',
-            destino: serviceData.destino || serviceData.destino_texto || 'No especificado',
-            fecha_hora: serviceData.fecha_programada || serviceData.fecha_hora_cita ? 
-              new Date(serviceData.fecha_programada || serviceData.fecha_hora_cita!).toLocaleString() : 'No especificada',
-            tipo_servicio: serviceData.tipo_servicio || 'No especificado'
-          }}
+          serviceData={serviceData}
           onResult={(result) => handleContactResult(contactingCustodian.id!, result)}
         />
       )}

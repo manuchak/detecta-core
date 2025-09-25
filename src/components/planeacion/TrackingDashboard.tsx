@@ -200,9 +200,9 @@ export const TrackingDashboard = ({ servicioNuevo }: TrackingDashboardProps) => 
                   </Badge>
                   {mejorCustodio.categoria_disponibilidad && (
                     <Badge 
-                      variant={mejorCustodio.categoria_disponibilidad === 'libre' ? 'default' : 'secondary'}
+                      variant={mejorCustodio.categoria_disponibilidad === 'disponible' ? 'default' : 'secondary'}
                     >
-                      {mejorCustodio.categoria_disponibilidad === 'libre' ? '🎯 Ideal' : 
+                      {mejorCustodio.categoria_disponibilidad === 'disponible' ? '🎯 Ideal' : 
                        mejorCustodio.categoria_disponibilidad === 'parcialmente_ocupado' ? '✅ Bueno' : '⚖️ Aceptable'}
                     </Badge>
                   )}
