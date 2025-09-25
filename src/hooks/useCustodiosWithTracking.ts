@@ -45,8 +45,16 @@ export const useCustodiosWithTracking = ({
   const [custodiosEnriquecidos, setCustodiosEnriquecidos] = useState<CustodioEnriquecido[]>([]);
   const [loading, setLoading] = useState(false);
   
-  const { data: custodios = [], isLoading: custodiosLoading } = useCustodiosConProximidad(servicioNuevo);
+  const { data: custodiosCategorizados, isLoading: custodiosLoading } = useCustodiosConProximidad(servicioNuevo);
   const { getAllCustodioMetrics } = useCustodioTracking();
+
+  // Combinar todas las categorías en un array plano para compatibilidad  
+  const custodios = custodiosCategorizados ? [
+    ...custodiosCategorizados.disponibles,
+    ...custodiosCategorizados.parcialmenteOcupados,
+    ...custodiosCategorizados.ocupados
+    // No incluir no_disponibles en el array principal
+  ] : [];
 
   const enrichCustodios = async () => {
     if (!custodios || custodios.length === 0) return;

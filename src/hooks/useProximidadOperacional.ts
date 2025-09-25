@@ -1,26 +1,34 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { calcularProximidadOperacional, type CustodioConHistorial, type ServicioNuevo, type ScoringProximidad } from '@/utils/proximidadOperacional';
+import { calcularProximidadOperacional, type CustodioConHistorial, type ServicioNuevo, type ScoringProximidad, type FactorEquidad } from '@/utils/proximidadOperacional';
 
 export interface CustodioConProximidad extends CustodioConHistorial {
   scoring_proximidad?: ScoringProximidad;
   indisponibilidades_activas?: any[];
   disponibilidad_efectiva?: string;
+  categoria_disponibilidad?: 'libre' | 'parcialmente_ocupado' | 'ocupado_disponible' | 'no_disponible';
+  datos_equidad?: FactorEquidad;
+}
+
+export interface CustodiosCategorizados {
+  disponibles: CustodioConProximidad[];      // 0-1 servicios hoy
+  parcialmenteOcupados: CustodioConProximidad[]; // 2 servicios hoy  
+  ocupados: CustodioConProximidad[];         // 2+ servicios pero disponibles
+  noDisponibles: CustodioConProximidad[];    // Conflictos horarios o límites
 }
 
 /**
- * Hook para obtener custodios con scoring de proximidad operacional
- * Usa la función get_custodios_activos_disponibles() que filtra automáticamente por:
- * - Custodios con servicios completados en últimos 90 días O custodios nuevos (no migrados)
- * - Estado activo
- * - Disponibilidad efectiva considerando indisponibilidades
- * - Excluye custodios históricos sin actividad reciente (ahora marcados como inactivo_temporal)
+ * Hook para obtener custodios con scoring de proximidad operacional equitativo
+ * Aplica algoritmo balanceado que considera:
+ * - Proximidad operacional (60%)
+ * - Factor de equidad/workload (25%) 
+ * - Factor de oportunidad/rotación (15%)
  */
 export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
   return useQuery({
-    queryKey: ['custodios-con-proximidad', servicioNuevo],
-    queryFn: async () => {
-      console.log('🔍 Obteniendo custodios con proximidad operacional...');
+    queryKey: ['custodios-con-proximidad-equitativo', servicioNuevo],
+    queryFn: async (): Promise<CustodiosCategorizados> => {
+      console.log('🔍 Obteniendo custodios con algoritmo equitativo...');
       
       // Usar la función segura que filtra custodios con actividad reciente (90 días)
       const { data: custodiosDisponibles, error } = await supabase
@@ -33,7 +41,12 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
 
       if (!custodiosDisponibles || custodiosDisponibles.length === 0) {
         console.log('⚠️ No se encontraron custodios disponibles');
-        return [];
+        return {
+          disponibles: [],
+          parcialmenteOcupados: [],
+          ocupados: [],
+          noDisponibles: []
+        };
       }
 
       console.log(`✅ Encontrados ${custodiosDisponibles.length} custodios disponibles`);
@@ -55,8 +68,8 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
         serviciosProximos = servicios || [];
       }
 
-      // Procesar custodios y agregar scoring de proximidad
-      const custodiosConProximidad: CustodioConProximidad[] = [];
+      // Procesar custodios con algoritmo equitativo
+      const custodiosProcessed: CustodioConProximidad[] = [];
       
       for (const custodio of custodiosDisponibles) {
         const custodioProcessed: CustodioConProximidad = {
@@ -66,89 +79,124 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
           disponibilidad_efectiva: custodio.disponibilidad_efectiva
         };
 
-        // Verificar disponibilidad automática si hay servicio nuevo y está habilitado
+        // NUEVO: Verificar disponibilidad equitativa si hay servicio nuevo
         if (servicioNuevo) {
           try {
-            const { data: disponibilidadResult } = await supabase.rpc('verificar_disponibilidad_custodio', {
+            const { data: disponibilidadEquitativa } = await supabase.rpc('verificar_disponibilidad_equitativa_custodio', {
               p_custodio_id: custodio.id,
-              p_fecha_hora_inicio: `${servicioNuevo.fecha_programada}T${servicioNuevo.hora_ventana_inicio}`,
-              p_km_teoricos: 0, // Usar 0 como valor por defecto ya que ServicioNuevo no tiene km_teoricos
-              p_zona_id: null
+              p_custodio_nombre: custodio.nombre,
+              p_fecha_servicio: servicioNuevo.fecha_programada,
+              p_hora_inicio: servicioNuevo.hora_ventana_inicio,
+              p_duracion_estimada_horas: 4
             });
 
-            // Si no está disponible por bloqueo automático, marcar como tal
-            if (disponibilidadResult && !disponibilidadResult.disponible) {
-              custodioProcessed.disponibilidad_efectiva = 'temporalmente_indisponible';
-              custodioProcessed.indisponibilidades_activas = [
-                ...(custodioProcessed.indisponibilidades_activas || []),
-                {
-                  motivo: disponibilidadResult.razon || 'Conflicto de horario automático',
-                  fecha_fin: disponibilidadResult.proxima_disponibilidad || null
-                }
-              ];
+            if (disponibilidadEquitativa) {
+              // Crear factor de equidad desde la respuesta de la función
+              const factorEquidad: FactorEquidad = {
+                servicios_hoy: disponibilidadEquitativa.servicios_hoy || 0,
+                dias_sin_asignar: disponibilidadEquitativa.dias_sin_asignar || 0,
+                nivel_fatiga: disponibilidadEquitativa.nivel_fatiga || 'bajo',
+                score_equidad: disponibilidadEquitativa.factor_equidad || 50,
+                score_oportunidad: disponibilidadEquitativa.factor_oportunidad || 50,
+                categoria_disponibilidad: disponibilidadEquitativa.categoria_disponibilidad || 'libre',
+                balance_recommendation: disponibilidadEquitativa.scoring_equitativo?.balance_recommendation || 'bueno'
+              };
+
+              custodioProcessed.datos_equidad = factorEquidad;
+              custodioProcessed.categoria_disponibilidad = factorEquidad.categoria_disponibilidad;
+
+              // Si no está disponible, marcar como tal
+              if (!disponibilidadEquitativa.disponible) {
+                custodioProcessed.disponibilidad_efectiva = 'temporalmente_indisponible';
+                custodioProcessed.indisponibilidades_activas = [
+                  ...(custodioProcessed.indisponibilidades_activas || []),
+                  {
+                    motivo: disponibilidadEquitativa.razon_no_disponible || 'Límite de servicios alcanzado',
+                    servicios_hoy: disponibilidadEquitativa.servicios_hoy,
+                    nivel_fatiga: disponibilidadEquitativa.nivel_fatiga
+                  }
+                ];
+              }
+
+              // Calcular scoring de proximidad con factor de equidad
+              const scoring = calcularProximidadOperacional(
+                custodioProcessed,
+                servicioNuevo,
+                serviciosProximos,
+                factorEquidad // NUEVO: Pasar factor de equidad
+              );
+              custodioProcessed.scoring_proximidad = scoring;
             }
           } catch (error: any) {
-            console.warn('⚠️ Error verificando disponibilidad automática:', error);
-            // Continuar sin bloqueo automático en caso de error
-            // Si la función no existe, simplemente no aplicar bloqueo automático
-            if (error?.code === '42883') { // Function does not exist
-              console.log('📝 Función de verificación de disponibilidad no encontrada, continuando sin validación automática');
+            console.warn('⚠️ Error verificando equidad:', error);
+            // Fallback al algoritmo original sin equidad
+            if (servicioNuevo) {
+              const scoring = calcularProximidadOperacional(
+                custodioProcessed,
+                servicioNuevo,
+                serviciosProximos
+                // Sin factor de equidad - algoritmo original
+              );
+              custodioProcessed.scoring_proximidad = scoring;
             }
           }
         }
 
-        // Calcular scoring de proximidad solo si hay servicio nuevo
-        if (servicioNuevo) {
-          try {
-            const scoring = calcularProximidadOperacional(
-              custodioProcessed,
-              servicioNuevo,
-              serviciosProximos
-            );
-            custodioProcessed.scoring_proximidad = scoring;
-          } catch (error) {
-            console.error('❌ Error calculando proximidad para', custodio.nombre, error);
-            // Scoring por defecto en caso de error
-            custodioProcessed.scoring_proximidad = {
-              score_total: 50,
-              score_temporal: 50,
-              score_geografico: 50,
-              score_operacional: 50,
-              detalles: {
-                razones: ['Error en cálculo de proximidad']
-              }
-            };
-          }
+        custodiosProcessed.push(custodioProcessed);
+      }
+
+      // NUEVO: Separar en categorías según disponibilidad
+      const categorizado: CustodiosCategorizados = {
+        disponibles: [],
+        parcialmenteOcupados: [],
+        ocupados: [],
+        noDisponibles: []
+      };
+
+      for (const custodio of custodiosProcessed) {
+        // Filtrar completamente indisponibles
+        if (custodio.disponibilidad_efectiva === 'temporalmente_indisponible') {
+          categorizado.noDisponibles.push(custodio);
+          continue;
         }
 
-        custodiosConProximidad.push(custodioProcessed);
+        // Categorizar por disponibilidad
+        switch (custodio.categoria_disponibilidad) {
+          case 'libre':
+            categorizado.disponibles.push(custodio);
+            break;
+          case 'parcialmente_ocupado':
+            categorizado.parcialmenteOcupados.push(custodio);
+            break;
+          case 'ocupado_disponible':
+            categorizado.ocupados.push(custodio);
+            break;
+          default:
+            categorizado.disponibles.push(custodio); // Fallback
+        }
       }
 
-      // Filtrar custodios temporalmente indisponibles
-      const custodiosActivos = custodiosConProximidad.filter(custodio => 
-        custodio.disponibilidad_efectiva !== 'temporalmente_indisponible'
-      );
+      // Ordenar cada categoría por scoring equitativo
+      const ordenarPorScoring = (a: CustodioConProximidad, b: CustodioConProximidad) => {
+        if (servicioNuevo && a.scoring_proximidad && b.scoring_proximidad) {
+          return b.scoring_proximidad.score_total - a.scoring_proximidad.score_total;
+        }
+        // Fallback por score operativo
+        return (b.score_total || 0) - (a.score_total || 0);
+      };
 
-      // Ordenar por scoring de proximidad si existe, si no por score total operativo
-      if (servicioNuevo) {
-        custodiosActivos.sort((a, b) => {
-          const scoreA = a.scoring_proximidad?.score_total || 0;
-          const scoreB = b.scoring_proximidad?.score_total || 0;
-          
-          if (Math.abs(scoreB - scoreA) > 5) {
-            return scoreB - scoreA; // Por proximidad
-          }
-          
-          // Tiebreaker por score operativo total
-          return (b.score_total || 0) - (a.score_total || 0);
-        });
-      } else {
-        // Sin servicio específico, ordenar por score operativo
-        custodiosActivos.sort((a, b) => (b.score_total || 0) - (a.score_total || 0));
-      }
+      categorizado.disponibles.sort(ordenarPorScoring);
+      categorizado.parcialmenteOcupados.sort(ordenarPorScoring);
+      categorizado.ocupados.sort(ordenarPorScoring);
 
-      console.log(`✅ Procesados ${custodiosActivos.length} custodios activos con proximidad`);
-      return custodiosActivos;
+      console.log(`✅ Custodios categorizados:`, {
+        disponibles: categorizado.disponibles.length,
+        parcialmente_ocupados: categorizado.parcialmenteOcupados.length,
+        ocupados: categorizado.ocupados.length,
+        no_disponibles: categorizado.noDisponibles.length
+      });
+
+      return categorizado;
     },
     enabled: true,
     staleTime: 5 * 60 * 1000, // 5 minutos

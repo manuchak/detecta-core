@@ -11715,6 +11715,16 @@ export type Database = {
         }
         Returns: Json
       }
+      verificar_disponibilidad_equitativa_custodio: {
+        Args: {
+          p_custodio_id: string
+          p_custodio_nombre: string
+          p_duracion_estimada_horas?: number
+          p_fecha_servicio: string
+          p_hora_inicio: string
+        }
+        Returns: Json
+      }
       verify_user_account: {
         Args: { target_user_id: string; verify_status: boolean }
         Returns: boolean

@@ -74,6 +74,9 @@ export interface ScoringProximidad {
   score_temporal: number;
   score_geografico: number;
   score_operacional: number;
+  score_equidad?: number;
+  score_oportunidad?: number;
+  categoria_disponibilidad?: 'libre' | 'parcialmente_ocupado' | 'ocupado_disponible' | 'no_disponible';
   detalles: {
     distancia_estimada?: number;
     misma_region?: boolean;
@@ -82,32 +85,50 @@ export interface ScoringProximidad {
     zona_preferida_match?: boolean;
     experiencia_tipo_servicio?: boolean;
     vehiculo_propio_ventaja?: boolean;
+    servicios_hoy?: number;
+    dias_sin_asignar?: number;
+    nivel_fatiga?: 'bajo' | 'medio' | 'alto';
+    balance_recommendation?: 'ideal' | 'bueno' | 'aceptable' | 'evitar';
     razones: string[];
   };
 }
 
+export interface FactorEquidad {
+  servicios_hoy: number;
+  dias_sin_asignar: number;
+  nivel_fatiga: 'bajo' | 'medio' | 'alto';
+  score_equidad: number;
+  score_oportunidad: number;
+  categoria_disponibilidad: 'libre' | 'parcialmente_ocupado' | 'ocupado_disponible' | 'no_disponible';
+  balance_recommendation: 'ideal' | 'bueno' | 'aceptable' | 'evitar';
+}
+
 /**
- * Calcula el scoring de proximidad operacional para un custodio
+ * Calcula el scoring de proximidad operacional para un custodio con algoritmo equitativo
  */
 export function calcularProximidadOperacional(
   custodio: CustodioConHistorial,
   servicioNuevo: ServicioNuevo,
-  serviciosProximos: ServicioHistorico[] = []
+  serviciosProximos: ServicioHistorico[] = [],
+  factorEquidad?: FactorEquidad
 ): ScoringProximidad {
   const scoring: ScoringProximidad = {
     score_total: 0,
     score_temporal: 0,
     score_geografico: 0,
     score_operacional: 0,
+    score_equidad: 50,
+    score_oportunidad: 50,
+    categoria_disponibilidad: 'libre',
     detalles: {
       razones: []
     }
   };
 
-  // 1. SCORING TEMPORAL (40% del peso total)
+  // 1. SCORING TEMPORAL (30% del peso total - reducido para incluir equidad)
   scoring.score_temporal = calcularScoreTemporal(custodio, servicioNuevo, serviciosProximos);
   
-  // 2. SCORING GEOGRÁFICO (35% del peso total)
+  // 2. SCORING GEOGRÁFICO (30% del peso total - reducido para incluir equidad)  
   const scoringGeo = calcularScoreGeografico(custodio, servicioNuevo);
   scoring.score_geografico = scoringGeo.score;
   scoring.detalles.distancia_estimada = scoringGeo.distancia;
@@ -120,12 +141,34 @@ export function calcularProximidadOperacional(
   scoring.detalles.experiencia_tipo_servicio = scoringOp.experienciaTipo;
   scoring.detalles.vehiculo_propio_ventaja = scoringOp.vehiculoVentaja;
   
-  // Combinar scores con pesos
-  scoring.score_total = Math.round(
-    (scoring.score_temporal * 0.4) +
-    (scoring.score_geografico * 0.35) +
-    (scoring.score_operacional * 0.25)
-  );
+  // 4. SCORING DE EQUIDAD (15% del peso total - NUEVO)
+  if (factorEquidad) {
+    scoring.score_equidad = factorEquidad.score_equidad;
+    scoring.score_oportunidad = factorEquidad.score_oportunidad;
+    scoring.categoria_disponibilidad = factorEquidad.categoria_disponibilidad;
+    scoring.detalles.servicios_hoy = factorEquidad.servicios_hoy;
+    scoring.detalles.dias_sin_asignar = factorEquidad.dias_sin_asignar;
+    scoring.detalles.nivel_fatiga = factorEquidad.nivel_fatiga;
+    scoring.detalles.balance_recommendation = factorEquidad.balance_recommendation;
+  }
+
+  // ALGORITMO EQUITATIVO: Combinar scores con nuevos pesos
+  if (factorEquidad) {
+    scoring.score_total = Math.round(
+      (scoring.score_temporal * 0.30) +           // Proximidad temporal
+      (scoring.score_geografico * 0.30) +        // Proximidad geográfica  
+      (scoring.score_operacional * 0.25) +       // Performance operacional
+      (scoring.score_equidad * 0.10) +           // Factor de equidad (workload)
+      (scoring.score_oportunidad * 0.05)         // Factor de oportunidad (rotación)
+    );
+  } else {
+    // Algoritmo original para custodios sin datos de equidad
+    scoring.score_total = Math.round(
+      (scoring.score_temporal * 0.4) +
+      (scoring.score_geografico * 0.35) +
+      (scoring.score_operacional * 0.25)
+    );
+  }
   
   // Asegurar que esté en rango 0-100
   scoring.score_total = Math.max(0, Math.min(100, scoring.score_total));
@@ -402,52 +445,75 @@ export function analizarPatronesTrabajoCustomdio(servicios: ServicioHistorico[])
 export function generarRazonesRecomendacion(scoring: ScoringProximidad, custodio: CustodioConHistorial): string[] {
   const razones: string[] = [];
   
+  // Razones de equidad (PRIORIDAD ALTA - aparecen primero)
+  if (scoring.detalles.balance_recommendation === 'ideal') {
+    razones.push(`🎯 Ideal: ${scoring.detalles.servicios_hoy || 0} servicios hoy`);
+  } else if (scoring.detalles.balance_recommendation === 'bueno') {
+    razones.push(`✅ Buen balance: ${scoring.detalles.servicios_hoy || 0} servicios hoy`);
+  } else if (scoring.detalles.balance_recommendation === 'aceptable') {
+    razones.push(`⚖️ Balance aceptable: ${scoring.detalles.servicios_hoy || 0} servicios hoy`);
+  }
+  
+  // Razones de oportunidad (rotación)
+  if (scoring.detalles.dias_sin_asignar && scoring.detalles.dias_sin_asignar >= 3) {
+    razones.push(`🔄 ${scoring.detalles.dias_sin_asignar} días sin servicio - merece oportunidad`);
+  } else if (scoring.detalles.dias_sin_asignar === 1) {
+    razones.push(`📅 Último servicio ayer - rotación balanceada`);
+  }
+  
   // Razones temporales
   if (scoring.score_temporal > 60) {
     if (scoring.detalles.termina_servicio_cercano) {
-      razones.push(`Termina servicio ${scoring.detalles.horas_diferencia}h antes en zona cercana`);
+      razones.push(`⏰ Termina servicio ${scoring.detalles.horas_diferencia}h antes en zona cercana`);
     } else {
-      razones.push('Disponible en horario solicitado');
+      razones.push('✅ Disponible en horario solicitado');
     }
   }
   
   // Razones geográficas
   if (scoring.detalles.zona_preferida_match) {
-    razones.push('Zona preferida coincide con el servicio');
+    razones.push('🎯 Zona preferida coincide con el servicio');
   }
   if (scoring.detalles.misma_region) {
-    razones.push('Trabaja frecuentemente en la región');
+    razones.push('🗺️ Trabaja frecuentemente en la región');
   }
   if (scoring.detalles.distancia_estimada && scoring.detalles.distancia_estimada < 50) {
-    razones.push(`Cercano al origen (~${scoring.detalles.distancia_estimada}km)`);
+    razones.push(`📍 Cercano al origen (~${scoring.detalles.distancia_estimada}km)`);
   }
   
   // Razones operacionales
   if (scoring.detalles.experiencia_tipo_servicio) {
-    razones.push('Experiencia en este tipo de servicio');
+    razones.push('🛡️ Experiencia en este tipo de servicio');
   }
   if (scoring.detalles.vehiculo_propio_ventaja) {
-    razones.push('Cuenta con vehículo propio');
+    razones.push('🚗 Cuenta con vehículo propio');
   }
   if (custodio.rating_promedio && custodio.rating_promedio >= 4.5) {
-    razones.push(`Excelente rating (${custodio.rating_promedio}/5)`);
+    razones.push(`⭐ Excelente rating (${custodio.rating_promedio}/5)`);
   }
   if (custodio.numero_servicios && custodio.numero_servicios >= 20) {
-    razones.push(`Experiencia comprobada (${custodio.numero_servicios} servicios)`);
+    razones.push(`📊 Experiencia comprobada (${custodio.numero_servicios} servicios)`);
+  }
+  
+  // Advertencias sobre carga de trabajo
+  if (scoring.detalles.nivel_fatiga === 'alto') {
+    razones.push('⚠️ Alta carga de trabajo - considerar otros custodios');
+  } else if (scoring.detalles.nivel_fatiga === 'medio') {
+    razones.push('⚡ Carga media de trabajo');
   }
   
   // Si no hay razones específicas, agregar una general
   if (razones.length === 0) {
     if (scoring.score_total >= 70) {
-      razones.push('Perfil altamente compatible');
+      razones.push('🔥 Perfil altamente compatible');
     } else if (scoring.score_total >= 50) {
-      razones.push('Perfil compatible');
+      razones.push('✅ Perfil compatible');
     } else {
-      razones.push('Disponible para el servicio');
+      razones.push('📋 Disponible para el servicio');
     }
   }
   
-  return razones.slice(0, 3); // Máximo 3 razones para no saturar la UI
+  return razones.slice(0, 4); // Máximo 4 razones para incluir info de equidad
 }
 
 /**
