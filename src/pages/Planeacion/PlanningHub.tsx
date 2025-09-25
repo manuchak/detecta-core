@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PlusCircle, Settings, BarChart3, Smartphone, Calendar, TrendingUp, Shield, AlertTriangle, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RequestCreationWorkflow } from './components/RequestCreationWorkflow';
@@ -20,8 +21,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { EditableService } from '@/components/planeacion/EditServiceModal';
 
 export default function PlanningHub() {
-  const [activeTab, setActiveTab] = useState('create-request');
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showCreateWorkflow, setShowCreateWorkflow] = useState(false);
   const navigate = useNavigate();
   const { isEditMode } = useEditWorkflow();
   const { logSecurityEvent } = useSecurityAudit();
@@ -51,6 +53,23 @@ export default function PlanningHub() {
 
   return (
     <div className="h-full">
+      {/* Primary CTA - Top Positioned */}
+      <div className="mb-6 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg p-6 border border-primary/20">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-foreground mb-1">¿Listo para crear un nuevo servicio?</h2>
+            <p className="text-sm text-muted-foreground">Flujo completo paso a paso con validación automatizada</p>
+          </div>
+          <Button 
+            onClick={() => setShowCreateWorkflow(true)}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 px-6 py-3 h-auto rounded-lg font-medium"
+            size="lg"
+          >
+            <PlusCircle className="h-5 w-5 mr-2" />
+            Crear Nuevo Servicio
+          </Button>
+        </div>
+      </div>
       {/* Alert for duplicate services */}
       {!checkingDuplicates && totalDuplicates > 0 && (
         <Alert className="mb-6 border-warning bg-warning/5">
@@ -83,7 +102,10 @@ export default function PlanningHub() {
         </TabsList>
 
         <TabsContent value="dashboard" className="apple-content-spacing">
-          <OperationalDashboard />
+          <OperationalDashboard 
+            showCreateWorkflow={showCreateWorkflow}
+            setShowCreateWorkflow={setShowCreateWorkflow}
+          />
         </TabsContent>
 
         <TabsContent value="services" className="apple-content-spacing">
@@ -106,6 +128,16 @@ export default function PlanningHub() {
         service={mockService}
         onSave={handleEditModalSave}
       />
+      
+      {/* Create Service Modal */}
+      <Dialog open={showCreateWorkflow} onOpenChange={setShowCreateWorkflow}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Crear Nuevo Servicio</DialogTitle>
+          </DialogHeader>
+          <RequestCreationWorkflow />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

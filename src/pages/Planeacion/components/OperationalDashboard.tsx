@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
   Users, 
   AlertCircle, 
@@ -8,18 +7,21 @@ import {
   Clock, 
   MapPin,
   TrendingUp,
-  PlusCircle,
+  
   AlertTriangle,
   MessageSquare
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { usePlaneacionStats, useServicios, useCustodios } from '@/hooks/usePlaneacion';
-import { RequestCreationWorkflow } from './RequestCreationWorkflow';
 
-export function OperationalDashboard() {
+interface OperationalDashboardProps {
+  showCreateWorkflow: boolean;
+  setShowCreateWorkflow: (show: boolean) => void;
+}
+
+export function OperationalDashboard({ showCreateWorkflow, setShowCreateWorkflow }: OperationalDashboardProps) {
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString('es-ES'));
-  const [showCreateWorkflow, setShowCreateWorkflow] = useState(false);
   
   const { data: stats } = usePlaneacionStats();
   const { data: servicios = [] } = useServicios();
@@ -66,27 +68,6 @@ export function OperationalDashboard() {
         </div>
       </div>
 
-      {/* Primary Action Hero Section */}
-      <div className="apple-section">
-        <div className="apple-section-header">
-          <h2 className="apple-section-title">Acción Principal</h2>
-          <p className="apple-section-description">Crear un nuevo servicio con el flujo completo guiado</p>
-        </div>
-        <div className="flex justify-center">
-          <button 
-            onClick={() => setShowCreateWorkflow(true)}
-            className="apple-quick-action apple-quick-action-primary w-full max-w-lg"
-          >
-            <div className="apple-quick-action-icon">
-              <PlusCircle className="h-8 w-8" />
-            </div>
-            <div className="text-left">
-              <div className="apple-quick-action-title text-lg">Crear Nuevo Servicio</div>
-              <div className="apple-quick-action-subtitle">Flujo completo paso a paso con validación</div>
-            </div>
-          </button>
-        </div>
-      </div>
 
       {/* Critical Alert */}
       {serviciosPendientesHoy.length > 0 && (
@@ -247,15 +228,6 @@ export function OperationalDashboard() {
         </div>
       </div>
 
-      {/* Create Service Modal */}
-      <Dialog open={showCreateWorkflow} onOpenChange={setShowCreateWorkflow}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Crear Nuevo Servicio</DialogTitle>
-          </DialogHeader>
-          <RequestCreationWorkflow />
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Search, Menu, Bell, Settings, User, LogOut } from "lucide-react";
+import { Search, Menu, Bell, Settings, User, LogOut, PlusCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -16,9 +16,11 @@ import { useAuth } from "@/contexts/AuthContext";
 interface HeaderProps {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
+  showCreateButton?: boolean;
+  onCreateService?: () => void;
 }
 
-export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
+export const Header = ({ sidebarOpen, setSidebarOpen, showCreateButton, onCreateService }: HeaderProps) => {
   const { user, signOut } = useAuth();
 
   const handleSignOut = async () => {
@@ -51,10 +53,21 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
           </div>
         </div>
         
-        <div className="ml-4 flex items-center md:ml-6 space-x-1">
-          <Button variant="ghost" size="icon" className="text-muted-foreground rounded-full">
-            <Bell className="h-4.5 w-4.5" />
-          </Button>
+        <div className="ml-4 flex items-center md:ml-6 space-x-3">
+          {showCreateButton && (
+            <Button 
+              onClick={onCreateService}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 px-4 py-2 h-9 rounded-lg font-medium"
+            >
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Crear Servicio
+            </Button>
+          )}
+          
+          <div className="flex items-center space-x-1">
+            <Button variant="ghost" size="icon" className="text-muted-foreground rounded-full">
+              <Bell className="h-4.5 w-4.5" />
+            </Button>
           
           <Button variant="ghost" size="icon" className="text-muted-foreground rounded-full">
             <Settings className="h-4.5 w-4.5" />
@@ -99,6 +112,7 @@ export const Header = ({ sidebarOpen, setSidebarOpen }: HeaderProps) => {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         </div>
       </div>
     </header>
