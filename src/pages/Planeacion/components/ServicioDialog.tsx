@@ -34,6 +34,7 @@ import { useClientes } from '@/hooks/usePlaneacion';
 
 const servicioSchema = z.object({
   cliente_id: z.string().min(1, 'Cliente es requerido'),
+  id_interno_cliente: z.string().max(50, 'Máximo 50 caracteres').optional(),
   fecha_programada: z.string().min(1, 'Fecha es requerida'),
   hora_ventana_inicio: z.string().min(1, 'Hora inicio es requerida'),
   hora_ventana_fin: z.string().min(1, 'Hora fin es requerida'),
@@ -130,7 +131,7 @@ export default function ServicioDialog({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               {/* Cliente */}
               <FormField
                 control={form.control}
@@ -152,6 +153,24 @@ export default function ServicioDialog({
                         ))}
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* ID Interno del Cliente */}
+              <FormField
+                control={form.control}
+                name="id_interno_cliente"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>ID Interno del Cliente (Opcional)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Ej: CLI-2024-001, REF-ABC123"
+                        {...field}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

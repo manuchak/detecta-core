@@ -245,6 +245,7 @@ export interface AuditLog {
 
 export interface ServicioForm {
   cliente_id: string;
+  id_interno_cliente?: string;
   fecha_programada: string;
   hora_ventana_inicio: string;
   hora_ventana_fin: string;

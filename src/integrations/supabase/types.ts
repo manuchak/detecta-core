@@ -8376,6 +8376,7 @@ export type Database = {
           fecha_respuesta: string | null
           hora_encuentro: string | null
           id: string
+          id_interno_cliente: string | null
           id_servicio: string
           metodo_comunicacion: string | null
           moneda: string | null
@@ -8417,6 +8418,7 @@ export type Database = {
           fecha_respuesta?: string | null
           hora_encuentro?: string | null
           id?: string
+          id_interno_cliente?: string | null
           id_servicio: string
           metodo_comunicacion?: string | null
           moneda?: string | null
@@ -8458,6 +8460,7 @@ export type Database = {
           fecha_respuesta?: string | null
           hora_encuentro?: string | null
           id?: string
+          id_interno_cliente?: string | null
           id_servicio?: string
           metodo_comunicacion?: string | null
           moneda?: string | null
