@@ -535,7 +535,20 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
                 Tipo de Custodia *
                 {getAutoFillBadge('tipo_servicio')}
               </Label>
-              <Select value={tipoServicio} onValueChange={setTipoServicio}>
+              <Select 
+                value={tipoServicio} 
+                onValueChange={(value) => {
+                  setTipoServicio(value);
+                  // Lógica bidireccional: actualizar automáticamente el switch de armado
+                  if (value === 'custodia_sin_arma') {
+                    setIncluyeArmado(false);
+                    toast.info('Servicio sin arma: custodio armado desactivado automáticamente');
+                  } else if (value === 'custodia_armada' || value === 'custodia_armada_reforzada') {
+                    setIncluyeArmado(true);
+                    toast.info('Servicio armado: custodio armado activado automáticamente');
+                  }
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -561,16 +574,26 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
                   {incluyeArmado && getAutoFillBadge('tipo_servicio')}
                 </Label>
                 <div className="text-sm text-muted-foreground">
-                  Custodio certificado con portación de arma
+                  {tipoServicio === 'custodia_sin_arma' 
+                    ? 'Este tipo de servicio no incluye custodio armado'
+                    : 'Custodio certificado con portación de arma'
+                  }
                 </div>
               </div>
               <Switch
                 checked={incluyeArmado}
+                disabled={tipoServicio === 'custodia_sin_arma'}
                 onCheckedChange={(checked) => {
+                  if (tipoServicio === 'custodia_sin_arma') return; // Prevenir cambios cuando está deshabilitado
+                  
                   setIncluyeArmado(checked);
                   if (checked) {
-                    setTipoServicio(tipoServicio === 'custodia_armada_reforzada' ? 'custodia_armada_reforzada' : 'custodia_armada');
+                    // Si activa armado pero está en custodia sin arma, cambiar a custodia armada
+                    if (tipoServicio === 'custodia_sin_arma') {
+                      setTipoServicio('custodia_armada');
+                    }
                   } else {
+                    // Si desactiva armado, cambiar a custodia sin arma
                     setTipoServicio('custodia_sin_arma');
                   }
                 }}
