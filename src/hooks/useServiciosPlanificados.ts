@@ -253,8 +253,18 @@ export function useServiciosPlanificados() {
       custodioName: string; 
       custodioId?: string;
     }) => {
+      // Validate inputs
+      if (!serviceId || !custodioName) {
+        throw new Error('ID de servicio y nombre de custodio son requeridos');
+      }
+      
+      // Validate serviceId is a proper UUID
+      if (!isValidUuid(serviceId)) {
+        throw new Error('ID de servicio inválido - debe ser un UUID válido');
+      }
+      
       // First check for conflicts if custodioId is provided
-      if (custodioId) {
+      if (custodioId && isValidUuid(custodioId)) {
         // Get service details first to check conflicts
         const { data: service, error: serviceError } = await supabase
           .from('servicios_planificados')

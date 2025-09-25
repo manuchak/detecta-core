@@ -9,7 +9,7 @@ import { CustodianContactDialog } from '../dialogs/CustodianContactDialog';
 import { useCustodiosWithTracking, type CustodioEnriquecido } from '@/hooks/useCustodiosWithTracking';
 import { useServiciosPlanificados, type ConflictInfo } from '@/hooks/useServiciosPlanificados';
 import type { ServicioNuevo } from '@/utils/proximidadOperacional';
-import { safeUuidForDatabase } from '@/utils/uuidHelpers';
+import { safeUuidForDatabase, isValidUuid } from '@/utils/uuidHelpers';
 
 interface ServiceData {
   servicio_id?: string;
@@ -113,6 +113,12 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
     for (const custodio of custodiosDisponibles) {
       if (custodio.id) {
         try {
+          // Validate custodio.id before processing
+          if (!custodio.id || !isValidUuid(custodio.id)) {
+            console.warn(`Skipping custodian ${custodio.nombre} - invalid ID:`, custodio.id);
+            continue;
+          }
+          
           // Only pass servicio_id if it's a valid UUID format
           const excludeServiceId = safeUuidForDatabase(serviceData.servicio_id);
           

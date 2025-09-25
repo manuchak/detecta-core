@@ -126,7 +126,19 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
             });
 
             if (rpcError) {
-              console.warn('⚠️ Error RPC verificar_disponibilidad_equitativa_custodio:', rpcError.message);
+              console.warn('⚠️ RPC function error, using fallback algorithm:', rpcError.message);
+              // Use fallback algorithm without equity checking
+              if (servicioNuevo) {
+                const scoring = calcularProximidadOperacional(
+                  custodioProcessed,
+                  servicioNuevo,
+                  serviciosProximos
+                );
+                custodioProcessed.scoring_proximidad = scoring;
+                custodioProcessed.categoria_disponibilidad = 'libre';
+              }
+              custodiosProcessed.push(custodioProcessed);
+              continue; // Skip to next custodian
             }
 
             if (disponibilidadEquitativa) {
