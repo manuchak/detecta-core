@@ -1,20 +1,49 @@
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
-  AlertTriangle, 
-  Clock, 
+  BarChart3, 
   Users, 
+  AlertCircle, 
   CheckCircle, 
-  TrendingUp,
-  MessageSquare,
+  Clock, 
   MapPin,
-  AlertCircle
+  TrendingUp,
+  Calendar,
+  User,
+  PlusCircle,
+  Upload,
+  Settings,
+  AlertTriangle,
+  MessageSquare
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { usePlaneacionStats, useServicios, useCustodios } from '@/hooks/usePlaneacion';
+import { RequestCreationWorkflow } from './RequestCreationWorkflow';
+import { ExcelImportWizard } from './ExcelImportWizard';
+import ServicioDialog from './ServicioDialog';
 
 export function OperationalDashboard() {
+  const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString('es-ES'));
+  const [showCreateWorkflow, setShowCreateWorkflow] = useState(false);
+  const [showImportWizard, setShowImportWizard] = useState(false);
+  const [showQuickCreate, setShowQuickCreate] = useState(false);
+  
   const { data: stats } = usePlaneacionStats();
   const { data: servicios = [] } = useServicios();
   const { data: custodios = [] } = useCustodios();
+
+  // Update time every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString('es-ES'));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // KPIs operativos reales
   const serviciosPendientesHoy = servicios.filter(s => 
@@ -38,32 +67,74 @@ export function OperationalDashboard() {
   });
 
   return (
-    <div className="apple-container space-y-8">
+    <div className="apple-layout">
       {/* Header */}
-      <div className="apple-section-header">
+      <div className="apple-header">
         <div>
-          <h1 className="apple-text-largetitle text-foreground">Panel Operacional</h1>
-          <p className="apple-text-body text-muted-foreground">
-            Resumen de operaciones y acciones prioritarias
+          <h1 className="apple-title">Dashboard Operacional</h1>
+          <p className="apple-subtitle">
+            {format(new Date(), 'EEEE, dd MMMM yyyy', { locale: es })} • {currentTime}
           </p>
         </div>
-        <div className="text-right">
-          <p className="apple-text-caption text-muted-foreground">
-            {format(new Date(), "dd/MM HH:mm")}
-          </p>
+      </div>
+
+      {/* Quick Actions Hero Section */}
+      <div className="apple-section">
+        <div className="apple-section-header">
+          <h2 className="apple-section-title">Acciones Principales</h2>
+        </div>
+        <div className="apple-quick-actions">
+          <button 
+            onClick={() => setShowCreateWorkflow(true)}
+            className="apple-quick-action apple-quick-action-primary"
+          >
+            <div className="apple-quick-action-icon">
+              <PlusCircle className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="apple-quick-action-title">Crear Servicio</div>
+              <div className="apple-quick-action-subtitle">Flujo completo paso a paso</div>
+            </div>
+          </button>
+          
+          <button 
+            onClick={() => setShowImportWizard(true)}
+            className="apple-quick-action"
+          >
+            <div className="apple-quick-action-icon">
+              <Upload className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="apple-quick-action-title">Importar Excel</div>
+              <div className="apple-quick-action-subtitle">Carga masiva de servicios</div>
+            </div>
+          </button>
+
+          <button 
+            onClick={() => setShowQuickCreate(true)}
+            className="apple-quick-action"
+          >
+            <div className="apple-quick-action-icon">
+              <Settings className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="apple-quick-action-title">Creación Rápida</div>
+              <div className="apple-quick-action-subtitle">Formulario directo</div>
+            </div>
+          </button>
         </div>
       </div>
 
       {/* Critical Alert */}
       {serviciosPendientesHoy.length > 0 && (
-        <div className="apple-card border-l-4 border-l-destructive bg-destructive/5">
-          <div className="flex items-start gap-4 p-4">
+        <div className="apple-alert">
+          <div className="flex items-start gap-4">
             <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <h3 className="apple-text-headline font-semibold text-destructive">
+              <h3 className="apple-alert-title">
                 Atención Inmediata Requerida
               </h3>
-              <p className="apple-text-body text-muted-foreground mt-1">
+              <p className="apple-alert-description">
                 {serviciosPendientesHoy.length} servicios requieren asignación para hoy
               </p>
             </div>
@@ -72,73 +143,65 @@ export function OperationalDashboard() {
       )}
 
       {/* Hero Metrics */}
-      <div className="apple-grid-metrics">
-        <div className="apple-card-metric">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-primary/10 rounded-lg">
-              <Clock className="h-5 w-5 text-primary" />
+      <div className="apple-metrics">
+        <div className="apple-metric apple-metric-primary">
+          <div className="apple-metric-icon">
+            <Clock className="h-6 w-6" />
+          </div>
+          <div className="apple-metric-content">
+            <div className="apple-metric-value">
+              {serviciosPendientesHoy.length}
             </div>
-            <div className="flex-1">
-              <p className="apple-text-caption text-muted-foreground">Servicios Hoy</p>
-              <p className="apple-text-title font-bold text-primary">
-                {serviciosPendientesHoy.length}
-              </p>
-            </div>
+            <div className="apple-metric-label">Servicios Hoy</div>
           </div>
         </div>
 
-        <div className="apple-card-metric">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-green-500/10 rounded-lg">
-              <Users className="h-5 w-5 text-green-600 dark:text-green-500" />
+        <div className="apple-metric apple-metric-success">
+          <div className="apple-metric-icon">
+            <Users className="h-6 w-6" />
+          </div>
+          <div className="apple-metric-content">
+            <div className="apple-metric-value">
+              {custodiosDisponibles.length}
             </div>
-            <div className="flex-1">
-              <p className="apple-text-caption text-muted-foreground">Custodios Disponibles</p>
-              <p className="apple-text-title font-bold text-green-600 dark:text-green-500">
-                {custodiosDisponibles.length}
-              </p>
-            </div>
+            <div className="apple-metric-label">Custodios Disponibles</div>
           </div>
         </div>
 
-        <div className="apple-card-metric">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-orange-500/10 rounded-lg">
-              <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-500" />
+        <div className="apple-metric apple-metric-warning">
+          <div className="apple-metric-icon">
+            <AlertCircle className="h-6 w-6" />
+          </div>
+          <div className="apple-metric-content">
+            <div className="apple-metric-value">
+              {serviciosSinCustodio.length}
             </div>
-            <div className="flex-1">
-              <p className="apple-text-caption text-muted-foreground">Sin Asignar</p>
-              <p className="apple-text-title font-bold text-orange-600 dark:text-orange-500">
-                {serviciosSinCustodio.length}
-              </p>
-            </div>
+            <div className="apple-metric-label">Sin Asignar</div>
           </div>
         </div>
 
-        <div className="apple-card-metric">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-purple-500/10 rounded-lg">
-              <TrendingUp className="h-5 w-5 text-purple-600 dark:text-purple-500" />
+        <div className="apple-metric apple-metric-neutral">
+          <div className="apple-metric-icon">
+            <TrendingUp className="h-6 w-6" />
+          </div>
+          <div className="apple-metric-content">
+            <div className="apple-metric-value">
+              {serviciosProximosVencer.length}
             </div>
-            <div className="flex-1">
-              <p className="apple-text-caption text-muted-foreground">Por Vencer</p>
-              <p className="apple-text-title font-bold text-purple-600 dark:text-purple-500">
-                {serviciosProximosVencer.length}
-              </p>
-            </div>
+            <div className="apple-metric-label">Por Vencer</div>
           </div>
         </div>
       </div>
 
       {/* Priority Actions */}
-      <div className="apple-grid-actions">
-        <div className="apple-surface-elevated p-6">
-          <div className="apple-section-header mb-4">
-            <h3 className="apple-text-headline flex items-center gap-2">
+      <div className="apple-actions">
+        <div className="apple-card">
+          <div className="apple-section-header">
+            <h3 className="apple-section-title flex items-center gap-2">
               <Clock className="h-5 w-5 text-primary" />
               Acciones Prioritarias
             </h3>
-            <p className="apple-text-body text-muted-foreground">
+            <p className="apple-section-description">
               Servicios que requieren atención inmediata
             </p>
           </div>
@@ -148,31 +211,31 @@ export function OperationalDashboard() {
                 <div key={servicio.id} className="apple-list-item">
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <p className="apple-text-body font-medium text-foreground truncate">
+                      <p className="apple-list-title">
                         {servicio.folio || 'Sin folio'}
                       </p>
-                      <p className="apple-text-caption text-muted-foreground">
+                      <p className="apple-list-description">
                         {servicio.destino_texto || 'Sin destino'} • {servicio.hora_ventana_inicio || 'Sin horario'}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 ml-4">
+                    <div className="apple-list-actions">
                       {!servicio.custodio_asignado && (
-                        <button className="apple-button-primary">
+                        <Button size="sm" className="apple-button">
                           <Users className="h-4 w-4 mr-1" />
                           Asignar
-                        </button>
+                        </Button>
                       )}
-                      <button className="apple-button-ghost">
+                      <Button size="sm" variant="ghost">
                         <MessageSquare className="h-4 w-4" />
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="text-center py-12">
+              <div className="apple-empty-state">
                 <CheckCircle className="h-10 w-10 text-green-500 mx-auto mb-3" />
-                <p className="apple-text-body text-muted-foreground">
+                <p className="text-muted-foreground">
                   No hay servicios pendientes para hoy
                 </p>
               </div>
@@ -180,17 +243,17 @@ export function OperationalDashboard() {
           </div>
         </div>
 
-        <div className="apple-surface-elevated p-6">
-          <div className="apple-section-header mb-4">
-            <h3 className="apple-text-headline flex items-center gap-2">
+        <div className="apple-card">
+          <div className="apple-section-header">
+            <h3 className="apple-section-title flex items-center gap-2">
               <MapPin className="h-5 w-5 text-primary" />
               Resumen por Zona
             </h3>
-            <p className="apple-text-body text-muted-foreground">
+            <p className="apple-section-description">
               Disponibilidad de custodios por zona
             </p>
           </div>
-          <div className="apple-list">
+          <div className="apple-zones">
             {['Norte', 'Sur', 'Centro', 'Oriente'].map((zona) => {
               const custodiosZona = custodiosDisponibles.filter(c => 
                 c.zona_base?.toLowerCase().includes(zona.toLowerCase())
@@ -200,25 +263,19 @@ export function OperationalDashboard() {
               ).length;
               
               return (
-                <div key={zona} className="apple-list-item">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <p className="apple-text-body font-medium text-foreground">
-                        {zona}
-                      </p>
-                      <p className="apple-text-caption text-muted-foreground">
-                        {custodiosZona} de {totalZona} disponibles
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 ml-4">
-                      <div className={`w-2.5 h-2.5 rounded-full ${
-                        custodiosZona > totalZona * 0.7 ? 'bg-green-500' : 
-                        custodiosZona > totalZona * 0.3 ? 'bg-yellow-500' : 'bg-red-500'
-                      }`} />
-                      <span className="apple-text-caption font-medium text-foreground min-w-[3ch]">
-                        {totalZona > 0 ? Math.round((custodiosZona / totalZona) * 100) : 0}%
-                      </span>
-                    </div>
+                <div key={zona} className="apple-zone-card">
+                  <div className="apple-zone-header">
+                    <span className="apple-zone-title">{zona}</span>
+                    <div className={`w-2 h-2 rounded-full ${
+                      custodiosZona > totalZona * 0.7 ? 'bg-green-500' : 
+                      custodiosZona > totalZona * 0.3 ? 'bg-yellow-500' : 'bg-red-500'
+                    }`} />
+                  </div>
+                  <div className="apple-zone-percentage">
+                    {totalZona > 0 ? Math.round((custodiosZona / totalZona) * 100) : 0}%
+                  </div>
+                  <div className="apple-zone-availability">
+                    {custodiosZona} de {totalZona} disponibles
                   </div>
                 </div>
               );
@@ -226,6 +283,40 @@ export function OperationalDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <Dialog open={showCreateWorkflow} onOpenChange={setShowCreateWorkflow}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Crear Nuevo Servicio</DialogTitle>
+          </DialogHeader>
+          <RequestCreationWorkflow />
+        </DialogContent>
+      </Dialog>
+
+      {/* Excel Import Wizard Modal */}
+      <Dialog open={showImportWizard} onOpenChange={setShowImportWizard}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Importar Servicios desde Excel</DialogTitle>
+          </DialogHeader>
+          <ExcelImportWizard 
+            onSuccess={() => {
+              setShowImportWizard(false);
+              // Refresh data here if needed
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <ServicioDialog
+        open={showQuickCreate}
+        onOpenChange={setShowQuickCreate}
+        onSubmit={async (data) => {
+          console.log('Quick create:', data);
+          setShowQuickCreate(false);
+        }}
+      />
     </div>
   );
 }
