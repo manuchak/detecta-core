@@ -8,7 +8,7 @@ import { RequestCreationWorkflow } from './components/RequestCreationWorkflow';
 import { OperationalDashboard } from './components/OperationalDashboard';
 import { ComodatosGPSTab } from './components/ComodatosGPSTab';
 import { PlanningConfigurationTab } from './components/PlanningConfigurationTab';
-import { ScheduledServicesTab } from './components/ScheduledServicesTab';
+import { ScheduledServicesTab } from './components/ScheduledServicesTabSimple';
 import { AdminPerformanceTab } from './components/AdminPerformanceTab';
 import { ContextualEditModal } from '@/components/planeacion/ContextualEditModal';
 import { ArmedGuardComplianceDashboard } from '@/components/planeacion/ArmedGuardComplianceDashboard';
@@ -50,30 +50,22 @@ export default function PlanningHub() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-8">
-      {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold text-foreground">Hub de Planeación</h1>
-        <p className="text-muted-foreground">
-          Gestiona solicitudes de servicios desde clientes hasta asignación de custodios
-        </p>
-      </div>
-
-      {/* Duplicate Services Alert */}
+    <div className="h-full">
+      {/* Alert for duplicate services */}
       {!checkingDuplicates && totalDuplicates > 0 && (
-        <Alert className="border-amber-200 bg-amber-50">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
+        <Alert className="mb-6 border-warning bg-warning/5">
+          <AlertTriangle className="h-4 w-4" />
           <AlertDescription className="flex items-center justify-between">
             <div>
-              <strong className="text-amber-800">¡Atención!</strong> Se detectaron{' '}
-              <strong className="text-amber-900">{totalDuplicates} servicios duplicados</strong>{' '}
-              en el sistema. Esto puede causar conflictos en la asignación.
+              <strong className="text-warning">¡Atención!</strong> Se detectaron{' '}
+              <strong className="text-warning">{totalDuplicates} servicios duplicados</strong>{' '}
+              en el sistema.
             </div>
             <Button 
               variant="outline" 
               size="sm"
               onClick={() => navigate('/maintenance/duplicate-cleanup')}
-              className="ml-4 border-amber-300 text-amber-800 hover:bg-amber-100"
+              className="ml-4 border-warning/20 text-warning hover:bg-warning/5"
             >
               <ExternalLink className="h-4 w-4 mr-1" />
               Ver Limpieza
@@ -81,108 +73,33 @@ export default function PlanningHub() {
           </AlertDescription>
         </Alert>
       )}
-
-      {/* Main Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-8 lg:w-[1600px]">
-          <TabsTrigger value="create-request" className={`flex items-center gap-2 ${isEditMode ? 'bg-blue-100 text-blue-700' : ''}`}>
-            <PlusCircle className="h-4 w-4" />
-            {isEditMode ? 'Editando' : 'Crear Solicitud'}
-          </TabsTrigger>
-          <TabsTrigger value="dashboard" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Dashboard
-          </TabsTrigger>
-          <TabsTrigger value="scheduled-services" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Servicios
-          </TabsTrigger>
-          <TabsTrigger value="gps-comodatos" className="flex items-center gap-2">
-            <Smartphone className="h-4 w-4" />
-            GPS
-          </TabsTrigger>
-          <TabsTrigger value="admin-performance" className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4" />
-            Performance
-          </TabsTrigger>
-          <TabsTrigger value="configuration" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            Config
-          </TabsTrigger>
-          <TabsTrigger value="compliance" className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
-            Compliance
-          </TabsTrigger>
-          <TabsTrigger value="demo-ux" className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white">
-            🚀 Demo UX
-          </TabsTrigger>
+      
+      <Tabs defaultValue="dashboard" className="h-full">
+        <TabsList className="apple-tabs-minimal">
+          <TabsTrigger value="dashboard" className="apple-tab">Dashboard</TabsTrigger>
+          <TabsTrigger value="services" className="apple-tab">Servicios</TabsTrigger>
+          <TabsTrigger value="gps" className="apple-tab">GPS</TabsTrigger>
+          <TabsTrigger value="config" className="apple-tab">Configuración</TabsTrigger>
         </TabsList>
 
-        {/* Crear Solicitud - Core Workflow */}
-        <TabsContent value="create-request" className="space-y-6 mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Flujo de Creación de Solicitudes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <RequestCreationWorkflow />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Dashboard Operativo */}
-        <TabsContent value="dashboard" className="space-y-6 mt-6">
+        <TabsContent value="dashboard" className="apple-content-spacing">
           <OperationalDashboard />
         </TabsContent>
 
-        {/* Servicios Programados */}
-        <TabsContent value="scheduled-services" className="space-y-6 mt-6">
+        <TabsContent value="services" className="apple-content-spacing">
           <ScheduledServicesTab />
         </TabsContent>
 
-        {/* GPS Comodatos - Workflow Independiente */}
-        <TabsContent value="gps-comodatos" className="space-y-6 mt-6">
+        <TabsContent value="gps" className="apple-content-spacing">
           <ComodatosGPSTab />
         </TabsContent>
 
-        {/* Admin Performance Dashboard */}
-        <TabsContent value="admin-performance" className="space-y-6 mt-6">
-          <AdminPerformanceTab />
-        </TabsContent>
-
-        {/* Configuración - Maestros Simplificados */}
-        <TabsContent value="configuration" className="space-y-6 mt-6">
+        <TabsContent value="config" className="apple-content-spacing">
           <PlanningConfigurationTab />
-        </TabsContent>
-
-        {/* Compliance Dashboard */}
-        <TabsContent value="compliance" className="space-y-6 mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                Control y Auditoría de Armados Externos
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ArmedGuardComplianceDashboard />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Demo UX Mejorado */}
-        <TabsContent value="demo-ux" className="space-y-6 mt-6">
-          <div className="text-center space-y-4">
-            <h2 className="text-2xl font-bold">🚀 Workflow UX Mejorado</h2>
-            <p className="text-muted-foreground">Sistema contextual e inteligente implementado</p>
-            <Button onClick={() => setShowEditModal(true)} size="lg" className="bg-blue-600 hover:bg-blue-700">
-              Probar Modal Contextual
-            </Button>
-          </div>
         </TabsContent>
       </Tabs>
 
-      {/* Modal Contextual */}
+      {/* Demo Modal */}
       <ContextualEditModal
         open={showEditModal}
         onOpenChange={setShowEditModal}

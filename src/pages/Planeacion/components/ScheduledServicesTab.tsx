@@ -210,78 +210,41 @@ export function ScheduledServicesTab() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header with Date Selector and Summary Cards */}
-      <div className="space-y-6">
-        {/* Date Selector */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h2 className="text-title text-xl">Servicios Programados</h2>
-            <AirlineDateSelector 
-              selectedDate={selectedDate}
-              onDateChange={setSelectedDate}
-            />
-          </div>
-          <div className="text-caption">
-            {format(selectedDate, 'PPP', { locale: es })}
-          </div>
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="apple-header-section">
+        <div>
+          <h1 className="apple-text-largetitle">Servicios</h1>
+          <p className="apple-text-body text-secondary">
+            Agenda de servicios programados
+          </p>
         </div>
+        <div className="flex items-center gap-4">
+          <AirlineDateSelector 
+            selectedDate={selectedDate}
+            onDateChange={setSelectedDate}
+          />
+          <Button variant="ghost" size="sm" onClick={refetch} className="apple-button-ghost">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          {/* Total Services */}
-          <div className="card-refined">
-            <div className="flex items-center gap-3">
-              <div className="status-dot status-dot-pending w-3 h-3"></div>
-              <div>
-                <div className="text-2xl font-semibold text-slate-900">{summary?.total_services || 0}</div>
-                <div className="text-caption">Total Servicios</div>
-              </div>
-            </div>
+      {/* Date Header */}
+      <div className="apple-date-header">
+        <div className="apple-text-title">{format(selectedDate, 'PPP', { locale: es })}</div>
+        <div className="apple-summary-compact">
+          <div className="apple-summary-item">
+            <span className="apple-summary-value">{summary?.total_services || 0}</span>
+            <span className="apple-summary-label">total</span>
           </div>
-
-          {/* Assigned Services */}
-          <div className="card-refined border-emerald-200/60 bg-emerald-50/20">
-            <div className="flex items-center gap-3">
-              <div className="status-dot status-dot-success w-3 h-3"></div>
-              <div>
-                <div className="text-2xl font-semibold text-emerald-800">{summary?.assigned_services || 0}</div>
-                <div className="text-caption text-emerald-700">Asignados</div>
-              </div>
-            </div>
+          <div className="apple-summary-item">
+            <span className="apple-summary-value apple-text-success">{summary?.assigned_services || 0}</span>
+            <span className="apple-summary-label">asignados</span>
           </div>
-
-          {/* Pending Confirmation */}
-          <div className="card-refined border-orange-200/60 bg-orange-50/20">
-            <div className="flex items-center gap-3">
-              <div className="status-dot status-dot-warning w-3 h-3"></div>
-              <div>
-                <div className="text-2xl font-semibold text-orange-800">{summary?.pending_services || 0}</div>
-                <div className="text-caption text-orange-700">Pendientes Confirmación</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Confirmed Services */}
-          <div className="card-refined border-blue-200/60 bg-blue-50/20">
-            <div className="flex items-center gap-3">
-              <div className="status-dot bg-blue-500 w-3 h-3"></div>
-              <div>
-                <div className="text-2xl font-semibold text-blue-800">{summary?.confirmed_services || 0}</div>
-                <div className="text-caption text-blue-700">Confirmados</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Unassigned Services */}
-          <div className="card-refined border-orange-200/60 bg-orange-50/20">
-            <div className="flex items-center gap-3">
-              <div className="status-dot status-dot-warning w-3 h-3"></div>
-              <div>
-                <div className="text-2xl font-semibold text-orange-800">{pendingSummary?.total_pending || 0}</div>
-                <div className="text-caption text-orange-700">Sin Custodio</div>
-              </div>
-            </div>
+          <div className="apple-summary-item">
+            <span className="apple-summary-value apple-text-warning">{pendingSummary?.total_pending || 0}</span>
+            <span className="apple-summary-label">pendientes</span>
           </div>
         </div>
       </div>
