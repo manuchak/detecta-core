@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { isValidUuid, safeUuidForDatabase } from '@/utils/uuidHelpers';
 
 export interface ServicioPlanificadoData {
   id_servicio: string;
@@ -57,12 +58,14 @@ export const checkCustodianConflicts = async (
   const conflicts: ConflictInfo[] = [];
   
   try {
+    const excludeServiceId = safeUuidForDatabase(currentServiceUuid);
+    
     // 1. Check via RPC for existing conflicts
     const { data: rpcResult, error: rpcError } = await supabase
       .rpc('check_custodian_availability', {
         p_custodio_id: custodioId,
         p_fecha_hora_cita: fechaHoraCita,
-        p_exclude_service_id: currentServiceUuid
+        p_exclude_service_id: excludeServiceId
       });
 
     if (!rpcError && rpcResult?.has_conflicts) {
@@ -88,7 +91,7 @@ export const checkCustodianConflicts = async (
       .in('estado_planeacion', ['confirmado', 'asignado'])
       .gte('fecha_hora_cita', startTime.toISOString())
       .lte('fecha_hora_cita', endTime.toISOString())
-      .neq('id', currentServiceUuid || '');
+      .neq('id', excludeServiceId || '');
 
     if (!plannedError && plannedConflicts?.length > 0) {
       // Add planned conflicts that weren't already found by RPC
@@ -262,12 +265,14 @@ export function useServiciosPlanificados() {
         if (serviceError) throw new Error('Error al obtener datos del servicio');
         if (!service) throw new Error('Servicio no encontrado');
 
-        // Check for conflicts
+        // Check for conflicts        
+        const excludeServiceId = safeUuidForDatabase(serviceId);
+        
         const { data: conflictCheck, error: conflictError } = await supabase
           .rpc('check_custodian_availability', {
             p_custodio_id: custodioId,
             p_fecha_hora_cita: service.fecha_hora_cita,
-            p_exclude_service_id: serviceId
+            p_exclude_service_id: excludeServiceId
           });
 
         if (conflictError) {

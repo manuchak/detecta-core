@@ -9,6 +9,7 @@ import { CustodianContactDialog } from '../dialogs/CustodianContactDialog';
 import { useCustodiosWithTracking, type CustodioEnriquecido } from '@/hooks/useCustodiosWithTracking';
 import { useServiciosPlanificados, type ConflictInfo } from '@/hooks/useServiciosPlanificados';
 import type { ServicioNuevo } from '@/utils/proximidadOperacional';
+import { safeUuidForDatabase } from '@/utils/uuidHelpers';
 
 interface ServiceData {
   servicio_id?: string;
@@ -101,10 +102,13 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
     for (const custodio of custodiosDisponibles) {
       if (custodio.id) {
         try {
+          // Only pass servicio_id if it's a valid UUID format
+          const excludeServiceId = safeUuidForDatabase(serviceData.servicio_id);
+          
           const result = await checkCustodianConflicts(
             custodio.id,
             targetDate!,
-            serviceData.servicio_id
+            excludeServiceId
           );
           
           if (result.hasConflicts) {

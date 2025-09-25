@@ -71,7 +71,14 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
   const [validationResult, setValidationResult] = useState<any>(null);
   const [hasValidated, setHasValidated] = useState(false);
 
-  // Validar ID cuando cambia (con debounce)
+  // Effect to generate a service ID if none exists
+  useEffect(() => {
+    if (!servicioId.trim()) {
+      // Generate a new UUID for the service
+      const newServiceId = crypto.randomUUID();
+      setServicioId(newServiceId);
+    }
+  }, [servicioId]);
   const validateServiceId = useCallback(async (id: string) => {
     if (!id?.trim()) {
       setValidationResult(null);
