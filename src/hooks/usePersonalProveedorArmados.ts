@@ -1,0 +1,192 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+export interface PersonalProveedorArmado {
+  id: string;
+  proveedor_id: string;
+  nombre_completo: string;
+  cedula_rfc?: string;
+  telefono_personal?: string;
+  email_personal?: string;
+  licencia_portacion?: string;
+  vigencia_licencia?: string;
+  documento_identidad?: string;
+  foto_perfil_url?: string;
+  estado_verificacion: 'pendiente' | 'verificado' | 'rechazado';
+  fecha_ultima_verificacion?: string;
+  activo: boolean;
+  disponible_para_servicios: boolean;
+  observaciones?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VerificacionLicencia {
+  valida: boolean;
+  dias_vencimiento?: number;
+  nivel_alerta?: 'baja' | 'media' | 'alta' | 'critica' | 'vencida';
+  fecha_vencimiento?: string;
+  nombre_completo?: string;
+  licencia_portacion?: string;
+  error?: string;
+}
+
+export interface CreatePersonalData {
+  proveedor_id: string;
+  nombre_completo: string;
+  cedula_rfc?: string;
+  telefono_personal?: string;
+  email_personal?: string;
+  licencia_portacion?: string;
+  vigencia_licencia?: string;
+  documento_identidad?: string;
+  observaciones?: string;
+}
+
+export function usePersonalProveedorArmados() {
+  const [personal, setPersonal] = useState<PersonalProveedorArmado[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadPersonal = async (proveedorId?: string) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      let query = supabase
+        .from('personal_proveedor_armados')
+        .select('*')
+        .order('nombre_completo', { ascending: true });
+
+      if (proveedorId) {
+        query = query.eq('proveedor_id', proveedorId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error loading personal:', error);
+        throw error;
+      }
+
+      setPersonal(data || []);
+    } catch (error: any) {
+      console.error('Error in usePersonalProveedorArmados:', error);
+      setError(error.message || 'Error al cargar personal');
+      toast.error('Error al cargar personal del proveedor');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPersonal();
+  }, []);
+
+  const createPersonal = async (personalData: CreatePersonalData) => {
+    try {
+      const { data, error } = await supabase
+        .from('personal_proveedor_armados')
+        .insert(personalData)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating personal:', error);
+        throw error;
+      }
+
+      toast.success('Personal agregado exitosamente');
+      await loadPersonal();
+      return data;
+    } catch (error: any) {
+      console.error('Error in createPersonal:', error);
+      toast.error('Error al agregar personal');
+      throw error;
+    }
+  };
+
+  const updatePersonal = async (id: string, updates: Partial<PersonalProveedorArmado>) => {
+    try {
+      const { data, error } = await supabase
+        .from('personal_proveedor_armados')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating personal:', error);
+        throw error;
+      }
+
+      toast.success('Personal actualizado exitosamente');
+      await loadPersonal();
+      return data;
+    } catch (error: any) {
+      console.error('Error in updatePersonal:', error);
+      toast.error('Error al actualizar personal');
+      throw error;
+    }
+  };
+
+  const verificarLicencia = async (personalId: string): Promise<VerificacionLicencia> => {
+    try {
+      const { data, error } = await supabase.rpc('verificar_licencia_vigente', {
+        p_personal_id: personalId
+      });
+
+      if (error) {
+        console.error('Error verifying license:', error);
+        throw error;
+      }
+
+      return data as VerificacionLicencia;
+    } catch (error: any) {
+      console.error('Error in verificarLicencia:', error);
+      return {
+        valida: false,
+        error: error.message || 'Error al verificar licencia'
+      };
+    }
+  };
+
+  const getPersonalByProveedor = (proveedorId: string) => {
+    return personal.filter(p => p.proveedor_id === proveedorId && p.activo);
+  };
+
+  const getPersonalDisponible = (proveedorId: string) => {
+    return personal.filter(p => 
+      p.proveedor_id === proveedorId && 
+      p.activo && 
+      p.disponible_para_servicios &&
+      p.estado_verificacion === 'verificado'
+    );
+  };
+
+  const getAlertasLicencias = () => {
+    return personal.filter(p => {
+      if (!p.vigencia_licencia || !p.activo) return false;
+      const diasVencimiento = Math.ceil(
+        (new Date(p.vigencia_licencia).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+      );
+      return diasVencimiento <= 30;
+    });
+  };
+
+  return {
+    personal,
+    loading,
+    error,
+    createPersonal,
+    updatePersonal,
+    verificarLicencia,
+    getPersonalByProveedor,
+    getPersonalDisponible,
+    getAlertasLicencias,
+    refetch: loadPersonal
+  };
+}
+
+export default usePersonalProveedorArmados;

@@ -310,10 +310,16 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
     puntoEncuentro: string,
     horaEncuentro: string,
     providerId?: string,
-    tarifaAcordada?: number
+    tarifaAcordada?: number,
+    personalData?: {
+      personalId: string;
+      nombreCompleto: string;
+      licenciaPortacion?: string;
+      verificacionData: any;
+    }
   ) => {
     try {
-      const assignmentData = {
+      const assignmentData: any = {
         servicio_custodia_id: servicioId,
         custodio_id: custodioId,
         tipo_asignacion: tipoAsignacion,
@@ -328,6 +334,13 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
         )
       };
 
+      // Si es proveedor externo y tenemos datos del personal, agregarlos
+      if (tipoAsignacion === 'proveedor' && personalData) {
+        assignmentData.personal_proveedor_id = personalData.personalId;
+        assignmentData.armado_nombre_verificado = personalData.nombreCompleto;
+        assignmentData.verificacion_identidad_timestamp = new Date().toISOString();
+      }
+
       const { data, error } = await supabase
         .from('asignacion_armados')
         .insert(assignmentData)
@@ -337,6 +350,29 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
       if (error) {
         console.error('Error assigning armed guard:', error);
         throw error;
+      }
+
+      // Crear registro de auditoría con datos específicos del armado
+      if (personalData) {
+        const { error: auditError } = await supabase
+          .from('assignment_audit_log')
+          .insert({
+            action_type: 'assign_external_armed_guard',
+            service_id: servicioId,
+            assignment_id: data.id,
+            armado_id: armadoId,
+            proveedor_id: providerId,
+            performed_by: (await supabase.auth.getUser()).data.user?.id,
+            armado_nombre_real: personalData.nombreCompleto,
+            verification_data: personalData.verificacionData,
+            security_clearance_level: personalData.verificacionData?.valida ? 'verified' : 'pending',
+            document_verification_status: personalData.verificacionData?.valida ? 'valid' : 'invalid',
+            changes_summary: `Asignado armado externo verificado: ${personalData.nombreCompleto} (${personalData.licenciaPortacion || 'Sin licencia'})`
+          });
+
+        if (auditError) {
+          console.error('Error creating audit log:', auditError);
+        }
       }
 
       // Update provider capacity if external

@@ -798,6 +798,7 @@ export type Database = {
       asignacion_armados: {
         Row: {
           armado_id: string | null
+          armado_nombre_verificado: string | null
           asignado_por: string | null
           calificacion_servicio: number | null
           confirmado_por_armado: boolean | null
@@ -810,6 +811,7 @@ export type Database = {
           id: string
           moneda: string | null
           observaciones: string | null
+          personal_proveedor_id: string | null
           proveedor_armado_id: string | null
           punto_encuentro: string | null
           servicio_custodia_id: string | null
@@ -817,9 +819,11 @@ export type Database = {
           tiempo_respuesta_minutos: number | null
           tipo_asignacion: string
           updated_at: string
+          verificacion_identidad_timestamp: string | null
         }
         Insert: {
           armado_id?: string | null
+          armado_nombre_verificado?: string | null
           asignado_por?: string | null
           calificacion_servicio?: number | null
           confirmado_por_armado?: boolean | null
@@ -832,6 +836,7 @@ export type Database = {
           id?: string
           moneda?: string | null
           observaciones?: string | null
+          personal_proveedor_id?: string | null
           proveedor_armado_id?: string | null
           punto_encuentro?: string | null
           servicio_custodia_id?: string | null
@@ -839,9 +844,11 @@ export type Database = {
           tiempo_respuesta_minutos?: number | null
           tipo_asignacion?: string
           updated_at?: string
+          verificacion_identidad_timestamp?: string | null
         }
         Update: {
           armado_id?: string | null
+          armado_nombre_verificado?: string | null
           asignado_por?: string | null
           calificacion_servicio?: number | null
           confirmado_por_armado?: boolean | null
@@ -854,6 +861,7 @@ export type Database = {
           id?: string
           moneda?: string | null
           observaciones?: string | null
+          personal_proveedor_id?: string | null
           proveedor_armado_id?: string | null
           punto_encuentro?: string | null
           servicio_custodia_id?: string | null
@@ -861,57 +869,81 @@ export type Database = {
           tiempo_respuesta_minutos?: number | null
           tipo_asignacion?: string
           updated_at?: string
+          verificacion_identidad_timestamp?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_personal_proveedor"
+            columns: ["personal_proveedor_id"]
+            isOneToOne: false
+            referencedRelation: "personal_proveedor_armados"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       assignment_audit_log: {
         Row: {
           action_type: string
           armado_id: string | null
+          armado_nombre_real: string | null
           assignment_id: string | null
           changes_summary: string | null
           created_at: string
           custodio_id: string | null
+          document_verification_status: string | null
           id: string
           ip_address: unknown | null
           new_data: Json | null
           performed_by: string
           previous_data: Json | null
           proveedor_id: string | null
+          proveedor_nombre_empresa: string | null
+          security_clearance_level: string | null
           service_id: string | null
           user_agent: string | null
+          verification_data: Json | null
         }
         Insert: {
           action_type: string
           armado_id?: string | null
+          armado_nombre_real?: string | null
           assignment_id?: string | null
           changes_summary?: string | null
           created_at?: string
           custodio_id?: string | null
+          document_verification_status?: string | null
           id?: string
           ip_address?: unknown | null
           new_data?: Json | null
           performed_by: string
           previous_data?: Json | null
           proveedor_id?: string | null
+          proveedor_nombre_empresa?: string | null
+          security_clearance_level?: string | null
           service_id?: string | null
           user_agent?: string | null
+          verification_data?: Json | null
         }
         Update: {
           action_type?: string
           armado_id?: string | null
+          armado_nombre_real?: string | null
           assignment_id?: string | null
           changes_summary?: string | null
           created_at?: string
           custodio_id?: string | null
+          document_verification_status?: string | null
           id?: string
           ip_address?: unknown | null
           new_data?: Json | null
           performed_by?: string
           previous_data?: Json | null
           proveedor_id?: string | null
+          proveedor_nombre_empresa?: string | null
+          security_clearance_level?: string | null
           service_id?: string | null
           user_agent?: string | null
+          verification_data?: Json | null
         }
         Relationships: []
       }
@@ -6451,6 +6483,72 @@ export type Database = {
           },
         ]
       }
+      personal_proveedor_armados: {
+        Row: {
+          activo: boolean
+          cedula_rfc: string | null
+          created_at: string
+          created_by: string | null
+          disponible_para_servicios: boolean
+          documento_identidad: string | null
+          email_personal: string | null
+          estado_verificacion: string
+          fecha_ultima_verificacion: string | null
+          foto_perfil_url: string | null
+          id: string
+          licencia_portacion: string | null
+          nombre_completo: string
+          observaciones: string | null
+          proveedor_id: string
+          telefono_personal: string | null
+          updated_at: string
+          updated_by: string | null
+          vigencia_licencia: string | null
+        }
+        Insert: {
+          activo?: boolean
+          cedula_rfc?: string | null
+          created_at?: string
+          created_by?: string | null
+          disponible_para_servicios?: boolean
+          documento_identidad?: string | null
+          email_personal?: string | null
+          estado_verificacion?: string
+          fecha_ultima_verificacion?: string | null
+          foto_perfil_url?: string | null
+          id?: string
+          licencia_portacion?: string | null
+          nombre_completo: string
+          observaciones?: string | null
+          proveedor_id: string
+          telefono_personal?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vigencia_licencia?: string | null
+        }
+        Update: {
+          activo?: boolean
+          cedula_rfc?: string | null
+          created_at?: string
+          created_by?: string | null
+          disponible_para_servicios?: boolean
+          documento_identidad?: string | null
+          email_personal?: string | null
+          estado_verificacion?: string
+          fecha_ultima_verificacion?: string | null
+          foto_perfil_url?: string | null
+          id?: string
+          licencia_portacion?: string | null
+          nombre_completo?: string
+          observaciones?: string | null
+          proveedor_id?: string
+          telefono_personal?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vigencia_licencia?: string | null
+        }
+        Relationships: []
+      }
       planning_operational_config: {
         Row: {
           bloqueo_automatico_habilitado: boolean
@@ -11723,6 +11821,10 @@ export type Database = {
           p_fecha_servicio: string
           p_hora_inicio: string
         }
+        Returns: Json
+      }
+      verificar_licencia_vigente: {
+        Args: { p_personal_id: string }
         Returns: Json
       }
       verify_user_account: {

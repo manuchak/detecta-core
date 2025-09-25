@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PlusCircle, Settings, BarChart3, Smartphone, Calendar, TrendingUp } from 'lucide-react';
+import { PlusCircle, Settings, BarChart3, Smartphone, Calendar, TrendingUp, Shield, AlertTriangle, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RequestCreationWorkflow } from './components/RequestCreationWorkflow';
 import { OperationalDashboard } from './components/OperationalDashboard';
@@ -11,11 +11,12 @@ import { PlanningConfigurationTab } from './components/PlanningConfigurationTab'
 import { ScheduledServicesTab } from './components/ScheduledServicesTab';
 import { AdminPerformanceTab } from './components/AdminPerformanceTab';
 import { ContextualEditModal } from '@/components/planeacion/ContextualEditModal';
+import { ArmedGuardComplianceDashboard } from '@/components/planeacion/ArmedGuardComplianceDashboard';
 import { useEditWorkflow } from '@/contexts/EditWorkflowContext';
 import { useSecurityAudit } from '@/hooks/useSecurityAudit';
 import { useDuplicateCleanup } from '@/hooks/useDuplicateCleanup';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, ExternalLink } from 'lucide-react';
+
 import type { EditableService } from '@/components/planeacion/EditServiceModal';
 
 export default function PlanningHub() {
@@ -83,7 +84,7 @@ export default function PlanningHub() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-7 lg:w-[1400px]">
+        <TabsList className="grid w-full grid-cols-8 lg:w-[1600px]">
           <TabsTrigger value="create-request" className={`flex items-center gap-2 ${isEditMode ? 'bg-blue-100 text-blue-700' : ''}`}>
             <PlusCircle className="h-4 w-4" />
             {isEditMode ? 'Editando' : 'Crear Solicitud'}
@@ -107,6 +108,10 @@ export default function PlanningHub() {
           <TabsTrigger value="configuration" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
             Config
+          </TabsTrigger>
+          <TabsTrigger value="compliance" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Compliance
           </TabsTrigger>
           <TabsTrigger value="demo-ux" className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white">
             🚀 Demo UX
@@ -148,6 +153,21 @@ export default function PlanningHub() {
         {/* Configuración - Maestros Simplificados */}
         <TabsContent value="configuration" className="space-y-6 mt-6">
           <PlanningConfigurationTab />
+        </TabsContent>
+
+        {/* Compliance Dashboard */}
+        <TabsContent value="compliance" className="space-y-6 mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Control y Auditoría de Armados Externos
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ArmedGuardComplianceDashboard />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Demo UX Mejorado */}
