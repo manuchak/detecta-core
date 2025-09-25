@@ -8,6 +8,19 @@ export interface CustodioConProximidad extends CustodioConHistorial {
   disponibilidad_efectiva?: string;
   categoria_disponibilidad?: 'libre' | 'parcialmente_ocupado' | 'ocupado_disponible' | 'no_disponible';
   datos_equidad?: FactorEquidad;
+  
+  // Properties needed for CustodioPerformanceCard compatibility
+  performance_level: 'excelente' | 'bueno' | 'regular' | 'malo' | 'nuevo';
+  rejection_risk: 'bajo' | 'medio' | 'alto';
+  response_speed: 'rapido' | 'normal' | 'lento';
+  experience_category: 'experimentado' | 'intermedio' | 'rookie' | 'nuevo' | 'candidato';
+  score_comunicacion: number;
+  score_aceptacion: number;
+  score_confiabilidad: number;
+  score_total: number;
+  tasa_aceptacion: number;
+  tasa_respuesta: number;
+  tasa_confiabilidad: number;
 }
 
 export interface CustodiosCategorizados {
@@ -76,7 +89,19 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
           ...custodio,
           fuente: 'custodios_operativos' as const,
           indisponibilidades_activas: custodio.indisponibilidades_activas || [],
-          disponibilidad_efectiva: custodio.disponibilidad_efectiva
+          disponibilidad_efectiva: custodio.disponibilidad_efectiva,
+          // Default values for performance card compatibility
+          performance_level: 'nuevo',
+          rejection_risk: 'medio',
+          response_speed: 'normal',
+          experience_category: 'nuevo',
+          score_comunicacion: custodio.score_total || 50,
+          score_aceptacion: 75,
+          score_confiabilidad: 75,
+          score_total: custodio.score_total || 65,
+          tasa_aceptacion: 0.75,
+          tasa_respuesta: 0.8,
+          tasa_confiabilidad: 0.75
         };
 
         // NUEVO: Verificar disponibilidad equitativa si hay servicio nuevo
