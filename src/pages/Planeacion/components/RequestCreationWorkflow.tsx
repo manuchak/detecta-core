@@ -8,8 +8,10 @@ import { ServiceAutoFillStep } from './workflow/ServiceAutoFillStep';
 import { CustodianAssignmentStep } from './workflow/CustodianAssignmentStep';
 import { EnhancedArmedGuardAssignmentStep } from './workflow/EnhancedArmedGuardAssignmentStep';
 import { FinalConfirmationStep } from './workflow/FinalConfirmationStep';
+import { ConflictMonitor } from './workflow/ConflictMonitor';
 import { useCustodianVehicles } from '@/hooks/useCustodianVehicles';
 import { useServiciosPlanificados, type ServicioPlanificadoData } from '@/hooks/useServiciosPlanificados';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface RouteData {
@@ -63,6 +65,7 @@ export function RequestCreationWorkflow() {
   // Estado para rastrear cambios y invalidaciones
   const [modifiedSteps, setModifiedSteps] = useState<string[]>([]);
   const [hasInvalidatedState, setHasInvalidatedState] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
   
   // Hook para manejar servicios planificados
   const { createServicioPlanificado, assignArmedGuard, isLoading } = useServiciosPlanificados();
@@ -289,6 +292,46 @@ export function RequestCreationWorkflow() {
     if (!finalData) return;
 
     try {
+      setIsValidating(true);
+      
+      // PRE-COMMIT VALIDATION: Verificar conflictos antes de crear
+      if (finalData.custodio_asignado_id) {
+        console.log('🔍 Ejecutando validación pre-commit...');
+        
+        const { data: validationResult, error: validationError } = await supabase.rpc('verificar_disponibilidad_equitativa_custodio', {
+          p_custodio_id: finalData.custodio_asignado_id,
+          p_custodio_nombre: finalData.custodio_nombre,
+          p_fecha_servicio: finalData.fecha_programada,
+          p_hora_inicio: finalData.hora_ventana_inicio,
+          p_duracion_estimada_horas: 4
+        });
+        
+        if (validationError) {
+          console.error('❌ Error en validación pre-commit:', validationError);
+          toast.error('No se pudo validar la disponibilidad del custodio');
+          return;
+        }
+        
+        // Verificar si hay conflictos detectados
+        if (!validationResult?.disponible) {
+          const conflictDetails = validationResult?.conflictos_detalle || [];
+          let conflictMessage = validationResult?.razon_no_disponible || 'Custodio no disponible';
+          
+          if (conflictDetails.length > 0) {
+            const conflictSources = conflictDetails.map((c: any) => c.origen).join(', ');
+            conflictMessage += ` (Conflictos en: ${conflictSources})`;
+          }
+          
+          toast.error(`⚠️ Conflicto detectado: ${conflictMessage}`);
+          
+          // Regresar al paso de asignación para resolución
+          setCurrentStep('assignment');
+          return;
+        }
+        
+        console.log('✅ Validación pre-commit exitosa - Custodio disponible');
+      }
+
       // Preparar información del vehículo con manejo de casos undefined
       const vehicleInfo = custodianVehicle ? {
         auto: `${custodianVehicle.marca} ${custodianVehicle.modelo}`.trim(),
@@ -326,10 +369,10 @@ export function RequestCreationWorkflow() {
         });
         
         console.log('🎉 Servicio con armado completado y guardado:', armedAssignmentData);
-        toast.success('Servicio con armado guardado exitosamente');
+        toast.success('✅ Servicio con armado guardado sin conflictos');
       } else {
         console.log('🎉 Servicio completado y guardado:', finalData);
-        toast.success('Servicio guardado en servicios planificados');
+        toast.success('✅ Servicio guardado sin conflictos');
       }
       
       // Resetear después de un delay para mostrar la confirmación
@@ -340,6 +383,8 @@ export function RequestCreationWorkflow() {
     } catch (error) {
       console.error('Error al guardar el servicio:', error);
       toast.error('Error al guardar el servicio planificado');
+    } finally {
+      setIsValidating(false);
     }
   };
 
@@ -445,22 +490,34 @@ export function RequestCreationWorkflow() {
         )}
         
         {currentStep === 'final_confirmation' && serviceData && assignmentData && (
-          <FinalConfirmationStep
-            serviceData={serviceData}
-            assignmentData={assignmentData}
-            armedAssignmentData={armedAssignmentData || undefined}
-            modifiedSteps={modifiedSteps}
-            onConfirm={handleFinalConfirmation}
-            onEditStep={navigateToStep}
-            onBack={() => {
-              if (currentlyNeedsArmed && armedAssignmentData) {
-                setCurrentStep('armed_assignment');
-              } else {
-                setCurrentStep('assignment');
-              }
-            }}
-            isSubmitting={isLoading}
-          />
+          <>
+            <FinalConfirmationStep
+              serviceData={serviceData}
+              assignmentData={assignmentData}
+              armedAssignmentData={armedAssignmentData || undefined}
+              modifiedSteps={modifiedSteps}
+              onConfirm={handleFinalConfirmation}
+              onEditStep={navigateToStep}
+              onBack={() => {
+                if (currentlyNeedsArmed && armedAssignmentData) {
+                  setCurrentStep('armed_assignment');
+                } else {
+                  setCurrentStep('assignment');
+                }
+              }}
+              isSubmitting={isLoading || isValidating}
+            />
+            
+            {/* Monitor de conflictos para esta página */}
+            <ConflictMonitor 
+              className="mt-4"
+              onConflictDetected={(conflicts) => {
+                if (conflicts.length > 0) {
+                  console.warn('⚠️ Conflictos detectados durante creación:', conflicts);
+                }
+              }}
+            />
+          </>
         )}
       </div>
 
