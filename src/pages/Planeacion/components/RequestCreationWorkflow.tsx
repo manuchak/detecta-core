@@ -7,6 +7,7 @@ import { RouteSearchStep } from './workflow/RouteSearchStep';
 import { ServiceAutoFillStep } from './workflow/ServiceAutoFillStep';
 import { CustodianAssignmentStep } from './workflow/CustodianAssignmentStep';
 import { EnhancedArmedGuardAssignmentStep } from './workflow/EnhancedArmedGuardAssignmentStep';
+import { FinalConfirmationStep } from './workflow/FinalConfirmationStep';
 import { useCustodianVehicles } from '@/hooks/useCustodianVehicles';
 import { useServiciosPlanificados, type ServicioPlanificadoData } from '@/hooks/useServiciosPlanificados';
 import { toast } from 'sonner';
@@ -52,12 +53,16 @@ interface ArmedAssignmentData extends AssignmentData {
 }
 
 export function RequestCreationWorkflow() {
-  const [currentStep, setCurrentStep] = useState<'route' | 'service' | 'assignment' | 'armed_assignment'>('route');
+  const [currentStep, setCurrentStep] = useState<'route' | 'service' | 'assignment' | 'armed_assignment' | 'final_confirmation'>('route');
   const [routeData, setRouteData] = useState<RouteData | null>(null);
   const [serviceData, setServiceData] = useState<ServiceData | null>(null);
   const [assignmentData, setAssignmentData] = useState<AssignmentData | null>(null);
   const [armedAssignmentData, setArmedAssignmentData] = useState<ArmedAssignmentData | null>(null);
   const [createdServiceDbId, setCreatedServiceDbId] = useState<string | null>(null);
+  
+  // Estado para rastrear cambios y invalidaciones
+  const [modifiedSteps, setModifiedSteps] = useState<string[]>([]);
+  const [hasInvalidatedState, setHasInvalidatedState] = useState(false);
   
   // Hook para manejar servicios planificados
   const { createServicioPlanificado, assignArmedGuard, isLoading } = useServiciosPlanificados();
@@ -92,6 +97,12 @@ export function RequestCreationWorkflow() {
       label: 'Asignar Armado', 
       icon: Shield,
       description: 'Coordinar con armado'
+    },
+    { 
+      id: 'final_confirmation', 
+      label: 'Confirmación Final', 
+      icon: CheckCircle,
+      description: 'Revisar y confirmar'
     }
   ];
 
@@ -100,6 +111,7 @@ export function RequestCreationWorkflow() {
     if (stepId === 'service') return serviceData ? 'completed' : currentStep === 'service' ? 'current' : 'pending';
     if (stepId === 'assignment') return assignmentData ? 'completed' : currentStep === 'assignment' ? 'current' : 'pending';
     if (stepId === 'armed_assignment') return armedAssignmentData ? 'completed' : currentStep === 'armed_assignment' ? 'current' : 'pending';
+    if (stepId === 'final_confirmation') return currentStep === 'final_confirmation' ? 'current' : 'pending';
     return 'pending';
   };
 
@@ -107,6 +119,7 @@ export function RequestCreationWorkflow() {
   const canProceedToAssignment = serviceData !== null;
   const canProceedToArmedAssignment = assignmentData !== null && serviceData?.incluye_armado === true;
   const shouldShowArmedStep = serviceData?.incluye_armado === true;
+  const canProceedToFinalConfirmation = assignmentData !== null;
   
   // Función para determinar si realmente necesita armado
   const currentlyNeedsArmed = serviceData?.incluye_armado === true;
@@ -128,12 +141,53 @@ export function RequestCreationWorkflow() {
     const previousIncludeArmado = serviceData?.incluye_armado;
     const newIncludeArmado = data.incluye_armado;
     
-    // Detectar cambio en el estado de armado
+    // Detectar cambio en el estado de armado - INVALIDACIÓN INTELIGENTE
     if (previousIncludeArmado !== undefined && previousIncludeArmado !== newIncludeArmado) {
+      console.log('🔄 Invalidación inteligente: cambio en incluye_armado', {
+        anterior: previousIncludeArmado,
+        nuevo: newIncludeArmado,
+        timestamp: new Date().toISOString()
+      });
+      
       if (newIncludeArmado === false && armedAssignmentData) {
         // Si se cambió de con armado a sin armado, limpiar datos de armado
         setArmedAssignmentData(null);
-        toast.info('Configuración de armado removida del servicio');
+        setHasInvalidatedState(true);
+        toast.info('Configuración de armado removida - custodia reiniciada', {
+          description: 'Los datos de asignación posteriores han sido limpiados'
+        });
+      }
+      
+      if (newIncludeArmado === true && !previousIncludeArmado) {
+        // Si se agregó armado, invalidar asignaciones existentes para re-evaluar
+        if (assignmentData) {
+          setHasInvalidatedState(true);
+          toast.info('Armado agregado - revise las asignaciones', {
+            description: 'Las asignaciones existentes pueden necesitar actualización'
+          });
+        }
+      }
+      
+      // Marcar el paso como modificado
+      if (!modifiedSteps.includes('service')) {
+        setModifiedSteps(prev => [...prev, 'service']);
+      }
+    }
+    
+    // Detectar otros cambios significativos
+    if (serviceData) {
+      const significantChanges = [
+        serviceData.tipo_servicio !== data.tipo_servicio,
+        serviceData.fecha_programada !== data.fecha_programada,
+        serviceData.hora_ventana_inicio !== data.hora_ventana_inicio
+      ].some(Boolean);
+      
+      if (significantChanges) {
+        console.log('🔄 Cambios significativos detectados en servicio');
+        setHasInvalidatedState(true);
+        if (!modifiedSteps.includes('service')) {
+          setModifiedSteps(prev => [...prev, 'service']);
+        }
       }
     }
     
@@ -142,76 +196,36 @@ export function RequestCreationWorkflow() {
   };
 
   const handleAssignmentComplete = async (data: AssignmentData) => {
+    // Marcar como modificado si hay cambios
+    if (assignmentData && assignmentData.custodio_asignado_id !== data.custodio_asignado_id) {
+      if (!modifiedSteps.includes('assignment')) {
+        setModifiedSteps(prev => [...prev, 'assignment']);
+      }
+    }
+    
     setAssignmentData(data);
     
-    try {
-      // Preparar información del vehículo con manejo de casos undefined
-      const vehicleInfo = custodianVehicle ? {
-        auto: `${custodianVehicle.marca} ${custodianVehicle.modelo}`.trim(),
-        placa: custodianVehicle.placa || 'Sin placa'
-      } : {
-        auto: 'Vehículo no asignado',
-        placa: 'Sin placa'
-      };
-
-      // Crear el servicio planificado en la base de datos
-      const servicioData: ServicioPlanificadoData = {
-        id_servicio: data.servicio_id,
-        nombre_cliente: data.cliente_nombre,
-        origen: data.origen_texto,
-        destino: data.destino_texto,
-        fecha_hora_cita: `${data.fecha_programada}T${data.hora_ventana_inicio}:00.000Z`,
-        tipo_servicio: data.tipo_servicio,
-        custodio_asignado: data.custodio_nombre,
-        custodio_id: data.custodio_asignado_id,
-        requiere_armado: data.incluye_armado,
-        tarifa_acordada: data.precio_custodio,
-        observaciones: data.observaciones,
-        ...vehicleInfo
-      };
-      // Crear el servicio usando la función de mutación
-      createServicioPlanificado(servicioData);
-      
-      // Verificar dinámicamente si necesita armado
-      if (currentlyNeedsArmed) {
-        setCurrentStep('armed_assignment');
-      } else {
-        // Si no incluye armado, completar el workflow
-        console.log('🎉 Solicitud completada y guardada:', data);
-        toast.success('Solicitud guardada en servicios planificados');
-      }
-    } catch (error) {
-      console.error('Error al guardar el servicio:', error);
-      toast.error('Error al guardar el servicio planificado');
+    // Verificar dinámicamente si necesita armado
+    if (currentlyNeedsArmed) {
+      setCurrentStep('armed_assignment');
+    } else {
+      // Si no incluye armado, ir a confirmación final
+      setCurrentStep('final_confirmation');
     }
   };
 
   const handleArmedAssignmentComplete = async (data: ArmedAssignmentData) => {
+    // Marcar como modificado si hay cambios
+    if (armedAssignmentData && armedAssignmentData.armado_asignado_id !== data.armado_asignado_id) {
+      if (!modifiedSteps.includes('armed_assignment')) {
+        setModifiedSteps(prev => [...prev, 'armed_assignment']);
+      }
+    }
+    
     setArmedAssignmentData(data);
     
-    try {
-      // Usar el hook de assignArmedGuard en lugar de updateServicioPlanificado
-      if (assignmentData?.servicio_id) {
-        assignArmedGuard({
-          serviceId: assignmentData.servicio_id,
-          armadoName: data.armado_nombre || '',
-          armadoId: data.armado_asignado_id || ''
-        });
-        
-        console.log('🎉 Solicitud con armado completada y guardada:', data);
-        toast.success('Servicio con armado guardado exitosamente');
-      } else {
-        throw new Error('ID del servicio no encontrado');
-      }
-      
-      // Después de completar, automáticamente resetear para nueva asignación
-      setTimeout(() => {
-        resetWorkflow();
-      }, 2000); // Delay para mostrar la confirmación antes de resetear
-    } catch (error) {
-      console.error('Error al actualizar servicio con armado:', error);
-      toast.error('Error al guardar información del armado');
-    }
+    // Ir a confirmación final en lugar de completar inmediatamente
+    setCurrentStep('final_confirmation');
   };
 
   const handleSaveAsPending = async (data: ServiceData) => {
@@ -259,6 +273,74 @@ export function RequestCreationWorkflow() {
     setAssignmentData(null);
     setArmedAssignmentData(null);
     setCreatedServiceDbId(null);
+    setModifiedSteps([]);
+    setHasInvalidatedState(false);
+  };
+
+  // Función para navegar a un paso específico (para edición)
+  const navigateToStep = (step: string) => {
+    console.log('🔧 Navegando a paso para edición:', step);
+    setCurrentStep(step as any);
+  };
+
+  // Función para manejar la confirmación final
+  const handleFinalConfirmation = async () => {
+    const finalData = armedAssignmentData || assignmentData;
+    if (!finalData) return;
+
+    try {
+      // Preparar información del vehículo con manejo de casos undefined
+      const vehicleInfo = custodianVehicle ? {
+        auto: `${custodianVehicle.marca} ${custodianVehicle.modelo}`.trim(),
+        placa: custodianVehicle.placa || 'Sin placa'
+      } : {
+        auto: 'Vehículo no asignado',
+        placa: 'Sin placa'
+      };
+
+      // Crear el servicio planificado en la base de datos
+      const servicioData: ServicioPlanificadoData = {
+        id_servicio: finalData.servicio_id,
+        nombre_cliente: finalData.cliente_nombre,
+        origen: finalData.origen_texto,
+        destino: finalData.destino_texto,
+        fecha_hora_cita: `${finalData.fecha_programada}T${finalData.hora_ventana_inicio}:00.000Z`,
+        tipo_servicio: finalData.tipo_servicio,
+        custodio_asignado: finalData.custodio_nombre,
+        custodio_id: finalData.custodio_asignado_id,
+        requiere_armado: finalData.incluye_armado,
+        tarifa_acordada: finalData.precio_custodio,
+        observaciones: finalData.observaciones,
+        ...vehicleInfo
+      };
+      
+      // Crear el servicio usando la función de mutación
+      createServicioPlanificado(servicioData);
+      
+      // Si tiene armado, asignar el armado también
+      if (armedAssignmentData && assignmentData?.servicio_id) {
+        assignArmedGuard({
+          serviceId: assignmentData.servicio_id,
+          armadoName: armedAssignmentData.armado_nombre || '',
+          armadoId: armedAssignmentData.armado_asignado_id || ''
+        });
+        
+        console.log('🎉 Servicio con armado completado y guardado:', armedAssignmentData);
+        toast.success('Servicio con armado guardado exitosamente');
+      } else {
+        console.log('🎉 Servicio completado y guardado:', finalData);
+        toast.success('Servicio guardado en servicios planificados');
+      }
+      
+      // Resetear después de un delay para mostrar la confirmación
+      setTimeout(() => {
+        resetWorkflow();
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Error al guardar el servicio:', error);
+      toast.error('Error al guardar el servicio planificado');
+    }
   };
 
   return (
@@ -272,6 +354,8 @@ export function RequestCreationWorkflow() {
           <div className="flex items-center justify-between">
             {steps.filter(step => 
               step.id !== 'armed_assignment' || shouldShowArmedStep
+            ).filter(step =>
+              step.id !== 'final_confirmation' || canProceedToFinalConfirmation
             ).map((step, index, filteredSteps) => {
               const status = getStepStatus(step.id);
               const Icon = step.icon;
@@ -298,6 +382,11 @@ export function RequestCreationWorkflow() {
                       status === 'completed' ? 'text-success' : 'text-muted-foreground'
                     }`}>
                       {step.label}
+                      {modifiedSteps.includes(step.id) && (
+                        <Badge variant="secondary" className="ml-2 text-xs bg-yellow-100 text-yellow-800">
+                          Modificado
+                        </Badge>
+                      )}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {step.description}
@@ -348,11 +437,29 @@ export function RequestCreationWorkflow() {
             onBack={() => setCurrentStep('assignment')}
             onSkip={() => {
               // Permitir saltar la asignación de armado si ya no se necesita
-              console.log('🚫 Armado ya no requerido, completando workflow');
-              toast.info('Servicio completado sin armado');
-              setCurrentStep('route');
-              resetWorkflow();
+              console.log('🚫 Armado ya no requerido, ir a confirmación final');
+              toast.info('Continuando sin armado');
+              setCurrentStep('final_confirmation');
             }}
+          />
+        )}
+        
+        {currentStep === 'final_confirmation' && serviceData && assignmentData && (
+          <FinalConfirmationStep
+            serviceData={serviceData}
+            assignmentData={assignmentData}
+            armedAssignmentData={armedAssignmentData || undefined}
+            modifiedSteps={modifiedSteps}
+            onConfirm={handleFinalConfirmation}
+            onEditStep={navigateToStep}
+            onBack={() => {
+              if (currentlyNeedsArmed && armedAssignmentData) {
+                setCurrentStep('armed_assignment');
+              } else {
+                setCurrentStep('assignment');
+              }
+            }}
+            isSubmitting={isLoading}
           />
         )}
       </div>
