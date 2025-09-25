@@ -27,6 +27,7 @@ interface RouteData {
 
 interface ServiceData extends RouteData {
   servicio_id: string;
+  id_interno_cliente?: string;
   fecha_programada: string;
   hora_ventana_inicio: string;
   tipo_servicio: string;
@@ -47,6 +48,7 @@ interface ServiceAutoFillStepProps {
 
 export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, onBack }: ServiceAutoFillStepProps) {
   const [servicioId, setServicioId] = useState('');
+  const [idInternoCliente, setIdInternoCliente] = useState('');
   const [fechaProgramada, setFechaProgramada] = useState(
     format(addDays(new Date(), 1), 'yyyy-MM-dd')
   );
@@ -145,6 +147,7 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
     const serviceData: ServiceData = {
       ...routeData,
       servicio_id: servicioId.trim(),
+      id_interno_cliente: idInternoCliente.trim() || undefined,
       fecha_programada: fechaProgramada,
       hora_ventana_inicio: horaInicio,
       tipo_servicio: tipoServicio,
@@ -173,6 +176,7 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
     const serviceData: ServiceData = {
       ...routeData,
       servicio_id: servicioId.trim(),
+      id_interno_cliente: idInternoCliente.trim() || undefined,
       fecha_programada: fechaProgramada,
       hora_ventana_inicio: horaInicio,
       tipo_servicio: tipoServicio,
@@ -398,6 +402,31 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
                   ID válido y disponible para usar
                 </div>
               )}
+            </div>
+
+            {/* ID Interno del Cliente */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center">
+                  <User className="h-4 w-4" />
+                </div>
+                <div>
+                  <Label htmlFor="id-interno-cliente" className="text-lg font-bold">
+                    ID Interno del Cliente (Opcional)
+                  </Label>
+                  <div className="text-sm text-muted-foreground">
+                    Código de referencia interno del cliente para este servicio
+                  </div>
+                </div>
+              </div>
+              <Input
+                id="id-interno-cliente"
+                placeholder="Ej: CLI-2024-001, REF-ABC123, etc."
+                value={idInternoCliente}
+                onChange={(e) => setIdInternoCliente(e.target.value)}
+                className="h-14 text-lg"
+                maxLength={50}
+              />
             </div>
 
             {/* Enhanced Date/Time Fields - Single Row Layout */}
