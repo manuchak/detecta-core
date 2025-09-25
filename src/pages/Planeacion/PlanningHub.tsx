@@ -10,18 +10,43 @@ import { ComodatosGPSTab } from './components/ComodatosGPSTab';
 import { PlanningConfigurationTab } from './components/PlanningConfigurationTab';
 import { ScheduledServicesTab } from './components/ScheduledServicesTab';
 import { AdminPerformanceTab } from './components/AdminPerformanceTab';
+import { ContextualEditModal } from '@/components/planeacion/ContextualEditModal';
+import { useEditWorkflow } from '@/contexts/EditWorkflowContext';
 import { useSecurityAudit } from '@/hooks/useSecurityAudit';
 import { useDuplicateCleanup } from '@/hooks/useDuplicateCleanup';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle, ExternalLink } from 'lucide-react';
+import type { EditableService } from '@/components/planeacion/EditServiceModal';
 
 export default function PlanningHub() {
   const [activeTab, setActiveTab] = useState('create-request');
+  const [showEditModal, setShowEditModal] = useState(false);
   const navigate = useNavigate();
+  const { isEditMode } = useEditWorkflow();
   const { logSecurityEvent } = useSecurityAudit();
   const { duplicates, checkingDuplicates } = useDuplicateCleanup();
 
   const totalDuplicates = duplicates?.reduce((sum, dup) => sum + dup.duplicate_count - 1, 0) || 0;
+
+  // Demo service para probar el modal contextual
+  const mockService: EditableService = {
+    id: 'demo-1',
+    id_servicio: 'DEMO-001',
+    nombre_cliente: 'Cliente Demo SA',
+    origen: 'Polanco, CDMX',
+    destino: 'Santa Fe, CDMX',
+    fecha_hora_cita: '2024-01-15T10:00:00.000Z',
+    tipo_servicio: 'custodia',
+    requiere_armado: true,
+    custodio_asignado: 'Miguel Ángel Hernández',
+    estado_planeacion: 'pendiente_asignacion'
+  };
+
+  const handleEditModalSave = async (id: string, data: Partial<EditableService>) => {
+    console.log('🔧 Demo: Guardando cambios', { id, data });
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return Promise.resolve();
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-8">
@@ -58,10 +83,10 @@ export default function PlanningHub() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-6 lg:w-[1200px]">
-          <TabsTrigger value="create-request" className="flex items-center gap-2">
+        <TabsList className="grid w-full grid-cols-7 lg:w-[1400px]">
+          <TabsTrigger value="create-request" className={`flex items-center gap-2 ${isEditMode ? 'bg-blue-100 text-blue-700' : ''}`}>
             <PlusCircle className="h-4 w-4" />
-            Crear Solicitud
+            {isEditMode ? 'Editando' : 'Crear Solicitud'}
           </TabsTrigger>
           <TabsTrigger value="dashboard" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
@@ -69,19 +94,22 @@ export default function PlanningHub() {
           </TabsTrigger>
           <TabsTrigger value="scheduled-services" className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            Servicios Programados
+            Servicios
           </TabsTrigger>
           <TabsTrigger value="gps-comodatos" className="flex items-center gap-2">
             <Smartphone className="h-4 w-4" />
-            GPS Comodatos
+            GPS
           </TabsTrigger>
           <TabsTrigger value="admin-performance" className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4" />
-            Performance Admin
+            Performance
           </TabsTrigger>
           <TabsTrigger value="configuration" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
-            Configuración
+            Config
+          </TabsTrigger>
+          <TabsTrigger value="demo-ux" className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+            🚀 Demo UX
           </TabsTrigger>
         </TabsList>
 
@@ -121,7 +149,26 @@ export default function PlanningHub() {
         <TabsContent value="configuration" className="space-y-6 mt-6">
           <PlanningConfigurationTab />
         </TabsContent>
+
+        {/* Demo UX Mejorado */}
+        <TabsContent value="demo-ux" className="space-y-6 mt-6">
+          <div className="text-center space-y-4">
+            <h2 className="text-2xl font-bold">🚀 Workflow UX Mejorado</h2>
+            <p className="text-muted-foreground">Sistema contextual e inteligente implementado</p>
+            <Button onClick={() => setShowEditModal(true)} size="lg" className="bg-blue-600 hover:bg-blue-700">
+              Probar Modal Contextual
+            </Button>
+          </div>
+        </TabsContent>
       </Tabs>
+
+      {/* Modal Contextual */}
+      <ContextualEditModal
+        open={showEditModal}
+        onOpenChange={setShowEditModal}
+        service={mockService}
+        onSave={handleEditModalSave}
+      />
     </div>
   );
 }

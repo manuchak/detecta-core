@@ -262,3 +262,73 @@ export const usePlaneacionStats = () => {
     },
   });
 };
+
+// =====================================================
+// HOOK PARA ACTUALIZACIÓN INTELIGENTE DE SERVICIOS
+// =====================================================
+
+export const useUpdateServicioIntelligent = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: {
+      id: string;
+      updates: any;
+      mode?: 'add_armed' | 'remove_armed' | 'change_armed' | 'basic';
+    }) => {
+      const { id, updates, mode = 'basic' } = params;
+      
+      // Lógica inteligente basada en el modo de actualización
+      let finalUpdates = { ...updates };
+      
+      if (mode === 'remove_armed') {
+        finalUpdates = {
+          ...finalUpdates,
+          requiere_armado: false,
+          armado_asignado: null,
+          // Actualizar estado inteligentemente
+          estado_planeacion: updates.estado_planeacion || 'confirmado'
+        };
+      } else if (mode === 'add_armed') {
+        finalUpdates = {
+          ...finalUpdates,
+          requiere_armado: true,
+          // Si no hay armado asignado, cambiar a pendiente
+          estado_planeacion: updates.armado_asignado ? 'confirmado' : 'pendiente_asignacion'
+        };
+      }
+
+      const { data, error } = await supabase
+        .from('servicios_custodia')
+        .update(finalUpdates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        throw new Error(`Error al actualizar servicio: ${error.message}`);
+      }
+
+      return data;
+    },
+    onSuccess: (data, variables) => {
+      // Invalidar queries relacionadas
+      queryClient.invalidateQueries({ queryKey: ['servicios'] });
+      queryClient.invalidateQueries({ queryKey: ['servicio', variables.id] });
+      
+      // Mensaje de éxito contextual
+      const modeMessages = {
+        'add_armed': 'Armado agregado al servicio',
+        'remove_armed': 'Armado removido del servicio', 
+        'change_armed': 'Armado actualizado',
+        'basic': 'Servicio actualizado'
+      };
+      
+      toast.success(modeMessages[variables.mode || 'basic']);
+    },
+    onError: (error: Error) => {
+      console.error('Error updating service:', error);
+      toast.error(error.message);
+    }
+  });
+};

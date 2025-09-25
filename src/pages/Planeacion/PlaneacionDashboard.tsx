@@ -1,5 +1,10 @@
 import PlanningHub from './PlanningHub';
+import { EditWorkflowProvider } from '@/contexts/EditWorkflowContext';
 
 export default function PlaneacionDashboard() {
-  return <PlanningHub />;
+  return (
+    <EditWorkflowProvider>
+      <PlanningHub />
+    </EditWorkflowProvider>
+  );
 }

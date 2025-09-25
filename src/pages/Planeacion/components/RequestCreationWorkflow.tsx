@@ -107,6 +107,10 @@ export function RequestCreationWorkflow() {
   const canProceedToAssignment = serviceData !== null;
   const canProceedToArmedAssignment = assignmentData !== null && serviceData?.incluye_armado === true;
   const shouldShowArmedStep = serviceData?.incluye_armado === true;
+  
+  // Función para determinar si realmente necesita armado
+  const currentlyNeedsArmed = serviceData?.incluye_armado === true;
+  const hasArmedAssignment = armedAssignmentData !== null;
 
   // Auto-advance cuando se completen los pasos
   useEffect(() => {
@@ -121,6 +125,18 @@ export function RequestCreationWorkflow() {
   };
 
   const handleServiceComplete = (data: ServiceData) => {
+    const previousIncludeArmado = serviceData?.incluye_armado;
+    const newIncludeArmado = data.incluye_armado;
+    
+    // Detectar cambio en el estado de armado
+    if (previousIncludeArmado !== undefined && previousIncludeArmado !== newIncludeArmado) {
+      if (newIncludeArmado === false && armedAssignmentData) {
+        // Si se cambió de con armado a sin armado, limpiar datos de armado
+        setArmedAssignmentData(null);
+        toast.info('Configuración de armado removida del servicio');
+      }
+    }
+    
     setServiceData(data);
     setCurrentStep('assignment');
   };
@@ -156,8 +172,8 @@ export function RequestCreationWorkflow() {
       // Crear el servicio usando la función de mutación
       createServicioPlanificado(servicioData);
       
-      // Si el servicio incluye armado, avanzar al siguiente paso
-      if (serviceData?.incluye_armado) {
+      // Verificar dinámicamente si necesita armado
+      if (currentlyNeedsArmed) {
         setCurrentStep('armed_assignment');
       } else {
         // Si no incluye armado, completar el workflow
@@ -325,17 +341,24 @@ export function RequestCreationWorkflow() {
           />
         )}
         
-        {currentStep === 'armed_assignment' && serviceData && assignmentData && (
+        {currentStep === 'armed_assignment' && serviceData && assignmentData && currentlyNeedsArmed && (
           <EnhancedArmedGuardAssignmentStep 
             serviceData={{...serviceData, ...assignmentData}}
             onComplete={handleArmedAssignmentComplete}
             onBack={() => setCurrentStep('assignment')}
+            onSkip={() => {
+              // Permitir saltar la asignación de armado si ya no se necesita
+              console.log('🚫 Armado ya no requerido, completando workflow');
+              toast.info('Servicio completado sin armado');
+              setCurrentStep('route');
+              resetWorkflow();
+            }}
           />
         )}
       </div>
 
       {/* Summary cuando se complete */}
-      {(assignmentData && !serviceData?.incluye_armado) || armedAssignmentData && (
+      {((assignmentData && !currentlyNeedsArmed) || (armedAssignmentData && currentlyNeedsArmed)) && (
         <Card className="border-primary">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

@@ -69,9 +69,10 @@ interface EnhancedArmedGuardAssignmentStepProps {
   serviceData: ServiceDataWithCustodian;
   onComplete: (data: ArmedGuardAssignmentData) => void;
   onBack: () => void;
+  onSkip?: () => void; // Opcional para saltar la asignación de armado
 }
 
-export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBack }: EnhancedArmedGuardAssignmentStepProps) {
+export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBack, onSkip }: EnhancedArmedGuardAssignmentStepProps) {
   const [selectedArmed, setSelectedArmed] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<'interno' | 'proveedor'>('interno');
   const [puntoEncuentro, setPuntoEncuentro] = useState('');
