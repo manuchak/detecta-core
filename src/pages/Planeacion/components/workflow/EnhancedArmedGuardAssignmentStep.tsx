@@ -10,6 +10,7 @@ import { useAssignmentAudit } from '@/hooks/useAssignmentAudit';
 import { useCustodianVehicles } from '@/hooks/useCustodianVehicles';
 import { AssignmentConfirmationModal } from './AssignmentConfirmationModal';
 import { ExternalArmedVerificationModal } from '@/components/planeacion/ExternalArmedVerificationModal';
+import { ExpandableArmedCard } from '@/components/planeacion/ExpandableArmedCard';
 import { Shield, User, MapPin, Clock, Phone, MessageCircle, CheckCircle2, AlertCircle, Info } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -80,6 +81,7 @@ interface EnhancedArmedGuardAssignmentStepProps {
 export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBack, onSkip }: EnhancedArmedGuardAssignmentStepProps) {
   const [selectedArmed, setSelectedArmed] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<'interno' | 'proveedor'>('interno');
+  const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [puntoEncuentro, setPuntoEncuentro] = useState('');
   const [horaEncuentro, setHoraEncuentro] = useState('');
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
@@ -210,6 +212,8 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
   const proceedWithAssignment = async (
     guard: ArmedGuard, 
     type: 'interno',
+    overridePuntoEncuentro?: string,
+    overrideHoraEncuentro?: string,
     externalPersonalData?: {
       personalId: string;
       nombreCompleto: string;
@@ -218,6 +222,9 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
     }
   ) => {
     try {
+      const finalPuntoEncuentro = overridePuntoEncuentro || puntoEncuentro;
+      const finalHoraEncuentro = overrideHoraEncuentro || horaEncuentro;
+
       // Create assignment data
       const newAssignmentData: ArmedGuardAssignmentData = {
         ...serviceData,
@@ -225,8 +232,8 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
         armado_nombre: guard.nombre,
         tipo_asignacion: type,
         proveedor_id: undefined,
-        punto_encuentro: puntoEncuentro,
-        hora_encuentro: horaEncuentro,
+        punto_encuentro: finalPuntoEncuentro,
+        hora_encuentro: finalHoraEncuentro,
         estado_asignacion: 'pendiente',
         personal_externo_id: externalPersonalData?.personalId,
         personal_externo_telefono: externalPersonalData?.telefono,
@@ -359,11 +366,61 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
   const handleResetForm = () => {
     setSelectedArmed(null);
     setSelectedType('interno');
+    setExpandedCard(null);
     setPuntoEncuentro('');
     setHoraEncuentro('');
     setAssignmentData(null);
     setShowExternalVerificationModal(false);
     setSelectedProviderForVerification(null);
+  };
+
+  // New handlers for expandable cards
+  const handleCardSelect = (id: string, type: 'interno' | 'proveedor') => {
+    setSelectedArmed(id);
+    setSelectedType(type);
+    // Auto-expand when selected
+    setExpandedCard(id);
+  };
+
+  const handleCardExpand = (id: string) => {
+    setExpandedCard(expandedCard === id ? null : id);
+  };
+
+  const handleDirectAssignment = async (data: {
+    id: string;
+    type: 'interno' | 'proveedor';
+    puntoEncuentro: string;
+    horaEncuentro: string;
+  }) => {
+    console.log('🔧 DEBUG: Starting direct assignment process', data);
+    
+    // Update the state with the data from the card
+    setPuntoEncuentro(data.puntoEncuentro);
+    setHoraEncuentro(data.horaEncuentro);
+    setSelectedArmed(data.id);
+    setSelectedType(data.type);
+    
+    const selectedGuard = data.type === 'interno' 
+      ? armedGuards.find(g => g.id === data.id)
+      : providers.find(p => p.id === data.id);
+
+    console.log('🔧 DEBUG: Selected guard for direct assignment', selectedGuard);
+
+    if (!selectedGuard) return;
+
+    // Si es proveedor externo, abrir modal de verificación
+    if (data.type === 'proveedor') {
+      setSelectedProviderForVerification(selectedGuard as ArmedProvider);
+      setShowExternalVerificationModal(true);
+      return;
+    }
+
+    // Si es armado interno, proceder directamente
+    await proceedWithAssignment(selectedGuard as ArmedGuard, 'interno', data.puntoEncuentro, data.horaEncuentro);
+  };
+
+  const createTimeRecommendationWrapper = (selectedTime: string) => {
+    return getTimeRecommendation(serviceData.hora_ventana_inicio || '', selectedTime);
   };
 
   const handleCreateNew = () => {
@@ -486,219 +543,48 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
               </div>
             </div>
 
-            {/* Type Selection */}
-            <div className="mb-6">
-              <div className="text-sm font-medium mb-3">Tipo de Asignación</div>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="tipoAsignacion"
-                    value="interno"
-                    checked={selectedType === 'interno'}
-                    onChange={(e) => setSelectedType(e.target.value as 'interno' | 'proveedor')}
-                    className="text-primary"
+            {/* Armed Guards List with Expandable Cards */}
+            <div className="space-y-6">
+              <div className="text-lg font-semibold mb-4">Armados Internos Disponibles</div>
+              <div className="space-y-4">
+                {armedGuards.filter(guard => guard.disponibilidad === 'disponible').map((guard) => (
+                  <ExpandableArmedCard
+                    key={guard.id}
+                    guard={guard}
+                    type="interno"
+                    isSelected={selectedArmed === guard.id}
+                    isExpanded={expandedCard === guard.id}
+                    onSelect={() => handleCardSelect(guard.id, 'interno')}
+                    onExpand={() => handleCardExpand(guard.id)}
+                    onConfirmAssignment={handleDirectAssignment}
+                    calculatedMeetingTime={calculatedMeetingTime}
+                    formatDisplayTime={formatDisplayTime}
+                    getTimeRecommendation={createTimeRecommendationWrapper}
                   />
-                  <span>Armado Interno</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="tipoAsignacion"
-                    value="proveedor"
-                    checked={selectedType === 'proveedor'}
-                    onChange={(e) => setSelectedType(e.target.value as 'interno' | 'proveedor')}
-                    className="text-primary"
+                ))}
+              </div>
+
+              <div className="text-lg font-semibold mb-4 mt-8">Proveedores Externos</div>
+              <div className="space-y-4">
+                {providers.filter(provider => provider.activo).map((provider) => (
+                  <ExpandableArmedCard
+                    key={provider.id}
+                    provider={provider}
+                    type="proveedor"
+                    isSelected={selectedArmed === provider.id}
+                    isExpanded={expandedCard === provider.id}
+                    onSelect={() => handleCardSelect(provider.id, 'proveedor')}
+                    onExpand={() => handleCardExpand(provider.id)}
+                    onConfirmAssignment={handleDirectAssignment}
+                    calculatedMeetingTime={calculatedMeetingTime}
+                    formatDisplayTime={formatDisplayTime}
+                    getTimeRecommendation={createTimeRecommendationWrapper}
                   />
-                  <span>Proveedor Externo</span>
-                </label>
+                ))}
               </div>
             </div>
           </CardContent>
         </Card>
-
-        {/* Armed Guards List */}
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {selectedType === 'interno' ? 'Armados Internos Disponibles' : 'Proveedores Externos'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {selectedType === 'interno' ? (
-              <div className="space-y-4">
-                {armedGuards.filter(guard => guard.disponibilidad === 'disponible').map((guard) => (
-                  <div
-                    key={guard.id}
-                    className={`border rounded-lg p-4 transition-all cursor-pointer ${
-                      selectedArmed === guard.id
-                        ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                     onClick={() => {
-                       console.log('🔧 DEBUG: Armado seleccionado:', guard.id, guard.nombre);
-                       setSelectedArmed(guard.id);
-                     }}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <User className="h-5 w-5" />
-                          <div>
-                            <h3 className="font-semibold">{guard.nombre}</h3>
-                            <p className="text-sm text-muted-foreground">{guard.telefono}</p>
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          <div>
-                            <div className="text-muted-foreground">Experiencia</div>
-                            <div className="font-medium">{guard.experiencia_anos} años</div>
-                          </div>
-                          <div>
-                            <div className="text-muted-foreground">Rating</div>
-                            <div className="font-medium">{guard.rating_promedio}/5.0</div>
-                          </div>
-                          <div>
-                            <div className="text-muted-foreground">Servicios</div>
-                            <div className="font-medium">{guard.numero_servicios}</div>
-                          </div>
-                          <div>
-                            <div className="text-muted-foreground">Tasa Confirmación</div>
-                            <div className="font-medium">{guard.tasa_confirmacion}%</div>
-                          </div>
-                        </div>
-
-                        {guard.licencia_portacion && (
-                          <div className="mt-2">
-                            <Badge variant="success" className="text-xs">
-                              Licencia: {guard.licencia_portacion}
-                            </Badge>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex flex-col gap-2">
-                        <Badge variant={guard.disponibilidad === 'disponible' ? 'success' : 'secondary'}>
-                          {guard.disponibilidad === 'disponible' ? 'Disponible' : 'Ocupado'}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {providers.filter(provider => provider.activo).map((provider) => (
-                  <div
-                    key={provider.id}
-                    className={`border rounded-lg p-4 transition-all cursor-pointer ${
-                      selectedArmed === provider.id
-                        ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                    onClick={() => setSelectedArmed(provider.id)}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <Shield className="h-5 w-5" />
-                          <div>
-                            <h3 className="font-semibold">{provider.nombre_empresa}</h3>
-                            <p className="text-sm text-muted-foreground">
-                              {provider.contacto_principal} - {provider.telefono_contacto}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          <div>
-                            <div className="text-muted-foreground">Tarifa</div>
-                            <div className="font-medium">${provider.tarifa_por_servicio?.toLocaleString()}</div>
-                          </div>
-                          <div>
-                            <div className="text-muted-foreground">Rating</div>
-                            <div className="font-medium">{provider.rating_proveedor}/5.0</div>
-                          </div>
-                          <div>
-                            <div className="text-muted-foreground">Servicios</div>
-                            <div className="font-medium">{provider.servicios_completados}</div>
-                          </div>
-                          <div>
-                            <div className="text-muted-foreground">Respuesta</div>
-                            <div className="font-medium">{provider.tiempo_respuesta_promedio}min</div>
-                          </div>
-                        </div>
-
-                        <div className="mt-2">
-                          <div className="text-xs text-muted-foreground">
-                            Cobertura: {provider.zonas_cobertura.join(', ')}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-2">
-                        <Badge variant={provider.disponibilidad_24h ? 'success' : 'secondary'}>
-                          {provider.disponibilidad_24h ? '24/7' : 'Horario Limitado'}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Meeting Details */}
-        {selectedArmed && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="h-5 w-5" />
-                Detalles del Encuentro
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {/* Time Recommendation */}
-                {calculatedMeetingTime && (
-                  <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <Info className="h-5 w-5 text-primary mt-0.5" />
-                      <div>
-                        <div className="font-medium text-sm text-primary">
-                          Hora recomendada: {formatDisplayTime(calculatedMeetingTime)}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {getTimeRecommendation(serviceData.hora_ventana_inicio || '', horaEncuentro)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <SmartLocationDropdown
-                    value={puntoEncuentro}
-                    onChange={setPuntoEncuentro}
-                    label="Punto de Encuentro"
-                    placeholder="Buscar ubicación favorita o escribir nueva dirección"
-                  />
-                  
-                  <AppleTimePicker
-                    value={horaEncuentro}
-                    onChange={setHoraEncuentro}
-                    defaultTime={calculatedMeetingTime || undefined}
-                    label="Hora de Encuentro"
-                    maxTime={serviceData.hora_ventana_inicio}
-                    appointmentDate={serviceData.fecha_programada}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Action Buttons */}
         <div className="flex justify-between">
