@@ -47,6 +47,7 @@ interface ArmedProvider {
 }
 
 interface ServiceDataWithCustodian {
+  servicio_id?: string;
   custodio_asignado_id?: string;
   custodio_nombre?: string;
   incluye_armado?: boolean;
@@ -89,8 +90,8 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
   const [selectedProviderForVerification, setSelectedProviderForVerification] = useState<ArmedProvider | null>(null);
   const [assignmentData, setAssignmentData] = useState<ArmedGuardAssignmentData | null>(null);
 
-  // Use enhanced hooks with fallback mock data
-  const { armedGuards: hookArmedGuards, providers: hookProviders, loading, error } = useArmedGuardsWithTracking(serviceData);
+// Use enhanced hooks with fallback mock data
+const { armedGuards: hookArmedGuards, providers: hookProviders, loading, error, assignArmedGuard } = useArmedGuardsWithTracking(serviceData);
   const { logAssignmentAction } = useAssignmentAudit();
   const { getPrincipalVehicle } = useCustodianVehicles(serviceData.custodio_asignado_id);
 
@@ -245,7 +246,7 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
       // Log the assignment action
       try {
         await logAssignmentAction({
-          service_id: serviceData.cliente_nombre,
+          service_id: (serviceData as any).servicio_id || serviceData.cliente_nombre,
           custodio_id: serviceData.custodio_asignado_id,
           armado_id: guard.id,
           proveedor_id: undefined,
@@ -299,7 +300,7 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
       // Log the assignment action
       try {
         await logAssignmentAction({
-          service_id: serviceData.cliente_nombre,
+          service_id: (serviceData as any).servicio_id || serviceData.cliente_nombre,
           custodio_id: serviceData.custodio_asignado_id,
           armado_id: selectedProviderForVerification.id,
           proveedor_id: selectedProviderForVerification.id,
@@ -330,32 +331,28 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
     try {
       console.log('💾 Guardando asignación en base de datos:', assignmentData);
 
-      // Use the hook to actually assign the armed guard to the database
-      const { assignArmedGuard } = useArmedGuardsWithTracking(serviceData);
-      
-      if (assignArmedGuard) {
-        await assignArmedGuard(
-          assignmentData.cliente_nombre || '', // service ID
-          assignmentData.custodio_asignado_id || '',
-          assignmentData.armado_asignado_id || '',
-          assignmentData.tipo_asignacion || 'interno',
-          assignmentData.punto_encuentro || '',
-          assignmentData.hora_encuentro || '',
-          assignmentData.proveedor_id
-        );
-        
-        console.log('✅ Armed guard assignment persisted to database');
-      }
+      // Persist assignment using already-initialized hook function
+      const serviceId = assignmentData.servicio_id || serviceData.servicio_id || assignmentData.cliente_nombre || '';
+      await assignArmedGuard(
+        serviceId,
+        assignmentData.custodio_asignado_id || '',
+        assignmentData.armado_asignado_id || '',
+        assignmentData.tipo_asignacion || 'interno',
+        assignmentData.punto_encuentro || '',
+        assignmentData.hora_encuentro || '',
+        assignmentData.proveedor_id
+      );
+      console.log('✅ Armed guard assignment persisted to database');
       
       // Log final de auditoría
       await logAssignmentAction({
-        service_id: assignmentData.cliente_nombre,
+        service_id: serviceId,
         custodio_id: assignmentData.custodio_asignado_id,
         armado_id: assignmentData.armado_asignado_id,
         proveedor_id: assignmentData.proveedor_id,
         action_type: 'confirmed',
         new_data: assignmentData,
-        changes_summary: `Asignación confirmada y completada para servicio ${assignmentData.cliente_nombre}`
+        changes_summary: `Asignación confirmada y completada para servicio ${serviceId}`
       });
 
       // Completar el workflow

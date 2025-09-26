@@ -8526,11 +8526,13 @@ export type Database = {
           origen: string
           placa: string | null
           prioridad: number | null
+          proveedor_armado_id: string | null
           punto_encuentro: string | null
           requiere_armado: boolean | null
           respuesta_custodio: string | null
           tarifa_acordada: number | null
           telefono_cliente: string | null
+          tipo_asignacion_armado: string | null
           tipo_servicio: string | null
           updated_at: string
           updated_by: string | null
@@ -8568,11 +8570,13 @@ export type Database = {
           origen: string
           placa?: string | null
           prioridad?: number | null
+          proveedor_armado_id?: string | null
           punto_encuentro?: string | null
           requiere_armado?: boolean | null
           respuesta_custodio?: string | null
           tarifa_acordada?: number | null
           telefono_cliente?: string | null
+          tipo_asignacion_armado?: string | null
           tipo_servicio?: string | null
           updated_at?: string
           updated_by?: string | null
@@ -8610,11 +8614,13 @@ export type Database = {
           origen?: string
           placa?: string | null
           prioridad?: number | null
+          proveedor_armado_id?: string | null
           punto_encuentro?: string | null
           requiere_armado?: boolean | null
           respuesta_custodio?: string | null
           tarifa_acordada?: number | null
           telefono_cliente?: string | null
+          tipo_asignacion_armado?: string | null
           tipo_servicio?: string | null
           updated_at?: string
           updated_by?: string | null
