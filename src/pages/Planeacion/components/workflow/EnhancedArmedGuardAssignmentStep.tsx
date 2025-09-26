@@ -143,9 +143,9 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
     }
   ];
 
-  // Use real data when loaded, fallback to mock only during loading or error
-  const armedGuards = (!loading && !error) ? hookArmedGuards : mockArmedGuards;
-  const providers = (!loading && !error) ? hookProviders : mockProviders;
+  // Use real data when available, with improved fallback logic
+  const armedGuards = (hookArmedGuards && hookArmedGuards.length > 0) ? hookArmedGuards : mockArmedGuards;
+  const providers = (hookProviders && hookProviders.length > 0) ? hookProviders : mockProviders;
 
   console.log('🔧 DEBUG: Final data', {
     hookArmedGuardsLength: hookArmedGuards?.length || 0,
@@ -154,7 +154,9 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
     finalProvidersLength: providers?.length || 0,
     loading,
     error,
-    usingRealData: !loading && !error,
+    usingRealData: (hookArmedGuards && hookArmedGuards.length > 0) || (hookProviders && hookProviders.length > 0),
+    selectedArmed,
+    selectedType,
     serviceData
   });
 
@@ -411,10 +413,12 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
     armedGuardsLength: armedGuards.length,
     providersLength: providers.length,
     showConfirmationModal,
-    assignmentData
+    assignmentData,
+    selectedArmed,
+    selectedType
   });
 
-  if (loading) {
+  if (loading && armedGuards.length === 0 && providers.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -531,7 +535,10 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
                         ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
                         : 'border-border hover:border-primary/50'
                     }`}
-                    onClick={() => setSelectedArmed(guard.id)}
+                     onClick={() => {
+                       console.log('🔧 DEBUG: Armado seleccionado:', guard.id, guard.nombre);
+                       setSelectedArmed(guard.id);
+                     }}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
