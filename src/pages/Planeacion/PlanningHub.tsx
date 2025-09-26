@@ -11,7 +11,7 @@ import { ComodatosGPSTab } from './components/ComodatosGPSTab';
 import { PlanningConfigurationTab } from './components/PlanningConfigurationTab';
 import { ScheduledServicesTab } from './components/ScheduledServicesTabSimple';
 import { AdminPerformanceTab } from './components/AdminPerformanceTab';
-import { ContextualEditModal } from '@/components/planeacion/ContextualEditModal';
+import { SmartEditModal } from '@/components/planeacion/SmartEditModal';
 import { ArmedGuardComplianceDashboard } from '@/components/planeacion/ArmedGuardComplianceDashboard';
 import { useEditWorkflow } from '@/contexts/EditWorkflowContext';
 import { useSecurityAudit } from '@/hooks/useSecurityAudit';
@@ -122,7 +122,7 @@ export default function PlanningHub() {
       </Tabs>
 
       {/* Demo Modal */}
-      <ContextualEditModal
+      <SmartEditModal
         open={showEditModal}
         onOpenChange={setShowEditModal}
         service={mockService}

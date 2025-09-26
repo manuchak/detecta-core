@@ -19,15 +19,28 @@ interface PendingAssignmentModalProps {
   onAssignmentComplete: () => void;
 }
 
+interface PendingAssignmentModalEnhancedProps extends PendingAssignmentModalProps {
+  mode?: 'auto' | 'direct_armed' | 'direct_custodian';
+}
+
 export function PendingAssignmentModal({
   open,
   onOpenChange,
   service,
-  onAssignmentComplete
-}: PendingAssignmentModalProps) {
+  onAssignmentComplete,
+  mode = 'auto'
+}: PendingAssignmentModalEnhancedProps) {
   const [isAssigning, setIsAssigning] = useState(false);
-  const [currentStep, setCurrentStep] = useState<'custodian' | 'armed'>('custodian');
-  const [custodianAssigned, setCustodianAssigned] = useState<any>(null);
+  const [currentStep, setCurrentStep] = useState<'custodian' | 'armed'>(() => {
+    if (mode === 'direct_armed') return 'armed';
+    if (mode === 'direct_custodian') return 'custodian';
+    const hasCustodio = service && 'custodio_asignado' in service && service.custodio_asignado;
+    return hasCustodio ? 'armed' : 'custodian';
+  });
+  const [custodianAssigned, setCustodianAssigned] = useState<any>(
+    service && 'custodio_asignado' in service && service.custodio_asignado ? 
+      { custodio_nombre: service.custodio_asignado } : null
+  );
   const { assignCustodian, assignArmedGuard } = useServiciosPlanificados();
 
   if (!service) return null;
@@ -120,10 +133,15 @@ export function PendingAssignmentModal({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Asignar Custodio - {service.id_servicio}
+            <DialogTitle className="flex items-center gap-2 apple-text-title">
+              {currentStep === 'armed' ? <Shield className="h-5 w-5" /> : <User className="h-5 w-5" />}
+              {currentStep === 'armed' ? 'Asignar Armado' : 'Asignar Custodio'} - {service.id_servicio}
             </DialogTitle>
+            {mode === 'direct_armed' && service && 'custodio_asignado' in service && service.custodio_asignado && (
+              <div className="flex items-center gap-2 apple-text-caption text-muted-foreground font-mono">
+                {String(service.custodio_asignado)} ✅ → Armado ⏳
+              </div>
+            )}
             <Button
               variant="ghost"
               size="sm"
