@@ -311,7 +311,6 @@ export function ExpandableArmedCard({
                   value={horaEncuentro}
                   onChange={setHoraEncuentro}
                   defaultTime={calculatedMeetingTime}
-                  label="Hora de Encuentro"
                 />
                 {horaEncuentro && getTimeRecommendation && (
                   <p className="text-sm text-muted-foreground mt-1">
