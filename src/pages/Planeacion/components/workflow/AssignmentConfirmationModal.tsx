@@ -99,6 +99,34 @@ Para cualquier duda o emergencia, contacte a nuestro centro de operaciones.`;
     return message;
   };
 
+  const generateCustodianMessage = () => {
+    const message = `🛡️ ASIGNACIÓN DE SERVICIO - ${format(new Date(data.servicio.fecha_programada), 'PPP', { locale: es })}
+
+👤 CUSTODIO: ${data.servicio.custodio_nombre}
+🎯 SERVICIO: ${data.servicio.cliente_nombre} | ${data.servicio.tipo_servicio}
+📍 RECOGER EN: ${data.servicio.origen} a las ${data.servicio.hora_ventana_inicio}
+🎯 ENTREGAR EN: ${data.servicio.destino}
+
+🛡️ ARMADO ASIGNADO:
+Nombre: ${data.armado.nombre}
+Tipo: ${data.armado.tipo_asignacion === 'interno' ? 'Armado Interno' : 'Proveedor Externo'}
+${data.armado.tipo_asignacion === 'interno' ? `Encuentro: ${data.encuentro.punto_encuentro} a las ${data.encuentro.hora_encuentro}` : ''}
+
+🚗 VEHÍCULO ASIGNADO:
+${formatVehicleInfo()}
+
+📱 COORDINACIÓN:
+Para cualquier inconveniente o emergencia, contacta inmediatamente al centro de operaciones.
+
+✅ IMPORTANTE:
+- Confirma tu asistencia respondiendo este mensaje
+- Llega 15 minutos antes de la hora programada
+- Mantén comunicación constante con operaciones durante el servicio
+- Asegúrate de que tu vehículo esté en condiciones óptimas`;
+
+    return message;
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -242,6 +270,29 @@ Para cualquier duda o emergencia, contacte a nuestro centro de operaciones.`;
               </div>
               <div className="bg-muted/50 p-4 rounded-lg text-sm font-mono whitespace-pre-wrap">
                 {generateClientMessage()}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Custodian Notification Template */}
+          <Card className="border-blue-200 bg-blue-50/50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <User className="h-5 w-5 text-blue-600" />
+                  <span className="font-semibold text-blue-800">Mensaje para el Custodio</span>
+                </div>
+                <Button
+                  onClick={() => copyToClipboard(generateCustodianMessage())}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copiar mensaje para custodio
+                </Button>
+              </div>
+              <div className="bg-blue-100/50 p-4 rounded-lg text-sm font-mono whitespace-pre-wrap border border-blue-200">
+                {generateCustodianMessage()}
               </div>
             </CardContent>
           </Card>
