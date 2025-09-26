@@ -46,15 +46,54 @@ export function AssignmentConfirmationModal({
   data
 }: AssignmentConfirmationModalProps) {
   const [isConfirming, setIsConfirming] = React.useState(false);
+  const [copyingStates, setCopyingStates] = React.useState<{
+    client: boolean;
+    custodian: boolean;
+  }>({ client: false, custodian: false });
   
   // Obtener datos del vehículo del custodio
   const { vehicleData, loading: vehicleLoading, formatVehicleInfo } = useCustodioVehicleData(
     data.servicio.custodio_nombre
   );
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success('Copiado al portapapeles');
+  const copyToClipboard = async (text: string, type: 'client' | 'custodian') => {
+    // Set loading state
+    setCopyingStates(prev => ({ ...prev, [type]: true }));
+    
+    try {
+      // Try modern clipboard API first
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // Fallback for older browsers or non-secure contexts
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        textArea.remove();
+      }
+      
+      toast.success('Mensaje copiado al portapapeles correctamente', {
+        description: type === 'client' ? 'Mensaje para cliente listo para enviar' : 'Mensaje para custodio listo para enviar',
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      toast.error('Error al copiar al portapapeles', {
+        description: 'Por favor, intenta seleccionar y copiar manualmente',
+        duration: 4000,
+      });
+    } finally {
+      // Reset loading state after a brief delay
+      setTimeout(() => {
+        setCopyingStates(prev => ({ ...prev, [type]: false }));
+      }, 1000);
+    }
   };
 
   const generateGoogleMapsLink = (address: string): string => {
@@ -301,12 +340,23 @@ Para cualquier inconveniente o emergencia, contacta inmediatamente al centro de 
               <div className="flex items-center justify-between mb-3">
                 <span className="font-semibold">Mensaje para el Cliente</span>
                 <Button
-                  onClick={() => copyToClipboard(generateClientMessage())}
+                  onClick={() => copyToClipboard(generateClientMessage(), 'client')}
                   variant="outline"
                   size="sm"
+                  disabled={copyingStates.client}
+                  className={copyingStates.client ? 'bg-green-50 border-green-200' : ''}
                 >
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copiar
+                  {copyingStates.client ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600 mr-2"></div>
+                      Copiando...
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copiar mensaje
+                    </>
+                  )}
                 </Button>
               </div>
               <div className="bg-muted/50 p-4 rounded-lg text-sm font-mono whitespace-pre-wrap">
@@ -324,12 +374,23 @@ Para cualquier inconveniente o emergencia, contacta inmediatamente al centro de 
                   <span className="font-semibold text-blue-800">Mensaje para el Custodio</span>
                 </div>
                 <Button
-                  onClick={() => copyToClipboard(generateCustodianMessage())}
+                  onClick={() => copyToClipboard(generateCustodianMessage(), 'custodian')}
                   variant="outline"
                   size="sm"
+                  disabled={copyingStates.custodian}
+                  className={copyingStates.custodian ? 'bg-green-50 border-green-200' : ''}
                 >
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copiar mensaje para custodio
+                  {copyingStates.custodian ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600 mr-2"></div>
+                      Copiando...
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copiar mensaje
+                    </>
+                  )}
                 </Button>
               </div>
               <div className="bg-blue-100/50 p-4 rounded-lg text-sm font-mono whitespace-pre-wrap border border-blue-200">
