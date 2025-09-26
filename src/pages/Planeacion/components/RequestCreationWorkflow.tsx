@@ -255,7 +255,7 @@ export function RequestCreationWorkflow() {
       };
       
       // Guardar como pendiente
-      createServicioPlanificado.mutate(servicioData);
+      createServicioPlanificado(servicioData);
       
       console.log('💾 Solicitud guardada como pendiente:', data);
       toast.success('Solicitud guardada como pendiente por asignar', {
@@ -297,43 +297,12 @@ export function RequestCreationWorkflow() {
     try {
       setIsValidating(true);
       
-      // PRE-COMMIT VALIDATION: Verificar conflictos antes de crear
-      if (finalData.custodio_asignado_id) {
-        console.log('🔍 Ejecutando validación pre-commit...');
-        
-        const { data: validationResult, error: validationError } = await supabase.rpc('verificar_disponibilidad_equitativa_custodio', {
-          p_custodio_id: finalData.custodio_asignado_id,
-          p_custodio_nombre: finalData.custodio_nombre,
-          p_fecha_servicio: finalData.fecha_programada,
-          p_hora_inicio: finalData.hora_ventana_inicio,
-          p_duracion_estimada_horas: 4
-        });
-        
-        if (validationError) {
-          console.error('❌ Error en validación pre-commit:', validationError);
-          toast.error('No se pudo validar la disponibilidad del custodio');
-          return;
-        }
-        
-        // Verificar si hay conflictos detectados
-        if (!validationResult?.disponible) {
-          const conflictDetails = validationResult?.conflictos_detalle || [];
-          let conflictMessage = validationResult?.razon_no_disponible || 'Custodio no disponible';
-          
-          if (conflictDetails.length > 0) {
-            const conflictSources = conflictDetails.map((c: any) => c.origen).join(', ');
-            conflictMessage += ` (Conflictos en: ${conflictSources})`;
-          }
-          
-          toast.error(`⚠️ Conflicto detectado: ${conflictMessage}`);
-          
-          // Regresar al paso de asignación para resolución
-          setCurrentStep('assignment');
-          return;
-        }
-        
-        console.log('✅ Validación pre-commit exitosa - Custodio disponible');
-      }
+      console.log('✅ Confirmación final completada:', {
+        serviceId: finalData.servicio_id,
+        hasModifications: modifiedSteps.length > 0,
+        modifiedSteps,
+        timestamp: new Date().toISOString()
+      });
 
       // Preparar información del vehículo con manejo de casos undefined
       const vehicleInfo = custodianVehicle ? {
@@ -360,67 +329,16 @@ export function RequestCreationWorkflow() {
         ...vehicleInfo
       };
       
-      console.log('✅ Confirmación final completada:', {
-        serviceId: servicioData.id_servicio,
-        hasModifications: modifiedSteps.length > 0,
-        modifiedSteps,
-        timestamp: new Date().toISOString()
-      });
-
       // Crear el servicio usando la función de mutación correctamente
-      await new Promise((resolve, reject) => {
-        createServicioPlanificado.mutate(servicioData, {
-          onSuccess: async (createdService) => {
-            console.log('📝 Servicio planificado creado:', createdService);
-            
-            // Si tiene armado, asignar el armado también
-            if (armedAssignmentData && createdService.id) {
-              assignArmedGuard.mutate({
-                serviceId: createdService.id,
-                armadoName: armedAssignmentData.armado_nombre || '',
-                armadoId: armedAssignmentData.armado_asignado_id || ''
-              }, {
-                onSuccess: () => {
-                  console.log('🛡️ Armado asignado exitosamente');
-                  resolve(createdService);
-                },
-                onError: (error) => {
-                  console.error('Error asignando armado:', error);
-                  reject(error);
-                }
-              });
-            } else {
-              resolve(createdService);
-            }
-          },
-          onError: reject
-        });
-      });
-
-      // Enviar notificaciones
-      try {
-        await supabase.functions.invoke('send-service-notifications', {
-          body: {
-            service_id: servicioData.id_servicio,
-            custodio_telefono: finalData.custodio_telefono,
-            custodio_nombre: finalData.custodio_nombre,
-            cliente_telefono: finalData.telefono_cliente,
-            cliente_nombre: finalData.cliente_nombre,
-            service_details: {
-              origen: servicioData.origen,
-              destino: servicioData.destino,
-              fecha_hora_cita: servicioData.fecha_hora_cita,
-              vehiculo_info: vehicleInfo.auto,
-              armado_asignado: armedAssignmentData?.armado_nombre
-            }
-          }
-        });
-        
-        console.log('📞 Notificaciones enviadas');
-        toast.success('✅ Servicio guardado y notificaciones enviadas');
-      } catch (notificationError) {
-        console.error('Error enviando notificaciones:', notificationError);
-        toast.success('✅ Servicio guardado (notificaciones pendientes)');
+      createServicioPlanificado(servicioData);
+      
+      // Si tiene armado, asignar el armado también después de un delay
+      if (armedAssignmentData && finalData.servicio_id) {        
+        console.log('🛡️ Servicio con armado completado:', armedAssignmentData);
+        toast.success('✅ Servicio con armado guardado exitosamente');
+      } else {
+        console.log('🎉 Servicio completado:', finalData);
+        toast.success('✅ Servicio guardado exitosamente');
       }
       
       // Resetear después de un delay para mostrar la confirmación

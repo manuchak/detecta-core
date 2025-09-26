@@ -8122,6 +8122,48 @@ export type Database = {
         }
         Relationships: []
       }
+      service_notifications: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          message_content: string
+          recipient_name: string | null
+          recipient_phone: string | null
+          recipient_type: string
+          sent_at: string | null
+          service_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message_content: string
+          recipient_name?: string | null
+          recipient_phone?: string | null
+          recipient_type: string
+          sent_at?: string | null
+          service_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message_content?: string
+          recipient_name?: string | null
+          recipient_phone?: string | null
+          recipient_type?: string
+          sent_at?: string | null
+          service_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       servicios_custodia: {
         Row: {
           armado: string | null
