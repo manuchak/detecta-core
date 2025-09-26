@@ -9,6 +9,7 @@ import { useArmedGuardsWithTracking } from '@/hooks/useArmedGuardsWithTracking';
 import { useAssignmentAudit } from '@/hooks/useAssignmentAudit';
 import { useCustodianVehicles } from '@/hooks/useCustodianVehicles';
 import { AssignmentConfirmationModal } from './AssignmentConfirmationModal';
+import { ExternalArmedVerificationModal } from '@/components/planeacion/ExternalArmedVerificationModal';
 import { Shield, User, MapPin, Clock, Phone, MessageCircle, CheckCircle2, AlertCircle, Info } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -63,6 +64,10 @@ interface ArmedGuardAssignmentData extends ServiceDataWithCustodian {
   punto_encuentro?: string;
   hora_encuentro?: string;
   estado_asignacion?: 'pendiente' | 'confirmado' | 'rechazado';
+  // Datos específicos del personal externo verificado
+  personal_externo_id?: string;
+  personal_externo_telefono?: string;
+  personal_externo_licencia?: string;
 }
 
 interface EnhancedArmedGuardAssignmentStepProps {
@@ -78,6 +83,8 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
   const [puntoEncuentro, setPuntoEncuentro] = useState('');
   const [horaEncuentro, setHoraEncuentro] = useState('');
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [showExternalVerificationModal, setShowExternalVerificationModal] = useState(false);
+  const [selectedProviderForVerification, setSelectedProviderForVerification] = useState<ArmedProvider | null>(null);
   const [assignmentData, setAssignmentData] = useState<ArmedGuardAssignmentData | null>(null);
 
   // Use enhanced hooks with fallback mock data
@@ -168,6 +175,7 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
   const handleAssignArmed = async () => {
     console.log('🔧 DEBUG: Starting assignment process', {
       selectedArmed,
+      selectedType,
       puntoEncuentro,
       horaEncuentro,
       serviceData
@@ -186,33 +194,55 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
 
     if (!selectedGuard) return;
 
+    // Si es proveedor externo, abrir modal de verificación
+    if (selectedType === 'proveedor') {
+      setSelectedProviderForVerification(selectedGuard as ArmedProvider);
+      setShowExternalVerificationModal(true);
+      return;
+    }
+
+    // Si es armado interno, proceder directamente
+    await proceedWithAssignment(selectedGuard as ArmedGuard, 'interno');
+  };
+
+  const proceedWithAssignment = async (
+    guard: ArmedGuard, 
+    type: 'interno',
+    externalPersonalData?: {
+      personalId: string;
+      nombreCompleto: string;
+      telefono?: string;
+      licenciaPortacion?: string;
+    }
+  ) => {
     try {
       // Create assignment data
       const newAssignmentData: ArmedGuardAssignmentData = {
         ...serviceData,
-        armado_asignado_id: selectedArmed,
-        armado_nombre: selectedType === 'interno' 
-          ? (selectedGuard as ArmedGuard).nombre 
-          : (selectedGuard as ArmedProvider).nombre_empresa,
-        tipo_asignacion: selectedType,
-        proveedor_id: selectedType === 'proveedor' ? selectedArmed : undefined,
+        armado_asignado_id: guard.id,
+        armado_nombre: guard.nombre,
+        tipo_asignacion: type,
+        proveedor_id: undefined,
         punto_encuentro: puntoEncuentro,
         hora_encuentro: horaEncuentro,
-        estado_asignacion: 'pendiente'
+        estado_asignacion: 'pendiente',
+        personal_externo_id: externalPersonalData?.personalId,
+        personal_externo_telefono: externalPersonalData?.telefono,
+        personal_externo_licencia: externalPersonalData?.licenciaPortacion,
       };
 
       console.log('🔧 DEBUG: Assignment data created', newAssignmentData);
 
-      // Log the assignment action (simplified for now)
+      // Log the assignment action
       try {
         await logAssignmentAction({
           service_id: serviceData.cliente_nombre,
           custodio_id: serviceData.custodio_asignado_id,
-          armado_id: selectedArmed,
-          proveedor_id: selectedType === 'proveedor' ? selectedArmed : undefined,
+          armado_id: guard.id,
+          proveedor_id: undefined,
           action_type: 'created',
           new_data: newAssignmentData,
-          changes_summary: `Asignado ${selectedType === 'interno' ? 'armado interno' : 'proveedor externo'}: ${newAssignmentData.armado_nombre}`
+          changes_summary: `Asignado armado interno: ${guard.nombre}`
         });
         console.log('🔧 DEBUG: Assignment logged successfully');
       } catch (logError) {
@@ -221,11 +251,67 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
 
       setAssignmentData(newAssignmentData);
       setShowConfirmationModal(true);
-      console.log('🔧 DEBUG: Modal should be showing now');
+      console.log('🔧 DEBUG: Internal assignment modal should be showing now');
       
     } catch (error) {
       console.error('Error creating assignment:', error);
       toast.error('Error al crear la asignación');
+    }
+  };
+
+  const handleExternalPersonalConfirm = async (personalData: {
+    personalId: string;
+    nombreCompleto: string;
+    licenciaPortacion?: string;
+    verificacionData: any;
+  }) => {
+    console.log('🔧 DEBUG: External personal confirmed', personalData);
+    
+    if (!selectedProviderForVerification) return;
+
+    try {
+      // Create assignment data with external personnel info
+      const newAssignmentData: ArmedGuardAssignmentData = {
+        ...serviceData,
+        armado_asignado_id: selectedProviderForVerification.id,
+        armado_nombre: personalData.nombreCompleto, // Use personnel name instead of company
+        tipo_asignacion: 'proveedor',
+        proveedor_id: selectedProviderForVerification.id,
+        punto_encuentro: puntoEncuentro,
+        hora_encuentro: horaEncuentro,
+        estado_asignacion: 'pendiente',
+        personal_externo_id: personalData.personalId,
+        personal_externo_telefono: personalData.verificacionData?.telefono_personal,
+        personal_externo_licencia: personalData.licenciaPortacion,
+      };
+
+      console.log('🔧 DEBUG: External assignment data created', newAssignmentData);
+
+      // Log the assignment action
+      try {
+        await logAssignmentAction({
+          service_id: serviceData.cliente_nombre,
+          custodio_id: serviceData.custodio_asignado_id,
+          armado_id: selectedProviderForVerification.id,
+          proveedor_id: selectedProviderForVerification.id,
+          action_type: 'created',
+          new_data: newAssignmentData,
+          changes_summary: `Asignado personal externo: ${personalData.nombreCompleto} (${selectedProviderForVerification.nombre_empresa})`
+        });
+        console.log('🔧 DEBUG: External assignment logged successfully');
+      } catch (logError) {
+        console.warn('🔧 DEBUG: Failed to log external assignment, but continuing:', logError);
+      }
+
+      setAssignmentData(newAssignmentData);
+      setShowExternalVerificationModal(false);
+      setShowConfirmationModal(true);
+      setSelectedProviderForVerification(null);
+      console.log('🔧 DEBUG: External assignment modal should be showing now');
+      
+    } catch (error) {
+      console.error('Error creating external assignment:', error);
+      toast.error('Error al crear la asignación externa');
     }
   };
 
@@ -274,6 +360,8 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
     setPuntoEncuentro('');
     setHoraEncuentro('');
     setAssignmentData(null);
+    setShowExternalVerificationModal(false);
+    setSelectedProviderForVerification(null);
   };
 
   const handleCreateNew = () => {
@@ -297,13 +385,15 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
     },
     armado: {
       nombre: assignmentData.armado_nombre || '',
-      telefono: selectedType === 'interno' 
-        ? armedGuards.find(g => g.id === selectedArmed)?.telefono
-        : providers.find(p => p.id === selectedArmed)?.telefono_contacto,
+      telefono: assignmentData.personal_externo_telefono || 
+        (selectedType === 'interno' 
+          ? armedGuards.find(g => g.id === selectedArmed)?.telefono
+          : providers.find(p => p.id === selectedArmed)?.telefono_contacto),
       tipo_asignacion: assignmentData.tipo_asignacion || 'interno',
-      licencia_portacion: selectedType === 'interno' 
-        ? armedGuards.find(g => g.id === selectedArmed)?.licencia_portacion
-        : undefined,
+      licencia_portacion: assignmentData.personal_externo_licencia || 
+        (selectedType === 'interno' 
+          ? armedGuards.find(g => g.id === selectedArmed)?.licencia_portacion
+          : undefined),
     },
     encuentro: {
       punto_encuentro: assignmentData.punto_encuentro || '',
@@ -619,6 +709,18 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
           </Button>
         </div>
       </div>
+
+      {/* External Armed Verification Modal */}
+      {selectedProviderForVerification && (
+        <ExternalArmedVerificationModal
+          open={showExternalVerificationModal}
+          onOpenChange={setShowExternalVerificationModal}
+          proveedorId={selectedProviderForVerification.id}
+          proveedorNombre={selectedProviderForVerification.nombre_empresa}
+          servicioId={serviceData.cliente_nombre || 'N/A'}
+          onConfirm={handleExternalPersonalConfirm}
+        />
+      )}
 
       {/* Enhanced Confirmation Modal */}
       {showConfirmationModal && confirmationData && (
