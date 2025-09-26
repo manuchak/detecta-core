@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, MapPin, Clock, User, Shield, Car, Phone, Copy, Info } from 'lucide-react';
+import { CheckCircle2, MapPin, Clock, User, Shield, Car, Phone, Copy, Info, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { useCustodioVehicleData } from '@/hooks/useCustodioVehicleData';
+import { VehicleRegistrationDialog } from '@/components/shared/VehicleRegistrationDialog';
 
 interface AssignmentConfirmationData {
   servicio: {
@@ -52,7 +53,7 @@ export function AssignmentConfirmationModal({
   }>({ client: false, custodian: false });
   
   // Obtener datos del vehículo del custodio
-  const { vehicleData, loading: vehicleLoading, formatVehicleInfo } = useCustodioVehicleData(
+  const { vehicleData, loading: vehicleLoading, formatVehicleInfo, hasVehicleData, refetch } = useCustodioVehicleData(
     data.servicio.custodio_nombre
   );
 
@@ -129,7 +130,7 @@ Tipo de servicio: ${data.servicio.tipo_servicio}
 
 👤 CUSTODIO ASIGNADO (DATOS PARA ACCESO AL CEDIS):
 Nombre: ${data.servicio.custodio_nombre}
-Vehículo: ${formatVehicleInfo()}
+Vehículo: ${formatVehicleInfo()}${!hasVehicleData() ? ' ⚠️ DATOS PENDIENTES' : ''}
 
 🛡️ PERSONAL DE SEGURIDAD ASIGNADO:
 Nombre: ${data.armado.nombre}
@@ -164,7 +165,7 @@ Nombre: ${data.armado.nombre}
 ${data.armado.tipo_asignacion === 'interno' ? `📍 Encuentro: ${data.encuentro.punto_encuentro} a las ${data.encuentro.hora_encuentro}` : ''}
 
 🚗 VEHÍCULO ASIGNADO:
-${formatVehicleInfo()}
+${formatVehicleInfo()}${!hasVehicleData() ? ' ⚠️ PENDIENTE DE REGISTRO' : ''}
 
 📱 COORDINACIÓN:
 Para cualquier inconveniente o emergencia, contacta inmediatamente al centro de operaciones.
@@ -338,26 +339,52 @@ Para cualquier inconveniente o emergencia, contacta inmediatamente al centro de 
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
-                <span className="font-semibold">Mensaje para el Cliente</span>
-                <Button
-                  onClick={() => copyToClipboard(generateClientMessage(), 'client')}
-                  variant="outline"
-                  size="sm"
-                  disabled={copyingStates.client}
-                  className={copyingStates.client ? 'bg-green-50 border-green-200' : ''}
-                >
-                  {copyingStates.client ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600 mr-2"></div>
-                      Copiando...
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copiar mensaje
-                    </>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">Mensaje para el Cliente</span>
+                  {!hasVehicleData() && (
+                    <div className="flex items-center gap-1 text-amber-600">
+                      <AlertCircle className="h-4 w-4" />
+                      <span className="text-xs">Datos de vehículo pendientes</span>
+                    </div>
                   )}
-                </Button>
+                </div>
+                <div className="flex gap-2">
+                  {!hasVehicleData() && (
+                    <VehicleRegistrationDialog
+                      custodioId=""
+                      custodioNombre={data.servicio.custodio_nombre}
+                      onVehicleRegistered={() => {
+                        refetch();
+                        toast.success('Datos actualizados. Puedes copiar el mensaje nuevamente.');
+                      }}
+                      trigger={
+                        <Button variant="outline" size="sm" className="gap-2">
+                          <Car className="h-4 w-4" />
+                          Registrar
+                        </Button>
+                      }
+                    />
+                  )}
+                  <Button
+                    onClick={() => copyToClipboard(generateClientMessage(), 'client')}
+                    variant="outline"
+                    size="sm"
+                    disabled={copyingStates.client}
+                    className={copyingStates.client ? 'bg-green-50 border-green-200' : ''}
+                  >
+                    {copyingStates.client ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600 mr-2"></div>
+                        Copiando...
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copiar mensaje
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
               <div className="bg-muted/50 p-4 rounded-lg text-sm font-mono whitespace-pre-wrap">
                 {generateClientMessage()}
@@ -372,26 +399,50 @@ Para cualquier inconveniente o emergencia, contacta inmediatamente al centro de 
                 <div className="flex items-center gap-2">
                   <User className="h-5 w-5 text-blue-600" />
                   <span className="font-semibold text-blue-800">Mensaje para el Custodio</span>
-                </div>
-                <Button
-                  onClick={() => copyToClipboard(generateCustodianMessage(), 'custodian')}
-                  variant="outline"
-                  size="sm"
-                  disabled={copyingStates.custodian}
-                  className={copyingStates.custodian ? 'bg-green-50 border-green-200' : ''}
-                >
-                  {copyingStates.custodian ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600 mr-2"></div>
-                      Copiando...
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copiar mensaje
-                    </>
+                  {!hasVehicleData() && (
+                    <div className="flex items-center gap-1 text-amber-600">
+                      <AlertCircle className="h-4 w-4" />
+                      <span className="text-xs">Datos de vehículo pendientes</span>
+                    </div>
                   )}
-                </Button>
+                </div>
+                <div className="flex gap-2">
+                  {!hasVehicleData() && (
+                    <VehicleRegistrationDialog
+                      custodioId=""
+                      custodioNombre={data.servicio.custodio_nombre}
+                      onVehicleRegistered={() => {
+                        refetch();
+                        toast.success('Datos actualizados. Puedes copiar el mensaje nuevamente.');
+                      }}
+                      trigger={
+                        <Button variant="outline" size="sm" className="gap-2">
+                          <Car className="h-4 w-4" />
+                          Registrar
+                        </Button>
+                      }
+                    />
+                  )}
+                  <Button
+                    onClick={() => copyToClipboard(generateCustodianMessage(), 'custodian')}
+                    variant="outline"
+                    size="sm"
+                    disabled={copyingStates.custodian}
+                    className={copyingStates.custodian ? 'bg-green-50 border-green-200' : ''}
+                  >
+                    {copyingStates.custodian ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600 mr-2"></div>
+                        Copiando...
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copiar mensaje
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
               <div className="bg-blue-100/50 p-4 rounded-lg text-sm font-mono whitespace-pre-wrap border border-blue-200">
                 {generateCustodianMessage()}

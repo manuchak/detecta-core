@@ -76,15 +76,21 @@ export function useCustodioVehicleData(custodioNombre?: string) {
   }, [custodioNombre]);
 
   const formatVehicleInfo = (): string => {
-    if (!vehicleData) return 'Vehículo no especificado';
+    if (!vehicleData) return 'Vehículo pendiente de registro';
     
-    const { marca, modelo, placa } = vehicleData;
+    const { marca, modelo, placa, fuente } = vehicleData;
     
     if (marca === 'No especificado' && modelo === 'No especificado') {
-      return 'Vehículo no especificado';
+      return 'Vehículo pendiente de registro';
     }
     
     return `${marca} ${modelo}${placa !== 'Sin placa' ? ` (${placa})` : ''}`;
+  };
+
+  const hasVehicleData = (): boolean => {
+    return vehicleData !== null && 
+           vehicleData.marca !== 'No especificado' && 
+           vehicleData.modelo !== 'No especificado';
   };
 
   return {
@@ -92,6 +98,7 @@ export function useCustodioVehicleData(custodioNombre?: string) {
     loading,
     error,
     formatVehicleInfo,
+    hasVehicleData,
     refetch: () => fetchVehicleData(custodioNombre)
   };
 }
