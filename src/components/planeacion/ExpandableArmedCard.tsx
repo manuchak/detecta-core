@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AppleTimePicker } from '@/components/ui/apple-time-picker';
 import { SmartLocationDropdown } from '@/components/ui/smart-location-dropdown';
-import { Shield, User, MapPin, Clock, Phone, CheckCircle2, AlertCircle, Star, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArmedCallManagementModal } from './ArmedCallManagementModal';
+import { Shield, User, MapPin, Clock, Phone, CheckCircle2, AlertCircle, Star, ChevronDown, ChevronUp, PhoneCall } from 'lucide-react';
 
 interface ArmedGuard {
   id: string;
@@ -52,6 +53,15 @@ interface ExpandableArmedCardProps {
     puntoEncuentro: string;
     horaEncuentro: string;
   }) => void;
+  onCallManagement?: (guardId: string) => void;
+  serviceData?: {
+    id_servicio: string;
+    fecha_hora_cita: string;
+    origen: string;
+    destino: string;
+    nombre_cliente: string;
+    tipo_servicio?: string;
+  };
   calculatedMeetingTime?: string;
   formatDisplayTime?: (time: string) => string;
   getTimeRecommendation?: (selectedTime: string) => string;
@@ -66,6 +76,8 @@ export function ExpandableArmedCard({
   onSelect,
   onExpand,
   onConfirmAssignment,
+  onCallManagement,
+  serviceData,
   calculatedMeetingTime,
   formatDisplayTime,
   getTimeRecommendation
@@ -73,6 +85,7 @@ export function ExpandableArmedCard({
   const [puntoEncuentro, setPuntoEncuentro] = useState('');
   const [horaEncuentro, setHoraEncuentro] = useState('');
   const [isValidated, setIsValidated] = useState(false);
+  const [showCallModal, setShowCallModal] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
   const entity = guard || provider;
@@ -208,25 +221,27 @@ export function ExpandableArmedCard({
               </div>
             </div>
 
-            {/* Contact Info */}
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center gap-2 text-muted-foreground">
+            {/* Contact and Action Buttons */}
+            <div className="flex items-center gap-2 mt-3">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm">
                 <Phone className="h-4 w-4" />
                 <span>{guard?.telefono || provider?.telefono_contacto}</span>
               </div>
               
-              {guard?.zona_base && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <MapPin className="h-4 w-4" />
-                  <span>{guard.zona_base}</span>
-                </div>
-              )}
-              
-              {provider?.zonas_cobertura && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <MapPin className="h-4 w-4" />
-                  <span>{provider.zonas_cobertura.join(', ')}</span>
-                </div>
+              {guard && onCallManagement && serviceData && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="hover:bg-accent hover:text-accent-foreground ml-auto"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCallManagement(id);
+                    setShowCallModal(true);
+                  }}
+                >
+                  <PhoneCall className="h-4 w-4 mr-2" />
+                  Gestionar Llamada
+                </Button>
               )}
             </div>
 
@@ -364,6 +379,28 @@ export function ExpandableArmedCard({
             </div>
           </div>
         </div>
+
+        {/* Call Management Modal */}
+        {guard && serviceData && (
+          <ArmedCallManagementModal
+            isOpen={showCallModal}
+            onClose={() => setShowCallModal(false)}
+            guard={guard as any}
+            serviceData={serviceData}
+            onAccept={(guardId) => {
+              // Handle acceptance - could trigger automatic assignment flow
+              console.log('Guard accepted:', guardId);
+              setShowCallModal(false);
+              onExpand(); // Show assignment details
+            }}
+            onReject={(guardId, reason, unavailabilityDays) => {
+              // Handle rejection with reason and possible unavailability
+              console.log('Guard rejected:', guardId, reason, unavailabilityDays);
+              setShowCallModal(false);
+              // Could trigger notification to parent component to try next guard
+            }}
+          />
+        )}
       </CardContent>
     </Card>
   );

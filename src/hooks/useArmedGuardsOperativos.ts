@@ -118,12 +118,33 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
     try {
       console.log('Loading armed guards with filters:', filters);
       
-      // Query the actual armados_operativos table
+      // First get currently unavailable armed guards
+      const today = new Date().toISOString().split('T')[0];
+      const { data: unavailableGuards, error: unavailableError } = await supabase
+        .from('armados_indisponibilidades')
+        .select('armado_id')
+        .eq('activo', true)
+        .lte('fecha_inicio', today)
+        .or(`fecha_fin.is.null,fecha_fin.gte.${today}`);
+
+      if (unavailableError) {
+        console.warn('Error fetching unavailable guards, continuing without filter:', unavailableError);
+      }
+
+      const unavailableIds = unavailableGuards?.map(u => u.armado_id) || [];
+      console.log('Found unavailable armed guards:', unavailableIds.length);
+      
+      // Query the actual armados_operativos table excluding unavailable ones
       let guardsQuery = supabase
         .from('armados_operativos')
         .select('*')
         .eq('estado', 'activo')
         .order('score_total', { ascending: false });
+      
+      // Filter out unavailable guards if any found
+      if (unavailableIds.length > 0) {
+        guardsQuery = guardsQuery.not('id', 'in', `(${unavailableIds.join(',')})`);
+      }
 
       // Apply zone filter with safe token-based search and valid cs syntax
       if (filters?.zona_base && filters.zona_base.trim()) {
