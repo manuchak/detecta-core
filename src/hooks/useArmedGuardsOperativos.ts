@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { verificarConflictosArmado, type ArmadosConflictValidation } from '@/utils/armadosConflictDetection';
 
 export interface ArmedGuardOperativo {
   id: string;
@@ -48,6 +49,12 @@ export interface ArmedGuardOperativo {
   fecha_ultimo_servicio?: string;
   created_at: string;
   updated_at: string;
+  
+  // New conflict validation fields
+  conflicto_validacion?: ArmadosConflictValidation;
+  categoria_disponibilidad_conflicto?: string;
+  razon_no_disponible?: string;
+  scoring_proximidad?: number;
 }
 
 export interface ProveedorArmado {
@@ -262,23 +269,122 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
         setProviders(filteredProviders);
       }
 
-      // Process armed guards data
-      const processedGuards = (finalGuardsData || []).map(guard => ({
-        ...guard,
-        // Add computed fields for compatibility
-        disponible_hoy: guard.disponibilidad === 'disponible',
-        score_disponibilidad_efectiva: guard.score_total || 0,
-        proveedor_nombre: guard.proveedor_id ? 'Proveedor Externo' : undefined,
-        proveedor_capacidad_maxima: undefined,
-        proveedor_capacidad_actual: undefined
+      // Process armed guards data with conflict validation
+      const processedGuards = await Promise.all((finalGuardsData || []).map(async (guard) => {
+        let conflictValidation: ArmadosConflictValidation | undefined;
+
+        // Apply conflict validation if service request data is provided
+        if (filters?.fecha_programada && filters?.hora_ventana_inicio) {
+          try {
+            // First try RPC function
+            const { data: rpcResult, error: rpcError } = await supabase.rpc(
+              'verificar_disponibilidad_equitativa_armado',
+              {
+                p_armado_id: guard.id,
+                p_armado_nombre: guard.nombre,
+                p_fecha_servicio: filters.fecha_programada,
+                p_hora_inicio: filters.hora_ventana_inicio,
+                p_duracion_estimada_horas: 4
+              }
+            );
+
+            if (rpcError) {
+              console.warn('RPC function failed for armado, using fallback:', rpcError);
+              // Fallback to TypeScript implementation
+              conflictValidation = await verificarConflictosArmado(
+                guard.id,
+                guard.nombre,
+                filters.fecha_programada,
+                filters.hora_ventana_inicio,
+                4
+              );
+            } else {
+              conflictValidation = rpcResult as ArmadosConflictValidation;
+            }
+          } catch (error) {
+            console.error('Error validating armado conflicts:', error);
+            // Default to unavailable for safety
+            conflictValidation = {
+              disponible: false,
+              categoria_disponibilidad: 'no_disponible',
+              razon_no_disponible: 'Error al verificar disponibilidad',
+              servicios_hoy: 0,
+              servicios_en_conflicto: 0,
+              conflictos_detalle: [],
+              horas_trabajadas_hoy: 0,
+              dias_sin_asignar: 0,
+              nivel_fatiga: 'bajo',
+              factor_equidad: 0,
+              factor_oportunidad: 0,
+              scoring_equitativo: {
+                workload_score: 0,
+                opportunity_score: 0,
+                fatiga_penalty: 0,
+                balance_recommendation: 'evitar'
+              }
+            };
+          }
+        }
+
+        return {
+          ...guard,
+          // Add computed fields for compatibility
+          disponible_hoy: conflictValidation ? conflictValidation.disponible : guard.disponibilidad === 'disponible',
+          score_disponibilidad_efectiva: guard.score_total || 0,
+          proveedor_nombre: guard.proveedor_id ? 'Proveedor Externo' : undefined,
+          proveedor_capacidad_maxima: undefined,
+          proveedor_capacidad_actual: undefined,
+          // New conflict validation fields
+          conflicto_validacion: conflictValidation,
+          categoria_disponibilidad_conflicto: conflictValidation?.categoria_disponibilidad || 'libre',
+          razon_no_disponible: conflictValidation?.razon_no_disponible,
+          scoring_proximidad: conflictValidation ? 
+            (conflictValidation.factor_equidad + conflictValidation.factor_oportunidad) / 2 : 
+            guard.score_total || 50
+        };
       }));
 
-      // Separate internal guards from provider guards
-      const internalGuards = processedGuards.filter(guard => guard.tipo_armado === 'interno');
-      const providerGuards = processedGuards.filter(guard => guard.tipo_armado === 'proveedor_externo');
+      // Filter out unavailable guards based on conflict validation (if validation was performed)
+      let availableGuards = processedGuards;
+      if (filters?.fecha_programada && filters?.hora_ventana_inicio) {
+        availableGuards = processedGuards.filter(guard => {
+          if (guard.conflicto_validacion) {
+            return guard.conflicto_validacion.disponible;
+          }
+          return guard.disponibilidad === 'disponible';
+        });
+        
+        console.log(`Conflict validation applied: ${processedGuards.length} -> ${availableGuards.length} available guards`);
+      }
 
-      // Sort by availability and score
+      // Separate internal guards from provider guards
+      const internalGuards = availableGuards.filter(guard => guard.tipo_armado === 'interno');
+      const providerGuards = availableGuards.filter(guard => guard.tipo_armado === 'proveedor_externo');
+
+      // Sort by availability category and score for internal guards
       const sortedInternalGuards = internalGuards.sort((a, b) => {
+        // If conflict validation was performed, use conflict categories
+        if (a.conflicto_validacion && b.conflicto_validacion) {
+          const categoryPriority = {
+            'libre': 1,
+            'parcialmente_ocupado': 2,
+            'ocupado_disponible': 3,
+            'ocupado': 4,
+            'no_disponible': 5
+          };
+          
+          const aPriority = categoryPriority[a.categoria_disponibilidad_conflicto as keyof typeof categoryPriority] || 5;
+          const bPriority = categoryPriority[b.categoria_disponibilidad_conflicto as keyof typeof categoryPriority] || 5;
+          
+          if (aPriority !== bPriority) {
+            return aPriority - bPriority;
+          }
+
+          // Then by scoring_proximidad
+          return (b.scoring_proximidad || 0) - (a.scoring_proximidad || 0);
+        }
+
+        // Fallback to original sorting logic
         // Priority: available > occupied > unavailable
         if (a.disponibilidad === 'disponible' && b.disponibilidad !== 'disponible') return -1;
         if (a.disponibilidad !== 'disponible' && b.disponibilidad === 'disponible') return 1;

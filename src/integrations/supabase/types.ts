@@ -11855,6 +11855,16 @@ export type Database = {
         }
         Returns: Json
       }
+      verificar_disponibilidad_equitativa_armado: {
+        Args: {
+          p_armado_id: string
+          p_armado_nombre: string
+          p_duracion_estimada_horas?: number
+          p_fecha_servicio: string
+          p_hora_inicio: string
+        }
+        Returns: Json
+      }
       verificar_disponibilidad_equitativa_custodio: {
         Args: {
           p_custodio_id: string
