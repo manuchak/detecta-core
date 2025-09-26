@@ -20,9 +20,12 @@ interface RouteData {
   destino_texto: string;
   precio_sugerido?: number;
   precio_custodio?: number;
+  pago_custodio_sin_arma?: number;
   costo_operativo?: number;
   margen_estimado?: number;
   distancia_km?: number;
+  tipo_servicio?: string;
+  incluye_armado?: boolean;
 }
 
 interface ServiceData extends RouteData {
@@ -115,12 +118,24 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
     }
   };
 
-  // Auto-fill basado en la ruta y precio
+  // Auto-fill basado en la ruta y tipo de servicio de la matriz de precios
   useEffect(() => {
-    // Detectar si incluye armado basado en precio diferenciado
-    const hasArmedService = routeData.precio_custodio && routeData.precio_custodio > 0;
+    // Detectar si incluye armado basado en tipo_servicio de la matriz
+    let isArmedService = false;
     
-    if (hasArmedService) {
+    if (routeData.tipo_servicio) {
+      // Si tipo_servicio está definido, usarlo para determinar si es armado
+      const servicioUpper = routeData.tipo_servicio.toUpperCase();
+      isArmedService = servicioUpper === 'ARMADA' || 
+                      servicioUpper === 'CON ARMA' || 
+                      servicioUpper === 'ARMADO';
+    } else if (routeData.incluye_armado !== undefined) {
+      // Fallback: usar incluye_armado si está disponible
+      isArmedService = routeData.incluye_armado;
+    }
+    // Si no hay información, por defecto es custodia sin arma
+    
+    if (isArmedService) {
       setIncluyeArmado(true);
       setTipoServicio('custodia_armada');
     } else {

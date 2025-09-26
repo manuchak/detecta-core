@@ -20,9 +20,12 @@ interface RouteData {
   destino_texto: string;
   precio_sugerido?: number;
   precio_custodio?: number;
+  pago_custodio_sin_arma?: number;
   costo_operativo?: number;
   margen_estimado?: number;
   distancia_km?: number;
+  tipo_servicio?: string;
+  incluye_armado?: boolean;
 }
 
 interface ServiceData extends RouteData {
