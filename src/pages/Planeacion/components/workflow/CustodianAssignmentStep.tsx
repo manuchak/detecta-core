@@ -82,14 +82,33 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
   // Usar el hook mejorado con validación preventiva
   const { data: custodiosCategorizados, isLoading: loading } = useCustodiosConProximidad(servicioNuevo);
 
-  // Combinar todos los custodios disponibles (sin conflictos)
+  // PRIORIZAR custodios por disponibilidad real (CORRECCIÓN APLICADA)
+  // 1. Disponibles (sin conflictos) PRIMERO
+  // 2. Parcialmente ocupados SEGUNDO  
+  // 3. Filtrar completamente ocupados/con conflictos
   const custodiosDisponibles = useMemo(() => {
     if (!custodiosCategorizados) return [];
-    return [
-      ...custodiosCategorizados.disponibles,
-      ...custodiosCategorizados.parcialmenteOcupados,
-      ...custodiosCategorizados.ocupados
+    
+    // PRIORIZAR: Disponibles primero, luego parcialmente ocupados
+    // FILTRAR: Ocupados y no disponibles (como Israel Mayo con conflictos)
+    const priorizados = [
+      // 🟢 PRIORIDAD ALTA: Custodios ideales (sin servicios)
+      ...custodiosCategorizados.disponibles.sort((a, b) => (b.score_total || 0) - (a.score_total || 0)),
+      
+      // 🟡 PRIORIDAD MEDIA: Parcialmente ocupados (1 servicio)
+      ...custodiosCategorizados.parcialmenteOcupados.sort((a, b) => (b.score_total || 0) - (a.score_total || 0))
     ];
+    
+    // NO INCLUIR ocupados ni no disponibles - esto resuelve el problema de Israel Mayo
+    console.log('🎯 Custodios priorizados:', {
+      disponibles: custodiosCategorizados.disponibles.length,
+      parcialmenteOcupados: custodiosCategorizados.parcialmenteOcupados.length,
+      ocupados_filtrados: custodiosCategorizados.ocupados.length,
+      noDisponibles_filtrados: custodiosCategorizados.noDisponibles.length,
+      total_mostrados: priorizados.length
+    });
+    
+    return priorizados;
   }, [custodiosCategorizados]);
 
   // Inicializar estados de comunicación SOLO para custodios disponibles
@@ -308,9 +327,9 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
             <Card>
               <CardContent className="p-4">
                 <div className="text-2xl font-bold text-red-600">
-                  {custodiosCategorizados?.noDisponibles.length || 0}
+                  {(custodiosCategorizados?.ocupados.length || 0) + (custodiosCategorizados?.noDisponibles.length || 0)}
                 </div>
-                <p className="text-sm text-muted-foreground">🔴 Filtrados</p>
+                <p className="text-sm text-muted-foreground">🔴 Filtrados (con conflictos)</p>
               </CardContent>
             </Card>
           </div>
@@ -321,10 +340,10 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>Custodios Disponibles (Sin Conflictos)</span>
+            <span>Custodios Priorizados (Disponibles Sin Conflictos)</span>
             {custodiosDisponibles.length > 0 && (
               <Badge variant="secondary">
-                {custodiosDisponibles.length} disponibles
+                {custodiosDisponibles.length} priorizados
               </Badge>
             )}
           </CardTitle>
@@ -333,12 +352,18 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
           {custodiosDisponibles.length === 0 ? (
             <div className="text-center py-8">
               <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No hay custodios disponibles</h3>
+              <h3 className="text-lg font-semibold mb-2">No hay custodios disponibles sin conflictos</h3>
               <p className="text-muted-foreground mb-4">
-                Todos los custodios tienen conflictos de horario o están fuera de límites operacionales.
+                Todos los custodios tienen conflictos horarios, están ocupados o fuera de límites operacionales.
+                {custodiosCategorizados && (
+                  <span className="block mt-2 text-sm">
+                    Ocupados: {custodiosCategorizados.ocupados.length} • 
+                    Con conflictos: {custodiosCategorizados.noDisponibles.length}
+                  </span>
+                )}
               </p>
               <Button variant="outline" onClick={onBack}>
-                Volver atrás
+                Volver atrás y ajustar horario
               </Button>
             </div>
           ) : (
