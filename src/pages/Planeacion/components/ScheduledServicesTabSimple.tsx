@@ -6,6 +6,7 @@ import { usePendingArmadoServices } from '@/hooks/usePendingArmadoServices';
 import { useServiciosPlanificados } from '@/hooks/useServiciosPlanificados';
 import { PendingAssignmentModal } from '@/components/planeacion/PendingAssignmentModal';
 import { EditServiceModal, type EditableService } from '@/components/planeacion/EditServiceModal';
+import { ContextualEditModal } from '@/components/planeacion/ContextualEditModal';
 import { ReassignmentModal, type ServiceForReassignment } from '@/components/planeacion/ReassignmentModal';
 import { ServiceHistoryModal } from '@/components/planeacion/ServiceHistoryModal';
 import { AirlineDateSelector } from '@/components/planeacion/AirlineDateSelector';
@@ -75,14 +76,6 @@ export function ScheduledServicesTab() {
       };
     }
     
-    if (isFullyPlanned && !isConfirmed) {
-      return {
-        color: 'bg-yellow-500',
-        icon: Clock,
-        message: 'Pendiente confirmación del cliente',
-        actionIcon: Edit
-      };
-    }
     
     return {
       color: 'bg-muted',
@@ -368,7 +361,7 @@ export function ScheduledServicesTab() {
         }}
       />
 
-      <EditServiceModal
+      <ContextualEditModal
         open={editModalOpen}
         onOpenChange={setEditModalOpen}
         service={selectedEditService}
