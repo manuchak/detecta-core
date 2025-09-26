@@ -328,13 +328,24 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
     if (!assignmentData) return;
 
     try {
-      // Simular guardado en base de datos
       console.log('💾 Guardando asignación en base de datos:', assignmentData);
+
+      // Use the hook to actually assign the armed guard to the database
+      const { assignArmedGuard } = useArmedGuardsWithTracking(serviceData);
       
-      // Aquí se haría la inserción real en las tablas:
-      // - servicios_custodia (actualizar estado)
-      // - asignacion_armados (crear nueva asignación)
-      // - assignment_audit_log (registro de auditoría)
+      if (assignArmedGuard) {
+        await assignArmedGuard(
+          assignmentData.cliente_nombre || '', // service ID
+          assignmentData.custodio_asignado_id || '',
+          assignmentData.armado_asignado_id || '',
+          assignmentData.tipo_asignacion || 'interno',
+          assignmentData.punto_encuentro || '',
+          assignmentData.hora_encuentro || '',
+          assignmentData.proveedor_id
+        );
+        
+        console.log('✅ Armed guard assignment persisted to database');
+      }
       
       // Log final de auditoría
       await logAssignmentAction({

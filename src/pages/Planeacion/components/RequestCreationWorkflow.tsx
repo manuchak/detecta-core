@@ -326,6 +326,15 @@ export function RequestCreationWorkflow() {
         requiere_armado: finalData.incluye_armado,
         tarifa_acordada: finalData.precio_custodio,
         observaciones: finalData.observaciones,
+        // Armed guard fields - include if available
+        ...(armedAssignmentData && {
+          armado_asignado: armedAssignmentData.armado_nombre,
+          armado_id: armedAssignmentData.armado_asignado_id,
+          punto_encuentro: armedAssignmentData.punto_encuentro,
+          hora_encuentro: armedAssignmentData.hora_encuentro,
+          tipo_asignacion_armado: armedAssignmentData.tipo_asignacion,
+          proveedor_armado_id: armedAssignmentData.proveedor_id
+        }),
         ...vehicleInfo
       };
       

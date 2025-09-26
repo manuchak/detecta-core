@@ -21,6 +21,10 @@ export interface ServicioPlanificadoData {
   armado_asignado?: string;
   armado_id?: string;
   fecha_asignacion_armado?: string;
+  punto_encuentro?: string;
+  hora_encuentro?: string;
+  tipo_asignacion_armado?: 'interno' | 'proveedor';
+  proveedor_armado_id?: string;
   auto?: string;
   placa?: string;
   num_vehiculos?: number;
@@ -29,8 +33,6 @@ export interface ServicioPlanificadoData {
   observaciones?: string;
   comentarios_adicionales?: string;
   condiciones_especiales?: string[];
-  punto_encuentro?: string;
-  hora_encuentro?: string;
   estado_planeacion?: string;
 }
 
