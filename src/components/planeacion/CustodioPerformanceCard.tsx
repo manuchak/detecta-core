@@ -43,7 +43,7 @@ export const CustodioPerformanceCard = ({
 
   const availabilityInfo = getAvailabilityIndicator();
   const vehicleInfo = formatVehicleInfo();
-  const scorePercentage = Math.round((custodio.score_total || 0) * 10);
+  const scorePercentage = Math.round(custodio.score_total || 0);
 
   if (compact) {
     return (

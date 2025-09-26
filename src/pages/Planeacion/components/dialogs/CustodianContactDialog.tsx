@@ -364,7 +364,7 @@ export const CustodianContactDialog: React.FC<CustodianContactDialogProps> = ({
                         custodian.score_total >= 8 ? 'text-green-600' : 
                         custodian.score_total >= 6 ? 'text-yellow-600' : 'text-red-600'
                       }`}>
-                        {(custodian.score_total * 10).toFixed(1)}%
+                        {(custodian.score_total || 0).toFixed(1)}%
                       </div>
                     </div>
                   </div>
