@@ -136,15 +136,18 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
     }
   ];
 
-  // Use hook data if available, otherwise use mock data
-  const armedGuards = hookArmedGuards?.length > 0 ? hookArmedGuards : mockArmedGuards;
-  const providers = hookProviders?.length > 0 ? hookProviders : mockProviders;
+  // Use real data when loaded, fallback to mock only during loading or error
+  const armedGuards = (!loading && !error) ? hookArmedGuards : mockArmedGuards;
+  const providers = (!loading && !error) ? hookProviders : mockProviders;
 
   console.log('🔧 DEBUG: Final data', {
-    armedGuardsLength: armedGuards?.length || 0,
-    providersLength: providers?.length || 0,
+    hookArmedGuardsLength: hookArmedGuards?.length || 0,
+    hookProvidersLength: hookProviders?.length || 0,
+    finalArmedGuardsLength: armedGuards?.length || 0,
+    finalProvidersLength: providers?.length || 0,
     loading,
     error,
+    usingRealData: !loading && !error,
     serviceData
   });
 
