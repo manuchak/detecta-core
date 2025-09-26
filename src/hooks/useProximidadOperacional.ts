@@ -128,17 +128,56 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
             });
 
             if (rpcError) {
-              console.warn('⚠️ RPC function error, using fallback algorithm:', rpcError.message);
-              // Use fallback algorithm without equity checking
-              if (servicioNuevo) {
-                const scoring = calcularProximidadOperacional(
-                  custodioProcessed,
-                  servicioNuevo,
-                  serviciosProximos
-                );
-                custodioProcessed.scoring_proximidad = scoring;
-                custodioProcessed.categoria_disponibilidad = 'disponible';
+              console.warn('⚠️ RPC function error, using enhanced fallback algorithm:', rpcError.message);
+              
+              // NUEVO: Usar función de fallback mejorada que verifica conflictos reales
+              const { verificarConflictosCustodio } = await import('@/utils/conflictDetection');
+              
+              const validacionConflictos = await verificarConflictosCustodio(
+                custodio.id,
+                custodio.nombre,
+                servicioNuevo.fecha_programada,
+                servicioNuevo.hora_ventana_inicio,
+                4
+              );
+
+              // Aplicar los resultados de la verificación de conflictos
+              if (!validacionConflictos.disponible) {
+                custodioProcessed.disponibilidad_efectiva = 'temporalmente_indisponible';
+                custodioProcessed.categoria_disponibilidad = 'no_disponible';
+                custodioProcessed.conflictos_detectados = true;
+                custodioProcessed.razon_no_disponible = validacionConflictos.razon_no_disponible || 'Conflictos detectados';
+                custodioProcessed.indisponibilidades_activas = [
+                  ...(custodioProcessed.indisponibilidades_activas || []),
+                  {
+                    motivo: validacionConflictos.razon_no_disponible || 'Conflictos detectados',
+                    servicios_hoy: validacionConflictos.servicios_hoy,
+                    conflictos_detalle: validacionConflictos.conflictos_detalle
+                  }
+                ];
+              } else {
+                // Mapear la categoría de disponibilidad
+                const mapearCategoria = (categoria: string): 'disponible' | 'parcialmente_ocupado' | 'ocupado' | 'no_disponible' => {
+                  switch (categoria) {
+                    case 'disponible': return 'disponible';
+                    case 'parcialmente_ocupado': return 'parcialmente_ocupado';
+                    case 'ocupado': return 'ocupado';
+                    case 'no_disponible': return 'no_disponible';
+                    default: return 'disponible';
+                  }
+                };
+                
+                custodioProcessed.categoria_disponibilidad = mapearCategoria(validacionConflictos.categoria_disponibilidad);
               }
+
+              // Calcular scoring con información disponible
+              const scoring = calcularProximidadOperacional(
+                custodioProcessed,
+                servicioNuevo,
+                serviciosProximos
+              );
+              custodioProcessed.scoring_proximidad = scoring;
+              
               custodiosProcessed.push(custodioProcessed);
               continue; // Skip to next custodian
             }

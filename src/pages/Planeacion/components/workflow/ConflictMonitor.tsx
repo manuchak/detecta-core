@@ -39,50 +39,54 @@ export const ConflictMonitor: React.FC<ConflictMonitorProps> = ({
       const { data: serviciosHoy, error: serviciosError } = await supabase
         .from('servicios_planificados')
         .select('*')
-        .eq('fecha_servicio', today)
-        .in('estado', ['asignado', 'confirmado', 'en_progreso']);
+        .gte('fecha_hora_cita', `${today}T00:00:00`)
+        .lt('fecha_hora_cita', `${today}T23:59:59`)
+        .in('estado_planeacion', ['asignado', 'confirmado', 'en_progreso']);
 
       if (serviciosError) throw serviciosError;
       if (!serviciosHoy || serviciosHoy.length === 0) return [];
 
       const conflictsDetected: ConflictData[] = [];
 
-      // Verificar cada servicio planificado contra conflictos
-      for (const servicio of serviciosHoy) {
-        if (!servicio.custodio_id || !servicio.custodio_nombre) continue;
+        // Verificar cada servicio planificado contra conflictos
+        for (const servicio of serviciosHoy) {
+          if (!servicio.custodio_id || !servicio.custodio_asignado) continue;
 
-        try {
-          const { data: validation, error: validationError } = await supabase.rpc(
-            'verificar_disponibilidad_equitativa_custodio',
-            {
-              p_custodio_id: servicio.custodio_id,
-              p_custodio_nombre: servicio.custodio_nombre,
-              p_fecha_servicio: servicio.fecha_servicio,
-              p_hora_inicio: servicio.hora_servicio,
-              p_duracion_estimada_horas: servicio.duracion_horas || 4
+          try {
+            const fechaServicio = new Date(servicio.fecha_hora_cita).toISOString().split('T')[0];
+            const horaServicio = new Date(servicio.fecha_hora_cita).toTimeString().substring(0, 5);
+            
+            const { data: validation, error: validationError } = await supabase.rpc(
+              'verificar_disponibilidad_equitativa_custodio',
+              {
+                p_custodio_id: servicio.custodio_id,
+                p_custodio_nombre: servicio.custodio_asignado,
+                p_fecha_servicio: fechaServicio,
+                p_hora_inicio: horaServicio,
+                p_duracion_estimada_horas: 4
+              }
+            );
+
+            if (validationError) {
+              console.warn('Error validating service:', servicio.id, validationError);
+              continue;
             }
-          );
 
-          if (validationError) {
-            console.warn('Error validating service:', servicio.id, validationError);
-            continue;
+            // Si hay conflictos, agregarlos a la lista
+            if (validation && validation.servicios_en_conflicto > 0) {
+              conflictsDetected.push({
+                custodio_id: servicio.custodio_id,
+                custodio_nombre: servicio.custodio_asignado,
+                conflictos_count: validation.servicios_en_conflicto,
+                conflictos_detalle: validation.conflictos_detalle || [],
+                fecha_servicio: fechaServicio,
+                hora_servicio: horaServicio
+              });
+            }
+          } catch (error) {
+            console.warn('Error checking conflicts for service:', servicio.id, error);
           }
-
-          // Si hay conflictos, agregarlos a la lista
-          if (validation && validation.servicios_en_conflicto > 0) {
-            conflictsDetected.push({
-              custodio_id: servicio.custodio_id,
-              custodio_nombre: servicio.custodio_nombre,
-              conflictos_count: validation.servicios_en_conflicto,
-              conflictos_detalle: validation.conflictos_detalle || [],
-              fecha_servicio: servicio.fecha_servicio,
-              hora_servicio: servicio.hora_servicio
-            });
-          }
-        } catch (error) {
-          console.warn('Error checking conflicts for service:', servicio.id, error);
         }
-      }
 
       return conflictsDetected;
     },
