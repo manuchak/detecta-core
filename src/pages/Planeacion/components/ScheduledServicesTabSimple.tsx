@@ -47,9 +47,9 @@ export function ScheduledServicesTab() {
 
   const getStatusConfig = (service: any) => {
     const isFullyPlanned = service.custodio_nombre && (!service.incluye_armado || service.armado_asignado);
-    const isConfirmed = service.estado === 'confirmado';
     
-    if (isFullyPlanned && isConfirmed) {
+    // Si está completamente planeado, está listo para ejecutar
+    if (isFullyPlanned) {
       return {
         color: 'bg-green-500',
         icon: CheckCircle2,
@@ -58,6 +58,7 @@ export function ScheduledServicesTab() {
       };
     }
     
+    // Si falta armado (crítico)
     if (service.incluye_armado && !service.armado_asignado) {
       return {
         color: 'bg-red-500',
@@ -67,6 +68,7 @@ export function ScheduledServicesTab() {
       };
     }
     
+    // Si falta custodio (crítico)
     if (!service.custodio_nombre) {
       return {
         color: 'bg-red-500',
@@ -76,11 +78,11 @@ export function ScheduledServicesTab() {
       };
     }
     
-    
+    // Caso por defecto: requiere atención
     return {
-      color: 'bg-muted',
-      icon: Clock,
-      message: 'En proceso de planeación',
+      color: 'bg-yellow-500',
+      icon: AlertCircle,
+      message: 'Requiere atención',
       actionIcon: Edit
     };
   };
