@@ -11,6 +11,7 @@ import { useCustodioVehicleData } from '@/hooks/useCustodioVehicleData';
 
 interface AssignmentConfirmationData {
   servicio: {
+    id_servicio: string;
     cliente_nombre: string;
     origen: string;
     destino: string;
@@ -56,6 +57,11 @@ export function AssignmentConfirmationModal({
     toast.success('Copiado al portapapeles');
   };
 
+  const generateGoogleMapsLink = (address: string): string => {
+    const encodedAddress = encodeURIComponent(address);
+    return `https://maps.google.com/?q=${encodedAddress}`;
+  };
+
   const handleConfirm = async () => {
     setIsConfirming(true);
     try {
@@ -74,24 +80,25 @@ export function AssignmentConfirmationModal({
     const message = `🛡️ CONFIRMACIÓN DE SERVICIO DE CUSTODIA
 
 📋 DETALLES DEL SERVICIO:
+ID Servicio: ${data.servicio.id_servicio}
 Cliente: ${data.servicio.cliente_nombre}
-Ruta: ${data.servicio.origen} → ${data.servicio.destino}
+Punto de inicio: ${data.servicio.origen}
+Destino: ${data.servicio.destino}
 Fecha: ${format(new Date(data.servicio.fecha_programada), 'PPP', { locale: es })}
-Hora del servicio: ${data.servicio.hora_ventana_inicio}
+Hora programada: ${data.servicio.hora_ventana_inicio}
 Tipo de servicio: ${data.servicio.tipo_servicio}
 
 👤 CUSTODIO ASIGNADO (DATOS PARA ACCESO AL CEDIS):
 Nombre: ${data.servicio.custodio_nombre}
 Vehículo: ${formatVehicleInfo()}
 
-🛡️ ARMADO ASIGNADO:
+🛡️ PERSONAL DE SEGURIDAD ASIGNADO:
 Nombre: ${data.armado.nombre}
-Tipo: ${data.armado.tipo_asignacion === 'interno' ? 'Armado Interno' : 'Proveedor Externo'}
 
 ✅ INFORMACIÓN IMPORTANTE:
 - Su servicio ha sido confirmado exitosamente
 - Los datos del custodio y vehículo son necesarios para el acceso al CEDIS
-- El armado acompañará al custodio durante todo el servicio
+- El personal de seguridad acompañará al custodio durante todo el servicio
 - Conserve estos datos para consultas futuras
 
 Para cualquier duda o emergencia, contacte a nuestro centro de operaciones.`;
@@ -102,15 +109,20 @@ Para cualquier duda o emergencia, contacte a nuestro centro de operaciones.`;
   const generateCustodianMessage = () => {
     const message = `🛡️ ASIGNACIÓN DE SERVICIO - ${format(new Date(data.servicio.fecha_programada), 'PPP', { locale: es })}
 
+🆔 ID SERVICIO: ${data.servicio.id_servicio}
 👤 CUSTODIO: ${data.servicio.custodio_nombre}
-🎯 SERVICIO: ${data.servicio.cliente_nombre} | ${data.servicio.tipo_servicio}
-📍 RECOGER EN: ${data.servicio.origen} a las ${data.servicio.hora_ventana_inicio}
-🎯 ENTREGAR EN: ${data.servicio.destino}
+🎯 CLIENTE: ${data.servicio.cliente_nombre} | ${data.servicio.tipo_servicio}
 
-🛡️ ARMADO ASIGNADO:
+📍 PUNTO DE INICIO: ${data.servicio.origen}
+🔗 Ver ubicación: ${generateGoogleMapsLink(data.servicio.origen)}
+🕒 Hora programada: ${data.servicio.hora_ventana_inicio}
+
+🎯 DESTINO: ${data.servicio.destino}
+🔗 Ver ubicación: ${generateGoogleMapsLink(data.servicio.destino)}
+
+🛡️ PERSONAL DE SEGURIDAD ASIGNADO:
 Nombre: ${data.armado.nombre}
-Tipo: ${data.armado.tipo_asignacion === 'interno' ? 'Armado Interno' : 'Proveedor Externo'}
-${data.armado.tipo_asignacion === 'interno' ? `Encuentro: ${data.encuentro.punto_encuentro} a las ${data.encuentro.hora_encuentro}` : ''}
+${data.armado.tipo_asignacion === 'interno' ? `📍 Encuentro: ${data.encuentro.punto_encuentro} a las ${data.encuentro.hora_encuentro}` : ''}
 
 🚗 VEHÍCULO ASIGNADO:
 ${formatVehicleInfo()}
@@ -147,6 +159,10 @@ Para cualquier inconveniente o emergencia, contacta inmediatamente al centro de 
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
+                  <span className="text-muted-foreground">ID Servicio:</span>
+                  <span className="ml-2 font-medium font-mono text-blue-600">{data.servicio.id_servicio}</span>
+                </div>
+                <div>
                   <span className="text-muted-foreground">Cliente:</span>
                   <span className="ml-2 font-medium">{data.servicio.cliente_nombre}</span>
                 </div>
@@ -166,11 +182,33 @@ Para cualquier inconveniente o emergencia, contacta inmediatamente al centro de 
                 </div>
               </div>
               <div className="mt-3 pt-3 border-t border-green-200">
-                <div className="flex items-center gap-2 text-sm">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">{data.servicio.origen}</span>
-                  <span className="text-muted-foreground">→</span>
-                  <span className="font-medium">{data.servicio.destino}</span>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-green-600" />
+                    <span className="text-muted-foreground">Punto de inicio:</span>
+                    <span className="font-medium">{data.servicio.origen}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs text-blue-600 hover:text-blue-800"
+                      onClick={() => window.open(generateGoogleMapsLink(data.servicio.origen), '_blank')}
+                    >
+                      Ver en Maps
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-green-600" />
+                    <span className="text-muted-foreground">Destino:</span>
+                    <span className="font-medium">{data.servicio.destino}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs text-blue-600 hover:text-blue-800"
+                      onClick={() => window.open(generateGoogleMapsLink(data.servicio.destino), '_blank')}
+                    >
+                      Ver en Maps
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -221,8 +259,9 @@ Para cualquier inconveniente o emergencia, contacta inmediatamente al centro de 
                     <span className="ml-2 font-medium">{data.armado.nombre}</span>
                   </div>
                   <div>
-                    <Badge variant={data.armado.tipo_asignacion === 'interno' ? 'success' : 'secondary'}>
-                      {data.armado.tipo_asignacion === 'interno' ? 'Armado Interno' : 'Proveedor Externo'}
+                    <span className="text-muted-foreground">Clasificación (interna):</span>
+                    <Badge variant={data.armado.tipo_asignacion === 'interno' ? 'success' : 'secondary'} className="ml-2">
+                      {data.armado.tipo_asignacion === 'interno' ? 'Personal Interno' : 'Proveedor Externo'}
                     </Badge>
                   </div>
                 </div>
@@ -230,29 +269,31 @@ Para cualquier inconveniente o emergencia, contacta inmediatamente al centro de 
             </Card>
           </div>
 
-          {/* Meeting Details - Solo para operaciones internas */}
-          <Card className="border-amber-200 bg-amber-50/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Clock className="h-5 w-5 text-amber-600" />
-                <span className="font-semibold text-amber-800">Coordinación Interna</span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Punto de encuentro (interno):</span>
-                  <span className="ml-2 font-medium">{data.encuentro.punto_encuentro}</span>
+          {/* Meeting Details - Solo para coordinación interna */}
+          {data.armado.tipo_asignacion === 'interno' && (
+            <Card className="border-amber-200 bg-amber-50/50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Clock className="h-5 w-5 text-amber-600" />
+                  <span className="font-semibold text-amber-800">Coordinación Interna</span>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Hora de encuentro (interno):</span>
-                  <span className="ml-2 font-medium">{data.encuentro.hora_encuentro}</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Punto de encuentro:</span>
+                    <span className="ml-2 font-medium">{data.encuentro.punto_encuentro}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Hora de encuentro:</span>
+                    <span className="ml-2 font-medium">{data.encuentro.hora_encuentro}</span>
+                  </div>
                 </div>
-              </div>
-              <div className="mt-2 p-2 bg-amber-100 rounded text-xs text-amber-700">
-                <Info className="h-3 w-3 inline mr-1" />
-                Esta información es solo para coordinación interna. No se incluye en el mensaje al cliente.
-              </div>
-            </CardContent>
-          </Card>
+                <div className="mt-2 p-2 bg-amber-100 rounded text-xs text-amber-700">
+                  <Info className="h-3 w-3 inline mr-1" />
+                  Esta información es exclusivamente para coordinación interna. No se incluye en comunicaciones al cliente.
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Client Notification Template */}
           <Card>

@@ -434,6 +434,7 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
 
   const confirmationData = assignmentData ? {
     servicio: {
+      id_servicio: assignmentData.cliente_nombre || 'N/A', // Use client name as fallback for service ID
       cliente_nombre: assignmentData.cliente_nombre || '',
       origen: serviceData.destino_texto?.split(' → ')[0] || '',
       destino: serviceData.destino_texto?.split(' → ')[1] || assignmentData.destino_texto || '',
@@ -444,24 +445,12 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
     },
     armado: {
       nombre: assignmentData.armado_nombre || '',
-      telefono: assignmentData.personal_externo_telefono || 
-        (selectedType === 'interno' 
-          ? armedGuards.find(g => g.id === selectedArmed)?.telefono
-          : providers.find(p => p.id === selectedArmed)?.telefono_contacto),
       tipo_asignacion: assignmentData.tipo_asignacion || 'interno',
-      licencia_portacion: assignmentData.personal_externo_licencia || 
-        (selectedType === 'interno' 
-          ? armedGuards.find(g => g.id === selectedArmed)?.licencia_portacion
-          : undefined),
     },
     encuentro: {
       punto_encuentro: assignmentData.punto_encuentro || '',
       hora_encuentro: assignmentData.hora_encuentro || '',
     },
-    vehiculo: principalVehicle ? {
-      auto: `${principalVehicle.marca} ${principalVehicle.modelo}`,
-      placa: principalVehicle.placa,
-    } : undefined,
   } : null;
 
   console.log('🔧 DEBUG: Enhanced component rendered', {
