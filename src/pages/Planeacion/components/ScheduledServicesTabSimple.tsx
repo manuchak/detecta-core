@@ -44,23 +44,52 @@ export function ScheduledServicesTab() {
   const [historyServiceId, setHistoryServiceId] = useState<string | null>(null);
   const [historyServiceName, setHistoryServiceName] = useState<string>('');
 
-  const getStatusIcon = (service: any) => {
+  const getStatusConfig = (service: any) => {
     const isFullyPlanned = service.custodio_nombre && (!service.incluye_armado || service.armado_asignado);
     const isConfirmed = service.estado === 'confirmado';
     
     if (isFullyPlanned && isConfirmed) {
-      return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+      return {
+        color: 'bg-green-500',
+        icon: CheckCircle2,
+        message: 'Listo para ejecutar',
+        actionIcon: null
+      };
     }
     
     if (service.incluye_armado && !service.armado_asignado) {
-      return <AlertCircle className="h-4 w-4 text-red-500" />;
+      return {
+        color: 'bg-red-500',
+        icon: Shield,
+        message: 'Armado pendiente de asignación',
+        actionIcon: AlertCircle
+      };
     }
     
     if (!service.custodio_nombre) {
-      return <AlertCircle className="h-4 w-4 text-red-500" />;
+      return {
+        color: 'bg-red-500',
+        icon: User,
+        message: 'Custodio pendiente de asignación',
+        actionIcon: AlertCircle
+      };
     }
     
-    return <Clock className="h-4 w-4 text-amber-500" />;
+    if (isFullyPlanned && !isConfirmed) {
+      return {
+        color: 'bg-yellow-500',
+        icon: Clock,
+        message: 'Pendiente confirmación del cliente',
+        actionIcon: Edit
+      };
+    }
+    
+    return {
+      color: 'bg-muted',
+      icon: Clock,
+      message: 'En proceso de planeación',
+      actionIcon: Edit
+    };
   };
 
   const handleEditService = (service: any) => {
@@ -228,91 +257,103 @@ export function ScheduledServicesTab() {
         )}
 
         {!error && summary?.services_data && summary.services_data.length > 0 && (
-          <div className="apple-agenda-list">
-            {summary.services_data.map((service, index) => (
-              <div key={service.id || index} className="apple-service-item">
-                <div className="apple-service-time">
-                  {format(new Date(service.fecha_hora_cita), 'HH:mm')}
-                </div>
-                
-                <div className="apple-service-content">
-                  <div className="apple-service-header">
-                    <div className="apple-service-title">{service.cliente_nombre}</div>
-                    <div className="apple-service-actions">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditService(service)}
-                        className="apple-button-ghost-small"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleShowHistory(service)}
-                        className="apple-button-ghost-small"
-                      >
-                        <History className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <div className="apple-service-route">
-                    <MapPin className="h-4 w-4 text-secondary" />
-                    <span>{service.origen}</span>
-                    <span className="text-tertiary">→</span>
-                    <span>{service.destino}</span>
-                  </div>
-                  
-                  <div className="apple-service-details">
-                    <div className="apple-service-assignment">
-                      <User className="h-4 w-4 text-secondary" />
-                      <span className="apple-text-body">
-                        {service.custodio_nombre || 'Sin asignar'}
-                      </span>
-                    </div>
-                    
-                    {(service.auto || service.placa) && (
-                      <div className="apple-service-assignment">
-                        <Car className="h-4 w-4 text-secondary" />
-                        <span className="apple-text-body">
-                          {service.auto} {service.placa && `(${service.placa})`}
+          <div className="space-y-4">
+            {summary.services_data.map((service, index) => {
+              const statusConfig = getStatusConfig(service);
+              const StatusIcon = statusConfig.icon;
+              const ActionIcon = statusConfig.actionIcon;
+              
+              return (
+                <div 
+                  key={service.id || index} 
+                  className="apple-card apple-hover-lift cursor-pointer transition-all duration-200 p-4"
+                  onClick={() => handleEditService(service)}
+                >
+                  {/* Línea 1: Estado + Hora + Cliente + Acción */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-3">
+                      {/* Estado visual */}
+                      <div className="flex items-center space-x-2">
+                        <div className={`w-2.5 h-2.5 rounded-full ${statusConfig.color}`} />
+                        <span className="apple-text-caption font-medium text-muted-foreground">
+                          {format(new Date(service.fecha_hora_cita), 'HH:mm')}
                         </span>
                       </div>
+                      
+                      {/* Cliente */}
+                      <div className="flex flex-col">
+                        <span className="apple-text-body font-medium text-foreground">
+                          {service.cliente_nombre}
+                        </span>
+                        <span className="apple-text-caption text-muted-foreground">
+                          {service.id}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Íconos de acción */}
+                    <div className="flex items-center space-x-1">
+                      {ActionIcon && (
+                        <ActionIcon className="w-4 h-4 text-muted-foreground opacity-60" />
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleShowHistory(service);
+                        }}
+                        className="apple-button-ghost-small opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <History className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {/* Línea 2: Ruta */}
+                  <div className="flex items-center space-x-2 mb-3">
+                    <MapPin className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                    <div className="flex items-center space-x-1 min-w-0">
+                      <span className="apple-text-caption text-muted-foreground truncate">
+                        {service.origen}
+                      </span>
+                      <span className="text-muted-foreground">→</span>
+                      <span className="apple-text-caption font-medium text-foreground truncate">
+                        {service.destino}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Línea 3: Custodio + Vehículo */}
+                  <div className="flex items-center space-x-1 mb-3">
+                    <span className="apple-text-caption text-muted-foreground">
+                      {service.custodio_nombre || 'Sin custodio asignado'}
+                    </span>
+                    {(service.auto || service.placa) && (
+                      <>
+                        <span className="text-muted-foreground">•</span>
+                        <span className="apple-text-caption text-muted-foreground">
+                          {service.auto} {service.placa && `(${service.placa})`}
+                        </span>
+                      </>
                     )}
                   </div>
                   
-                  {service.incluye_armado && (
-                    <div className="apple-service-armed">
-                      <Shield className="h-4 w-4" />
-                      <span className="apple-text-caption">
-                        {service.armado_asignado 
-                          ? 'Armado asignado'
-                          : 'Armado pendiente'
-                        }
+                  {/* Línea 4: Mensaje de estado (solo si hay algo pendiente) */}
+                  {(statusConfig.message && statusConfig.color !== 'bg-green-500') && (
+                    <div className="flex items-center space-x-2">
+                      <StatusIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span className="apple-text-caption text-muted-foreground">
+                        {statusConfig.message}
                       </span>
+                      {service.incluye_armado && !service.armado_asignado && (
+                        <Shield className="w-3.5 h-3.5 text-red-500 ml-1" />
+                      )}
                     </div>
                   )}
-                  
-                  <div className="apple-service-status">
-                    {getStatusIcon(service)}
-                    <span className="apple-text-caption text-secondary">
-                      {(() => {
-                        const isFullyPlanned = service.custodio_nombre && (!service.incluye_armado || service.armado_asignado);
-                        const isConfirmed = service.estado === 'confirmado';
-                        
-                        if (isFullyPlanned && isConfirmed) return 'Completamente planeado';
-                        if (service.incluye_armado && !service.armado_asignado) return 'Armado pendiente';
-                        if (!service.custodio_nombre) return 'Custodio pendiente';
-                        if (isFullyPlanned && !isConfirmed) return 'Pendiente confirmación';
-                        return 'En proceso';
-                      })()}
-                    </span>
-                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
