@@ -255,7 +255,7 @@ export function RequestCreationWorkflow() {
       };
       
       // Guardar como pendiente
-      createServicioPlanificado(servicioData);
+      createServicioPlanificado.mutate(servicioData);
       
       console.log('💾 Solicitud guardada como pendiente:', data);
       toast.success('Solicitud guardada como pendiente por asignar', {
@@ -360,22 +360,67 @@ export function RequestCreationWorkflow() {
         ...vehicleInfo
       };
       
-      // Crear el servicio usando la función de mutación
-      createServicioPlanificado(servicioData);
-      
-      // Si tiene armado, asignar el armado también
-      if (armedAssignmentData && assignmentData?.servicio_id) {
-        assignArmedGuard({
-          serviceId: assignmentData.servicio_id,
-          armadoName: armedAssignmentData.armado_nombre || '',
-          armadoId: armedAssignmentData.armado_asignado_id || ''
+      console.log('✅ Confirmación final completada:', {
+        serviceId: servicioData.id_servicio,
+        hasModifications: modifiedSteps.length > 0,
+        modifiedSteps,
+        timestamp: new Date().toISOString()
+      });
+
+      // Crear el servicio usando la función de mutación correctamente
+      await new Promise((resolve, reject) => {
+        createServicioPlanificado.mutate(servicioData, {
+          onSuccess: async (createdService) => {
+            console.log('📝 Servicio planificado creado:', createdService);
+            
+            // Si tiene armado, asignar el armado también
+            if (armedAssignmentData && createdService.id) {
+              assignArmedGuard.mutate({
+                serviceId: createdService.id,
+                armadoName: armedAssignmentData.armado_nombre || '',
+                armadoId: armedAssignmentData.armado_asignado_id || ''
+              }, {
+                onSuccess: () => {
+                  console.log('🛡️ Armado asignado exitosamente');
+                  resolve(createdService);
+                },
+                onError: (error) => {
+                  console.error('Error asignando armado:', error);
+                  reject(error);
+                }
+              });
+            } else {
+              resolve(createdService);
+            }
+          },
+          onError: reject
+        });
+      });
+
+      // Enviar notificaciones
+      try {
+        await supabase.functions.invoke('send-service-notifications', {
+          body: {
+            service_id: servicioData.id_servicio,
+            custodio_telefono: finalData.custodio_telefono,
+            custodio_nombre: finalData.custodio_nombre,
+            cliente_telefono: finalData.telefono_cliente,
+            cliente_nombre: finalData.cliente_nombre,
+            service_details: {
+              origen: servicioData.origen,
+              destino: servicioData.destino,
+              fecha_hora_cita: servicioData.fecha_hora_cita,
+              vehiculo_info: vehicleInfo.auto,
+              armado_asignado: armedAssignmentData?.armado_nombre
+            }
+          }
         });
         
-        console.log('🎉 Servicio con armado completado y guardado:', armedAssignmentData);
-        toast.success('✅ Servicio con armado guardado sin conflictos');
-      } else {
-        console.log('🎉 Servicio completado y guardado:', finalData);
-        toast.success('✅ Servicio guardado sin conflictos');
+        console.log('📞 Notificaciones enviadas');
+        toast.success('✅ Servicio guardado y notificaciones enviadas');
+      } catch (notificationError) {
+        console.error('Error enviando notificaciones:', notificationError);
+        toast.success('✅ Servicio guardado (notificaciones pendientes)');
       }
       
       // Resetear después de un delay para mostrar la confirmación
