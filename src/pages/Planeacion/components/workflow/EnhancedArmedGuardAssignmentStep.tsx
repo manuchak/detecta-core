@@ -508,7 +508,7 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Shield className="h-5 w-5" />
-              Asignación de Armado - Versión Mejorada
+              Asignación de Armado
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -534,42 +534,66 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
 
             {/* Armed Guards List with Expandable Cards */}
             <div className="space-y-6">
-              <div className="text-lg font-semibold mb-4">Armados Internos Disponibles</div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-lg font-semibold">Armados Internos</div>
+                <Badge variant="secondary" className="text-xs">
+                  {armedGuards.filter(guard => guard.disponibilidad === 'disponible').length} disponibles
+                </Badge>
+              </div>
               <div className="space-y-4">
-                {armedGuards.filter(guard => guard.disponibilidad === 'disponible').map((guard) => (
-                  <ExpandableArmedCard
-                    key={guard.id}
-                    guard={guard}
-                    type="interno"
-                    isSelected={selectedArmed === guard.id}
-                    isExpanded={expandedCard === guard.id}
-                    onSelect={() => handleCardSelect(guard.id, 'interno')}
-                    onExpand={() => handleCardExpand(guard.id)}
-                    onConfirmAssignment={handleDirectAssignment}
-                    calculatedMeetingTime={calculatedMeetingTime}
-                    formatDisplayTime={formatDisplayTime}
-                    getTimeRecommendation={createTimeRecommendationWrapper}
-                  />
-                ))}
+                {armedGuards.filter(guard => guard.disponibilidad === 'disponible').length > 0 ? (
+                  armedGuards.filter(guard => guard.disponibilidad === 'disponible').map((guard) => (
+                    <ExpandableArmedCard
+                      key={guard.id}
+                      guard={guard}
+                      type="interno"
+                      isSelected={selectedArmed === guard.id}
+                      isExpanded={expandedCard === guard.id}
+                      onSelect={() => handleCardSelect(guard.id, 'interno')}
+                      onExpand={() => handleCardExpand(guard.id)}
+                      onConfirmAssignment={handleDirectAssignment}
+                      calculatedMeetingTime={calculatedMeetingTime}
+                      formatDisplayTime={formatDisplayTime}
+                      getTimeRecommendation={createTimeRecommendationWrapper}
+                    />
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Shield className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <div>No hay armados internos disponibles</div>
+                  </div>
+                )}
               </div>
 
-              <div className="text-lg font-semibold mb-4 mt-8">Proveedores Externos</div>
+              <div className="flex items-center justify-between mb-4 mt-8">
+                <div className="text-lg font-semibold">Proveedores Externos</div>
+                <Badge variant="secondary" className="text-xs">
+                  {providers.length} disponibles
+                </Badge>
+              </div>
               <div className="space-y-4">
-                {providers.filter(provider => provider.activo).map((provider) => (
-                  <ExpandableArmedCard
-                    key={provider.id}
-                    provider={provider}
-                    type="proveedor"
-                    isSelected={selectedArmed === provider.id}
-                    isExpanded={expandedCard === provider.id}
-                    onSelect={() => handleCardSelect(provider.id, 'proveedor')}
-                    onExpand={() => handleCardExpand(provider.id)}
-                    onConfirmAssignment={handleDirectAssignment}
-                    calculatedMeetingTime={calculatedMeetingTime}
-                    formatDisplayTime={formatDisplayTime}
-                    getTimeRecommendation={createTimeRecommendationWrapper}
-                  />
-                ))}
+                {providers.length > 0 ? (
+                  providers.map((provider) => (
+                    <ExpandableArmedCard
+                      key={provider.id}
+                      provider={provider}
+                      type="proveedor"
+                      isSelected={selectedArmed === provider.id}
+                      isExpanded={expandedCard === provider.id}
+                      onSelect={() => handleCardSelect(provider.id, 'proveedor')}
+                      onExpand={() => handleCardExpand(provider.id)}
+                      onConfirmAssignment={handleDirectAssignment}
+                      calculatedMeetingTime={calculatedMeetingTime}
+                      formatDisplayTime={formatDisplayTime}
+                      getTimeRecommendation={createTimeRecommendationWrapper}
+                    />
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <User className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <div>No hay proveedores externos disponibles</div>
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>
