@@ -292,24 +292,20 @@ export function ExpandableArmedCard({
             <div className="grid gap-4">
               {/* Meeting Point */}
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  Punto de Encuentro *
-                </label>
                 <SmartLocationDropdown
                   value={puntoEncuentro}
                   onChange={setPuntoEncuentro}
+                  label="Punto de Encuentro *"
                   placeholder="Selecciona el punto de encuentro"
                 />
               </div>
 
               {/* Meeting Time */}
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  Hora de Encuentro *
-                </label>
                 <AppleTimePicker
                   value={horaEncuentro}
                   onChange={setHoraEncuentro}
+                  label="Hora de Encuentro *"
                   defaultTime={calculatedMeetingTime}
                 />
                 {horaEncuentro && getTimeRecommendation && (
