@@ -1,7 +1,6 @@
 
-import { CalendarClock, MapPin } from 'lucide-react';
+import { CalendarClock, MapPin, Edit3, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
 export interface ServiceProps {
   id: string;
@@ -11,11 +10,55 @@ export interface ServiceProps {
   destination: string;
   eta: string;
   progress: number;
-  status: string;
+  status: 'confirmed' | 'pending' | 'problem' | 'draft' | 'delayed' | 'on-time' | 'in-route';
   delayMinutes?: number;
   isSelected?: boolean;
   onClick: (id: string) => void;
+  origin?: string;
+  statusMessage?: string;
 }
+
+// Estado y configuración para cada tipo de status
+const getStatusConfig = (status: ServiceProps['status']) => {
+  switch (status) {
+    case 'confirmed':
+      return {
+        color: 'bg-green-500',
+        icon: CheckCircle,
+        message: 'Listo para ejecutar',
+        actionIcon: null
+      };
+    case 'pending':
+      return {
+        color: 'bg-yellow-500',
+        icon: Clock,
+        message: 'Esperando confirmación',
+        actionIcon: Edit3
+      };
+    case 'problem':
+    case 'delayed':
+      return {
+        color: 'bg-red-500',
+        icon: AlertCircle,
+        message: status === 'delayed' ? 'Servicio retrasado' : 'Requiere atención',
+        actionIcon: AlertCircle
+      };
+    case 'draft':
+      return {
+        color: 'bg-muted',
+        icon: Edit3,
+        message: 'En planeación',
+        actionIcon: Edit3
+      };
+    default:
+      return {
+        color: 'bg-blue-500',
+        icon: Clock,
+        message: 'En ruta',
+        actionIcon: null
+      };
+  }
+};
 
 export const ActiveServiceCard = ({
   id,
@@ -28,70 +71,111 @@ export const ActiveServiceCard = ({
   status,
   delayMinutes,
   isSelected,
-  onClick
+  onClick,
+  origin,
+  statusMessage
 }: ServiceProps) => {
+  const statusConfig = getStatusConfig(status);
+  const StatusIcon = statusConfig.icon;
+  const ActionIcon = statusConfig.actionIcon;
+
   return (
     <Card
-      className={`cursor-pointer hover:border-primary/50 transition-all ${
-        status === "delayed" ? "border-red-300 bg-red-50" : 
-        status === "on-time" ? "border-green-300 bg-green-50" : "border-gray-200"
-      } ${isSelected ? 'ring-2 ring-primary' : ''}`}
+      className={`apple-card cursor-pointer apple-hover-lift transition-all duration-200 ${
+        isSelected ? 'ring-2 ring-primary shadow-lg' : ''
+      }`}
       onClick={() => onClick(id)}
     >
       <CardContent className="p-4">
-        <div className="flex justify-between items-start mb-2">
-          <div className="flex items-center">
-            <span className="text-sm font-bold text-blue-600 mr-1">{serviceId}</span>
-            <span className="text-sm font-medium">{driver}</span>
-          </div>
-          <Badge
-            variant="outline"
-            className={`${
-              status === "delayed" ? "bg-red-100 text-red-800" : 
-              status === "on-time" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
-            }`}
-          >
-            {status === "delayed" ? "Retraso" : 
-             status === "on-time" ? "En tiempo" : "En ruta"}
-          </Badge>
-        </div>
-        
-        <div className="text-xs text-gray-500 mb-1">{vehicleType}</div>
-        
-        <div className="flex items-start mb-2">
-          <MapPin className="h-4 w-4 mt-0.5 mr-1 text-gray-400" />
-          <div className="text-sm">
-            <span>Destino</span>
-            <p className="font-medium">{destination}</p>
-          </div>
-        </div>
-        
-        <div className="flex items-center mb-2">
-          <CalendarClock className="h-4 w-4 mr-1 text-gray-400" />
-          <div className="text-sm">
-            <span>ETA: </span>
-            <span className={`font-medium ${status === "delayed" ? "text-red-600" : ""}`}>
-              {eta}
-            </span>
-            {delayMinutes && delayMinutes > 0 && (
-              <span className="text-red-500 text-xs ml-1">
-                +{delayMinutes} min
+        {/* Línea 1: Estado + Hora + Cliente + Acción */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center space-x-3">
+            {/* Estado visual */}
+            <div className="flex items-center space-x-2">
+              <div className={`w-2.5 h-2.5 rounded-full ${statusConfig.color}`} />
+              <span className="apple-text-caption font-medium text-muted-foreground">
+                {eta}
               </span>
+            </div>
+            
+            {/* Cliente */}
+            <div className="flex flex-col">
+              <span className="apple-text-body font-medium text-foreground">
+                {driver}
+              </span>
+              <span className="apple-text-caption text-muted-foreground">
+                {serviceId}
+              </span>
+            </div>
+          </div>
+          
+          {/* Ícono de acción */}
+          {ActionIcon && (
+            <ActionIcon className="w-4 h-4 text-muted-foreground opacity-60" />
+          )}
+        </div>
+        
+        {/* Línea 2: Ruta */}
+        <div className="flex items-center space-x-2 mb-2">
+          <MapPin className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+          <div className="flex items-center space-x-1 min-w-0">
+            {origin && (
+              <>
+                <span className="apple-text-caption text-muted-foreground truncate">
+                  {origin}
+                </span>
+                <span className="text-muted-foreground">→</span>
+              </>
             )}
+            <span className="apple-text-caption font-medium text-foreground truncate">
+              {destination}
+            </span>
           </div>
         </div>
         
-        <div className="mt-3">
-          <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-            <div 
-              className={`h-full ${status === "delayed" ? "bg-red-500" : "bg-green-500"}`}
-              style={{ width: `${progress}%` }}
-            ></div>
-          </div>
-          <div className="flex justify-between mt-1">
-            <span className="text-xs text-gray-500">Progreso: {progress}%</span>
-          </div>
+        {/* Línea 3: Custodio + Vehículo */}
+        <div className="flex items-center space-x-1 mb-3">
+          <span className="apple-text-caption text-muted-foreground">
+            {driver}
+          </span>
+          <span className="text-muted-foreground">•</span>
+          <span className="apple-text-caption text-muted-foreground">
+            {vehicleType}
+          </span>
         </div>
+        
+        {/* Línea 4: Mensaje de estado (solo si hay algo pendiente) */}
+        {(statusMessage || status === 'pending' || status === 'problem' || status === 'delayed') && (
+          <div className="flex items-center space-x-2 mb-3">
+            <StatusIcon className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="apple-text-caption text-muted-foreground">
+              {statusMessage || statusConfig.message}
+              {delayMinutes && delayMinutes > 0 && (
+                <span className="text-destructive ml-1">
+                  (+{delayMinutes} min)
+                </span>
+              )}
+            </span>
+          </div>
+        )}
+        
+        {/* Barra de progreso minimalista */}
+        {progress > 0 && (
+          <div className="mt-3">
+            <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
+              <div 
+                className={`h-full transition-all duration-300 ${
+                  status === 'confirmed' || status === 'on-time' 
+                    ? 'bg-green-500' 
+                    : status === 'delayed' || status === 'problem'
+                    ? 'bg-red-500'
+                    : 'bg-primary'
+                }`}
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
