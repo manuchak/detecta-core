@@ -464,7 +464,12 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
           open={contactDialogOpen}
           onOpenChange={setContactDialogOpen}
           custodian={contactingCustodian}
-          serviceData={serviceData}
+          serviceDetails={{
+            origen: serviceData.origen || '',
+            destino: serviceData.destino || '',
+            fecha_hora: serviceData.fecha_hora_cita || '',
+            tipo_servicio: serviceData.tipo_servicio || ''
+          }}
           onResult={(result) => handleContactResult(contactingCustodian.id!, result)}
         />
       )}
