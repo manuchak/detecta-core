@@ -85,8 +85,8 @@ export async function verificarConflictosCustodio(
       console.warn('Error consultando servicios_planificados:', errorPlanificados);
     } else if (serviciosPlanificados) {
       for (const servicio of serviciosPlanificados) {
-        // Solo considerar servicios activos
-        if (!['asignado', 'confirmado', 'en_progreso'].includes(servicio.estado_planeacion)) {
+        // Solo considerar servicios activos (incluir 'planificado')
+        if (!['planificado', 'asignado', 'confirmado', 'en_progreso'].includes(servicio.estado_planeacion)) {
           continue;
         }
 

@@ -41,7 +41,7 @@ export const ConflictMonitor: React.FC<ConflictMonitorProps> = ({
         .select('*')
         .gte('fecha_hora_cita', `${today}T00:00:00`)
         .lt('fecha_hora_cita', `${today}T23:59:59`)
-        .in('estado_planeacion', ['asignado', 'confirmado', 'en_progreso']);
+        .in('estado_planeacion', ['planificado', 'asignado', 'confirmado', 'en_progreso']);
 
       if (serviciosError) throw serviciosError;
       if (!serviciosHoy || serviciosHoy.length === 0) return [];
