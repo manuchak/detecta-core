@@ -32,7 +32,7 @@ const chartConfig = {
   },
   llamadas: {
     label: "Llamadas Realizadas", 
-    color: "hsl(var(--chart-2))",
+    color: "#fb923c",
   },
 } as const;
 
