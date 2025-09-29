@@ -9,6 +9,7 @@ export interface ScheduledService {
   destino: string;
   fecha_hora_cita: string;
   custodio_nombre: string;
+  armado_nombre?: string;
   estado: string;
   incluye_armado: boolean;
   armado_asignado: boolean;

@@ -338,11 +338,20 @@ export function ScheduledServicesTab() {
                     </div>
                   </div>
                   
-                  {/* Línea 3: Custodio + Vehículo */}
+                  {/* Línea 3: Custodio + Armado + Vehículo */}
                   <div className="flex items-center space-x-1 mb-3">
                     <span className="apple-text-caption text-muted-foreground">
                       {service.custodio_nombre || 'Sin custodio asignado'}
                     </span>
+                    {service.armado_nombre && (
+                      <>
+                        <span className="text-muted-foreground">•</span>
+                        <Shield className="w-3 h-3 text-muted-foreground inline" />
+                        <span className="apple-text-caption text-muted-foreground">
+                          {service.armado_nombre}
+                        </span>
+                      </>
+                    )}
                     {(service.auto || service.placa) && (
                       <>
                         <span className="text-muted-foreground">•</span>
