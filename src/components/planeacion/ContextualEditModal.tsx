@@ -8,7 +8,7 @@ import { ContextualFeedback } from './ContextualFeedback';
 import { EditServiceModal } from './EditServiceModal';
 import { useEditWorkflow, type EditMode } from '@/contexts/EditWorkflowContext';
 import { useSmartEditSuggestions } from '@/hooks/useSmartEditSuggestions';
-import { ArrowLeft, X } from 'lucide-react';
+import { ArrowLeft, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { EditableService } from './EditServiceModal';
 
@@ -29,6 +29,7 @@ export function ContextualEditModal({
 }: ContextualEditModalProps) {
   const [currentView, setCurrentView] = useState<'selection' | 'preview' | 'basic_form'>('selection');
   const [selectedEditMode, setSelectedEditMode] = useState<EditMode | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const { editIntent, resetEditMode, setEditIntent } = useEditWorkflow();
   const { heroSuggestion, suggestions } = useSmartEditSuggestions(service);
 
@@ -70,6 +71,7 @@ export function ContextualEditModal({
   const handleDirectAction = async () => {
     if (!service || !selectedEditMode) return;
     
+    setIsProcessing(true);
     try {
       let updatedData: Partial<EditableService> = {};
       
@@ -83,7 +85,10 @@ export function ContextualEditModal({
               : service.estado_planeacion
           };
           await onSave(service.id_servicio, updatedData);
-          toast.success('Armado removido del servicio');
+          toast.success('Armado removido del servicio', {
+            duration: 3000,
+            description: 'El servicio ahora es solo de custodia'
+          });
           break;
           
         case 'add_armed':
@@ -92,17 +97,24 @@ export function ContextualEditModal({
             estado_planeacion: 'pendiente_asignacion'
           };
           await onSave(service.id_servicio, updatedData);
-          toast.success('Armado agregado al servicio');
+          toast.success('Armado agregado al servicio', {
+            duration: 3000,
+            description: 'Ahora puedes asignar personal armado'
+          });
           break;
           
         default:
           toast.info('Acción en desarrollo');
       }
       
+      // Delay para que el usuario vea el toast
+      await new Promise(resolve => setTimeout(resolve, 1500));
       onOpenChange(false);
     } catch (error) {
       console.error('Error applying changes:', error);
       toast.error('Error al aplicar los cambios');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -244,9 +256,16 @@ export function ContextualEditModal({
                 <Button
                   onClick={handleProceed}
                   className="apple-button-primary flex-1"
-                  disabled={isLoading}
+                  disabled={isLoading || isProcessing}
                 >
-                  Continuar
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Procesando...
+                    </>
+                  ) : (
+                    'Continuar'
+                  )}
                 </Button>
               </div>
             </div>

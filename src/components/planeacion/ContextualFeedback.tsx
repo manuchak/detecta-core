@@ -61,7 +61,7 @@ export function ContextualFeedback({ service, selectedMode }: ContextualFeedback
         
       case 'remove_armed':
         return {
-          icon: <AlertTriangle className="h-4 w-4 text-red-600" />,
+          icon: <AlertTriangle className="h-4 w-4 text-red-600 animate-pulse" />,
           title: 'Remover Armado',
           description: 'Se convertirá a servicio solo de custodia',
           details: [
