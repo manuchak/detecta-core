@@ -387,6 +387,14 @@ export function ScheduledServicesTab() {
         service={selectedEditService}
         onSave={handleSaveServiceEdit}
         isLoading={isUpdatingConfiguration}
+        onStartReassignment={(type, service) => {
+          setEditModalOpen(false);
+          if (type === 'armed_guard') {
+            handleReassignArmedGuard(service);
+          } else {
+            handleReassignCustodian(service);
+          }
+        }}
       />
 
       <ReassignmentModal

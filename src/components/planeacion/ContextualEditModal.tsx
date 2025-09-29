@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,7 @@ interface ContextualEditModalProps {
   service: EditableService | null;
   onSave: (id: string, data: Partial<EditableService>) => Promise<void>;
   isLoading?: boolean;
+  onStartReassignment?: (type: 'custodian' | 'armed_guard', service: EditableService) => void;
 }
 
 export function ContextualEditModal({
@@ -25,7 +26,8 @@ export function ContextualEditModal({
   onOpenChange,
   service,
   onSave,
-  isLoading = false
+  isLoading = false,
+  onStartReassignment
 }: ContextualEditModalProps) {
   const [currentView, setCurrentView] = useState<'selection' | 'preview' | 'basic_form'>('selection');
   const [selectedEditMode, setSelectedEditMode] = useState<EditMode | null>(null);
@@ -80,8 +82,8 @@ export function ContextualEditModal({
           updatedData = {
             requiere_armado: false,
             armado_asignado: null,
-            estado_planeacion: service.estado_planeacion === 'pendiente_asignacion' 
-              ? 'confirmado' 
+            estado_planeacion: service.custodio_asignado 
+              ? 'completamente_planeado'
               : service.estado_planeacion
           };
           await onSave(service.id_servicio, updatedData);
@@ -102,6 +104,20 @@ export function ContextualEditModal({
             description: 'Ahora puedes asignar personal armado'
           });
           break;
+          
+        case 'armed_only':
+          toast.info('Abriendo flujo de reasignación de armado...', { duration: 1500 });
+          await new Promise(resolve => setTimeout(resolve, 500));
+          onStartReassignment?.('armed_guard', service);
+          onOpenChange(false);
+          return;
+          
+        case 'custodian_only':
+          toast.info('Abriendo flujo de reasignación de custodio...', { duration: 1500 });
+          await new Promise(resolve => setTimeout(resolve, 500));
+          onStartReassignment?.('custodian', service);
+          onOpenChange(false);
+          return;
           
         default:
           toast.info('Acción en desarrollo');
@@ -179,34 +195,37 @@ export function ContextualEditModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col apple-surface border-0 shadow-apple-lg">
-        <DialogHeader className="flex-shrink-0 border-b border-border/30 pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {currentView !== 'selection' && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleCancel}
-                  className="apple-button-ghost -ml-2"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-              )}
-              <DialogTitle className="apple-text-title">
-                {getModalTitle()}
-              </DialogTitle>
+          <DialogHeader className="flex-shrink-0 border-b border-border/30 pb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {currentView !== 'selection' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCancel}
+                    className="apple-button-ghost -ml-2"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                )}
+                <DialogTitle className="apple-text-title">
+                  {getModalTitle()}
+                </DialogTitle>
+              </div>
+              
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => onOpenChange(false)}
+                className="apple-button-ghost"
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
-            
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => onOpenChange(false)}
-              className="apple-button-ghost"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </DialogHeader>
+            <DialogDescription className="sr-only">
+              Modal para editar servicio con opciones contextuales
+            </DialogDescription>
+          </DialogHeader>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {currentView === 'selection' && (

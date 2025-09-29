@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -22,6 +22,7 @@ interface SmartEditModalProps {
 }
 
 type SmartViewMode = 'analysis' | 'direct_assign' | 'contextual_edit' | 'basic_edit';
+type AssignmentMode = 'auto' | 'direct_armed' | 'direct_custodian';
 
 export function SmartEditModal({
   open,
@@ -33,6 +34,7 @@ export function SmartEditModal({
 }: SmartEditModalProps) {
   const [currentView, setCurrentView] = useState<SmartViewMode>('analysis');
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
+  const [assignmentMode, setAssignmentMode] = useState<AssignmentMode>('auto');
   const { setEditIntent } = useEditWorkflow();
 
   // Reset state when modal opens/closes
@@ -40,6 +42,7 @@ export function SmartEditModal({
     if (open) {
       setCurrentView('analysis');
       setSelectedAction(null);
+      setAssignmentMode('auto');
     }
   }, [open]);
 
@@ -222,6 +225,9 @@ export function SmartEditModal({
                 <X className="h-4 w-4" />
               </Button>
             </div>
+            <DialogDescription className="sr-only">
+              Modal inteligente de análisis y edición de servicio
+            </DialogDescription>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -356,6 +362,7 @@ export function SmartEditModal({
         open={currentView === 'direct_assign'}
         onOpenChange={(open) => !open && handleBack()}
         service={pendingService}
+        mode={assignmentMode}
         onAssignmentComplete={() => {
           onAssignmentComplete?.();
           onOpenChange(false);
@@ -369,6 +376,10 @@ export function SmartEditModal({
         service={service}
         onSave={onSave}
         isLoading={isLoading}
+        onStartReassignment={(type, svc) => {
+          setCurrentView('direct_assign');
+          setAssignmentMode(type === 'armed_guard' ? 'direct_armed' : 'direct_custodian');
+        }}
       />
 
       {/* Basic Edit Modal */}
