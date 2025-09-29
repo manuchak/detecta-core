@@ -733,6 +733,66 @@ export function useServiciosPlanificados() {
     }
   });
 
+  // Cancel service mutation
+  const cancelService = useMutation({
+    mutationFn: async ({ serviceId, reason }: { serviceId: string; reason?: string }) => {
+      console.log('Cancelling service:', serviceId, reason);
+      
+      // Validate service exists and can be cancelled
+      const { data: service, error: fetchError } = await supabase
+        .from('servicios_planificados')
+        .select('estado_planeacion, custodio_asignado, armado_asignado, fecha_hora_cita')
+        .eq('id', serviceId)
+        .maybeSingle();
+
+      if (fetchError) {
+        throw new Error('Error al verificar el servicio');
+      }
+
+      if (!service) {
+        throw new Error('Servicio no encontrado');
+      }
+
+      // Check if service has already started (shouldn't cancel services in progress)
+      const serviceTime = new Date(service.fecha_hora_cita);
+      const currentTime = new Date();
+      const timeDiff = serviceTime.getTime() - currentTime.getTime();
+      const hoursUntilService = timeDiff / (1000 * 60 * 60);
+
+      if (hoursUntilService < -1) { // Service started more than 1 hour ago
+        throw new Error('No se puede cancelar un servicio que ya ha iniciado');
+      }
+
+      // Cancel the service
+      const { error } = await supabase
+        .from('servicios_planificados')
+        .update({
+          estado_planeacion: 'cancelado',
+          observaciones: reason ? `Cancelado: ${reason}` : 'Servicio cancelado',
+          cancelado_por: (await supabase.auth.getUser()).data.user?.id,
+          fecha_cancelacion: new Date().toISOString()
+        })
+        .eq('id', serviceId);
+
+      if (error) {
+        throw new Error(`Error al cancelar servicio: ${error.message}`);
+      }
+
+      return { serviceId };
+    },
+    onSuccess: () => {
+      toast.success('Servicio cancelado exitosamente');
+      queryClient.invalidateQueries({ queryKey: ['scheduled-services'] });
+      queryClient.invalidateQueries({ queryKey: ['planned-services'] });
+    },
+    onError: (error) => {
+      console.error('Error cancelling service:', error);
+      toast.error('Error al cancelar servicio', {
+        description: error.message || 'Error desconocido'
+      });
+    }
+  });
+
   // SPRINT 3: Service change logging helper function
   const logServiceChange = async ({
     serviceId,
@@ -776,10 +836,12 @@ export function useServiciosPlanificados() {
     reassignCustodian: reassignCustodian.mutate,
     reassignArmedGuard: reassignArmedGuard.mutate,
     removeAssignment: removeAssignment.mutate,
+    cancelService,
     isCreating: createServicioPlanificado.isPending,
     isUpdating: updateServicioPlanificado.isPending,
     isUpdatingConfiguration: updateServiceConfiguration.isPending,
     isReassigning: reassignCustodian.isPending || reassignArmedGuard.isPending || removeAssignment.isPending,
+    isCancelling: cancelService.isPending,
     isLoading: isLoading || createServicioPlanificado.isPending || updateServicioPlanificado.isPending || updateServiceConfiguration.isPending || reassignCustodian.isPending || reassignArmedGuard.isPending || removeAssignment.isPending,
     checkCustodianConflicts,
     useCheckCustodianConflicts,

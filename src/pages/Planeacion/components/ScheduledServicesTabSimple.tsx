@@ -11,6 +11,7 @@ import { ReassignmentModal, type ServiceForReassignment } from '@/components/pla
 import { ServiceHistoryModal } from '@/components/planeacion/ServiceHistoryModal';
 import { AirlineDateSelector } from '@/components/planeacion/AirlineDateSelector';
 import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Edit, RefreshCw, History } from 'lucide-react';
+import { CancelServiceButton } from '@/components/planeacion/CancelServiceButton';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -25,7 +26,9 @@ export function ScheduledServicesTab() {
     reassignCustodian,
     reassignArmedGuard,
     removeAssignment,
-    isReassigning
+    isReassigning,
+    cancelService,
+    isCancelling
   } = useServiciosPlanificados();
   
   // Estado para el modal de asignación
@@ -182,6 +185,15 @@ export function ScheduledServicesTab() {
     ]);
   };
 
+  const handleCancelService = async (serviceId: string, reason?: string) => {
+    await cancelService.mutateAsync({ serviceId, reason });
+    await Promise.all([
+      refetch(),
+      refetchPending(),
+      refetchPendingArmado()
+    ]);
+  };
+
   if (loading) {
     return (
       <div className="apple-loading-state">
@@ -261,7 +273,7 @@ export function ScheduledServicesTab() {
               return (
                 <div 
                   key={service.id || index} 
-                  className="apple-card apple-hover-lift cursor-pointer transition-all duration-200 p-4"
+                  className="apple-card apple-hover-lift cursor-pointer transition-all duration-200 p-4 group"
                   onClick={() => handleEditService(service)}
                 >
                   {/* Línea 1: Estado + Hora + Cliente + Acción */}
@@ -291,6 +303,12 @@ export function ScheduledServicesTab() {
                       {ActionIcon && (
                         <ActionIcon className="w-4 h-4 text-muted-foreground opacity-60" />
                       )}
+                      <CancelServiceButton
+                        serviceId={service.id}
+                        serviceName={service.cliente_nombre}
+                        onCancel={handleCancelService}
+                        disabled={service.estado_asignacion === 'cancelado' || isCancelling}
+                      />
                       <Button
                         variant="ghost"
                         size="sm"
