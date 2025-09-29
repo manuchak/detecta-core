@@ -14,6 +14,7 @@ import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Edit, Refr
 import { CancelServiceButton } from '@/components/planeacion/CancelServiceButton';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { toast } from 'sonner';
 
 export function ScheduledServicesTab() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -403,7 +404,35 @@ export function ScheduledServicesTab() {
         service={reassignmentService}
         assignmentType={reassignmentType}
         onReassign={async (data) => {
-          console.log('Reassignment:', data);
+          console.log('Reassignment data:', data);
+          
+          if (reassignmentType === 'custodian') {
+            reassignCustodian({
+              serviceId: data.serviceId,
+              newCustodioId: data.newId,
+              newCustodioName: data.newName,
+              reason: data.reason
+            });
+          } else {
+            // Reasignación de armado (puede ser interno o proveedor)
+            reassignArmedGuard({
+              serviceId: data.serviceId,
+              newArmadoId: data.newId,
+              newArmadoName: data.newName,
+              assignmentType: data.assignmentType || 'interno',
+              reason: data.reason,
+              providerId: data.providerId,
+              puntoEncuentro: data.puntoEncuentro,
+              horaEncuentro: data.horaEncuentro,
+              tarifaAcordada: data.tarifaAcordada,
+              nombrePersonal: data.nombrePersonal
+            });
+            
+            if (data.assignmentType === 'proveedor') {
+              toast.info('Procesando asignación de proveedor externo...', { duration: 2000 });
+            }
+          }
+          
           await handleReassignmentComplete();
           setReassignmentModalOpen(false);
         }}

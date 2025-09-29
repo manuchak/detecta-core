@@ -587,20 +587,37 @@ export function useServiciosPlanificados() {
   });
 
   const reassignArmedGuard = useMutation({
-    mutationFn: async ({ serviceId, newArmadoName, newArmadoId, reason }: {
+    mutationFn: async ({ 
+      serviceId, 
+      newArmadoName, 
+      newArmadoId, 
+      reason,
+      assignmentType,
+      providerId,
+      puntoEncuentro,
+      horaEncuentro,
+      tarifaAcordada,
+      nombrePersonal
+    }: {
       serviceId: string;
       newArmadoName: string;
       newArmadoId?: string;
       reason: string;
+      assignmentType?: 'interno' | 'proveedor';
+      providerId?: string;
+      puntoEncuentro?: string;
+      horaEncuentro?: string;
+      tarifaAcordada?: number;
+      nombrePersonal?: string;
     }) => {
-      console.log('🛡️ Reassigning armed guard for service:', serviceId);
+      console.log('🛡️ Reassigning armed guard for service:', serviceId, 'type:', assignmentType);
       
       // Get current service data
       const { data: currentService, error: fetchError } = await supabase
         .from('servicios_planificados')
-        .select('armado_asignado, armado_id, custodio_asignado, estado_planeacion')
+        .select('armado_asignado, armado_id, custodio_asignado, custodio_id, estado_planeacion, fecha_hora_cita')
         .eq('id', serviceId)
-        .maybeSingle();
+        .single();
 
       if (fetchError) throw new Error('Error al obtener datos del servicio');
       if (!currentService) throw new Error('Servicio no encontrado');
@@ -622,10 +639,27 @@ export function useServiciosPlanificados() {
 
       if (updateError) throw updateError;
 
-      // Log the change
+      // If provider, create asignacion_armados record
+      if (assignmentType === 'proveedor' && providerId && puntoEncuentro && horaEncuentro) {
+        const serviceDate = new Date(currentService.fecha_hora_cita).toISOString().split('T')[0];
+        await supabase.from('asignacion_armados').insert({
+          servicio_custodia_id: serviceId,
+          custodio_id: currentService.custodio_id,
+          proveedor_armado_id: providerId,
+          tipo_asignacion: 'proveedor',
+          punto_encuentro: puntoEncuentro,
+          hora_encuentro: `${serviceDate}T${horaEncuentro}:00`,
+          estado_asignacion: 'pendiente',
+          armado_nombre_verificado: newArmadoName,
+          tarifa_acordada: tarifaAcordada,
+          asignado_por: (await supabase.auth.getUser()).data.user?.id,
+          observaciones: nombrePersonal ? `Personal: ${nombrePersonal}` : null
+        });
+      }
+
       await logServiceChange({
         serviceId,
-        actionType: 'reassign_armed_guard',
+        actionType: assignmentType === 'proveedor' ? 'assign_provider' : 'reassign_armed_guard',
         previousValue: currentService.armado_asignado,
         newValue: newArmadoName,
         reason

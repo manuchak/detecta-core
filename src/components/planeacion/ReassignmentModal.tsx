@@ -4,13 +4,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { RefreshCw, User, Shield, AlertTriangle, CheckCircle2, X, Trash2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { RefreshCw, User, Shield, AlertTriangle, CheckCircle2, X, Trash2, Building2, MapPin, Clock, DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useProveedoresArmados } from '@/hooks/useProveedoresArmados';
 
 export interface ServiceForReassignment {
   id: string;
@@ -35,6 +37,12 @@ interface ReassignmentModalProps {
     newName: string;
     newId?: string;
     reason: string;
+    assignmentType?: 'interno' | 'proveedor';
+    providerId?: string;
+    puntoEncuentro?: string;
+    horaEncuentro?: string;
+    tarifaAcordada?: number;
+    nombrePersonal?: string;
   }) => Promise<void>;
   onRemove?: (data: {
     serviceId: string;
@@ -57,7 +65,18 @@ export function ReassignmentModal({
   const [selectedName, setSelectedName] = useState<string>('');
   const [reason, setReason] = useState<string>('');
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  
+  // Campos adicionales para proveedores externos
+  const [selectedType, setSelectedType] = useState<'interno' | 'proveedor'>('interno');
+  const [puntoEncuentro, setPuntoEncuentro] = useState<string>('');
+  const [horaEncuentro, setHoraEncuentro] = useState<string>('09:00');
+  const [tarifaAcordada, setTarifaAcordada] = useState<string>('');
+  const [nombrePersonal, setNombrePersonal] = useState<string>('');
+  const [selectedProviderId, setSelectedProviderId] = useState<string>('');
 
+  // Hook para proveedores externos
+  const { proveedores: proveedoresExternos, loading: loadingProveedores } = useProveedoresArmados();
+  
   // Fetch available custodians or armed guards
   const { data: availableOptions, isLoading: loadingOptions } = useQuery({
     queryKey: [assignmentType === 'custodian' ? 'custodios' : 'armados', 'available'],
@@ -73,10 +92,12 @@ export function ReassignmentModal({
         if (error) throw error;
         return data || [];
       } else {
+        // Solo armados internos
         const { data, error } = await supabase
           .from('armados_operativos')
-          .select('id, nombre, telefono, estado, disponibilidad')
+          .select('id, nombre, telefono, estado, disponibilidad, tipo_armado')
           .eq('estado', 'activo')
+          .eq('tipo_armado', 'interno')
           .eq('disponibilidad', 'disponible')
           .order('nombre');
         
@@ -86,6 +107,14 @@ export function ReassignmentModal({
     },
     enabled: open && !!service
   });
+  
+  // Filtrar proveedores disponibles
+  const availableProviders = proveedoresExternos.filter(p => 
+    p.activo && 
+    p.capacidad_actual < p.capacidad_maxima &&
+    p.licencias_vigentes &&
+    p.documentos_completos
+  );
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -94,6 +123,12 @@ export function ReassignmentModal({
       setSelectedName('');
       setReason('');
       setShowRemoveConfirm(false);
+      setSelectedType('interno');
+      setPuntoEncuentro('');
+      setHoraEncuentro('09:00');
+      setTarifaAcordada('');
+      setNombrePersonal('');
+      setSelectedProviderId('');
     }
   }, [open]);
 
@@ -102,13 +137,35 @@ export function ReassignmentModal({
       toast.error('Por favor complete todos los campos requeridos');
       return;
     }
+    
+    // Validaciones adicionales para proveedores
+    if (selectedType === 'proveedor') {
+      if (!puntoEncuentro.trim()) {
+        toast.error('Debe especificar el punto de encuentro');
+        return;
+      }
+      if (!horaEncuentro) {
+        toast.error('Debe especificar la hora de encuentro');
+        return;
+      }
+      if (!selectedProviderId) {
+        toast.error('Error: No se identificó el proveedor seleccionado');
+        return;
+      }
+    }
 
     try {
       await onReassign({
         serviceId: service.id,
         newName: selectedName,
         newId: selectedId || undefined,
-        reason: reason.trim()
+        reason: reason.trim(),
+        assignmentType: selectedType,
+        providerId: selectedType === 'proveedor' ? selectedProviderId : undefined,
+        puntoEncuentro: selectedType === 'proveedor' ? puntoEncuentro.trim() : undefined,
+        horaEncuentro: selectedType === 'proveedor' ? horaEncuentro : undefined,
+        tarifaAcordada: selectedType === 'proveedor' && tarifaAcordada ? parseFloat(tarifaAcordada) : undefined,
+        nombrePersonal: selectedType === 'proveedor' && nombrePersonal.trim() ? nombrePersonal.trim() : undefined
       });
       onOpenChange(false);
     } catch (error) {
@@ -191,53 +248,223 @@ export function ReassignmentModal({
                 Nuevo {typeLabel}
               </h3>
               
-              {loadingOptions ? (
+              {loadingOptions || (assignmentType === 'armed_guard' && loadingProveedores) ? (
                 <div className="flex items-center gap-2 py-4">
                   <RefreshCw className="h-4 w-4 animate-spin" />
                   <span className="text-body">Cargando opciones disponibles...</span>
                 </div>
-              ) : availableOptions && availableOptions.length > 0 ? (
+              ) : assignmentType === 'custodian' ? (
+                // Solo custodios
+                availableOptions && availableOptions.length > 0 ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="assignment-select">Seleccionar {typeLabel} *</Label>
+                    <Select
+                      value={selectedId}
+                      onValueChange={(value) => {
+                        setSelectedId(value);
+                        const selected = availableOptions.find(option => option.id === value);
+                        setSelectedName(selected?.nombre || '');
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={`Seleccionar ${typeLabel.toLowerCase()}`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableOptions.map((option) => (
+                          <SelectItem key={option.id} value={option.id}>
+                            <div className="flex items-center gap-2">
+                              <Icon className="h-4 w-4" />
+                              <span>{option.nombre}</span>
+                              {option.telefono && (
+                                <span className="text-slate-500">({option.telefono})</span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5" />
+                      <div>
+                        <div className="font-medium text-amber-800">
+                          No hay custodios disponibles
+                        </div>
+                        <div className="text-amber-700 text-sm">
+                          Todos los custodios están ocupados o inactivos
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              ) : (
+                // Armados internos y proveedores externos
                 <div className="space-y-2">
-                  <Label htmlFor="assignment-select">Seleccionar {typeLabel} *</Label>
+                  <Label htmlFor="assignment-select">Seleccionar Armado o Proveedor *</Label>
                   <Select
                     value={selectedId}
                     onValueChange={(value) => {
                       setSelectedId(value);
-                      const selected = availableOptions.find(option => option.id === value);
-                      setSelectedName(selected?.nombre || '');
+                      
+                      const isProvider = value.startsWith('provider-');
+                      
+                      if (isProvider) {
+                        const providerId = value.replace('provider-', '');
+                        const provider = availableProviders.find(p => p.id === providerId);
+                        if (provider) {
+                          setSelectedName(provider.nombre_empresa);
+                          setSelectedType('proveedor');
+                          setSelectedProviderId(providerId);
+                          if (provider.tarifa_base_local) {
+                            setTarifaAcordada(provider.tarifa_base_local.toString());
+                          }
+                        }
+                      } else {
+                        const selected = availableOptions?.find(option => option.id === value);
+                        if (selected) {
+                          setSelectedName(selected.nombre);
+                          setSelectedType('interno');
+                          setSelectedProviderId('');
+                          setPuntoEncuentro('');
+                          setTarifaAcordada('');
+                          setNombrePersonal('');
+                        }
+                      }
                     }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={`Seleccionar ${typeLabel.toLowerCase()}`} />
+                      <SelectValue placeholder="Seleccionar armado o proveedor" />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableOptions.map((option) => (
-                        <SelectItem key={option.id} value={option.id}>
-                          <div className="flex items-center gap-2">
-                            <Icon className="h-4 w-4" />
-                            <span>{option.nombre}</span>
-                            {option.telefono && (
-                              <span className="text-slate-500">({option.telefono})</span>
-                            )}
-                          </div>
+                      {/* Armados Internos */}
+                      {availableOptions && availableOptions.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel className="flex items-center gap-2">
+                            <Shield className="h-4 w-4" />
+                            Armados Internos
+                          </SelectLabel>
+                          {availableOptions.map((option) => (
+                            <SelectItem key={option.id} value={option.id}>
+                              <div className="flex items-center gap-2">
+                                <Shield className="h-3.5 w-3.5" />
+                                <span>{option.nombre}</span>
+                                {option.telefono && (
+                                  <span className="text-slate-500 text-xs">({option.telefono})</span>
+                                )}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      )}
+                      
+                      {/* Proveedores Externos */}
+                      {availableProviders.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel className="flex items-center gap-2">
+                            <Building2 className="h-4 w-4" />
+                            Proveedores Externos
+                          </SelectLabel>
+                          {availableProviders.map((provider) => (
+                            <SelectItem key={`provider-${provider.id}`} value={`provider-${provider.id}`}>
+                              <div className="flex items-center gap-2">
+                                <Building2 className="h-3.5 w-3.5" />
+                                <span>{provider.nombre_empresa}</span>
+                                {provider.tarifa_base_local && (
+                                  <Badge variant="outline" className="text-xs ml-1">
+                                    ${provider.tarifa_base_local}
+                                  </Badge>
+                                )}
+                                <span className="text-slate-500 text-xs">
+                                  ({provider.capacidad_maxima - provider.capacidad_actual} disponibles)
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      )}
+                      
+                      {(!availableOptions || availableOptions.length === 0) && availableProviders.length === 0 && (
+                        <SelectItem value="empty" disabled>
+                          No hay armados ni proveedores disponibles
                         </SelectItem>
-                      ))}
+                      )}
                     </SelectContent>
                   </Select>
-                </div>
-              ) : (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5" />
-                    <div>
-                      <div className="font-medium text-amber-800">
-                        No hay {typeLabel.toLowerCase()}s disponibles
+                  
+                  {/* Campos condicionales para proveedores */}
+                  {selectedType === 'proveedor' && (
+                    <div className="mt-4 space-y-4 p-4 bg-slate-50 rounded-lg border">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Building2 className="h-4 w-4" />
+                        <span>Información del Proveedor Externo</span>
                       </div>
-                      <div className="text-amber-700 text-sm">
-                        Todos los {typeLabel.toLowerCase()}s están ocupados o inactivos
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="punto-encuentro" className="flex items-center gap-1">
+                          <MapPin className="h-3.5 w-3.5" />
+                          Punto de Encuentro *
+                        </Label>
+                        <Input
+                          id="punto-encuentro"
+                          value={puntoEncuentro}
+                          onChange={(e) => setPuntoEncuentro(e.target.value)}
+                          placeholder="Ej: Oficina Central, Gasolinera X..."
+                        />
                       </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="hora-encuentro" className="flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5" />
+                          Hora de Encuentro *
+                        </Label>
+                        <Input
+                          id="hora-encuentro"
+                          type="time"
+                          value={horaEncuentro}
+                          onChange={(e) => setHoraEncuentro(e.target.value)}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="tarifa-acordada" className="flex items-center gap-1">
+                          <DollarSign className="h-3.5 w-3.5" />
+                          Tarifa Acordada (MXN)
+                        </Label>
+                        <Input
+                          id="tarifa-acordada"
+                          type="number"
+                          step="0.01"
+                          value={tarifaAcordada}
+                          onChange={(e) => setTarifaAcordada(e.target.value)}
+                          placeholder="Opcional"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="nombre-personal">
+                          Nombre del Armado del Proveedor
+                        </Label>
+                        <Input
+                          id="nombre-personal"
+                          value={nombrePersonal}
+                          onChange={(e) => setNombrePersonal(e.target.value)}
+                          placeholder="Opcional"
+                        />
+                        <p className="text-xs text-slate-500">
+                          Se puede especificar después si aún no se conoce
+                        </p>
+                      </div>
+                      
+                      <Alert>
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription className="text-xs">
+                          Recuerde confirmar punto y hora de encuentro con el custodio
+                        </AlertDescription>
+                      </Alert>
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
 
@@ -350,11 +577,16 @@ export function ReassignmentModal({
               {!showRemoveConfirm ? (
                 <Button
                   onClick={handleReassign}
-                  disabled={!selectedName.trim() || !reason.trim() || isLoading}
+                  disabled={
+                    !selectedName.trim() || 
+                    !reason.trim() || 
+                    (selectedType === 'proveedor' && (!puntoEncuentro.trim() || !horaEncuentro)) ||
+                    isLoading
+                  }
                   className="bg-blue-600 hover:bg-blue-700"
                 >
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  {isLoading ? 'Reasignando...' : `Reasignar ${typeLabel}`}
+                  {isLoading ? 'Procesando...' : selectedType === 'proveedor' ? 'Asignar Proveedor' : `Reasignar ${typeLabel}`}
                 </Button>
               ) : (
                 <Button
