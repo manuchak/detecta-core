@@ -10209,7 +10209,7 @@ export type Database = {
         Returns: {
           activated_custodians: number
           activation_rate: number
-          median_activation_days: number
+          avg_time_to_activation: number
           total_custodians: number
         }[]
       }
