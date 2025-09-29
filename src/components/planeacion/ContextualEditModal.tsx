@@ -45,7 +45,7 @@ export function ContextualEditModal({
     }
   }, [open, resetEditMode]);
 
-  const handleEditModeSelect = (mode: EditMode, description: string) => {
+  const handleEditModeSelect = async (mode: EditMode, description: string) => {
     setSelectedEditMode(mode);
     setEditIntent({
       mode,
@@ -53,7 +53,33 @@ export function ContextualEditModal({
       skipSteps: []
     });
     
-    // Mostrar preview antes de proceder
+    // Para reasignación directa, disparar el flujo inmediatamente
+    if (mode === 'custodian_only' || mode === 'armed_only') {
+      if (!onStartReassignment) {
+        toast.error('No se pudo iniciar la reasignación');
+        return;
+      }
+      
+      const type = mode === 'custodian_only' ? 'custodian' : 'armed_guard';
+      const message = mode === 'custodian_only' 
+        ? 'Abriendo flujo de reasignación de custodio...' 
+        : 'Abriendo flujo de reasignación de armado...';
+      
+      toast.info(message, { duration: 1500 });
+      setIsProcessing(true);
+      
+      await new Promise(resolve => setTimeout(resolve, 400));
+      
+      if (service) {
+        onStartReassignment(type, service);
+      }
+      
+      onOpenChange(false);
+      setIsProcessing(false);
+      return;
+    }
+    
+    // Mostrar preview antes de proceder para otros modos
     if (mode === 'basic_info') {
       setCurrentView('basic_form');
     } else {
