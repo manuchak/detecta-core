@@ -340,6 +340,7 @@ const { armedGuards: hookArmedGuards, providers: hookProviders, loading, error, 
         assignmentData.tipo_asignacion || 'interno',
         assignmentData.punto_encuentro || '',
         assignmentData.hora_encuentro || '',
+        assignmentData.fecha_programada || new Date().toISOString().split('T')[0],
         assignmentData.proveedor_id
       );
       console.log('✅ Armed guard assignment persisted to database');

@@ -436,6 +436,7 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
     tipoAsignacion: 'interno' | 'proveedor',
     puntoEncuentro: string,
     horaEncuentro: string,
+    fechaServicio: string,
     providerId?: string,
     tarifaAcordada?: number,
     personalData?: {
@@ -446,12 +447,17 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
     }
   ) => {
     try {
+      // Construir timestamp completo: fecha + hora
+      const [hours, minutes] = horaEncuentro.split(':');
+      const fullTimestamp = new Date(`${fechaServicio}T${hours}:${minutes}:00`);
+      const timestampISO = fullTimestamp.toISOString();
+
       const assignmentData: any = {
         servicio_custodia_id: servicioId,
         custodio_id: custodioId,
         tipo_asignacion: tipoAsignacion,
         punto_encuentro: puntoEncuentro,
-        hora_encuentro: horaEncuentro,
+        hora_encuentro: timestampISO,
         estado_asignacion: 'pendiente',
         tarifa_acordada: tarifaAcordada,
         asignado_por: (await supabase.auth.getUser()).data.user?.id,

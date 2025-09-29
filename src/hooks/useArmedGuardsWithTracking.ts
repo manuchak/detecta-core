@@ -123,6 +123,7 @@ export function useArmedGuardsWithTracking(serviceData?: ServiceRequest) {
     tipoAsignacion: 'interno' | 'proveedor',
     puntoEncuentro: string,
     horaEncuentro: string,
+    fechaServicio: string,
     providerId?: string
   ) => {
     return assignOperativeGuard(
@@ -132,6 +133,7 @@ export function useArmedGuardsWithTracking(serviceData?: ServiceRequest) {
       tipoAsignacion,
       puntoEncuentro,
       horaEncuentro,
+      fechaServicio,
       providerId
     );
   };
