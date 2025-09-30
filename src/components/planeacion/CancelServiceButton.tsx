@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -22,6 +22,14 @@ export function CancelServiceButton({
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  useEffect(() => {
+    if (showConfirmDialog) {
+      document.body.dataset.dialogOpen = "1";
+    } else {
+      setTimeout(() => delete document.body.dataset.dialogOpen, 150);
+    }
+  }, [showConfirmDialog]);
 
   const handleCancel = async () => {
     setIsProcessing(true);

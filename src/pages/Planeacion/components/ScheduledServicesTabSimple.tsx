@@ -278,6 +278,7 @@ export function ScheduledServicesTab() {
                   onClick={(e) => {
                     const target = (e.target as HTMLElement);
                     if (target.closest('.service-card-actions')) return;
+                    if (document.body.dataset.dialogOpen === "1" || document.body.dataset.dialogTransitioning === "1") return;
                     const isAnyDialogOpen = !!document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]');
                     if (isAnyDialogOpen) return;
                     handleEditService(service);
