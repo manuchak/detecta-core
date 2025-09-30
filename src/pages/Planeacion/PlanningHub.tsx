@@ -10,6 +10,7 @@ import { OperationalDashboard } from './components/OperationalDashboard';
 import { ComodatosGPSTab } from './components/ComodatosGPSTab';
 import { PlanningConfigurationTab } from './components/PlanningConfigurationTab';
 import { ScheduledServicesTab } from './components/ScheduledServicesTabSimple';
+import { ServiceQueryTab } from './components/ServiceQueryTab';
 import { AdminPerformanceTab } from './components/AdminPerformanceTab';
 import { SmartEditModal } from '@/components/planeacion/SmartEditModal';
 import { ArmedGuardComplianceDashboard } from '@/components/planeacion/ArmedGuardComplianceDashboard';
@@ -97,6 +98,7 @@ export default function PlanningHub() {
         <TabsList className="apple-tabs-minimal">
           <TabsTrigger value="dashboard" className="apple-tab">Dashboard</TabsTrigger>
           <TabsTrigger value="services" className="apple-tab">Servicios</TabsTrigger>
+          <TabsTrigger value="query" className="apple-tab">Consultas</TabsTrigger>
           <TabsTrigger value="gps" className="apple-tab">GPS</TabsTrigger>
           <TabsTrigger value="config" className="apple-tab">Configuración</TabsTrigger>
         </TabsList>
@@ -110,6 +112,10 @@ export default function PlanningHub() {
 
         <TabsContent value="services" className="apple-content-spacing">
           <ScheduledServicesTab />
+        </TabsContent>
+
+        <TabsContent value="query" className="apple-content-spacing">
+          <ServiceQueryTab />
         </TabsContent>
 
         <TabsContent value="gps" className="apple-content-spacing">
