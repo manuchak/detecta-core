@@ -9,6 +9,8 @@ import { AddressAutocomplete } from '@/components/ui/address-autocomplete';
 import { Shield, Clock, MapPin, AlertTriangle, CheckCircle2, Search, Eye, EyeOff } from 'lucide-react';
 import { useArmedGuardsWithTracking } from '@/hooks/useArmedGuardsWithTracking';
 import { toast } from 'sonner';
+import { UniversalSearchBar } from '@/components/planeacion/search/UniversalSearchBar';
+import { SearchResultsInfo } from '@/components/planeacion/search/SearchResultsInfo';
 
 interface ArmedGuardData {
   armado_id: string;
@@ -50,6 +52,10 @@ export function ArmedGuardAssignmentStep({
   const [observations, setObservations] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAllAvailable, setShowAllAvailable] = useState(true);
+  const [activeFilters, setActiveFilters] = useState<Record<string, boolean>>({
+    disponibles: true,
+    conExperiencia: false
+  });
 
   // Prepare filters for armed guards - conditionally apply zone filtering
   const serviceFilters = (serviceData.fecha_hora_cita && !showAllAvailable) ? {
@@ -70,18 +76,28 @@ export function ArmedGuardAssignmentStep({
     }
   }, [serviceData.fecha_hora_cita]);
 
-  // Filter guards/providers based on search term
-  const filteredGuards = armedGuards.filter(guard => 
-    guard.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    guard.zona_base?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter guards/providers based on search term and filters
+  const filteredGuards = armedGuards.filter(guard => {
+    const matchesSearch = guard.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      guard.zona_base?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesFilters = 
+      (!activeFilters.disponibles || guard.disponibilidad === 'disponible') &&
+      (!activeFilters.conExperiencia || (guard.experiencia_anos || 0) >= 3);
+    
+    return matchesSearch && matchesFilters;
+  });
 
-  const filteredProviders = providers.filter(provider =>
-    provider.nombre_empresa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (provider.zonas_cobertura && provider.zonas_cobertura.some(zona => 
-      zona.toLowerCase().includes(searchTerm.toLowerCase())
-    ))
-  );
+  const filteredProviders = providers.filter(provider => {
+    const matchesSearch = provider.nombre_empresa.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (provider.zonas_cobertura && provider.zonas_cobertura.some(zona => 
+        zona.toLowerCase().includes(searchTerm.toLowerCase())
+      ));
+    
+    const matchesFilters = !activeFilters.disponibles || provider.activo;
+    
+    return matchesSearch && matchesFilters;
+  });
 
   const handleComplete = () => {
     const selectedId = assignmentType === 'interno' ? selectedGuard : selectedProvider;
@@ -218,34 +234,61 @@ export function ArmedGuardAssignmentStep({
           </div>
 
           {/* Search and Filters */}
-          <div className="space-y-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder={`Buscar ${assignmentType === 'interno' ? 'armados' : 'proveedores'}...`}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
+          <UniversalSearchBar
+            placeholder={`Buscar ${assignmentType === 'interno' ? 'armados' : 'proveedores'} por nombre o zona...`}
+            value={searchTerm}
+            onChange={setSearchTerm}
+            filters={[
+              {
+                id: 'disponibles',
+                label: assignmentType === 'interno' ? 'Disponibles' : 'Activos',
+                value: 'disponibles',
+                active: activeFilters.disponibles,
+                variant: 'success'
+              },
+              ...(assignmentType === 'interno' ? [{
+                id: 'conExperiencia',
+                label: '≥ 3 años exp.',
+                value: 'conExperiencia',
+                active: activeFilters.conExperiencia,
+                variant: 'default' as const
+              }] : [])
+            ]}
+            onFilterToggle={(filterId) => {
+              setActiveFilters(prev => ({
+                ...prev,
+                [filterId]: !prev[filterId]
+              }));
+            }}
+            onClearAll={() => {
+              setSearchTerm('');
+              setActiveFilters({
+                disponibles: true,
+                conExperiencia: false
+              });
+            }}
+            resultsCount={assignmentType === 'interno' ? filteredGuards.length : filteredProviders.length}
+            totalCount={assignmentType === 'interno' ? armedGuards.length : providers.length}
+            className="mb-4"
+          />
+
+          {showAllAvailable && (
+            <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg text-sm mb-3">
+              <Eye className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">
+                Mostrando todos los {assignmentType === 'interno' ? 'armados' : 'proveedores'} disponibles
+              </span>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowAllAvailable(false)}
+                className="ml-auto h-6 px-2"
+              >
+                <EyeOff className="h-3 w-3" />
+                Solo zona actual
+              </Button>
             </div>
-            {showAllAvailable && (
-              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg text-sm">
-                <Eye className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">
-                  Mostrando todos los {assignmentType === 'interno' ? 'armados' : 'proveedores'} disponibles
-                </span>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => setShowAllAvailable(false)}
-                  className="ml-auto h-6 px-2"
-                >
-                  <EyeOff className="h-3 w-3" />
-                  Solo zona actual
-                </Button>
-              </div>
-            )}
-          </div>
+          )}
 
           {/* Guards/Providers List */}
           <div className="space-y-3 max-h-60 overflow-y-auto">

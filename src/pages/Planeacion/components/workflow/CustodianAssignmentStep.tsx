@@ -8,6 +8,8 @@ import { CustodioPerformanceCard } from '@/components/planeacion/CustodioPerform
 import { CustodianContactDialog } from '../dialogs/CustodianContactDialog';
 import { useCustodiosConProximidad, type CustodioConProximidad } from '@/hooks/useProximidadOperacional';
 import type { ServicioNuevo } from '@/utils/proximidadOperacional';
+import { UniversalSearchBar } from '@/components/planeacion/search/UniversalSearchBar';
+import { SearchResultsInfo, CUSTODIAN_CATEGORIES } from '@/components/planeacion/search/SearchResultsInfo';
 
 interface ServiceData {
   servicio_id?: string;
@@ -53,6 +55,14 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
   const [selectedCustodio, setSelectedCustodio] = useState<string | null>(null);
   const [comunicaciones, setComunicaciones] = useState<Record<string, ComunicacionState>>({});
   
+  // Search and filters state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeFilters, setActiveFilters] = useState<Record<string, boolean>>({
+    disponibles: true,
+    parcialmenteOcupados: true,
+    excelentes: false
+  });
+  
   // Estado para el diálogo de contacto
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [contactingCustodian, setContactingCustodian] = useState<CustodioConProximidad | null>(null);
@@ -91,25 +101,45 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
     
     // PRIORIZAR: Disponibles primero, luego parcialmente ocupados
     // FILTRAR: Ocupados y no disponibles (como Israel Mayo con conflictos)
-    const priorizados = [
+    let priorizados = [
       // 🟢 PRIORIDAD ALTA: Custodios ideales (sin servicios)
       ...custodiosCategorizados.disponibles.sort((a, b) => (b.score_total || 0) - (a.score_total || 0)),
       
       // 🟡 PRIORIDAD MEDIA: Parcialmente ocupados (1 servicio)
       ...custodiosCategorizados.parcialmenteOcupados.sort((a, b) => (b.score_total || 0) - (a.score_total || 0))
     ];
+
+    // Apply category filters
+    if (!activeFilters.disponibles) {
+      priorizados = priorizados.filter(c => !custodiosCategorizados.disponibles.includes(c));
+    }
+    if (!activeFilters.parcialmenteOcupados) {
+      priorizados = priorizados.filter(c => !custodiosCategorizados.parcialmenteOcupados.includes(c));
+    }
+    if (activeFilters.excelentes) {
+      priorizados = priorizados.filter(c => (c.score_total || 0) >= 8.0);
+    }
+
+    // Apply search filter
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      priorizados = priorizados.filter(c => 
+        c.nombre?.toLowerCase().includes(term) ||
+        c.telefono?.toLowerCase().includes(term) ||
+        c.zona_base?.toLowerCase().includes(term)
+      );
+    }
     
-    // NO INCLUIR ocupados ni no disponibles - esto resuelve el problema de Israel Mayo
-    console.log('🎯 Custodios priorizados:', {
+    console.log('🎯 Custodios filtrados:', {
       disponibles: custodiosCategorizados.disponibles.length,
       parcialmenteOcupados: custodiosCategorizados.parcialmenteOcupados.length,
       ocupados_filtrados: custodiosCategorizados.ocupados.length,
       noDisponibles_filtrados: custodiosCategorizados.noDisponibles.length,
-      total_mostrados: priorizados.length
+      despues_filtros: priorizados.length
     });
     
     return priorizados;
-  }, [custodiosCategorizados]);
+  }, [custodiosCategorizados, searchTerm, activeFilters]);
 
   // Inicializar estados de comunicación SOLO para custodios disponibles
   useEffect(() => {
@@ -300,12 +330,59 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
             </div>
           </div>
 
+          {/* Search Bar */}
+          <UniversalSearchBar
+            placeholder="Buscar por nombre, teléfono o zona..."
+            value={searchTerm}
+            onChange={setSearchTerm}
+            filters={[
+              {
+                id: 'disponibles',
+                label: '🟢 Disponibles',
+                value: 'disponibles',
+                active: activeFilters.disponibles,
+                variant: 'success'
+              },
+              {
+                id: 'parcialmenteOcupados',
+                label: '🟡 Parcialmente Ocupados',
+                value: 'parcialmenteOcupados',
+                active: activeFilters.parcialmenteOcupados,
+                variant: 'secondary'
+              },
+              {
+                id: 'excelentes',
+                label: '⭐ Score ≥ 8.0',
+                value: 'excelentes',
+                active: activeFilters.excelentes,
+                variant: 'default'
+              }
+            ]}
+            onFilterToggle={(filterId) => {
+              setActiveFilters(prev => ({
+                ...prev,
+                [filterId]: !prev[filterId]
+              }));
+            }}
+            onClearAll={() => {
+              setSearchTerm('');
+              setActiveFilters({
+                disponibles: true,
+                parcialmenteOcupados: true,
+                excelentes: false
+              });
+            }}
+            resultsCount={custodiosDisponibles.length}
+            totalCount={(custodiosCategorizados?.disponibles.length || 0) + (custodiosCategorizados?.parcialmenteOcupados.length || 0)}
+            className="mb-4"
+          />
+
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <Card>
               <CardContent className="p-4">
                 <div className="text-2xl font-bold text-primary">{custodiosDisponibles.length}</div>
-                <p className="text-sm text-muted-foreground">Disponibles</p>
+                <p className="text-sm text-muted-foreground">Mostrados</p>
               </CardContent>
             </Card>
             <Card>
@@ -329,7 +406,7 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
                 <div className="text-2xl font-bold text-red-600">
                   {(custodiosCategorizados?.ocupados.length || 0) + (custodiosCategorizados?.noDisponibles.length || 0)}
                 </div>
-                <p className="text-sm text-muted-foreground">🔴 Filtrados (con conflictos)</p>
+                <p className="text-sm text-muted-foreground">🔴 Filtrados</p>
               </CardContent>
             </Card>
           </div>
