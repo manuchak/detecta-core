@@ -125,24 +125,24 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         tipo_servicio: service.tipo_servicio || 'custodia',
         estado: service.estado || 'pendiente',
         
-        // Cronología
-        created_at: service.created_at,
+        // Cronología con fallbacks
+        created_at: service.created_at || service.updated_time || service.fecha_hora_cita,
         fecha_hora_asignacion: service.fecha_hora_asignacion,
         fecha_comunicacion: service.fecha_comunicacion,
         fecha_respuesta: service.fecha_respuesta,
-        hora_inicio_custodia: service.hora_inicio_custodia,
+        hora_inicio_custodia: service.hora_inicio_custodia || service.hora_presentacion || service.presentacion,
         hora_finalizacion: service.hora_finalizacion,
         tiempo_respuesta: service.tiempo_respuesta,
         duracion_servicio: service.duracion_servicio,
         tiempo_punto_origen: service.tiempo_punto_origen,
         tiempo_punto_destino: service.tiempo_punto_destino,
         hora_salida_origen: service.hora_salida_origen,
-        hora_llegada_destino: service.hora_llegada_destino,
+        hora_llegada_destino: service.hora_llegada_destino || service.hora_arribo,
         
-        // Asignaciones
+        // Asignaciones con fallbacks
         nombre_custodio: service.nombre_custodio,
         id_custodio: service.id_custodio,
-        telefono_custodio: service.telefono_custodio,
+        telefono_custodio: service.telefono_custodio || service.telefono,
         incluye_armado: service.armado?.toUpperCase() === 'TRUE',
         
         // Ejecución
@@ -287,24 +287,24 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         tipo_servicio: service.tipo_servicio || 'custodia',
         estado: service.estado || 'pendiente',
         
-        // Cronología
-        created_at: service.created_at,
+        // Cronología con fallbacks
+        created_at: service.created_at || service.updated_time || service.fecha_hora_cita,
         fecha_hora_asignacion: service.fecha_hora_asignacion,
         fecha_comunicacion: service.fecha_comunicacion,
         fecha_respuesta: service.fecha_respuesta,
-        hora_inicio_custodia: service.hora_inicio_custodia,
+        hora_inicio_custodia: service.hora_inicio_custodia || service.hora_presentacion || service.presentacion,
         hora_finalizacion: service.hora_finalizacion,
         tiempo_respuesta: service.tiempo_respuesta,
         duracion_servicio: service.duracion_servicio,
         tiempo_punto_origen: service.tiempo_punto_origen,
         tiempo_punto_destino: service.tiempo_punto_destino,
         hora_salida_origen: service.hora_salida_origen,
-        hora_llegada_destino: service.hora_llegada_destino,
+        hora_llegada_destino: service.hora_llegada_destino || service.hora_arribo,
         
-        // Asignaciones
+        // Asignaciones con fallbacks
         nombre_custodio: service.nombre_custodio,
         id_custodio: service.id_custodio,
-        telefono_custodio: service.telefono_custodio,
+        telefono_custodio: service.telefono_custodio || service.telefono,
         incluye_armado: service.armado?.toUpperCase() === 'TRUE',
         
         // Ejecución

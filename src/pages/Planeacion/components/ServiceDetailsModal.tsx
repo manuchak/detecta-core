@@ -201,9 +201,9 @@ export function ServiceDetailsModal({ open, onOpenChange, service }: ServiceDeta
 
           {/* Tab: Cronología - Timeline del Servicio */}
           <TabsContent value="timeline" className="apple-content-spacing">
-            {!service.created_at && !service.fecha_hora_asignacion && !service.fecha_asignacion && 
-             !service.fecha_comunicacion && !service.fecha_respuesta && !service.hora_inicio_custodia && 
-             !service.hora_finalizacion ? (
+            {!service.fecha_hora_cita && !service.created_at && !service.fecha_hora_asignacion && 
+             !service.fecha_asignacion && !service.fecha_comunicacion && !service.fecha_respuesta && 
+             !service.hora_inicio_custodia && !service.hora_finalizacion ? (
               <div className="apple-empty-state py-12">
                 <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <div className="apple-text-headline text-muted-foreground mb-2">
@@ -217,6 +217,14 @@ export function ServiceDetailsModal({ open, onOpenChange, service }: ServiceDeta
               <div className="space-y-4">
               {/* Timeline Visual */}
               <div className="relative pl-8 space-y-6">
+                {service.fecha_hora_cita && (
+                  <TimelineItem
+                    icon={Calendar}
+                    label="Cita Programada"
+                    timestamp={service.fecha_hora_cita}
+                    color="indigo"
+                  />
+                )}
                 {service.created_at && (
                   <TimelineItem
                     icon={FileText}
