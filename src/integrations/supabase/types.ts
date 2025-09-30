@@ -1019,6 +1019,53 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_matriz_precios: {
+        Row: {
+          action_type: string
+          created_at: string
+          id: string
+          ip_address: unknown | null
+          justification: string
+          new_data: Json
+          performed_by: string
+          previous_data: Json | null
+          route_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          justification: string
+          new_data: Json
+          performed_by: string
+          previous_data?: Json | null
+          route_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          justification?: string
+          new_data?: Json
+          performed_by?: string
+          previous_data?: Json | null
+          route_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_matriz_precios_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "matriz_precios_rutas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       auditoria_instalaciones: {
         Row: {
           aspectos_mejora: string[] | null
@@ -9979,6 +10026,10 @@ export type Database = {
           pending_bonuses: number
           total_amount: number
         }[]
+      }
+      check_route_creation_limit: {
+        Args: { p_user_id: string }
+        Returns: boolean
       }
       check_user_role: {
         Args: { role_name: string; user_id: string }

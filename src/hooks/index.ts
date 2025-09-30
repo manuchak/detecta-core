@@ -22,3 +22,6 @@ export { useArmedGuardsOperativos } from './useArmedGuardsOperativos';
 export { useProveedoresArmados } from './useProveedoresArmados';
 export { usePredefinedMeetingPoints, useCreateMeetingPoint, useUpdateMeetingPoint, useDeleteMeetingPoint, useAutoAddPersonalAddress, useIncrementMeetingPointUsage } from './usePredefinedMeetingPoints';
 export { useServiciosPlanificados } from './useServiciosPlanificados';
+export { useRouteAudit } from './useRouteAudit';
+export { useAssignmentAudit } from './useAssignmentAudit';
+export { useSecurityAudit } from './useSecurityAudit';

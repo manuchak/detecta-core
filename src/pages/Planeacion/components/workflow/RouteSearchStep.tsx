@@ -5,11 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, MapPin, DollarSign, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Search, MapPin, DollarSign, AlertTriangle, CheckCircle, Plus, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useClientesFromPricing, useDestinosFromPricing } from '@/hooks/useClientesFromPricing';
 import { useOrigenesConFrecuencia } from '@/hooks/useOrigenesConFrecuencia';
+import { CreateRouteModal } from './CreateRouteModal';
 
 interface RouteData {
   cliente_nombre: string;
@@ -37,6 +38,8 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
   const [priceEstimate, setPriceEstimate] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [searchError, setSearchError] = useState<string>('');
 
   const { data: clientesFromPricing = [] } = useClientesFromPricing();
   const { data: origenesConFrecuencia = [] } = useOrigenesConFrecuencia(cliente);
@@ -86,6 +89,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
           incluye_armado,
           ruta_encontrada: `${row.origen_texto} → ${row.destino_texto}`
         });
+        setSearchError('');
         toast.success('Pricing encontrado');
         return;
       }
@@ -115,9 +119,11 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
           incluye_armado,
           ruta_encontrada: `${row.origen_texto} → ${row.destino_texto}`
         });
+        setSearchError('');
         toast.warning('Pricing encontrado con coincidencia parcial');
       } else {
         setPriceEstimate(null);
+        setSearchError(`No se encontró pricing para la ruta ${origen} → ${destino}. Puedes crear una nueva ruta para continuar.`);
         toast.error(`No se encontró pricing para ${cliente}: ${origen} → ${destino}`);
       }
     } catch (err: any) {
@@ -158,6 +164,28 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
     // Limpiar origen y destino cuando se cambia cliente
     setOrigen('');
     setDestino('');
+  };
+
+  const handleRouteCreated = (newRoute: any) => {
+    // After route is created, automatically select it and continue
+    const incluye_armado = newRoute.tipo_servicio && !['SIN ARMA', 'Sin arma', 'SN ARMA', 'NO ARMADA', 'No Armada'].includes(newRoute.tipo_servicio);
+    
+    setPriceEstimate({
+      precio_sugerido: newRoute.valor_bruto ?? null,
+      precio_custodio: newRoute.precio_custodio ?? null,
+      pago_custodio_sin_arma: newRoute.pago_sin_arma ?? null,
+      costo_operativo: newRoute.costo_operativo ?? null,
+      margen_estimado: null,
+      distancia_km: newRoute.distancia_km ?? null,
+      tipo_servicio: newRoute.tipo_servicio ?? null,
+      incluye_armado,
+      ruta_encontrada: `${newRoute.origen_texto} → ${newRoute.destino_texto}`
+    });
+    
+    setSearchError('');
+    toast.success('Ruta seleccionada automáticamente', {
+      description: 'Puedes continuar con el siguiente paso'
+    });
   };
 
   return (
@@ -337,6 +365,41 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
         </CardContent>
       </Card>
 
+      {/* Error display with Create Route option */}
+      {searchError && !priceEstimate && (
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-4">
+              <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
+              <div className="flex-1 space-y-3">
+                <div>
+                  <h4 className="font-semibold text-destructive">Ruta no encontrada</h4>
+                  <p className="text-sm text-muted-foreground mt-1">{searchError}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={searchPrice}
+                    disabled={loading}
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Intentar de Nuevo
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => setShowCreateModal(true)}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Crear Nueva Ruta
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Minimal Price Results */}
       {priceEstimate && (
         <Card className="border-border bg-background">
@@ -459,6 +522,15 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
           </Button>
         </div>
       )}
+
+      <CreateRouteModal
+        open={showCreateModal}
+        onOpenChange={setShowCreateModal}
+        clientName={cliente}
+        origin={origen}
+        destination={destino}
+        onRouteCreated={handleRouteCreated}
+      />
     </div>
   );
 }
