@@ -74,17 +74,17 @@ export function ServiceQueryTab() {
         {/* Search Mode Toggle */}
         <div className="flex items-center space-x-2 mb-6">
           <Button
-            variant={searchMode === 'id' ? 'default' : 'ghost'}
+            variant="ghost"
             onClick={() => setSearchMode('id')}
-            className="apple-button-ghost"
+            className={searchMode === 'id' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'hover:bg-accent hover:text-accent-foreground'}
           >
             <Search className="h-4 w-4 mr-2" />
             Por ID de Servicio
           </Button>
           <Button
-            variant={searchMode === 'client' ? 'default' : 'ghost'}
+            variant="ghost"
             onClick={() => setSearchMode('client')}
-            className="apple-button-ghost"
+            className={searchMode === 'client' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'hover:bg-accent hover:text-accent-foreground'}
           >
             <Calendar className="h-4 w-4 mr-2" />
             Por Cliente y Fecha
