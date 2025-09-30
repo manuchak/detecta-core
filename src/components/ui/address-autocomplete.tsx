@@ -53,7 +53,7 @@ export const AddressAutocomplete = ({
   const searchAddresses = useCallback(async (query: string) => {
     console.log('Searching addresses for:', query);
     
-    if (query.length < 3) {
+    if (query.length < 4) {
       setSuggestions([]);
       setShowSuggestions(false);
       setApiError(null);
@@ -131,7 +131,7 @@ export const AddressAutocomplete = ({
     
     timeoutRef.current = setTimeout(() => {
       searchAddresses(query);
-    }, 500); // Increased debounce time slightly
+    }, 1500); // Optimized debounce: wait 1.5s after user stops typing
   }, [searchAddresses]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -309,7 +309,7 @@ export const AddressAutocomplete = ({
       )}
 
       {/* Sin resultados */}
-      {showSuggestions && suggestions.length === 0 && !isLoading && !apiError && value.length >= 3 && (
+      {showSuggestions && suggestions.length === 0 && !isLoading && !apiError && value.length >= 4 && (
         <div
           ref={suggestionsRef}
           className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-3"

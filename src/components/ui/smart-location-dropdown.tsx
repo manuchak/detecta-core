@@ -69,7 +69,7 @@ export function SmartLocationDropdown({
     setMapboxError(null);
 
     const fetchMapboxSuggestions = async () => {
-      if (!searchQuery.trim() || searchQuery.length < 3) {
+      if (!searchQuery.trim() || searchQuery.length < 4) {
         setMapboxSuggestions([]);
         setLoading(false);
         return;
@@ -114,7 +114,7 @@ export function SmartLocationDropdown({
       }
     };
 
-    timeoutRef.current = setTimeout(fetchMapboxSuggestions, 300);
+    timeoutRef.current = setTimeout(fetchMapboxSuggestions, 1200); // Optimized debounce: 1.2s
 
     return () => {
       if (timeoutRef.current) {
@@ -324,7 +324,7 @@ export function SmartLocationDropdown({
             })}
 
             {/* Mapbox Results Section */}
-            {searchQuery.length >= 3 && (
+            {searchQuery.length >= 4 && (
               <div>
                 <div className="px-3 py-2 text-xs font-medium text-muted-foreground bg-muted/50 flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
@@ -354,7 +354,7 @@ export function SmartLocationDropdown({
                       </div>
                     </div>
                   ))
-                ) : searchQuery.length >= 3 && !mapboxError && (
+                ) : searchQuery.length >= 4 && !mapboxError && (
                   <div className="px-3 py-2 text-sm text-muted-foreground flex items-center justify-center gap-2">
                     <Search className="h-4 w-4 opacity-50" />
                     No se encontraron direcciones
