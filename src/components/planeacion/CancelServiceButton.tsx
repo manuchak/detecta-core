@@ -48,7 +48,9 @@ export function CancelServiceButton({
         size="sm"
         disabled={disabled}
         onClick={handleClick}
-        className={`apple-button-ghost-small hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity ${className}`}
+        className={`apple-button-ghost-small hover:bg-destructive/10 transition-opacity ${
+          showConfirmDialog ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+        } ${className}`}
       >
         <XCircle className="h-3.5 w-3.5 text-destructive" />
       </Button>
