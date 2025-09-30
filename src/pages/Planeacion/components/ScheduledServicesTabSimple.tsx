@@ -275,7 +275,11 @@ export function ScheduledServicesTab() {
                 <div 
                   key={service.id || index} 
                   className="apple-card apple-hover-lift cursor-pointer transition-all duration-200 p-4 group"
-                  onClick={() => handleEditService(service)}
+                  onClick={(e) => {
+                    const target = e.target as HTMLElement;
+                    if (target.closest('.service-card-actions')) return;
+                    handleEditService(service);
+                  }}
                 >
                   {/* Línea 1: Estado + Hora + Cliente + Acción */}
                   <div className="flex items-center justify-between mb-3">
@@ -300,7 +304,7 @@ export function ScheduledServicesTab() {
                     </div>
                     
                     {/* Íconos de acción */}
-                    <div className="flex items-center space-x-1">
+                    <div className="flex items-center space-x-1 service-card-actions" onClick={(e) => e.stopPropagation()}>
                       {ActionIcon && (
                         <ActionIcon className="w-4 h-4 text-muted-foreground opacity-60" />
                       )}

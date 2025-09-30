@@ -8498,6 +8498,7 @@ export type Database = {
           armado_id: string | null
           asignado_por: string | null
           auto: string | null
+          cancelado_por: string | null
           comentarios_adicionales: string | null
           comunicacion_enviada: boolean | null
           condiciones_especiales: string[] | null
@@ -8511,6 +8512,7 @@ export type Database = {
           estado_planeacion: string
           fecha_asignacion: string | null
           fecha_asignacion_armado: string | null
+          fecha_cancelacion: string | null
           fecha_comunicacion: string | null
           fecha_hora_cita: string
           fecha_respuesta: string | null
@@ -8542,6 +8544,7 @@ export type Database = {
           armado_id?: string | null
           asignado_por?: string | null
           auto?: string | null
+          cancelado_por?: string | null
           comentarios_adicionales?: string | null
           comunicacion_enviada?: boolean | null
           condiciones_especiales?: string[] | null
@@ -8555,6 +8558,7 @@ export type Database = {
           estado_planeacion?: string
           fecha_asignacion?: string | null
           fecha_asignacion_armado?: string | null
+          fecha_cancelacion?: string | null
           fecha_comunicacion?: string | null
           fecha_hora_cita: string
           fecha_respuesta?: string | null
@@ -8586,6 +8590,7 @@ export type Database = {
           armado_id?: string | null
           asignado_por?: string | null
           auto?: string | null
+          cancelado_por?: string | null
           comentarios_adicionales?: string | null
           comunicacion_enviada?: boolean | null
           condiciones_especiales?: string[] | null
@@ -8599,6 +8604,7 @@ export type Database = {
           estado_planeacion?: string
           fecha_asignacion?: string | null
           fecha_asignacion_armado?: string | null
+          fecha_cancelacion?: string | null
           fecha_comunicacion?: string | null
           fecha_hora_cita?: string
           fecha_respuesta?: string | null

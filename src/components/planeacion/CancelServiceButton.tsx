@@ -56,7 +56,11 @@ export function CancelServiceButton({
       </Button>
 
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent className="apple-card max-w-md">
+        <AlertDialogContent 
+          className="apple-card max-w-md"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           <AlertDialogHeader className="space-y-3">
             <AlertDialogTitle className="apple-text-headline text-foreground">
               ¿Cancelar servicio?
@@ -84,11 +88,15 @@ export function CancelServiceButton({
             <AlertDialogCancel 
               className="apple-button-ghost"
               disabled={isProcessing}
+              onClick={(e) => e.stopPropagation()}
             >
               Mantener servicio
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleCancel}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCancel();
+              }}
               disabled={isProcessing}
               className="apple-button-primary bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
