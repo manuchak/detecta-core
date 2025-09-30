@@ -16,8 +16,24 @@ export interface ServiceQueryResult {
   tipo_servicio: string;
   estado: string;
   
+  // Cronología y Tiempos
+  created_at?: string;
+  fecha_asignacion?: string;
+  fecha_hora_comunicacion?: string;
+  fecha_hora_respuesta?: string;
+  fecha_hora_inicio?: string;
+  fecha_hora_fin?: string;
+  tiempo_respuesta?: string; // Intervalo PostgreSQL
+  tiempo_ejecucion?: string; // Intervalo PostgreSQL
+  duracion_punto_origen?: string; // Intervalo PostgreSQL
+  duracion_punto_destino?: string; // Intervalo PostgreSQL
+  hora_salida_origen?: string;
+  hora_llegada_destino?: string;
+  
   // Asignaciones
   nombre_custodio?: string;
+  id_custodio?: string;
+  telefono_custodio?: string;
   armado_nombre?: string;
   armado_asignado?: boolean;
   incluye_armado?: boolean;
@@ -26,17 +42,31 @@ export interface ServiceQueryResult {
   km_recorridos?: number;
   cobro_cliente?: number;
   costo_custodio?: number;
+  costo_armado?: number;
   auto?: string;
   placa?: string;
   observaciones?: string;
   
-  // Datos de planificación
-  created_at?: string;
-  fecha_asignacion?: string;
+  // Contactos y Emergencia
+  nombre_operador?: string;
+  telefono_operador?: string;
+  contacto_emergencia_nombre?: string;
+  contacto_emergencia_telefono?: string;
+  
+  // Datos de planificación y ejecución
   estado_planeacion?: string;
+  custodio_asignado?: string;
+  custodio_id?: string;
+  duracion_estimada?: number;
+  km_teoricos?: number;
+  
+  // Proveedores (para armados externos)
+  proveedor_armado?: string;
+  tarifa_proveedor_armado?: number;
   
   // Metadata
   fuente_tabla: 'servicios_custodia' | 'servicios_planificados';
+  updated_at?: string;
 }
 
 interface UseServiceQueryOptions {
@@ -89,15 +119,42 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         fecha_hora_cita: service.fecha_hora_cita,
         tipo_servicio: service.tipo_servicio || 'custodia',
         estado: service.estado || 'pendiente',
+        
+        // Cronología
+        created_at: service.created_at,
+        fecha_hora_comunicacion: service.fecha_hora_comunicacion,
+        fecha_hora_respuesta: service.fecha_hora_respuesta,
+        fecha_hora_inicio: service.fecha_hora_inicio,
+        fecha_hora_fin: service.fecha_hora_fin,
+        tiempo_respuesta: service.tiempo_respuesta,
+        tiempo_ejecucion: service.tiempo_ejecucion,
+        duracion_punto_origen: service.duracion_punto_origen,
+        duracion_punto_destino: service.duracion_punto_destino,
+        hora_salida_origen: service.hora_salida_origen,
+        hora_llegada_destino: service.hora_llegada_destino,
+        
+        // Asignaciones
         nombre_custodio: service.nombre_custodio,
+        id_custodio: service.id_custodio,
+        telefono_custodio: service.telefono_custodio,
         incluye_armado: service.armado?.toUpperCase() === 'TRUE',
+        
+        // Ejecución
         km_recorridos: service.km_recorridos,
         cobro_cliente: service.cobro_cliente,
         costo_custodio: service.costo_custodio,
+        costo_armado: service.costo_armado,
         auto: service.auto,
         placa: service.placa,
         observaciones: service.observaciones,
-        created_at: service.created_at,
+        
+        // Contactos
+        nombre_operador: service.nombre_operador,
+        telefono_operador: service.telefono_operador,
+        contacto_emergencia_nombre: service.contacto_emergencia_nombre,
+        contacto_emergencia_telefono: service.contacto_emergencia_telefono,
+        
+        updated_at: service.updated_at,
         fuente_tabla: 'servicios_custodia'
       }));
 
@@ -113,13 +170,30 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         fecha_hora_cita: service.fecha_hora_cita,
         tipo_servicio: service.tipo_servicio || 'custodia',
         estado: service.estado_planeacion || 'planificado',
-        nombre_custodio: service.custodio_asignado,
-        armado_asignado: service.armado_asignado,
-        incluye_armado: service.requiere_armado,
-        observaciones: service.observaciones,
+        
+        // Cronología
         created_at: service.created_at,
         fecha_asignacion: service.fecha_asignacion,
+        
+        // Asignaciones
+        nombre_custodio: service.custodio_asignado,
+        custodio_id: service.custodio_id,
+        armado_asignado: service.armado_asignado,
+        incluye_armado: service.requiere_armado,
+        
+        // Planificación
         estado_planeacion: service.estado_planeacion,
+        duracion_estimada: service.duracion_estimada,
+        km_teoricos: service.km_teoricos,
+        observaciones: service.observaciones,
+        
+        // Contactos
+        nombre_operador: service.nombre_operador,
+        telefono_operador: service.telefono_operador,
+        contacto_emergencia_nombre: service.contacto_emergencia_nombre,
+        contacto_emergencia_telefono: service.contacto_emergencia_telefono,
+        
+        updated_at: service.updated_at,
         fuente_tabla: 'servicios_planificados'
       }));
 
@@ -206,15 +280,42 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         fecha_hora_cita: service.fecha_hora_cita,
         tipo_servicio: service.tipo_servicio || 'custodia',
         estado: service.estado || 'pendiente',
+        
+        // Cronología
+        created_at: service.created_at,
+        fecha_hora_comunicacion: service.fecha_hora_comunicacion,
+        fecha_hora_respuesta: service.fecha_hora_respuesta,
+        fecha_hora_inicio: service.fecha_hora_inicio,
+        fecha_hora_fin: service.fecha_hora_fin,
+        tiempo_respuesta: service.tiempo_respuesta,
+        tiempo_ejecucion: service.tiempo_ejecucion,
+        duracion_punto_origen: service.duracion_punto_origen,
+        duracion_punto_destino: service.duracion_punto_destino,
+        hora_salida_origen: service.hora_salida_origen,
+        hora_llegada_destino: service.hora_llegada_destino,
+        
+        // Asignaciones
         nombre_custodio: service.nombre_custodio,
+        id_custodio: service.id_custodio,
+        telefono_custodio: service.telefono_custodio,
         incluye_armado: service.armado?.toUpperCase() === 'TRUE',
+        
+        // Ejecución
         km_recorridos: service.km_recorridos,
         cobro_cliente: service.cobro_cliente,
         costo_custodio: service.costo_custodio,
+        costo_armado: service.costo_armado,
         auto: service.auto,
         placa: service.placa,
         observaciones: service.observaciones,
-        created_at: service.created_at,
+        
+        // Contactos
+        nombre_operador: service.nombre_operador,
+        telefono_operador: service.telefono_operador,
+        contacto_emergencia_nombre: service.contacto_emergencia_nombre,
+        contacto_emergencia_telefono: service.contacto_emergencia_telefono,
+        
+        updated_at: service.updated_at,
         fuente_tabla: 'servicios_custodia'
       }));
 
@@ -230,13 +331,30 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         fecha_hora_cita: service.fecha_hora_cita,
         tipo_servicio: service.tipo_servicio || 'custodia',
         estado: service.estado_planeacion || 'planificado',
-        nombre_custodio: service.custodio_asignado,
-        armado_asignado: service.armado_asignado,
-        incluye_armado: service.requiere_armado,
-        observaciones: service.observaciones,
+        
+        // Cronología
         created_at: service.created_at,
         fecha_asignacion: service.fecha_asignacion,
+        
+        // Asignaciones
+        nombre_custodio: service.custodio_asignado,
+        custodio_id: service.custodio_id,
+        armado_asignado: service.armado_asignado,
+        incluye_armado: service.requiere_armado,
+        
+        // Planificación
         estado_planeacion: service.estado_planeacion,
+        duracion_estimada: service.duracion_estimada,
+        km_teoricos: service.km_teoricos,
+        observaciones: service.observaciones,
+        
+        // Contactos
+        nombre_operador: service.nombre_operador,
+        telefono_operador: service.telefono_operador,
+        contacto_emergencia_nombre: service.contacto_emergencia_nombre,
+        contacto_emergencia_telefono: service.contacto_emergencia_telefono,
+        
+        updated_at: service.updated_at,
         fuente_tabla: 'servicios_planificados'
       }));
 
