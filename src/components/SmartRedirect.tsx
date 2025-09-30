@@ -51,6 +51,13 @@ const SmartRedirect = ({ children }: SmartRedirectProps) => {
         }
         break;
 
+      case 'planificador':
+        // Redirigir a planeación
+        if (currentPath === '/' || currentPath === '/dashboard') {
+          navigate('/planeacion', { replace: true });
+        }
+        break;
+
       default:
         // Para admin, owner, supply_admin, etc. - sin redirección
         break;

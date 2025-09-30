@@ -15,6 +15,7 @@ export type Role =
   | 'supply'
   | 'instalador'
   | 'soporte'
+  | 'planificador'
   | 'pending'
   | 'unverified';
 

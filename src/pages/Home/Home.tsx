@@ -55,6 +55,7 @@ const Home = () => {
       'supply': 'Suministros',
       'instalador': 'Instalador',
       'soporte': 'Soporte Técnico',
+      'planificador': 'Planificador',
       'pending': 'Pendiente',
       'unverified': 'No Verificado'
     };
@@ -130,6 +131,18 @@ const Home = () => {
         href: '/wms',
         description: 'Gestión de inventario y suministros GPS',
         color: 'bg-emerald-50 text-emerald-600 border-emerald-100'
+      });
+    }
+
+    // Planeación - foco principal para planificadores
+    if (['planificador'].includes(userRole || '')) {
+      roleSpecificActions.push({
+        title: 'Planeación de Servicios',
+        icon: Calendar,
+        href: '/planeacion',
+        description: 'Gestionar servicios programados y asignaciones',
+        color: 'bg-blue-50 text-blue-600 border-blue-100',
+        featured: true
       });
     }
 
