@@ -86,3 +86,26 @@ export const CUSTODIAN_CATEGORIES = {
     variant: 'destructive' as const
   }
 };
+
+export const ARMED_GUARD_CATEGORIES = {
+  disponibles: {
+    label: 'Disponibles',
+    icon: <CheckCircle2 className="h-3 w-3" />,
+    variant: 'success' as const
+  },
+  conExperiencia: {
+    label: 'Con Experiencia',
+    icon: <CheckCircle2 className="h-3 w-3" />,
+    variant: 'secondary' as const
+  },
+  licenciasVigentes: {
+    label: 'Licencias Vigentes',
+    icon: <CheckCircle2 className="h-3 w-3" />,
+    variant: 'success' as const
+  },
+  activos: {
+    label: 'Activos',
+    icon: <CheckCircle2 className="h-3 w-3" />,
+    variant: 'success' as const
+  }
+};

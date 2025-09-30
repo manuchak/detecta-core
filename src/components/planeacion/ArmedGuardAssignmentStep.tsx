@@ -10,7 +10,7 @@ import { Shield, Clock, MapPin, AlertTriangle, CheckCircle2, Search, Eye, EyeOff
 import { useArmedGuardsWithTracking } from '@/hooks/useArmedGuardsWithTracking';
 import { toast } from 'sonner';
 import { UniversalSearchBar } from '@/components/planeacion/search/UniversalSearchBar';
-import { SearchResultsInfo } from '@/components/planeacion/search/SearchResultsInfo';
+import { SearchResultsInfo, ARMED_GUARD_CATEGORIES } from '@/components/planeacion/search/SearchResultsInfo';
 
 interface ArmedGuardData {
   armado_id: string;
@@ -98,6 +98,39 @@ export function ArmedGuardAssignmentStep({
     
     return matchesSearch && matchesFilters;
   });
+
+  // Calculate category counts for filtered armed guards
+  const disponiblesCount = filteredGuards.filter(g => g.disponibilidad === 'disponible').length;
+  const conExperienciaCount = filteredGuards.filter(g => (g.experiencia_anos || 0) >= 3).length;
+  const licenciasVigentesCount = filteredGuards.filter(g => {
+    if (!g.fecha_vencimiento_licencia) return false;
+    return new Date(g.fecha_vencimiento_licencia) > new Date();
+  }).length;
+  const activosCount = filteredGuards.filter(g => g.estado === 'activo').length;
+
+  const categoryData = assignmentType === 'interno' ? [
+    { 
+      ...ARMED_GUARD_CATEGORIES.disponibles, 
+      count: disponiblesCount 
+    },
+    { 
+      ...ARMED_GUARD_CATEGORIES.conExperiencia, 
+      count: conExperienciaCount 
+    },
+    { 
+      ...ARMED_GUARD_CATEGORIES.licenciasVigentes, 
+      count: licenciasVigentesCount 
+    },
+    { 
+      ...ARMED_GUARD_CATEGORIES.activos, 
+      count: activosCount 
+    }
+  ] : [
+    {
+      ...ARMED_GUARD_CATEGORIES.activos,
+      count: filteredProviders.filter(p => p.activo).length
+    }
+  ];
 
   const handleComplete = () => {
     const selectedId = assignmentType === 'interno' ? selectedGuard : selectedProvider;
@@ -269,6 +302,15 @@ export function ArmedGuardAssignmentStep({
             }}
             resultsCount={assignmentType === 'interno' ? filteredGuards.length : filteredProviders.length}
             totalCount={assignmentType === 'interno' ? armedGuards.length : providers.length}
+            className="mb-4"
+          />
+
+          {/* Search Results Summary */}
+          <SearchResultsInfo
+            categories={categoryData}
+            totalFiltered={assignmentType === 'interno' ? filteredGuards.length : filteredProviders.length}
+            totalAvailable={assignmentType === 'interno' ? armedGuards.length : providers.length}
+            emptyMessage={`No se encontraron ${assignmentType === 'interno' ? 'armados' : 'proveedores'} con los criterios seleccionados`}
             className="mb-4"
           />
 
