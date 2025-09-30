@@ -12,48 +12,37 @@ export const useUserRoles = () => {
     queryKey: ['users-with-roles'],
     queryFn: async () => {
       try {
-        console.log('Fetching users with roles using secure function...');
+        console.log('Fetching ALL users with roles using new secure function...');
         
-        // Verificar primero si el usuario actual es admin usando la función segura
-        const { data: currentUserRole, error: roleError } = await supabase.rpc('get_current_user_role_secure');
-        
-        if (roleError) {
-          console.error('Error checking user role:', roleError);
-          throw new Error('No se pudo verificar los permisos del usuario');
-        }
-        
-        console.log('Current user role:', currentUserRole);
-        
-        if (!currentUserRole || !['admin', 'owner', 'supply_admin'].includes(currentUserRole)) {
-          throw new Error('Sin permisos de administrador para ver usuarios');
-        }
-        
-        // Usar la función segura consolidada
-        const { data, error } = await supabase.rpc('get_users_with_roles_secure');
+        // Usar la nueva función que muestra TODOS los usuarios
+        const { data, error } = await supabase.rpc('get_all_users_with_roles_secure');
         
         if (error) {
           console.error("Error fetching users with roles:", error);
           throw new Error(`Error al cargar usuarios: ${error.message}`);
         }
         
-        console.log('Raw data from get_users_with_roles_secure:', data);
+        console.log('Raw data from get_all_users_with_roles_secure:', data);
         
         if (!data || data.length === 0) {
           console.log('No users returned from function');
           return [];
         }
         
-        // Mapear los datos de manera segura
+        // Mapear los datos con los nuevos campos
         const mappedUsers = data.map((user: any) => ({
           id: user.id,
           email: user.email,
           display_name: user.display_name || user.email,
           role: user.role as Role,
           created_at: user.created_at,
-          last_login: user.last_login
+          last_login: user.last_login,
+          is_verified: user.is_verified,
+          role_category: user.role_category,
+          role_priority: user.role_priority
         })) as UserWithRole[];
         
-        console.log('Mapped users:', mappedUsers);
+        console.log('Mapped users with categories:', mappedUsers);
         return mappedUsers;
         
       } catch (error) {

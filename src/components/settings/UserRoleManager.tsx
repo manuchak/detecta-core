@@ -35,11 +35,19 @@ export const UserRoleManager = () => {
   const { users, roles, isLoading, error, updateUserRole, verifyUserEmail } = useRoles();
   const [searchTerm, setSearchTerm] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<string>('all');
 
-  const filteredUsers = users?.filter(user => 
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    user.display_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = users?.filter(user => {
+    const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         user.display_name.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (roleFilter === 'all') return matchesSearch;
+    if (roleFilter === 'admin') return matchesSearch && ['super_admin', 'admin'].includes(user.role_category || '');
+    if (roleFilter === 'operational') return matchesSearch && ['operational', 'field'].includes(user.role_category || '');
+    if (roleFilter === 'pending') return matchesSearch && ['pending', 'unverified'].includes(user.role_category || '');
+    
+    return matchesSearch && user.role_category === roleFilter;
+  });
 
   const handleRoleChange = (userId: string, newRole: Role) => {
     updateUserRole.mutate({ userId, role: newRole });
@@ -183,6 +191,46 @@ export const UserRoleManager = () => {
             Actualizar
           </Button>
         </div>
+        
+        {/* Filtros por tipo de rol */}
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            variant={roleFilter === 'all' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setRoleFilter('all')}
+          >
+            Todos ({users?.length || 0})
+          </Button>
+          <Button
+            variant={roleFilter === 'admin' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setRoleFilter('admin')}
+          >
+            Administrativos ({users?.filter(u => ['super_admin', 'admin'].includes(u.role_category || '')).length || 0})
+          </Button>
+          <Button
+            variant={roleFilter === 'management' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setRoleFilter('management')}
+          >
+            Gestión ({users?.filter(u => u.role_category === 'management').length || 0})
+          </Button>
+          <Button
+            variant={roleFilter === 'operational' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setRoleFilter('operational')}
+          >
+            Operativos ({users?.filter(u => ['operational', 'field'].includes(u.role_category || '')).length || 0})
+          </Button>
+          <Button
+            variant={roleFilter === 'pending' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setRoleFilter('pending')}
+          >
+            Pendientes ({users?.filter(u => ['pending', 'unverified'].includes(u.role_category || '')).length || 0})
+          </Button>
+        </div>
+
         <div className="relative">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -229,16 +277,35 @@ export const UserRoleManager = () => {
                   filteredUsers.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell>
-                        <div>
-                          <div className="font-medium">{user.display_name}</div>
-                          <div className="text-sm text-muted-foreground">{user.email}</div>
+                        <div className="flex items-center gap-2">
+                          <div>
+                            <div className="font-medium">{user.display_name}</div>
+                            <div className="text-sm text-muted-foreground">{user.email}</div>
+                          </div>
+                          {user.is_verified === false && (
+                            <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-800 border-yellow-200">
+                              No verificado
+                            </Badge>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Badge className={getRoleBadgeColor(user.role)}>
-                            {getRoleDisplayName(user.role)}
-                          </Badge>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Badge className={getRoleBadgeColor(user.role)}>
+                              {getRoleDisplayName(user.role)}
+                            </Badge>
+                            {user.role_category && (
+                              <Badge variant="outline" className="text-xs">
+                                {user.role_category === 'super_admin' ? 'Super Admin' :
+                                 user.role_category === 'admin' ? 'Admin' :
+                                 user.role_category === 'management' ? 'Gestión' :
+                                 user.role_category === 'operational' ? 'Operativo' :
+                                 user.role_category === 'field' ? 'Campo' :
+                                 user.role_category === 'pending' ? 'Pendiente' : 'Sin verificar'}
+                              </Badge>
+                            )}
+                          </div>
                           <Select
                             defaultValue={user.role}
                             onValueChange={(value) => handleRoleChange(user.id, value as Role)}
@@ -267,7 +334,7 @@ export const UserRoleManager = () => {
                           'Nunca'}
                       </TableCell>
                       <TableCell className="text-right">
-                        {user.role === 'unverified' && (
+                        {(user.role === 'unverified' || user.is_verified === false) && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -284,7 +351,7 @@ export const UserRoleManager = () => {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center">
-                      No hay usuarios que coincidan con la búsqueda
+                      No hay usuarios que coincidan con la búsqueda o filtros
                     </TableCell>
                   </TableRow>
                 )}

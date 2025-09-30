@@ -33,6 +33,9 @@ export interface UserWithRole {
   role: Role;
   created_at: string;
   last_login?: string;
+  is_verified?: boolean;
+  role_category?: 'super_admin' | 'admin' | 'management' | 'operational' | 'field' | 'pending' | 'unverified';
+  role_priority?: number;
 }
 
 export interface RolePermissionInput {

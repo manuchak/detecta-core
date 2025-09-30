@@ -10345,6 +10345,20 @@ export type Database = {
           user_roles: string[]
         }[]
       }
+      get_all_users_with_roles_secure: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string
+          display_name: string
+          email: string
+          id: string
+          is_verified: boolean
+          last_login: string
+          role: string
+          role_category: string
+          role_priority: number
+        }[]
+      }
       get_analyst_assigned_leads: {
         Args: Record<PropertyKey, never>
         Returns: {
