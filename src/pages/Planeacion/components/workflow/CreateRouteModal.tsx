@@ -49,10 +49,9 @@ export function CreateRouteModal({
     destino_texto: destination,
     valor_bruto: '',
     precio_custodio: '',
-    pago_sin_arma: '',
     costo_operativo: '',
     distancia_km: '',
-    tipo_servicio: 'traslado_valores',
+    tipo_servicio: 'Punto A-B',
     dias_operacion: [] as string[],
     justificacion: ''
   });
@@ -92,16 +91,8 @@ export function CreateRouteModal({
       toast.error('El precio custodio debe ser mayor a 0');
       return false;
     }
-    if (!formData.pago_sin_arma || parseFloat(formData.pago_sin_arma) <= 0) {
-      toast.error('El pago sin arma debe ser mayor a 0');
-      return false;
-    }
     if (!formData.distancia_km || parseFloat(formData.distancia_km) <= 0) {
       toast.error('La distancia debe ser mayor a 0');
-      return false;
-    }
-    if (formData.dias_operacion.length === 0) {
-      toast.error('Debe seleccionar al menos un día de operación');
       return false;
     }
     if (!formData.justificacion || formData.justificacion.trim().length < 20) {
@@ -133,7 +124,6 @@ export function CreateRouteModal({
         destino_texto: formData.destino_texto.trim(),
         valor_bruto: parseFloat(formData.valor_bruto),
         precio_custodio: parseFloat(formData.precio_custodio),
-        pago_sin_arma: parseFloat(formData.pago_sin_arma),
         costo_operativo: formData.costo_operativo ? parseFloat(formData.costo_operativo) : null,
         distancia_km: parseFloat(formData.distancia_km),
         tipo_servicio: formData.tipo_servicio,
@@ -172,10 +162,9 @@ export function CreateRouteModal({
         destino_texto: '',
         valor_bruto: '',
         precio_custodio: '',
-        pago_sin_arma: '',
         costo_operativo: '',
         distancia_km: '',
-        tipo_servicio: 'traslado_valores',
+        tipo_servicio: 'Punto A-B',
         dias_operacion: [],
         justificacion: ''
       });
@@ -274,30 +263,16 @@ export function CreateRouteModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="pago_sin_arma">Pago Sin Arma (MXN) *</Label>
-              <Input
-                id="pago_sin_arma"
-                type="number"
-                step="0.01"
-                placeholder="700.00"
-                value={formData.pago_sin_arma}
-                onChange={(e) => setFormData(prev => ({ ...prev, pago_sin_arma: e.target.value }))}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="costo_operativo">Costo Operativo (MXN)</Label>
-              <Input
-                id="costo_operativo"
-                type="number"
-                step="0.01"
-                placeholder="150.00"
-                value={formData.costo_operativo}
-                onChange={(e) => setFormData(prev => ({ ...prev, costo_operativo: e.target.value }))}
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="costo_operativo">Costo Operativo (MXN)</Label>
+            <Input
+              id="costo_operativo"
+              type="number"
+              step="0.01"
+              placeholder="150.00"
+              value={formData.costo_operativo}
+              onChange={(e) => setFormData(prev => ({ ...prev, costo_operativo: e.target.value }))}
+            />
           </div>
 
           {/* Service details */}
@@ -324,10 +299,8 @@ export function CreateRouteModal({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="traslado_valores">Traslado de Valores</SelectItem>
-                  <SelectItem value="custodia">Custodia</SelectItem>
-                  <SelectItem value="escolta">Escolta</SelectItem>
-                  <SelectItem value="otro">Otro</SelectItem>
+                  <SelectItem value="Punto A-B">Punto A-B</SelectItem>
+                  <SelectItem value="Reparto">Reparto</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -335,7 +308,7 @@ export function CreateRouteModal({
 
           {/* Operating days */}
           <div className="space-y-2">
-            <Label>Días de Operación *</Label>
+            <Label>Días de Operación</Label>
             <div className="flex flex-wrap gap-2">
               {DIAS_SEMANA.map(dia => (
                 <Button
