@@ -15,9 +15,10 @@ interface CreateRouteModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   clientName: string;
-  origin: string;
-  destination: string;
+  origin?: string;
+  destination?: string;
   onRouteCreated: (route: any) => void;
+  freeTextMode?: boolean;
 }
 
 const DIAS_SEMANA = [
@@ -34,15 +35,18 @@ export function CreateRouteModal({
   open,
   onOpenChange,
   clientName,
-  origin,
-  destination,
-  onRouteCreated
+  origin = '',
+  destination = '',
+  onRouteCreated,
+  freeTextMode = false
 }: CreateRouteModalProps) {
   const { logRouteAction, checkDailyLimit, logging } = useRouteAudit();
   const [creating, setCreating] = useState(false);
   const [canCreateToday, setCanCreateToday] = useState<boolean | null>(null);
   
   const [formData, setFormData] = useState({
+    origen_texto: origin,
+    destino_texto: destination,
     valor_bruto: '',
     precio_custodio: '',
     pago_sin_arma: '',
@@ -72,6 +76,14 @@ export function CreateRouteModal({
   };
 
   const validateForm = (): boolean => {
+    if (!formData.origen_texto || formData.origen_texto.trim().length === 0) {
+      toast.error('El origen es requerido');
+      return false;
+    }
+    if (!formData.destino_texto || formData.destino_texto.trim().length === 0) {
+      toast.error('El destino es requerido');
+      return false;
+    }
     if (!formData.valor_bruto || parseFloat(formData.valor_bruto) <= 0) {
       toast.error('El valor bruto debe ser mayor a 0');
       return false;
@@ -117,8 +129,8 @@ export function CreateRouteModal({
 
       const routeData = {
         cliente_nombre: clientName,
-        origen_texto: origin,
-        destino_texto: destination,
+        origen_texto: formData.origen_texto.trim(),
+        destino_texto: formData.destino_texto.trim(),
         valor_bruto: parseFloat(formData.valor_bruto),
         precio_custodio: parseFloat(formData.precio_custodio),
         pago_sin_arma: parseFloat(formData.pago_sin_arma),
@@ -156,6 +168,8 @@ export function CreateRouteModal({
       
       // Reset form and close
       setFormData({
+        origen_texto: '',
+        destino_texto: '',
         valor_bruto: '',
         precio_custodio: '',
         pago_sin_arma: '',
@@ -198,21 +212,37 @@ export function CreateRouteModal({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Pre-populated fields */}
-          <div className="grid grid-cols-1 gap-4 p-4 bg-muted/50 rounded-lg">
+          {/* Client field (read-only) */}
+          <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
             <div>
               <Label className="text-muted-foreground">Cliente</Label>
               <p className="text-sm font-medium">{clientName}</p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-muted-foreground">Origen</Label>
-                <p className="text-sm font-medium">{origin}</p>
-              </div>
-              <div>
-                <Label className="text-muted-foreground">Destino</Label>
-                <p className="text-sm font-medium">{destination}</p>
-              </div>
+          </div>
+
+          {/* Origin and Destination fields (free text) */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="origen_texto">Origen *</Label>
+              <Input
+                id="origen_texto"
+                type="text"
+                placeholder="Ej: QUERETARO, QUERETARO"
+                value={formData.origen_texto}
+                onChange={(e) => setFormData(prev => ({ ...prev, origen_texto: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="destino_texto">Destino *</Label>
+              <Input
+                id="destino_texto"
+                type="text"
+                placeholder="Ej: CELAYA, GUANAJUATO"
+                value={formData.destino_texto}
+                onChange={(e) => setFormData(prev => ({ ...prev, destino_texto: e.target.value }))}
+                required
+              />
             </div>
           </div>
 

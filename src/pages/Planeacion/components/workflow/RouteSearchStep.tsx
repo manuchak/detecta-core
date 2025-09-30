@@ -340,27 +340,39 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
             )}
           </div>
 
-          {/* Enhanced Search Button */}
-          {cliente && origen && destino && (
-            <Button 
-              onClick={searchPrice}
-              disabled={loading}
-              size="lg"
-              className="w-full h-12 gap-3 text-base font-semibold shadow-lg"
-              variant="default"
-            >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  Buscando pricing...
-                </>
-              ) : (
-                <>
-                  <Search className="h-5 w-5" />
-                  {priceEstimate ? 'Actualizar Pricing' : 'Buscar Pricing'}
-                </>
-              )}
-            </Button>
+          {/* Enhanced Search and Create Route Buttons */}
+          {cliente && (
+            <div className="flex gap-3">
+              <Button 
+                onClick={searchPrice}
+                disabled={loading || !origen || !destino}
+                size="lg"
+                className="flex-1 h-12 gap-3 text-base font-semibold shadow-lg"
+                variant="default"
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Buscando pricing...
+                  </>
+                ) : (
+                  <>
+                    <Search className="h-5 w-5" />
+                    {priceEstimate ? 'Actualizar Pricing' : 'Buscar Pricing'}
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={() => setShowCreateModal(true)}
+                disabled={loading}
+                size="lg"
+                variant="outline"
+                className="h-12 gap-3 text-base font-semibold shadow-lg"
+              >
+                <Plus className="h-5 w-5" />
+                Crear Nueva Ruta
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -530,6 +542,7 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
         origin={origen}
         destination={destino}
         onRouteCreated={handleRouteCreated}
+        freeTextMode={true}
       />
     </div>
   );
