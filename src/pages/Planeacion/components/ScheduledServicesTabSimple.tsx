@@ -204,7 +204,23 @@ export function ScheduledServicesTab() {
   }
 
   return (
-    <div className="apple-container space-y-8">
+    <div
+      className="apple-container space-y-8"
+      onMouseDownCapture={(e) => {
+        const anyDialog = document.body.dataset.dialogOpen === "1" || document.body.dataset.dialogTransitioning === "1" || !!document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]');
+        if (anyDialog) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }}
+      onClickCapture={(e) => {
+        const anyDialog = document.body.dataset.dialogOpen === "1" || document.body.dataset.dialogTransitioning === "1" || !!document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]');
+        if (anyDialog) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }}
+    >
       {/* Header */}
       <div className="apple-section-header">
         <div>
