@@ -32,10 +32,10 @@ export const RoleManager = () => {
           'owner': 1, 'admin': 2, 'supply_admin': 3, 'coordinador_operaciones': 4,
           'jefe_seguridad': 5, 'analista_seguridad': 6, 'supply_lead': 7,
           'ejecutivo_ventas': 8, 'bi': 9, 'monitoring_supervisor': 10,
-          'monitoring': 11, 'supply': 12, 'instalador': 13, 'soporte': 14,
-          'custodio': 15, 'pending': 16
+          'monitoring': 11, 'supply': 12, 'instalador': 13, 'planificador': 14,
+          'soporte': 15, 'custodio': 16, 'pending': 17
         };
-        return priorities[role] || 17;
+        return priorities[role] || 18;
       };
       
       if (priority(user.role) < priority(existingUser.role)) {
@@ -53,7 +53,7 @@ export const RoleManager = () => {
   const availableRoles = [
     'admin', 'supply_admin', 'coordinador_operaciones', 'jefe_seguridad',
     'analista_seguridad', 'supply_lead', 'ejecutivo_ventas', 'bi',
-    'monitoring_supervisor', 'monitoring', 'supply', 'instalador', 'soporte'
+    'monitoring_supervisor', 'monitoring', 'supply', 'instalador', 'planificador', 'soporte'
   ];
 
   const getRoleDisplayName = (role: string) => {
@@ -70,6 +70,7 @@ export const RoleManager = () => {
       'monitoring': 'Monitoreo',
       'supply': 'Suministros',
       'instalador': 'Instalador',
+      'planificador': 'Planificador',
       'soporte': 'Soporte'
     };
     return roleNames[role] || role;
@@ -86,6 +87,8 @@ export const RoleManager = () => {
       case 'analista_seguridad':
       case 'supply_lead':
         return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'planificador':
+        return 'bg-green-100 text-green-800 border-green-200';
       case 'supply':
       case 'soporte':
       case 'bi':
@@ -103,7 +106,8 @@ export const RoleManager = () => {
       'supply_admin': ['Gestión de leads', 'Dashboard ejecutivo'],
       'coordinador_operaciones': ['Leads', 'Instaladores', 'Monitoreo'],
       'analista_seguridad': ['Análisis de riesgo', 'Reportes'],
-      'instalador': ['Portal de instalación', 'Documentación']
+      'instalador': ['Portal de instalación', 'Documentación'],
+      'planificador': ['Planeación de servicios', 'Asignación de recursos']
     };
     return skillsByRole[role] || ['Permisos básicos'];
   };
