@@ -49,7 +49,7 @@ export function CancelServiceButton({
         disabled={disabled}
         onClick={handleClick}
         className={`apple-button-ghost-small hover:bg-destructive/10 transition-opacity ${
-          showConfirmDialog ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+          showConfirmDialog ? 'opacity-100 pointer-events-auto' : 'opacity-0 group-hover:opacity-100'
         } ${className}`}
       >
         <XCircle className="h-3.5 w-3.5 text-destructive" />
@@ -60,6 +60,7 @@ export function CancelServiceButton({
           className="apple-card max-w-md"
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
+          onEscapeKeyDown={(e) => e.stopPropagation()}
         >
           <AlertDialogHeader className="space-y-3">
             <AlertDialogTitle className="apple-text-headline text-foreground">

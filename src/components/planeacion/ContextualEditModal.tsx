@@ -239,14 +239,6 @@ export function ContextualEditModal({
                 </DialogTitle>
               </div>
               
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => onOpenChange(false)}
-                className="apple-button-ghost"
-              >
-                <X className="h-4 w-4" />
-              </Button>
             </div>
             <DialogDescription className="sr-only">
               Modal para editar servicio con opciones contextuales

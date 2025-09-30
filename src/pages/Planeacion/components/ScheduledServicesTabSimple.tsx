@@ -276,8 +276,10 @@ export function ScheduledServicesTab() {
                   key={service.id || index} 
                   className="apple-card apple-hover-lift cursor-pointer transition-all duration-200 p-4 group"
                   onClick={(e) => {
-                    const target = e.target as HTMLElement;
+                    const target = (e.target as HTMLElement);
                     if (target.closest('.service-card-actions')) return;
+                    const isAnyDialogOpen = !!document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]');
+                    if (isAnyDialogOpen) return;
                     handleEditService(service);
                   }}
                 >
