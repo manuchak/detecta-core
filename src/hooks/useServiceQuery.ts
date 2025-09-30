@@ -18,15 +18,20 @@ export interface ServiceQueryResult {
   
   // Cronología y Tiempos
   created_at?: string;
+  fecha_hora_asignacion?: string;
   fecha_asignacion?: string;
+  fecha_comunicacion?: string;
+  fecha_respuesta?: string;
   fecha_hora_comunicacion?: string;
   fecha_hora_respuesta?: string;
+  hora_inicio_custodia?: string;
+  hora_finalizacion?: string;
   fecha_hora_inicio?: string;
   fecha_hora_fin?: string;
-  tiempo_respuesta?: string; // Intervalo PostgreSQL
-  tiempo_ejecucion?: string; // Intervalo PostgreSQL
-  duracion_punto_origen?: string; // Intervalo PostgreSQL
-  duracion_punto_destino?: string; // Intervalo PostgreSQL
+  tiempo_respuesta?: string;
+  duracion_servicio?: string;
+  tiempo_punto_origen?: string;
+  tiempo_punto_destino?: string;
   hora_salida_origen?: string;
   hora_llegada_destino?: string;
   
@@ -122,14 +127,15 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         
         // Cronología
         created_at: service.created_at,
-        fecha_hora_comunicacion: service.fecha_hora_comunicacion,
-        fecha_hora_respuesta: service.fecha_hora_respuesta,
-        fecha_hora_inicio: service.fecha_hora_inicio,
-        fecha_hora_fin: service.fecha_hora_fin,
+        fecha_hora_asignacion: service.fecha_hora_asignacion,
+        fecha_comunicacion: service.fecha_comunicacion,
+        fecha_respuesta: service.fecha_respuesta,
+        hora_inicio_custodia: service.hora_inicio_custodia,
+        hora_finalizacion: service.hora_finalizacion,
         tiempo_respuesta: service.tiempo_respuesta,
-        tiempo_ejecucion: service.tiempo_ejecucion,
-        duracion_punto_origen: service.duracion_punto_origen,
-        duracion_punto_destino: service.duracion_punto_destino,
+        duracion_servicio: service.duracion_servicio,
+        tiempo_punto_origen: service.tiempo_punto_origen,
+        tiempo_punto_destino: service.tiempo_punto_destino,
         hora_salida_origen: service.hora_salida_origen,
         hora_llegada_destino: service.hora_llegada_destino,
         
@@ -283,14 +289,15 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         
         // Cronología
         created_at: service.created_at,
-        fecha_hora_comunicacion: service.fecha_hora_comunicacion,
-        fecha_hora_respuesta: service.fecha_hora_respuesta,
-        fecha_hora_inicio: service.fecha_hora_inicio,
-        fecha_hora_fin: service.fecha_hora_fin,
+        fecha_hora_asignacion: service.fecha_hora_asignacion,
+        fecha_comunicacion: service.fecha_comunicacion,
+        fecha_respuesta: service.fecha_respuesta,
+        hora_inicio_custodia: service.hora_inicio_custodia,
+        hora_finalizacion: service.hora_finalizacion,
         tiempo_respuesta: service.tiempo_respuesta,
-        tiempo_ejecucion: service.tiempo_ejecucion,
-        duracion_punto_origen: service.duracion_punto_origen,
-        duracion_punto_destino: service.duracion_punto_destino,
+        duracion_servicio: service.duracion_servicio,
+        tiempo_punto_origen: service.tiempo_punto_origen,
+        tiempo_punto_destino: service.tiempo_punto_destino,
         hora_salida_origen: service.hora_salida_origen,
         hora_llegada_destino: service.hora_llegada_destino,
         
@@ -334,6 +341,7 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         
         // Cronología
         created_at: service.created_at,
+        fecha_hora_asignacion: service.fecha_hora_asignacion,
         fecha_asignacion: service.fecha_asignacion,
         
         // Asignaciones

@@ -201,7 +201,20 @@ export function ServiceDetailsModal({ open, onOpenChange, service }: ServiceDeta
 
           {/* Tab: Cronología - Timeline del Servicio */}
           <TabsContent value="timeline" className="apple-content-spacing">
-            <div className="space-y-4">
+            {!service.created_at && !service.fecha_hora_asignacion && !service.fecha_asignacion && 
+             !service.fecha_comunicacion && !service.fecha_respuesta && !service.hora_inicio_custodia && 
+             !service.hora_finalizacion ? (
+              <div className="apple-empty-state py-12">
+                <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <div className="apple-text-headline text-muted-foreground mb-2">
+                  Sin información temporal
+                </div>
+                <div className="apple-text-body text-muted-foreground">
+                  No hay datos de cronología disponibles para este servicio
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
               {/* Timeline Visual */}
               <div className="relative pl-8 space-y-6">
                 {service.created_at && (
@@ -212,36 +225,36 @@ export function ServiceDetailsModal({ open, onOpenChange, service }: ServiceDeta
                     color="blue"
                   />
                 )}
-                {service.fecha_asignacion && (
+                {(service.fecha_hora_asignacion || service.fecha_asignacion) && (
                   <TimelineItem
                     icon={User}
                     label="Custodio Asignado"
-                    timestamp={service.fecha_asignacion}
+                    timestamp={service.fecha_hora_asignacion || service.fecha_asignacion}
                     color="purple"
                     detail={service.nombre_custodio}
                   />
                 )}
-                {service.fecha_hora_comunicacion && (
+                {service.fecha_comunicacion && (
                   <TimelineItem
                     icon={Phone}
                     label="Comunicación Enviada"
-                    timestamp={service.fecha_hora_comunicacion}
+                    timestamp={service.fecha_comunicacion}
                     color="cyan"
                   />
                 )}
-                {service.fecha_hora_respuesta && (
+                {service.fecha_respuesta && (
                   <TimelineItem
                     icon={CheckCircle2}
                     label="Respuesta Recibida"
-                    timestamp={service.fecha_hora_respuesta}
+                    timestamp={service.fecha_respuesta}
                     color="green"
                   />
                 )}
-                {service.fecha_hora_inicio && (
+                {service.hora_inicio_custodia && (
                   <TimelineItem
                     icon={Navigation}
                     label="Servicio Iniciado"
-                    timestamp={service.fecha_hora_inicio}
+                    timestamp={service.hora_inicio_custodia}
                     color="orange"
                   />
                 )}
@@ -261,11 +274,11 @@ export function ServiceDetailsModal({ open, onOpenChange, service }: ServiceDeta
                     color="teal"
                   />
                 )}
-                {service.fecha_hora_fin && (
+                {service.hora_finalizacion && (
                   <TimelineItem
                     icon={CheckCircle2}
                     label="Servicio Finalizado"
-                    timestamp={service.fecha_hora_fin}
+                    timestamp={service.hora_finalizacion}
                     color="green"
                   />
                 )}
@@ -282,30 +295,31 @@ export function ServiceDetailsModal({ open, onOpenChange, service }: ServiceDeta
                       value={formatTiempoRetrasoDisplay(service.tiempo_respuesta)}
                     />
                   )}
-                  {service.tiempo_ejecucion && (
+                  {service.duracion_servicio && (
                     <MetricCard
                       icon={Clock}
-                      label="Tiempo de Ejecución"
-                      value={formatTiempoRetrasoDisplay(service.tiempo_ejecucion)}
+                      label="Duración del Servicio"
+                      value={formatTiempoRetrasoDisplay(service.duracion_servicio)}
                     />
                   )}
-                  {service.duracion_punto_origen && (
+                  {service.tiempo_punto_origen && (
                     <MetricCard
                       icon={MapPin}
-                      label="Duración en Origen"
-                      value={formatTiempoRetrasoDisplay(service.duracion_punto_origen)}
+                      label="Tiempo en Origen"
+                      value={formatTiempoRetrasoDisplay(service.tiempo_punto_origen)}
                     />
                   )}
-                  {service.duracion_punto_destino && (
+                  {service.tiempo_punto_destino && (
                     <MetricCard
                       icon={MapPin}
-                      label="Duración en Destino"
-                      value={formatTiempoRetrasoDisplay(service.duracion_punto_destino)}
+                      label="Tiempo en Destino"
+                      value={formatTiempoRetrasoDisplay(service.tiempo_punto_destino)}
                     />
                   )}
                 </div>
               </div>
-            </div>
+              </div>
+            )}
           </TabsContent>
 
           {/* Tab: Ejecución */}
