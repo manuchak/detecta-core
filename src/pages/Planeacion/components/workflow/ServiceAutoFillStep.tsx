@@ -47,26 +47,28 @@ interface ServiceAutoFillStepProps {
   onComplete: (data: ServiceData) => void;
   onSaveAsPending?: (data: ServiceData) => void;
   onBack: () => void;
+  initialDraft?: any;
+  onDraftChange?: (draft: any) => void;
 }
 
-export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, onBack }: ServiceAutoFillStepProps) {
-  const [servicioId, setServicioId] = useState('');
-  const [idInternoCliente, setIdInternoCliente] = useState('');
+export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, onBack, initialDraft, onDraftChange }: ServiceAutoFillStepProps) {
+  const [servicioId, setServicioId] = useState(initialDraft?.servicio_id || '');
+  const [idInternoCliente, setIdInternoCliente] = useState(initialDraft?.id_interno_cliente || '');
   const [fechaProgramada, setFechaProgramada] = useState(
-    format(addDays(new Date(), 1), 'yyyy-MM-dd')
+    initialDraft?.fecha_programada || format(addDays(new Date(), 1), 'yyyy-MM-dd')
   );
-  const [horaInicio, setHoraInicio] = useState('08:00');
-  const [tipoServicio, setTipoServicio] = useState('custodia_sin_arma');
-  const [incluyeArmado, setIncluyeArmado] = useState(false);
-  const [gadgetsSeleccionados, setGadgetsSeleccionados] = useState<string[]>([]);
-  const [observaciones, setObservaciones] = useState('');
+  const [horaInicio, setHoraInicio] = useState(initialDraft?.hora_ventana_inicio || '08:00');
+  const [tipoServicio, setTipoServicio] = useState(initialDraft?.tipo_servicio || 'custodia_sin_arma');
+  const [incluyeArmado, setIncluyeArmado] = useState(initialDraft?.incluye_armado || false);
+  const [gadgetsSeleccionados, setGadgetsSeleccionados] = useState<string[]>(initialDraft?.gadgets_seleccionados || []);
+  const [observaciones, setObservaciones] = useState(initialDraft?.observaciones || '');
   
   // Campos de recepción de solicitud (auto-llenados con fecha/hora actual)
   const [fechaRecepcion, setFechaRecepcion] = useState(
-    format(new Date(), 'yyyy-MM-dd')
+    initialDraft?.fecha_recepcion || format(new Date(), 'yyyy-MM-dd')
   );
   const [horaRecepcion, setHoraRecepcion] = useState(
-    format(new Date(), 'HH:mm')
+    initialDraft?.hora_recepcion || format(new Date(), 'HH:mm')
   );
 
   // Hook para validación de IDs
@@ -115,6 +117,22 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
     if (hasValidated && validationResult) {
       setValidationResult(null);
       setHasValidated(false);
+    }
+    
+    // Notify draft change
+    if (onDraftChange) {
+      onDraftChange({
+        servicio_id: value,
+        id_interno_cliente: idInternoCliente,
+        fecha_programada: fechaProgramada,
+        hora_ventana_inicio: horaInicio,
+        tipo_servicio: tipoServicio,
+        incluye_armado: incluyeArmado,
+        gadgets_seleccionados: gadgetsSeleccionados,
+        observaciones,
+        fecha_recepcion: fechaRecepcion,
+        hora_recepcion: horaRecepcion
+      });
     }
   };
 
@@ -222,10 +240,29 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
   ];
 
   const handleGadgetToggle = (gadgetId: string, checked: boolean) => {
+    let newGadgets: string[];
     if (checked) {
-      setGadgetsSeleccionados(prev => [...prev, gadgetId]);
+      newGadgets = [...gadgetsSeleccionados, gadgetId];
+      setGadgetsSeleccionados(newGadgets);
     } else {
-      setGadgetsSeleccionados(prev => prev.filter(id => id !== gadgetId));
+      newGadgets = gadgetsSeleccionados.filter(id => id !== gadgetId);
+      setGadgetsSeleccionados(newGadgets);
+    }
+    
+    // Notify draft change
+    if (onDraftChange) {
+      onDraftChange({
+        servicio_id: servicioId,
+        id_interno_cliente: idInternoCliente,
+        fecha_programada: fechaProgramada,
+        hora_ventana_inicio: horaInicio,
+        tipo_servicio: tipoServicio,
+        incluye_armado: incluyeArmado,
+        gadgets_seleccionados: newGadgets,
+        observaciones,
+        fecha_recepcion: fechaRecepcion,
+        hora_recepcion: horaRecepcion
+      });
     }
   };
 

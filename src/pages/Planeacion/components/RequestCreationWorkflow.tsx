@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -71,7 +71,7 @@ export function RequestCreationWorkflow() {
   // Persisted form state
   const {
     formData: persistedData,
-    updateFormData: updatePersistedData,
+    updateFormData,
     hasDraft,
     lastSaved,
     isRestoring,
@@ -88,6 +88,11 @@ export function RequestCreationWorkflow() {
     createdServiceDbId: string | null;
     modifiedSteps: string[];
     sessionId?: string;
+    drafts?: {
+      routeDraft?: Partial<RouteData>;
+      serviceDraft?: any;
+    };
+    lastEditedStep?: string;
   }>({
     key: 'service_creation_workflow',
     initialData: {
@@ -99,15 +104,25 @@ export function RequestCreationWorkflow() {
       createdServiceDbId: null,
       modifiedSteps: [],
       sessionId: sessionIdRef.current,
+      drafts: {
+        routeDraft: {},
+        serviceDraft: {}
+      },
+      lastEditedStep: undefined,
     },
     autoSaveInterval: 10000, // Auto-save every 10 seconds (reduced from 30)
     saveOnChangeDebounceMs: 700, // Save 700ms after changes
     isMeaningfulDraft: (data) => {
-      // A draft is meaningful ONLY if user made real changes
-      // Not just auto-filled initial data
-      return data.modifiedSteps.length > 0 || 
-             data.assignmentData !== null || 
-             data.armedAssignmentData !== null;
+      // A draft is meaningful if:
+      // - Any step draft has content, or
+      // - Actual step data exists, or
+      // - Assignments exist
+      const hasRouteDraft = data.drafts?.routeDraft && Object.keys(data.drafts.routeDraft).length > 0;
+      const hasServiceDraft = data.drafts?.serviceDraft && Object.keys(data.drafts.serviceDraft).length > 0;
+      const hasCompletedData = data.routeData !== null || data.serviceData !== null;
+      const hasAssignments = data.assignmentData !== null || data.armedAssignmentData !== null;
+      
+      return hasRouteDraft || hasServiceDraft || hasCompletedData || hasAssignments;
     },
     onRestore: (data) => {
       console.log('🔄 Restaurando borrador del workflow:', data);
@@ -178,7 +193,7 @@ export function RequestCreationWorkflow() {
     }
     
     const handler = setTimeout(() => {
-      updatePersistedData({
+      updateFormData({
         currentStep,
         routeData,
         serviceData,
@@ -187,11 +202,13 @@ export function RequestCreationWorkflow() {
         createdServiceDbId,
         modifiedSteps,
         sessionId: sessionIdRef.current,
+        drafts: persistedData.drafts,
+        lastEditedStep: persistedData.lastEditedStep,
       });
     }, 500); // Debounce to avoid excessive saves
 
     return () => clearTimeout(handler);
-  }, [currentStep, routeData, serviceData, assignmentData, armedAssignmentData, createdServiceDbId, modifiedSteps]);
+  }, [currentStep, routeData, serviceData, assignmentData, armedAssignmentData, createdServiceDbId, modifiedSteps, persistedData.drafts, persistedData.lastEditedStep, updateFormData]);
   
   // Hook para manejar servicios planificados
   const { createServicioPlanificado, assignArmedGuard, isLoading } = useServiciosPlanificados();
@@ -264,6 +281,24 @@ export function RequestCreationWorkflow() {
   const handleRouteComplete = (data: RouteData) => {
     setRouteData(data);
     setCurrentStep('service');
+    setModifiedSteps(prev => Array.from(new Set([...prev, 'route'])));
+    
+    // Clear route draft when step is completed
+    updateFormData({
+      currentStep: 'service',
+      routeData: data,
+      serviceData,
+      assignmentData,
+      armedAssignmentData,
+      createdServiceDbId,
+      modifiedSteps: [...modifiedSteps, 'route'],
+      sessionId: sessionIdRef.current,
+      drafts: {
+        ...persistedData.drafts,
+        routeDraft: {}
+      },
+      lastEditedStep: 'route'
+    });
   };
 
   const handleServiceComplete = (data: ServiceData) => {
@@ -322,6 +357,23 @@ export function RequestCreationWorkflow() {
     
     setServiceData(data);
     setCurrentStep('assignment');
+    
+    // Clear service draft when step is completed
+    updateFormData({
+      currentStep: 'assignment',
+      routeData,
+      serviceData: data,
+      assignmentData,
+      armedAssignmentData,
+      createdServiceDbId,
+      modifiedSteps: modifiedSteps.includes('service') ? modifiedSteps : [...modifiedSteps, 'service'],
+      sessionId: sessionIdRef.current,
+      drafts: {
+        ...persistedData.drafts,
+        serviceDraft: {}
+      },
+      lastEditedStep: 'service'
+    });
   };
 
   const handleAssignmentComplete = async (data: AssignmentData) => {
@@ -623,7 +675,28 @@ export function RequestCreationWorkflow() {
       {/* Current Step Content */}
       <div className="space-y-6">
         {currentStep === 'route' && (
-          <RouteSearchStep onComplete={handleRouteComplete} />
+          <RouteSearchStep 
+            onComplete={handleRouteComplete}
+            initialDraft={persistedData.drafts?.routeDraft}
+            onDraftChange={(draft) => {
+              console.log('🔄 Route draft changed', draft);
+              updateFormData({
+                currentStep,
+                routeData,
+                serviceData,
+                assignmentData,
+                armedAssignmentData,
+                createdServiceDbId,
+                modifiedSteps,
+                sessionId: sessionIdRef.current,
+                drafts: { 
+                  ...persistedData.drafts, 
+                  routeDraft: draft 
+                },
+                lastEditedStep: 'route'
+              });
+            }}
+          />
         )}
         
         {currentStep === 'service' && routeData && (
@@ -632,6 +705,25 @@ export function RequestCreationWorkflow() {
             onComplete={handleServiceComplete}
             onSaveAsPending={handleSaveAsPending}
             onBack={() => setCurrentStep('route')}
+            initialDraft={persistedData.drafts?.serviceDraft}
+            onDraftChange={(draft) => {
+              console.log('🔄 Service draft changed', draft);
+              updateFormData({
+                currentStep,
+                routeData,
+                serviceData,
+                assignmentData,
+                armedAssignmentData,
+                createdServiceDbId,
+                modifiedSteps,
+                sessionId: sessionIdRef.current,
+                drafts: { 
+                  ...persistedData.drafts, 
+                  serviceDraft: draft 
+                },
+                lastEditedStep: 'service'
+              });
+            }}
           />
         )}
         

@@ -28,14 +28,25 @@ interface RouteData {
 
 interface RouteSearchStepProps {
   onComplete: (data: RouteData) => void;
+  initialDraft?: Partial<RouteData>;
+  onDraftChange?: (draft: Partial<RouteData>) => void;
 }
 
-export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
-  const [cliente, setCliente] = useState('');
-  const [origen, setOrigen] = useState('');
-  const [destino, setDestino] = useState('');
-  const [distanciaKm, setDistanciaKm] = useState('');
-  const [priceEstimate, setPriceEstimate] = useState<any>(null);
+export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: RouteSearchStepProps) {
+  const [cliente, setCliente] = useState(initialDraft?.cliente_nombre || '');
+  const [origen, setOrigen] = useState(initialDraft?.origen_texto || '');
+  const [destino, setDestino] = useState(initialDraft?.destino_texto || '');
+  const [distanciaKm, setDistanciaKm] = useState(initialDraft?.distancia_km?.toString() || '');
+  const [priceEstimate, setPriceEstimate] = useState<any>(initialDraft?.precio_sugerido ? {
+    precio_sugerido: initialDraft.precio_sugerido,
+    precio_custodio: initialDraft.precio_custodio,
+    pago_custodio_sin_arma: initialDraft.pago_custodio_sin_arma,
+    costo_operativo: initialDraft.costo_operativo,
+    margen_estimado: initialDraft.margen_estimado,
+    distancia_km: initialDraft.distancia_km,
+    tipo_servicio: initialDraft.tipo_servicio,
+    incluye_armado: initialDraft.incluye_armado,
+  } : null);
   const [loading, setLoading] = useState(false);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -164,6 +175,11 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
     // Limpiar origen y destino cuando se cambia cliente
     setOrigen('');
     setDestino('');
+    
+    // Notify draft change
+    if (onDraftChange) {
+      onDraftChange({ cliente_nombre: clienteNombre, origen_texto: '', destino_texto: '' });
+    }
   };
 
   const handleRouteCreated = (newRoute: any) => {
@@ -217,8 +233,19 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
                   placeholder="Escriba el nombre del cliente..."
                   value={cliente}
                   onChange={(e) => {
-                    setCliente(e.target.value);
-                    setShowClientSuggestions(e.target.value.length > 0);
+                    const newCliente = e.target.value;
+                    setCliente(newCliente);
+                    setShowClientSuggestions(newCliente.length > 0);
+                    
+                    // Notify draft change
+                    if (onDraftChange) {
+                      onDraftChange({ 
+                        cliente_nombre: newCliente, 
+                        origen_texto: origen, 
+                        destino_texto: destino,
+                        distancia_km: distanciaKm ? Number(distanciaKm) : undefined
+                      });
+                    }
                   }}
                   onFocus={() => setShowClientSuggestions(cliente.length > 0)}
                   className={`h-12 text-base ${cliente ? 'form-field-completed' : 'form-field-required'}`}
@@ -264,6 +291,16 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
                     onValueChange={(value) => {
                       setOrigen(value);
                       setDestino('');
+                      
+                      // Notify draft change
+                      if (onDraftChange) {
+                        onDraftChange({ 
+                          cliente_nombre: cliente, 
+                          origen_texto: value, 
+                          destino_texto: '',
+                          distancia_km: distanciaKm ? Number(distanciaKm) : undefined
+                        });
+                      }
                     }}
                     disabled={!cliente}
                   >
@@ -299,7 +336,19 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
                   </div>
                   <Select 
                     value={destino} 
-                    onValueChange={setDestino}
+                    onValueChange={(value) => {
+                      setDestino(value);
+                      
+                      // Notify draft change
+                      if (onDraftChange) {
+                        onDraftChange({ 
+                          cliente_nombre: cliente, 
+                          origen_texto: origen, 
+                          destino_texto: value,
+                          distancia_km: distanciaKm ? Number(distanciaKm) : undefined
+                        });
+                      }
+                    }}
                     disabled={!cliente || !origen}
                   >
                     <SelectTrigger className={`h-12 ${destino ? 'form-field-completed' : !origen ? 'opacity-50' : 'form-field-required'}`}>
@@ -332,7 +381,20 @@ export function RouteSearchStep({ onComplete }: RouteSearchStepProps) {
                     type="number"
                     placeholder="Ej: 150"
                     value={distanciaKm}
-                    onChange={(e) => setDistanciaKm(e.target.value)}
+                    onChange={(e) => {
+                      const newDistancia = e.target.value;
+                      setDistanciaKm(newDistancia);
+                      
+                      // Notify draft change
+                      if (onDraftChange) {
+                        onDraftChange({ 
+                          cliente_nombre: cliente, 
+                          origen_texto: origen, 
+                          destino_texto: destino,
+                          distancia_km: newDistancia ? Number(newDistancia) : undefined
+                        });
+                      }
+                    }}
                     className="h-12"
                   />
                 </div>
