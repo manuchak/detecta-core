@@ -91,7 +91,8 @@ export function RequestCreationWorkflow() {
       createdServiceDbId: null,
       modifiedSteps: [],
     },
-    autoSaveInterval: 30000, // Auto-save every 30 seconds
+    autoSaveInterval: 10000, // Auto-save every 10 seconds (reduced from 30)
+    saveOnChangeDebounceMs: 700, // Save 700ms after changes
     onRestore: (data) => {
       console.log('🔄 Restaurando borrador del workflow:', data);
       toast.info('Borrador restaurado', {

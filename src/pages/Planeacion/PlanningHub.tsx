@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -31,6 +31,40 @@ export default function PlanningHub() {
   const { duplicates, checkingDuplicates } = useDuplicateCleanup();
 
   const totalDuplicates = duplicates?.reduce((sum, dup) => sum + dup.duplicate_count - 1, 0) || 0;
+
+  // Check for draft on mount and auto-open dialog if exists
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('service_creation_workflow_dialog_state');
+      if (stored === 'open') {
+        // Check if there's actually a draft
+        const draftKeys = Object.keys(localStorage).filter(key => 
+          key.includes('service_creation_workflow')
+        );
+        if (draftKeys.length > 0) {
+          console.log('📂 Draft detected - auto-opening creation dialog');
+          setShowCreateWorkflow(true);
+        }
+        // Clean up the state
+        localStorage.removeItem('service_creation_workflow_dialog_state');
+      }
+    } catch (error) {
+      console.error('Error checking for draft:', error);
+    }
+  }, []);
+
+  // Persist dialog state
+  useEffect(() => {
+    try {
+      if (showCreateWorkflow) {
+        localStorage.setItem('service_creation_workflow_dialog_state', 'open');
+      } else {
+        localStorage.removeItem('service_creation_workflow_dialog_state');
+      }
+    } catch (error) {
+      console.error('Error persisting dialog state:', error);
+    }
+  }, [showCreateWorkflow]);
 
   // Demo service para probar el modal contextual
   const mockService: EditableService = {

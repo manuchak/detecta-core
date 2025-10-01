@@ -5,7 +5,8 @@ interface PersistedFormOptions<T> {
   key: string;
   initialData: T;
   ttl?: number; // Time to live in milliseconds (default: 24 hours)
-  autoSaveInterval?: number; // Auto-save interval in milliseconds (default: 30 seconds)
+  autoSaveInterval?: number; // Auto-save interval in milliseconds (default: 10 seconds)
+  saveOnChangeDebounceMs?: number; // Immediate save debounce (default: 700ms)
   onRestore?: (data: T) => void;
   onSave?: (data: T) => void;
 }
@@ -20,7 +21,8 @@ export function usePersistedForm<T>({
   key,
   initialData,
   ttl = 24 * 60 * 60 * 1000, // 24 hours
-  autoSaveInterval = 30000, // 30 seconds
+  autoSaveInterval = 10000, // 10 seconds (reduced from 30)
+  saveOnChangeDebounceMs = 700, // Immediate save with debounce
   onRestore,
   onSave,
 }: PersistedFormOptions<T>) {
@@ -30,6 +32,7 @@ export function usePersistedForm<T>({
   const [hasDraft, setHasDraft] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const immediateSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hasChangesRef = useRef(false);
 
   const storageKey = user ? `${key}_${user.id}` : key;
@@ -95,6 +98,62 @@ export function usePersistedForm<T>({
       };
     }
   }, [autoSaveInterval, formData, saveToStorage]);
+
+  // Set up immediate save on change with debounce
+  useEffect(() => {
+    if (saveOnChangeDebounceMs > 0 && hasChangesRef.current) {
+      if (immediateSaveTimerRef.current) {
+        clearTimeout(immediateSaveTimerRef.current);
+      }
+      
+      immediateSaveTimerRef.current = setTimeout(() => {
+        saveToStorage(formData, true);
+      }, saveOnChangeDebounceMs);
+
+      return () => {
+        if (immediateSaveTimerRef.current) {
+          clearTimeout(immediateSaveTimerRef.current);
+        }
+      };
+    }
+  }, [formData, saveOnChangeDebounceMs, saveToStorage]);
+
+  // Save on visibility change, page hide, or before unload
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && hasChangesRef.current) {
+        console.log('📱 App moving to background - saving immediately');
+        saveToStorage(formData, true);
+      }
+    };
+
+    const handlePageHide = () => {
+      if (hasChangesRef.current) {
+        console.log('👋 Page hiding - saving immediately');
+        saveToStorage(formData, true);
+      }
+    };
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasChangesRef.current) {
+        console.log('🚪 Page unloading - saving immediately');
+        saveToStorage(formData, true);
+        // Optional: Show browser warning if there are unsaved changes
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [formData, saveToStorage]);
 
   // Restore draft
   const restoreDraft = useCallback(() => {
