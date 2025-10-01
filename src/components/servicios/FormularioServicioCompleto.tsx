@@ -122,16 +122,20 @@ export const FormularioServicioCompleto = ({ open, onOpenChange }: FormularioSer
     }
   }, [hasDraft, isRestoring, open]);
 
-  // Persist state changes
+  // Persist state changes (debounced to avoid excessive saves)
   useEffect(() => {
     const subscription = form.watch((formValues) => {
-      updatePersistedData({
-        pasoActual,
-        formValues: formValues as Partial<CreateServicioMonitoreoCompleto>,
-      });
+      const handler = setTimeout(() => {
+        updatePersistedData({
+          pasoActual,
+          formValues: formValues as Partial<CreateServicioMonitoreoCompleto>,
+        });
+      }, 500);
+      
+      return () => clearTimeout(handler);
     });
     return () => subscription.unsubscribe();
-  }, [form, pasoActual, updatePersistedData]);
+  }, [form, pasoActual]);
 
   const onSubmit = async (data: CreateServicioMonitoreoCompleto) => {
     await createServicioCompleto.mutateAsync(data);

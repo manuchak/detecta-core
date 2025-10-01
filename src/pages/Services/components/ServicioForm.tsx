@@ -101,16 +101,20 @@ export const ServicioForm = ({ open, onOpenChange }: ServicioFormProps) => {
     }
   }, [hasDraft, isRestoring, open]);
 
-  // Persist state changes
+  // Persist state changes (debounced to avoid excessive saves)
   useEffect(() => {
     const subscription = form.watch((formValues) => {
-      updatePersistedData({
-        currentStep,
-        formValues: formValues as Partial<CreateServicioData>,
-      });
+      const handler = setTimeout(() => {
+        updatePersistedData({
+          currentStep,
+          formValues: formValues as Partial<CreateServicioData>,
+        });
+      }, 500);
+      
+      return () => clearTimeout(handler);
     });
     return () => subscription.unsubscribe();
-  }, [form, currentStep, updatePersistedData]);
+  }, [form, currentStep]);
 
   const onSubmit = async (data: CreateServicioData) => {
     await createServicio.mutateAsync(data);

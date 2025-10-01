@@ -120,17 +120,21 @@ export function RequestCreationWorkflow() {
     }
   }, [hasDraft, isRestoring]);
 
-  // Persist state changes
+  // Persist state changes (without updatePersistedData in deps to avoid infinite loop)
   useEffect(() => {
-    updatePersistedData({
-      currentStep,
-      routeData,
-      serviceData,
-      assignmentData,
-      armedAssignmentData,
-      createdServiceDbId,
-      modifiedSteps,
-    });
+    const handler = setTimeout(() => {
+      updatePersistedData({
+        currentStep,
+        routeData,
+        serviceData,
+        assignmentData,
+        armedAssignmentData,
+        createdServiceDbId,
+        modifiedSteps,
+      });
+    }, 500); // Debounce to avoid excessive saves
+
+    return () => clearTimeout(handler);
   }, [currentStep, routeData, serviceData, assignmentData, armedAssignmentData, createdServiceDbId, modifiedSteps]);
   
   // Hook para manejar servicios planificados
