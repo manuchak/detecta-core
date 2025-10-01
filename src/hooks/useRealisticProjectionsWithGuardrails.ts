@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDynamicServiceData } from './useDynamicServiceData';
 import { useAdvancedForecastEngine } from './useAdvancedForecastEngine';
+import { useHistoricalMonthlyProjection } from './useHistoricalMonthlyProjection';
 import { getCurrentMonthInfo, getPreviousMonthInfo } from '@/utils/dynamicDateUtils';
 import { calculateIntelligentEnsemble } from '@/utils/intelligentEnsemble';
 import { supabase } from '@/integrations/supabase/client';
@@ -47,12 +48,21 @@ interface RealisticProjections {
     mathematicalJustification: string;
     adaptiveGuardrails: boolean;
   };
+  historicalMode?: {
+    active: boolean;
+    projectedServices: number;
+    projectedGMV: number;
+    basedOnYears: number[];
+    reasoning: string[];
+    daysUntilRealtime: number;
+  };
 }
 
 export const useRealisticProjectionsWithGuardrails = () => {
   const { user } = useAuth();
   const { data: dynamicData, isLoading: dynamicDataLoading } = useDynamicServiceData();
   const { data: advancedForecast } = useAdvancedForecastEngine();
+  const { data: historicalProjection, isLoading: historicalLoading } = useHistoricalMonthlyProjection();
 
   // Fetch historical data for regime analysis
   const { data: historicalData } = useQuery({
@@ -67,10 +77,99 @@ export const useRealisticProjectionsWithGuardrails = () => {
   });
 
   return useQuery({
-    queryKey: ['realistic-projections-with-guardrails'],
+    queryKey: ['realistic-projections-with-guardrails', historicalProjection?.useHistoricalMode],
     queryFn: async (): Promise<RealisticProjections> => {
       if (!user) throw new Error('Usuario no autenticado');
       if (!dynamicData) throw new Error('Dynamic data not available');
+      
+      // ========== MODO HISTÓRICO AL INICIO DE MES ==========
+      if (historicalProjection?.useHistoricalMode) {
+        console.log('📅 Historical Mode Active - Using historical projections for early month');
+        
+        const currentAOV = dynamicData.currentMonth.aov;
+        const projectedGMVMillions = historicalProjection.projectedGMV / 1000000;
+        
+        // Create scenarios based on historical projection with uncertainty
+        const baseServices = historicalProjection.projectedServices;
+        const lowerBound = Math.round(baseServices * 0.85); // -15%
+        const upperBound = Math.round(baseServices * 1.15); // +15%
+        
+        const scenarios: ProjectionScenario[] = [
+          {
+            name: 'Pesimista',
+            services: lowerBound,
+            gmv: (lowerBound * currentAOV) / 1000000,
+            probability: 25,
+            description: 'Escenario conservador histórico',
+            color: 'destructive',
+            confidenceLevel: historicalProjection.confidence
+          },
+          {
+            name: 'Realista',
+            services: baseServices,
+            gmv: projectedGMVMillions,
+            probability: 50,
+            description: `Basado en ${historicalProjection.basedOnYears.join(', ')}`,
+            color: 'warning',
+            confidenceLevel: historicalProjection.confidence
+          },
+          {
+            name: 'Optimista',
+            services: upperBound,
+            gmv: (upperBound * currentAOV) / 1000000,
+            probability: 25,
+            description: 'Proyección optimista histórica',
+            color: 'success',
+            confidenceLevel: historicalProjection.confidence
+          }
+        ];
+        
+        const mostLikely = scenarios[1]; // Realista
+        const paceNeeded = (baseServices - dynamicData.currentMonth.services) / dynamicData.daysRemaining;
+        
+        return {
+          current: {
+            services: dynamicData.currentMonth.services,
+            gmv: dynamicData.currentMonth.gmv,
+            days: dynamicData.currentMonth.days,
+            aov: currentAOV,
+            dailyPace: dynamicData.currentMonth.dailyPace
+          },
+          target: {
+            services: baseServices,
+            gmv: projectedGMVMillions
+          },
+          scenarios,
+          daysRemaining: dynamicData.daysRemaining,
+          mostLikely,
+          insights: {
+            paceNeeded: Math.round(paceNeeded * 100) / 100,
+            currentTrend: 'stable',
+            aovTrend: 'stable'
+          },
+          confidence: {
+            overall: historicalProjection.confidence,
+            reasoning: historicalProjection.reasoning,
+            warnings: historicalProjection.warnings
+          },
+          regime: {
+            type: 'normal',
+            confidence: 0.7,
+            mathematicalJustification: 'Proyección basada en datos históricos del mismo mes',
+            adaptiveGuardrails: false
+          },
+          historicalMode: {
+            active: true,
+            projectedServices: baseServices,
+            projectedGMV: projectedGMVMillions,
+            basedOnYears: historicalProjection.basedOnYears,
+            reasoning: historicalProjection.reasoning,
+            daysUntilRealtime: historicalProjection.daysUntilRealtime
+          }
+        };
+      }
+      
+      // ========== MODO NORMAL CON DATOS REALES ==========
       if (!historicalData || historicalData.length < 3) throw new Error('Insufficient historical data for regime analysis');
 
       // Use dynamic data with current month/year
@@ -231,10 +330,11 @@ export const useRealisticProjectionsWithGuardrails = () => {
           reasoning,
           warnings
         },
-        regime: regimeInfo
+        regime: regimeInfo,
+        historicalMode: undefined
       };
     },
-    enabled: !!user && !dynamicDataLoading && !!dynamicData && !!historicalData,
+    enabled: !!user && !dynamicDataLoading && !!dynamicData && !historicalLoading,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
     refetchInterval: 60 * 60 * 1000

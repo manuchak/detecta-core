@@ -1,9 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useRealisticProjectionsWithGuardrails } from '@/hooks/useRealisticProjectionsWithGuardrails';
 import { usePreviousMonthData } from '@/hooks/usePreviousMonthData';
-import { Loader2, TrendingUp, Target, DollarSign, AlertTriangle, Brain, Activity, CheckCircle } from 'lucide-react';
+import { Loader2, TrendingUp, Target, DollarSign, AlertTriangle, Brain, Activity, CheckCircle, History, Clock } from 'lucide-react';
 import { getPaceStatus, getStatusTextColor } from '@/utils/paceStatus';
 import { getCurrentMonthInfo, getDaysRemainingInMonth, formatMonthlyQuestion, getPreviousMonthName, capitalize } from '@/utils/dynamicDateUtils';
 import { useMemo } from 'react';
@@ -67,19 +68,32 @@ export const GMVProjectionCard = () => {
             </TooltipProvider>
           </CardTitle>
           <div className="flex items-center gap-3">
-            <Badge 
-              variant={
-                data.regime.type === 'exponential' ? 'default' :
-                data.regime.type === 'volatile' ? 'destructive' :
-                data.regime.type === 'declining' ? 'secondary' : 'outline'
-              }
-              className="text-xs"
-            >
-              <Activity className="h-3 w-3 mr-1" />
-              {data.regime.type === 'exponential' ? '🚀 Exponencial' :
-               data.regime.type === 'volatile' ? '⚡ Volátil' :
-               data.regime.type === 'declining' ? '📉 Declive' : '📈 Normal'}
-            </Badge>
+            {data.historicalMode?.active ? (
+              <>
+                <Badge variant="secondary" className="text-xs">
+                  <History className="h-3 w-3 mr-1" />
+                  Proyección Histórica
+                </Badge>
+                <Badge variant="outline" className="text-xs">
+                  <Clock className="h-3 w-3 mr-1" />
+                  {data.historicalMode.daysUntilRealtime} día{data.historicalMode.daysUntilRealtime !== 1 ? 's' : ''} → Tiempo Real
+                </Badge>
+              </>
+            ) : (
+              <Badge 
+                variant={
+                  data.regime.type === 'exponential' ? 'default' :
+                  data.regime.type === 'volatile' ? 'destructive' :
+                  data.regime.type === 'declining' ? 'secondary' : 'outline'
+                }
+                className="text-xs"
+              >
+                <Activity className="h-3 w-3 mr-1" />
+                {data.regime.type === 'exponential' ? '🚀 Exponencial' :
+                 data.regime.type === 'volatile' ? '⚡ Volátil' :
+                 data.regime.type === 'declining' ? '📉 Declive' : '📈 Normal'}
+              </Badge>
+            )}
             <div className="text-sm text-muted-foreground">
               {data.daysRemaining} días restantes
             </div>
@@ -87,6 +101,22 @@ export const GMVProjectionCard = () => {
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Historical Mode Alert */}
+        {data.historicalMode?.active && (
+          <Alert className="bg-secondary/50 border-secondary">
+            <History className="h-4 w-4" />
+            <AlertDescription className="text-sm">
+              <div className="font-medium mb-1">
+                📊 Proyección basada en tendencias históricas de {data.historicalMode.basedOnYears.join(', ')}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Estamos en los primeros días del mes. Esta proyección utiliza patrones históricos del mismo mes con ajustes por crecimiento YTD y momentum actual.
+                En {data.historicalMode.daysUntilRealtime} día{data.historicalMode.daysUntilRealtime !== 1 ? 's' : ''} cambiaremos automáticamente a proyección en tiempo real.
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Main Answer */}
         <div className="text-center p-6 bg-gradient-to-r from-warning/10 to-primary/10 rounded-xl border border-warning/20">
           <div className="text-sm font-medium text-muted-foreground mb-2">
