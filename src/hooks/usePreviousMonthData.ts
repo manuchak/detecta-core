@@ -1,4 +1,5 @@
 import { useAuthenticatedQuery } from '@/hooks/useAuthenticatedQuery';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PreviousMonthData {
   month: string;
@@ -7,15 +8,50 @@ interface PreviousMonthData {
   loading: boolean;
 }
 
-export const usePreviousMonthData = (): PreviousMonthData => {
-  // Hard-coded data for August 2025 as requested by user
-  // TODO: Replace with dynamic query when needed for other months
-  const augustData = {
-    month: 'Agosto',
-    gmv: 7.33, // $7.3M as specified by user
-    services: 0, // Services count for August (can be added later if needed)
-    loading: false
-  };
+const MONTH_NAMES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+];
 
-  return augustData;
+export const usePreviousMonthData = (): PreviousMonthData => {
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1; // 1-12
+  const currentYear = now.getFullYear();
+  
+  // Calculate previous month
+  let previousMonth = currentMonth - 1;
+  let previousYear = currentYear;
+  
+  if (previousMonth === 0) {
+    previousMonth = 12;
+    previousYear = currentYear - 1;
+  }
+
+  const { data, isLoading } = useAuthenticatedQuery(
+    ['previous-month-data', previousMonth.toString(), previousYear.toString()],
+    async () => {
+      const { data: historicalData, error } = await supabase.rpc('get_historical_monthly_data');
+      
+      if (error) throw error;
+      
+      // Find data for the previous month
+      const previousMonthData = historicalData?.find(
+        (item: any) => item.month === previousMonth && item.year === previousYear
+      );
+      
+      return {
+        month: MONTH_NAMES[previousMonth - 1],
+        gmv: previousMonthData?.gmv || 0,
+        services: previousMonthData?.services || 0
+      };
+    },
+    { config: 'standard' }
+  );
+
+  return {
+    month: data?.month || MONTH_NAMES[previousMonth - 1],
+    gmv: data?.gmv || 0,
+    services: data?.services || 0,
+    loading: isLoading
+  };
 };
