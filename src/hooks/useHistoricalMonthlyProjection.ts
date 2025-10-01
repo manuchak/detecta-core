@@ -35,10 +35,7 @@ interface HistoricalProjectionResult {
  */
 const isEarlyMonth = (): { isEarly: boolean; daysInMonth: number; daysUntilRealtime: number } => {
   const now = new Date();
-  const adjustedDate = new Date(now);
-  adjustedDate.setDate(adjustedDate.getDate() - 1); // Account for data lag
-  
-  const dayOfMonth = adjustedDate.getDate();
+  const dayOfMonth = now.getDate();
   const isEarly = dayOfMonth <= 2;
   const daysUntilRealtime = isEarly ? (3 - dayOfMonth) : 0;
   
@@ -99,14 +96,13 @@ export const useHistoricalMonthlyProjection = () => {
       // Filtrar solo datos del mismo mes de años anteriores
       const sameMonthHistory = historicalMonthlyData
         .filter((item: any) => {
-          const itemDate = new Date(item.month_start);
-          return itemDate.getMonth() + 1 === currentMonth && itemDate.getFullYear() < currentYear;
+          return item.month === currentMonth && item.year < currentYear;
         })
         .map((item: any) => ({
-          year: new Date(item.month_start).getFullYear(),
-          month: currentMonth,
-          services: item.total_services || 0,
-          gmv: item.total_gmv || 0
+          year: item.year,
+          month: item.month,
+          services: item.services || 0,
+          gmv: item.gmv || 0
         }))
         .sort((a, b) => b.year - a.year); // Más reciente primero
 
@@ -137,21 +133,19 @@ export const useHistoricalMonthlyProjection = () => {
 
       // ========== 3. ANALIZAR MOMENTUM DEL MES ANTERIOR ==========
       const previousMonthData = historicalMonthlyData.find((item: any) => {
-        const itemDate = new Date(item.month_start);
-        return itemDate.getMonth() + 1 === previousMonth && itemDate.getFullYear() === previousMonthYear;
+        return item.month === previousMonth && item.year === previousMonthYear;
       });
 
       const previousMonthLastYear = sameMonthHistory.length > 0 
         ? historicalMonthlyData.find((item: any) => {
-            const itemDate = new Date(item.month_start);
-            return itemDate.getMonth() + 1 === previousMonth && itemDate.getFullYear() === currentYear - 1;
+            return item.month === previousMonth && item.year === currentYear - 1;
           })
         : null;
 
       let momentumFactor = 1.0;
       if (previousMonthData && previousMonthLastYear) {
-        const prevMonthServices = previousMonthData.total_services || 0;
-        const prevMonthLastYearServices = previousMonthLastYear.total_services || 0;
+        const prevMonthServices = previousMonthData.services || 0;
+        const prevMonthLastYearServices = previousMonthLastYear.services || 0;
         
         if (prevMonthLastYearServices > 0) {
           const prevMonthGrowth = ((prevMonthServices - prevMonthLastYearServices) / prevMonthLastYearServices);
@@ -164,7 +158,7 @@ export const useHistoricalMonthlyProjection = () => {
       let seasonalFactor = 1.0;
       if (sameMonthHistory.length >= 2 && previousMonthLastYear) {
         const currentMonthAvg = recentYears.reduce((sum, item) => sum + item.services, 0) / recentYears.length;
-        const prevMonthServices = previousMonthLastYear.total_services || 0;
+        const prevMonthServices = previousMonthLastYear.services || 0;
         
         if (prevMonthServices > 0) {
           seasonalFactor = currentMonthAvg / prevMonthServices;
