@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle, Circle, MapPin, User, UserCheck, Shield } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { CheckCircle, Circle, MapPin, User, UserCheck, Shield, Save, Clock } from 'lucide-react';
+import { usePersistedForm } from '@/hooks';
 import { RouteSearchStep } from './workflow/RouteSearchStep';
 import { ServiceAutoFillStep } from './workflow/ServiceAutoFillStep';
 import { CustodianAssignmentStep } from './workflow/CustodianAssignmentStep';
@@ -58,17 +61,77 @@ interface ArmedAssignmentData extends AssignmentData {
 }
 
 export function RequestCreationWorkflow() {
-  const [currentStep, setCurrentStep] = useState<'route' | 'service' | 'assignment' | 'armed_assignment' | 'final_confirmation'>('route');
-  const [routeData, setRouteData] = useState<RouteData | null>(null);
-  const [serviceData, setServiceData] = useState<ServiceData | null>(null);
-  const [assignmentData, setAssignmentData] = useState<AssignmentData | null>(null);
-  const [armedAssignmentData, setArmedAssignmentData] = useState<ArmedAssignmentData | null>(null);
-  const [createdServiceDbId, setCreatedServiceDbId] = useState<string | null>(null);
+  // Persisted form state
+  const {
+    formData: persistedData,
+    updateFormData: updatePersistedData,
+    hasDraft,
+    lastSaved,
+    isRestoring,
+    restoreDraft,
+    clearDraft,
+    saveDraft,
+    getTimeSinceSave,
+  } = usePersistedForm<{
+    currentStep: 'route' | 'service' | 'assignment' | 'armed_assignment' | 'final_confirmation';
+    routeData: RouteData | null;
+    serviceData: ServiceData | null;
+    assignmentData: AssignmentData | null;
+    armedAssignmentData: ArmedAssignmentData | null;
+    createdServiceDbId: string | null;
+    modifiedSteps: string[];
+  }>({
+    key: 'service_creation_workflow',
+    initialData: {
+      currentStep: 'route',
+      routeData: null,
+      serviceData: null,
+      assignmentData: null,
+      armedAssignmentData: null,
+      createdServiceDbId: null,
+      modifiedSteps: [],
+    },
+    autoSaveInterval: 30000, // Auto-save every 30 seconds
+    onRestore: (data) => {
+      console.log('🔄 Restaurando borrador del workflow:', data);
+      toast.info('Borrador restaurado', {
+        description: 'Se ha recuperado tu progreso anterior'
+      });
+    },
+  });
+
+  const [currentStep, setCurrentStep] = useState(persistedData.currentStep);
+  const [routeData, setRouteData] = useState(persistedData.routeData);
+  const [serviceData, setServiceData] = useState(persistedData.serviceData);
+  const [assignmentData, setAssignmentData] = useState(persistedData.assignmentData);
+  const [armedAssignmentData, setArmedAssignmentData] = useState(persistedData.armedAssignmentData);
+  const [createdServiceDbId, setCreatedServiceDbId] = useState(persistedData.createdServiceDbId);
+  const [modifiedSteps, setModifiedSteps] = useState(persistedData.modifiedSteps);
   
   // Estado para rastrear cambios y invalidaciones
-  const [modifiedSteps, setModifiedSteps] = useState<string[]>([]);
   const [hasInvalidatedState, setHasInvalidatedState] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false);
+
+  // Check for draft on mount
+  useEffect(() => {
+    if (hasDraft && !isRestoring) {
+      setShowRestoreDialog(true);
+    }
+  }, [hasDraft, isRestoring]);
+
+  // Persist state changes
+  useEffect(() => {
+    updatePersistedData({
+      currentStep,
+      routeData,
+      serviceData,
+      assignmentData,
+      armedAssignmentData,
+      createdServiceDbId,
+      modifiedSteps,
+    });
+  }, [currentStep, routeData, serviceData, assignmentData, armedAssignmentData, createdServiceDbId, modifiedSteps]);
   
   // Hook para manejar servicios planificados
   const { createServicioPlanificado, assignArmedGuard, isLoading } = useServiciosPlanificados();
@@ -281,6 +344,17 @@ export function RequestCreationWorkflow() {
     setCreatedServiceDbId(null);
     setModifiedSteps([]);
     setHasInvalidatedState(false);
+    clearDraft(); // Clear persisted data
+  };
+
+  const handleRestoreDraft = () => {
+    restoreDraft();
+    setShowRestoreDialog(false);
+  };
+
+  const handleDiscardDraft = () => {
+    clearDraft();
+    setShowRestoreDialog(false);
   };
 
   // Función para navegar a un paso específico (para edición)
@@ -365,10 +439,55 @@ export function RequestCreationWorkflow() {
 
   return (
     <div className="space-y-6">
+      {/* Restore Draft Dialog */}
+      <AlertDialog open={showRestoreDialog} onOpenChange={setShowRestoreDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Continuar con el servicio anterior?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se detectó un borrador guardado {getTimeSinceSave()}. ¿Deseas continuar desde donde lo dejaste o empezar uno nuevo?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleDiscardDraft}>
+              Empezar nuevo
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleRestoreDraft}>
+              Continuar borrador
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Progress Steps */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <CardTitle>Progreso del Flujo</CardTitle>
+          <div className="flex items-center gap-2">
+            {hasDraft && (
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">
+                  <Save className="h-3 w-3 mr-1" />
+                  Borrador guardado
+                </Badge>
+                {lastSaved && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {getTimeSinceSave()}
+                  </span>
+                )}
+              </div>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={saveDraft}
+              className="h-8"
+            >
+              <Save className="h-3 w-3 mr-1" />
+              Guardar
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">

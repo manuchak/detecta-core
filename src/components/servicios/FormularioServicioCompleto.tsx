@@ -1,12 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Save, ArrowLeft, ArrowRight } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Loader2, Save, ArrowLeft, ArrowRight, Clock } from 'lucide-react';
 import { Form } from '@/components/ui/form';
 import { useServiciosMonitoreoCompleto } from '@/hooks/useServiciosMonitoreoCompleto';
+import { usePersistedForm } from '@/hooks';
+import { toast } from 'sonner';
 import type { CreateServicioMonitoreoCompleto } from '@/types/serviciosMonitoreoCompleto';
 
 // Importar componentes de pasos
@@ -36,11 +39,41 @@ const PASOS = [
 ];
 
 export const FormularioServicioCompleto = ({ open, onOpenChange }: FormularioServicioCompletoProps) => {
-  const [pasoActual, setPasoActual] = useState(0);
+  // Persisted form state
+  const {
+    formData: persistedData,
+    updateFormData: updatePersistedData,
+    hasDraft,
+    lastSaved,
+    isRestoring,
+    restoreDraft,
+    clearDraft,
+    saveDraft,
+    getTimeSinceSave,
+  } = usePersistedForm<{
+    pasoActual: number;
+    formValues: Partial<CreateServicioMonitoreoCompleto>;
+  }>({
+    key: 'gps_service_creation_form',
+    initialData: {
+      pasoActual: 0,
+      formValues: {},
+    },
+    autoSaveInterval: 30000,
+    onRestore: (data) => {
+      console.log('🔄 Restaurando borrador de servicio GPS:', data);
+      toast.info('Borrador restaurado', {
+        description: 'Se ha recuperado tu progreso anterior'
+      });
+    },
+  });
+
+  const [pasoActual, setPasoActual] = useState(persistedData.pasoActual);
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false);
   const { createServicioCompleto } = useServiciosMonitoreoCompleto();
 
   const form = useForm<CreateServicioMonitoreoCompleto>({
-    defaultValues: {
+    defaultValues: persistedData.formValues.nombre_cliente ? persistedData.formValues : {
       nombre_cliente: '',
       empresa: '',
       telefono_contacto: '',
@@ -82,11 +115,40 @@ export const FormularioServicioCompleto = ({ open, onOpenChange }: FormularioSer
     }
   });
 
+  // Check for draft on mount
+  useEffect(() => {
+    if (hasDraft && !isRestoring && open) {
+      setShowRestoreDialog(true);
+    }
+  }, [hasDraft, isRestoring, open]);
+
+  // Persist state changes
+  useEffect(() => {
+    const subscription = form.watch((formValues) => {
+      updatePersistedData({
+        pasoActual,
+        formValues: formValues as Partial<CreateServicioMonitoreoCompleto>,
+      });
+    });
+    return () => subscription.unsubscribe();
+  }, [form, pasoActual, updatePersistedData]);
+
   const onSubmit = async (data: CreateServicioMonitoreoCompleto) => {
     await createServicioCompleto.mutateAsync(data);
+    clearDraft();
     onOpenChange(false);
     form.reset();
     setPasoActual(0);
+  };
+
+  const handleRestoreDraft = () => {
+    restoreDraft();
+    setShowRestoreDialog(false);
+  };
+
+  const handleDiscardDraft = () => {
+    clearDraft();
+    setShowRestoreDialog(false);
   };
 
   const siguientePaso = () => {
@@ -127,13 +189,59 @@ export const FormularioServicioCompleto = ({ open, onOpenChange }: FormularioSer
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold">
-            Nuevo Servicio de Monitoreo GPS
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      {/* Restore Draft Dialog */}
+      <AlertDialog open={showRestoreDialog} onOpenChange={setShowRestoreDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Continuar con el servicio GPS anterior?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se detectó un borrador guardado {getTimeSinceSave()}. ¿Deseas continuar desde donde lo dejaste o empezar uno nuevo?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleDiscardDraft}>
+              Empezar nuevo
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleRestoreDraft}>
+              Continuar borrador
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <DialogTitle className="text-xl font-bold">
+              Nuevo Servicio de Monitoreo GPS
+            </DialogTitle>
+            <div className="flex items-center gap-2">
+              {hasDraft && (
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">
+                    <Save className="h-3 w-3 mr-1" />
+                    Borrador guardado
+                  </Badge>
+                  {lastSaved && (
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {getTimeSinceSave()}
+                    </span>
+                  )}
+                </div>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={saveDraft}
+                className="h-8"
+              >
+                <Save className="h-3 w-3 mr-1" />
+                Guardar
+              </Button>
+            </div>
+          </DialogHeader>
 
         {/* Indicador de progreso */}
         <div className="mb-6">
@@ -218,5 +326,6 @@ export const FormularioServicioCompleto = ({ open, onOpenChange }: FormularioSer
         </Form>
       </DialogContent>
     </Dialog>
+    </>
   );
 };

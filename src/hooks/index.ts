@@ -25,3 +25,4 @@ export { useServiciosPlanificados } from './useServiciosPlanificados';
 export { useRouteAudit } from './useRouteAudit';
 export { useAssignmentAudit } from './useAssignmentAudit';
 export { useSecurityAudit } from './useSecurityAudit';
+export { usePersistedForm } from './usePersistedForm';
