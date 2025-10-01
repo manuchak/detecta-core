@@ -7,6 +7,7 @@ interface PersistedFormOptions<T> {
   ttl?: number; // Time to live in milliseconds (default: 24 hours)
   autoSaveInterval?: number; // Auto-save interval in milliseconds (default: 10 seconds)
   saveOnChangeDebounceMs?: number; // Immediate save debounce (default: 700ms)
+  isMeaningfulDraft?: (data: T) => boolean; // Function to determine if data is meaningful
   onRestore?: (data: T) => void;
   onSave?: (data: T) => void;
 }
@@ -23,6 +24,7 @@ export function usePersistedForm<T>({
   ttl = 24 * 60 * 60 * 1000, // 24 hours
   autoSaveInterval = 10000, // 10 seconds (reduced from 30)
   saveOnChangeDebounceMs = 700, // Immediate save with debounce
+  isMeaningfulDraft,
   onRestore,
   onSave,
 }: PersistedFormOptions<T>) {
@@ -47,8 +49,18 @@ export function usePersistedForm<T>({
         // Check if data is still valid (within TTL)
         const now = Date.now();
         if (now - parsed.timestamp < ttl && parsed.userId === user?.id) {
-          setHasDraft(true);
-          setLastSaved(new Date(parsed.timestamp));
+          // Check if it's a meaningful draft (not just initial data)
+          const isMeaningful = isMeaningfulDraft 
+            ? isMeaningfulDraft(parsed.data)
+            : JSON.stringify(parsed.data) !== JSON.stringify(initialData);
+          
+          if (isMeaningful) {
+            setHasDraft(true);
+            setLastSaved(new Date(parsed.timestamp));
+          } else {
+            // Not meaningful, remove it
+            localStorage.removeItem(storageKey);
+          }
         } else {
           // Data expired, remove it
           localStorage.removeItem(storageKey);
@@ -58,11 +70,21 @@ export function usePersistedForm<T>({
       console.error('Error loading persisted form data:', error);
       localStorage.removeItem(storageKey);
     }
-  }, [storageKey, ttl, user?.id]);
+  }, [storageKey, ttl, user?.id, isMeaningfulDraft]);
 
   // Auto-save function
   const saveToStorage = useCallback((data: T, silent = false) => {
     try {
+      // Check if it's meaningful before saving
+      const isMeaningful = isMeaningfulDraft 
+        ? isMeaningfulDraft(data)
+        : JSON.stringify(data) !== JSON.stringify(initialData);
+      
+      if (!isMeaningful) {
+        // Don't save non-meaningful drafts
+        return;
+      }
+      
       const persistedData: PersistedData<T> = {
         data,
         timestamp: Date.now(),
@@ -80,7 +102,7 @@ export function usePersistedForm<T>({
     } catch (error) {
       console.error('Error saving form data:', error);
     }
-  }, [storageKey, user?.id, onSave]);
+  }, [storageKey, user?.id, onSave, isMeaningfulDraft, initialData]);
 
   // Set up auto-save interval
   useEffect(() => {
@@ -178,6 +200,14 @@ export function usePersistedForm<T>({
   // Clear draft
   const clearDraft = useCallback(() => {
     try {
+      // Cancel any pending timers
+      if (autoSaveTimerRef.current) {
+        clearInterval(autoSaveTimerRef.current);
+      }
+      if (immediateSaveTimerRef.current) {
+        clearTimeout(immediateSaveTimerRef.current);
+      }
+      
       localStorage.removeItem(storageKey);
       setHasDraft(false);
       setLastSaved(null);

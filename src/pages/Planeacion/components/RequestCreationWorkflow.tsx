@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -61,6 +61,10 @@ interface ArmedAssignmentData extends AssignmentData {
 }
 
 export function RequestCreationWorkflow() {
+  // Refs to control persistence behavior
+  const skipNextPersistRef = useRef(false);
+  const restorePromptShownRef = useRef(false);
+  
   // Persisted form state
   const {
     formData: persistedData,
@@ -93,6 +97,13 @@ export function RequestCreationWorkflow() {
     },
     autoSaveInterval: 10000, // Auto-save every 10 seconds (reduced from 30)
     saveOnChangeDebounceMs: 700, // Save 700ms after changes
+    isMeaningfulDraft: (data) => {
+      // A draft is meaningful if it has any actual data filled in
+      return data.routeData !== null || 
+             data.serviceData !== null || 
+             data.assignmentData !== null || 
+             data.armedAssignmentData !== null;
+    },
     onRestore: (data) => {
       console.log('🔄 Restaurando borrador del workflow:', data);
       toast.info('Borrador restaurado', {
@@ -114,15 +125,25 @@ export function RequestCreationWorkflow() {
   const [isValidating, setIsValidating] = useState(false);
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
 
-  // Check for draft on mount
+  // Check for draft on mount - only show once per session
   useEffect(() => {
-    if (hasDraft && !isRestoring) {
+    const suppressionFlag = sessionStorage.getItem('scw_suppress_restore');
+    
+    if (hasDraft && !isRestoring && !restorePromptShownRef.current && suppressionFlag !== '1') {
       setShowRestoreDialog(true);
+      restorePromptShownRef.current = true;
     }
   }, [hasDraft, isRestoring]);
 
-  // Persist state changes (without updatePersistedData in deps to avoid infinite loop)
+  // Persist state changes (with skip mechanism)
   useEffect(() => {
+    // Skip this persistence cycle if flagged
+    if (skipNextPersistRef.current) {
+      console.log('⏭️ Skipping persistence cycle due to recent discard');
+      skipNextPersistRef.current = false;
+      return;
+    }
+    
     const handler = setTimeout(() => {
       updatePersistedData({
         currentStep,
@@ -358,7 +379,21 @@ export function RequestCreationWorkflow() {
   };
 
   const handleDiscardDraft = () => {
+    console.log('🗑️ Discarding draft - setting suppression flag');
+    
+    // Set suppression flag to prevent re-prompting during this session
+    sessionStorage.setItem('scw_suppress_restore', '1');
+    
+    // Skip the next persistence cycle
+    skipNextPersistRef.current = true;
+    
+    // Clear the draft
     clearDraft();
+    
+    // Reset the workflow to initial state
+    resetWorkflow();
+    
+    // Close the dialog
     setShowRestoreDialog(false);
   };
 

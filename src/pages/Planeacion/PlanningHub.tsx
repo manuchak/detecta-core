@@ -18,6 +18,7 @@ import { useEditWorkflow } from '@/contexts/EditWorkflowContext';
 import { useSecurityAudit } from '@/hooks/useSecurityAudit';
 import { useDuplicateCleanup } from '@/hooks/useDuplicateCleanup';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useAuth } from '@/contexts/AuthContext';
 
 import type { EditableService } from '@/components/planeacion/EditServiceModal';
 
@@ -26,6 +27,7 @@ export default function PlanningHub() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCreateWorkflow, setShowCreateWorkflow] = useState(false);
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { isEditMode } = useEditWorkflow();
   const { logSecurityEvent } = useSecurityAudit();
   const { duplicates, checkingDuplicates } = useDuplicateCleanup();
@@ -36,14 +38,24 @@ export default function PlanningHub() {
   useEffect(() => {
     try {
       const stored = localStorage.getItem('service_creation_workflow_dialog_state');
-      if (stored === 'open') {
-        // Check if there's actually a draft
-        const draftKeys = Object.keys(localStorage).filter(key => 
-          key.includes('service_creation_workflow')
-        );
-        if (draftKeys.length > 0) {
-          console.log('📂 Draft detected - auto-opening creation dialog');
-          setShowCreateWorkflow(true);
+      const suppressionFlag = sessionStorage.getItem('scw_suppress_restore');
+      
+      if (stored === 'open' && suppressionFlag !== '1') {
+        // Check if there's actually a meaningful draft with exact key match
+        const exactKey = user ? `service_creation_workflow_${user.id}` : 'service_creation_workflow';
+        const draftData = localStorage.getItem(exactKey);
+        
+        if (draftData) {
+          try {
+            const parsed = JSON.parse(draftData);
+            // Only auto-open if there's meaningful data
+            if (parsed.data && (parsed.data.routeData || parsed.data.serviceData || parsed.data.assignmentData)) {
+              console.log('📂 Meaningful draft detected - auto-opening creation dialog');
+              setShowCreateWorkflow(true);
+            }
+          } catch (parseError) {
+            console.error('Error parsing draft data:', parseError);
+          }
         }
         // Clean up the state
         localStorage.removeItem('service_creation_workflow_dialog_state');
@@ -51,7 +63,7 @@ export default function PlanningHub() {
     } catch (error) {
       console.error('Error checking for draft:', error);
     }
-  }, []);
+  }, [user]);
 
   // Persist dialog state
   useEffect(() => {
