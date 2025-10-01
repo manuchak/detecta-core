@@ -64,6 +64,9 @@ export function RequestCreationWorkflow() {
   // Refs to control persistence behavior
   const skipNextPersistRef = useRef(false);
   const restorePromptShownRef = useRef(false);
+  const existedBeforeMountRef = useRef(false);
+  const mountTimeRef = useRef(Date.now());
+  const sessionIdRef = useRef(crypto.randomUUID());
   
   // Persisted form state
   const {
@@ -84,6 +87,7 @@ export function RequestCreationWorkflow() {
     armedAssignmentData: ArmedAssignmentData | null;
     createdServiceDbId: string | null;
     modifiedSteps: string[];
+    sessionId?: string;
   }>({
     key: 'service_creation_workflow',
     initialData: {
@@ -94,13 +98,14 @@ export function RequestCreationWorkflow() {
       armedAssignmentData: null,
       createdServiceDbId: null,
       modifiedSteps: [],
+      sessionId: sessionIdRef.current,
     },
     autoSaveInterval: 10000, // Auto-save every 10 seconds (reduced from 30)
     saveOnChangeDebounceMs: 700, // Save 700ms after changes
     isMeaningfulDraft: (data) => {
-      // A draft is meaningful if it has any actual data filled in
-      return data.routeData !== null || 
-             data.serviceData !== null || 
+      // A draft is meaningful ONLY if user made real changes
+      // Not just auto-filled initial data
+      return data.modifiedSteps.length > 0 || 
              data.assignmentData !== null || 
              data.armedAssignmentData !== null;
     },
@@ -125,11 +130,39 @@ export function RequestCreationWorkflow() {
   const [isValidating, setIsValidating] = useState(false);
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
 
-  // Check for draft on mount - only show once per session
+  // Check on mount if draft existed before opening this workflow
+  useEffect(() => {
+    const storageKey = 'service_creation_workflow';
+    const stored = localStorage.getItem(storageKey);
+    
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        const isDifferentSession = parsed.data?.sessionId && parsed.data.sessionId !== sessionIdRef.current;
+        const isOldEnough = parsed.timestamp && (mountTimeRef.current - parsed.timestamp > 3000); // 3+ seconds old
+        
+        if (isDifferentSession || isOldEnough) {
+          existedBeforeMountRef.current = true;
+          console.log('📂 Draft from previous session detected', { isDifferentSession, isOldEnough });
+        }
+      } catch (e) {
+        console.error('Error checking draft on mount:', e);
+      }
+    }
+  }, []);
+
+  // Check for draft - only show once per session and only if existed before mount
   useEffect(() => {
     const suppressionFlag = sessionStorage.getItem('scw_suppress_restore');
     
-    if (hasDraft && !isRestoring && !restorePromptShownRef.current && suppressionFlag !== '1') {
+    // Only show if:
+    // 1. There's a draft
+    // 2. Not currently restoring
+    // 3. Haven't shown prompt yet
+    // 4. Not suppressed this session
+    // 5. Draft existed BEFORE we mounted (not just auto-generated)
+    if (hasDraft && !isRestoring && !restorePromptShownRef.current && suppressionFlag !== '1' && existedBeforeMountRef.current) {
+      console.log('✅ Showing restore dialog - draft from previous session');
       setShowRestoreDialog(true);
       restorePromptShownRef.current = true;
     }
@@ -153,6 +186,7 @@ export function RequestCreationWorkflow() {
         armedAssignmentData,
         createdServiceDbId,
         modifiedSteps,
+        sessionId: sessionIdRef.current,
       });
     }, 500); // Debounce to avoid excessive saves
 

@@ -48,10 +48,20 @@ export default function PlanningHub() {
         if (draftData) {
           try {
             const parsed = JSON.parse(draftData);
-            // Only auto-open if there's meaningful data
-            if (parsed.data && (parsed.data.routeData || parsed.data.serviceData || parsed.data.assignmentData)) {
-              console.log('📂 Meaningful draft detected - auto-opening creation dialog');
+            const now = Date.now();
+            const draftAge = parsed.timestamp ? now - parsed.timestamp : 0;
+            
+            // Only auto-open if:
+            // 1. There's meaningful data
+            // 2. Draft is older than 5 seconds (not just created in this session)
+            const hasMeaningfulData = parsed.data && (parsed.data.routeData || parsed.data.serviceData || parsed.data.assignmentData);
+            const isOldEnough = draftAge > 5000; // 5 seconds
+            
+            if (hasMeaningfulData && isOldEnough) {
+              console.log('📂 Meaningful draft detected - auto-opening creation dialog', { draftAge });
               setShowCreateWorkflow(true);
+            } else if (hasMeaningfulData && !isOldEnough) {
+              console.log('⏰ Draft too recent, not auto-opening', { draftAge });
             }
           } catch (parseError) {
             console.error('Error parsing draft data:', parseError);
