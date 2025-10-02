@@ -110,7 +110,7 @@ export const ModernRecruitmentDashboard = () => {
   const today = dateTo;
   
   const { analysts, loading: analystsLoading } = useLeadAssignment();
-  const { leads: allLeads, isLoading: leadsLoading } = useLeadsStable();
+  const { leads: allLeads, isLoading: leadsLoading } = useLeadsStable(dateFrom, dateTo);
   const { metrics: callMetrics } = useCallCenterMetrics({
     dateFrom: thirtyDaysAgo,
     dateTo: today,
@@ -172,28 +172,30 @@ export const ModernRecruitmentDashboard = () => {
 
   // Get daily activity data for chart
   const { data: dailyActivityData } = useAuthenticatedQuery(
-    ['daily-activity-chart', selectedPeriod, selectedAnalysts.join(',')],
+    ['daily-activity-chart', dateFrom, dateTo, selectedAnalysts.join(',')],
     async () => {
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - daysCount);
+      const startDate = new Date(dateFrom);
+      const endDate = new Date(dateTo + 'T23:59:59');
       
       const [leadsData, callsData] = await Promise.all([
         supabase
           .from('leads')
           .select('created_at')
-          .gte('created_at', startDate.toISOString()),
+          .gte('created_at', dateFrom)
+          .lte('created_at', dateTo + 'T23:59:59'),
         supabase
           .from('manual_call_logs')
           .select('created_at')
-          .gte('created_at', startDate.toISOString())
+          .gte('created_at', dateFrom)
+          .lte('created_at', dateTo + 'T23:59:59')
       ]);
 
       // Create daily buckets for the selected period
       const dailyData = [];
-      for (let i = daysCount - 1; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().split('T')[0];
+      const currentDate = new Date(startDate);
+      
+      while (currentDate <= endDate) {
+        const dateStr = currentDate.toISOString().split('T')[0];
         
         const leadsCount = leadsData.data?.filter(lead => 
           lead.created_at.split('T')[0] === dateStr
@@ -204,11 +206,13 @@ export const ModernRecruitmentDashboard = () => {
         ).length || 0;
 
         dailyData.push({
-          date: date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }),
+          date: currentDate.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }),
           leads: leadsCount,
           calls: callsCount,
           total: leadsCount + callsCount
         });
+        
+        currentDate.setDate(currentDate.getDate() + 1);
       }
 
       return dailyData;
@@ -216,10 +220,12 @@ export const ModernRecruitmentDashboard = () => {
   );
   // Get dashboard statistics
   const { data: dashboardStats, isLoading: statsLoading } = useAuthenticatedQuery(
-    ['modern-dashboard-stats', selectedPeriod, selectedAnalysts.join(','), filteredLeads.length.toString()],
+    ['modern-dashboard-stats', dateFrom, dateTo, selectedAnalysts.join(','), filteredLeads.length.toString()],
     async () => {
       const [callsData] = await Promise.all([
-        supabase.from('manual_call_logs').select('*').gte('created_at', thirtyDaysAgo)
+        supabase.from('manual_call_logs').select('*')
+          .gte('created_at', dateFrom)
+          .lte('created_at', dateTo + 'T23:59:59')
       ]);
 
       console.log('🔍 Dashboard Stats Debug:', {
