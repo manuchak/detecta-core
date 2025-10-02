@@ -16,6 +16,7 @@ import { ConflictMonitor } from './workflow/ConflictMonitor';
 import { useCustodianVehicles } from '@/hooks/useCustodianVehicles';
 import { useServiciosPlanificados, type ServicioPlanificadoData } from '@/hooks/useServiciosPlanificados';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface RouteData {
   cliente_nombre: string;
@@ -61,14 +62,15 @@ interface ArmedAssignmentData extends AssignmentData {
 }
 
 export function RequestCreationWorkflow() {
+  const { user } = useAuth();
+  
   // Refs to control persistence behavior
   const skipNextPersistRef = useRef(false);
-  const restorePromptShownRef = useRef(false);
-  const existedBeforeMountRef = useRef(false);
+  const autoRestoreDoneRef = useRef(false);
   const mountTimeRef = useRef(Date.now());
   const sessionIdRef = useRef(crypto.randomUUID());
   
-  // Persisted form state
+  // Persisted form state with user-specific key
   const {
     formData: persistedData,
     updateFormData,
@@ -143,45 +145,48 @@ export function RequestCreationWorkflow() {
   // Estado para rastrear cambios y invalidaciones
   const [hasInvalidatedState, setHasInvalidatedState] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
-  const [showRestoreDialog, setShowRestoreDialog] = useState(false);
 
-  // Check on mount if draft existed before opening this workflow
-  useEffect(() => {
-    const storageKey = 'service_creation_workflow';
-    const stored = localStorage.getItem(storageKey);
-    
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        const isDifferentSession = parsed.data?.sessionId && parsed.data.sessionId !== sessionIdRef.current;
-        const isOldEnough = parsed.timestamp && (mountTimeRef.current - parsed.timestamp > 3000); // 3+ seconds old
-        
-        if (isDifferentSession || isOldEnough) {
-          existedBeforeMountRef.current = true;
-          console.log('📂 Draft from previous session detected', { isDifferentSession, isOldEnough });
-        }
-      } catch (e) {
-        console.error('Error checking draft on mount:', e);
-      }
-    }
-  }, []);
-
-  // Check for draft - only show once per session and only if existed before mount
+  // Auto-restore draft seamlessly on mount (without prompts or time thresholds)
   useEffect(() => {
     const suppressionFlag = sessionStorage.getItem('scw_suppress_restore');
     
-    // Only show if:
+    // Auto-restore if:
     // 1. There's a draft
-    // 2. Not currently restoring
-    // 3. Haven't shown prompt yet
+    // 2. Not already restoring
+    // 3. Haven't auto-restored yet this mount
     // 4. Not suppressed this session
-    // 5. Draft existed BEFORE we mounted (not just auto-generated)
-    if (hasDraft && !isRestoring && !restorePromptShownRef.current && suppressionFlag !== '1' && existedBeforeMountRef.current) {
-      console.log('✅ Showing restore dialog - draft from previous session');
-      setShowRestoreDialog(true);
-      restorePromptShownRef.current = true;
+    if (hasDraft && !isRestoring && !autoRestoreDoneRef.current && suppressionFlag !== '1') {
+      console.log('🔄 Auto-restoring draft seamlessly on mount');
+      autoRestoreDoneRef.current = true;
+      restoreDraft();
+      
+      // Show success toast with discard option
+      toast.success('Borrador restaurado', {
+        description: 'Tu progreso anterior ha sido recuperado',
+        action: {
+          label: 'Descartar',
+          onClick: () => {
+            console.log('🗑️ User discarded auto-restored draft');
+            sessionStorage.setItem('scw_suppress_restore', '1');
+            skipNextPersistRef.current = true;
+            clearDraft();
+            
+            // Reset to initial state
+            setCurrentStep('route');
+            setRouteData(null);
+            setServiceData(null);
+            setAssignmentData(null);
+            setArmedAssignmentData(null);
+            setCreatedServiceDbId(null);
+            setModifiedSteps([]);
+            
+            toast.info('Borrador descartado');
+          }
+        },
+        duration: 8000, // Longer duration so user can see the discard option
+      });
     }
-  }, [hasDraft, isRestoring]);
+  }, [hasDraft, isRestoring, restoreDraft, clearDraft]);
 
   // Persist state changes (with skip mechanism)
   useEffect(() => {
@@ -459,30 +464,6 @@ export function RequestCreationWorkflow() {
     clearDraft(); // Clear persisted data
   };
 
-  const handleRestoreDraft = () => {
-    restoreDraft();
-    setShowRestoreDialog(false);
-  };
-
-  const handleDiscardDraft = () => {
-    console.log('🗑️ Discarding draft - setting suppression flag');
-    
-    // Set suppression flag to prevent re-prompting during this session
-    sessionStorage.setItem('scw_suppress_restore', '1');
-    
-    // Skip the next persistence cycle
-    skipNextPersistRef.current = true;
-    
-    // Clear the draft
-    clearDraft();
-    
-    // Reset the workflow to initial state
-    resetWorkflow();
-    
-    // Close the dialog
-    setShowRestoreDialog(false);
-  };
-
   // Función para navegar a un paso específico (para edición)
   const navigateToStep = (step: string) => {
     console.log('🔧 Navegando a paso para edición:', step);
@@ -565,26 +546,6 @@ export function RequestCreationWorkflow() {
 
   return (
     <div className="space-y-6">
-      {/* Restore Draft Dialog */}
-      <AlertDialog open={showRestoreDialog} onOpenChange={setShowRestoreDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Continuar con el servicio anterior?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Se detectó un borrador guardado {getTimeSinceSave()}. ¿Deseas continuar desde donde lo dejaste o empezar uno nuevo?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleDiscardDraft}>
-              Empezar nuevo
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleRestoreDraft}>
-              Continuar borrador
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       {/* Progress Steps */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">

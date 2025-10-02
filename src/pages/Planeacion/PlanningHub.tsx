@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { PlusCircle, Settings, BarChart3, Smartphone, Calendar, TrendingUp, Shield, AlertTriangle, ExternalLink } from 'lucide-react';
+import { PlusCircle, Settings, BarChart3, Smartphone, Calendar, TrendingUp, Shield, AlertTriangle, ExternalLink, Save, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RequestCreationWorkflow } from './components/RequestCreationWorkflow';
 import { OperationalDashboard } from './components/OperationalDashboard';
@@ -34,7 +34,7 @@ export default function PlanningHub() {
 
   const totalDuplicates = duplicates?.reduce((sum, dup) => sum + dup.duplicate_count - 1, 0) || 0;
 
-  // Check for draft on mount and auto-open dialog if exists
+  // Check for draft on mount and auto-open dialog if exists (removed time threshold)
   useEffect(() => {
     try {
       const stored = localStorage.getItem('service_creation_workflow_dialog_state');
@@ -48,20 +48,13 @@ export default function PlanningHub() {
         if (draftData) {
           try {
             const parsed = JSON.parse(draftData);
-            const now = Date.now();
-            const draftAge = parsed.timestamp ? now - parsed.timestamp : 0;
             
-            // Only auto-open if:
-            // 1. There's meaningful data
-            // 2. Draft is older than 5 seconds (not just created in this session)
+            // Auto-open if there's meaningful data (no time threshold)
             const hasMeaningfulData = parsed.data && (parsed.data.routeData || parsed.data.serviceData || parsed.data.assignmentData);
-            const isOldEnough = draftAge > 5000; // 5 seconds
             
-            if (hasMeaningfulData && isOldEnough) {
-              console.log('📂 Meaningful draft detected - auto-opening creation dialog', { draftAge });
+            if (hasMeaningfulData) {
+              console.log('📂 Meaningful draft detected - auto-opening creation dialog');
               setShowCreateWorkflow(true);
-            } else if (hasMeaningfulData && !isOldEnough) {
-              console.log('⏰ Draft too recent, not auto-opening', { draftAge });
             }
           } catch (parseError) {
             console.error('Error parsing draft data:', parseError);
@@ -108,8 +101,47 @@ export default function PlanningHub() {
     return Promise.resolve();
   };
 
+  // Check if there's a draft to show banner
+  const hasDraftBanner = (() => {
+    try {
+      const exactKey = user ? `service_creation_workflow_${user.id}` : 'service_creation_workflow';
+      const draftData = localStorage.getItem(exactKey);
+      if (draftData) {
+        const parsed = JSON.parse(draftData);
+        return parsed.data && (parsed.data.routeData || parsed.data.serviceData || parsed.data.assignmentData);
+      }
+    } catch (e) {
+      return false;
+    }
+    return false;
+  })();
+
   return (
     <div className="h-full">
+      {/* Draft Banner - Persistent reminder */}
+      {hasDraftBanner && !showCreateWorkflow && (
+        <Alert className="mb-4 border-primary bg-primary/5">
+          <Save className="h-4 w-4 text-primary" />
+          <AlertDescription className="flex items-center justify-between">
+            <span className="text-sm">
+              <strong className="text-primary">Tienes un borrador guardado.</strong> Continúa donde lo dejaste.
+            </span>
+            <Button 
+              variant="default" 
+              size="sm"
+              onClick={() => {
+                console.log('📂 User clicked banner to continue draft');
+                setShowCreateWorkflow(true);
+              }}
+              className="ml-4"
+            >
+              <Clock className="h-4 w-4 mr-1" />
+              Continuar borrador
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      
       {/* Primary CTA - Top Positioned */}
       <div className="mb-6 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg p-6 border border-primary/20">
         <div className="flex items-center justify-between">
@@ -193,10 +225,13 @@ export default function PlanningHub() {
       
       {/* Create Service Modal */}
       <Dialog open={showCreateWorkflow} onOpenChange={setShowCreateWorkflow}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto" aria-describedby="create-service-description">
           <DialogHeader>
             <DialogTitle>Crear Nuevo Servicio</DialogTitle>
           </DialogHeader>
+          <p id="create-service-description" className="sr-only">
+            Flujo de creación de servicio paso a paso con validación automatizada
+          </p>
           <RequestCreationWorkflow />
         </DialogContent>
       </Dialog>
