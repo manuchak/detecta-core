@@ -1,13 +1,36 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
+/**
+ * Sanitizes draft data before persisting to localStorage
+ * Removes undefined values and non-serializable objects
+ */
+const sanitizeDraft = <T,>(data: T): T => {
+  if (data === null || data === undefined) return data;
+  
+  if (typeof data !== 'object') return data;
+  
+  if (Array.isArray(data)) {
+    return data.map(item => sanitizeDraft(item)) as T;
+  }
+  
+  const sanitized: any = {};
+  for (const key in data) {
+    const value = data[key];
+    if (value !== undefined && value !== null) {
+      sanitized[key] = sanitizeDraft(value);
+    }
+  }
+  return sanitized;
+};
+
 interface PersistedFormOptions<T> {
   key: string;
   initialData: T;
-  ttl?: number; // Time to live in milliseconds (default: 24 hours)
-  autoSaveInterval?: number; // Auto-save interval in milliseconds (default: 10 seconds)
-  saveOnChangeDebounceMs?: number; // Immediate save debounce (default: 700ms)
-  isMeaningfulDraft?: (data: T) => boolean; // Function to determine if data is meaningful
+  ttl?: number;
+  autoSaveInterval?: number;
+  saveOnChangeDebounceMs?: number;
+  isMeaningfulDraft?: (data: T) => boolean;
   onRestore?: (data: T) => void;
   onSave?: (data: T) => void;
 }
@@ -21,9 +44,9 @@ interface PersistedData<T> {
 export function usePersistedForm<T>({
   key,
   initialData,
-  ttl = 24 * 60 * 60 * 1000, // 24 hours
-  autoSaveInterval = 10000, // 10 seconds (reduced from 30)
-  saveOnChangeDebounceMs = 700, // Immediate save with debounce
+  ttl = 24 * 60 * 60 * 1000,
+  autoSaveInterval = 10000,
+  saveOnChangeDebounceMs = 700,
   isMeaningfulDraft,
   onRestore,
   onSave,
@@ -33,6 +56,9 @@ export function usePersistedForm<T>({
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasDraft, setHasDraft] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
+  
+  // Ref that always holds the latest formData to avoid stale closures
+  const formDataRef = useRef<T>(initialData);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const immediateSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hasChangesRef = useRef(false);
@@ -46,10 +72,8 @@ export function usePersistedForm<T>({
       if (stored) {
         const parsed: PersistedData<T> = JSON.parse(stored);
         
-        // Check if data is still valid (within TTL)
         const now = Date.now();
         if (now - parsed.timestamp < ttl && parsed.userId === user?.id) {
-          // Check if it's a meaningful draft (not just initial data)
           const isMeaningful = isMeaningfulDraft 
             ? isMeaningfulDraft(parsed.data)
             : JSON.stringify(parsed.data) !== JSON.stringify(initialData);
@@ -58,11 +82,9 @@ export function usePersistedForm<T>({
             setHasDraft(true);
             setLastSaved(new Date(parsed.timestamp));
           } else {
-            // Not meaningful, remove it
             localStorage.removeItem(storageKey);
           }
         } else {
-          // Data expired, remove it
           localStorage.removeItem(storageKey);
         }
       }
@@ -72,21 +94,20 @@ export function usePersistedForm<T>({
     }
   }, [storageKey, ttl, user?.id, isMeaningfulDraft]);
 
-  // Auto-save function
+  // Auto-save function with sanitization
   const saveToStorage = useCallback((data: T, silent = false) => {
     try {
-      // Check if it's meaningful before saving
       const isMeaningful = isMeaningfulDraft 
         ? isMeaningfulDraft(data)
         : JSON.stringify(data) !== JSON.stringify(initialData);
       
       if (!isMeaningful) {
-        // Don't save non-meaningful drafts
         return;
       }
       
+      const sanitized = sanitizeDraft(data);
       const persistedData: PersistedData<T> = {
-        data,
+        data: sanitized,
         timestamp: Date.now(),
         userId: user?.id || '',
       };
@@ -97,7 +118,7 @@ export function usePersistedForm<T>({
       hasChangesRef.current = false;
       
       if (!silent && onSave) {
-        onSave(data);
+        onSave(sanitized);
       }
     } catch (error) {
       console.error('Error saving form data:', error);
@@ -109,7 +130,7 @@ export function usePersistedForm<T>({
     if (autoSaveInterval > 0) {
       autoSaveTimerRef.current = setInterval(() => {
         if (hasChangesRef.current) {
-          saveToStorage(formData, true);
+          saveToStorage(formDataRef.current, true);
         }
       }, autoSaveInterval);
 
@@ -119,7 +140,7 @@ export function usePersistedForm<T>({
         }
       };
     }
-  }, [autoSaveInterval, formData, saveToStorage]);
+  }, [autoSaveInterval, saveToStorage]);
 
   // Set up immediate save on change with debounce
   useEffect(() => {
@@ -129,7 +150,7 @@ export function usePersistedForm<T>({
       }
       
       immediateSaveTimerRef.current = setTimeout(() => {
-        saveToStorage(formData, true);
+        saveToStorage(formDataRef.current, true);
       }, saveOnChangeDebounceMs);
 
       return () => {
@@ -140,27 +161,26 @@ export function usePersistedForm<T>({
     }
   }, [formData, saveOnChangeDebounceMs, saveToStorage]);
 
-  // Save on visibility change, page hide, or before unload
+  // Save on visibility change, page hide, or before unload - using formDataRef
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden && hasChangesRef.current) {
         console.log('📱 App moving to background - saving immediately');
-        saveToStorage(formData, true);
+        saveToStorage(formDataRef.current, true);
       }
     };
 
     const handlePageHide = () => {
       if (hasChangesRef.current) {
         console.log('👋 Page hiding - saving immediately');
-        saveToStorage(formData, true);
+        saveToStorage(formDataRef.current, true);
       }
     };
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasChangesRef.current) {
         console.log('🚪 Page unloading - saving immediately');
-        saveToStorage(formData, true);
-        // Optional: Show browser warning if there are unsaved changes
+        saveToStorage(formDataRef.current, true);
         e.preventDefault();
         e.returnValue = '';
       }
@@ -175,7 +195,7 @@ export function usePersistedForm<T>({
       window.removeEventListener('pagehide', handlePageHide);
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [formData, saveToStorage]);
+  }, [saveToStorage]);
 
   // Restore draft
   const restoreDraft = useCallback(() => {
@@ -184,6 +204,7 @@ export function usePersistedForm<T>({
       if (stored) {
         const parsed: PersistedData<T> = JSON.parse(stored);
         setFormData(parsed.data);
+        formDataRef.current = parsed.data;
         setIsRestoring(true);
         
         if (onRestore) {
@@ -200,7 +221,6 @@ export function usePersistedForm<T>({
   // Clear draft
   const clearDraft = useCallback(() => {
     try {
-      // Cancel any pending timers
       if (autoSaveTimerRef.current) {
         clearInterval(autoSaveTimerRef.current);
       }
@@ -219,13 +239,14 @@ export function usePersistedForm<T>({
 
   // Manual save
   const saveDraft = useCallback(() => {
-    saveToStorage(formData, false);
-  }, [formData, saveToStorage]);
+    saveToStorage(formDataRef.current, false);
+  }, [saveToStorage]);
 
-  // Update form data and mark as changed
+  // Update form data and mark as changed - keeping ref in sync
   const updateFormData = useCallback((data: T | ((prev: T) => T)) => {
     setFormData(prev => {
       const newData = typeof data === 'function' ? (data as (prev: T) => T)(prev) : data;
+      formDataRef.current = newData;
       hasChangesRef.current = true;
       return newData;
     });
