@@ -40,15 +40,20 @@ interface LeadActivity {
   source: string;
 }
 
-export const LeadsPipelineManager = () => {
+interface LeadsPipelineManagerProps {
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export const LeadsPipelineManager = ({ dateFrom, dateTo }: LeadsPipelineManagerProps = {}) => {
   const [selectedStage, setSelectedStage] = useState<string>('all');
-  const { leads, isLoading: leadsLoading } = useLeadsStable();
+  const { leads, isLoading: leadsLoading } = useLeadsStable(dateFrom, dateTo);
 
   const { data: pipelineData, isLoading } = useAuthenticatedQuery(
-    ['leads-pipeline'],
+    ['leads-pipeline', dateFrom, dateTo],
     async () => {
       // Get leads with analyst info
-      const { data: leadsData, error: leadsError } = await supabase
+      let query = supabase
         .from('leads')
         .select(`
           id,
@@ -61,8 +66,17 @@ export const LeadsPipelineManager = () => {
           profiles!leads_asignado_a_fkey (
             display_name
           )
-        `)
-        .order('created_at', { ascending: false });
+        `);
+      
+      // Apply date filters
+      if (dateFrom) {
+        query = query.gte('created_at', dateFrom);
+      }
+      if (dateTo) {
+        query = query.lt('created_at', dateTo);
+      }
+      
+      const { data: leadsData, error: leadsError } = await query.order('created_at', { ascending: false });
 
       if (leadsError) throw leadsError;
 

@@ -5,7 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { Lead, LeadEstado } from '@/types/leadTypes';
 
-export const useLeadsStable = () => {
+export const useLeadsStable = (dateFrom?: string, dateTo?: string) => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -33,10 +33,19 @@ export const useLeadsStable = () => {
       
       console.log('🔄 Fetching leads...');
       
-      const { data, error: fetchError } = await supabase
+      let query = supabase
         .from('leads')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*');
+      
+      // Apply date filters
+      if (dateFrom) {
+        query = query.gte('created_at', dateFrom);
+      }
+      if (dateTo) {
+        query = query.lt('created_at', dateTo);
+      }
+      
+      const { data, error: fetchError } = await query.order('created_at', { ascending: false });
 
       if (fetchError) {
         throw fetchError;
@@ -67,7 +76,7 @@ export const useLeadsStable = () => {
         setIsLoading(false);
       }
     }
-  }, [hasAccess, toast]);
+  }, [hasAccess, toast, dateFrom, dateTo]);
 
   // Función de asignación de leads
   const assignLead = useCallback(async (leadId: string, analystId: string) => {

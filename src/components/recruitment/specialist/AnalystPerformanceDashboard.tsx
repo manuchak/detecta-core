@@ -22,7 +22,12 @@ interface AnalystStats {
   avg_response_time: number;
 }
 
-export const AnalystPerformanceDashboard = () => {
+interface AnalystPerformanceDashboardProps {
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export const AnalystPerformanceDashboard = ({ dateFrom, dateTo }: AnalystPerformanceDashboardProps = {}) => {
   console.log('🚀 AnalystPerformanceDashboard component mounted');
   const { analysts, loading: analystsLoading } = useLeadAssignment();
   console.log('📊 Analysts loaded:', analysts?.length || 0, 'Loading:', analystsLoading);
@@ -31,12 +36,12 @@ export const AnalystPerformanceDashboard = () => {
   console.log('🔧 Component is rendering - check navigation!');
   
   const { data: analystStats, isLoading } = useAuthenticatedQuery(
-    ['analyst-performance-direct'],
+    ['analyst-performance-direct', dateFrom, dateTo],
     async () => {
       console.log('🔍 Direct query to leads table with RLS bypass');
       
       // Direct query to leads table - bypass RLS issues
-      const { data: leadsData, error } = await supabase
+      let query = supabase
         .from('leads')
         .select(`
           id,
@@ -48,6 +53,16 @@ export const AnalystPerformanceDashboard = () => {
           asignado_a,
           zona_preferida_id
         `);
+      
+      // Apply date filters
+      if (dateFrom) {
+        query = query.gte('created_at', dateFrom);
+      }
+      if (dateTo) {
+        query = query.lt('created_at', dateTo);
+      }
+      
+      const { data: leadsData, error } = await query;
 
       console.log('📊 Direct leads query result:');
       console.log('   - Data count:', leadsData?.length || 0);

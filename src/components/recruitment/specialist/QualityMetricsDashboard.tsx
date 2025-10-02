@@ -33,12 +33,17 @@ interface QualityMetrics {
   quality_score: number;
 }
 
-export const QualityMetricsDashboard = () => {
+interface QualityMetricsDashboardProps {
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export const QualityMetricsDashboard = ({ dateFrom, dateTo }: QualityMetricsDashboardProps = {}) => {
   const { data: qualityData, isLoading } = useAuthenticatedQuery(
-    ['quality-metrics'],
+    ['quality-metrics', dateFrom, dateTo],
     async () => {
       // Get lead data with approval info
-      const { data: leadsData, error: leadsError } = await supabase
+      let leadsQuery = supabase
         .from('leads')
         .select(`
           id,
@@ -46,6 +51,16 @@ export const QualityMetricsDashboard = () => {
           estado,
           created_at
         `);
+      
+      // Apply date filters
+      if (dateFrom) {
+        leadsQuery = leadsQuery.gte('created_at', dateFrom);
+      }
+      if (dateTo) {
+        leadsQuery = leadsQuery.lt('created_at', dateTo);
+      }
+      
+      const { data: leadsData, error: leadsError } = await leadsQuery;
 
       if (leadsError) throw leadsError;
 

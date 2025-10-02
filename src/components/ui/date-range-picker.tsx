@@ -61,6 +61,7 @@ export function DatePickerWithRange({
             numberOfMonths={2}
             locale={es}
             className="p-3 pointer-events-auto"
+            disabled={(date) => date > new Date()}
           />
         </PopoverContent>
       </Popover>

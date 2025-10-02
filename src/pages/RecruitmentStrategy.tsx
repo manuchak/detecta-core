@@ -6,6 +6,15 @@ import { Button } from '@/components/ui/button';
 import { AppShell } from '@/components/layout/AppShell';
 import { MinimalCard } from '@/components/recruitment/ui/MinimalCard';
 import { MinimalGrid } from '@/components/recruitment/ui/MinimalGrid';
+import { DatePickerWithRange } from '@/components/ui/date-range-picker';
+import { DateRange } from 'react-day-picker';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { 
   Users, 
   Phone, 
@@ -14,7 +23,8 @@ import {
   RefreshCw,
   BarChart3,
   Award,
-  MessageSquare
+  MessageSquare,
+  Calendar
 } from 'lucide-react';
 import { AnalystPerformanceDashboard } from '@/components/recruitment/specialist/AnalystPerformanceDashboard';
 import { ContactabilityDashboard } from '@/components/recruitment/specialist/ContactabilityDashboard';
@@ -23,23 +33,76 @@ import { QualityMetricsDashboard } from '@/components/recruitment/specialist/Qua
 import { useCallCenterMetrics } from '@/hooks/useCallCenterMetrics';
 import { useLeadsStable } from '@/hooks/useLeadsStable';
 
+type DateFilterMode = '7days' | '30days' | 'custom';
+
 const RecruitmentStrategy = () => {
   const [activeSection, setActiveSection] = useState('analistas');
+  const [dateFilterMode, setDateFilterMode] = useState<DateFilterMode>('30days');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   
   console.log('🎯 RecruitmentStrategy - activeSection:', activeSection);
   console.log('🔥 FORCE REFRESH - Component version 2.0');
   
-  // Hooks especializados para reclutamiento
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const today = new Date().toISOString().split('T')[0];
+  // Helper function to calculate date range based on mode
+  const getDateRangeForMode = (mode: DateFilterMode): { from: string; to: string } => {
+    const today = new Date();
+    const to = today.toISOString().split('T')[0];
+    
+    if (mode === '7days') {
+      const from = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      return { from, to };
+    } else if (mode === '30days') {
+      const from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      return { from, to };
+    } else {
+      // custom mode - use dateRange state
+      if (dateRange?.from) {
+        const from = dateRange.from.toISOString().split('T')[0];
+        const customTo = dateRange.to ? dateRange.to.toISOString().split('T')[0] : from;
+        return { from, to: customTo };
+      }
+      // Fallback to 30 days if custom range not set
+      const from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      return { from, to };
+    }
+  };
+
+  const { from: dateFrom, to: dateTo } = getDateRangeForMode(dateFilterMode);
   
-  const { metrics: callCenterMetrics, isLoading: metricsLoading } = useCallCenterMetrics({
-    dateFrom: thirtyDaysAgo,
-    dateTo: today,
+  // Hooks especializados para reclutamiento
+  const { metrics: callCenterMetrics, isLoading: metricsLoading, refetch: refetchMetrics } = useCallCenterMetrics({
+    dateFrom,
+    dateTo,
     enabled: true
   });
   
-  const { leads, isLoading: leadsLoading } = useLeadsStable();
+  const { leads, isLoading: leadsLoading, refetch: refetchLeads } = useLeadsStable(dateFrom, dateTo);
+  
+  const handleDateFilterChange = (mode: DateFilterMode) => {
+    setDateFilterMode(mode);
+    if (mode !== 'custom') {
+      setDateRange(undefined);
+    }
+  };
+
+  const handleCustomDateChange = (range: DateRange | undefined) => {
+    setDateRange(range);
+    if (range?.from) {
+      setDateFilterMode('custom');
+    }
+  };
+
+  // Format date range for display
+  const getDateRangeDisplay = () => {
+    if (dateFilterMode === '7days') return 'Últimos 7 días';
+    if (dateFilterMode === '30days') return 'Últimos 30 días';
+    if (dateRange?.from) {
+      const fromStr = format(dateRange.from, 'dd MMM', { locale: es });
+      const toStr = dateRange.to ? format(dateRange.to, 'dd MMM yyyy', { locale: es }) : fromStr;
+      return `${fromStr} - ${toStr}`;
+    }
+    return 'Personalizado';
+  };
 
   // Estados calculados para métricas de reclutamiento
   const loading = metricsLoading || leadsLoading;
@@ -67,7 +130,8 @@ const RecruitmentStrategy = () => {
   const handleRefreshData = () => {
     try {
       // Refrescar datos específicos de reclutamiento
-      window.location.reload();
+      refetchMetrics();
+      refetchLeads();
     } catch (error) {
       console.error('Error refreshing data:', error);
     }
@@ -198,19 +262,19 @@ const RecruitmentStrategy = () => {
     switch (activeSection) {
       case 'analistas':
         console.log('📊 Rendering AnalystPerformanceDashboard');
-        return <AnalystPerformanceDashboard />;
+        return <AnalystPerformanceDashboard dateFrom={dateFrom} dateTo={dateTo} />;
 
       case 'contactabilidad':
-        return <ContactabilityDashboard />;
+        return <ContactabilityDashboard dateFrom={dateFrom} dateTo={dateTo} />;
 
       case 'pipeline':
-        return <LeadsPipelineManager />;
+        return <LeadsPipelineManager dateFrom={dateFrom} dateTo={dateTo} />;
 
       case 'calidad':
-        return <QualityMetricsDashboard />;
+        return <QualityMetricsDashboard dateFrom={dateFrom} dateTo={dateTo} />;
 
       default:
-        return <AnalystPerformanceDashboard />;
+        return <AnalystPerformanceDashboard dateFrom={dateFrom} dateTo={dateTo} />;
     }
   };
 
@@ -275,8 +339,54 @@ const RecruitmentStrategy = () => {
       loading={loading}
     >
       <div className="space-y-6">
-        {renderSectionMetrics()}
-        <div className="mt-6">
+        {/* Date Filter Controls */}
+        <div className="flex items-center justify-between px-6 pt-6">
+          <div className="flex items-center gap-2">
+            <Button
+              variant={dateFilterMode === '7days' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleDateFilterChange('7days')}
+            >
+              Últimos 7 días
+            </Button>
+            <Button
+              variant={dateFilterMode === '30days' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleDateFilterChange('30days')}
+            >
+              Últimos 30 días
+            </Button>
+            
+            {/* Custom Date Popover */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={dateFilterMode === 'custom' ? 'default' : 'outline'}
+                  size="sm"
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Personalizado
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <DatePickerWithRange
+                  date={dateRange}
+                  onDateChange={handleCustomDateChange}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Active Date Range Badge */}
+          <Badge variant="secondary" className="text-sm">
+            📅 {getDateRangeDisplay()}
+          </Badge>
+        </div>
+
+        <div className="px-6">
+          {renderSectionMetrics()}
+        </div>
+        <div className="px-6">
           {renderContent()}
         </div>
       </div>

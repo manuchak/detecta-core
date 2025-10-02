@@ -14,9 +14,14 @@ interface CallOutcome {
   percentage: number;
 }
 
-export const ContactabilityDashboard = () => {
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const today = new Date().toISOString().split('T')[0];
+interface ContactabilityDashboardProps {
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export const ContactabilityDashboard = ({ dateFrom, dateTo }: ContactabilityDashboardProps = {}) => {
+  const thirtyDaysAgo = dateFrom || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const today = dateTo || new Date().toISOString().split('T')[0];
   
   const { metrics, isLoading: metricsLoading } = useCallCenterMetrics({
     dateFrom: thirtyDaysAgo,
