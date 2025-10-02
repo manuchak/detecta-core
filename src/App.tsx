@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { Toaster as SonnerToaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { DraftResumeProvider } from '@/contexts/DraftResumeContext';
 import { lazy, Suspense } from 'react';
 
 // Layout imports
@@ -88,12 +89,20 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
         <AuthProvider>
-          <Router>
-            <div className="min-h-screen bg-background">
-              <Suspense fallback={<LoadingFallback />}>
-                <Routes>
-                {/* Main route - Leads as principal page */}
-                <Route path="/" element={<SimpleLeadsPage />} />
+          <DraftResumeProvider>
+            <Router>
+              <div className="min-h-screen bg-background">
+                <Suspense fallback={<LoadingFallback />}>
+                  <Routes>
+                  {/* Main route - Leads as principal page */}
+                  <Route path="/" element={<SimpleLeadsPage />} />
+                  
+                  {/* Deep-link for draft resumption */}
+                  <Route path="/resume/service-creation" element={
+                    <ProtectedRoute>
+                      <PlaneacionDashboard />
+                    </ProtectedRoute>
+                  } />
                 <Route path="/landing" element={<Landing />} />
                 
                 {/* Auth routes */}
@@ -568,6 +577,7 @@ function App() {
           </Router>
           <Toaster />
           <SonnerToaster />
+        </DraftResumeProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

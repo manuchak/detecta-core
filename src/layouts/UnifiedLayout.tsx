@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { GlobalNav } from '@/components/navigation/GlobalNav';
 import { ContextualSidebar } from '@/components/navigation/ContextualSidebar';
+import { GlobalResumeCTA } from '@/components/global/GlobalResumeCTA';
 import { useAuth } from '@/contexts/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -110,6 +111,9 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
           </div>
         </div>
       </SidebarProvider>
+      
+      {/* Global Resume CTA */}
+      <GlobalResumeCTA />
     </div>
   );
 };

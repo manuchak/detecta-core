@@ -62,6 +62,7 @@ export function usePersistedForm<T>({
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const immediateSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hasChangesRef = useRef(false);
+  const mountedRef = useRef(true);
 
   const storageKey = user ? `${key}_${user.id}` : key;
 
@@ -196,6 +197,33 @@ export function usePersistedForm<T>({
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [saveToStorage]);
+
+  // CRITICAL: Save on unmount for SPA navigation
+  useEffect(() => {
+    mountedRef.current = true;
+    
+    return () => {
+      mountedRef.current = false;
+      if (hasChangesRef.current) {
+        console.log('💾 [usePersistedForm] Component unmounting - performing final save');
+        
+        // Perform synchronous save on unmount
+        try {
+          const sanitized = sanitizeDraft(formDataRef.current);
+          const persistedData: PersistedData<T> = {
+            data: sanitized,
+            timestamp: Date.now(),
+            userId: user?.id || '',
+          };
+          
+          localStorage.setItem(storageKey, JSON.stringify(persistedData));
+          console.log('✅ [usePersistedForm] Unmount save successful');
+        } catch (error) {
+          console.error('❌ [usePersistedForm] Unmount save failed:', error);
+        }
+      }
+    };
+  }, [storageKey, user?.id]);
 
   // Restore draft
   const restoreDraft = useCallback(() => {

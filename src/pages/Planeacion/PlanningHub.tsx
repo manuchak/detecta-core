@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -27,6 +27,7 @@ export default function PlanningHub() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCreateWorkflow, setShowCreateWorkflow] = useState(false);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { isEditMode } = useEditWorkflow();
   const { logSecurityEvent } = useSecurityAudit();
@@ -34,33 +35,54 @@ export default function PlanningHub() {
 
   const totalDuplicates = duplicates?.reduce((sum, dup) => sum + dup.duplicate_count - 1, 0) || 0;
 
-  // Check for draft on mount and auto-open dialog if exists (removed time threshold)
+  // ROBUST: Listen for resume=1 query param for idempotent deep-link resumption
+  useEffect(() => {
+    const resumeFlag = searchParams.get('resume');
+    
+    if (resumeFlag === '1') {
+      console.log('🔄 [PlanningHub] Deep-link resume detected - opening dialog unconditionally');
+      
+      // Set flags for idempotent restoration
+      localStorage.setItem('service_creation_workflow_dialog_state', 'open');
+      sessionStorage.removeItem('scw_suppress_restore');
+      
+      // Open dialog
+      setShowCreateWorkflow(true);
+      
+      // Clean up query param
+      searchParams.delete('resume');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  // Check for draft on mount and auto-open dialog if exists (proactive detection)
   useEffect(() => {
     try {
       const stored = localStorage.getItem('service_creation_workflow_dialog_state');
       const suppressionFlag = sessionStorage.getItem('scw_suppress_restore');
       
-      if (stored === 'open' && suppressionFlag !== '1') {
-        // Check if there's actually a meaningful draft with exact key match
-        const exactKey = user ? `service_creation_workflow_${user.id}` : 'service_creation_workflow';
-        const draftData = localStorage.getItem(exactKey);
-        
-        if (draftData) {
-          try {
-            const parsed = JSON.parse(draftData);
-            
-            // Auto-open if there's meaningful data (no time threshold)
-            const hasMeaningfulData = parsed.data && (parsed.data.routeData || parsed.data.serviceData || parsed.data.assignmentData);
-            
-            if (hasMeaningfulData) {
-              console.log('📂 Meaningful draft detected - auto-opening creation dialog');
-              setShowCreateWorkflow(true);
-            }
-          } catch (parseError) {
-            console.error('Error parsing draft data:', parseError);
+      // Check if there's actually a meaningful draft with exact key match
+      const exactKey = user ? `service_creation_workflow_${user.id}` : 'service_creation_workflow';
+      const draftData = localStorage.getItem(exactKey);
+      
+      if (draftData && suppressionFlag !== '1') {
+        try {
+          const parsed = JSON.parse(draftData);
+          
+          // Auto-open if there's meaningful data (no time threshold)
+          const hasMeaningfulData = parsed.data && (parsed.data.routeData || parsed.data.serviceData || parsed.data.assignmentData);
+          
+          if (hasMeaningfulData && (stored === 'open' || !stored)) {
+            console.log('📂 [PlanningHub] Meaningful draft detected - auto-opening creation dialog');
+            setShowCreateWorkflow(true);
           }
+        } catch (parseError) {
+          console.error('Error parsing draft data:', parseError);
         }
-        // Clean up the state
+      }
+      
+      // Clean up the state if it was set
+      if (stored === 'open') {
         localStorage.removeItem('service_creation_workflow_dialog_state');
       }
     } catch (error) {
