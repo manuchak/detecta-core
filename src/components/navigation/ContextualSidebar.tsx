@@ -24,8 +24,7 @@ import {
   TestTube,
   Calendar,
   BarChart3,
-  Bot,
-  Home
+  Bot
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -54,25 +53,25 @@ interface ContextualSidebarProps {
 
 const navigationItems: NavigationItem[] = [
   {
-    id: 'home',
-    title: 'Inicio',
-    description: 'Dashboard principal',
-    icon: Home,
+    id: 'analytics',
+    title: 'Análisis',
+    description: 'Vistas ejecutivas',
+    icon: Target,
     children: [
-      { id: 'dashboard', title: 'Dashboard', icon: Target },
-      { id: 'leads-page', title: 'Leads', icon: Users },
-      { id: 'services', title: 'Servicios', icon: Database }
+      { id: 'executive', title: 'Dashboard Principal', icon: Target },
+      { id: 'monthly-metrics', title: 'Métricas Mensuales', icon: TrendingUp },
+      { id: 'financial', title: 'Financiero', icon: TrendingUp }
     ]
   },
   {
-    id: 'dashboard',
-    title: 'Análisis',
-    description: 'Vista ejecutiva',
-    icon: Target,
+    id: 'operations',
+    title: 'Operaciones',
+    description: 'Tiempo real',
+    icon: Zap,
     children: [
-      { id: 'executive', title: 'Principal', icon: Target },
-      { id: 'monthly-metrics', title: 'Métricas', icon: TrendingUp },
-      { id: 'financial', title: 'Financiero', icon: TrendingUp }
+      { id: 'alertas', title: 'Alertas Críticas', icon: AlertTriangle },
+      { id: 'pipeline', title: 'Pipeline', icon: Users },
+      { id: 'metricas', title: 'Métricas Operativas', icon: BarChart3 }
     ]
   },
   {
@@ -86,27 +85,16 @@ const navigationItems: NavigationItem[] = [
     ]
   },
   {
-    id: 'operations',
-    title: 'Operaciones',
-    description: 'Tiempo real',
-    icon: Zap,
-    children: [
-      { id: 'alertas', title: 'Alertas', icon: AlertTriangle },
-      { id: 'pipeline', title: 'Pipeline', icon: Users },
-      { id: 'metricas', title: 'Métricas', icon: BarChart3 }
-    ]
-  },
-  {
-    id: 'analytics',
-    title: 'Análisis & IA',
-    description: 'Inteligencia artificial',
+    id: 'intelligence',
+    title: 'Inteligencia IA',
+    description: 'Machine Learning',
     icon: Bot,
     children: [
-      { id: 'ai', title: 'Análisis AI', icon: Bot },
-      { id: 'alerts', title: 'Alertas IA', icon: AlertTriangle },
+      { id: 'ai', title: 'Análisis IA', icon: Bot },
+      { id: 'alerts', title: 'Alertas Predictivas', icon: AlertTriangle },
       { id: 'rotacion', title: 'Rotación', icon: TrendingUp },
-      { id: 'temporal', title: 'Temporal', icon: BarChart3 },
-      { id: 'ml', title: 'Machine Learning', icon: Database },
+      { id: 'temporal', title: 'Tendencias', icon: BarChart3 },
+      { id: 'ml', title: 'ML Models', icon: Database },
       { id: 'cohort', title: 'Cohortes', icon: BarChart3 }
     ]
   },
@@ -118,7 +106,7 @@ const navigationItems: NavigationItem[] = [
     children: [
       { id: 'simulator', title: 'Simulador IA', icon: TestTube },
       { id: 'simulation', title: 'Escenarios', icon: Target },
-      { id: 'roi', title: 'ROI', icon: TrendingUp }
+      { id: 'roi', title: 'Análisis ROI', icon: TrendingUp }
     ]
   }
 ];
@@ -135,7 +123,7 @@ export function ContextualSidebar({ activeSection, onSectionChange, stats }: Con
         return section.id;
       }
     }
-    return 'dashboard';
+    return 'analytics';
   };
 
   const activeParentSection = getActiveParentSection();
@@ -150,12 +138,12 @@ export function ContextualSidebar({ activeSection, onSectionChange, stats }: Con
     if (!stats) return null;
     
     switch (sectionId) {
-      case 'dashboard':
-        return stats.totalDeficit > 10 ? stats.totalDeficit.toString() : null;
-      case 'operations':
-        return stats.criticalAlerts > 0 ? stats.criticalAlerts.toString() : null;
       case 'analytics':
-        return stats.urgentClusters > 0 ? stats.urgentClusters.toString() : null;
+        return stats.totalDeficit && stats.totalDeficit > 10 ? stats.totalDeficit.toString() : null;
+      case 'operations':
+        return stats.criticalAlerts && stats.criticalAlerts > 0 ? stats.criticalAlerts.toString() : null;
+      case 'intelligence':
+        return stats.urgentClusters && stats.urgentClusters > 0 ? stats.urgentClusters.toString() : null;
       default:
         return null;
     }
@@ -164,41 +152,7 @@ export function ContextualSidebar({ activeSection, onSectionChange, stats }: Con
   return (
     <Sidebar className={cn(collapsed ? "w-14" : "w-64")} collapsible="icon">
       <SidebarContent className="p-2">
-        {/* Main Menu Button */}
-        <SidebarGroup className="mb-4">
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  className={cn(
-                    "relative rounded-lg h-auto p-3 transition-all duration-200",
-                    "bg-gradient-to-r from-primary to-primary/80 text-primary-foreground",
-                    "hover:from-primary/90 hover:to-primary/70 hover:scale-[1.02]",
-                    "shadow-md border border-primary/30"
-                  )}
-                  onClick={() => navigate('/dashboard')}
-                >
-                  <Home className={cn(
-                    "shrink-0 text-primary-foreground",
-                    collapsed ? "h-5 w-5" : "h-4 w-4"
-                  )} />
-                  {!collapsed && (
-                    <div className="flex-1 min-w-0 text-left">
-                      <div className="font-semibold text-sm leading-5 text-primary-foreground">
-                        Menú Principal
-                      </div>
-                      <div className="text-xs text-primary-foreground/80 leading-4">
-                        Volver al inicio
-                      </div>
-                    </div>
-                  )}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Main sections */}
+        {/* Main sections - Grouped */}
         <SidebarGroup className="space-y-1">
           <SidebarGroupLabel className={cn(
             "px-3 py-2 text-xs font-semibold tracking-wide uppercase text-muted-foreground/70",
@@ -221,15 +175,10 @@ export function ContextualSidebar({ activeSection, onSectionChange, stats }: Con
                         isActive ? "bg-primary/10 text-primary shadow-sm border border-primary/20" : "hover:bg-muted/50"
                       )}
                       onClick={() => {
-                        if (section.id === 'home') {
-                          // Special handling for home section
-                          navigate('/dashboard');
-                        } else {
-                          // Navigate to first child of section
-                          const firstChild = section.children?.[0];
-                          if (firstChild) {
-                            onSectionChange(firstChild.id);
-                          }
+                        // Navigate to first child of section
+                        const firstChild = section.children?.[0];
+                        if (firstChild) {
+                          onSectionChange(firstChild.id);
                         }
                       }}
                     >
@@ -295,18 +244,7 @@ export function ContextualSidebar({ activeSection, onSectionChange, stats }: Con
                           ? "bg-primary text-primary-foreground shadow-sm" 
                           : "text-muted-foreground hover:text-foreground"
                       )}
-                      onClick={() => {
-                        // Handle specific navigation items
-                        if (item.id === 'leads-page') {
-                          navigate('/leads');
-                        } else if (item.id === 'services') {
-                          navigate('/services');
-                        } else if (item.id === 'dashboard') {
-                          navigate('/dashboard');
-                        } else {
-                          onSectionChange(item.id);
-                        }
-                      }}
+                      onClick={() => onSectionChange(item.id)}
                     >
                       <item.icon className={cn(
                         "shrink-0 transition-colors",

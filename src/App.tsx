@@ -9,6 +9,7 @@ import { lazy, Suspense } from 'react';
 
 // Layout imports
 import DashboardLayout from '@/layouts/DashboardLayout';
+import UnifiedLayout from '@/layouts/UnifiedLayout';
 import AuthLayout from '@/layouts/AuthLayout';
 
 // Lazy load pages to reduce initial bundle size and fix build timeout
@@ -118,9 +119,9 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <PermissionProtectedRoute permissionType="page" permissionId="dashboard" showMessage={true}>
-                        <DashboardLayout>
+                        <UnifiedLayout>
                           <ExecutiveDashboard />
-                        </DashboardLayout>
+                        </UnifiedLayout>
                       </PermissionProtectedRoute>
                     </ProtectedRoute>
                   }
@@ -132,9 +133,9 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <PermissionProtectedRoute permissionType="page" permissionId="dashboard" showMessage={true}>
-                        <DashboardLayout>
+                        <UnifiedLayout>
                           <ExecutiveDashboard />
-                        </DashboardLayout>
+                        </UnifiedLayout>
                       </PermissionProtectedRoute>
                     </ProtectedRoute>
                   }
@@ -159,9 +160,9 @@ function App() {
                   path="/services"
                   element={
                     <ProtectedRoute>
-                      <DashboardLayout>
+                      <UnifiedLayout>
                         <ServicesPage />
-                      </DashboardLayout>
+                      </UnifiedLayout>
                     </ProtectedRoute>
                   }
                 />
@@ -208,7 +209,9 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'manager', 'coordinador_operaciones']}>
-                        <ModernRecruitment />
+                        <UnifiedLayout>
+                          <ModernRecruitment />
+                        </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
@@ -247,9 +250,9 @@ function App() {
                   path="/monitoring"
                   element={
                     <ProtectedRoute>
-                      <DashboardLayout>
+                      <UnifiedLayout>
                         <MonitoringPage />
-                      </DashboardLayout>
+                      </UnifiedLayout>
                     </ProtectedRoute>
                   }
                 />
