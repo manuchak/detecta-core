@@ -45,6 +45,10 @@ import { ContactabilityAnalytics } from './ContactabilityAnalytics';
 import { RejectionAnalytics } from './RejectionAnalytics';
 import { supabase } from '@/integrations/supabase/client';
 import { MainNavigation } from '@/components/layout/MainNavigation';
+import { DatePickerWithRange } from '@/components/ui/date-range-picker';
+import { DateRange } from 'react-day-picker';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 interface DashboardStats {
   totalLeads: number;
@@ -67,13 +71,31 @@ interface AnalystPerformance {
 }
 
 export const ModernRecruitmentDashboard = () => {
-  const [selectedPeriod, setSelectedPeriod] = useState<'7d' | '30d' | 'live'>('30d');
+  const [selectedPeriod, setSelectedPeriod] = useState<'7d' | '30d' | 'live' | 'custom'>('30d');
   const [chartType, setChartType] = useState<'combined' | 'separate'>('combined');
   const [selectedAnalysts, setSelectedAnalysts] = useState<string[]>([]);
+  const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
   
   // Calculate date ranges based on selected period
   const { dateFrom, dateTo, daysCount } = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
+    
+    // Handle custom date range
+    if (selectedPeriod === 'custom' && customDateRange?.from) {
+      const from = customDateRange.from.toISOString().split('T')[0];
+      const to = customDateRange.to ? customDateRange.to.toISOString().split('T')[0] : from;
+      const days = customDateRange.to 
+        ? Math.ceil((customDateRange.to.getTime() - customDateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1
+        : 1;
+      
+      return {
+        dateFrom: from,
+        dateTo: to,
+        daysCount: days
+      };
+    }
+    
+    // Handle preset periods
     const days = selectedPeriod === '7d' ? 7 : selectedPeriod === '30d' ? 30 : 1;
     const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     
@@ -82,7 +104,7 @@ export const ModernRecruitmentDashboard = () => {
       dateTo: today,
       daysCount: days
     };
-  }, [selectedPeriod]);
+  }, [selectedPeriod, customDateRange]);
 
   const thirtyDaysAgo = dateFrom;
   const today = dateTo;
@@ -418,6 +440,38 @@ export const ModernRecruitmentDashboard = () => {
                 <Activity className="h-4 w-4 mr-2" />
                 En vivo
               </Button>
+
+              {/* Custom Date Range Picker */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={selectedPeriod === 'custom' ? 'default' : 'outline'}
+                    size="sm"
+                  >
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Personalizado
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <DatePickerWithRange
+                    date={customDateRange}
+                    onDateChange={(range) => {
+                      setCustomDateRange(range);
+                      if (range?.from) {
+                        setSelectedPeriod('custom');
+                      }
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
+
+              {/* Active Date Range Badge */}
+              {selectedPeriod === 'custom' && customDateRange?.from && (
+                <Badge variant="secondary" className="text-xs">
+                  📅 {format(customDateRange.from, 'd MMM', { locale: es })}
+                  {customDateRange.to && ` - ${format(customDateRange.to, 'd MMM', { locale: es })}`}
+                </Badge>
+              )}
               
               {/* Analyst Filter */}
               <Popover>
