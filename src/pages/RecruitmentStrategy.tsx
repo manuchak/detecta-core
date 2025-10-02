@@ -338,23 +338,26 @@ const RecruitmentStrategy = () => {
       onRefresh={handleRefreshData}
       loading={loading}
     >
-      <div className="space-y-6">
-        {/* Date Filter Controls */}
-        <div className="flex items-center justify-between px-6 pt-6">
+      <div className="p-6 space-y-6">
+        {/* Date Filter Controls - Prominent Position */}
+        <div className="flex items-center justify-between bg-card p-4 rounded-lg border shadow-sm">
           <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground mr-2">Período:</span>
             <Button
               variant={dateFilterMode === '7days' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleDateFilterChange('7days')}
             >
-              Últimos 7 días
+              <Calendar className="h-3 w-3 mr-1" />
+              7 días
             </Button>
             <Button
               variant={dateFilterMode === '30days' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleDateFilterChange('30days')}
             >
-              Últimos 30 días
+              <Calendar className="h-3 w-3 mr-1" />
+              30 días
             </Button>
             
             {/* Custom Date Popover */}
@@ -378,17 +381,13 @@ const RecruitmentStrategy = () => {
           </div>
 
           {/* Active Date Range Badge */}
-          <Badge variant="secondary" className="text-sm">
+          <Badge variant="secondary" className="text-sm font-medium">
             📅 {getDateRangeDisplay()}
           </Badge>
         </div>
 
-        <div className="px-6">
-          {renderSectionMetrics()}
-        </div>
-        <div className="px-6">
-          {renderContent()}
-        </div>
+        {renderSectionMetrics()}
+        {renderContent()}
       </div>
     </AppShell>
   );
