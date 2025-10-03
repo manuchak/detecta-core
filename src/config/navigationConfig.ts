@@ -8,6 +8,7 @@ import {
   CalendarCheck,
   Ticket,
   Settings,
+  Shield,
   LucideIcon
 } from 'lucide-react';
 
@@ -70,6 +71,13 @@ export const navigationModules: NavigationModule[] = [
     label: 'Tickets',
     icon: Ticket,
     path: '/tickets'
+  },
+  {
+    id: 'administration',
+    label: 'Administración',
+    icon: Shield,
+    path: '/administration',
+    roles: ['admin', 'owner', 'bi', 'supply_admin']
   },
   {
     id: 'settings',

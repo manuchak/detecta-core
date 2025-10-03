@@ -62,6 +62,7 @@ const ServiceWorkflowDocumentation = lazy(() => import('@/pages/Documentation/Se
 const PlaneacionDashboard = lazy(() => import('@/pages/Planeacion/PlaneacionDashboard'));
 const DuplicateCleanupPage = lazy(() => import('@/pages/Maintenance/DuplicateCleanupPage'));
 const VersionControlPage = lazy(() => import('@/pages/Administration/VersionControlPage'));
+const AdministrationHub = lazy(() => import('@/pages/Administration/AdministrationHub'));
 const SystemTestingPage = lazy(() => import('@/pages/SystemTestingPage'));
 const SignUp = lazy(() => import('@/pages/Auth/SignUp'));
 
@@ -468,32 +469,29 @@ function App() {
                   }
                 />
                 
-                {/* Maintenance routes */}
+                {/* Administration Hub */}
                 <Route
-                  path="/maintenance/duplicate-cleanup"
+                  path="/administration"
                   element={
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'bi', 'supply_admin']}>
-                        <DashboardLayout>
-                          <DuplicateCleanupPage />
-                        </DashboardLayout>
+                        <UnifiedLayout>
+                          <AdministrationHub />
+                        </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
                 />
                 
-                {/* Administration routes */}
+                {/* Legacy Maintenance routes - redirect to hub */}
+                <Route
+                  path="/maintenance/duplicate-cleanup"
+                  element={<Navigate to="/administration" replace />}
+                />
+                
                 <Route
                   path="/admin/version-control"
-                  element={
-                    <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner']}>
-                        <DashboardLayout>
-                          <VersionControlPage />
-                        </DashboardLayout>
-                      </RoleProtectedRoute>
-                    </ProtectedRoute>
-                  }
+                  element={<Navigate to="/administration" replace />}
                 />
                 {/* Supply Dashboard Extended */}
                 <Route
