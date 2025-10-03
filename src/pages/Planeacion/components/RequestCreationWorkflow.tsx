@@ -17,6 +17,8 @@ import { useCustodianVehicles } from '@/hooks/useCustodianVehicles';
 import { useServiciosPlanificados, type ServicioPlanificadoData } from '@/hooks/useServiciosPlanificados';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { DraftStatusBadge } from '@/components/workflow/DraftStatusBadge';
+import { DraftRestoredBanner } from '@/components/workflow/DraftRestoredBanner';
 
 interface RouteData {
   cliente_nombre: string;
@@ -146,6 +148,7 @@ export function RequestCreationWorkflow() {
   // Estado para rastrear cambios y invalidaciones
   const [hasInvalidatedState, setHasInvalidatedState] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
+  const [showRestoredBanner, setShowRestoredBanner] = useState(false);
 
   // CRITICAL: UI State Hydration - Sync UI states when persistedData changes
   useEffect(() => {
@@ -185,10 +188,7 @@ export function RequestCreationWorkflow() {
       setCreatedServiceDbId(persistedData.createdServiceDbId);
       setModifiedSteps(persistedData.modifiedSteps);
       
-      toast.info('Estado restaurado', {
-        description: 'Tu progreso ha sido recuperado',
-        duration: 2000
-      });
+      setShowRestoredBanner(true);
     }
   }, [
     persistedData.currentStep,
@@ -215,32 +215,7 @@ export function RequestCreationWorkflow() {
       console.log('🔄 Auto-restoring draft seamlessly on mount');
       autoRestoreDoneRef.current = true;
       restoreDraft();
-      
-      // Show success toast with discard option
-      toast.success('Borrador restaurado', {
-        description: 'Tu progreso anterior ha sido recuperado',
-        action: {
-          label: 'Descartar',
-          onClick: () => {
-            console.log('🗑️ User discarded auto-restored draft');
-            sessionStorage.setItem('scw_suppress_restore', '1');
-            skipNextPersistRef.current = true;
-            clearDraft();
-            
-            // Reset to initial state
-            setCurrentStep('route');
-            setRouteData(null);
-            setServiceData(null);
-            setAssignmentData(null);
-            setArmedAssignmentData(null);
-            setCreatedServiceDbId(null);
-            setModifiedSteps([]);
-            
-            toast.info('Borrador descartado');
-          }
-        },
-        duration: 8000, // Longer duration so user can see the discard option
-      });
+      setShowRestoredBanner(true);
     }
   }, [hasDraft, isRestoring, restoreDraft, clearDraft]);
 
@@ -623,35 +598,39 @@ export function RequestCreationWorkflow() {
 
   return (
     <div className="space-y-6">
+      {/* Draft Restored Banner */}
+      {showRestoredBanner && (
+        <DraftRestoredBanner
+          timeSinceSave={getTimeSinceSave()}
+          onDismiss={() => setShowRestoredBanner(false)}
+          onStartFresh={() => {
+            console.log('🗑️ User requested fresh start');
+            sessionStorage.setItem('scw_suppress_restore', '1');
+            skipNextPersistRef.current = true;
+            clearDraft();
+            setShowRestoredBanner(false);
+            
+            // Reset to initial state
+            setCurrentStep('route');
+            setRouteData(null);
+            setServiceData(null);
+            setAssignmentData(null);
+            setArmedAssignmentData(null);
+            setCreatedServiceDbId(null);
+            setModifiedSteps([]);
+          }}
+        />
+      )}
+
       {/* Progress Steps */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <CardTitle>Progreso del Flujo</CardTitle>
-          <div className="flex items-center gap-2">
-            {hasDraft && (
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">
-                  <Save className="h-3 w-3 mr-1" />
-                  Borrador guardado
-                </Badge>
-                {lastSaved && (
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {getTimeSinceSave()}
-                  </span>
-                )}
-              </div>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={saveDraft}
-              className="h-8"
-            >
-              <Save className="h-3 w-3 mr-1" />
-              Guardar
-            </Button>
-          </div>
+          <DraftStatusBadge 
+            lastSaved={lastSaved}
+            getTimeSinceSave={getTimeSinceSave}
+            hasDraft={hasDraft}
+          />
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
