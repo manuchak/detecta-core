@@ -63,6 +63,11 @@ export function usePersistedForm<T>({
   const immediateSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hasChangesRef = useRef(false);
   const mountedRef = useRef(true);
+  
+  // CRITICAL: Sync formDataRef whenever formData state changes
+  useEffect(() => {
+    formDataRef.current = formData;
+  }, [formData]);
 
   const storageKey = user ? `${key}_${user.id}` : key;
 

@@ -24,12 +24,26 @@ export function LastRouteRestorer() {
     const isRootPath = location.pathname === '/' && !location.search;
     
     if (isRootPath) {
-      const lastRoute = sessionStorage.getItem(LAST_ROUTE_KEY);
+      // Small delay to avoid race conditions with auth redirects and deep-links
+      const timeoutId = setTimeout(() => {
+        // Check if we're still on root (no other navigation happened)
+        if (window.location.pathname === '/') {
+          const lastRoute = sessionStorage.getItem(LAST_ROUTE_KEY);
+          
+          // Don't restore if there's a resume operation in progress
+          const hasResumeFlag = sessionStorage.getItem('resume_in_progress');
+          
+          if (lastRoute && 
+              lastRoute !== '/' && 
+              !hasResumeFlag &&
+              !EXCLUDED_PATHS.some(excluded => lastRoute.startsWith(excluded))) {
+            console.log('🔄 [LastRouteRestorer] Restoring last route:', lastRoute);
+            navigate(lastRoute, { replace: true });
+          }
+        }
+      }, 300); // 300ms delay
       
-      if (lastRoute && lastRoute !== '/' && !EXCLUDED_PATHS.some(excluded => lastRoute.startsWith(excluded))) {
-        console.log('🔄 [LastRouteRestorer] Restoring last route:', lastRoute);
-        navigate(lastRoute, { replace: true });
-      }
+      return () => clearTimeout(timeoutId);
     }
   }, []); // Only run once on mount
 

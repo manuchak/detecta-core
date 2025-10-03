@@ -7,6 +7,9 @@ import { useDraftResume } from '@/contexts/DraftResumeContext';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 
+const DISMISS_KEY = 'global_resume_cta_dismissed';
+const DISMISS_DURATION = 4 * 60 * 60 * 1000; // 4 hours
+
 export function GlobalResumeCTA() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -14,17 +17,43 @@ export function GlobalResumeCTA() {
   const [draft, setDraft] = useState<ReturnType<typeof getMostRecentDraft>>(null);
   const [dismissed, setDismissed] = useState(false);
 
+  // Check if CTA was dismissed recently
+  useEffect(() => {
+    try {
+      const dismissedData = sessionStorage.getItem(DISMISS_KEY);
+      if (dismissedData) {
+        const { timestamp, draftId } = JSON.parse(dismissedData);
+        const now = Date.now();
+        
+        // If dismissed less than DISMISS_DURATION ago and same draft
+        if (now - timestamp < DISMISS_DURATION && draftId === draft?.id) {
+          setDismissed(true);
+        } else {
+          // Expired or different draft, clear
+          sessionStorage.removeItem(DISMISS_KEY);
+        }
+      }
+    } catch (error) {
+      console.error('[GlobalResumeCTA] Error checking dismissed state:', error);
+    }
+  }, [draft?.id]);
+
   useEffect(() => {
     const checkDraft = () => {
       const recentDraft = getMostRecentDraft();
       setDraft(recentDraft);
+      
+      // If location changed to the draft's path, hide CTA
+      if (recentDraft && location.pathname === recentDraft.resumePath) {
+        setDismissed(true);
+      }
     };
 
     checkDraft();
     const interval = setInterval(checkDraft, 5000); // Check every 5 seconds
 
     return () => clearInterval(interval);
-  }, [getMostRecentDraft]);
+  }, [getMostRecentDraft, location.pathname]);
 
   // Don't show if no draft, dismissed, or already on the resume path
   if (!draft || dismissed || location.pathname === draft.resumePath) {
@@ -53,6 +82,17 @@ export function GlobalResumeCTA() {
 
   const handleRemindLater = () => {
     console.log('⏰ [GlobalResumeCTA] Remind later:', draft.moduleName);
+    
+    // Persist dismiss state in sessionStorage
+    try {
+      sessionStorage.setItem(DISMISS_KEY, JSON.stringify({
+        timestamp: Date.now(),
+        draftId: draft.id,
+      }));
+    } catch (error) {
+      console.error('[GlobalResumeCTA] Error persisting dismiss state:', error);
+    }
+    
     setDismissed(true);
   };
 

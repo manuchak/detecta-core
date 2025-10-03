@@ -442,6 +442,9 @@ export function RequestCreationWorkflow() {
         description: 'Puedes completar la asignación desde el dashboard de servicios programados'
       });
       
+      // CRITICAL: Set suppression flag to prevent auto-restore after successful save
+      sessionStorage.setItem('scw_suppress_restore', '1');
+      
       // Resetear el workflow después de guardar
       setTimeout(() => {
         resetWorkflow();
@@ -449,19 +452,33 @@ export function RequestCreationWorkflow() {
     } catch (error) {
       console.error('Error al guardar servicio como pendiente:', error);
       toast.error('Error al guardar la solicitud como pendiente');
+      // Don't clear draft on error - user can retry
     }
   };
 
   const resetWorkflow = () => {
-    setCurrentStep('route');
-    setRouteData(null);
-    setServiceData(null);
-    setAssignmentData(null);
-    setArmedAssignmentData(null);
-    setCreatedServiceDbId(null);
-    setModifiedSteps([]);
-    setHasInvalidatedState(false);
-    clearDraft(); // Clear persisted data
+    try {
+      setCurrentStep('route');
+      setRouteData(null);
+      setServiceData(null);
+      setAssignmentData(null);
+      setArmedAssignmentData(null);
+      setCreatedServiceDbId(null);
+      setModifiedSteps([]);
+      setHasInvalidatedState(false);
+      
+      // CRITICAL: Always clear draft in try-finally to ensure cleanup
+      clearDraft();
+      console.log('🧹 Workflow reset and draft cleared');
+    } catch (error) {
+      console.error('❌ Error resetting workflow:', error);
+      // Even if reset fails, try to clear draft
+      try {
+        clearDraft();
+      } catch (clearError) {
+        console.error('❌ Failed to clear draft:', clearError);
+      }
+    }
   };
 
   // Función para navegar a un paso específico (para edición)
@@ -531,6 +548,9 @@ export function RequestCreationWorkflow() {
         toast.success('✅ Servicio guardado exitosamente');
       }
       
+      // CRITICAL: Set suppression flag to prevent auto-restore after successful completion
+      sessionStorage.setItem('scw_suppress_restore', '1');
+      
       // Resetear después de un delay para mostrar la confirmación
       setTimeout(() => {
         resetWorkflow();
@@ -539,6 +559,7 @@ export function RequestCreationWorkflow() {
     } catch (error) {
       console.error('Error al guardar el servicio:', error);
       toast.error('Error al guardar el servicio planificado');
+      // Don't clear draft on error - user can retry
     } finally {
       setIsValidating(false);
     }
