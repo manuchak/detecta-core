@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 /**
@@ -24,6 +24,22 @@ const sanitizeDraft = <T,>(data: T): T => {
   return sanitized;
 };
 
+// Utility to compare meaningfulness of two drafts (higher score = more complete)
+function compareMeaningfulness<T>(dataA: T, dataB: T): number {
+  const scoreA = countDefinedValues(dataA);
+  const scoreB = countDefinedValues(dataB);
+  return scoreA - scoreB; // positive if A is more complete
+}
+
+function countDefinedValues(data: any): number {
+  if (data === null || data === undefined) return 0;
+  if (typeof data !== 'object') return 1;
+  if (Array.isArray(data)) {
+    return data.reduce((sum: number, item: any) => sum + countDefinedValues(item), 0);
+  }
+  return (Object.values(data) as any[]).reduce((sum: number, value: any) => sum + countDefinedValues(value), 0);
+}
+
 interface PersistedFormOptions<T> {
   key: string;
   initialData: T;
@@ -33,6 +49,7 @@ interface PersistedFormOptions<T> {
   isMeaningfulDraft?: (data: T) => boolean;
   onRestore?: (data: T) => void;
   onSave?: (data: T) => void;
+  hydrateOnMount?: boolean; // Early hydration before first render
 }
 
 interface PersistedData<T> {
@@ -50,6 +67,7 @@ export function usePersistedForm<T>({
   isMeaningfulDraft,
   onRestore,
   onSave,
+  hydrateOnMount = false,
 }: PersistedFormOptions<T>) {
   const { user } = useAuth();
   const [formData, setFormData] = useState<T>(initialData);
@@ -63,6 +81,7 @@ export function usePersistedForm<T>({
   const immediateSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hasChangesRef = useRef(false);
   const mountedRef = useRef(true);
+  const hydratedRef = useRef(false);
   
   // CRITICAL: Sync formDataRef whenever formData state changes
   useEffect(() => {
@@ -71,8 +90,43 @@ export function usePersistedForm<T>({
 
   const storageKey = user ? `${key}_${user.id}` : key;
 
-  // Load persisted data on mount
+  // Early hydration: Load draft BEFORE first render if hydrateOnMount is true
+  useLayoutEffect(() => {
+    if (!hydrateOnMount || hydratedRef.current) return;
+    
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        const parsed: PersistedData<T> = JSON.parse(stored);
+        const now = Date.now();
+        
+        if (now - parsed.timestamp < ttl && parsed.userId === user?.id) {
+          const isMeaningful = isMeaningfulDraft 
+            ? isMeaningfulDraft(parsed.data)
+            : JSON.stringify(parsed.data) !== JSON.stringify(initialData);
+          
+          if (isMeaningful) {
+            console.log(`🔄 [usePersistedForm] Early hydration (key=${key}):`, parsed.data);
+            setFormData(parsed.data);
+            formDataRef.current = parsed.data;
+            setLastSaved(new Date(parsed.timestamp));
+            setHasDraft(true);
+            hydratedRef.current = true;
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`❌ [usePersistedForm] Early hydration failed (key=${key}):`, error);
+    }
+  }, [storageKey, ttl, user?.id, isMeaningfulDraft, initialData, key, hydrateOnMount]);
+
+  // Load persisted data on mount (skip if hydrateOnMount already loaded it)
   useEffect(() => {
+    if (hydrateOnMount && hydratedRef.current) {
+      console.log(`⏭️ [usePersistedForm] Skipping mount load (already hydrated, key=${key})`);
+      return;
+    }
+    
     try {
       const stored = localStorage.getItem(storageKey);
       if (stored) {
@@ -98,7 +152,7 @@ export function usePersistedForm<T>({
       console.error('Error loading persisted form data:', error);
       localStorage.removeItem(storageKey);
     }
-  }, [storageKey, ttl, user?.id, isMeaningfulDraft]);
+  }, [storageKey, ttl, user?.id, isMeaningfulDraft, hydrateOnMount, key]);
 
   // Auto-save function with sanitization
   const saveToStorage = useCallback((data: T, silent = false) => {
@@ -167,25 +221,60 @@ export function usePersistedForm<T>({
     }
   }, [formData, saveOnChangeDebounceMs, saveToStorage]);
 
-  // Save on visibility change, page hide, or before unload - using formDataRef
+  // Save on visibility change AND reconcile on foreground
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden && hasChangesRef.current) {
-        console.log('📱 App moving to background - saving immediately');
+        console.log(`📱 [usePersistedForm] App moving to background - saving (key=${key})`);
         saveToStorage(formDataRef.current, true);
+      } else if (document.visibilityState === 'visible') {
+        // Reconcile: check if storage has a more complete draft
+        console.log(`👁️ [usePersistedForm] Tab visible - reconciling (key=${key})`);
+        try {
+          const stored = localStorage.getItem(storageKey);
+          
+          if (stored) {
+            const parsed: PersistedData<T> = JSON.parse(stored);
+            const now = Date.now();
+            
+            if (now - parsed.timestamp < ttl && parsed.userId === user?.id) {
+              const isMeaningful = isMeaningfulDraft 
+                ? isMeaningfulDraft(parsed.data)
+                : JSON.stringify(parsed.data) !== JSON.stringify(initialData);
+              
+              if (isMeaningful) {
+                // Compare: is storage more complete than current memory?
+                const comparison = compareMeaningfulness(parsed.data, formDataRef.current);
+                
+                if (comparison > 0) {
+                  console.log(`🔄 [usePersistedForm] Storage more complete, rehydrating (key=${key})`);
+                  setFormData(parsed.data);
+                  formDataRef.current = parsed.data;
+                  setLastSaved(new Date(parsed.timestamp));
+                  
+                  if (onRestore) {
+                    onRestore(parsed.data);
+                  }
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`❌ [usePersistedForm] Foreground reconciliation failed (key=${key}):`, error);
+        }
       }
     };
 
     const handlePageHide = () => {
       if (hasChangesRef.current) {
-        console.log('👋 Page hiding - saving immediately');
+        console.log(`👋 [usePersistedForm] Page hiding - saving (key=${key})`);
         saveToStorage(formDataRef.current, true);
       }
     };
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasChangesRef.current) {
-        console.log('🚪 Page unloading - saving immediately');
+        console.log(`🚪 [usePersistedForm] Page unloading - saving (key=${key})`);
         saveToStorage(formDataRef.current, true);
         e.preventDefault();
         e.returnValue = '';
@@ -201,20 +290,47 @@ export function usePersistedForm<T>({
       window.removeEventListener('pagehide', handlePageHide);
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [saveToStorage]);
+  }, [saveToStorage, storageKey, ttl, user?.id, isMeaningfulDraft, initialData, onRestore, key]);
 
-  // CRITICAL: Save on unmount for SPA navigation
+  // CRITICAL: Safe save on unmount - only save if meaningful AND more complete
   useEffect(() => {
     mountedRef.current = true;
     
     return () => {
       mountedRef.current = false;
       if (hasChangesRef.current) {
-        console.log('💾 [usePersistedForm] Component unmounting - performing final save');
+        console.log(`💾 [usePersistedForm] Component unmounting - checking save (key=${key})`);
         
-        // Perform synchronous save on unmount
         try {
-          const sanitized = sanitizeDraft(formDataRef.current);
+          const current = formDataRef.current;
+          
+          // 1. Check if current draft is meaningful
+          const isMeaningful = isMeaningfulDraft 
+            ? isMeaningfulDraft(current)
+            : JSON.stringify(current) !== JSON.stringify(initialData);
+          
+          if (!isMeaningful) {
+            console.log(`🚫 [usePersistedForm] Unmount save skipped - not meaningful (key=${key})`);
+            return;
+          }
+          
+          // 2. Read existing draft from storage
+          const stored = localStorage.getItem(storageKey);
+          
+          if (stored) {
+            const parsed: PersistedData<T> = JSON.parse(stored);
+            
+            // 3. Compare: only save if current is more complete
+            const comparison = compareMeaningfulness(current, parsed.data);
+            
+            if (comparison <= 0) {
+              console.log(`⏭️ [usePersistedForm] Unmount save skipped - existing is more/equally complete (key=${key})`);
+              return;
+            }
+          }
+          
+          // 4. Current is meaningful and more complete - save it
+          const sanitized = sanitizeDraft(current);
           const persistedData: PersistedData<T> = {
             data: sanitized,
             timestamp: Date.now(),
@@ -222,13 +338,13 @@ export function usePersistedForm<T>({
           };
           
           localStorage.setItem(storageKey, JSON.stringify(persistedData));
-          console.log('✅ [usePersistedForm] Unmount save successful');
+          console.log(`✅ [usePersistedForm] Unmount save successful (key=${key})`);
         } catch (error) {
-          console.error('❌ [usePersistedForm] Unmount save failed:', error);
+          console.error(`❌ [usePersistedForm] Unmount save failed (key=${key}):`, error);
         }
       }
     };
-  }, [storageKey, user?.id]);
+  }, [storageKey, user?.id, isMeaningfulDraft, initialData, key]);
 
   // Restore draft
   const restoreDraft = useCallback(() => {

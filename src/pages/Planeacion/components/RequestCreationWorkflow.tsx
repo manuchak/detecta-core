@@ -70,7 +70,7 @@ export function RequestCreationWorkflow() {
   const mountTimeRef = useRef(Date.now());
   const sessionIdRef = useRef(crypto.randomUUID());
   
-  // Persisted form state with user-specific key
+  // Persisted form state with user-specific key AND early hydration
   const {
     formData: persistedData,
     updateFormData,
@@ -112,6 +112,7 @@ export function RequestCreationWorkflow() {
       },
       lastEditedStep: undefined,
     },
+    hydrateOnMount: true, // CRITICAL: Early hydration before first render
     autoSaveInterval: 10000, // Auto-save every 10 seconds (reduced from 30)
     saveOnChangeDebounceMs: 700, // Save 700ms after changes
     isMeaningfulDraft: (data) => {
@@ -145,6 +146,61 @@ export function RequestCreationWorkflow() {
   // Estado para rastrear cambios y invalidaciones
   const [hasInvalidatedState, setHasInvalidatedState] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
+
+  // CRITICAL: UI State Hydration - Sync UI states when persistedData changes
+  useEffect(() => {
+    // Skip if restoring (handled by auto-restore effect)
+    if (isRestoring) return;
+    
+    // Count meaningful data in persistedData vs local state
+    const persistedMeaningful = [
+      persistedData.routeData,
+      persistedData.serviceData,
+      persistedData.assignmentData,
+      persistedData.armedAssignmentData
+    ].filter(Boolean).length;
+    
+    const localMeaningful = [
+      routeData,
+      serviceData,
+      assignmentData,
+      armedAssignmentData
+    ].filter(Boolean).length;
+    
+    // Only hydrate if persistedData is MORE complete than local state
+    if (persistedMeaningful > localMeaningful) {
+      console.log('🔄 [RequestCreationWorkflow] Hydrating UI from persistedData:', {
+        sessionId: persistedData.sessionId,
+        step: persistedData.currentStep,
+        persistedMeaningful,
+        localMeaningful,
+        timestamp: new Date().toISOString()
+      });
+      
+      setCurrentStep(persistedData.currentStep);
+      setRouteData(persistedData.routeData);
+      setServiceData(persistedData.serviceData);
+      setAssignmentData(persistedData.assignmentData);
+      setArmedAssignmentData(persistedData.armedAssignmentData);
+      setCreatedServiceDbId(persistedData.createdServiceDbId);
+      setModifiedSteps(persistedData.modifiedSteps);
+      
+      toast.info('Estado restaurado', {
+        description: 'Tu progreso ha sido recuperado',
+        duration: 2000
+      });
+    }
+  }, [
+    persistedData.currentStep,
+    persistedData.routeData,
+    persistedData.serviceData,
+    persistedData.assignmentData,
+    persistedData.armedAssignmentData,
+    persistedData.createdServiceDbId,
+    persistedData.modifiedSteps,
+    persistedData.sessionId,
+    isRestoring
+  ]);
 
   // Auto-restore draft seamlessly on mount (without prompts or time thresholds)
   useEffect(() => {
