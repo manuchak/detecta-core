@@ -28,9 +28,9 @@ export interface ConversionRateDetails {
 }
 
 export const useConversionRateDetails = (): ConversionRateDetails => {
-  // Calcular período dinámico: desde primer día del mes anterior hasta último día del mes actual
+  // Calcular período dinámico: desde julio 2025 hasta último día del mes actual
   const today = new Date();
-  const start = startOfMonth(subMonths(today, 1));
+  const start = startOfMonth(new Date(2025, 6, 1)); // Julio 2025 (mes 6 porque enero = 0)
   const end = endOfMonth(today);
   const startStr = format(start, 'yyyy-MM-dd');
   const endStr = format(end, 'yyyy-MM-dd');
