@@ -1,13 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Check, X, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { Check, X, Clock, ChevronDown, ChevronUp, Filter, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { format, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { ExpenseTimeline } from './ExpenseTimeline';
 
 // Helper function for currency formatting
 const formatCurrency = (amount: number) => {
@@ -58,6 +61,8 @@ export const ExpensesList = () => {
   const [loading, setLoading] = useState(true);
   const [processingIds, setProcessingIds] = useState<string[]>([]);
   const [expandedGasto, setExpandedGasto] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
 
   const fetchGastos = async () => {
@@ -158,225 +163,330 @@ export const ExpensesList = () => {
   const pendingGastos = gastos.filter(g => g.estado === 'pendiente');
   const allSelected = selectedGastos.length === pendingGastos.length && pendingGastos.length > 0;
 
+  // Filter gastos based on active tab and search
+  const filteredGastos = useMemo(() => {
+    let filtered = gastos;
+
+    // Filter by status
+    if (activeTab !== 'all') {
+      filtered = filtered.filter(g => g.estado === activeTab);
+    }
+
+    // Filter by search term
+    if (searchTerm) {
+      filtered = filtered.filter(g => 
+        g.concepto.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        g.categoria_principal?.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        g.canal_reclutamiento?.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    return filtered;
+  }, [gastos, activeTab, searchTerm]);
+
+  const statusCounts = useMemo(() => ({
+    all: gastos.length,
+    pendiente: gastos.filter(g => g.estado === 'pendiente').length,
+    aprobado: gastos.filter(g => g.estado === 'aprobado').length,
+    rechazado: gastos.filter(g => g.estado === 'rechazado').length,
+  }), [gastos]);
+
   if (loading) {
-    return <div className="flex justify-center p-8">Cargando gastos...</div>;
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      {/* Métricas financieras */}
+      {/* Métricas financieras compactas */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Invertido
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-2xl font-bold">
-              {formatCurrency(totalInvestment)}
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Invertido</p>
+                <p className="text-xl font-bold">{formatCurrency(totalInvestment)}</p>
+              </div>
+              <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                <span className="text-2xl">💰</span>
+              </div>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Gastos aprobados
-            </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Custodios Obtenidos
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-2xl font-bold">
-              {totalCustodians}
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Custodios</p>
+                <p className="text-xl font-bold">{totalCustodians}</p>
+              </div>
+              <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                <span className="text-2xl">👥</span>
+              </div>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Total registrado
-            </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Costo Promedio
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-2xl font-bold">
-              {totalCustodians > 0 ? formatCurrency(totalInvestment / totalCustodians) : '$0'}
+        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">CPA</p>
+                <p className="text-xl font-bold">
+                  {totalCustodians > 0 ? formatCurrency(totalInvestment / totalCustodians) : '$0'}
+                </p>
+              </div>
+              <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                <span className="text-2xl">📊</span>
+              </div>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Por custodio
-            </p>
           </CardContent>
         </Card>
       </div>
       
-      {/* Lista de gastos */}
-      <Card>
+      {/* Lista de gastos con tabs */}
+      <Card className="border-border/50 shadow-lg">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Gastos Recientes</CardTitle>
-            {pendingGastos.length > 0 && (
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  checked={allSelected}
-                  onCheckedChange={handleSelectAll}
-                  id="select-all"
-                />
-                <label htmlFor="select-all" className="text-sm cursor-pointer">
-                  Seleccionar todos los pendientes ({pendingGastos.length})
-                </label>
-              </div>
-            )}
-          </div>
-          
-          {selectedGastos.length > 0 && (
-            <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-              <span className="text-sm">{selectedGastos.length} gasto(s) seleccionado(s)</span>
-              <Button
-                size="sm"
-                onClick={() => handleApprove(selectedGastos, 'aprobar')}
-                disabled={processingIds.some(id => selectedGastos.includes(id))}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <Check className="w-4 h-4 mr-1" />
-                Aprobar Seleccionados
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => handleApprove(selectedGastos, 'rechazar')}
-                disabled={processingIds.some(id => selectedGastos.includes(id))}
-              >
-                <X className="w-4 h-4 mr-1" />
-                Rechazar Seleccionados
-              </Button>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <CardTitle className="text-xl">Gestión de Gastos</CardTitle>
+            
+            {/* Search bar */}
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar gastos..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 h-9"
+              />
             </div>
-          )}
+          </div>
         </CardHeader>
-        
-        <CardContent className="space-y-4">
-          {gastos.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">No hay gastos registrados</p>
-          ) : (
-            gastos.map((gasto) => (
-              <div
-                key={gasto.id}
-                className="border rounded-lg p-4 space-y-3 hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3">
-                    {gasto.estado === 'pendiente' && (
-                      <Checkbox
-                        checked={selectedGastos.includes(gasto.id)}
-                        onCheckedChange={(checked) => {
-                          setSelectedGastos(prev => 
-                            checked 
-                              ? [...prev, gasto.id]
-                              : prev.filter(id => id !== gasto.id)
-                          );
-                        }}
-                      />
-                    )}
-                    
-                    <div className="space-y-2 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-medium">{gasto.concepto}</h3>
-                        {getStatusBadge(gasto.estado)}
-                      </div>
-                      
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-muted-foreground">
-                        <div>
-                          <span className="font-medium text-foreground">
-                            ${gasto.monto.toLocaleString('es-MX')}
-                          </span>
-                        </div>
-                        <div>{safeFormatDate(gasto.fecha)}</div>
-                        <div>
-                          {gasto.categoria_principal?.nombre} - {gasto.subcategoria?.nombre}
-                        </div>
-                        <div>
-                          <Badge variant="outline" className="text-xs">
-                            {gasto.canal_reclutamiento?.nombre}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
 
+        <CardContent>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="all" className="flex items-center gap-2">
+                Todos
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                  {statusCounts.all}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="pendiente" className="flex items-center gap-2">
+                <Clock className="h-3 w-3" />
+                Pendientes
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                  {statusCounts.pendiente}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="aprobado" className="flex items-center gap-2">
+                <Check className="h-3 w-3" />
+                Aprobados
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                  {statusCounts.aprobado}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="rechazado" className="flex items-center gap-2">
+                <X className="h-3 w-3" />
+                Rechazados
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                  {statusCounts.rechazado}
+                </Badge>
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value={activeTab} className="space-y-4">
+              {/* Bulk actions for pending */}
+              {activeTab === 'pendiente' && pendingGastos.length > 0 && (
+                <div className="flex flex-wrap items-center gap-3 p-4 bg-muted/50 rounded-lg border border-border">
                   <div className="flex items-center gap-2">
-                    {gasto.estado === 'pendiente' && (
-                      <>
-                        <Button
-                          size="sm"
-                          onClick={() => handleApprove([gasto.id], 'aprobar')}
-                          disabled={processingIds.includes(gasto.id)}
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          <Check className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleApprove([gasto.id], 'rechazar')}
-                          disabled={processingIds.includes(gasto.id)}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </>
-                    )}
-                    
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setExpandedGasto(
-                        expandedGasto === gasto.id ? null : gasto.id
-                      )}
-                    >
-                      {expandedGasto === gasto.id ? (
-                        <ChevronUp className="w-4 h-4" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4" />
-                      )}
-                    </Button>
+                    <Checkbox
+                      checked={allSelected}
+                      onCheckedChange={handleSelectAll}
+                      id="select-all"
+                    />
+                    <label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
+                      Seleccionar todos ({pendingGastos.length})
+                    </label>
                   </div>
+                  
+                  {selectedGastos.length > 0 && (
+                    <>
+                      <div className="h-6 w-px bg-border" />
+                      <span className="text-sm text-muted-foreground">
+                        {selectedGastos.length} seleccionado(s)
+                      </span>
+                      <Button
+                        size="sm"
+                        onClick={() => handleApprove(selectedGastos, 'aprobar')}
+                        disabled={processingIds.some(id => selectedGastos.includes(id))}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <Check className="w-4 h-4 mr-1" />
+                        Aprobar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleApprove(selectedGastos, 'rechazar')}
+                        disabled={processingIds.some(id => selectedGastos.includes(id))}
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Rechazar
+                      </Button>
+                    </>
+                  )}
                 </div>
+              )}
 
-                {expandedGasto === gasto.id && (
-                  <div className="pt-3 border-t space-y-2 text-sm">
-                    {gasto.descripcion && (
-                      <div>
-                        <span className="font-medium">Descripción: </span>
-                        {gasto.descripcion}
-                      </div>
-                    )}
-                    {gasto.aprobado_en && (
-                      <div className="text-green-600">
-                        <span className="font-medium">Aprobado: </span>
-                        {safeFormatDate(gasto.aprobado_en, 'dd/MM/yyyy HH:mm')}
-                      </div>
-                    )}
-                    {gasto.rechazado_en && (
-                      <div className="text-red-600">
-                        <span className="font-medium">Rechazado: </span>
-                        {safeFormatDate(gasto.rechazado_en, 'dd/MM/yyyy HH:mm')}
-                      </div>
-                    )}
-                    {gasto.notas_aprobacion && (
-                      <div>
-                        <span className="font-medium">Notas: </span>
-                        {gasto.notas_aprobacion}
-                      </div>
-                    )}
+              {/* Expenses list */}
+              {filteredGastos.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="inline-flex h-16 w-16 rounded-full bg-muted items-center justify-center mb-4">
+                    <Filter className="h-8 w-8 text-muted-foreground" />
                   </div>
-                )}
-              </div>
-            ))
-          )}
+                  <p className="text-muted-foreground">
+                    {searchTerm ? 'No se encontraron gastos con ese criterio' : 'No hay gastos en esta categoría'}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredGastos.map((gasto) => (
+                    <Card
+                      key={gasto.id}
+                      className="group hover:shadow-md transition-all duration-300 border-border/50 bg-card/50 backdrop-blur-sm"
+                    >
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-start gap-3 flex-1">
+                            {gasto.estado === 'pendiente' && activeTab === 'pendiente' && (
+                              <Checkbox
+                                checked={selectedGastos.includes(gasto.id)}
+                                onCheckedChange={(checked) => {
+                                  setSelectedGastos(prev => 
+                                    checked 
+                                      ? [...prev, gasto.id]
+                                      : prev.filter(id => id !== gasto.id)
+                                  );
+                                }}
+                              />
+                            )}
+                            
+                            <div className="space-y-2 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="font-semibold">{gasto.concepto}</h3>
+                                {getStatusBadge(gasto.estado)}
+                              </div>
+                              
+                              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+                                <div>
+                                  <span className="text-2xl font-bold text-primary">
+                                    ${gasto.monto.toLocaleString('es-MX')}
+                                  </span>
+                                </div>
+                                <div className="text-muted-foreground">
+                                  📅 {safeFormatDate(gasto.fecha)}
+                                </div>
+                                <div>
+                                  <Badge variant="secondary">
+                                    {gasto.categoria_principal?.nombre}
+                                  </Badge>
+                                </div>
+                                <div>
+                                  <Badge variant="outline">
+                                    {gasto.canal_reclutamiento?.nombre}
+                                  </Badge>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {gasto.estado === 'pendiente' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleApprove([gasto.id], 'aprobar')}
+                                  disabled={processingIds.includes(gasto.id)}
+                                  className="bg-green-600 hover:bg-green-700 h-8"
+                                >
+                                  <Check className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleApprove([gasto.id], 'rechazar')}
+                                  disabled={processingIds.includes(gasto.id)}
+                                  className="h-8"
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </>
+                            )}
+                            
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setExpandedGasto(
+                                expandedGasto === gasto.id ? null : gasto.id
+                              )}
+                              className="h-8"
+                            >
+                              {expandedGasto === gasto.id ? (
+                                <ChevronUp className="w-4 h-4" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+
+                        {expandedGasto === gasto.id && (
+                          <div className="pt-4 border-t mt-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="space-y-3">
+                                <h4 className="font-semibold text-sm">Detalles</h4>
+                                {gasto.descripcion && (
+                                  <div className="text-sm">
+                                    <span className="font-medium text-muted-foreground">Descripción: </span>
+                                    <p className="mt-1">{gasto.descripcion}</p>
+                                  </div>
+                                )}
+                                <div className="text-sm">
+                                  <span className="font-medium text-muted-foreground">Subcategoría: </span>
+                                  {gasto.subcategoria?.nombre}
+                                </div>
+                                {gasto.notas_aprobacion && (
+                                  <div className="text-sm">
+                                    <span className="font-medium text-muted-foreground">Notas: </span>
+                                    <p className="mt-1">{gasto.notas_aprobacion}</p>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              <div>
+                                <h4 className="font-semibold text-sm mb-3">Timeline</h4>
+                                <ExpenseTimeline
+                                  createdAt={gasto.created_at}
+                                  approvedAt={gasto.aprobado_en}
+                                  rejectedAt={gasto.rechazado_en}
+                                  estado={gasto.estado}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>

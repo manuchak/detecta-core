@@ -35,6 +35,8 @@ import { CustodianEngagementDetailView } from '@/components/executive/details/Cu
 import CalibrationDashboard from '@/components/executive/CalibrationDashboard';
 import { ExpenseForm } from '@/components/recruitment/ExpenseForm';
 import { ExpensesList } from '@/components/recruitment/ExpensesList';
+import { ExpenseMetricsCards } from '@/components/recruitment/ExpenseMetricsCards';
+import { ExpenseDistributionChart } from '@/components/recruitment/ExpenseDistributionChart';
 
 const KPIDashboard = () => {
   const { kpis, loading: kpisLoading, refreshData } = useExecutiveDashboardKPIs();
@@ -329,7 +331,14 @@ const KPIDashboard = () => {
 
           {/* Cost Management Tab */}
           <TabsContent value="costos" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Hero Metrics */}
+            <ExpenseMetricsCards />
+
+            {/* Distribution Chart */}
+            <ExpenseDistributionChart />
+
+            {/* Form and List */}
+            <div className="space-y-6">
               <ExpenseForm />
               <ExpensesList />
             </div>
