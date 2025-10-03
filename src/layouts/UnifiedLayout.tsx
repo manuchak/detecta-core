@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { GlobalNav } from '@/components/navigation/GlobalNav';
-import { ContextualSidebar } from '@/components/navigation/ContextualSidebar';
+import { SidebarProvider } from '@/components/ui/sidebar';
+import { SimplifiedTopBar } from '@/components/navigation/SimplifiedTopBar';
+import { UnifiedSidebar } from '@/components/navigation/UnifiedSidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface UnifiedLayoutProps {
   children: React.ReactNode;
-  activeSection?: string;
-  onSectionChange?: (section: string) => void;
   sidebarStats?: {
     criticalAlerts?: number;
     urgentClusters?: number;
@@ -20,8 +18,6 @@ interface UnifiedLayoutProps {
 
 const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({ 
   children, 
-  activeSection = 'dashboard',
-  onSectionChange,
   sidebarStats 
 }) => {
   const { user, loading, userRole } = useAuth();
@@ -71,35 +67,17 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
     );
   }
 
-  const handleSectionChange = (section: string) => {
-    if (onSectionChange) {
-      onSectionChange(section);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background">
-      <GlobalNav />
+      <SimplifiedTopBar />
       
       <SidebarProvider defaultOpen={true}>
-        <div className="flex w-full">
-          <ContextualSidebar
-            activeSection={activeSection}
-            onSectionChange={handleSectionChange}
-            stats={sidebarStats}
-          />
+        <div className="flex w-full min-h-[calc(100vh-3rem)]">
+          <UnifiedSidebar stats={sidebarStats} />
           
-          <div className="flex-1 flex flex-col">
-            {/* Sidebar trigger for mobile/collapsed state */}
-            <div className="sticky top-14 z-40 flex h-12 items-center border-b border-border bg-background/95 backdrop-blur px-4">
-              <SidebarTrigger className="mr-2" />
-              <div className="flex-1" />
-            </div>
-            
-            <main className="flex-1 overflow-auto">
-              {children}
-            </main>
-          </div>
+          <main className="flex-1 overflow-auto">
+            {children}
+          </main>
         </div>
       </SidebarProvider>
     </div>
