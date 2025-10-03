@@ -185,9 +185,9 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <PermissionProtectedRoute permissionType="page" permissionId="dashboard" showMessage={true}>
-                        <DashboardLayout>
+                        <UnifiedLayout>
                           <KPIDashboard />
-                        </DashboardLayout>
+                        </UnifiedLayout>
                       </PermissionProtectedRoute>
                     </ProtectedRoute>
                   }
