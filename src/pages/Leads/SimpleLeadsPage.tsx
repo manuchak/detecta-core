@@ -1,11 +1,11 @@
-import DashboardLayout from "@/layouts/DashboardLayout";
+import UnifiedLayout from "@/layouts/UnifiedLayout";
 import LeadsListPage from "./LeadsListPage";
 
 const SimpleLeadsPage = () => {
   return (
-    <DashboardLayout>
+    <UnifiedLayout>
       <LeadsListPage />
-    </DashboardLayout>
+    </UnifiedLayout>
   );
 };
 
