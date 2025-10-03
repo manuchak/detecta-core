@@ -33,6 +33,8 @@ import { DailyLeadsCallsChart } from '@/components/recruitment/DailyLeadsCallsCh
 import { KPIDetailView } from '@/components/executive/KPIDetailView';
 import { CustodianEngagementDetailView } from '@/components/executive/details/CustodianEngagementDetailView';
 import CalibrationDashboard from '@/components/executive/CalibrationDashboard';
+import { ExpenseForm } from '@/components/recruitment/ExpenseForm';
+import { ExpensesList } from '@/components/recruitment/ExpensesList';
 
 const KPIDashboard = () => {
   const { kpis, loading: kpisLoading, refreshData } = useExecutiveDashboardKPIs();
@@ -286,6 +288,10 @@ const KPIDashboard = () => {
               <BarChart3 className="h-4 w-4" />
               KPIs Avanzados
             </TabsTrigger>
+            <TabsTrigger value="costos" className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Gestión de Costos
+            </TabsTrigger>
             <TabsTrigger value="resumen" className="flex items-center gap-2">
               <Building className="h-4 w-4" />
               Resumen Ejecutivo
@@ -319,6 +325,14 @@ const KPIDashboard = () => {
           {/* Advanced KPIs Tab */}
           <TabsContent value="kpis" className="space-y-6">
             <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} onKPIClick={setSelectedKPI} />
+          </TabsContent>
+
+          {/* Cost Management Tab */}
+          <TabsContent value="costos" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <ExpenseForm />
+              <ExpensesList />
+            </div>
           </TabsContent>
 
           {/* Executive Summary Tab */}
