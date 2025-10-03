@@ -209,9 +209,9 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'coordinador_operaciones', 'jefe_seguridad', 'bi']}>
-                        <DashboardLayout>
+                        <UnifiedLayout>
                           <RendimientoPage />
-                        </DashboardLayout>
+                        </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
@@ -232,9 +232,9 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'coordinador_operaciones', 'supply_admin', 'supply_lead', 'ejecutivo_ventas']}>
-                        <DashboardLayout>
+                        <UnifiedLayout>
                           <LeadApprovals />
-                        </DashboardLayout>
+                        </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
@@ -260,9 +260,9 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'manager', 'coordinador_operaciones']}>
-                        <DashboardLayout>
+                        <UnifiedLayout>
                           <SimulationScenarios />
-                        </DashboardLayout>
+                        </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
@@ -274,9 +274,9 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'manager']}>
-                        <DashboardLayout>
+                        <UnifiedLayout>
                           <ExecutiveRecruitmentDashboard />
-                        </DashboardLayout>
+                        </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
@@ -299,9 +299,9 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'supply_lead', 'supply', 'coordinador_operaciones']}>
-                        <DashboardLayout>
+                        <UnifiedLayout>
                           <SupplyChainMonitoring />
-                        </DashboardLayout>
+                        </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
@@ -312,9 +312,9 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'jefe_seguridad', 'analista_seguridad']}>
-                        <DashboardLayout>
+                        <UnifiedLayout>
                           <ForensicAuditPage />
-                        </DashboardLayout>
+                        </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
@@ -396,9 +396,9 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'monitoring_supervisor', 'monitoring', 'coordinador_operaciones']}>
-                        <DashboardLayout>
+                        <UnifiedLayout>
                           <WMSPage />
-                        </DashboardLayout>
+                        </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
@@ -408,9 +408,9 @@ function App() {
                   path="/tickets"
                   element={
                     <ProtectedRoute>
-                      <DashboardLayout>
+                      <UnifiedLayout>
                         <TicketsList />
-                      </DashboardLayout>
+                      </UnifiedLayout>
                     </ProtectedRoute>
                   }
                 />
@@ -420,9 +420,9 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner']}>
-                        <DashboardLayout>
+                        <UnifiedLayout>
                           <Settings />
-                        </DashboardLayout>
+                        </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
