@@ -3,10 +3,10 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Legend } from 'recha
 import { useCPADetails } from '@/hooks/useCPADetails';
 
 const COLORS = {
-  staff: 'hsl(var(--chart-1))',
-  technology: 'hsl(var(--chart-2))',
-  recruitment: 'hsl(var(--chart-3))',
-  marketing: 'hsl(var(--chart-4))',
+  staff: '#3b82f6',      // Blue - matches the blue metric card
+  technology: '#8b5cf6',  // Purple - matches the purple metric card  
+  recruitment: '#10b981', // Green - matches the green metric card
+  marketing: '#f59e0b',   // Orange - matches the orange metric card
 };
 
 const LABELS = {
