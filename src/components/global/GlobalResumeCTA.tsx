@@ -36,14 +36,10 @@ export function GlobalResumeCTA() {
     : 'hace un momento';
 
   const handleResume = () => {
-    console.log('🔄 [GlobalResumeCTA] Resuming draft:', draft.moduleName);
+    console.log('🔄 [GlobalResumeCTA] Resuming draft:', draft.moduleName, 'ID:', draft.id);
     
-    // Set flags for idempotent resumption
-    localStorage.setItem('service_creation_workflow_dialog_state', 'open');
-    sessionStorage.removeItem('scw_suppress_restore');
-    
-    // Navigate with resume flag
-    navigate(`${draft.resumePath}?resume=1`);
+    // Navigate to declarative resume route
+    navigate(`/resume/${draft.id}`);
     setDismissed(true);
   };
 

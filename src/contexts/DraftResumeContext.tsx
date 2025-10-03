@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useCallback, useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
 
-interface DraftInfo {
+export interface DraftInfo {
+  id: string; // Unique identifier for the draft type
   storageKey: string;
   moduleName: string;
   resumePath: string;
@@ -10,42 +11,50 @@ interface DraftInfo {
   previewText?: string;
 }
 
+// Static catalog of all known draft types in the application
+const DRAFT_CATALOG: DraftInfo[] = [
+  {
+    id: 'service-creation',
+    storageKey: 'service_creation_workflow',
+    moduleName: 'Creación de Servicio',
+    resumePath: '/planeacion',
+    isMeaningful: (data) => {
+      return data && (data.routeData || data.serviceData || data.assignmentData);
+    },
+    previewText: 'Continúa creando tu servicio',
+  },
+  {
+    id: 'lead-form',
+    storageKey: 'lead_form_draft',
+    moduleName: 'Formulario de Lead',
+    resumePath: '/leads',
+    isMeaningful: (data) => {
+      return data && (data.nombre || data.email || data.telefono);
+    },
+    previewText: 'Continúa editando el lead',
+  },
+];
+
 interface DraftResumeContextType {
-  registerDraft: (info: DraftInfo) => void;
-  unregisterDraft: (storageKey: string) => void;
   getActiveDrafts: () => DraftInfo[];
   getMostRecentDraft: () => DraftInfo | null;
   clearDraft: (storageKey: string) => void;
+  getDraftCatalog: () => DraftInfo[];
 }
 
 const DraftResumeContext = createContext<DraftResumeContextType | undefined>(undefined);
 
 export function DraftResumeProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const [registeredDrafts, setRegisteredDrafts] = useState<Map<string, DraftInfo>>(new Map());
 
-  const registerDraft = useCallback((info: DraftInfo) => {
-    setRegisteredDrafts(prev => {
-      const newMap = new Map(prev);
-      newMap.set(info.storageKey, info);
-      return newMap;
-    });
-    console.log('📝 Draft registered:', info.moduleName);
-  }, []);
-
-  const unregisterDraft = useCallback((storageKey: string) => {
-    setRegisteredDrafts(prev => {
-      const newMap = new Map(prev);
-      newMap.delete(storageKey);
-      return newMap;
-    });
-    console.log('🗑️ Draft unregistered:', storageKey);
+  const getDraftCatalog = useCallback((): DraftInfo[] => {
+    return DRAFT_CATALOG;
   }, []);
 
   const getActiveDrafts = useCallback((): DraftInfo[] => {
     const activeDrafts: DraftInfo[] = [];
     
-    registeredDrafts.forEach((info) => {
+    DRAFT_CATALOG.forEach((info) => {
       try {
         const userSpecificKey = user ? `${info.storageKey}_${user.id}` : info.storageKey;
         const stored = localStorage.getItem(userSpecificKey);
@@ -67,7 +76,7 @@ export function DraftResumeProvider({ children }: { children: React.ReactNode })
     });
 
     return activeDrafts.sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
-  }, [registeredDrafts, user]);
+  }, [user]);
 
   const getMostRecentDraft = useCallback((): DraftInfo | null => {
     const drafts = getActiveDrafts();
@@ -87,11 +96,10 @@ export function DraftResumeProvider({ children }: { children: React.ReactNode })
   return (
     <DraftResumeContext.Provider
       value={{
-        registerDraft,
-        unregisterDraft,
         getActiveDrafts,
         getMostRecentDraft,
         clearDraft,
+        getDraftCatalog,
       }}
     >
       {children}

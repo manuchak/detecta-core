@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +14,16 @@ import { LeadEstado } from "@/types/leadTypes";
 import { useLeadsStable as useLeads } from "@/hooks/useLeadsStable";
 import { Lead } from "@/types/leadTypes";
 import { useToast } from "@/components/ui/use-toast";
+import { usePersistedForm } from "@/hooks/usePersistedForm";
+import { useAuth } from "@/contexts/AuthContext";
+
+interface LeadFormData {
+  nombre: string;
+  email: string;
+  telefono: string;
+  estado: string;
+  notas: string;
+}
 
 interface LeadFormProps {
   editingLead?: Lead | null;
@@ -25,19 +34,34 @@ interface LeadFormProps {
 export const LeadForm = ({ editingLead, onSuccess, onCancel }: LeadFormProps) => {
   const { createLead, updateLead } = useLeads();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  const [formData, setFormData] = useState({
-    nombre: "",
-    email: "",
-    telefono: "",
-    estado: "nuevo",
-    notas: "",
+  // Use persisted form for draft functionality
+  const {
+    formData,
+    updateFormData,
+    hasDraft,
+    restoreDraft,
+    clearDraft,
+  } = usePersistedForm<LeadFormData>({
+    key: 'lead_form_draft',
+    initialData: {
+      nombre: "",
+      email: "",
+      telefono: "",
+      estado: "nuevo",
+      notas: "",
+    },
+    saveOnChangeDebounceMs: 1000,
+    isMeaningfulDraft: (data) => {
+      return !!(data.nombre || data.email || data.telefono);
+    },
   });
 
   useEffect(() => {
     if (editingLead) {
-      setFormData({
+      updateFormData({
         nombre: editingLead.nombre || "",
         email: editingLead.email || "",
         telefono: editingLead.telefono || "",
@@ -48,7 +72,7 @@ export const LeadForm = ({ editingLead, onSuccess, onCancel }: LeadFormProps) =>
   }, [editingLead]);
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
+    updateFormData(prev => ({
       ...prev,
       [field]: value
     }));
@@ -82,6 +106,9 @@ export const LeadForm = ({ editingLead, onSuccess, onCancel }: LeadFormProps) =>
       } else {
         await createLead.mutateAsync(typedFormData);
       }
+      
+      // Clear draft on successful submission
+      clearDraft();
       onSuccess();
     } catch (error) {
       console.error('Error saving lead:', error);

@@ -1,12 +1,14 @@
 // @ts-nocheck
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as SonnerToaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/components/theme-provider';
-import { AuthProvider } from '@/contexts/AuthContext';
-import { DraftResumeProvider } from '@/contexts/DraftResumeContext';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { DraftResumeProvider, useDraftResume } from '@/contexts/DraftResumeContext';
 import { lazy, Suspense } from 'react';
+import { LastRouteRestorer } from '@/components/global/LastRouteRestorer';
+import { GlobalResumeCTA } from '@/components/global/GlobalResumeCTA';
 
 // Layout imports
 import DashboardLayout from '@/layouts/DashboardLayout';
@@ -68,6 +70,30 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import RoleProtectedRoute from '@/components/RoleProtectedRoute';
 import PermissionProtectedRoute from '@/components/PermissionProtectedRoute';
 
+// Resume Route Handler Component
+function ResumeRouteHandler() {
+  const { getDraftCatalog } = useDraftResume();
+  const { user } = useAuth();
+  
+  return (
+    <Routes>
+      {getDraftCatalog().map((draft) => (
+        <Route
+          key={draft.id}
+          path={`/${draft.id}`}
+          element={
+            <Navigate 
+              to={`${draft.resumePath}?resume=1`}
+              replace
+              state={{ draftId: draft.id }}
+            />
+          }
+        />
+      ))}
+    </Routes>
+  );
+}
+
 // Loading component
 const LoadingFallback = () => (
   <div className="flex items-center justify-center min-h-screen">
@@ -80,6 +106,7 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 5 * 60 * 1000, // 5 minutes
       retry: 1,
+      refetchOnWindowFocus: false, // Disable aggressive refetch on tab switch
     },
   },
 });
@@ -91,16 +118,17 @@ function App() {
         <AuthProvider>
           <DraftResumeProvider>
             <Router>
+              <LastRouteRestorer />
               <div className="min-h-screen bg-background">
                 <Suspense fallback={<LoadingFallback />}>
                   <Routes>
                   {/* Main route - Leads as principal page */}
                   <Route path="/" element={<SimpleLeadsPage />} />
                   
-                  {/* Deep-link for draft resumption */}
-                  <Route path="/resume/service-creation" element={
+                  {/* Deep-link routes for draft resumption */}
+                  <Route path="/resume/*" element={
                     <ProtectedRoute>
-                      <PlaneacionDashboard />
+                      <ResumeRouteHandler />
                     </ProtectedRoute>
                   } />
                 <Route path="/landing" element={<Landing />} />
@@ -547,9 +575,7 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'coordinador_operaciones', 'planificador']}>
-                        <DashboardLayout>
-                          <PlaneacionDashboard />
-                        </DashboardLayout>
+                        <PlaneacionDashboard />
                       </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
@@ -573,6 +599,7 @@ function App() {
                 <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
+              <GlobalResumeCTA />
             </div>
           </Router>
           <Toaster />
