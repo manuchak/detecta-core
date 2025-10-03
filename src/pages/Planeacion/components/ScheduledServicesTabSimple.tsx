@@ -10,7 +10,7 @@ import { ContextualEditModal } from '@/components/planeacion/ContextualEditModal
 import { ReassignmentModal, type ServiceForReassignment } from '@/components/planeacion/ReassignmentModal';
 import { ServiceHistoryModal } from '@/components/planeacion/ServiceHistoryModal';
 import { AirlineDateSelector } from '@/components/planeacion/AirlineDateSelector';
-import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Edit, RefreshCw, History } from 'lucide-react';
+import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Edit, RefreshCw, History, UserCircle } from 'lucide-react';
 import { CancelServiceButton } from '@/components/planeacion/CancelServiceButton';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -384,6 +384,16 @@ export function ScheduledServicesTab() {
                       </>
                     )}
                   </div>
+                  
+                  {/* Línea 3.5: Planificador (solo si existe) */}
+                  {service.planner_name && (
+                    <div className="flex items-center space-x-1.5 mb-3">
+                      <UserCircle className="w-3.5 h-3.5 text-muted-foreground/70" />
+                      <span className="apple-text-caption text-muted-foreground/70">
+                        Asignado por {service.planner_name}
+                      </span>
+                    </div>
+                  )}
                   
                   {/* Línea 4: Mensaje de estado (solo si hay algo pendiente) */}
                   {(statusConfig.message && statusConfig.color !== 'bg-green-500') && (

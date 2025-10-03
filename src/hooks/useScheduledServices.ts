@@ -16,6 +16,8 @@ export interface ScheduledService {
   estado_asignacion?: string;
   auto?: string;
   placa?: string;
+  assigned_by?: string;
+  planner_name?: string;
 }
 
 export interface ScheduledServicesSummary {
