@@ -132,19 +132,19 @@ export const ImprovedLeadCard = ({
               <div className="flex items-center gap-1.5 flex-wrap">
                 {getStatusBadge(lead.approval_stage, lead.final_decision)}
                 {hasMissingInfo && (
-                  <Badge variant="outline" className="text-xs px-1.5 py-0.5 text-amber-600 border-amber-200 bg-amber-50 dark:bg-amber-950 dark:text-amber-400">
+                  <Badge variant="outline" className="text-xs px-1.5 py-0.5 text-amber-800 border-amber-300 bg-amber-100 dark:bg-amber-900 dark:text-amber-200 dark:border-amber-700 font-medium">
                     <AlertTriangle className="h-2.5 w-2.5 mr-1" />
                     Incompleta
                   </Badge>
                 )}
                 {lead.has_scheduled_call && (
-                  <Badge variant="outline" className="text-xs px-1.5 py-0.5 text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-950 dark:text-blue-400">
+                  <Badge variant="outline" className="text-xs px-1.5 py-0.5 text-blue-800 border-blue-300 bg-blue-100 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-700 font-medium">
                     <Calendar className="h-2.5 w-2.5 mr-1" />
                     Programada
                   </Badge>
                 )}
                 {lead.interview_in_progress && (
-                  <Badge variant="outline" className="text-xs px-1.5 py-0.5 text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-950 dark:text-blue-400">
+                  <Badge variant="outline" className="text-xs px-1.5 py-0.5 text-blue-800 border-blue-300 bg-blue-100 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-700 font-medium">
                     <Edit className="h-2.5 w-2.5 mr-1" />
                     En progreso
                   </Badge>
@@ -153,12 +153,12 @@ export const ImprovedLeadCard = ({
                   <Badge 
                     variant="outline" 
                     className={cn(
-                      "text-xs px-1.5 py-0.5",
+                      "text-xs px-1.5 py-0.5 font-medium",
                       lead.contact_attempts_count >= 3 
-                        ? "text-red-600 border-red-200 bg-red-50 dark:bg-red-950 dark:text-red-400"
+                        ? "text-red-800 border-red-300 bg-red-100 dark:bg-red-900 dark:text-red-200 dark:border-red-700"
                         : lead.contact_attempts_count >= 2
-                        ? "text-orange-600 border-orange-200 bg-orange-50 dark:bg-orange-950 dark:text-orange-400" 
-                        : "text-gray-600 border-gray-200 bg-gray-50 dark:bg-gray-950 dark:text-gray-400"
+                        ? "text-orange-800 border-orange-300 bg-orange-100 dark:bg-orange-900 dark:text-orange-200 dark:border-orange-700" 
+                        : "text-slate-800 border-slate-300 bg-slate-100 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600"
                     )}
                   >
                     <PhoneCall className="h-2.5 w-2.5 mr-1" />
@@ -173,7 +173,7 @@ export const ImprovedLeadCard = ({
           {lead.analista_nombre && (
             <Badge 
               variant="outline" 
-              className="text-xs px-2 py-1 bg-primary/5 text-primary border-primary/20 font-medium"
+              className="text-xs px-2 py-1 bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-700 font-medium"
             >
               <User className="h-3 w-3 mr-1" />
               {lead.analista_nombre}

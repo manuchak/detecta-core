@@ -95,6 +95,18 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
     }
   };
 
+  // Auto-expand "Candidatos" menu when on /leads routes
+  React.useEffect(() => {
+    if (location.pathname.startsWith('/leads')) {
+      const candidatosIndex = navigationItems.findIndex(item => 
+        item.title === "Candidatos"
+      );
+      if (candidatosIndex !== -1 && !expandedItems.includes(candidatosIndex)) {
+        setExpandedItems(prev => [...prev, candidatosIndex]);
+      }
+    }
+  }, [location.pathname]);
+
   // Crear componente UserProfile - ahora con mejor UX en la parte superior
   const UserProfile = () => (
     <div className="px-3 py-3 border-b border-border bg-muted/30">

@@ -192,29 +192,29 @@ export const LeadsTable = ({ onEditLead, onQuickPreview, filterByDecision = 'all
     const statusMap: Record<string, { label: string; className: string }> = {
       'nuevo': { 
         label: 'Nuevo', 
-        className: 'bg-info/10 text-info-foreground border-info/20' 
+        className: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-700 font-medium' 
       },
       'en_proceso': { 
         label: 'En Proceso', 
-        className: 'bg-warning/10 text-warning-foreground border-warning/20' 
+        className: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900 dark:text-amber-200 dark:border-amber-700 font-medium' 
       },
       'aprobado': { 
         label: 'Aprobado', 
-        className: 'bg-success/10 text-success-foreground border-success/20' 
+        className: 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900 dark:text-emerald-200 dark:border-emerald-700 font-medium' 
       },
       'rechazado': { 
         label: 'Rechazado', 
-        className: 'bg-destructive/10 text-destructive-foreground border-destructive/20' 
+        className: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900 dark:text-red-200 dark:border-red-700 font-medium' 
       },
       'pendiente': { 
         label: 'Pendiente', 
-        className: 'bg-secondary text-secondary-foreground border-border' 
+        className: 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600 font-medium' 
       }
     };
     
     const config = statusMap[status] || { 
       label: status, 
-      className: 'bg-secondary text-secondary-foreground border-border' 
+      className: 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-200 font-medium' 
     };
     
     return (
@@ -672,8 +672,8 @@ export const LeadsTable = ({ onEditLead, onQuickPreview, filterByDecision = 'all
           {filteredLeads.map((lead) => {
             const isAssigned = !!lead.asignado_a;
             const rowClass = isAssigned 
-              ? "bg-success/5 hover:bg-success/10 border-l-4 border-l-success/50" 
-              : "bg-destructive/5 hover:bg-destructive/10 border-l-4 border-l-destructive/50";
+              ? "bg-emerald-50/50 hover:bg-emerald-50 border-l-4 border-l-emerald-400 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/30 dark:border-l-emerald-600" 
+              : "bg-orange-50/50 hover:bg-orange-50 border-l-4 border-l-orange-400 dark:bg-orange-950/20 dark:hover:bg-orange-950/30 dark:border-l-orange-600";
             
             const daysSinceContact = lead.fecha_contacto 
               ? Math.floor((new Date().getTime() - new Date(lead.fecha_contacto).getTime()) / (1000 * 3600 * 24))
@@ -705,12 +705,12 @@ export const LeadsTable = ({ onEditLead, onQuickPreview, filterByDecision = 'all
                       {daysSinceContact !== null && daysSinceContact > 0 && (
                         <Badge 
                           variant="outline" 
-                          className={`text-xs ${
+                          className={`text-xs font-medium ${
                             daysSinceContact > 7 
-                              ? 'border-destructive/20 bg-destructive/10 text-destructive-foreground' 
+                              ? 'border-red-300 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 dark:border-red-700' 
                               : daysSinceContact > 3 
-                              ? 'border-warning/20 bg-warning/10 text-warning-foreground'
-                              : 'border-border bg-secondary text-secondary-foreground'
+                              ? 'border-amber-300 bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 dark:border-amber-700'
+                              : 'border-slate-300 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600'
                           }`}
                         >
                           Hace {daysSinceContact}d
@@ -718,30 +718,30 @@ export const LeadsTable = ({ onEditLead, onQuickPreview, filterByDecision = 'all
                       )}
                     </div>
                   ) : (
-                    <Badge variant="outline" className="border-destructive/20 bg-destructive/10 text-destructive-foreground">
+                    <Badge variant="outline" className="border-red-300 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 dark:border-red-700 font-medium">
                       Sin contactar
                     </Badge>
                   )}
                 </TableCell>
                 <TableCell>
                   {isAssigned ? (
-                    <div className="flex items-center space-x-3 p-2 bg-success/10 rounded-lg border border-success/20">
-                      <div className="flex items-center justify-center w-8 h-8 bg-success/20 rounded-full">
-                        <User className="h-4 w-4 text-success-foreground" />
+                    <div className="flex items-center space-x-3 p-2 bg-emerald-100 rounded-lg border border-emerald-300 dark:bg-emerald-900 dark:border-emerald-700">
+                      <div className="flex items-center justify-center w-8 h-8 bg-emerald-200 rounded-full dark:bg-emerald-800">
+                        <User className="h-4 w-4 text-emerald-700 dark:text-emerald-200" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-sm font-medium text-success-foreground">Asignado</span>
-                        <span className="text-xs text-muted-foreground">ID: {lead.asignado_a?.slice(-8)}</span>
+                        <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-100">Asignado</span>
+                        <span className="text-xs text-emerald-700 dark:text-emerald-300">ID: {lead.asignado_a?.slice(-8)}</span>
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center space-x-3 p-2 bg-destructive/10 rounded-lg border border-destructive/20">
-                      <div className="flex items-center justify-center w-8 h-8 bg-destructive/20 rounded-full">
-                        <UserX className="h-4 w-4 text-destructive-foreground" />
+                    <div className="flex items-center space-x-3 p-2 bg-orange-100 rounded-lg border border-orange-300 dark:bg-orange-900 dark:border-orange-700">
+                      <div className="flex items-center justify-center w-8 h-8 bg-orange-200 rounded-full dark:bg-orange-800">
+                        <UserX className="h-4 w-4 text-orange-700 dark:text-orange-200" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-sm font-medium text-destructive-foreground">Sin asignar</span>
-                        <span className="text-xs text-muted-foreground">Requiere asignación</span>
+                        <span className="text-sm font-semibold text-orange-800 dark:text-orange-100">Sin asignar</span>
+                        <span className="text-xs text-orange-700 dark:text-orange-300">Requiere asignación</span>
                       </div>
                     </div>
                   )}
