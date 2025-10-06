@@ -9,6 +9,7 @@ import {
   Ticket,
   Settings,
   Shield,
+  CheckCircle2,
   LucideIcon
 } from 'lucide-react';
 
@@ -40,6 +41,14 @@ export const navigationModules: NavigationModule[] = [
     label: 'Leads',
     icon: UserCheck,
     path: '/leads'
+  },
+  {
+    id: 'leads_approvals',
+    label: 'Aprobaciones',
+    icon: CheckCircle2,
+    path: '/leads/approvals',
+    roles: ['admin', 'owner', 'coordinador_operaciones', 'supply_admin', 'supply_lead', 'ejecutivo_ventas'],
+    matchPaths: ['/leads/approvals']
   },
   {
     id: 'planeacion',
