@@ -7,6 +7,7 @@ import { usePreviousMonthData } from '@/hooks/usePreviousMonthData';
 import { Loader2, TrendingUp, Target, DollarSign, AlertTriangle, Brain, Activity, CheckCircle, History, Clock } from 'lucide-react';
 import { getPaceStatus, getStatusTextColor } from '@/utils/paceStatus';
 import { getCurrentMonthInfo, getDaysRemainingInMonth, formatMonthlyQuestion, getPreviousMonthName, capitalize } from '@/utils/dynamicDateUtils';
+import { formatGMV } from '@/utils/formatUtils';
 import { useMemo } from 'react';
 
 export const GMVProjectionCard = () => {
@@ -213,13 +214,13 @@ export const GMVProjectionCard = () => {
             <div>
               <div className="font-medium">vs {previousMonthData.month}:</div>
               <div className="text-sm text-muted-foreground">
-                {previousMonthData.month} cerró con ${previousMonthData.gmv.toFixed(1)}M GMV
+                {previousMonthData.month} cerró con {formatGMV(previousMonthData.gmv * 1_000_000)} GMV
               </div>
             </div>
             <div className="text-right">
               <div className={`text-lg font-bold ${calculations.mostLikelyGMV > previousMonthData.gmv ? 'text-success' : 'text-destructive'}`}>
                 {calculations.mostLikelyGMV > previousMonthData.gmv ? '+' : ''}
-                ${(calculations.mostLikelyGMV - previousMonthData.gmv).toFixed(1)}M
+                {formatGMV((calculations.mostLikelyGMV - previousMonthData.gmv) * 1_000_000)}
               </div>
               <div className={`text-sm ${calculations.mostLikelyGMV > previousMonthData.gmv ? 'text-success' : 'text-destructive'}`}>
                 {calculations.mostLikelyGMV > previousMonthData.gmv ? '+' : ''}
@@ -244,8 +245,8 @@ export const GMVProjectionCard = () => {
             <div className="space-y-1">
               <div className="font-medium">
                 {calculations.mostLikelyGMV < previousMonthData.gmv ? 
-                  `Riesgo: faltarían $${(previousMonthData.gmv - calculations.mostLikelyGMV).toFixed(1)}M para superar ${previousMonthData.month}. Necesitas ${data.insights.paceNeeded} servicios/día vs ${data.current.dailyPace.toFixed(1)} actual.` :
-                  `🎯 En camino de superar ${previousMonthData.month} por $${(calculations.mostLikelyGMV - previousMonthData.gmv).toFixed(1)}M`
+                  `Riesgo: faltarían ${formatGMV((previousMonthData.gmv - calculations.mostLikelyGMV) * 1_000_000)} para superar ${previousMonthData.month}. Necesitas ${data.insights.paceNeeded} servicios/día vs ${data.current.dailyPace.toFixed(1)} actual.` :
+                  `🎯 En camino de superar ${previousMonthData.month} por ${formatGMV((calculations.mostLikelyGMV - previousMonthData.gmv) * 1_000_000)}`
                 }
               </div>
               {data.confidence.warnings.length > 0 && (

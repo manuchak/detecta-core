@@ -41,7 +41,7 @@ export const usePreviousMonthData = (): PreviousMonthData => {
       
       return {
         month: MONTH_NAMES[previousMonth - 1],
-        gmv: previousMonthData?.gmv || 0,
+        gmv: (previousMonthData?.gmv || 0) / 1_000_000, // Convert to millions
         services: previousMonthData?.services || 0
       };
     },
