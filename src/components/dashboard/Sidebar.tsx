@@ -100,17 +100,6 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
     }
   };
 
-  // Auto-expand "Candidatos" menu when on /leads routes
-  React.useEffect(() => {
-    if (location.pathname.startsWith('/leads')) {
-      const candidatosIndex = navigationItems.findIndex(item => 
-        item.title === "Candidatos"
-      );
-      if (candidatosIndex !== -1 && !expandedItems.includes(candidatosIndex)) {
-        setExpandedItems(prev => [...prev, candidatosIndex]);
-      }
-    }
-  }, [location.pathname]);
 
   // Crear componente UserProfile - ahora con mejor UX en la parte superior
   const UserProfile = () => (
@@ -354,6 +343,18 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
       path: "/settings",
     }] : []),
   ];
+
+  // Auto-expand "Candidatos" menu when on /leads routes
+  React.useEffect(() => {
+    if (location.pathname.startsWith('/leads')) {
+      const candidatosIndex = navigationItems.findIndex(item => 
+        item.title === "Candidatos"
+      );
+      if (candidatosIndex !== -1 && !expandedItems.includes(candidatosIndex)) {
+        setExpandedItems(prev => [...prev, candidatosIndex]);
+      }
+    }
+  }, [location.pathname, navigationItems.length]);
 
   return (
     <div className={cn("flex flex-col h-full", className)} {...props}>
