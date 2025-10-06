@@ -3,6 +3,7 @@ import { getPaceStatus } from '@/utils/paceStatus';
 import { useDynamicServiceData } from './useDynamicServiceData';
 import { calculateMTDComparison, type MTDComparisonData } from '@/utils/mtdComparison';
 import { supabase } from '@/integrations/supabase/client';
+import { useRealisticProjectionsWithGuardrails } from './useRealisticProjectionsWithGuardrails';
 
 interface MonthClosureData {
   current: {
@@ -56,11 +57,13 @@ const getMonthName = (month: number): string => {
 
 export const useMonthClosureAnalysis = () => {
   const { data: dynamicData, isLoading: dynamicDataLoading } = useDynamicServiceData();
+  const { data: realisticProjections, isLoading: projectionsLoading } = useRealisticProjectionsWithGuardrails();
 
   return useAuthenticatedQuery(
-    ['month-closure-analysis', dynamicData ? 'ready' : 'waiting'],
+    ['month-closure-analysis', dynamicData ? 'ready' : 'waiting', realisticProjections ? 'projections-ready' : 'waiting'],
     async (): Promise<MonthClosureData> => {
       if (!dynamicData) throw new Error('Dynamic data not available');
+      if (!realisticProjections) throw new Error('Realistic projections not available');
 
       // Get MTD comparison data
       const mtdComparison = await calculateMTDComparison();
@@ -107,12 +110,26 @@ export const useMonthClosureAnalysis = () => {
       // Calculate projection for current month
       const currentPace = currentServices / daysElapsed;
       const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
-      const projectedServices = Math.round(currentPace * daysInMonth);
-      const projectedGMV = projectedServices * avgAOV / 1000000;
+      
+      // Use realistic projection scenario as target (no artificial 5% inflation)
+      const realistaScenario = realisticProjections.scenarios.find(s => s.name === 'Realista');
+      const targetServices = realistaScenario?.services || Math.round(currentPace * daysInMonth);
+      const targetGMV = realistaScenario?.gmv || (targetServices * avgAOV / 1000000);
+      
+      // Most likely projection (can differ from target)
+      const projectedServices = realisticProjections.mostLikely.services;
+      const projectedGMV = realisticProjections.mostLikely.gmv;
 
-      // Dynamic target based on GMV projection / AOV
-      const targetGMV = projectedGMV * 1.05; // 5% growth target
-      const targetServices = Math.round(targetGMV * 1000000 / avgAOV);
+      console.log('🎯 TARGET CALCULATION:', {
+        source: 'useRealisticProjections - Escenario Realista',
+        targetServices,
+        targetGMV: `$${targetGMV.toFixed(2)}M`,
+        projectionServices: projectedServices,
+        projectionGMV: `$${projectedGMV.toFixed(2)}M`,
+        currentPace: currentPace.toFixed(2),
+        requiredPace: ((targetServices - currentServices) / daysRemaining).toFixed(2),
+        status: currentPace >= ((targetServices - currentServices) / daysRemaining) ? '✅ En meta' : '⚠️ En riesgo'
+      });
 
       const current = {
         services: currentServices,

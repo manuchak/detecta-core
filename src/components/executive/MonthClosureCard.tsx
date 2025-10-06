@@ -63,7 +63,12 @@ export const MonthClosureCard = () => {
         <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
           <Target className="h-4 w-4 text-primary" />
           <span className="text-xs text-muted-foreground">
-            Meta dinámica: <span className="font-medium text-foreground">{formatNumber(data.projection.services)} srv</span> ({formatGMV(data.projection.gmv * 1_000_000)} / AOV ${formatNumber(data.current.aov)})
+            Meta realista: <span className="font-medium text-foreground">{formatNumber(data.target.services)} srv</span> ({formatGMV(data.target.gmv * 1_000_000)} / AOV ${formatNumber(data.current.aov)})
+            {data.projection.services !== data.target.services && (
+              <span className="text-primary ml-1">
+                • Proyección: {formatNumber(data.projection.services)} srv
+              </span>
+            )}
           </span>
         </div>
       </CardHeader>
@@ -197,7 +202,12 @@ export const MonthClosureCard = () => {
             </div>
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">{data.current.monthName} (proyección):</span>
-              <span className="font-medium">{formatNumber(data.projection.services)} srv | {formatGMV(data.projection.gmv * 1_000_000)}</span>
+              <div className="flex items-center gap-1">
+                <span className="font-medium">{formatNumber(data.projection.services)} srv | {formatGMV(data.projection.gmv * 1_000_000)}</span>
+                <span className={`text-xs ${data.projection.services >= data.target.services ? 'text-success' : 'text-muted-foreground'}`}>
+                  ({data.projection.services >= data.target.services ? 'Supera meta' : 'Por debajo de meta'})
+                </span>
+              </div>
             </div>
           </div>
         </div>
