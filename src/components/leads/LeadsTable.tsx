@@ -189,17 +189,37 @@ export const LeadsTable = ({ onEditLead, onQuickPreview, filterByDecision = 'all
   }, []);
 
   const getStatusBadge = (status: string) => {
-    const statusColors = {
-      'nuevo': 'bg-blue-100 text-blue-800',
-      'en_proceso': 'bg-yellow-100 text-yellow-800',
-      'aprobado': 'bg-green-100 text-green-800',
-      'rechazado': 'bg-red-100 text-red-800',
-      'pendiente': 'bg-orange-100 text-orange-800'
+    const statusMap: Record<string, { label: string; className: string }> = {
+      'nuevo': { 
+        label: 'Nuevo', 
+        className: 'bg-info/10 text-info-foreground border-info/20' 
+      },
+      'en_proceso': { 
+        label: 'En Proceso', 
+        className: 'bg-warning/10 text-warning-foreground border-warning/20' 
+      },
+      'aprobado': { 
+        label: 'Aprobado', 
+        className: 'bg-success/10 text-success-foreground border-success/20' 
+      },
+      'rechazado': { 
+        label: 'Rechazado', 
+        className: 'bg-destructive/10 text-destructive-foreground border-destructive/20' 
+      },
+      'pendiente': { 
+        label: 'Pendiente', 
+        className: 'bg-secondary text-secondary-foreground border-border' 
+      }
+    };
+    
+    const config = statusMap[status] || { 
+      label: status, 
+      className: 'bg-secondary text-secondary-foreground border-border' 
     };
     
     return (
-      <Badge className={statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'}>
-        {status}
+      <Badge variant="outline" className={`border ${config.className}`}>
+        {config.label}
       </Badge>
     );
   };
@@ -642,7 +662,8 @@ export const LeadsTable = ({ onEditLead, onQuickPreview, filterByDecision = 'all
               <TableHead>Email</TableHead>
               <TableHead>Teléfono</TableHead>
               <TableHead>Estado</TableHead>
-              <TableHead>Fecha</TableHead>
+              <TableHead>Fecha Creación</TableHead>
+              <TableHead>Último Contacto</TableHead>
               <TableHead className="w-[200px]">Asignación</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
@@ -651,8 +672,12 @@ export const LeadsTable = ({ onEditLead, onQuickPreview, filterByDecision = 'all
           {filteredLeads.map((lead) => {
             const isAssigned = !!lead.asignado_a;
             const rowClass = isAssigned 
-              ? "bg-green-50 hover:bg-green-100/80 border-l-4 border-l-green-500" 
-              : "bg-red-50 hover:bg-red-100/80 border-l-4 border-l-red-500";
+              ? "bg-success/5 hover:bg-success/10 border-l-4 border-l-success/50" 
+              : "bg-destructive/5 hover:bg-destructive/10 border-l-4 border-l-destructive/50";
+            
+            const daysSinceContact = lead.fecha_contacto 
+              ? Math.floor((new Date().getTime() - new Date(lead.fecha_contacto).getTime()) / (1000 * 3600 * 24))
+              : null;
             
             return (
               <TableRow key={lead.id} className={rowClass}>
@@ -672,24 +697,51 @@ export const LeadsTable = ({ onEditLead, onQuickPreview, filterByDecision = 'all
                   {lead.fecha_creacion ? new Date(lead.fecha_creacion).toLocaleDateString('es-ES') : 'N/A'}
                 </TableCell>
                 <TableCell>
+                  {lead.fecha_contacto ? (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm">
+                        {new Date(lead.fecha_contacto).toLocaleDateString('es-ES')}
+                      </span>
+                      {daysSinceContact !== null && daysSinceContact > 0 && (
+                        <Badge 
+                          variant="outline" 
+                          className={`text-xs ${
+                            daysSinceContact > 7 
+                              ? 'border-destructive/20 bg-destructive/10 text-destructive-foreground' 
+                              : daysSinceContact > 3 
+                              ? 'border-warning/20 bg-warning/10 text-warning-foreground'
+                              : 'border-border bg-secondary text-secondary-foreground'
+                          }`}
+                        >
+                          Hace {daysSinceContact}d
+                        </Badge>
+                      )}
+                    </div>
+                  ) : (
+                    <Badge variant="outline" className="border-destructive/20 bg-destructive/10 text-destructive-foreground">
+                      Sin contactar
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell>
                   {isAssigned ? (
-                    <div className="flex items-center space-x-3 p-2 bg-green-100 rounded-lg border border-green-200">
-                      <div className="flex items-center justify-center w-8 h-8 bg-green-500 rounded-full">
-                        <User className="h-4 w-4 text-white" />
+                    <div className="flex items-center space-x-3 p-2 bg-success/10 rounded-lg border border-success/20">
+                      <div className="flex items-center justify-center w-8 h-8 bg-success/20 rounded-full">
+                        <User className="h-4 w-4 text-success-foreground" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-sm font-medium text-green-800">Asignado</span>
-                        <span className="text-xs text-green-600">ID: {lead.asignado_a?.slice(-8)}</span>
+                        <span className="text-sm font-medium text-success-foreground">Asignado</span>
+                        <span className="text-xs text-muted-foreground">ID: {lead.asignado_a?.slice(-8)}</span>
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center space-x-3 p-2 bg-red-100 rounded-lg border border-red-200">
-                      <div className="flex items-center justify-center w-8 h-8 bg-red-500 rounded-full">
-                        <UserX className="h-4 w-4 text-white" />
+                    <div className="flex items-center space-x-3 p-2 bg-destructive/10 rounded-lg border border-destructive/20">
+                      <div className="flex items-center justify-center w-8 h-8 bg-destructive/20 rounded-full">
+                        <UserX className="h-4 w-4 text-destructive-foreground" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-sm font-medium text-red-800">Sin asignar</span>
-                        <span className="text-xs text-red-600">Requiere asignación</span>
+                        <span className="text-sm font-medium text-destructive-foreground">Sin asignar</span>
+                        <span className="text-xs text-muted-foreground">Requiere asignación</span>
                       </div>
                     </div>
                   )}

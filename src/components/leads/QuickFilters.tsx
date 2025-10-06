@@ -49,15 +49,33 @@ const defaultPresets: QuickFilterPreset[] = [
     isDefault: true
   },
   {
+    id: "this-month",
+    name: "Este mes",
+    filters: { days: 30 },
+    isDefault: true
+  },
+  {
     id: "unassigned-recent",
     name: "Sin asignar (últimos 2 días)",
     filters: { days: 2, assignment: "unassigned" },
     isDefault: true
   },
   {
+    id: "unassigned-urgent",
+    name: "Sin asignar (urgente - 24h)",
+    filters: { days: 1, assignment: "unassigned" },
+    isDefault: true
+  },
+  {
     id: "web-leads-week",
     name: "Web - Esta semana",
     filters: { days: 7, source: "web" },
+    isDefault: true
+  },
+  {
+    id: "referidos-week",
+    name: "Referidos - Esta semana",
+    filters: { days: 7, source: "referido" },
     isDefault: true
   }
 ];
