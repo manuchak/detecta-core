@@ -34,9 +34,10 @@ import { useAuth } from "@/contexts/AuthContext";
 
 interface LeadsTableProps {
   onEditLead?: (lead: Lead) => void;
+  filterByDecision?: 'all' | 'approved' | 'pending' | 'rejected';
 }
 
-export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
+export const LeadsTable = ({ onEditLead, filterByDecision = 'all' }: LeadsTableProps) => {
   // Estados para tabs y UI principal
   const [activeTab, setActiveTab] = useState("leads");
   
@@ -212,7 +213,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedLeads(leads); // Usar leads directamente (ya filtrados en backend)
+      setSelectedLeads(filteredLeads); // Usar filteredLeads en lugar de leads
     } else {
       setSelectedLeads([]);
     }
@@ -226,9 +227,36 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
     return selectedLeads.some(lead => lead.id === leadId);
   };
 
-  // Los leads ya vienen filtrados del backend
-  const allFilteredSelected = leads.length > 0 && 
-    leads.every(lead => isLeadSelected(lead.id));
+  // Filtrar leads por decisión de aprobación (frontend)
+  const filteredLeads = useMemo(() => {
+    if (filterByDecision === 'all') return leads;
+    
+    return leads.filter(lead => {
+      const approval = (lead as any).approval;
+      if (!approval) {
+        // Si no tiene proceso de aprobación, considerarlo como "pendiente"
+        return filterByDecision === 'pending';
+      }
+      
+      const decision = approval.final_decision;
+      
+      if (filterByDecision === 'approved') {
+        return decision === 'approved';
+      }
+      if (filterByDecision === 'rejected') {
+        return decision === 'rejected';
+      }
+      if (filterByDecision === 'pending') {
+        return !decision || decision === 'pending' || decision === null;
+      }
+      
+      return true;
+    });
+  }, [leads, filterByDecision]);
+
+  // Los leads ya vienen filtrados del backend y ahora también por decisión
+  const allFilteredSelected = filteredLeads.length > 0 && 
+    filteredLeads.every(lead => isLeadSelected(lead.id));
 
   // All conditional logic moved to JSX render - no early returns
 
@@ -362,7 +390,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
 
           <TabsContent value="leads" className="space-y-4">
           <LeadsMetricsDashboard 
-            leads={leads || []} 
+            leads={filteredLeads || []} 
             dateFrom={advancedFilters.dateFrom || undefined}
             dateTo={advancedFilters.dateTo || undefined}
           />
@@ -555,9 +583,9 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
               <TableHead className="w-[200px]">Asignación</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-          {leads.map((lead) => {
+           </TableHeader>
+           <TableBody>
+          {filteredLeads.map((lead) => {
             const isAssigned = !!lead.asignado_a;
             const rowClass = isAssigned 
               ? "bg-green-50 hover:bg-green-100/80 border-l-4 border-l-green-500" 
@@ -638,7 +666,12 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
       {/* Información de paginación */}
       <div className="flex items-center justify-between px-2 py-4">
         <div className="text-sm text-muted-foreground">
-          Mostrando {paginationInfo.startIndex} a {paginationInfo.endIndex} de {paginationInfo.totalCount} candidatos
+          Mostrando {filteredLeads.length} de {paginationInfo.totalCount} candidatos
+          {filterByDecision !== 'all' && (
+            <span className="ml-2 text-primary font-medium">
+              (Filtro: {filterByDecision === 'approved' ? 'Aprobados' : filterByDecision === 'rejected' ? 'Rechazados' : 'En Proceso'})
+            </span>
+          )}
         </div>
         <div className="flex items-center space-x-2">
           <Button
@@ -664,7 +697,7 @@ export const LeadsTable = ({ onEditLead }: LeadsTableProps) => {
       </div>
 
       {/* Empty results message */}
-      {leads.length === 0 && !isLoading && (
+      {filteredLeads.length === 0 && !isLoading && (
         <div className="text-center py-8">
           <p className="text-muted-foreground">
             No se encontraron candidatos que coincidan con los filtros aplicados.

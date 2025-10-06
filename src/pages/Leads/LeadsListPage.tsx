@@ -2,7 +2,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, CheckCircle, Clock, XCircle, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { LeadsTable } from "@/components/leads/LeadsTable";
 import { EnhancedLeadForm } from "@/components/leads/EnhancedLeadForm";
@@ -14,6 +15,7 @@ const LeadsListPage = () => {
   const { loading: authLoading, permissions, userRole } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
+  const [activeDecisionTab, setActiveDecisionTab] = useState<string>("all");
 
   const handleEditLead = (lead: Lead) => {
     setEditingLead(lead);
@@ -108,7 +110,33 @@ const LeadsListPage = () => {
           defaultOpen={true}
           variant="default"
         >
-          <LeadsTable onEditLead={handleEditLead} />
+          <Tabs value={activeDecisionTab} onValueChange={setActiveDecisionTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-4 mb-4">
+              <TabsTrigger value="all" className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Todos
+              </TabsTrigger>
+              <TabsTrigger value="approved" className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4" />
+                Aprobados
+              </TabsTrigger>
+              <TabsTrigger value="pending" className="flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                En Proceso
+              </TabsTrigger>
+              <TabsTrigger value="rejected" className="flex items-center gap-2">
+                <XCircle className="h-4 w-4" />
+                Rechazados
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value={activeDecisionTab} className="mt-0">
+              <LeadsTable 
+                onEditLead={handleEditLead} 
+                filterByDecision={activeDecisionTab as 'all' | 'approved' | 'pending' | 'rejected'}
+              />
+            </TabsContent>
+          </Tabs>
         </CollapsibleSection>
       )}
     </div>

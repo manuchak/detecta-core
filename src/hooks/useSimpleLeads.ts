@@ -75,10 +75,18 @@ export const useSimpleLeads = (options: UseSimpleLeadsOptions = {}) => {
     console.log(`📋 SimpleLeads: Fetching leads with filters:`, filters);
 
     try {
-      // Construir query con filtros en el backend
+      // Construir query con filtros en el backend (incluye lead_approval_process)
       let query = supabase
         .from('leads')
-        .select('*', { count: 'exact' });
+        .select(`
+          *,
+          approval:lead_approval_process(
+            final_decision,
+            current_stage,
+            analyst_id,
+            phone_interview_completed
+          )
+        `, { count: 'exact' });
 
       // Aplicar filtros en el backend
       if (filters.searchTerm) {
