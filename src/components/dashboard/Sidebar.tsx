@@ -16,6 +16,11 @@ import {
   BarChart3,
   Calendar,
   TestTube,
+  CheckCircle2,
+  Map,
+  ClipboardCheck,
+  BookOpen,
+  LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -228,6 +233,13 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
     );
   }
 
+  // Interface para subitems con iconos opcionales
+  interface SubMenuItem {
+    title: string;
+    path: string;
+    icon?: LucideIcon;
+  }
+
   // Menu completo para usuarios con múltiples permisos
   const navigationItems = [
     // Home - siempre accesible para todos los usuarios
@@ -250,19 +262,19 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
       icon: Users,
       path: "/leads",
       subItems: [
-        { title: "Lista de Candidatos", path: "/leads" },
+        { title: "Lista de Candidatos", path: "/leads", icon: Users },
         // Aprobaciones disponibles para supply_admin/lead y admins
         ...(hasSkill('leads_approval') || isAdminUser || ['supply_admin', 'supply_lead', 'admin', 'owner'].includes(userRole || '') ? [
-          { title: "Aprobaciones", path: "/leads/approvals" }
+          { title: "Aprobaciones", path: "/leads/approvals", icon: CheckCircle2 }
         ] : []),
         // Estrategia Nacional - solo para coordinadores y administradores
         ...(userRole === 'admin' || userRole === 'owner' || userRole === 'manager' || userRole === 'coordinador_operaciones' ? [
-          { title: "Estrategia Nacional", path: "/recruitment-strategy" }
+          { title: "Estrategia Nacional", path: "/recruitment-strategy", icon: Map }
         ] : []),
         // Evaluación SIERCP - igual que supply_admin en el menú
         ...(userRole === 'admin' || userRole === 'owner' || userRole === 'supply_admin' || userRole === 'supply_lead' ? [
-          { title: "Evaluación SIERCP", path: "/evaluation/siercp" },
-          { title: "Metodología SIERCP", path: "/evaluation/siercp/methodology" }
+          { title: "Evaluación SIERCP", path: "/evaluation/siercp", icon: ClipboardCheck },
+          { title: "Metodología SIERCP", path: "/evaluation/siercp/methodology", icon: BookOpen }
         ] : []),
       ]
     }] : []),
@@ -381,17 +393,26 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
                 
                 {item.subItems && expandedItems.includes(index) && (
                   <div className="ml-4 mt-1 space-y-1">
-                    {item.subItems.map((subItem, subIndex) => (
-                      <Button
-                        key={subIndex}
-                        variant={location.pathname === subItem.path ? "secondary" : "ghost"}
-                        size="sm"
-                        className="w-full justify-start"
-                        onClick={() => navigate(subItem.path)}
-                      >
-                        {subItem.title}
-                      </Button>
-                    ))}
+                    {item.subItems.map((subItem, subIndex) => {
+                      const isActive = location.pathname === subItem.path;
+                      const SubItemIcon = subItem.icon;
+                      
+                      return (
+                        <Button
+                          key={subIndex}
+                          variant={isActive ? "secondary" : "ghost"}
+                          size="sm"
+                          className={cn(
+                            "w-full justify-start transition-all",
+                            isActive && "bg-primary/10 text-primary font-semibold border-l-2 border-primary"
+                          )}
+                          onClick={() => navigate(subItem.path)}
+                        >
+                          {SubItemIcon && <SubItemIcon className="mr-2 h-3.5 w-3.5" />}
+                          {subItem.title}
+                        </Button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
