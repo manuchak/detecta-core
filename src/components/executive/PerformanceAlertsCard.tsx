@@ -64,19 +64,19 @@ export const PerformanceAlertsCard = () => {
   if (monthData.status === 'En riesgo') {
     alerts.push({
       level: 'critical',
-      message: 'Septiembre en riesgo vs agosto',
+      message: `${monthData.current.monthName} en riesgo vs ${monthData.previousMonth.monthName}`,
       icon: AlertTriangle
     });
   } else if (monthData.status === 'En meta') {
     alerts.push({
       level: 'warning',
-      message: 'Septiembre al límite vs agosto',
+      message: `${monthData.current.monthName} al límite vs ${monthData.previousMonth.monthName}`,
       icon: AlertCircle
     });
   } else {
     alerts.push({
       level: 'success',
-      message: 'Septiembre superando agosto',
+      message: `${monthData.current.monthName} superando ${monthData.previousMonth.monthName}`,
       icon: CheckCircle
     });
   }
@@ -162,12 +162,18 @@ export const PerformanceAlertsCard = () => {
         <div className="mt-4 p-3 bg-muted/50 rounded-lg">
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <div className="text-muted-foreground">Gap vs 2024</div>
-              <div className="font-medium">{yearData.growth.servicesGap.toLocaleString()}</div>
+              <div className="text-muted-foreground mb-1">Gap vs 2024 YTD</div>
+              <div className={`text-lg font-bold ${yearData.growth.servicesGap >= 0 ? 'text-success' : 'text-destructive'}`}>
+                {yearData.growth.servicesGap >= 0 ? '+' : ''}{yearData.growth.servicesGap.toLocaleString()} srv
+              </div>
+              <div className="text-xs text-muted-foreground">
+                ({yearData.growth.servicesPercent >= 0 ? '+' : ''}{yearData.growth.servicesPercent}%)
+              </div>
             </div>
             <div>
-              <div className="text-muted-foreground">Días restantes</div>
-              <div className="font-medium">{monthData.daysRemaining}</div>
+              <div className="text-muted-foreground mb-1">Días restantes</div>
+              <div className="text-lg font-bold">{monthData.daysRemaining}</div>
+              <div className="text-xs text-muted-foreground">del mes actual</div>
             </div>
           </div>
         </div>
