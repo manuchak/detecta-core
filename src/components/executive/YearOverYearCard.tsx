@@ -56,7 +56,7 @@ export const YearOverYearCard = () => {
             </div>
           </div>
           <div className="text-sm text-muted-foreground">
-            vs 2024: {data.same2024.ytdServices.toLocaleString()} | Brecha: {data.growth.servicesGap.toLocaleString()}
+            vs 2024: {data.same2024.ytdServices.toLocaleString()} | Brecha: {data.growth.servicesGap >= 0 ? '+' : ''}{data.growth.servicesGap.toLocaleString()}
           </div>
         </div>
 
@@ -73,7 +73,7 @@ export const YearOverYearCard = () => {
             </div>
           </div>
           <div className="text-sm text-muted-foreground">
-            vs 2024: ${data.same2024.ytdGmv.toFixed(1)}M | Brecha: ${data.growth.gmvGap}M
+            vs 2024: ${data.same2024.ytdGmv.toFixed(1)}M | Brecha: ${data.growth.gmvGap >= 0 ? '+' : ''}${data.growth.gmvGap.toFixed(1)}M
           </div>
         </div>
 

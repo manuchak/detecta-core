@@ -2,6 +2,7 @@ import { useAuthenticatedQuery } from '@/hooks/useAuthenticatedQuery';
 import { getPaceStatus } from '@/utils/paceStatus';
 import { useDynamicServiceData } from './useDynamicServiceData';
 import { calculateMTDComparison, type MTDComparisonData } from '@/utils/mtdComparison';
+import { supabase } from '@/integrations/supabase/client';
 
 interface MonthClosureData {
   current: {
@@ -10,8 +11,28 @@ interface MonthClosureData {
     days: number;
     aov: number;
     dailyPace: number;
+    monthName: string;
+    year: number;
   };
   target: {
+    services: number;
+    gmv: number;
+  };
+  previousMonth: {
+    services: number;
+    gmv: number;
+    aov: number;
+    monthName: string;
+  };
+  monthOverMonth: {
+    servicesChange: number;
+    servicesPercent: number;
+    gmvChange: number;
+    gmvPercent: number;
+    aovChange: number;
+    aovPercent: number;
+  };
+  projection: {
     services: number;
     gmv: number;
   };
@@ -27,6 +48,12 @@ interface MonthClosureData {
   mtdComparison: MTDComparisonData;
 }
 
+const getMonthName = (month: number): string => {
+  const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  return months[month - 1];
+};
+
 export const useMonthClosureAnalysis = () => {
   const { data: dynamicData, isLoading: dynamicDataLoading } = useDynamicServiceData();
 
@@ -38,30 +65,91 @@ export const useMonthClosureAnalysis = () => {
       // Get MTD comparison data
       const mtdComparison = await calculateMTDComparison();
 
-      // Use dynamic data for consistency across all components
+      // Get current date info
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1;
+      const currentDay = Math.max(1, now.getDate() - 1); // Account for data lag
+      
+      // Use dynamic data for current month
       const currentServices = dynamicData.currentMonth.services;
+      const currentGMV = dynamicData.currentMonth.gmv;
       const avgAOV = dynamicData.currentMonth.aov;
       const daysElapsed = dynamicData.currentMonth.days;
       const daysRemaining = dynamicData.daysRemaining;
+
+      // Get previous month data for MoM comparison
+      const { data: historicalData } = await supabase.rpc('get_historical_monthly_data');
       
-      // September targets (should match useRealisticProjections)
-      const septemberTargetServices = 890;
-      const septemberTargetGMV = 7.0;
+      let previousMonth = currentMonth - 1;
+      let previousYear = currentYear;
+      if (previousMonth === 0) {
+        previousMonth = 12;
+        previousYear = currentYear - 1;
+      }
+
+      const previousMonthData = historicalData?.find((row: any) => 
+        row.year === previousYear && row.month === previousMonth
+      );
+
+      const prevServices = previousMonthData?.services || 0;
+      const prevGMV = (previousMonthData?.gmv || 0) / 1000000;
+      const prevAOV = prevServices > 0 ? (previousMonthData?.gmv || 0) / prevServices : 0;
+
+      // Calculate MoM changes
+      const servicesChange = currentServices - prevServices;
+      const servicesPercent = prevServices > 0 ? (servicesChange / prevServices) * 100 : 0;
+      const gmvChange = currentGMV - prevGMV;
+      const gmvPercent = prevGMV > 0 ? (gmvChange / prevGMV) * 100 : 0;
+      const aovChange = avgAOV - prevAOV;
+      const aovPercent = prevAOV > 0 ? (aovChange / prevAOV) * 100 : 0;
+
+      // Calculate projection for current month
+      const currentPace = currentServices / daysElapsed;
+      const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+      const projectedServices = Math.round(currentPace * daysInMonth);
+      const projectedGMV = projectedServices * avgAOV / 1000000;
+
+      // Dynamic target based on GMV projection / AOV
+      const targetGMV = projectedGMV * 1.05; // 5% growth target
+      const targetServices = Math.round(targetGMV * 1000000 / avgAOV);
 
       const current = {
         services: currentServices,
-        gmv: dynamicData.currentMonth.gmv,
+        gmv: currentGMV,
         days: daysElapsed,
         aov: avgAOV,
-        dailyPace: dynamicData.currentMonth.dailyPace
+        dailyPace: dynamicData.currentMonth.dailyPace,
+        monthName: getMonthName(currentMonth),
+        year: currentYear
       };
 
       const target = {
-        services: septemberTargetServices,
-        gmv: septemberTargetGMV
+        services: targetServices,
+        gmv: targetGMV
       };
 
-      const currentPace = current.services / daysElapsed;
+      const previousMonth_data = {
+        services: prevServices,
+        gmv: Math.round(prevGMV * 100) / 100,
+        aov: Math.round(prevAOV),
+        monthName: getMonthName(previousMonth)
+      };
+
+      const monthOverMonth = {
+        servicesChange: Math.round(servicesChange),
+        servicesPercent: Math.round(servicesPercent * 100) / 100,
+        gmvChange: Math.round(gmvChange * 100) / 100,
+        gmvPercent: Math.round(gmvPercent * 100) / 100,
+        aovChange: Math.round(aovChange),
+        aovPercent: Math.round(aovPercent * 100) / 100
+      };
+
+      const projection = {
+        services: projectedServices,
+        gmv: Math.round(projectedGMV * 100) / 100
+      };
+
       const requiredPace = (target.services - current.services) / daysRemaining;
       const paceNeeded = Math.ceil(requiredPace);
       
@@ -76,9 +164,12 @@ export const useMonthClosureAnalysis = () => {
       return {
         current,
         target,
+        previousMonth: previousMonth_data,
+        monthOverMonth,
+        projection,
         insights: {
           paceNeeded,
-          trend: 'stable' as const
+          trend: servicesPercent > 0 ? 'improving' : servicesPercent < 0 ? 'declining' : 'stable'
         },
         status,
         daysRemaining,
