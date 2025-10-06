@@ -347,11 +347,11 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
   // Auto-expand "Candidatos" menu when on /leads routes
   React.useEffect(() => {
     if (location.pathname.startsWith('/leads')) {
-      const candidatosIndex = navigationItems.findIndex(item => 
-        item.title === "Candidatos"
+      const leadsIndex = navigationItems.findIndex(item => 
+        item.path === "/leads" || item.subItems?.some(sub => sub.path.startsWith('/leads'))
       );
-      if (candidatosIndex !== -1 && !expandedItems.includes(candidatosIndex)) {
-        setExpandedItems(prev => [...prev, candidatosIndex]);
+      if (leadsIndex !== -1 && !expandedItems.includes(leadsIndex)) {
+        setExpandedItems(prev => [...prev, leadsIndex]);
       }
     }
   }, [location.pathname, navigationItems.length]);
@@ -375,6 +375,7 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
                   onClick={() => {
                     if (item.subItems) {
                       toggleExpanded(index);
+                      navigate(item.path);
                     } else {
                       navigate(item.path);
                     }
