@@ -90,13 +90,13 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
   };
 
   // ⚠️ ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
-  const [expandedItems, setExpandedItems] = React.useState<number[]>([]);
+  const [expandedItems, setExpandedItems] = React.useState<string[]>([]);
 
-  const toggleExpanded = (index: number) => {
-    if (expandedItems.includes(index)) {
-      setExpandedItems(expandedItems.filter((itemIndex) => itemIndex !== index));
+  const toggleExpanded = (key: string) => {
+    if (expandedItems.includes(key)) {
+      setExpandedItems(expandedItems.filter((itemKey) => itemKey !== key));
     } else {
-      setExpandedItems([...expandedItems, index]);
+      setExpandedItems([...expandedItems, key]);
     }
   };
 
@@ -252,8 +252,8 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
       path: "/leads",
       subItems: [
         { title: "Lista de Candidatos", path: "/leads", icon: Users },
-        // Aprobaciones disponibles para supply_admin/lead y admins
-        ...(hasSkill('leads_approval') || isAdminUser || ['supply_admin', 'supply_lead', 'admin', 'owner'].includes(userRole || '') ? [
+        // Aprobaciones disponibles para supply_admin/lead, coordinadores, ejecutivos y admins
+        ...(hasSkill('leads_approval') || isAdminUser || ['supply_admin', 'supply_lead', 'coordinador_operaciones', 'ejecutivo_ventas', 'admin', 'owner'].includes(userRole || '') ? [
           { title: "Aprobaciones", path: "/leads/approvals", icon: CheckCircle2 }
         ] : []),
         // Estrategia Nacional - solo para coordinadores y administradores
@@ -344,17 +344,19 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
     }] : []),
   ];
 
-  // Auto-expand "Candidatos" menu when on /leads routes
+  // Auto-expand menu when on a route that belongs to a submenu
   React.useEffect(() => {
-    if (location.pathname.startsWith('/leads')) {
-      const leadsIndex = navigationItems.findIndex(item => 
-        item.path === "/leads" || item.subItems?.some(sub => sub.path.startsWith('/leads'))
-      );
-      if (leadsIndex !== -1 && !expandedItems.includes(leadsIndex)) {
-        setExpandedItems(prev => [...prev, leadsIndex]);
+    navigationItems.forEach((item) => {
+      if (item.subItems) {
+        const itemKey = item.path || item.title;
+        const isSubItemActive = item.subItems.some(sub => location.pathname.startsWith(sub.path));
+        
+        if (isSubItemActive && !expandedItems.includes(itemKey)) {
+          setExpandedItems(prev => [...prev, itemKey]);
+        }
       }
-    }
-  }, [location.pathname, navigationItems.length]);
+    });
+  }, [location.pathname]);
 
   return (
     <div className={cn("flex flex-col h-full", className)} {...props}>
@@ -367,58 +369,63 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
             Menu Principal
           </h2>
           <div className="space-y-1">
-            {navigationItems.map((item, index) => (
-              <div key={index}>
-                <Button
-                  variant={location.pathname === item.path ? "secondary" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => {
-                    if (item.subItems) {
-                      toggleExpanded(index);
-                      navigate(item.path);
-                    } else {
-                      navigate(item.path);
-                    }
-                  }}
-                >
-                  <item.icon className="mr-2 h-4 w-4" />
-                  {item.title}
-                  {item.subItems && (
-                    <ChevronDown 
-                      className={cn(
-                        "ml-auto h-4 w-4 transition-transform",
-                        expandedItems.includes(index) && "rotate-180"
-                      )}
-                    />
+            {navigationItems.map((item, index) => {
+              const itemKey = item.path || item.title;
+              const isExpanded = expandedItems.includes(itemKey);
+              
+              return (
+                <div key={index}>
+                  <Button
+                    variant={location.pathname === item.path ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    onClick={() => {
+                      if (item.subItems) {
+                        toggleExpanded(itemKey);
+                        if (item.path) navigate(item.path);
+                      } else {
+                        navigate(item.path);
+                      }
+                    }}
+                  >
+                    <item.icon className="mr-2 h-4 w-4" />
+                    {item.title}
+                    {item.subItems && (
+                      <ChevronDown 
+                        className={cn(
+                          "ml-auto h-4 w-4 transition-transform",
+                          isExpanded && "rotate-180"
+                        )}
+                      />
+                    )}
+                  </Button>
+                  
+                  {item.subItems && isExpanded && (
+                    <div className="ml-4 mt-1 space-y-1">
+                      {item.subItems.map((subItem, subIndex) => {
+                        const isActive = location.pathname === subItem.path;
+                        const SubItemIcon = subItem.icon;
+                        
+                        return (
+                          <Button
+                            key={subIndex}
+                            variant={isActive ? "secondary" : "ghost"}
+                            size="sm"
+                            className={cn(
+                              "w-full justify-start transition-all",
+                              isActive && "bg-primary/10 text-primary font-semibold border-l-2 border-primary"
+                            )}
+                            onClick={() => navigate(subItem.path)}
+                          >
+                            {SubItemIcon && <SubItemIcon className="mr-2 h-3.5 w-3.5" />}
+                            {subItem.title}
+                          </Button>
+                        );
+                      })}
+                    </div>
                   )}
-                </Button>
-                
-                {item.subItems && expandedItems.includes(index) && (
-                  <div className="ml-4 mt-1 space-y-1">
-                    {item.subItems.map((subItem, subIndex) => {
-                      const isActive = location.pathname === subItem.path;
-                      const SubItemIcon = subItem.icon;
-                      
-                      return (
-                        <Button
-                          key={subIndex}
-                          variant={isActive ? "secondary" : "ghost"}
-                          size="sm"
-                          className={cn(
-                            "w-full justify-start transition-all",
-                            isActive && "bg-primary/10 text-primary font-semibold border-l-2 border-primary"
-                          )}
-                          onClick={() => navigate(subItem.path)}
-                        >
-                          {SubItemIcon && <SubItemIcon className="mr-2 h-3.5 w-3.5" />}
-                          {subItem.title}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
