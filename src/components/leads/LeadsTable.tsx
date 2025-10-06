@@ -37,10 +37,11 @@ import { useAuth } from "@/contexts/AuthContext";
 
 interface LeadsTableProps {
   onEditLead?: (lead: Lead) => void;
+  onQuickPreview?: (lead: Lead) => void;
   filterByDecision?: 'all' | 'approved' | 'pending' | 'rejected';
 }
 
-export const LeadsTable = ({ onEditLead, filterByDecision = 'all' }: LeadsTableProps) => {
+export const LeadsTable = ({ onEditLead, onQuickPreview, filterByDecision = 'all' }: LeadsTableProps) => {
   // Estados para tabs y UI principal
   const [activeTab, setActiveTab] = useState("leads");
   
@@ -602,11 +603,12 @@ export const LeadsTable = ({ onEditLead, filterByDecision = 'all' }: LeadsTableP
           onClick={handleExportUncontacted}
           variant="outline"
           disabled={isExporting || uncontactedCount === 0}
+          className="shadow-sm hover:shadow-md transition-shadow"
         >
           <Download className="h-4 w-4 mr-2" />
           Exportar No Contactados
           {uncontactedCount > 0 && (
-            <Badge className="ml-2 bg-orange-500 text-white">
+            <Badge variant="destructive" className="ml-2">
               {uncontactedCount}
             </Badge>
           )}
@@ -694,6 +696,15 @@ export const LeadsTable = ({ onEditLead, filterByDecision = 'all' }: LeadsTableP
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex gap-2 justify-end">
+                    {onQuickPreview && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onQuickPreview(lead)}
+                      >
+                        Vista Rápida
+                      </Button>
+                    )}
                     <LeadDetailsDialog lead={lead} />
                     {authPermissions.canAssignLeads && (
                       <Button
