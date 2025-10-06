@@ -13,6 +13,15 @@ import {
   LucideIcon
 } from 'lucide-react';
 
+export interface NavigationChild {
+  id: string;
+  label: string;
+  path: string;
+  roles?: string[];
+  matchPaths?: string[];
+  icon?: LucideIcon;
+}
+
 export interface NavigationModule {
   id: string;
   label: string;
@@ -20,6 +29,7 @@ export interface NavigationModule {
   path: string;
   roles?: string[];
   matchPaths?: string[]; // Additional paths that should mark this module as active
+  children?: NavigationChild[];
 }
 
 export const navigationModules: NavigationModule[] = [
@@ -40,15 +50,23 @@ export const navigationModules: NavigationModule[] = [
     id: 'leads',
     label: 'Leads',
     icon: UserCheck,
-    path: '/leads'
-  },
-  {
-    id: 'leads_approvals',
-    label: 'Aprobaciones',
-    icon: CheckCircle2,
-    path: '/leads/approvals',
-    roles: ['admin', 'owner', 'coordinador_operaciones', 'supply_admin', 'supply_lead', 'ejecutivo_ventas'],
-    matchPaths: ['/leads/approvals']
+    path: '/leads',
+    matchPaths: ['/leads/approvals'],
+    children: [
+      {
+        id: 'leads_list',
+        label: 'Lista de Candidatos',
+        path: '/leads'
+      },
+      {
+        id: 'leads_approvals',
+        label: 'Aprobaciones',
+        path: '/leads/approvals',
+        roles: ['admin', 'owner', 'coordinador_operaciones', 'supply_admin', 'supply_lead', 'ejecutivo_ventas'],
+        matchPaths: ['/leads/approvals'],
+        icon: CheckCircle2
+      }
+    ]
   },
   {
     id: 'planeacion',

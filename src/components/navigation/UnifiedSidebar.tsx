@@ -1,8 +1,8 @@
-import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { ChevronLeft } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation, NavLink } from 'react-router-dom';
+import { ChevronLeft, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { navigationModules } from '@/config/navigationConfig';
+import { navigationModules, NavigationModule, NavigationChild } from '@/config/navigationConfig';
 import {
   Sidebar,
   SidebarContent,
@@ -33,6 +33,7 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
   const { state, toggleSidebar } = useSidebar();
   
   const isCollapsed = state === 'collapsed';
+  const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
 
   const getActiveModule = () => {
     const path = location.pathname;
@@ -45,10 +46,53 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
 
   const activeModule = getActiveModule();
 
+  const hasRoleAccess = (roles?: string[]) => {
+    if (!roles) return true;
+    return roles.includes(userRole || '');
+  };
+
+  const filterChildren = (children?: NavigationChild[]) => {
+    if (!children) return [];
+    return children.filter(child => hasRoleAccess(child.roles));
+  };
+
   const filteredModules = navigationModules.filter(module => {
-    if (!module.roles) return true;
-    return module.roles.includes(userRole || '');
+    if (!hasRoleAccess(module.roles)) return false;
+    // If module has children, show it if at least one child is accessible
+    if (module.children) {
+      return filterChildren(module.children).length > 0;
+    }
+    return true;
   });
+
+  // Auto-expand groups based on current route
+  useEffect(() => {
+    const path = location.pathname;
+    const groupsToExpand: string[] = [];
+
+    filteredModules.forEach(module => {
+      if (module.children) {
+        const visibleChildren = filterChildren(module.children);
+        const isChildActive = visibleChildren.some(child => 
+          path.startsWith(child.path) || 
+          child.matchPaths?.some(p => path.startsWith(p))
+        );
+        if (isChildActive) {
+          groupsToExpand.push(module.id);
+        }
+      }
+    });
+
+    setExpandedGroups(groupsToExpand);
+  }, [location.pathname, userRole]);
+
+  const toggleGroup = (moduleId: string) => {
+    setExpandedGroups(prev => 
+      prev.includes(moduleId) 
+        ? prev.filter(id => id !== moduleId)
+        : [...prev, moduleId]
+    );
+  };
 
   const handleNavigate = (path: string) => {
     navigate(path);
@@ -84,11 +128,43 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
               {filteredModules.map((module) => {
                 const isActive = activeModule === module.id;
                 const Icon = module.icon;
+                const hasChildren = module.children && module.children.length > 0;
+                const visibleChildren = hasChildren ? filterChildren(module.children) : [];
+                const isExpanded = expandedGroups.includes(module.id);
                 
+                if (!hasChildren) {
+                  // Regular menu item without children
+                  return (
+                    <SidebarMenuItem key={module.id}>
+                      <SidebarMenuButton
+                        onClick={() => handleNavigate(module.path)}
+                        className={cn(
+                          "w-full justify-start gap-3 py-3 transition-all duration-200",
+                          "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                          isActive && "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
+                        )}
+                        tooltip={isCollapsed ? module.label : undefined}
+                      >
+                        <Icon className="h-5 w-5 shrink-0" />
+                        {!isCollapsed && (
+                          <span className="text-sm">{module.label}</span>
+                        )}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                }
+
+                // Parent menu item with children
                 return (
-                  <SidebarMenuItem key={module.id}>
+                  <SidebarMenuItem key={module.id} className="flex flex-col">
                     <SidebarMenuButton
-                      onClick={() => handleNavigate(module.path)}
+                      onClick={() => {
+                        if (isCollapsed) {
+                          handleNavigate(module.path);
+                        } else {
+                          toggleGroup(module.id);
+                        }
+                      }}
                       className={cn(
                         "w-full justify-start gap-3 py-3 transition-all duration-200",
                         "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
@@ -98,9 +174,41 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
                     >
                       <Icon className="h-5 w-5 shrink-0" />
                       {!isCollapsed && (
-                        <span className="text-sm">{module.label}</span>
+                        <>
+                          <span className="text-sm flex-1">{module.label}</span>
+                          <ChevronDown className={cn(
+                            "h-4 w-4 transition-transform duration-200",
+                            isExpanded && "rotate-180"
+                          )} />
+                        </>
                       )}
                     </SidebarMenuButton>
+
+                    {/* Children submenu */}
+                    {!isCollapsed && isExpanded && visibleChildren.length > 0 && (
+                      <div className="ml-4 mt-1 space-y-1 border-l border-sidebar-border pl-3">
+                        {visibleChildren.map((child) => {
+                          const isChildActive = location.pathname.startsWith(child.path) ||
+                            child.matchPaths?.some(p => location.pathname.startsWith(p));
+                          const ChildIcon = child.icon;
+
+                          return (
+                            <NavLink
+                              key={child.id}
+                              to={child.path}
+                              className={({ isActive }) => cn(
+                                "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-all duration-200",
+                                "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                                (isActive || isChildActive) && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                              )}
+                            >
+                              {ChildIcon && <ChildIcon className="h-4 w-4 shrink-0" />}
+                              <span>{child.label}</span>
+                            </NavLink>
+                          );
+                        })}
+                      </div>
+                    )}
                   </SidebarMenuItem>
                 );
               })}
