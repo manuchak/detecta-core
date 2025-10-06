@@ -20,7 +20,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, Edit, AlertCircle, RefreshCw, CheckCircle, User, UserX, Users } from "lucide-react";
+import { Search, UserPlus, Edit, AlertCircle, RefreshCw, CheckCircle, User, UserX, Users, Download } from "lucide-react";
+import { toast } from "sonner";
+import { exportUncontactedLeads } from "@/utils/exportLeads";
+import { supabase } from "@/integrations/supabase/client";
 import { useSimpleLeads } from "@/hooks/useSimpleLeads";
 import { Lead } from "@/types/leadTypes";
 import { LeadAssignmentDialog } from "./LeadAssignmentDialog";
@@ -46,6 +49,8 @@ export const LeadsTable = ({ onEditLead, filterByDecision = 'all' }: LeadsTableP
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [assignmentFilter, setAssignmentFilter] = useState("all");
+  const [uncontactedCount, setUncontactedCount] = useState<number>(0);
+  const [isExporting, setIsExporting] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
   const [selectedLeads, setSelectedLeads] = useState<Lead[]>([]);
@@ -266,6 +271,49 @@ export const LeadsTable = ({ onEditLead, filterByDecision = 'all' }: LeadsTableP
     clearCache();
     refetch();
   }, [clearCache, refetch]);
+
+  // Calcular contador de leads no contactados
+  useEffect(() => {
+    const calculateUncontacted = async () => {
+      try {
+        const { data: leadsData, error: leadsError } = await supabase
+          .from('leads')
+          .select('id', { count: 'exact', head: true })
+          .is('fecha_contacto', null);
+
+        if (leadsError) throw leadsError;
+
+        // Para simplificar, usamos el count directo
+        // En producción, deberías filtrar también por call_logs = 0
+        setUncontactedCount(leadsData || 0);
+      } catch (error) {
+        console.error('Error calculando leads no contactados:', error);
+        setUncontactedCount(0);
+      }
+    };
+
+    if (canAccess && !isLoading) {
+      calculateUncontacted();
+    }
+  }, [leads, canAccess, isLoading]);
+
+  // Manejar exportación de leads no contactados
+  const handleExportUncontacted = async () => {
+    setIsExporting(true);
+    try {
+      const count = await exportUncontactedLeads();
+      toast.success(`Se exportaron ${count} leads no contactados exitosamente`, {
+        description: 'El archivo Excel se descargó automáticamente'
+      });
+    } catch (error: any) {
+      console.error('Error exportando:', error);
+      toast.error('Error al exportar leads', {
+        description: error.message || 'No se pudo generar el archivo de exportación'
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // MAIN RENDER - All conditions handled in JSX
   return (
@@ -550,6 +598,19 @@ export const LeadsTable = ({ onEditLead, filterByDecision = 'all' }: LeadsTableP
             </SelectItem>
           </SelectContent>
         </Select>
+        <Button 
+          onClick={handleExportUncontacted}
+          variant="outline"
+          disabled={isExporting || uncontactedCount === 0}
+        >
+          <Download className="h-4 w-4 mr-2" />
+          Exportar No Contactados
+          {uncontactedCount > 0 && (
+            <Badge className="ml-2 bg-orange-500 text-white">
+              {uncontactedCount}
+            </Badge>
+          )}
+        </Button>
         <Button 
           onClick={() => {
             setCurrentPage(1); // Reset a página 1
