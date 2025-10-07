@@ -35,70 +35,70 @@ export function RetentionDetailView() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Target className="h-4 w-4" />
+        <Card className="min-h-[140px] flex flex-col">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+              <Target className="h-3.5 w-3.5" />
               Retención Promedio
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+          <CardContent className="flex-1 flex flex-col justify-center">
+            <div className="text-3xl font-bold text-emerald-600">
               {formatPercentage(retentionData.yearlyData.retentionPromedio)}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mt-1">
               Último período
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Users className="h-4 w-4" />
+        <Card className="min-h-[140px] flex flex-col">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+              <Users className="h-3.5 w-3.5" />
               Custodios Retenidos
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
+          <CardContent className="flex-1 flex flex-col justify-center">
+            <div className="text-3xl font-bold text-blue-600">
               {retentionData.yearlyData.totalCustodiosRetenidos.toLocaleString()}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mt-1">
               Total del período
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Clock className="h-4 w-4" />
+        <Card className="min-h-[140px] flex flex-col">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+              <Clock className="h-3.5 w-3.5" />
               Tiempo Promedio
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-600">
+          <CardContent className="flex-1 flex flex-col justify-center">
+            <div className="text-3xl font-bold text-purple-600">
               {retentionData.yearlyData.tiempoPromedioPermanenciaGeneral.toFixed(1)}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mt-1">
               meses de permanencia
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
+        <Card className="min-h-[140px] flex flex-col">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+              <TrendingUp className="h-3.5 w-3.5" />
               Mes Actual
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">
+          <CardContent className="flex-1 flex flex-col justify-center">
+            <div className="text-3xl font-bold text-orange-600">
               {formatPercentage(retentionData.currentMonthData.tasaRetencion)}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Mes actual
+            <p className="text-xs text-muted-foreground mt-1">
+              Tasa de retención
             </p>
           </CardContent>
         </Card>
