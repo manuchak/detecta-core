@@ -237,12 +237,14 @@ export function useRetentionDetails(): RetentionDetailsData {
       };
     });
 
-    // Calcular métricas anuales
-    const mesesConDatos = retentionData.length;
+    // Calcular métricas anuales (excluyendo mes en curso para retención promedio)
+    const mesesCompletos = retentionData.slice(1); // Excluir índice [0] que es el mes actual
+    const mesesConDatos = mesesCompletos.length;
+    
     const totalCustodiosRetenidos = retentionData.reduce((sum, item) => sum + item.custodios_retenidos, 0);
     const totalCustodiosAnteriores = retentionData.reduce((sum, item) => sum + item.custodios_mes_anterior, 0);
     const retentionPromedio = mesesConDatos > 0 ? 
-      retentionData.reduce((sum, item) => sum + Number(item.tasa_retencion), 0) / mesesConDatos : 0;
+      mesesCompletos.reduce((sum, item) => sum + Number(item.tasa_retencion), 0) / mesesConDatos : 0;
     
     // Datos del mes actual usando permanencia empírica
     const currentMonth = retentionData[0];

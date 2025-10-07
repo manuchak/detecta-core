@@ -47,7 +47,7 @@ export function RetentionDetailView() {
               {formatPercentage(retentionData.yearlyData.retentionPromedio)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Último período
+              Últimos {retentionData.yearlyData.mesesConDatos} meses completos
             </p>
           </CardContent>
         </Card>
