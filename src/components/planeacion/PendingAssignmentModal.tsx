@@ -132,25 +132,15 @@ export function PendingAssignmentModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-2 apple-text-title">
-              {currentStep === 'armed' ? <Shield className="h-5 w-5" /> : <User className="h-5 w-5" />}
-              {currentStep === 'armed' ? 'Asignar Armado' : 'Asignar Custodio'} - {service.id_servicio}
-            </DialogTitle>
-            {mode === 'direct_armed' && service && 'custodio_asignado' in service && service.custodio_asignado && (
-              <div className="flex items-center gap-2 apple-text-caption text-muted-foreground font-mono">
-                {String(service.custodio_asignado)} ✅ → Armado ⏳
-              </div>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onOpenChange(false)}
-              className="h-6 w-6 p-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <DialogTitle className="flex items-center gap-2 apple-text-title">
+            {currentStep === 'armed' ? <Shield className="h-5 w-5" /> : <User className="h-5 w-5" />}
+            {currentStep === 'armed' ? 'Asignar Armado' : 'Asignar Custodio'} - {service.id_servicio}
+          </DialogTitle>
+          {mode === 'direct_armed' && service && 'custodio_asignado' in service && service.custodio_asignado && (
+            <div className="flex items-center gap-2 apple-text-caption text-muted-foreground font-mono">
+              {String(service.custodio_asignado)} ✅ → Armado ⏳
+            </div>
+          )}
         </DialogHeader>
 
         {/* Service Summary */}
