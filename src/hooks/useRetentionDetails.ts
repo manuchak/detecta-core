@@ -164,9 +164,9 @@ export function useRetentionDetails(): RetentionDetailsData {
       
       // CORRECCIÓN: Usar límites dinámicos basados en percentiles reales
       // Si tenemos métricas dinámicas con percentiles, usarlos como límites
-      const lowerLimit = dynamicMetrics?.p10 || 0.68;
-      const upperLimit = dynamicMetrics?.p90 || 16.93;
-      const medianaPermanencia = dynamicMetrics?.tiempoMedianoPermanencia || 4.83;
+      const lowerLimit = dynamicRetentionData?.p10 || 0.68;
+      const upperLimit = dynamicRetentionData?.p90 || 16.93;
+      const medianaPermanencia = dynamicRetentionData?.tiempoMedianoPermanencia || 4.83;
       
       // Fórmula empírica con límites basados en datos reales
       const permanenciaMes = retentionRate > 0 
