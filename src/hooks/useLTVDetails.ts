@@ -11,6 +11,22 @@ export interface LTVBreakdown {
   ltvCalculado: number;
 }
 
+export interface LTVComparison {
+  ltvActual: number;
+  ltvMesAnterior: number;
+  cambioAbsoluto: number;
+  cambioRelativo: number;
+  tendencia: 'up' | 'down' | 'stable';
+}
+
+export interface QuarterlyLTV {
+  quarter: string;
+  ltvPromedio: number;
+  custodiosPromedio: number;
+  ingresosTotales: number;
+  cambioVsQuarterAnterior: number | null;
+}
+
 export interface LTVDetails {
   yearlyData: {
     totalCustodios: number;
@@ -26,6 +42,8 @@ export interface LTVDetails {
     ingresoPromedioPorCustodio: number;
     ltvCalculado: number;
   };
+  momComparison: LTVComparison;
+  quarterlyData: QuarterlyLTV[];
   tiempoVidaPromedio: number;
   loading: boolean;
 }
@@ -110,6 +128,14 @@ export const useLTVDetails = (): LTVDetails => {
           ingresoPromedioPorCustodio: 0,
           ltvCalculado: 0,
         },
+        momComparison: {
+          ltvActual: 0,
+          ltvMesAnterior: 0,
+          cambioAbsoluto: 0,
+          cambioRelativo: 0,
+          tendencia: 'stable'
+        },
+        quarterlyData: [],
         tiempoVidaPromedio: tiempoVidaPromedio,
         loading: true,
       };
@@ -161,6 +187,85 @@ export const useLTVDetails = (): LTVDetails => {
       currentMonthData.ingresos / currentMonthData.custodiosActivos : 0;
     const currentLTV = Math.round(currentIngresoPromedio * tiempoVidaPromedio);
 
+    // Calcular comparación MoM (Month-over-Month)
+    const momComparison: LTVComparison = (() => {
+      if (monthlyBreakdown.length < 2) {
+        return {
+          ltvActual: currentLTV,
+          ltvMesAnterior: 0,
+          cambioAbsoluto: 0,
+          cambioRelativo: 0,
+          tendencia: 'stable' as const
+        };
+      }
+
+      const mesActual = monthlyBreakdown[monthlyBreakdown.length - 1];
+      const mesAnterior = monthlyBreakdown[monthlyBreakdown.length - 2];
+      
+      const cambioAbsoluto = mesActual.ltvCalculado - mesAnterior.ltvCalculado;
+      const cambioRelativo = mesAnterior.ltvCalculado > 0 
+        ? (cambioAbsoluto / mesAnterior.ltvCalculado) * 100 
+        : 0;
+      
+      const tendencia: 'up' | 'down' | 'stable' = 
+        Math.abs(cambioRelativo) < 5 ? 'stable' :
+        cambioRelativo > 0 ? 'up' : 'down';
+
+      return {
+        ltvActual: mesActual.ltvCalculado,
+        ltvMesAnterior: mesAnterior.ltvCalculado,
+        cambioAbsoluto: Math.round(cambioAbsoluto),
+        cambioRelativo: parseFloat(cambioRelativo.toFixed(1)),
+        tendencia
+      };
+    })();
+
+    // Calcular datos trimestrales (Quarter-over-Quarter)
+    const quarterlyData: QuarterlyLTV[] = (() => {
+      // Q2 2025: Junio (índice 0)
+      // Q3 2025: Julio-Agosto (índices 1-2)
+      
+      const quarters: QuarterlyLTV[] = [];
+      
+      // Q2 2025 (solo Junio disponible)
+      if (monthlyBreakdown[0]) {
+        quarters.push({
+          quarter: 'Q2 2025',
+          ltvPromedio: monthlyBreakdown[0].ltvCalculado,
+          custodiosPromedio: monthlyBreakdown[0].custodiosActivos,
+          ingresosTotales: monthlyBreakdown[0].ingresosTotales,
+          cambioVsQuarterAnterior: null
+        });
+      }
+      
+      // Q3 2025 (Julio-Agosto)
+      if (monthlyBreakdown.length >= 2) {
+        const q3Months = monthlyBreakdown.slice(1, 3); // Julio y Agosto
+        const q3LtvPromedio = Math.round(
+          q3Months.reduce((sum, m) => sum + m.ltvCalculado, 0) / q3Months.length
+        );
+        const q3CustodiosPromedio = Math.round(
+          q3Months.reduce((sum, m) => sum + m.custodiosActivos, 0) / q3Months.length
+        );
+        const q3IngresosTotales = q3Months.reduce((sum, m) => sum + m.ingresosTotales, 0);
+        
+        // Calcular cambio vs Q2
+        const cambioVsQ2 = quarters[0] 
+          ? ((q3LtvPromedio - quarters[0].ltvPromedio) / quarters[0].ltvPromedio) * 100
+          : null;
+        
+        quarters.push({
+          quarter: 'Q3 2025',
+          ltvPromedio: q3LtvPromedio,
+          custodiosPromedio: q3CustodiosPromedio,
+          ingresosTotales: q3IngresosTotales,
+          cambioVsQuarterAnterior: cambioVsQ2 ? parseFloat(cambioVsQ2.toFixed(1)) : null
+        });
+      }
+      
+      return quarters;
+    })();
+
     return {
       yearlyData: {
         totalCustodios: custodiosUnicosCount,
@@ -176,6 +281,8 @@ export const useLTVDetails = (): LTVDetails => {
         ingresoPromedioPorCustodio: Math.round(currentIngresoPromedio),
         ltvCalculado: currentLTV,
       },
+      momComparison,
+      quarterlyData,
       tiempoVidaPromedio: tiempoVidaPromedio,
       loading: false,
     };

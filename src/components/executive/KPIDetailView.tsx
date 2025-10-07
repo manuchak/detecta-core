@@ -7,6 +7,7 @@ import { SupplyGrowthDetailView } from './details/SupplyGrowthDetailView';
 import { CPADetailView } from './details/CPADetailView';
 import { ConversionRateDetailView } from './details/ConversionRateDetailView';
 import { CustodianEngagementDetailView } from './details/CustodianEngagementDetailView';
+import { LTVDetailView } from './details/LTVDetailView';
 
 export type KPIType = 'retention' | 'ltv' | 'cpa' | 'conversion' | 'engagement' | 'supply' | 'roi' | 'supply_growth';
 
@@ -42,6 +43,8 @@ export function KPIDetailView({ selectedKPI, onClose }: KPIDetailViewProps) {
         return <ConversionRateDetailView />;
       case 'engagement':
         return <CustodianEngagementDetailView />;
+      case 'ltv':
+        return <LTVDetailView />;
       default:
         return (
           <Card>
