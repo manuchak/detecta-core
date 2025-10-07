@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { CustodioPerformanceCard } from '@/components/planeacion/CustodioPerformanceCard';
 import { CustodianContactDialog } from '../dialogs/CustodianContactDialog';
 import { useCustodiosConProximidad, type CustodioConProximidad } from '@/hooks/useProximidadOperacional';
+import type { CustodioEnriquecido } from '@/hooks/useCustodiosWithTracking';
 import type { ServicioNuevo } from '@/utils/proximidadOperacional';
 import { UniversalSearchBar } from '@/components/planeacion/search/UniversalSearchBar';
 import { SearchResultsInfo, CUSTODIAN_CATEGORIES } from '@/components/planeacion/search/SearchResultsInfo';
@@ -50,6 +51,29 @@ interface CustodianAssignmentStepProps {
   onComplete: (data: AssignmentData) => void;
   onBack: () => void;
 }
+
+// Helper function to convert CustodioConProximidad to CustodioEnriquecido
+const convertToEnriquecido = (custodio: CustodioConProximidad): CustodioEnriquecido => {
+  console.log('🔄 Convirtiendo custodio para ContactDialog:', custodio.nombre);
+  
+  return {
+    ...custodio,
+    // Agregar propiedades requeridas por CustodioEnriquecido con valores por defecto
+    score_comunicacion: custodio.score_comunicacion || 5.0,
+    score_aceptacion: custodio.score_aceptacion || 5.0,
+    score_confiabilidad: custodio.score_confiabilidad || 5.0,
+    score_total: custodio.score_total || 5.0,
+    tasa_aceptacion: custodio.tasa_aceptacion || 0,
+    tasa_respuesta: custodio.tasa_respuesta || 0,
+    tasa_confiabilidad: custodio.tasa_confiabilidad || 0,
+    performance_level: 'nuevo' as const,
+    rejection_risk: 'medio' as const,
+    response_speed: 'normal' as const,
+    experience_category: custodio.numero_servicios && custodio.numero_servicios >= 50 ? 'experimentado' : 
+                        custodio.numero_servicios && custodio.numero_servicios >= 10 ? 'intermedio' :
+                        custodio.numero_servicios && custodio.numero_servicios > 0 ? 'rookie' : 'nuevo'
+  };
+};
 
 export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: CustodianAssignmentStepProps) {
   const [selectedCustodio, setSelectedCustodio] = useState<string | null>(null);
@@ -157,6 +181,7 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
   }, [custodiosDisponibles]);
 
   const handleOpenContactDialog = (custodian: CustodioConProximidad) => {
+    console.log('📞 Abriendo ContactDialog para:', custodian.nombre);
     setContactingCustodian(custodian);
     setContactDialogOpen(true);
   };
@@ -565,7 +590,7 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
         <CustodianContactDialog
           open={contactDialogOpen}
           onOpenChange={setContactDialogOpen}
-          custodian={contactingCustodian}
+          custodian={convertToEnriquecido(contactingCustodian)}
           serviceDetails={{
             origen: serviceData.origen || '',
             destino: serviceData.destino || '',
