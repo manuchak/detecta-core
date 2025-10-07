@@ -9925,6 +9925,18 @@ export type Database = {
         Args: { total_points: number }
         Returns: number
       }
+      calculate_custodian_permanence_percentiles: {
+        Args: { min_services?: number; start_date?: string }
+        Returns: {
+          custodios_analizados: number
+          mediana: number
+          p10: number
+          p25: number
+          p75: number
+          p90: number
+          promedio: number
+        }[]
+      }
       calculate_custodio_scores: {
         Args: Record<PropertyKey, never>
         Returns: undefined
