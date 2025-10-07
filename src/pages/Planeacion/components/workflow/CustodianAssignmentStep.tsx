@@ -52,13 +52,39 @@ interface CustodianAssignmentStepProps {
   onBack: () => void;
 }
 
-// Helper function to convert CustodioConProximidad to CustodioEnriquecido
-const convertToEnriquecido = (custodio: CustodioConProximidad): CustodioEnriquecido => {
-  console.log('🔄 Convirtiendo custodio para ContactDialog:', custodio.nombre);
+// Helper function to convert CustodioConProximidad to CustodioEnriquecido with validation
+const convertToEnriquecido = (custodio: CustodioConProximidad): CustodioEnriquecido | null => {
+  console.log('🔄 Convirtiendo custodio para ContactDialog:', {
+    nombre: custodio.nombre,
+    id: custodio.id,
+    telefono: custodio.telefono,
+    allProperties: Object.keys(custodio)
+  });
   
-  return {
+  // Validación crítica de propiedades requeridas
+  if (!custodio.id) {
+    console.error('❌ ERROR: Custodio sin ID:', custodio);
+    toast.error(`Error: ${custodio.nombre} no tiene ID asignado`);
+    return null;
+  }
+  
+  if (!custodio.nombre) {
+    console.error('❌ ERROR: Custodio sin nombre:', custodio);
+    toast.error('Error: Custodio sin nombre');
+    return null;
+  }
+  
+  if (!custodio.telefono) {
+    console.warn('⚠️ ADVERTENCIA: Custodio sin teléfono:', custodio.nombre);
+    toast.warning(`${custodio.nombre} no tiene teléfono registrado`);
+  }
+  
+  const converted: CustodioEnriquecido = {
     ...custodio,
-    // Agregar propiedades requeridas por CustodioEnriquecido con valores por defecto
+    // Asegurar que todas las propiedades requeridas estén presentes
+    id: custodio.id,
+    nombre: custodio.nombre,
+    telefono: custodio.telefono || '',
     score_comunicacion: custodio.score_comunicacion || 5.0,
     score_aceptacion: custodio.score_aceptacion || 5.0,
     score_confiabilidad: custodio.score_confiabilidad || 5.0,
@@ -73,6 +99,9 @@ const convertToEnriquecido = (custodio: CustodioConProximidad): CustodioEnriquec
                         custodio.numero_servicios && custodio.numero_servicios >= 10 ? 'intermedio' :
                         custodio.numero_servicios && custodio.numero_servicios > 0 ? 'rookie' : 'nuevo'
   };
+  
+  console.log('✅ Custodio convertido exitosamente:', converted);
+  return converted;
 };
 
 export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: CustodianAssignmentStepProps) {
@@ -181,9 +210,31 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
   }, [custodiosDisponibles]);
 
   const handleOpenContactDialog = (custodian: CustodioConProximidad) => {
-    console.log('📞 Abriendo ContactDialog para:', custodian.nombre);
-    setContactingCustodian(custodian);
-    setContactDialogOpen(true);
+    console.log('📞 handleOpenContactDialog llamado:', {
+      nombre: custodian.nombre,
+      id: custodian.id,
+      telefono: custodian.telefono,
+      currentState: { contactDialogOpen, contactingCustodian: contactingCustodian?.nombre }
+    });
+    
+    try {
+      // Validar que el custodio tenga las propiedades mínimas
+      if (!custodian || !custodian.id) {
+        console.error('❌ ERROR: Custodio inválido o sin ID');
+        toast.error('Error: Datos del custodio no válidos');
+        return;
+      }
+      
+      // Establecer el custodio y abrir el diálogo
+      console.log('✅ Estableciendo contactingCustodian y abriendo diálogo');
+      setContactingCustodian(custodian);
+      setContactDialogOpen(true);
+      
+      console.log('✅ Estado actualizado - diálogo debería abrirse');
+    } catch (error) {
+      console.error('❌ ERROR en handleOpenContactDialog:', error);
+      toast.error('Error al abrir diálogo de contacto');
+    }
   };
 
   const handleContactResult = (custodianId: string, result: {
@@ -586,20 +637,41 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
       </Card>
 
       {/* Contact Dialog */}
-      {contactingCustodian && (
-        <CustodianContactDialog
-          open={contactDialogOpen}
-          onOpenChange={setContactDialogOpen}
-          custodian={convertToEnriquecido(contactingCustodian)}
-          serviceDetails={{
-            origen: serviceData.origen || '',
-            destino: serviceData.destino || '',
-            fecha_hora: serviceData.fecha_hora_cita || '',
-            tipo_servicio: serviceData.tipo_servicio || ''
-          }}
-          onResult={(result) => handleContactResult(contactingCustodian.id!, result)}
-        />
-      )}
+      {contactingCustodian && (() => {
+        console.log('🎬 Renderizando CustodianContactDialog:', {
+          contactDialogOpen,
+          custodianName: contactingCustodian.nombre,
+          custodianId: contactingCustodian.id
+        });
+        
+        const convertedCustodian = convertToEnriquecido(contactingCustodian);
+        
+        if (!convertedCustodian) {
+          console.error('❌ No se pudo convertir el custodio');
+          return null;
+        }
+        
+        return (
+          <CustodianContactDialog
+            open={contactDialogOpen}
+            onOpenChange={(open) => {
+              console.log('🔄 CustodianContactDialog onOpenChange:', open);
+              setContactDialogOpen(open);
+            }}
+            custodian={convertedCustodian}
+            serviceDetails={{
+              origen: serviceData.origen || '',
+              destino: serviceData.destino || '',
+              fecha_hora: serviceData.fecha_hora_cita || serviceData.fecha_programada || '',
+              tipo_servicio: serviceData.tipo_servicio || 'Custodia'
+            }}
+            onResult={(result) => {
+              console.log('📋 Resultado del contacto:', result);
+              handleContactResult(contactingCustodian.id!, result);
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

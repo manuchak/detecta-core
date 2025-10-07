@@ -130,10 +130,12 @@ export const CustodianContactDialog: React.FC<CustodianContactDialogProps> = ({
   const { crearIndisponibilidad } = useCustodioIndisponibilidades();
 
   const handleContactStart = async (method: 'whatsapp' | 'llamada') => {
+    console.log('🚀 handleContactStart llamado:', { method, custodian: custodian.nombre });
     setContactMethod(method);
     setIsProcessing(true);
 
     try {
+      console.log('📝 Registrando comunicación...');
       // Registrar inicio de comunicación
       const communicationData = await logCommunication({
         custodio_id: custodian.id!,
@@ -433,7 +435,10 @@ export const CustodianContactDialog: React.FC<CustodianContactDialogProps> = ({
           {!contactMethod && (
             <div className="grid grid-cols-2 gap-4">
               <Button
-                onClick={() => handleContactStart('whatsapp')}
+                onClick={() => {
+                  console.log('👆 Click en botón WhatsApp');
+                  handleContactStart('whatsapp');
+                }}
                 disabled={isProcessing}
                 className="flex items-center gap-2"
                 variant="outline"
@@ -442,7 +447,10 @@ export const CustodianContactDialog: React.FC<CustodianContactDialogProps> = ({
                 WhatsApp
               </Button>
               <Button
-                onClick={() => handleContactStart('llamada')}
+                onClick={() => {
+                  console.log('👆 Click en botón Llamar');
+                  handleContactStart('llamada');
+                }}
                 disabled={isProcessing}
                 className="flex items-center gap-2"
                 variant="outline"
