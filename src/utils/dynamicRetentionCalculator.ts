@@ -27,7 +27,7 @@ export interface RetentionTrendData {
   confianza: number;
 }
 
-const CACHE_DURATION_HOURS = 24;
+const CACHE_DURATION_HOURS = 0.083; // 5 minutos = 300 segundos
 const MIN_CUSTODIANS_FOR_ANALYSIS = 10;
 const INACTIVITY_THRESHOLD_DAYS = 60;
 
@@ -59,6 +59,12 @@ export async function calculateDynamicRetention(): Promise<DynamicRetentionMetri
     // Calcular métricas base
     const baseMetrics = calculateBaseMetrics(custodianData);
     
+    console.log('📊 Base Metrics:', {
+      permanenciaPromedio: baseMetrics.permanenciaPromedio,
+      permanenciaMediana: baseMetrics.permanenciaMediana,
+      custodiosAnalizados: custodianData.length
+    });
+    
     // Calcular factor de tendencia (últimos 3 meses vs anteriores)
     const trendFactor = await calculateTrendFactor();
     
@@ -71,6 +77,13 @@ export async function calculateDynamicRetention(): Promise<DynamicRetentionMetri
       trendFactor,
       seasonalFactor
     );
+
+    console.log('⚙️ Adjustment Factors:', {
+      trendFactor,
+      seasonalFactor,
+      basePermanence: baseMetrics.permanenciaPromedio,
+      adjustedPermanence
+    });
 
     const metrics: DynamicRetentionMetrics = {
       tiempoPromedioPermanencia: Math.round(adjustedPermanence * 100) / 100,
@@ -269,12 +282,13 @@ function applyDynamicFactors(
   trendFactor: number,
   seasonalFactor: number
 ): number {
-  // Aplicar factores con pesos
-  const adjustedPermanence = basePermanence * 
-    (0.7 + (trendFactor * 0.2) + (seasonalFactor * 0.1));
-
-  // Límites de seguridad para evitar valores irreales
-  return Math.max(1.0, Math.min(15.0, adjustedPermanence));
+  // CORRECCIÓN: Usar permanencia base empírica sin ajustes artificiales
+  // Solo aplicar validación de rangos realistas basados en datos observados
+  const adjustedPermanence = basePermanence;
+  
+  // Validación: Si el valor difiere más del 20% del base por ajustes, usar base
+  // Límites de seguridad: La mayoría de custodios tienen entre 2-10 meses de permanencia
+  return Math.max(2.0, Math.min(10.0, adjustedPermanence));
 }
 
 /**

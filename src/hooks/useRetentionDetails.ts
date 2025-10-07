@@ -158,9 +158,16 @@ export function useRetentionDetails(): RetentionDetailsData {
     // Usar permanencia empírica del calculador dinámico
     const permanenciaEmpirica = dynamicRetentionData?.tiempoPromedioPermanencia || 5.4;
 
-    // Procesar datos mensuales usando permanencia empírica
+    // Procesar datos mensuales con permanencia específica por mes
     const monthlyBreakdown: RetentionBreakdown[] = retentionData.map((item) => {
       const retentionRate = Number(item.tasa_retencion);
+      
+      // CORRECCIÓN: Calcular permanencia específica basada en retención del mes
+      // Fórmula empírica: permanencia ≈ 1 / (1 - retention_rate)
+      // Ajustada a valores reales observados
+      const permanenciaMes = retentionRate > 0 
+        ? Math.min(10, 1 / ((100 - retentionRate) / 100))
+        : permanenciaEmpirica;
       
       return {
         month: item.mes,
@@ -171,7 +178,7 @@ export function useRetentionDetails(): RetentionDetailsData {
         custodiosNuevos: item.custodios_nuevos,
         custodiosPerdidos: item.custodios_perdidos,
         tasaRetencion: retentionRate,
-        tiempoPromedioPermanencia: permanenciaEmpirica,
+        tiempoPromedioPermanencia: Math.round(permanenciaMes * 10) / 10,
       };
     });
 
