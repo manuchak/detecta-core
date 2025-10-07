@@ -85,7 +85,7 @@ export function useRetentionDetails(): RetentionDetailsData {
       return data || [];
     },
     {
-      staleTime: 5 * 60 * 1000, // 5 minutos
+      staleTime: 5 * 60 * 1000, // 5 minutos - sincronizado con calculador dinámico
       refetchOnWindowFocus: false,
     }
   );
@@ -118,7 +118,7 @@ export function useRetentionDetails(): RetentionDetailsData {
       return await calculateDynamicRetention();
     },
     {
-      staleTime: 60 * 60 * 1000, // 1 hora
+      staleTime: 5 * 60 * 1000, // 5 minutos - sincronizado con calculador dinámico
       refetchOnWindowFocus: false,
     }
   );
@@ -164,9 +164,9 @@ export function useRetentionDetails(): RetentionDetailsData {
       
       // CORRECCIÓN: Calcular permanencia específica basada en retención del mes
       // Fórmula empírica: permanencia ≈ 1 / (1 - retention_rate)
-      // Ajustada a valores reales observados
+      // Ajustada a valores reales observados con validación de rangos
       const permanenciaMes = retentionRate > 0 
-        ? Math.min(10, 1 / ((100 - retentionRate) / 100))
+        ? Math.min(10, Math.max(2, 1 / ((100 - retentionRate) / 100)))
         : permanenciaEmpirica;
       
       return {
