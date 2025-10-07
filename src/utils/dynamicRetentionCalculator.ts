@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { calculateCohortPermanence } from './cohortPermanenceAnalysis';
 
 export interface CustodianPermanenceData {
   custodioNombre: string;
@@ -12,6 +13,11 @@ export interface CustodianPermanenceData {
 export interface DynamicRetentionMetrics {
   tiempoPromedioPermanencia: number;
   tiempoMedianoPermanencia: number;
+  p10: number;
+  p25: number;
+  p75: number;
+  p90: number;
+  rangoInterquartil: [number, number];
   tendenciaMensual: number;
   factorEstacional: number;
   confianza: number;
@@ -48,52 +54,38 @@ export async function calculateDynamicRetention(): Promise<DynamicRetentionMetri
   console.log('🔄 Calculando permanencia dinámica de custodios...');
 
   try {
-    // Obtener datos de custodios con su actividad
-    const custodianData = await getCustodianPermanenceData();
+    // NUEVO: Usar análisis de cohortes con percentiles reales
+    const cohortMetrics = await calculateCohortPermanence();
     
-    if (custodianData.length < MIN_CUSTODIANS_FOR_ANALYSIS) {
-      console.warn(`⚠️ Pocos custodios para análisis (${custodianData.length}). Usando valores por defecto.`);
-      return getDefaultMetrics();
-    }
-
-    // Calcular métricas base
-    const baseMetrics = calculateBaseMetrics(custodianData);
-    
-    console.log('📊 Base Metrics:', {
-      permanenciaPromedio: baseMetrics.permanenciaPromedio,
-      permanenciaMediana: baseMetrics.permanenciaMediana,
-      custodiosAnalizados: custodianData.length
-    });
+    console.log('📊 Cohort Metrics:', cohortMetrics);
     
     // Calcular factor de tendencia (últimos 3 meses vs anteriores)
     const trendFactor = await calculateTrendFactor();
     
     // Calcular factor estacional
     const seasonalFactor = calculateSeasonalFactor();
-    
-    // Combinar factores para obtener permanencia ajustada
-    const adjustedPermanence = applyDynamicFactors(
-      baseMetrics.permanenciaPromedio,
-      trendFactor,
-      seasonalFactor
-    );
 
     console.log('⚙️ Adjustment Factors:', {
       trendFactor,
       seasonalFactor,
-      basePermanence: baseMetrics.permanenciaPromedio,
-      adjustedPermanence
+      medianaPermanencia: cohortMetrics.permanenciaMediana,
+      promedioPermanencia: cohortMetrics.permanenciaPromedio
     });
 
     const metrics: DynamicRetentionMetrics = {
-      tiempoPromedioPermanencia: Math.round(adjustedPermanence * 100) / 100,
-      tiempoMedianoPermanencia: baseMetrics.permanenciaMediana,
+      tiempoPromedioPermanencia: cohortMetrics.permanenciaPromedio,
+      tiempoMedianoPermanencia: cohortMetrics.permanenciaMediana,
+      p10: cohortMetrics.p10,
+      p25: cohortMetrics.p25,
+      p75: cohortMetrics.p75,
+      p90: cohortMetrics.p90,
+      rangoInterquartil: cohortMetrics.rangoInterquartil,
       tendenciaMensual: trendFactor,
       factorEstacional: seasonalFactor,
-      confianza: calculateConfidence(custodianData.length),
+      confianza: cohortMetrics.confianza,
       lastCalculated: new Date(),
-      custodiosAnalizados: custodianData.length,
-      metodologia: 'dynamic_empirical_v1'
+      custodiosAnalizados: cohortMetrics.custodiosAnalizados,
+      metodologia: cohortMetrics.metodologia
     };
 
     // Actualizar cache
@@ -307,11 +299,16 @@ function calculateConfidence(custodianCount: number): number {
  */
 function getDefaultMetrics(): DynamicRetentionMetrics {
   return {
-    tiempoPromedioPermanencia: 5.4,
-    tiempoMedianoPermanencia: 4.8,
+    tiempoPromedioPermanencia: 6.89,
+    tiempoMedianoPermanencia: 4.83,
+    p10: 0.68,
+    p25: 2.09,
+    p75: 9.50,
+    p90: 16.93,
+    rangoInterquartil: [2.09, 9.50],
     tendenciaMensual: 1.0,
     factorEstacional: 1.0,
-    confianza: 0.3,
+    confianza: 0.2,
     lastCalculated: new Date(),
     custodiosAnalizados: 0,
     metodologia: 'default_fallback'

@@ -74,25 +74,56 @@ export function DynamicRetentionMetrics({ metrics, quarterlyData = [] }: Dynamic
         </CardHeader>
         
         <CardContent className="space-y-4">
-          {/* Métrica principal */}
+          {/* Métrica principal - MEDIANA como valor típico */}
           <div className="text-center p-4 bg-secondary/30 rounded-lg">
             <div className="text-3xl font-bold text-primary">
-              {metrics.tiempoPromedioPermanencia.toFixed(1)}
+              {metrics.tiempoMedianoPermanencia.toFixed(1)}
               <span className="text-base font-normal text-muted-foreground ml-1">meses</span>
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              Tiempo promedio actual de permanencia
+              Permanencia típica (mediana P50)
             </p>
+            <div className="mt-2 text-xs text-muted-foreground flex items-center justify-center gap-1">
+              <Info className="h-3 w-3" />
+              <span>Promedio: {metrics.tiempoPromedioPermanencia.toFixed(1)}m</span>
+            </div>
+          </div>
+
+          {/* Distribución de permanencia con percentiles */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold">Distribución de Permanencia</h4>
+            
+            {/* Rangos intercuartiles */}
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">50% de custodios permanecen:</span>
+              <span className="font-semibold">
+                {metrics.p25?.toFixed(1)}m - {metrics.p75?.toFixed(1)}m
+              </span>
+            </div>
+
+            {/* Visualización de distribución */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground w-12">P10</span>
+                <div className="flex-1 h-2 bg-gradient-to-r from-red-200/50 via-yellow-200/50 via-green-200/50 to-blue-200/50 rounded-full relative">
+                  <div 
+                    className="absolute h-3 w-1 bg-primary -top-0.5 rounded-full"
+                    style={{ left: '50%', transform: 'translateX(-50%)' }}
+                  />
+                </div>
+                <span className="text-xs text-muted-foreground w-12 text-right">P90</span>
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground px-12">
+                <span>{metrics.p10?.toFixed(1)}m</span>
+                <span className="font-semibold text-primary">{metrics.tiempoMedianoPermanencia.toFixed(1)}m</span>
+                <span>{metrics.p90?.toFixed(1)}m</span>
+              </div>
+            </div>
           </div>
 
           {/* Detalles de cálculo */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 pt-3 border-t">
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Mediana</span>
-                <span className="text-sm">{metrics.tiempoMedianoPermanencia.toFixed(1)}m</span>
-              </div>
-              
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium flex items-center gap-1">
                   Tendencia

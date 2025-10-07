@@ -162,12 +162,16 @@ export function useRetentionDetails(): RetentionDetailsData {
     const monthlyBreakdown: RetentionBreakdown[] = retentionData.map((item) => {
       const retentionRate = Number(item.tasa_retencion);
       
-      // CORRECCIÓN: Calcular permanencia específica basada en retención del mes
-      // Fórmula empírica: permanencia ≈ 1 / (1 - retention_rate)
-      // Ajustada a valores reales observados con validación de rangos
+      // CORRECCIÓN: Usar límites dinámicos basados en percentiles reales
+      // Si tenemos métricas dinámicas con percentiles, usarlos como límites
+      const lowerLimit = dynamicMetrics?.p10 || 0.68;
+      const upperLimit = dynamicMetrics?.p90 || 16.93;
+      const medianaPermanencia = dynamicMetrics?.tiempoMedianoPermanencia || 4.83;
+      
+      // Fórmula empírica con límites basados en datos reales
       const permanenciaMes = retentionRate > 0 
-        ? Math.min(10, Math.max(2, 1 / ((100 - retentionRate) / 100)))
-        : permanenciaEmpirica;
+        ? Math.min(upperLimit, Math.max(lowerLimit, 1 / ((100 - retentionRate) / 100)))
+        : medianaPermanencia;
       
       return {
         month: item.mes,
