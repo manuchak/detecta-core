@@ -45,7 +45,9 @@ const KPIDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  const [activeTab, setActiveTab] = useState('operacional');
+  // Read active internal tab from URL query params, default to 'operacional'
+  const searchParams = new URLSearchParams(location.search);
+  const activeTab = searchParams.get('tab') || 'operacional';
   const [selectedKPI, setSelectedKPI] = useState<string | null>(null);
   const currentTab = location.pathname === '/dashboard/kpis' ? 'kpis' : 'executive';
 
@@ -55,6 +57,10 @@ const KPIDashboard = () => {
     } else {
       navigate('/dashboard');
     }
+  };
+
+  const handleInternalTabChange = (newTab: string) => {
+    navigate(`/dashboard/kpis?tab=${newTab}`, { replace: true });
   };
 
   const currentTime = new Date().toLocaleTimeString('es-MX', { 
@@ -272,7 +278,7 @@ const KPIDashboard = () => {
         </div>
 
         {/* Executive Dashboard Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={handleInternalTabChange} className="space-y-6">
           <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="operacional" className="flex items-center gap-2">
               <Activity className="h-4 w-4" />
