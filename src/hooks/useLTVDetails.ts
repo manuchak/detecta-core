@@ -133,7 +133,7 @@ export const useLTVDetails = (): LTVDetails => {
           ltvMesAnterior: 0,
           cambioAbsoluto: 0,
           cambioRelativo: 0,
-          tendencia: 'stable'
+          tendencia: 'stable' as const
         },
         quarterlyData: [],
         tiempoVidaPromedio: tiempoVidaPromedio,
@@ -207,9 +207,14 @@ export const useLTVDetails = (): LTVDetails => {
         ? (cambioAbsoluto / mesAnterior.ltvCalculado) * 100 
         : 0;
       
-      const tendencia: 'up' | 'down' | 'stable' = 
-        Math.abs(cambioRelativo) < 5 ? 'stable' :
-        cambioRelativo > 0 ? 'up' : 'down';
+      let tendencia: 'up' | 'down' | 'stable';
+      if (Math.abs(cambioRelativo) < 5) {
+        tendencia = 'stable';
+      } else if (cambioRelativo > 0) {
+        tendencia = 'up';
+      } else {
+        tendencia = 'down';
+      }
 
       return {
         ltvActual: mesActual.ltvCalculado,
