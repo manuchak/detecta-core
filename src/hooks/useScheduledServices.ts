@@ -40,8 +40,8 @@ export function useScheduledServices(selectedDate: Date = new Date()) {
     try {
       const dateStr = date.toISOString().split('T')[0];
       
-      // Use the new function for planned services
-      const { data, error } = await supabase.rpc('get_planned_services_summary', {
+      // Use the real planned services function
+      const { data, error } = await supabase.rpc('get_real_planned_services_summary', {
         date_filter: dateStr
       });
 

@@ -10964,6 +10964,16 @@ export type Database = {
           roi_total_marketing: number
         }[]
       }
+      get_real_planned_services_summary: {
+        Args: { date_filter: string }
+        Returns: {
+          assigned_services: number
+          confirmed_services: number
+          pending_services: number
+          services_data: Json
+          total_services: number
+        }[]
+      }
       get_redemptions_with_custodian_info: {
         Args: Record<PropertyKey, never>
         Returns: {
