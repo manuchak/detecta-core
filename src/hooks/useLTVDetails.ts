@@ -1,9 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-
-// Tiempo de vida promedio calculado en análisis de rotación (5.4 meses)
-const TIEMPO_VIDA_PROMEDIO = 5.4;
+import { calculateDynamicRetention } from '@/utils/dynamicRetentionCalculator';
 
 export interface LTVBreakdown {
   month: string;
@@ -33,6 +31,13 @@ export interface LTVDetails {
 }
 
 export const useLTVDetails = (): LTVDetails => {
+  // Obtener permanencia empírica dinámica
+  const { data: dynamicRetention } = useQuery({
+    queryKey: ['dynamic-retention-ltv'],
+    queryFn: async () => await calculateDynamicRetention(),
+    staleTime: 60 * 60 * 1000, // 1 hora
+  });
+
   // Obtener servicios completados por mes para calcular LTV
   const { data: serviciosPorMes, isLoading: serviciosLoading } = useQuery({
     queryKey: ['servicios-ltv-details'],
@@ -86,6 +91,9 @@ export const useLTVDetails = (): LTVDetails => {
   });
 
   const ltvDetails = useMemo(() => {
+    // Usar permanencia empírica del calculador dinámico
+    const tiempoVidaPromedio = dynamicRetention?.tiempoPromedioPermanencia || 5.4;
+
     if (serviciosLoading || !serviciosPorMes) {
       return {
         yearlyData: {
@@ -102,7 +110,7 @@ export const useLTVDetails = (): LTVDetails => {
           ingresoPromedioPorCustodio: 0,
           ltvCalculado: 0,
         },
-        tiempoVidaPromedio: TIEMPO_VIDA_PROMEDIO,
+        tiempoVidaPromedio: tiempoVidaPromedio,
         loading: true,
       };
     }
@@ -121,8 +129,8 @@ export const useLTVDetails = (): LTVDetails => {
       const ingresoPromedioPorCustodio = monthData.custodiosActivos > 0 ? 
         monthData.ingresos / monthData.custodiosActivos : 0;
       
-      // LTV estimado = Ingreso promedio mensual * tiempo de vida promedio (5.4 meses)
-      const ltvCalculado = Math.round(ingresoPromedioPorCustodio * TIEMPO_VIDA_PROMEDIO);
+      // LTV empírico = Ingreso promedio mensual * permanencia empírica dinámica
+      const ltvCalculado = Math.round(ingresoPromedioPorCustodio * tiempoVidaPromedio);
       
       ingresosTotalesAcumulados += monthData.ingresos;
 
@@ -143,15 +151,15 @@ export const useLTVDetails = (): LTVDetails => {
     const ingresoPromedioPorCustodioGeneral = custodiosUnicosCount > 0 ? 
       ingresosTotalesAcumulados / custodiosUnicosCount : 0;
     
-    // LTV general estimado usando tiempo de vida promedio
-    const ltvGeneral = Math.round(ingresoPromedioPorCustodioGeneral * TIEMPO_VIDA_PROMEDIO);
+    // LTV general usando permanencia empírica dinámica
+    const ltvGeneral = Math.round(ingresoPromedioPorCustodioGeneral * tiempoVidaPromedio);
 
     // Datos del mes actual (Agosto 2025)
     const currentMonth = '2025-08';
     const currentMonthData = serviciosPorMes[currentMonth] || { custodiosActivos: 0, ingresos: 0 };
     const currentIngresoPromedio = currentMonthData.custodiosActivos > 0 ? 
       currentMonthData.ingresos / currentMonthData.custodiosActivos : 0;
-    const currentLTV = Math.round(currentIngresoPromedio * TIEMPO_VIDA_PROMEDIO);
+    const currentLTV = Math.round(currentIngresoPromedio * tiempoVidaPromedio);
 
     return {
       yearlyData: {
@@ -168,10 +176,10 @@ export const useLTVDetails = (): LTVDetails => {
         ingresoPromedioPorCustodio: Math.round(currentIngresoPromedio),
         ltvCalculado: currentLTV,
       },
-      tiempoVidaPromedio: TIEMPO_VIDA_PROMEDIO,
+      tiempoVidaPromedio: tiempoVidaPromedio,
       loading: false,
     };
-  }, [serviciosPorMes, serviciosLoading]);
+  }, [serviciosPorMes, serviciosLoading, dynamicRetention]);
 
   return {
     ...ltvDetails,

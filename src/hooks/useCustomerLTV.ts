@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { calculateDynamicRetention } from '@/utils/dynamicRetentionCalculator';
 
 export interface LTVMetrics {
   overallLTV: number;
@@ -35,6 +36,10 @@ export const useCustomerLTV = () => {
     setLoading(true);
     
     try {
+      // Obtener permanencia empírica
+      const dynamicMetrics = await calculateDynamicRetention();
+      const permanenciaEmpirica = dynamicMetrics.tiempoPromedioPermanencia;
+
       // Obtener servicios finalizados con cobro válido
       const { data: services, error } = await supabase
         .from('servicios_custodia')
@@ -108,17 +113,19 @@ export const useCustomerLTV = () => {
         return sum + custodian.services;
       }, 0) / activeCustodians;
 
-      // 4. Calcular retención promedio en meses
+      // 4. Calcular retención promedio en meses (mantener para referencia)
       const averageRetentionMonths = custodianList.reduce((sum, custodian) => {
         const startDate = new Date(custodian.firstService);
         const endDate = new Date(custodian.lastService);
         const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-        const diffMonths = Math.max(1, diffTime / (1000 * 60 * 60 * 24 * 30)); // Mínimo 1 mes
+        const diffMonths = Math.max(1, diffTime / (1000 * 60 * 60 * 24 * 30));
         return sum + diffMonths;
       }, 0) / activeCustodians;
 
-      // 5. Calcular LTV total
-      const overallLTV = averageRevenuePerService * averageServicesPerCustodian;
+      // 5. Calcular LTV usando permanencia empírica
+      // LTV = Ingreso Promedio Mensual × Permanencia Empírica
+      const ingresoPromedioMensual = totalRevenue / activeCustodians / permanenciaEmpirica;
+      const overallLTV = ingresoPromedioMensual * permanenciaEmpirica;
 
       // 6. LTV por zona (simplificado sin zona específica)
       const ltvByZone = { 'General': overallLTV };
