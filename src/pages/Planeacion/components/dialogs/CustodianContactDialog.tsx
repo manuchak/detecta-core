@@ -324,7 +324,7 @@ export const CustodianContactDialog: React.FC<CustodianContactDialogProps> = ({
       onOpenChange(open);
       if (!open) resetForm();
     }}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto z-[60]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />

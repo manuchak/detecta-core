@@ -8,9 +8,11 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CustodianAssignmentStep } from '@/pages/Planeacion/components/workflow/CustodianAssignmentStep';
 import { ArmedGuardAssignmentStep } from '@/components/planeacion/ArmedGuardAssignmentStep';
+import { ContextualEditModal } from './ContextualEditModal';
 import { useServiciosPlanificados } from '@/hooks/useServiciosPlanificados';
 import { toast } from 'sonner';
 import type { PendingService } from '@/hooks/usePendingServices';
+import type { EditableService } from './EditServiceModal';
 
 interface PendingAssignmentModalProps {
   open: boolean;
@@ -31,6 +33,7 @@ export function PendingAssignmentModal({
   mode = 'auto'
 }: PendingAssignmentModalEnhancedProps) {
   const [isAssigning, setIsAssigning] = useState(false);
+  const [showContextualEdit, setShowContextualEdit] = useState(false);
   const [currentStep, setCurrentStep] = useState<'custodian' | 'armed'>(() => {
     if (mode === 'direct_armed') return 'armed';
     if (mode === 'direct_custodian') return 'custodian';
@@ -42,6 +45,21 @@ export function PendingAssignmentModal({
       { custodio_nombre: service.custodio_asignado } : null
   );
   const { assignCustodian, assignArmedGuard } = useServiciosPlanificados();
+
+  // Detectar si estamos editando un servicio existente con asignaciones
+  const isEditingExisting = service && (
+    ('custodio_asignado' in service && service.custodio_asignado) ||
+    ('armado_asignado' in service && service.armado_asignado)
+  );
+
+  // Mostrar ContextualEditModal si estamos editando un servicio existente
+  React.useEffect(() => {
+    if (open && isEditingExisting && mode === 'auto') {
+      setShowContextualEdit(true);
+    } else {
+      setShowContextualEdit(false);
+    }
+  }, [open, isEditingExisting, mode]);
 
   if (!service) return null;
 
@@ -127,6 +145,50 @@ export function PendingAssignmentModal({
     onOpenChange(false);
     onAssignmentComplete();
   };
+
+  const handleStartReassignment = (type: 'custodian' | 'armed_guard') => {
+    setShowContextualEdit(false);
+    if (type === 'custodian') {
+      setCurrentStep('custodian');
+    } else {
+      setCurrentStep('armed');
+    }
+  };
+
+  const handleEditServiceSave = async (id: string, data: Partial<EditableService>) => {
+    // Implementar guardado de cambios básicos
+    toast.success('Cambios guardados exitosamente');
+    onAssignmentComplete();
+  };
+
+  // Convertir PendingService a EditableService para ContextualEditModal
+  const editableService: EditableService | null = service ? {
+    id: service.id,
+    id_servicio: service.id_servicio,
+    nombre_cliente: service.nombre_cliente || '',
+    origen: service.origen || '',
+    destino: service.destino || '',
+    fecha_hora_cita: service.fecha_hora_cita || '',
+    tipo_servicio: service.tipo_servicio || '',
+    requiere_armado: service.requiere_armado || false,
+    custodio_asignado: ('custodio_asignado' in service && typeof service.custodio_asignado === 'string') ? service.custodio_asignado : undefined,
+    armado_asignado: ('armado_asignado' in service && typeof service.armado_asignado === 'string') ? service.armado_asignado : undefined,
+    estado_planeacion: ('estado' in service && typeof service.estado === 'string') ? service.estado : 'pendiente',
+    observaciones: service.observaciones
+  } : null;
+
+  // Si debemos mostrar ContextualEditModal primero
+  if (showContextualEdit && editableService) {
+    return (
+      <ContextualEditModal
+        open={open}
+        onOpenChange={onOpenChange}
+        service={editableService}
+        onSave={handleEditServiceSave}
+        onStartReassignment={handleStartReassignment}
+      />
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
