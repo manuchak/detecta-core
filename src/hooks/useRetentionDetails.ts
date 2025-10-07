@@ -213,16 +213,13 @@ export function useRetentionDetails(): RetentionDetailsData {
     const monthlyBreakdown: RetentionBreakdown[] = retentionData.map((item) => {
       const retentionRate = Number(item.tasa_retencion);
       
-      // CORRECCIÓN: Usar límites dinámicos basados en percentiles reales
-      // Si tenemos métricas dinámicas con percentiles, usarlos como límites
-      const lowerLimit = dynamicRetentionData?.p10 || 0.68;
-      const upperLimit = dynamicRetentionData?.p90 || 16.93;
+      // Usar mediana empírica de permanencia (4.83 meses)
+      // Esta es la permanencia real observada en los datos de cohortes
       const medianaPermanencia = dynamicRetentionData?.tiempoMedianoPermanencia || 4.83;
       
-      // Fórmula empírica con límites basados en datos reales
-      const permanenciaMes = retentionRate > 0 
-        ? Math.min(upperLimit, Math.max(lowerLimit, 1 / ((100 - retentionRate) / 100)))
-        : medianaPermanencia;
+      // CORRECCIÓN: Usar mediana empírica en lugar de fórmula matemática
+      // La mediana es el indicador más robusto y refleja la permanencia típica real
+      const permanenciaMes = medianaPermanencia;
       
       return {
         month: item.mes,
