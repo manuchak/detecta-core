@@ -22,6 +22,8 @@ export interface RetentionYearlyData {
   totalCustodiosAnteriores: number;
   mesesConDatos: number;
   tiempoPromedioPermanenciaGeneral: number;
+  custodiosUltimoQCompletado: number;
+  labelUltimoQCompletado: string;
 }
 
 export interface RetentionCurrentData {
@@ -61,6 +63,52 @@ export interface RetentionDetailsData {
   quarterlyData: QuarterlyData[];
   dynamicMetrics: DynamicRetentionMetrics | null;
   loading: boolean;
+}
+
+// Helper function para obtener el último trimestre completado
+function getLastCompletedQuarter(): { quarter: number; year: number; label: string } {
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1; // 1-12
+  const currentYear = now.getFullYear();
+  
+  // Determinar el último trimestre completado
+  let lastCompletedQuarter: number;
+  let quarterYear: number;
+  
+  if (currentMonth <= 3) {
+    // Estamos en Q1, el último completado es Q4 del año anterior
+    lastCompletedQuarter = 4;
+    quarterYear = currentYear - 1;
+  } else if (currentMonth <= 6) {
+    // Estamos en Q2, el último completado es Q1
+    lastCompletedQuarter = 1;
+    quarterYear = currentYear;
+  } else if (currentMonth <= 9) {
+    // Estamos en Q3, el último completado es Q2
+    lastCompletedQuarter = 2;
+    quarterYear = currentYear;
+  } else {
+    // Estamos en Q4, el último completado es Q3
+    lastCompletedQuarter = 3;
+    quarterYear = currentYear;
+  }
+  
+  return {
+    quarter: lastCompletedQuarter,
+    year: quarterYear,
+    label: `Q${lastCompletedQuarter} ${quarterYear}`
+  };
+}
+
+// Helper para obtener los meses de un trimestre
+function getQuarterMonths(quarter: number): number[] {
+  switch (quarter) {
+    case 1: return [1, 2, 3];
+    case 2: return [4, 5, 6];
+    case 3: return [7, 8, 9];
+    case 4: return [10, 11, 12];
+    default: return [];
+  }
 }
 
 export function useRetentionDetails(): RetentionDetailsData {
@@ -125,6 +173,7 @@ export function useRetentionDetails(): RetentionDetailsData {
 
   return useMemo(() => {
     if (isLoading || cohortLoading || dynamicLoading || !retentionData) {
+      const lastQ = getLastCompletedQuarter();
       return {
         yearlyData: {
           retentionPromedio: 0,
@@ -132,6 +181,8 @@ export function useRetentionDetails(): RetentionDetailsData {
           totalCustodiosAnteriores: 0,
           mesesConDatos: 0,
           tiempoPromedioPermanenciaGeneral: 5.4,
+          custodiosUltimoQCompletado: 0,
+          labelUltimoQCompletado: lastQ.label,
         },
         currentMonthData: {
           custodiosAnterior: 0,
@@ -209,6 +260,21 @@ export function useRetentionDetails(): RetentionDetailsData {
 
     // Usar permanencia empírica para el promedio general
     const tiempoPromedioPermanenciaGeneral = permanenciaEmpirica;
+
+    // Calcular custodios del último trimestre completado
+    const lastCompletedQ = getLastCompletedQuarter();
+    const quarterMonths = getQuarterMonths(lastCompletedQ.quarter);
+    
+    const lastQData = monthlyBreakdown.filter(item => {
+      const itemDate = new Date(item.month);
+      const itemMonth = itemDate.getMonth() + 1;
+      const itemYear = itemDate.getFullYear();
+      return itemYear === lastCompletedQ.year && quarterMonths.includes(itemMonth);
+    });
+    
+    const custodiosUltimoQCompletado = lastQData.length > 0 
+      ? Math.max(...lastQData.map(m => m.custodiosActual))
+      : currentMonth?.custodios_mes_actual || 0;
 
     // Calcular datos trimestrales
     const quarterlyData: QuarterlyData[] = [];
@@ -292,6 +358,8 @@ export function useRetentionDetails(): RetentionDetailsData {
         totalCustodiosAnteriores,
         mesesConDatos,
         tiempoPromedioPermanenciaGeneral: Math.round(tiempoPromedioPermanenciaGeneral * 100) / 100,
+        custodiosUltimoQCompletado,
+        labelUltimoQCompletado: lastCompletedQ.label,
       },
       currentMonthData,
       monthlyBreakdown: monthlyBreakdown.reverse(), // Mostrar cronológicamente

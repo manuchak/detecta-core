@@ -56,15 +56,15 @@ export function RetentionDetailView() {
           <CardHeader className="pb-3">
             <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
               <Users className="h-3.5 w-3.5" />
-              Custodios Retenidos
+              Custodios {retentionData.yearlyData.labelUltimoQCompletado}
             </CardTitle>
           </CardHeader>
           <CardContent className="flex-1 flex flex-col justify-center">
             <div className="text-3xl font-bold text-blue-600">
-              {retentionData.yearlyData.totalCustodiosRetenidos.toLocaleString()}
+              {retentionData.yearlyData.custodiosUltimoQCompletado.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Total del período
+              Último trimestre completado
             </p>
           </CardContent>
         </Card>
