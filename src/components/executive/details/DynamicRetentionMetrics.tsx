@@ -2,14 +2,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Info, TrendingUp, TrendingDown, Calendar, Users } from "lucide-react";
+import { Info, TrendingUp, TrendingDown, Calendar, Users, Activity, Minus } from "lucide-react";
 import { DynamicRetentionMetrics as DynamicMetrics } from "@/utils/dynamicRetentionCalculator";
+import { QuarterlyData } from "@/hooks/useRetentionDetails";
 
 interface DynamicRetentionMetricsProps {
   metrics: DynamicMetrics;
+  quarterlyData?: QuarterlyData[];
 }
 
-export function DynamicRetentionMetrics({ metrics }: DynamicRetentionMetricsProps) {
+export function DynamicRetentionMetrics({ metrics, quarterlyData = [] }: DynamicRetentionMetricsProps) {
   const getConfidenceColor = (confidence: number) => {
     if (confidence >= 0.8) return "bg-green-500";
     if (confidence >= 0.6) return "bg-yellow-500";
@@ -22,7 +24,12 @@ export function DynamicRetentionMetrics({ metrics }: DynamicRetentionMetricsProp
     return "Baja";
   };
 
-  const getTrendIcon = (trend: number) => {
+  const getTrendIcon = (trend: number | string) => {
+    if (typeof trend === 'string') {
+      if (trend === 'up') return <TrendingUp className="h-3 w-3 text-green-600" />;
+      if (trend === 'down') return <TrendingDown className="h-3 w-3 text-red-600" />;
+      return <Minus className="h-3 w-3 text-muted-foreground" />;
+    }
     if (trend > 1.05) return <TrendingUp className="h-4 w-4 text-green-600" />;
     if (trend < 0.95) return <TrendingDown className="h-4 w-4 text-red-600" />;
     return <div className="h-4 w-4 rounded-full bg-gray-400" />;
@@ -127,6 +134,31 @@ export function DynamicRetentionMetrics({ metrics }: DynamicRetentionMetricsProp
               </div>
             </div>
           </div>
+
+          {/* Quarterly Analysis */}
+          {quarterlyData.length > 0 && (
+            <div className="pt-4 border-t">
+              <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <Activity className="h-4 w-4" />
+                Análisis por Trimestre
+              </h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {quarterlyData.map((q) => (
+                  <div key={q.quarter} className="p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className="text-xs text-muted-foreground mb-1">{q.quarter}</div>
+                    <div className="text-lg font-bold text-primary">{q.avgPermanence.toFixed(1)}m</div>
+                    <div className="text-xs flex items-center gap-1 mt-1">
+                      {getTrendIcon(q.trend)}
+                      <span>{q.avgRetention.toFixed(1)}%</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {q.custodians} custodios
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Información de actualización */}
           <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">

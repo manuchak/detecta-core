@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, LabelList } from 'recharts';
 import { TrendingUp, Users, Clock, Target } from 'lucide-react';
 import { useRetentionDetails } from '@/hooks/useRetentionDetails';
 import { DynamicRetentionMetrics } from './DynamicRetentionMetrics';
@@ -29,7 +29,7 @@ export function RetentionDetailView() {
       {/* Dynamic Metrics */}
       {dynamicMetrics && (
         <div className="mb-6">
-          <DynamicRetentionMetrics metrics={dynamicMetrics} />
+          <DynamicRetentionMetrics metrics={dynamicMetrics} quarterlyData={retentionData.quarterlyData} />
         </div>
       )}
 
@@ -138,7 +138,14 @@ export function RetentionDetailView() {
                 dataKey="tasaRetencion" 
                 fill="hsl(var(--primary))"
                 radius={[4, 4, 0, 0]}
-              />
+              >
+                <LabelList 
+                  dataKey="tasaRetencion"
+                  position="top"
+                  formatter={(value: number) => `${value.toFixed(1)}%`}
+                  style={{ fontSize: '11px', fill: 'hsl(var(--foreground))', fontWeight: 500 }}
+                />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </CardContent>

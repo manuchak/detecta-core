@@ -45,11 +45,20 @@ export interface CohortAnalysis {
   month6: number; // 6 meses después
 }
 
+export interface QuarterlyData {
+  quarter: string;        // "Q1 2024"
+  avgRetention: number;   // Retención promedio del Q
+  avgPermanence: number;  // Permanencia promedio del Q
+  custodians: number;     // Total custodios del Q
+  trend: 'up' | 'down' | 'stable';
+}
+
 export interface RetentionDetailsData {
   yearlyData: RetentionYearlyData;
   currentMonthData: RetentionCurrentData;
   monthlyBreakdown: RetentionBreakdown[];
   cohortAnalysis: CohortAnalysis[];
+  quarterlyData: QuarterlyData[];
   dynamicMetrics: DynamicRetentionMetrics | null;
   loading: boolean;
 }
@@ -135,6 +144,7 @@ export function useRetentionDetails(): RetentionDetailsData {
         },
         monthlyBreakdown: [],
         cohortAnalysis: [],
+        quarterlyData: [],
         dynamicMetrics: null,
         loading: true,
       };
@@ -189,6 +199,43 @@ export function useRetentionDetails(): RetentionDetailsData {
     // Usar permanencia empírica para el promedio general
     const tiempoPromedioPermanenciaGeneral = permanenciaEmpirica;
 
+    // Calcular datos trimestrales
+    const quarterlyData: QuarterlyData[] = [];
+    const currentYear = new Date().getFullYear();
+    
+    // Agrupar datos por trimestre
+    for (let q = 1; q <= 4; q++) {
+      const quarterMonths = monthlyBreakdown.filter(item => {
+        const month = new Date(item.month).getMonth() + 1;
+        return month >= (q - 1) * 3 + 1 && month <= q * 3;
+      });
+      
+      if (quarterMonths.length > 0) {
+        const avgRetention = quarterMonths.reduce((sum, m) => sum + m.tasaRetencion, 0) / quarterMonths.length;
+        const avgPermanence = quarterMonths.reduce((sum, m) => sum + m.tiempoPromedioPermanencia, 0) / quarterMonths.length;
+        const custodians = Math.round(quarterMonths.reduce((sum, m) => sum + m.custodiosActual, 0) / quarterMonths.length);
+        
+        // Calcular tendencia comparando con trimestre anterior
+        let trend: 'up' | 'down' | 'stable' = 'stable';
+        if (q > 1) {
+          const prevQuarter = quarterlyData[q - 2];
+          if (prevQuarter) {
+            const diff = avgRetention - prevQuarter.avgRetention;
+            if (diff > 2) trend = 'up';
+            else if (diff < -2) trend = 'down';
+          }
+        }
+        
+        quarterlyData.push({
+          quarter: `Q${q} ${currentYear}`,
+          avgRetention: Math.round(avgRetention * 10) / 10,
+          avgPermanence: Math.round(avgPermanence * 10) / 10,
+          custodians,
+          trend
+        });
+      }
+    }
+
     // Generar análisis de cohortes realista basado en custodios nuevos por mes
     const ahora = new Date();
     const cohortAnalysis: CohortAnalysis[] = [];
@@ -238,6 +285,7 @@ export function useRetentionDetails(): RetentionDetailsData {
       currentMonthData,
       monthlyBreakdown: monthlyBreakdown.reverse(), // Mostrar cronológicamente
       cohortAnalysis,
+      quarterlyData,
       dynamicMetrics: dynamicRetentionData,
       loading: false,
     };
