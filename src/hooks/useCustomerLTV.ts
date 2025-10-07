@@ -36,9 +36,9 @@ export const useCustomerLTV = () => {
     setLoading(true);
     
     try {
-      // Obtener permanencia empírica
+      // Obtener permanencia MEDIANA (custodio típico, no promedio inflado por outliers)
       const dynamicMetrics = await calculateDynamicRetention();
-      const permanenciaEmpirica = dynamicMetrics.tiempoPromedioPermanencia;
+      const permanenciaMediana = dynamicMetrics.tiempoMedianoPermanencia;
 
       // Obtener servicios finalizados con cobro válido
       const { data: services, error } = await supabase
@@ -122,10 +122,26 @@ export const useCustomerLTV = () => {
         return sum + diffMonths;
       }, 0) / activeCustodians;
 
-      // 5. Calcular LTV usando permanencia empírica
-      // LTV = Ingreso Promedio Mensual × Permanencia Empírica
-      const ingresoPromedioMensual = totalRevenue / activeCustodians / permanenciaEmpirica;
-      const overallLTV = ingresoPromedioMensual * permanenciaEmpirica;
+      // 5. Calcular LTV usando permanencia MEDIANA (corregido)
+      // Primero calcular el período de meses analizados
+      const fechasServicios = validServices.map(s => new Date(s.fecha_hora_cita));
+      const fechaMin = new Date(Math.min(...fechasServicios.map(f => f.getTime())));
+      const fechaMax = new Date(Math.max(...fechasServicios.map(f => f.getTime())));
+      const mesesAnalizados = Math.max(1, (fechaMax.getTime() - fechaMin.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
+      
+      // LTV = Ingreso Promedio Mensual × Permanencia Mediana
+      const ingresoPromedioMensual = totalRevenue / activeCustodians / mesesAnalizados;
+      const overallLTV = ingresoPromedioMensual * permanenciaMediana;
+      
+      console.log('📊 LTV Calculation Details:', {
+        totalRevenue: totalRevenue.toFixed(2),
+        activeCustodians,
+        mesesAnalizados: mesesAnalizados.toFixed(2),
+        permanenciaMediana: permanenciaMediana.toFixed(2),
+        ingresoPromedioMensual: ingresoPromedioMensual.toFixed(2),
+        overallLTV: overallLTV.toFixed(2),
+        formula: `(${totalRevenue.toFixed(0)} / ${activeCustodians} / ${mesesAnalizados.toFixed(2)}) * ${permanenciaMediana.toFixed(2)}`
+      });
 
       // 6. LTV por zona (simplificado sin zona específica)
       const ltvByZone = { 'General': overallLTV };
@@ -147,7 +163,8 @@ export const useCustomerLTV = () => {
 
         const monthRevenue = monthServices.reduce((sum, s) => sum + parseFloat(String(s.cobro_cliente || 0)), 0);
         const monthCustodians = new Set(monthServices.map(s => s.nombre_custodio)).size;
-        const monthLTV = monthCustodians > 0 ? monthRevenue / monthCustodians : 0;
+        const monthIngresoPromedio = monthCustodians > 0 ? monthRevenue / monthCustodians : 0;
+        const monthLTV = monthIngresoPromedio * permanenciaMediana;
 
         ltvTrend.push({
           month: monthName,

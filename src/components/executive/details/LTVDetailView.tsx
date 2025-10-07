@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area } from 'recharts';
-import { DollarSign, TrendingUp, Users, Target } from 'lucide-react';
+import { DollarSign, TrendingUp, Users, Target, Info } from 'lucide-react';
 import { useLTVDetails } from '@/hooks/useLTVDetails';
 
 export function LTVDetailView() {
@@ -48,6 +48,12 @@ export function LTVDetailView() {
             <p className="text-xs text-muted-foreground">
               Valor de vida general
             </p>
+            <div className="text-xs text-muted-foreground mt-2 flex items-start gap-1">
+              <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+              <span>
+                LTV basado en mediana de permanencia ({ltvData.tiempoVidaPromedio.toFixed(1)}m)
+              </span>
+            </div>
           </CardContent>
         </Card>
 

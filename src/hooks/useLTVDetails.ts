@@ -91,8 +91,8 @@ export const useLTVDetails = (): LTVDetails => {
   });
 
   const ltvDetails = useMemo(() => {
-    // Usar permanencia empírica del calculador dinámico
-    const tiempoVidaPromedio = dynamicRetention?.tiempoPromedioPermanencia || 5.4;
+    // Usar permanencia MEDIANA del calculador dinámico (custodio típico, no promedio inflado)
+    const tiempoVidaPromedio = dynamicRetention?.tiempoMedianoPermanencia || 4.83;
 
     if (serviciosLoading || !serviciosPorMes) {
       return {
