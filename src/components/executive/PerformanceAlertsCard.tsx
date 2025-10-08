@@ -61,22 +61,22 @@ export const PerformanceAlertsCard = () => {
   }
 
   // Month closure alert
-  if (monthData.status === 'En riesgo') {
+  if (monthData.status === 'Por debajo') {
     alerts.push({
       level: 'critical',
-      message: `${monthData.current.monthName} en riesgo vs ${monthData.previousMonth.monthName}`,
+      message: `${monthData.current.monthName} por debajo de ${monthData.previousMonth.monthName}`,
       icon: AlertTriangle
     });
-  } else if (monthData.status === 'En meta') {
+  } else if (monthData.status === 'Igual') {
     alerts.push({
       level: 'warning',
-      message: `${monthData.current.monthName} al límite vs ${monthData.previousMonth.monthName}`,
+      message: `${monthData.current.monthName} igual que ${monthData.previousMonth.monthName}`,
       icon: AlertCircle
     });
   } else {
     alerts.push({
       level: 'success',
-      message: `${monthData.current.monthName} superando ${monthData.previousMonth.monthName}`,
+      message: `${monthData.current.monthName} supera ${monthData.previousMonth.monthName}`,
       icon: CheckCircle
     });
   }
@@ -149,7 +149,7 @@ export const PerformanceAlertsCard = () => {
               <div className="h-2 w-2 rounded-full bg-destructive"></div>
               <span className="text-sm">PRIORIDAD #2: Acelerar captación</span>
             </div>
-            {monthData.status === 'Superando' && (
+            {monthData.status === 'Supera' && (
               <div className="flex items-center gap-2">
                 <div className="h-2 w-2 rounded-full bg-success"></div>
                 <span className="text-sm">PRIORIDAD #3: Mantener momentum</span>

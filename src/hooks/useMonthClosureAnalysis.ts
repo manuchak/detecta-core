@@ -41,7 +41,7 @@ interface MonthClosureData {
     paceNeeded: number;
     trend: 'improving' | 'stable' | 'declining';
   };
-  status: 'En riesgo' | 'En meta' | 'Superando';
+  status: 'Por debajo' | 'Igual' | 'Supera';
   daysRemaining: number;
   requiredPace: number;
   currentPace: number;
@@ -170,13 +170,20 @@ export const useMonthClosureAnalysis = () => {
       const requiredPace = (target.services - current.services) / daysRemaining;
       const paceNeeded = Math.ceil(requiredPace);
       
-      // Status using same logic as other components
+      // Status comparing projection vs previous month (not vs target)
       const paceStatus = getPaceStatus(currentPace, requiredPace);
       
-      let status: 'En riesgo' | 'En meta' | 'Superando';
-      if (paceStatus.status === 'behind') status = 'En riesgo';
-      else if (paceStatus.status === 'exceeding') status = 'Superando';
-      else status = 'En meta';
+      let status: 'Por debajo' | 'Igual' | 'Supera';
+      const tolerance = 0.02; // 2% tolerance for "Igual"
+      const percentDiff = (projectedServices - prevServices) / prevServices;
+      
+      if (percentDiff > tolerance) {
+        status = 'Supera'; // Projection exceeds previous month by >2%
+      } else if (percentDiff < -tolerance) {
+        status = 'Por debajo'; // Projection is below previous month by >2%
+      } else {
+        status = 'Igual'; // Within 2% of previous month
+      }
 
       return {
         current,

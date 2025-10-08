@@ -1,9 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useMonthClosureAnalysis } from '@/hooks/useMonthClosureAnalysis';
-import { Loader2, Calendar, CheckCircle, AlertTriangle, TrendingUp, TrendingDown, Minus, Target } from 'lucide-react';
+import { Loader2, Calendar, CheckCircle, AlertTriangle, TrendingUp, TrendingDown, Minus, Target, Info } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { formatNumber, formatGMV, formatPercent } from '@/utils/formatUtils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export const MonthClosureCard = () => {
   const { data, isLoading: analysisLoading } = useMonthClosureAnalysis();
@@ -21,9 +22,9 @@ export const MonthClosureCard = () => {
   if (!data) return null;
 
   const statusConfig = {
-    'En riesgo': { color: 'text-destructive', icon: AlertTriangle },
-    'En meta': { color: 'text-success', icon: CheckCircle },
-    'Superando': { color: 'text-primary', icon: TrendingUp }
+    'Por debajo': { color: 'text-destructive', icon: AlertTriangle },
+    'Igual': { color: 'text-warning', icon: Minus },
+    'Supera': { color: 'text-success', icon: TrendingUp }
   };
 
   const StatusIcon = statusConfig[data.status].icon;
@@ -62,13 +63,21 @@ export const MonthClosureCard = () => {
         </div>
         <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
           <Target className="h-4 w-4 text-primary" />
-          <span className="text-xs text-muted-foreground">
-            Meta realista: <span className="font-medium text-foreground">{formatNumber(data.target.services)} srv</span> ({formatGMV(data.target.gmv * 1_000_000)} / AOV ${formatNumber(data.current.aov)})
-            {data.projection.services !== data.target.services && (
-              <span className="text-primary ml-1">
-                • Proyección: {formatNumber(data.projection.services)} srv
-              </span>
-            )}
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            Proyección del mes: <span className="font-medium text-foreground">{formatNumber(data.projection.services)} srv</span> ({formatGMV(data.projection.gmv * 1_000_000)} / AOV ${formatNumber(data.current.aov)})
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs max-w-xs">
+                    Comparación contra {data.previousMonth.monthName} ({formatNumber(data.previousMonth.services)} srv).
+                    Las metas trimestrales se revisan en la planificación estratégica.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </span>
         </div>
       </CardHeader>
@@ -76,7 +85,7 @@ export const MonthClosureCard = () => {
         {/* Progress Bar */}
         <div>
           <div className="flex justify-between text-xs text-muted-foreground mb-2">
-            <span>Progreso hacia meta</span>
+            <span>Progreso hacia proyección</span>
             <span>{Math.round(progressPercent)}%</span>
           </div>
           <Progress value={progressPercent} className="h-2" />
@@ -204,8 +213,14 @@ export const MonthClosureCard = () => {
               <span className="text-muted-foreground">{data.current.monthName} (proyección):</span>
               <div className="flex items-center gap-1">
                 <span className="font-medium">{formatNumber(data.projection.services)} srv | {formatGMV(data.projection.gmv * 1_000_000)}</span>
-                <span className={`text-xs ${data.projection.services >= data.target.services ? 'text-success' : 'text-muted-foreground'}`}>
-                  ({data.projection.services >= data.target.services ? 'Supera meta' : 'Por debajo de meta'})
+                <span className={`text-xs ${
+                  data.projection.services > data.previousMonth.services ? 'text-success' : 
+                  data.projection.services === data.previousMonth.services ? 'text-warning' : 
+                  'text-destructive'
+                }`}>
+                  ({data.projection.services > data.previousMonth.services ? 'Supera mes anterior' : 
+                    data.projection.services === data.previousMonth.services ? 'Igual que mes anterior' :
+                    'Por debajo de mes anterior'})
                 </span>
               </div>
             </div>
@@ -213,14 +228,15 @@ export const MonthClosureCard = () => {
         </div>
 
         {/* Status Alert */}
-        {data.status === 'En riesgo' && (
+        {data.status === 'Por debajo' && (
           <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
             <div className="flex items-center gap-2 text-destructive mb-1">
               <AlertTriangle className="h-4 w-4" />
               <span className="text-sm font-medium">Acción Requerida</span>
             </div>
             <div className="text-sm text-muted-foreground">
-              Necesitas acelerar el ritmo a {data.insights.paceNeeded} servicios/día para cumplir la meta.
+              En {data.previousMonth.monthName} cerraste con {formatNumber(data.previousMonth.services)} servicios.
+              Necesitas acelerar el ritmo a {data.insights.paceNeeded} srv/día para igualar el mes anterior.
             </div>
           </div>
         )}
