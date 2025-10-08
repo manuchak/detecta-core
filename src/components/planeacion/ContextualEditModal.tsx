@@ -206,7 +206,7 @@ export function ContextualEditModal({
     
     switch (currentView) {
       case 'selection':
-        return `${service.id_servicio}`;
+        return `Servicio ${service.id_servicio || service.id || 'Sin Folio'}`;
       case 'preview':
         return 'Confirmar Cambios';
       case 'basic_form':

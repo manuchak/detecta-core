@@ -35,6 +35,7 @@ export function PendingAssignmentModal({
 }: PendingAssignmentModalEnhancedProps) {
   const [isAssigning, setIsAssigning] = useState(false);
   const [showContextualEdit, setShowContextualEdit] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
   const [currentStep, setCurrentStep] = useState<'custodian' | 'armed'>(() => {
     if (mode === 'direct_armed') return 'armed';
     if (mode === 'direct_custodian') return 'custodian';
@@ -57,18 +58,27 @@ export function PendingAssignmentModal({
 
   // Mostrar ContextualEditModal si estamos editando un servicio existente
   React.useEffect(() => {
-    if (open && isEditingExisting && mode === 'auto') {
-      setShowContextualEdit(true);
-    } else {
-      setShowContextualEdit(false);
-      // Asegurar que el paso correcto esté activo basado en el servicio
-      if (mode === 'direct_armed' || (service && service.custodio_asignado)) {
-        setCurrentStep('armed');
+    if (open) {
+      // Si el servicio ya existe y estamos en modo 'auto', mostrar ContextualEditModal
+      // pero solo si el usuario no ha interactuado todavía
+      if (isEditingExisting && mode === 'auto' && !hasInteracted) {
+        setShowContextualEdit(true);
+      } else if (hasInteracted) {
+        setShowContextualEdit(false);
       } else {
-        setCurrentStep('custodian');
+        setShowContextualEdit(false);
+        // Asegurar que el paso correcto esté activo basado en el servicio
+        if (mode === 'direct_armed' || (service && service.custodio_asignado)) {
+          setCurrentStep('armed');
+        } else {
+          setCurrentStep('custodian');
+        }
       }
+    } else {
+      // Reset cuando se cierra el modal
+      setHasInteracted(false);
     }
-  }, [open, isEditingExisting, mode, service]);
+  }, [open, isEditingExisting, mode, service, hasInteracted]);
 
   if (!service) return null;
 
@@ -158,6 +168,7 @@ export function PendingAssignmentModal({
 
   const handleStartReassignment = (type: 'custodian' | 'armed_guard') => {
     console.log('[PendingAssignmentModal] start reassignment', { type, id_servicio: service.id_servicio });
+    setHasInteracted(true);
     setShowContextualEdit(false);
     if (type === 'custodian') {
       setCurrentStep('custodian');
