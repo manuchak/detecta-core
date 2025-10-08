@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -199,27 +199,31 @@ export function PendingAssignmentModal({
     observaciones: service.observaciones
   } : null;
 
-  // Si debemos mostrar ContextualEditModal primero
-  if (showContextualEdit && editableService) {
-    return (
-      <ContextualEditModal
-        open={open}
-        onOpenChange={onOpenChange}
-        service={editableService}
-        onSave={handleEditServiceSave}
-        onStartReassignment={handleStartReassignment}
-      />
-    );
-  }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      {showContextualEdit && editableService && (
+        <ContextualEditModal
+          open={showContextualEdit}
+          onOpenChange={(o) => {
+            if (!o && !hasInteracted) {
+              onOpenChange(false);
+            }
+            setShowContextualEdit(o);
+          }}
+          service={editableService}
+          onSave={handleEditServiceSave}
+          onStartReassignment={handleStartReassignment}
+        />
+      )}
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 apple-text-title">
             {currentStep === 'armed' ? <Shield className="h-5 w-5" /> : <User className="h-5 w-5" />}
             {currentStep === 'armed' ? 'Asignar Armado' : 'Asignar Custodio'} - {service.id_servicio}
           </DialogTitle>
+          <DialogDescription className="sr-only">Asignación de servicio</DialogDescription>
           {mode === 'direct_armed' && service && service.custodio_asignado && (
             <div className="flex items-center gap-2 apple-text-caption text-muted-foreground font-mono">
               {service.custodio_asignado} ✅ → Armado ⏳
@@ -315,5 +319,6 @@ export function PendingAssignmentModal({
         </div>
       </DialogContent>
     </Dialog>
+    </>
   );
 }
