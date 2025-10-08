@@ -13,6 +13,10 @@ export interface PendingService {
   requiere_armado: boolean;
   observaciones?: string;
   created_at: string;
+  // Campos adicionales para servicios existentes
+  custodio_asignado?: string;
+  armado_asignado?: string;
+  estado?: string;
 }
 
 export interface PendingServicesSummary {

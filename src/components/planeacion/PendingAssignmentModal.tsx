@@ -13,6 +13,7 @@ import { useServiciosPlanificados } from '@/hooks/useServiciosPlanificados';
 import { toast } from 'sonner';
 import type { PendingService } from '@/hooks/usePendingServices';
 import type { EditableService } from './EditServiceModal';
+import { useServiceTransformations } from '@/hooks/useServiceTransformations';
 
 interface PendingAssignmentModalProps {
   open: boolean;
@@ -41,16 +42,17 @@ export function PendingAssignmentModal({
     return hasCustodio ? 'armed' : 'custodian';
   });
   const [custodianAssigned, setCustodianAssigned] = useState<any>(
-    service && 'custodio_asignado' in service && service.custodio_asignado ? 
+    service && service.custodio_asignado ? 
       { custodio_nombre: service.custodio_asignado } : null
   );
   const { assignCustodian, assignArmedGuard } = useServiciosPlanificados();
+  const { servicioToEditable } = useServiceTransformations();
 
   // Detectar si estamos editando un servicio existente con asignaciones
   const isEditingExisting = service && (
-    ('custodio_asignado' in service && service.custodio_asignado) ||
-    ('armado_asignado' in service && service.armado_asignado) ||
-    ('estado' in service && service.estado !== 'nuevo')
+    service.custodio_asignado ||
+    service.armado_asignado ||
+    (service.estado && service.estado !== 'nuevo')
   );
 
   // Mostrar ContextualEditModal si estamos editando un servicio existente
@@ -60,7 +62,7 @@ export function PendingAssignmentModal({
     } else {
       setShowContextualEdit(false);
       // Asegurar que el paso correcto esté activo basado en el servicio
-      if (mode === 'direct_armed' || (service && 'custodio_asignado' in service && service.custodio_asignado)) {
+      if (mode === 'direct_armed' || (service && service.custodio_asignado)) {
         setCurrentStep('armed');
       } else {
         setCurrentStep('custodian');
@@ -178,9 +180,9 @@ export function PendingAssignmentModal({
     fecha_hora_cita: service.fecha_hora_cita || '',
     tipo_servicio: service.tipo_servicio || '',
     requiere_armado: service.requiere_armado || false,
-    custodio_asignado: ('custodio_asignado' in service && typeof service.custodio_asignado === 'string') ? service.custodio_asignado : undefined,
-    armado_asignado: ('armado_asignado' in service && typeof service.armado_asignado === 'string') ? service.armado_asignado : undefined,
-    estado_planeacion: ('estado' in service && typeof service.estado === 'string') ? service.estado : 'pendiente',
+    custodio_asignado: service.custodio_asignado,
+    armado_asignado: service.armado_asignado,
+    estado_planeacion: service.estado || 'pendiente',
     observaciones: service.observaciones
   } : null;
 
@@ -205,9 +207,9 @@ export function PendingAssignmentModal({
             {currentStep === 'armed' ? <Shield className="h-5 w-5" /> : <User className="h-5 w-5" />}
             {currentStep === 'armed' ? 'Asignar Armado' : 'Asignar Custodio'} - {service.id_servicio}
           </DialogTitle>
-          {mode === 'direct_armed' && service && 'custodio_asignado' in service && service.custodio_asignado && (
+          {mode === 'direct_armed' && service && service.custodio_asignado && (
             <div className="flex items-center gap-2 apple-text-caption text-muted-foreground font-mono">
-              {String(service.custodio_asignado)} ✅ → Armado ⏳
+              {service.custodio_asignado} ✅ → Armado ⏳
             </div>
           )}
         </DialogHeader>
