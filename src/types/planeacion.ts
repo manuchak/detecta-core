@@ -102,6 +102,7 @@ export interface Servicio {
   destino_lng?: number;
   tipo_servicio: TipoServicioCustodia;
   requiere_gadgets: boolean;
+  requiere_armado?: boolean;
   estado: EstadoServicio;
   custodio_asignado_id?: string;
   motivo_cancelacion?: string;
@@ -257,6 +258,7 @@ export interface ServicioForm {
   destino_lng?: number;
   tipo_servicio: TipoServicioCustodia;
   requiere_gadgets: boolean;
+  requiere_armado?: boolean;
   notas_especiales?: string;
   prioridad: number;
   valor_estimado?: number;

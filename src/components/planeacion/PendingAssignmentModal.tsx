@@ -49,7 +49,8 @@ export function PendingAssignmentModal({
   // Detectar si estamos editando un servicio existente con asignaciones
   const isEditingExisting = service && (
     ('custodio_asignado' in service && service.custodio_asignado) ||
-    ('armado_asignado' in service && service.armado_asignado)
+    ('armado_asignado' in service && service.armado_asignado) ||
+    ('estado' in service && service.estado !== 'nuevo')
   );
 
   // Mostrar ContextualEditModal si estamos editando un servicio existente
@@ -58,8 +59,14 @@ export function PendingAssignmentModal({
       setShowContextualEdit(true);
     } else {
       setShowContextualEdit(false);
+      // Asegurar que el paso correcto esté activo basado en el servicio
+      if (mode === 'direct_armed' || (service && 'custodio_asignado' in service && service.custodio_asignado)) {
+        setCurrentStep('armed');
+      } else {
+        setCurrentStep('custodian');
+      }
     }
-  }, [open, isEditingExisting, mode]);
+  }, [open, isEditingExisting, mode, service]);
 
   if (!service) return null;
 

@@ -1,0 +1,29 @@
+import type { Servicio } from '@/types/planeacion';
+import type { PendingService } from './usePendingServices';
+
+/**
+ * Hook para centralizar transformaciones entre tipos de servicio
+ * Facilita la migración futura a UnifiedServiceModal
+ */
+export function useServiceTransformations() {
+  const servicioToPending = (servicio: Servicio): PendingService => {
+    return {
+      id: servicio.id,
+      id_servicio: servicio.folio,
+      nombre_cliente: typeof servicio.cliente === 'string' 
+        ? servicio.cliente 
+        : servicio.cliente?.nombre || '',
+      origen: servicio.origen_texto,
+      destino: servicio.destino_texto,
+      fecha_hora_cita: `${servicio.fecha_programada}T${servicio.hora_ventana_inicio}`,
+      tipo_servicio: servicio.tipo_servicio,
+      requiere_armado: servicio.requiere_armado || false,
+      observaciones: servicio.notas_especiales,
+      created_at: servicio.created_at
+    };
+  };
+
+  return {
+    servicioToPending
+  };
+}

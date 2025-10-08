@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import ImportWizard from './ImportWizard';
-import { Plus, Search, Edit, Trash2, Calendar, MapPin, Shield, Clock, Upload } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Calendar, MapPin, Shield, Clock, Upload, User } from 'lucide-react';
 import { useServicios, useCreateServicio, useUpdateServicio, useDeleteServicio } from '@/hooks/usePlaneacion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,9 @@ import { DataTable } from '@/components/ui/data-table';
 import { ColumnDef } from '@tanstack/react-table';
 import { Servicio, ServicioForm } from '@/types/planeacion';
 import ServicioDialog from './ServicioDialog';
+import { PendingAssignmentModal } from '@/components/planeacion/PendingAssignmentModal';
+import { useServiceTransformations } from '@/hooks/useServiceTransformations';
+import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { 
@@ -30,11 +33,18 @@ export default function ServiciosTab() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [servicioToDelete, setServicioToDelete] = useState<Servicio | null>(null);
   const [importWizardOpen, setImportWizardOpen] = useState(false);
+  
+  // Estados para asignación de personal
+  const [assignmentModalOpen, setAssignmentModalOpen] = useState(false);
+  const [assignmentMode, setAssignmentMode] = useState<'auto' | 'direct_armed' | 'direct_custodian'>('auto');
+  const [serviceForAssignment, setServiceForAssignment] = useState<Servicio | null>(null);
 
   const { data: servicios = [], isLoading } = useServicios();
   const createMutation = useCreateServicio();
   const updateMutation = useUpdateServicio();
   const deleteMutation = useDeleteServicio();
+  const queryClient = useQueryClient();
+  const { servicioToPending } = useServiceTransformations();
 
   const filteredServicios = servicios.filter(servicio => {
     const clienteNombre = typeof servicio.cliente === 'string'
@@ -80,6 +90,15 @@ export default function ServiciosTab() {
   const openDeleteDialog = (servicio: Servicio) => {
     setServicioToDelete(servicio);
     setDeleteDialogOpen(true);
+  };
+
+  const openAssignmentModal = (
+    servicio: Servicio, 
+    mode: 'auto' | 'direct_armed' | 'direct_custodian' = 'auto'
+  ) => {
+    setServiceForAssignment(servicio);
+    setAssignmentMode(mode);
+    setAssignmentModalOpen(true);
   };
 
   const getEstadoBadge = (estado: string): "default" | "secondary" | "destructive" | "outline" => {
@@ -190,13 +209,23 @@ export default function ServiciosTab() {
             variant="outline"
             size="sm"
             onClick={() => openEditDialog(row.original)}
+            title="Editar datos del servicio"
           >
             <Edit className="h-4 w-4" />
           </Button>
           <Button
             variant="outline"
             size="sm"
+            onClick={() => openAssignmentModal(row.original, 'auto')}
+            title="Asignar custodio/armado"
+          >
+            <User className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => openDeleteDialog(row.original)}
+            title="Eliminar servicio"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -306,7 +335,7 @@ export default function ServiciosTab() {
         </CardContent>
       </Card>
 
-      {/* Servicio Dialog */}
+      {/* Servicio Dialog - Edición de Datos Básicos */}
       <ServicioDialog
         open={dialogOpen}
         onOpenChange={(open) => {
@@ -317,6 +346,24 @@ export default function ServiciosTab() {
         onSubmit={editingServicio ? handleUpdate : handleCreate}
         loading={createMutation.isPending || updateMutation.isPending}
       />
+
+      {/* Assignment Modal - Asignación de Personal */}
+      {serviceForAssignment && (
+        <PendingAssignmentModal
+          open={assignmentModalOpen}
+          onOpenChange={(open) => {
+            setAssignmentModalOpen(open);
+            if (!open) setServiceForAssignment(null);
+          }}
+          service={servicioToPending(serviceForAssignment)}
+          mode={assignmentMode}
+          onAssignmentComplete={() => {
+            setAssignmentModalOpen(false);
+            setServiceForAssignment(null);
+            queryClient.invalidateQueries({ queryKey: ['servicios'] });
+          }}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
