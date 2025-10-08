@@ -98,6 +98,7 @@ export interface CustodianContactDialogProps {
     fecha_hora: string;
     tipo_servicio: string;
   };
+  initialMethod?: 'whatsapp' | 'llamada';
   onResult: (result: {
     status: 'acepta' | 'rechaza' | 'contactar_despues' | 'sin_respuesta';
     razon_rechazo?: string;
@@ -112,6 +113,7 @@ export const CustodianContactDialog: React.FC<CustodianContactDialogProps> = ({
   onOpenChange,
   custodian,
   serviceDetails,
+  initialMethod,
   onResult
 }) => {
   const [contactMethod, setContactMethod] = useState<'whatsapp' | 'llamada' | null>(null);
@@ -299,6 +301,14 @@ export const CustodianContactDialog: React.FC<CustodianContactDialogProps> = ({
     setShowUnavailabilityForm(false);
     setCommunicationId('');
   };
+
+  // Auto-iniciar contacto si se proporciona método inicial
+  useEffect(() => {
+    if (open && initialMethod && !contactMethod) {
+      console.log('🚀 Auto-iniciando contacto con método:', initialMethod);
+      handleContactStart(initialMethod);
+    }
+  }, [open, initialMethod]);
 
   // Detectar si se requiere formulario de indisponibilidad
   useEffect(() => {

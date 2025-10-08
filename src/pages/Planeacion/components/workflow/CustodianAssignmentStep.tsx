@@ -119,6 +119,7 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
   // Estado para el diálogo de contacto
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [contactingCustodian, setContactingCustodian] = useState<CustodioConProximidad | null>(null);
+  const [initialContactMethod, setInitialContactMethod] = useState<'whatsapp' | 'llamada' | undefined>(undefined);
 
   // Preparar datos del servicio para el hook
   const servicioNuevo: ServicioNuevo = useMemo(() => ({
@@ -209,11 +210,12 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
     setComunicaciones(prev => ({ ...prev, ...initialComunicaciones }));
   }, [custodiosDisponibles]);
 
-  const handleOpenContactDialog = (custodian: CustodioConProximidad) => {
+  const handleOpenContactDialog = (custodian: CustodioConProximidad, method?: 'whatsapp' | 'llamada') => {
     console.log('📞 handleOpenContactDialog llamado:', {
       nombre: custodian.nombre,
       id: custodian.id,
       telefono: custodian.telefono,
+      method,
       currentState: { contactDialogOpen, contactingCustodian: contactingCustodian?.nombre }
     });
     
@@ -225,12 +227,13 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
         return;
       }
       
-      // Establecer el custodio y abrir el diálogo
-      console.log('✅ Estableciendo contactingCustodian y abriendo diálogo');
+      // Establecer el custodio, método y abrir el diálogo
+      console.log('✅ Estableciendo contactingCustodian, método y abriendo diálogo');
       setContactingCustodian(custodian);
+      setInitialContactMethod(method);
       setContactDialogOpen(true);
       
-      console.log('✅ Estado actualizado - diálogo debería abrirse');
+      console.log('✅ Estado actualizado - diálogo debería abrirse con método:', method);
     } catch (error) {
       console.error('❌ ERROR en handleOpenContactDialog:', error);
       toast.error('Error al abrir diálogo de contacto');
@@ -559,7 +562,7 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleOpenContactDialog(custodio)}
+                          onClick={() => handleOpenContactDialog(custodio, 'whatsapp')}
                           className="flex items-center gap-1.5 flex-1"
                         >
                           <MessageCircle className="h-4 w-4" />
@@ -568,7 +571,7 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleOpenContactDialog(custodio)}
+                          onClick={() => handleOpenContactDialog(custodio, 'llamada')}
                           className="flex items-center gap-1.5 flex-1"
                         >
                           <Phone className="h-4 w-4" />
@@ -641,7 +644,8 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
         console.log('🎬 Renderizando CustodianContactDialog:', {
           contactDialogOpen,
           custodianName: contactingCustodian.nombre,
-          custodianId: contactingCustodian.id
+          custodianId: contactingCustodian.id,
+          initialMethod: initialContactMethod
         });
         
         const convertedCustodian = convertToEnriquecido(contactingCustodian);
@@ -657,6 +661,9 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
             onOpenChange={(open) => {
               console.log('🔄 CustodianContactDialog onOpenChange:', open);
               setContactDialogOpen(open);
+              if (!open) {
+                setInitialContactMethod(undefined);
+              }
             }}
             custodian={convertedCustodian}
             serviceDetails={{
@@ -665,6 +672,7 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
               fecha_hora: serviceData.fecha_hora_cita || serviceData.fecha_programada || '',
               tipo_servicio: serviceData.tipo_servicio || 'Custodia'
             }}
+            initialMethod={initialContactMethod}
             onResult={(result) => {
               console.log('📋 Resultado del contacto:', result);
               handleContactResult(contactingCustodian.id!, result);
