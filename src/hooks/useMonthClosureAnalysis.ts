@@ -37,6 +37,12 @@ interface MonthClosureData {
     services: number;
     gmv: number;
   };
+  projectionVsPrevious: {
+    servicesChange: number;
+    servicesPercent: number;
+    gmvChange: number;
+    gmvPercent: number;
+  };
   insights: {
     paceNeeded: number;
     trend: 'improving' | 'stable' | 'declining';
@@ -167,6 +173,14 @@ export const useMonthClosureAnalysis = () => {
         gmv: Math.round(projectedGMV * 100) / 100
       };
 
+      // Calculate projection vs previous month comparison
+      const projectionVsPrevious = {
+        servicesChange: projectedServices - prevServices,
+        servicesPercent: prevServices > 0 ? ((projectedServices - prevServices) / prevServices) * 100 : 0,
+        gmvChange: projectedGMV - prevGMV,
+        gmvPercent: prevGMV > 0 ? ((projectedGMV - prevGMV) / prevGMV) * 100 : 0
+      };
+
       const requiredPace = (target.services - current.services) / daysRemaining;
       const paceNeeded = Math.ceil(requiredPace);
       
@@ -191,6 +205,7 @@ export const useMonthClosureAnalysis = () => {
         previousMonth: previousMonth_data,
         monthOverMonth,
         projection,
+        projectionVsPrevious,
         insights: {
           paceNeeded,
           trend: servicesPercent > 0 ? 'improving' : servicesPercent < 0 ? 'declining' : 'stable'

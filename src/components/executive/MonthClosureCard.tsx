@@ -162,45 +162,45 @@ export const MonthClosureCard = () => {
           </div>
         </div>
 
-        {/* MoM Comparison */}
+        {/* MoM Comparison - Proyección vs Mes Anterior */}
         <div className="border-t pt-4">
           <div className="text-sm font-medium mb-3 flex items-center gap-2">
             📊 Comparativa MoM
-            <span className="text-xs text-muted-foreground font-normal">vs {data.previousMonth.monthName}</span>
+            <span className="text-xs text-muted-foreground font-normal">Proyección vs {data.previousMonth.monthName}</span>
           </div>
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div className={`p-3 rounded-lg border ${
-              data.monthOverMonth.servicesPercent >= 0 
+              data.projectionVsPrevious.servicesPercent >= 0 
                 ? 'bg-success/10 border-success/20' 
                 : 'bg-destructive/10 border-destructive/20'
             }`}>
               <div className="text-xs text-muted-foreground mb-1">Servicios</div>
               <div className={`text-lg font-bold ${
-                data.monthOverMonth.servicesPercent >= 0 ? 'text-success' : 'text-destructive'
+                data.projectionVsPrevious.servicesPercent >= 0 ? 'text-success' : 'text-destructive'
               }`}>
-                {data.monthOverMonth.servicesChange >= 0 ? '+' : ''}{formatNumber(data.monthOverMonth.servicesChange)}
+                {data.projectionVsPrevious.servicesChange >= 0 ? '+' : ''}{formatNumber(data.projectionVsPrevious.servicesChange)}
               </div>
               <div className={`text-xs font-medium ${
-                data.monthOverMonth.servicesPercent >= 0 ? 'text-success' : 'text-destructive'
+                data.projectionVsPrevious.servicesPercent >= 0 ? 'text-success' : 'text-destructive'
               }`}>
-                {formatPercent(data.monthOverMonth.servicesPercent)}
+                {formatPercent(data.projectionVsPrevious.servicesPercent)}
               </div>
             </div>
             <div className={`p-3 rounded-lg border ${
-              data.monthOverMonth.gmvPercent >= 0 
+              data.projectionVsPrevious.gmvPercent >= 0 
                 ? 'bg-success/10 border-success/20' 
                 : 'bg-destructive/10 border-destructive/20'
             }`}>
               <div className="text-xs text-muted-foreground mb-1">GMV</div>
               <div className={`text-lg font-bold ${
-                data.monthOverMonth.gmvPercent >= 0 ? 'text-success' : 'text-destructive'
+                data.projectionVsPrevious.gmvPercent >= 0 ? 'text-success' : 'text-destructive'
               }`}>
-                {data.monthOverMonth.gmvChange >= 0 ? '+' : ''}{formatGMV(data.monthOverMonth.gmvChange * 1_000_000)}
+                {data.projectionVsPrevious.gmvChange >= 0 ? '+' : ''}{formatGMV(data.projectionVsPrevious.gmvChange * 1_000_000)}
               </div>
               <div className={`text-xs font-medium ${
-                data.monthOverMonth.gmvPercent >= 0 ? 'text-success' : 'text-destructive'
+                data.projectionVsPrevious.gmvPercent >= 0 ? 'text-success' : 'text-destructive'
               }`}>
-                {formatPercent(data.monthOverMonth.gmvPercent)}
+                {formatPercent(data.projectionVsPrevious.gmvPercent)}
               </div>
             </div>
           </div>
@@ -211,18 +211,7 @@ export const MonthClosureCard = () => {
             </div>
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">{data.current.monthName} (proyección):</span>
-              <div className="flex items-center gap-1">
-                <span className="font-medium">{formatNumber(data.projection.services)} srv | {formatGMV(data.projection.gmv * 1_000_000)}</span>
-                <span className={`text-xs ${
-                  data.projection.services > data.previousMonth.services ? 'text-success' : 
-                  data.projection.services === data.previousMonth.services ? 'text-warning' : 
-                  'text-destructive'
-                }`}>
-                  ({data.projection.services > data.previousMonth.services ? 'Supera mes anterior' : 
-                    data.projection.services === data.previousMonth.services ? 'Igual que mes anterior' :
-                    'Por debajo de mes anterior'})
-                </span>
-              </div>
+              <span className="font-medium">{formatNumber(data.projection.services)} srv | {formatGMV(data.projection.gmv * 1_000_000)}</span>
             </div>
           </div>
         </div>
