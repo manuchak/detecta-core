@@ -92,6 +92,7 @@ export function PendingAssignmentModal({
   };
 
   const handleCustodianAssignmentComplete = async (assignmentData: any) => {
+    console.log('[PendingAssignmentModal] onComplete custodio', { assignmentData, service });
     setIsAssigning(true);
     try {
       // Asignar custodio al servicio
@@ -128,7 +129,7 @@ export function PendingAssignmentModal({
     setIsAssigning(true);
     try {
       await assignArmedGuard({
-        serviceId: service.id_servicio, // Use id_servicio for armed guard assignment  
+        serviceId: service.id, // Usar UUID interno para asignación de armado
         armadoName: armedData.armado_nombre,
         armadoId: armedData.armado_id
       });
@@ -156,6 +157,7 @@ export function PendingAssignmentModal({
   };
 
   const handleStartReassignment = (type: 'custodian' | 'armed_guard') => {
+    console.log('[PendingAssignmentModal] start reassignment', { type, id_servicio: service.id_servicio });
     setShowContextualEdit(false);
     if (type === 'custodian') {
       setCurrentStep('custodian');

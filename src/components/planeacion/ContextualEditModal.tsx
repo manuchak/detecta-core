@@ -71,10 +71,11 @@ export function ContextualEditModal({
       await new Promise(resolve => setTimeout(resolve, 400));
       
       if (service) {
+        console.log('[ContextualEditModal] Iniciando reasignación:', { type, id_servicio: service.id_servicio });
         onStartReassignment(type, service);
       }
       
-      onOpenChange(false);
+      // No cerrar el modal padre aquí; PendingAssignmentModal controlará la vista
       setIsProcessing(false);
       return;
     }
@@ -135,14 +136,14 @@ export function ContextualEditModal({
           toast.info('Abriendo flujo de reasignación de armado...', { duration: 1500 });
           await new Promise(resolve => setTimeout(resolve, 500));
           onStartReassignment?.('armed_guard', service);
-          onOpenChange(false);
+          // No cerrar el modal padre; PendingAssignmentModal controlará la vista
           return;
           
         case 'custodian_only':
           toast.info('Abriendo flujo de reasignación de custodio...', { duration: 1500 });
           await new Promise(resolve => setTimeout(resolve, 500));
           onStartReassignment?.('custodian', service);
-          onOpenChange(false);
+          // No cerrar el modal padre; PendingAssignmentModal controlará la vista
           return;
           
         default:
