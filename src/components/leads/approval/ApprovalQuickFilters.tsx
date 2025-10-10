@@ -11,7 +11,10 @@ import {
   Calendar,
   FileQuestion,
   PhoneCall,
-  Target
+  Target,
+  CalendarDays,
+  CalendarRange,
+  CalendarClock
 } from "lucide-react";
 
 export interface QuickFilter {
@@ -38,6 +41,9 @@ export const ApprovalQuickFilters = ({
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const threeDaysAgo = new Date(today.getTime() - (3 * 24 * 60 * 60 * 1000));
+    const sevenDaysAgo = new Date(today.getTime() - (7 * 24 * 60 * 60 * 1000));
+    const fifteenDaysAgo = new Date(today.getTime() - (15 * 24 * 60 * 60 * 1000));
+    const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
     
     return {
       newToday: leads.filter(lead => {
@@ -77,7 +83,27 @@ export const ApprovalQuickFilters = ({
       
       multipleFailedAttempts: leads.filter(lead => 
         (lead.contact_attempts_count || 0) >= 3
-      ).length
+      ).length,
+      
+      last3Days: leads.filter(lead => {
+        const creationDate = new Date(lead.lead_fecha_creacion);
+        return creationDate >= threeDaysAgo;
+      }).length,
+      
+      last7Days: leads.filter(lead => {
+        const creationDate = new Date(lead.lead_fecha_creacion);
+        return creationDate >= sevenDaysAgo;
+      }).length,
+      
+      last15Days: leads.filter(lead => {
+        const creationDate = new Date(lead.lead_fecha_creacion);
+        return creationDate >= fifteenDaysAgo;
+      }).length,
+      
+      last30Days: leads.filter(lead => {
+        const creationDate = new Date(lead.lead_fecha_creacion);
+        return creationDate >= thirtyDaysAgo;
+      }).length
     };
   };
 
@@ -139,6 +165,34 @@ export const ApprovalQuickFilters = ({
       icon: PhoneCall,
       count: counts.multipleFailedAttempts,
       active: activeFilter === 'multipleFailedAttempts'
+    },
+    {
+      id: 'last3Days',
+      label: 'Últimos 3 días',
+      icon: Calendar,
+      count: counts.last3Days,
+      active: activeFilter === 'last3Days'
+    },
+    {
+      id: 'last7Days',
+      label: 'Últimos 7 días',
+      icon: CalendarDays,
+      count: counts.last7Days,
+      active: activeFilter === 'last7Days'
+    },
+    {
+      id: 'last15Days',
+      label: 'Últimos 15 días',
+      icon: CalendarRange,
+      count: counts.last15Days,
+      active: activeFilter === 'last15Days'
+    },
+    {
+      id: 'last30Days',
+      label: 'Últimos 30 días',
+      icon: CalendarClock,
+      count: counts.last30Days,
+      active: activeFilter === 'last30Days'
     }
   ];
 

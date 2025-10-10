@@ -131,6 +131,9 @@ export const LeadsList = ({
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const threeDaysAgo = new Date(today.getTime() - (3 * 24 * 60 * 60 * 1000));
+    const sevenDaysAgo = new Date(today.getTime() - (7 * 24 * 60 * 60 * 1000));
+    const fifteenDaysAgo = new Date(today.getTime() - (15 * 24 * 60 * 60 * 1000));
+    const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
     
     switch (filterId) {
       case 'newToday':
@@ -171,6 +174,30 @@ export const LeadsList = ({
         
       case 'multipleFailedAttempts':
         return leads.filter(lead => (lead.contact_attempts_count || 0) >= 3);
+        
+      case 'last3Days':
+        return leads.filter(lead => {
+          const creationDate = new Date(lead.lead_fecha_creacion);
+          return creationDate >= threeDaysAgo;
+        });
+        
+      case 'last7Days':
+        return leads.filter(lead => {
+          const creationDate = new Date(lead.lead_fecha_creacion);
+          return creationDate >= sevenDaysAgo;
+        });
+        
+      case 'last15Days':
+        return leads.filter(lead => {
+          const creationDate = new Date(lead.lead_fecha_creacion);
+          return creationDate >= fifteenDaysAgo;
+        });
+        
+      case 'last30Days':
+        return leads.filter(lead => {
+          const creationDate = new Date(lead.lead_fecha_creacion);
+          return creationDate >= thirtyDaysAgo;
+        });
         
       default:
         return leads;
