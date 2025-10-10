@@ -15,6 +15,7 @@ interface LeadsListProps {
   onQuickFilterChange?: (filterId: string | null) => void;
   onAdvancedFiltersChange?: (filters: ApprovalAdvancedFiltersState) => void;
   onResetAdvancedFilters?: () => void;
+  onFilteredLeadsChange?: (filteredLeads: AssignedLead[]) => void;
   onVapiCall: (lead: AssignedLead) => void;
   onManualInterview: (lead: AssignedLead) => void;
   onEditLead: (lead: AssignedLead) => void;
@@ -37,6 +38,7 @@ export const LeadsList = ({
   onQuickFilterChange,
   onAdvancedFiltersChange,
   onResetAdvancedFilters,
+  onFilteredLeadsChange,
   onVapiCall,
   onManualInterview,
   onEditLead,
@@ -313,8 +315,13 @@ export const LeadsList = ({
       return new Date(a.lead_fecha_creacion).getTime() - new Date(b.lead_fecha_creacion).getTime();
     });
 
+    // Notify parent of filtered leads if callback is provided
+    if (onFilteredLeadsChange) {
+      onFilteredLeadsChange(sortedLeads);
+    }
+
     return sortedLeads;
-  }, [leads, searchTerm, activeTab, quickFilter, advancedFilters]);
+  }, [leads, searchTerm, activeTab, quickFilter, advancedFilters, onFilteredLeadsChange]);
 
   return (
     <div className="space-y-4">

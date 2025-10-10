@@ -1,7 +1,9 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Download } from "lucide-react";
 import { 
   Card,
   CardContent,
@@ -28,6 +30,8 @@ import { MoveToPoolDialog } from "@/components/leads/pool/MoveToPoolDialog";
 import { SessionRecoveryDialog } from "@/components/leads/approval/SessionRecoveryDialog";
 import { InterruptedInterviewDialog } from "@/components/leads/approval/InterruptedInterviewDialog";
 import { supabase } from "@/integrations/supabase/client";
+import { exportLeadsToCSV } from "@/utils/exportLeadsCSV";
+import { toast } from "@/hooks/use-toast";
 
 console.log('🚀 LeadApprovals: Module loaded successfully');
 
@@ -71,6 +75,7 @@ export const LeadApprovals = () => {
   }>({ hasRecoveryData: false });
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
+  const [currentFilteredLeads, setCurrentFilteredLeads] = useState<AssignedLead[]>([]);
   
   // Estados para los filtros
   const [quickFilter, setQuickFilter] = useState<string | null>(null);
@@ -235,6 +240,37 @@ export const LeadApprovals = () => {
     });
   };
 
+  const handleFilteredLeadsChange = useCallback((filteredLeads: AssignedLead[]) => {
+    setCurrentFilteredLeads(filteredLeads);
+  }, []);
+
+  const handleExportCSV = () => {
+    try {
+      const tabNames: Record<string, string> = {
+        'pending': 'pendientes',
+        'approved': 'aprobados',
+        'rejected': 'rechazados',
+        'scheduled': 'programadas',
+        'pool': 'pool_reserva'
+      };
+      
+      const filterName = tabNames[activeTab] || 'todos';
+      const fileName = exportLeadsToCSV(currentFilteredLeads, filterName);
+      
+      toast({
+        title: "Exportación exitosa",
+        description: `Se descargó el archivo: ${fileName}`,
+      });
+    } catch (error) {
+      console.error("Error al exportar CSV:", error);
+      toast({
+        title: "Error al exportar",
+        description: "No se pudo generar el archivo CSV. Intenta nuevamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     console.log('⏳ LeadApprovals: Showing loading state');
     return (
@@ -260,15 +296,31 @@ export const LeadApprovals = () => {
               Gestiona las entrevistas y aprobaciones de los candidatos asignados.
             </p>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => {
-              console.log('🔄 LeadApprovals: Manual refresh clicked');
-              fetchAssignedLeads();
-            }}
-          >
-            Actualizar
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleExportCSV}
+              disabled={currentFilteredLeads.length === 0}
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Exportar CSV
+              {currentFilteredLeads.length > 0 && (
+                <Badge variant="secondary" className="ml-1">
+                  {currentFilteredLeads.length}
+                </Badge>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                console.log('🔄 LeadApprovals: Manual refresh clicked');
+                fetchAssignedLeads();
+              }}
+            >
+              Actualizar
+            </Button>
+          </div>
         </div>
 
         <Card>
@@ -312,6 +364,7 @@ export const LeadApprovals = () => {
                   onQuickFilterChange={setQuickFilter}
                   onAdvancedFiltersChange={setAdvancedFilters}
                   onResetAdvancedFilters={handleResetAdvancedFilters}
+                  onFilteredLeadsChange={handleFilteredLeadsChange}
                   onVapiCall={handleVapiCall}
                   onManualInterview={handleManualInterview}
                   onEditLead={handleEditLead}
@@ -331,6 +384,7 @@ export const LeadApprovals = () => {
                   callLogs={callLogs}
                   searchTerm={searchTerm}
                   activeTab="approved"
+                  onFilteredLeadsChange={handleFilteredLeadsChange}
                   onVapiCall={handleVapiCall}
                   onManualInterview={handleManualInterview}
                   onEditLead={handleEditLead}
@@ -350,6 +404,7 @@ export const LeadApprovals = () => {
                   callLogs={callLogs}
                   searchTerm={searchTerm}
                   activeTab="rejected"
+                  onFilteredLeadsChange={handleFilteredLeadsChange}
                   onVapiCall={handleVapiCall}
                   onManualInterview={handleManualInterview}
                   onEditLead={handleEditLead}
