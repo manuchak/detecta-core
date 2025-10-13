@@ -80,6 +80,18 @@ export function PendingAssignmentModal({
     }
   }, [open, isEditingExisting, mode, service, hasInteracted]);
 
+  // Debug: Monitor state changes
+  React.useEffect(() => {
+    console.log('[PendingAssignmentModal] Estado cambió:', {
+      open,
+      showContextualEdit,
+      currentStep,
+      hasInteracted,
+      isEditingExisting,
+      serviceId: service?.id_servicio
+    });
+  }, [open, showContextualEdit, currentStep, hasInteracted, isEditingExisting, service?.id_servicio]);
+
   if (!service) return null;
 
   // Preparar datos del servicio para el componente de asignación
@@ -167,14 +179,29 @@ export function PendingAssignmentModal({
   };
 
   const handleStartReassignment = (type: 'custodian' | 'armed_guard') => {
-    console.log('[PendingAssignmentModal] start reassignment', { type, id_servicio: service.id_servicio });
+    console.log('[PendingAssignmentModal] handleStartReassignment', {
+      type,
+      antes: { showContextualEdit, currentStep, hasInteracted },
+      service: service?.id_servicio
+    });
+    
     setHasInteracted(true);
-    setShowContextualEdit(false);
+    setShowContextualEdit(false); // Ocultar ContextualEditModal
+    
+    // Cambiar al paso correcto DESPUÉS de ocultar ContextualEditModal
     if (type === 'custodian') {
       setCurrentStep('custodian');
     } else {
       setCurrentStep('armed');
     }
+    
+    console.log('[PendingAssignmentModal] Estados actualizados', {
+      despues: { 
+        showContextualEdit: false, 
+        currentStep: type === 'custodian' ? 'custodian' : 'armed',
+        hasInteracted: true 
+      }
+    });
   };
 
   const handleEditServiceSave = async (id: string, data: Partial<EditableService>) => {
@@ -202,123 +229,131 @@ export function PendingAssignmentModal({
 
   return (
     <>
-      {showContextualEdit && editableService && (
+      {/* Solo mostrar ContextualEditModal SI showContextualEdit = true */}
+      {showContextualEdit && editableService ? (
         <ContextualEditModal
-          open={showContextualEdit}
+          open={true}
           onOpenChange={(o) => {
-            if (!o && !hasInteracted) {
-              onOpenChange(false);
+            if (!o) {
+              if (hasInteracted) {
+                // Usuario interactuó, solo ocultar ContextualEditModal
+                setShowContextualEdit(false);
+              } else {
+                // Usuario canceló sin interactuar, cerrar todo
+                onOpenChange(false);
+              }
             }
-            setShowContextualEdit(o);
           }}
           service={editableService}
           onSave={handleEditServiceSave}
           onStartReassignment={handleStartReassignment}
         />
+      ) : (
+        /* Solo mostrar PendingAssignmentModal SI showContextualEdit = false */
+        <Dialog open={open} onOpenChange={onOpenChange}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 apple-text-title">
+                {currentStep === 'armed' ? <Shield className="h-5 w-5" /> : <User className="h-5 w-5" />}
+                {currentStep === 'armed' ? 'Asignar Armado' : 'Asignar Custodio'} - {service.id_servicio}
+              </DialogTitle>
+              <DialogDescription className="sr-only">Asignación de servicio</DialogDescription>
+              {mode === 'direct_armed' && service && service.custodio_asignado && (
+                <div className="flex items-center gap-2 apple-text-caption text-muted-foreground font-mono">
+                  {service.custodio_asignado} ✅ → Armado ⏳
+                </div>
+              )}
+            </DialogHeader>
+
+            {/* Service Summary */}
+            <Card className="mb-6">
+              <CardContent className="p-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Información del Cliente */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <div className="text-sm text-muted-foreground">Cliente</div>
+                        <div className="font-semibold">{service.nombre_cliente}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <div className="text-sm text-muted-foreground">Ruta</div>
+                        <div className="font-medium">
+                          {service.origen} → {service.destino}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Información del Servicio */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <div className="text-sm text-muted-foreground">Fecha y Hora</div>
+                        <div className="font-semibold">
+                          {format(new Date(service.fecha_hora_cita), 'PPP p', { locale: es })}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <div className="text-sm text-muted-foreground">Tipo de Servicio</div>
+                        <div className="flex gap-2">
+                          <Badge variant="outline">{service.tipo_servicio}</Badge>
+                          {service.requiere_armado && (
+                            <Badge variant="secondary">Con Armado</Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {service.observaciones && (
+                  <div className="mt-4 pt-4 border-t">
+                    <div className="text-sm text-muted-foreground mb-1">Observaciones</div>
+                    <div className="text-sm bg-muted rounded p-2">
+                      {service.observaciones}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Component de Asignación */}
+            <div className="space-y-4">
+              {currentStep === 'custodian' && (
+                <CustodianAssignmentStep
+                  serviceData={serviceData}
+                  onComplete={handleCustodianAssignmentComplete}
+                  onBack={() => onOpenChange(false)}
+                />
+              )}
+              
+              {currentStep === 'armed' && custodianAssigned && (
+                <ArmedGuardAssignmentStep
+                  serviceData={{
+                    ...serviceData,
+                    custodio_asignado: custodianAssigned.custodio_nombre,
+                    custodio_id: custodianAssigned.custodio_asignado_id
+                  }}
+                  onComplete={handleArmedGuardAssignmentComplete}
+                  onSkip={handleArmedGuardSkip}
+                  onBack={() => setCurrentStep('custodian')}
+                />
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
-      <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 apple-text-title">
-            {currentStep === 'armed' ? <Shield className="h-5 w-5" /> : <User className="h-5 w-5" />}
-            {currentStep === 'armed' ? 'Asignar Armado' : 'Asignar Custodio'} - {service.id_servicio}
-          </DialogTitle>
-          <DialogDescription className="sr-only">Asignación de servicio</DialogDescription>
-          {mode === 'direct_armed' && service && service.custodio_asignado && (
-            <div className="flex items-center gap-2 apple-text-caption text-muted-foreground font-mono">
-              {service.custodio_asignado} ✅ → Armado ⏳
-            </div>
-          )}
-        </DialogHeader>
-
-        {/* Service Summary */}
-        <Card className="mb-6">
-          <CardContent className="p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Información del Cliente */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <div className="text-sm text-muted-foreground">Cliente</div>
-                    <div className="font-semibold">{service.nombre_cliente}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <div className="text-sm text-muted-foreground">Ruta</div>
-                    <div className="font-medium">
-                      {service.origen} → {service.destino}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Información del Servicio */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <div className="text-sm text-muted-foreground">Fecha y Hora</div>
-                    <div className="font-semibold">
-                      {format(new Date(service.fecha_hora_cita), 'PPP p', { locale: es })}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <div className="text-sm text-muted-foreground">Tipo de Servicio</div>
-                    <div className="flex gap-2">
-                      <Badge variant="outline">{service.tipo_servicio}</Badge>
-                      {service.requiere_armado && (
-                        <Badge variant="secondary">Con Armado</Badge>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {service.observaciones && (
-              <div className="mt-4 pt-4 border-t">
-                <div className="text-sm text-muted-foreground mb-1">Observaciones</div>
-                <div className="text-sm bg-muted rounded p-2">
-                  {service.observaciones}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Component de Asignación */}
-        <div className="space-y-4">
-          {currentStep === 'custodian' && (
-            <CustodianAssignmentStep
-              serviceData={serviceData}
-              onComplete={handleCustodianAssignmentComplete}
-              onBack={() => onOpenChange(false)}
-            />
-          )}
-          
-          {currentStep === 'armed' && custodianAssigned && (
-            <ArmedGuardAssignmentStep
-              serviceData={{
-                ...serviceData,
-                custodio_asignado: custodianAssigned.custodio_nombre,
-                custodio_id: custodianAssigned.custodio_asignado_id
-              }}
-              onComplete={handleArmedGuardAssignmentComplete}
-              onSkip={handleArmedGuardSkip}
-              onBack={() => setCurrentStep('custodian')}
-            />
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
     </>
   );
 }
