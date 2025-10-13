@@ -6,6 +6,7 @@ import { useScheduledServices } from '@/hooks/useScheduledServices';
 import { usePendingServices } from '@/hooks/usePendingServices';
 import { usePendingArmadoServices } from '@/hooks/usePendingArmadoServices';
 import { useServiciosPlanificados } from '@/hooks/useServiciosPlanificados';
+import { useServiceTransformations } from '@/hooks/useServiceTransformations';
 import { PendingAssignmentModal } from '@/components/planeacion/PendingAssignmentModal';
 import { EditServiceModal, type EditableService } from '@/components/planeacion/EditServiceModal';
 import { ReassignmentModal, type ServiceForReassignment } from '@/components/planeacion/ReassignmentModal';
@@ -28,6 +29,7 @@ export function ScheduledServicesTab() {
     removeAssignment,
     isReassigning
   } = useServiciosPlanificados();
+  const { servicioToPending } = useServiceTransformations();
   
   // Estado para el modal de asignación
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false);
@@ -106,7 +108,24 @@ export function ScheduledServicesTab() {
 
     if (isPendingAssignment) {
       // Use PendingAssignmentModal for services that need assignments
-      setSelectedPendingService(service);
+      // Convertir directamente el servicio a PendingService sin usar servicioToPending 
+      // ya que el service puede no tener todos los campos de tipo Servicio
+      const pendingService: any = {
+        id: service.id,
+        id_servicio: service.id_servicio || service.id,
+        nombre_cliente: service.cliente_nombre || service.nombre_cliente,
+        origen: service.origen,
+        destino: service.destino,
+        fecha_hora_cita: service.fecha_hora_cita,
+        tipo_servicio: service.tipo_servicio || 'custodia',
+        requiere_armado: service.incluye_armado || service.requiere_armado || false,
+        observaciones: service.observaciones,
+        created_at: service.created_at || new Date().toISOString(),
+        custodio_asignado: service.custodio_nombre,
+        armado_asignado: service.armado_asignado,
+        estado: service.estado
+      };
+      setSelectedPendingService(pendingService);
       setAssignmentModalOpen(true);
     } else {
       // Use EditServiceModal for fully assigned services

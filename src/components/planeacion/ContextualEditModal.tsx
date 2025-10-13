@@ -46,6 +46,7 @@ export function ContextualEditModal({
   }, [open, resetEditMode]);
 
   const handleEditModeSelect = async (mode: EditMode, description: string) => {
+    console.log('[ContextualEditModal] onSelect', { mode });
     setSelectedEditMode(mode);
     setEditIntent({
       mode,
@@ -61,22 +62,12 @@ export function ContextualEditModal({
       }
       
       const type = mode === 'custodian_only' ? 'custodian' : 'armed_guard';
-      const message = mode === 'custodian_only' 
-        ? 'Abriendo flujo de reasignación de custodio...' 
-        : 'Abriendo flujo de reasignación de armado...';
-      
-      toast.info(message, { duration: 1500 });
-      setIsProcessing(true);
-      
-      await new Promise(resolve => setTimeout(resolve, 400));
       
       if (service) {
-        console.log('[ContextualEditModal] Iniciando reasignación:', { type, id_servicio: service.id_servicio });
+        console.log('[ContextualEditModal] onStartReassignment llamada', { type });
         onStartReassignment(type, service);
       }
       
-      // No cerrar el modal padre aquí; PendingAssignmentModal controlará la vista
-      setIsProcessing(false);
       return;
     }
     

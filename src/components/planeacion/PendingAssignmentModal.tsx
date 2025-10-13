@@ -64,6 +64,7 @@ export function PendingAssignmentModal({
       if (isEditingExisting && mode === 'auto' && !hasInteracted) {
         setShowContextualEdit(true);
       } else if (hasInteracted) {
+        console.log('[PendingAssignmentModal] Mantengo showContextualEdit=false tras interacción');
         setShowContextualEdit(false);
       } else {
         setShowContextualEdit(false);
@@ -178,7 +179,7 @@ export function PendingAssignmentModal({
     onAssignmentComplete();
   };
 
-  const handleStartReassignment = (type: 'custodian' | 'armed_guard') => {
+  const handleStartReassignment = (type: 'custodian' | 'armed_guard', _service?: any) => {
     console.log('[PendingAssignmentModal] handleStartReassignment', {
       type,
       antes: { showContextualEdit, currentStep, hasInteracted },

@@ -57,6 +57,7 @@ export function SmartEditSuggestion({ suggestion, onSelect, isHero = false }: Sm
   const styles = colorStyles[suggestion.color];
 
   const handleSelect = () => {
+    console.log('[SmartEditSuggestion] CTA hero click', { mode: suggestion.mode });
     onSelect(suggestion.mode, suggestion.description);
   };
 
