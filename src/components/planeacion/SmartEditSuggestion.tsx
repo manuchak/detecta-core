@@ -62,7 +62,7 @@ export function SmartEditSuggestion({ suggestion, onSelect, isHero = false }: Sm
 
   if (isHero) {
     return (
-      <Card className={`apple-card-hero ${styles.card} border-2 transition-all duration-300 hover:scale-[1.02]`}>
+      <Card className={`apple-card-hero ${styles.card} border-2 transition-all duration-300`}>
         <CardContent className="p-6">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -104,6 +104,7 @@ export function SmartEditSuggestion({ suggestion, onSelect, isHero = false }: Sm
           <Button
             onClick={handleSelect}
             className={`${styles.button} w-full font-medium group`}
+            type="button"
           >
             {suggestion.title}
             <ChevronRight className="h-4 w-4 ml-2 group-hover:translate-x-0.5 transition-transform" />
