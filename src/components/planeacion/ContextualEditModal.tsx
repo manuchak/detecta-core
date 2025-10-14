@@ -121,12 +121,23 @@ export function ContextualEditModal({
             estado_planeacion: 'pendiente_asignacion'
           };
           await onSave(service.id_servicio, updatedData);
-          console.log('[ContextualEditModal] Armado agregado exitosamente');
+          console.log('[ContextualEditModal] Armado agregado, iniciando asignación automática');
+          
           toast.success('Armado agregado al servicio', {
-            duration: 3000,
-            description: 'Ahora puedes asignar personal armado'
+            duration: 2000,
+            description: 'Ahora selecciona el personal armado'
           });
-          break;
+          
+          // 🚀 Transición automática al paso de asignación de armado
+          if (onStartReassignment) {
+            // Pequeño delay para que el usuario vea el toast
+            setTimeout(() => {
+              onStartReassignment('armed_guard', service);
+            }, 400);
+          } else {
+            onOpenChange(false);
+          }
+          return; // Salir sin ejecutar el onOpenChange del final
           
         default:
           toast.info('Acción en desarrollo');

@@ -190,7 +190,8 @@ export function PendingAssignmentModal({
     console.log('[PendingAssignmentModal] handleStartReassignment INICIO', {
       type,
       antes: { showContextualEdit, currentStep, hasInteracted },
-      serviceId: service?.id_servicio
+      serviceId: service?.id_servicio,
+      hasCustodio: service?.custodio_asignado
     });
     
     // 🎯 Orden crítico de operaciones:
@@ -200,9 +201,16 @@ export function PendingAssignmentModal({
     // 2. Forzar cierre del ContextualEditModal
     setShowContextualEdit(false);
     
-    // 3. Usar requestAnimationFrame para garantizar que el render ocurra
+    // 3. Si es asignación de armado y el servicio ya tiene custodio, asegurar que esté en estado
+    if (type === 'armed_guard' && service?.custodio_asignado) {
+      setCustodianAssigned({
+        custodio_nombre: service.custodio_asignado
+      });
+    }
+    
+    // 4. Usar requestAnimationFrame para garantizar que el render ocurra
     requestAnimationFrame(() => {
-      // 4. Cambiar al paso correcto DESPUÉS de que React haya procesado los cambios anteriores
+      // 5. Cambiar al paso correcto DESPUÉS de que React haya procesado los cambios anteriores
       const targetStep = type === 'custodian' ? 'custodian' : 'armed';
       setCurrentStep(targetStep);
       
@@ -210,7 +218,8 @@ export function PendingAssignmentModal({
         despues: { 
           showContextualEdit: false, 
           currentStep: targetStep,
-          hasInteracted: true 
+          hasInteracted: true,
+          custodianAssigned: type === 'armed_guard' ? service?.custodio_asignado : null
         }
       });
     });
