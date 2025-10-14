@@ -17,6 +17,17 @@ const SANDBOX_AWARE_TABLES = [
 type SandboxAwareTable = typeof SANDBOX_AWARE_TABLES[number];
 
 /**
+ * Mapeo de funciones RPC a sus versiones Sandbox-aware (_v2)
+ * Solo se usan en modo Sandbox para garantizar aislamiento
+ */
+const SANDBOX_RPC_MAPPINGS: Record<string, string> = {
+  'get_analyst_assigned_leads': 'get_analyst_assigned_leads_v2',
+  'check_zone_capacity': 'check_zone_capacity_v2',
+  'move_lead_to_pool': 'move_lead_to_pool_v2',
+  'reactivate_lead_from_pool': 'reactivate_lead_from_pool_v2'
+};
+
+/**
  * Hook que inyecta automáticamente el filtro is_test en queries de Supabase
  * 
  * SEGURIDAD: Garantiza que Sandbox y Producción estén completamente aislados
@@ -140,22 +151,36 @@ export function useSandboxAwareSupabase() {
     },
     
     /**
-     * RPC calls con inyección de is_test
+     * RPC calls con inyección automática de is_test y mapeo a funciones _v2
+     * 
+     * SEGURIDAD: En Sandbox, usa automáticamente versiones _v2 que filtran por ambiente
      * 
      * @example
      * ```typescript
-     * await sbx.rpc('update_lead_status', { lead_id: 'xxx' })
-     * // Automáticamente agrega p_is_test: true (si estás en Sandbox)
+     * // En Sandbox:
+     * await sbx.rpc('get_analyst_assigned_leads', {})
+     * // Automáticamente llama a 'get_analyst_assigned_leads_v2' con p_is_test: true
+     * 
+     * // En Producción:
+     * await sbx.rpc('get_analyst_assigned_leads', {})
+     * // Llama a 'get_analyst_assigned_leads_v2' con p_is_test: false
      * ```
      */
     rpc: (functionName: string, params: Record<string, any> = {}) => {
-      // Inyectar p_is_test en parámetros si la función lo acepta
+      // Si está en Sandbox y existe mapeo a _v2, usar la versión segura
+      const actualFunctionName = SANDBOX_RPC_MAPPINGS[functionName] 
+        ? SANDBOX_RPC_MAPPINGS[functionName]
+        : functionName;
+      
+      // Inyectar p_is_test en parámetros
       const enhancedParams = {
         ...params,
         p_is_test: isSandboxMode
       };
       
-      return supabase.rpc(functionName, enhancedParams);
+      console.log(`🔧 RPC Call [${isSandboxMode ? 'SANDBOX' : 'PROD'}]: ${actualFunctionName}`, enhancedParams);
+      
+      return supabase.rpc(actualFunctionName, enhancedParams);
     },
     
     // Exponer modo actual para validaciones condicionales

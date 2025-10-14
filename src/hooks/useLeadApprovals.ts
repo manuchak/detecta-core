@@ -3,12 +3,14 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useSandboxAwareSupabase } from "@/hooks/useSandboxAwareSupabase";
 import { useToast } from "@/hooks/use-toast";
 import { AssignedLead, LeadEstado } from "@/types/leadTypes";
 import { VapiCallLog } from "@/types/vapiTypes";
 import { validateLeadForApproval, getValidationMessage } from "@/utils/leadValidation";
 
 export const useLeadApprovals = () => {
+  const sbx = useSandboxAwareSupabase(); // ✅ Hook Sandbox-aware
   const [assignedLeads, setAssignedLeads] = useState<AssignedLead[]>([]);
   const [callLogs, setCallLogs] = useState<VapiCallLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,8 +28,8 @@ export const useLeadApprovals = () => {
         throw new Error('Usuario no autenticado');
       }
       
-      console.log('🔍 LeadApprovals: Calling get_analyst_assigned_leads RPC...');
-      const { data, error } = await supabase.rpc('get_analyst_assigned_leads');
+      console.log('🔍 LeadApprovals: Calling get_analyst_assigned_leads_v2 RPC...');
+      const { data, error } = await sbx.rpc('get_analyst_assigned_leads', {});
       
       if (error) {
         console.error('❌ LeadApprovals: RPC Error:', error);
@@ -176,7 +178,7 @@ export const useLeadApprovals = () => {
 
       // Si hay zona_preferida_id, verificar capacidad
       if (lead.zona_preferida_id) {
-        const { data: capacityData } = await supabase.rpc('check_zone_capacity', {
+        const { data: capacityData } = await sbx.rpc('check_zone_capacity', {
           p_zona_id: lead.zona_preferida_id
         });
         
@@ -188,7 +190,7 @@ export const useLeadApprovals = () => {
           );
           
           if (shouldMoveToPool) {
-            const { data: moveResult } = await supabase.rpc('move_lead_to_pool', {
+            const { data: moveResult } = await sbx.rpc('move_lead_to_pool', {
               p_lead_id: lead.lead_id,
               p_zona_id: lead.zona_preferida_id,
               p_motivo: `Zona saturada - ${capacity.capacidad_actual}/${capacity.capacidad_maxima} custodios`
@@ -230,20 +232,17 @@ export const useLeadApprovals = () => {
       console.log('Usuario actual:', user.id);
 
       // Crear/actualizar el proceso de aprobación
-      const { error: approvalError } = await supabase
-        .from('lead_approval_process')
-        .upsert({
-          lead_id: lead.lead_id,
-          analyst_id: user.id,
-          current_stage: 'approved',
-          interview_method: 'manual',
-          phone_interview_notes: 'Aprobado después de llamada exitosa',
-          final_decision: 'approved',
-          decision_reason: 'Candidato calificado - aprobación después de entrevista telefónica',
-          phone_interview_completed: true,
-          second_interview_required: false,
-          updated_at: new Date().toISOString()
-        });
+      const { error: approvalError } = await sbx.update('lead_approval_process', {
+        analyst_id: user.id,
+        current_stage: 'approved',
+        interview_method: 'manual',
+        phone_interview_notes: 'Aprobado después de llamada exitosa',
+        final_decision: 'approved',
+        decision_reason: 'Candidato calificado - aprobación después de entrevista telefónica',
+        phone_interview_completed: true,
+        second_interview_required: false,
+        updated_at: new Date().toISOString()
+      }, { lead_id: lead.lead_id });
 
       if (approvalError) {
         console.error('Error en lead_approval_process:', approvalError);
@@ -251,13 +250,10 @@ export const useLeadApprovals = () => {
       }
 
       // Actualizar el lead
-      const { error: leadError } = await supabase
-        .from('leads')
-        .update({
-          estado: 'aprobado',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', lead.lead_id);
+      const { error: leadError } = await sbx.update('leads', {
+        estado: 'aprobado',
+        updated_at: new Date().toISOString()
+      }, { id: lead.lead_id });
 
       if (leadError) {
         console.error('Error actualizando lead:', leadError);
@@ -324,20 +320,17 @@ export const useLeadApprovals = () => {
       console.log('Usuario actual:', user.id);
 
       // Crear/actualizar el proceso de aprobación
-      const { error: approvalError } = await supabase
-        .from('lead_approval_process')
-        .upsert({
-          lead_id: lead.lead_id,
-          analyst_id: user.id,
-          current_stage: 'second_interview',
-          interview_method: 'manual',
-          phone_interview_notes: 'Enviado a segunda entrevista por el analista',
-          final_decision: null,
-          decision_reason: 'Requiere evaluación adicional en segunda entrevista',
-          phone_interview_completed: true,
-          second_interview_required: true,
-          updated_at: new Date().toISOString()
-        });
+      const { error: approvalError } = await sbx.update('lead_approval_process', {
+        analyst_id: user.id,
+        current_stage: 'second_interview',
+        interview_method: 'manual',
+        phone_interview_notes: 'Enviado a segunda entrevista por el analista',
+        final_decision: null,
+        decision_reason: 'Requiere evaluación adicional en segunda entrevista',
+        phone_interview_completed: true,
+        second_interview_required: true,
+        updated_at: new Date().toISOString()
+      }, { lead_id: lead.lead_id });
 
       if (approvalError) {
         console.error('Error en lead_approval_process:', approvalError);
@@ -403,8 +396,8 @@ export const useLeadApprovals = () => {
       // Si no hay razones específicas, usar mensaje genérico
       const finalReason = fullRejectionReason || "No cumple con los requisitos";
       
-      // Usar la nueva función de base de datos en lugar del upsert directo
-      const { error: approvalError } = await supabase.rpc('update_approval_process', {
+      // Usar la función RPC actualizada que valida el ambiente
+      const { error: approvalError } = await sbx.rpc('update_approval_process', {
         p_lead_id: lead.lead_id,
         p_stage: 'rejected',
         p_interview_method: 'manual',
@@ -419,14 +412,11 @@ export const useLeadApprovals = () => {
       }
 
       // Luego actualizar el lead con el motivo de rechazo
-      const { error: leadError } = await supabase
-        .from('leads')
-        .update({
-          estado: 'rechazado',
-          motivo_rechazo: finalReason,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', lead.lead_id);
+      const { error: leadError } = await sbx.update('leads', {
+        estado: 'rechazado',
+        motivo_rechazo: finalReason,
+        updated_at: new Date().toISOString()
+      }, { id: lead.lead_id });
 
       if (leadError) {
         console.error('Error actualizando lead:', leadError);

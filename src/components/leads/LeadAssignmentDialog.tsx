@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { useSandboxAwareSupabase } from "@/hooks/useSandboxAwareSupabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2, UserCheck } from "lucide-react";
 import { useLeadAssignment } from "@/hooks/useLeadAssignment";
@@ -41,6 +42,7 @@ export const LeadAssignmentDialog = ({
   isBulkMode = false,
   selectedLeadIds = []
 }: LeadAssignmentDialogProps) => {
+  const sbx = useSandboxAwareSupabase(); // ✅ Hook Sandbox-aware
   const { analysts, loading: loadingAnalysts, fetchAnalysts } = useLeadAssignment();
   const [selectedAnalyst, setSelectedAnalyst] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -67,15 +69,12 @@ export const LeadAssignmentDialog = ({
     try {
       if (isBulkMode && selectedLeadIds.length > 0) {
         // Asignación masiva
-        const { error } = await supabase
-          .from('leads')
-          .update({ 
+        for (const id of selectedLeadIds) {
+          await sbx.update('leads', { 
             asignado_a: selectedAnalyst,
             updated_at: new Date().toISOString()
-          })
-          .in('id', selectedLeadIds);
-
-        if (error) throw error;
+          }, { id });
+        }
 
         toast({
           title: "Candidatos asignados",
@@ -83,15 +82,10 @@ export const LeadAssignmentDialog = ({
         });
       } else {
         // Asignación individual
-        const { error } = await supabase
-          .from('leads')
-          .update({ 
-            asignado_a: selectedAnalyst,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', leadId);
-
-        if (error) throw error;
+        await sbx.update('leads', { 
+          asignado_a: selectedAnalyst,
+          updated_at: new Date().toISOString()
+        }, { id: leadId });
 
         toast({
           title: "Candidato asignado",
@@ -120,15 +114,10 @@ export const LeadAssignmentDialog = ({
   const handleUnassign = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('leads')
-        .update({ 
-          asignado_a: null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', leadId);
-
-      if (error) throw error;
+      await sbx.update('leads', { 
+        asignado_a: null,
+        updated_at: new Date().toISOString()
+      }, { id: leadId });
 
       toast({
         title: "Asignación removida",

@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useSandboxAwareSupabase } from "@/hooks/useSandboxAwareSupabase";
 import { useToast } from "@/hooks/use-toast";
 import { AssignedLead, ZoneCapacity, PoolMovement, LeadEstado } from "@/types/leadTypes";
 
 export const usePoolReserva = () => {
+  const sbx = useSandboxAwareSupabase(); // ✅ Hook Sandbox-aware
   const [poolCandidates, setPoolCandidates] = useState<AssignedLead[]>([]);
   const [zoneCapacities, setZoneCapacities] = useState<ZoneCapacity[]>([]);
   const [poolMovements, setPoolMovements] = useState<PoolMovement[]>([]);
@@ -13,7 +15,7 @@ export const usePoolReserva = () => {
   // Fetch candidates in pool
   const fetchPoolCandidates = async () => {
     try {
-      const { data, error } = await supabase.rpc('get_analyst_assigned_leads');
+      const { data, error } = await sbx.rpc('get_analyst_assigned_leads', {});
       
       if (error) throw error;
       
@@ -115,7 +117,7 @@ export const usePoolReserva = () => {
   // Check if a zone is saturated
   const checkZoneCapacity = async (zonaId: string) => {
     try {
-      const { data, error } = await supabase.rpc('check_zone_capacity', {
+      const { data, error } = await sbx.rpc('check_zone_capacity', {
         p_zona_id: zonaId
       });
       
@@ -133,7 +135,7 @@ export const usePoolReserva = () => {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase.rpc('move_lead_to_pool', {
+      const { data, error } = await sbx.rpc('move_lead_to_pool', {
         p_lead_id: leadId,
         p_estado_id: estadoId,
         p_motivo: motivo
@@ -172,7 +174,7 @@ export const usePoolReserva = () => {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase.rpc('reactivate_lead_from_pool', {
+      const { data, error } = await sbx.rpc('reactivate_lead_from_pool', {
         p_lead_id: leadId,
         p_nuevo_estado: nuevoEstado
       });
@@ -212,7 +214,7 @@ export const usePoolReserva = () => {
       
       const results = await Promise.allSettled(
         leadIds.map(leadId => 
-          supabase.rpc('reactivate_lead_from_pool', {
+          sbx.rpc('reactivate_lead_from_pool', {
             p_lead_id: leadId,
             p_nuevo_estado: nuevoEstado
           })
