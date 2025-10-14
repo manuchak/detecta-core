@@ -603,9 +603,9 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner']}>
-                        <DashboardLayout>
+                        <UnifiedLayout>
                           <SandboxTesting />
-                        </DashboardLayout>
+                        </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
@@ -616,9 +616,9 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner']}>
-                        <DashboardLayout>
+                        <UnifiedLayout>
                           <SandboxDeployment />
-                        </DashboardLayout>
+                        </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
