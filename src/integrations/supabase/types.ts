@@ -10624,6 +10624,7 @@ export type Database = {
           marca: string
           modelo: string
           placa: string
+          tipo_custodio: string
         }[]
       }
       get_custodios_activos_disponibles: {

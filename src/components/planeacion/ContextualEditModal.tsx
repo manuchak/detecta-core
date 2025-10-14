@@ -10,6 +10,7 @@ import { useEditWorkflow, type EditMode } from '@/contexts/EditWorkflowContext';
 import { useSmartEditSuggestions } from '@/hooks/useSmartEditSuggestions';
 import { ArrowLeft, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import type { EditableService } from './EditServiceModal';
 
 interface ContextualEditModalProps {
@@ -116,6 +117,20 @@ export function ContextualEditModal({
           break;
           
         case 'add_armed':
+          // 🚨 VALIDACIÓN: Si el custodio es híbrido (armado_vehiculo), no permitir agregar armado
+          // Primero necesitamos obtener el tipo de custodio
+          const { data: custodioData } = await supabase.rpc('get_custodio_vehicle_data', {
+            p_custodio_nombre: service.custodio_asignado || ''
+          }).single() as { data: { tipo_custodio?: string } | null };
+          
+          if (custodioData?.tipo_custodio === 'armado_vehiculo') {
+            toast.warning('Custodio ya cuenta con porte de arma', {
+              description: 'Este custodio híbrido no requiere armado adicional'
+            });
+            onOpenChange(false);
+            return;
+          }
+          
           updatedData = {
             requiere_armado: true,
             estado_planeacion: 'pendiente_asignacion'

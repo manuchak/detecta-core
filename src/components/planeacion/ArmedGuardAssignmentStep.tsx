@@ -5,9 +5,11 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { AddressAutocomplete } from '@/components/ui/address-autocomplete';
 import { Shield, Clock, MapPin, AlertTriangle, CheckCircle2, Search, Eye, EyeOff } from 'lucide-react';
 import { useArmedGuardsWithTracking } from '@/hooks/useArmedGuardsWithTracking';
+import { useCustodioVehicleData } from '@/hooks/useCustodioVehicleData';
 import { toast } from 'sonner';
 import { UniversalSearchBar } from '@/components/planeacion/search/UniversalSearchBar';
 import { SearchResultsInfo, ARMED_GUARD_CATEGORIES } from '@/components/planeacion/search/SearchResultsInfo';
@@ -66,6 +68,10 @@ export function ArmedGuardAssignmentStep({
   } : undefined;
 
   const { armedGuards, providers, loading, error } = useArmedGuardsWithTracking(serviceFilters);
+  
+  // Check if custodian is hybrid (has armed license)
+  const { isHybridCustodian } = useCustodioVehicleData(serviceData.custodio_asignado || undefined);
+  const custodioIsHybrid = isHybridCustodian();
 
   // Set default meeting time based on service time
   useEffect(() => {
@@ -209,6 +215,18 @@ export function ArmedGuardAssignmentStep({
 
   return (
     <div className="space-y-6">
+      {/* Advertencia si el custodio es híbrido */}
+      {custodioIsHybrid && (
+        <Alert className="border-warning bg-warning/5">
+          <AlertTriangle className="h-4 w-4 text-warning" />
+          <AlertTitle className="text-warning">Custodio híbrido detectado</AlertTitle>
+          <AlertDescription>
+            El custodio asignado ({serviceData.custodio_asignado}) ya cuenta con porte de arma. 
+            Solo asigna un armado adicional si el cliente lo solicita explícitamente.
+          </AlertDescription>
+        </Alert>
+      )}
+      
       {/* Service Summary */}
       <Card>
         <CardHeader>

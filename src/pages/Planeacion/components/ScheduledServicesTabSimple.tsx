@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useScheduledServices } from '@/hooks/useScheduledServices';
 import { usePendingServices } from '@/hooks/usePendingServices';
 import { usePendingArmadoServices } from '@/hooks/usePendingArmadoServices';
 import { useServiciosPlanificados } from '@/hooks/useServiciosPlanificados';
 import { useServiceTransformations } from '@/hooks/useServiceTransformations';
+import { useCustodioVehicleData } from '@/hooks/useCustodioVehicleData';
 import { PendingAssignmentModal } from '@/components/planeacion/PendingAssignmentModal';
 import { EditServiceModal, type EditableService } from '@/components/planeacion/EditServiceModal';
 import { ContextualEditModal } from '@/components/planeacion/ContextualEditModal';
 import { ReassignmentModal, type ServiceForReassignment } from '@/components/planeacion/ReassignmentModal';
 import { ServiceHistoryModal } from '@/components/planeacion/ServiceHistoryModal';
 import { AirlineDateSelector } from '@/components/planeacion/AirlineDateSelector';
+import { CustodianVehicleInfo } from '@/components/planeacion/CustodianVehicleInfo';
 import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Edit, RefreshCw, History, UserCircle } from 'lucide-react';
 import { CancelServiceButton } from '@/components/planeacion/CancelServiceButton';
 import { format } from 'date-fns';
@@ -402,29 +405,25 @@ export function ScheduledServicesTab() {
                     </div>
                   </div>
                   
-                  {/* Línea 3: Custodio + Armado + Vehículo */}
-                  <div className="flex items-center space-x-1 mb-3">
-                    <span className="apple-text-caption text-muted-foreground">
-                      {service.custodio_nombre || 'Sin custodio asignado'}
-                    </span>
-                    {service.armado_nombre && (
-                      <>
-                        <span className="text-muted-foreground">•</span>
-                        <Shield className="w-3 h-3 text-muted-foreground inline" />
-                        <span className="apple-text-caption text-muted-foreground">
-                          {service.armado_nombre}
-                        </span>
-                      </>
-                    )}
-                    {(service.auto || service.placa) && (
-                      <>
-                        <span className="text-muted-foreground">•</span>
-                        <span className="apple-text-caption text-muted-foreground">
-                          {service.auto} {service.placa && `(${service.placa})`}
-                        </span>
-                      </>
-                    )}
-                  </div>
+                  {/* Línea 3: Custodio + Vehículo + Armado Adicional */}
+                  <CustodianVehicleInfo 
+                    custodioNombre={service.custodio_nombre}
+                    className="mb-3"
+                  />
+                  
+                  {/* Armado Adicional (solo si NO es híbrido y tiene armado asignado) */}
+                  {(service.incluye_armado || service.armado_nombre) && 
+                   service.armado_nombre && (
+                    <div className="flex items-center space-x-2 mb-3 pt-2 border-t border-border/30">
+                      <Shield className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span className="apple-text-caption font-medium text-foreground">
+                        {service.armado_nombre}
+                      </span>
+                      <span className="apple-text-caption text-muted-foreground/60 italic">
+                        (Acompañante)
+                      </span>
+                    </div>
+                  )}
                   
                   {/* Línea 3.5: Planificador (solo si existe) */}
                   {service.planner_name && (

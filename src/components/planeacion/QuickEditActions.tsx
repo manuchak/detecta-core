@@ -25,6 +25,8 @@ export function QuickEditActions({ service, onEditModeSelect }: QuickEditActions
 
   const hasArmado = service.requiere_armado && service.armado_asignado;
   const hasCustodio = service.custodio_asignado;
+  // Note: In a real implementation, we'd check if custodian is hybrid type
+  // For now, we assume if has armado requirement but no assigned armado, it needs one
   const needsArmedAssignment = service.requiere_armado && !service.armado_asignado;
   const isComplete = hasCustodio && (!service.requiere_armado || hasArmado);
 

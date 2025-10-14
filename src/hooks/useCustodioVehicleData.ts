@@ -6,6 +6,7 @@ interface VehicleData {
   modelo: string;
   placa: string;
   color: string;
+  tipo_custodio: 'custodio_vehiculo' | 'armado_vehiculo' | 'armado' | 'abordo';
   fuente: string;
 }
 
@@ -37,6 +38,7 @@ export function useCustodioVehicleData(custodioNombre?: string) {
           modelo: 'No especificado', 
           placa: 'Sin placa',
           color: 'No especificado',
+          tipo_custodio: 'custodio_vehiculo',
           fuente: 'fallback'
         });
         return;
@@ -50,6 +52,7 @@ export function useCustodioVehicleData(custodioNombre?: string) {
           modelo: 'No especificado',
           placa: 'Sin placa', 
           color: 'No especificado',
+          tipo_custodio: 'custodio_vehiculo',
           fuente: 'fallback'
         });
       }
@@ -61,7 +64,8 @@ export function useCustodioVehicleData(custodioNombre?: string) {
         marca: 'No especificado',
         modelo: 'No especificado',
         placa: 'Sin placa',
-        color: 'No especificado', 
+        color: 'No especificado',
+        tipo_custodio: 'custodio_vehiculo',
         fuente: 'error_fallback'
       });
     } finally {
@@ -93,12 +97,23 @@ export function useCustodioVehicleData(custodioNombre?: string) {
            vehicleData.modelo !== 'No especificado';
   };
 
+  const shouldShowVehicle = (): boolean => {
+    if (!vehicleData) return false;
+    return ['custodio_vehiculo', 'armado_vehiculo'].includes(vehicleData.tipo_custodio);
+  };
+
+  const isHybridCustodian = (): boolean => {
+    return vehicleData?.tipo_custodio === 'armado_vehiculo';
+  };
+
   return {
     vehicleData,
     loading,
     error,
     formatVehicleInfo,
     hasVehicleData,
+    shouldShowVehicle,
+    isHybridCustodian,
     refetch: () => fetchVehicleData(custodioNombre)
   };
 }
