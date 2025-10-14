@@ -226,13 +226,35 @@ export function ScheduledServicesTab() {
     <div
       className="apple-container space-y-8"
       onMouseDownCapture={(e) => {
+        // 🎯 CRITICAL FIX: Detectar si el click está DENTRO de un diálogo
+        const target = e.target as HTMLElement;
+        const isInsideDialog = !!target.closest('[role="dialog"], [role="alertdialog"]');
+        
+        // Si está dentro de un diálogo, permitir la propagación normal del evento
+        if (isInsideDialog) {
+          console.log('[ScheduledServicesTabSimple] Click dentro de diálogo - permitiendo propagación');
+          return;
+        }
+        
+        // Solo bloquear eventos si hay un diálogo ABIERTO y el click está FUERA
         const anyDialog = document.body.dataset.dialogOpen === "1" || document.body.dataset.dialogTransitioning === "1" || !!document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]');
         if (anyDialog) {
+          console.log('[ScheduledServicesTabSimple] Bloqueando click fuera del diálogo');
           e.preventDefault();
           e.stopPropagation();
         }
       }}
       onClickCapture={(e) => {
+        // 🎯 CRITICAL FIX: Detectar si el click está DENTRO de un diálogo
+        const target = e.target as HTMLElement;
+        const isInsideDialog = !!target.closest('[role="dialog"], [role="alertdialog"]');
+        
+        // Si está dentro de un diálogo, permitir la propagación normal del evento
+        if (isInsideDialog) {
+          return;
+        }
+        
+        // Solo bloquear eventos si hay un diálogo ABIERTO y el click está FUERA
         const anyDialog = document.body.dataset.dialogOpen === "1" || document.body.dataset.dialogTransitioning === "1" || !!document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]');
         if (anyDialog) {
           e.preventDefault();
