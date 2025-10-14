@@ -3,6 +3,7 @@ import { useNavigate, useLocation, NavLink } from 'react-router-dom';
 import { ChevronLeft, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { navigationModules, NavigationModule, NavigationChild } from '@/config/navigationConfig';
+import { SandboxEnvironmentIndicator } from '@/components/sandbox/SandboxEnvironmentIndicator';
 import {
   Sidebar,
   SidebarContent,
@@ -120,6 +121,9 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
           )} />
         </Button>
       </div>
+
+      {/* Environment Indicator */}
+      <SandboxEnvironmentIndicator collapsed={isCollapsed} />
 
       <SidebarContent>
         <SidebarGroup>

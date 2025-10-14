@@ -26,7 +26,6 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SandboxToggle } from '@/components/sandbox/SandboxToggle';
 
 interface MainNavigationProps {
   className?: string;
@@ -189,13 +188,8 @@ export function MainNavigation({ className }: MainNavigationProps) {
             </div>
           </div>
 
-          {/* Right section: Sandbox Toggle + User Menu */}
+          {/* Right section: User Menu */}
           <div className="flex items-center">
-            {/* Sandbox Toggle (solo admins) */}
-            {(userRole === 'admin' || userRole === 'owner') && (
-              <SandboxToggle />
-            )}
-            
             {/* User Role Badge */}
             {userRole && (
               <Badge variant="secondary" className="hidden sm:flex ml-4">
