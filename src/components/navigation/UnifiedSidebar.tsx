@@ -1,9 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, NavLink } from 'react-router-dom';
-import { ChevronLeft, ChevronDown } from 'lucide-react';
+import { ChevronLeft, ChevronDown, Check, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSandbox } from '@/contexts/SandboxContext';
 import { navigationModules, NavigationModule, NavigationChild } from '@/config/navigationConfig';
 import { SandboxEnvironmentIndicator } from '@/components/sandbox/SandboxEnvironmentIndicator';
+import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Sidebar,
   SidebarContent,
@@ -31,10 +43,13 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { userRole } = useAuth();
+  const { isSandboxMode } = useSandbox();
   const { state, toggleSidebar } = useSidebar();
   
   const isCollapsed = state === 'collapsed';
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
+  const [showProductionWarning, setShowProductionWarning] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
 
   const getActiveModule = () => {
     const path = location.pathname;
@@ -95,8 +110,22 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
     );
   };
 
-  const handleNavigate = (path: string) => {
+  const handleNavigate = (path: string, module?: NavigationModule) => {
+    // Si estamos en sandbox y el módulo NO está migrado, mostrar advertencia
+    if (isSandboxMode && module && module.sandboxReady === false) {
+      setPendingNavigation(path);
+      setShowProductionWarning(true);
+      return;
+    }
     navigate(path);
+  };
+
+  const handleConfirmProductionNavigation = () => {
+    if (pendingNavigation) {
+      navigate(pendingNavigation);
+      setPendingNavigation(null);
+    }
+    setShowProductionWarning(false);
   };
 
   return (
@@ -141,17 +170,42 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
                   return (
                     <SidebarMenuItem key={module.id}>
                       <SidebarMenuButton
-                        onClick={() => handleNavigate(module.path)}
+                        onClick={() => handleNavigate(module.path, module)}
                         className={cn(
-                          "w-full justify-start gap-3 py-3 transition-all duration-200",
+                          "w-full justify-start gap-3 py-3 transition-all duration-200 relative",
                           "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                           isActive && "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
                         )}
                         tooltip={isCollapsed ? module.label : undefined}
                       >
-                        <Icon className="h-5 w-5 shrink-0" />
+                        <div className="relative">
+                          <Icon className="h-5 w-5 shrink-0" />
+                          {/* Dot indicator in collapsed mode */}
+                          {isCollapsed && isSandboxMode && (
+                            <span className={cn(
+                              "absolute -top-1 -right-1 h-2 w-2 rounded-full border border-sidebar",
+                              module.sandboxReady ? "bg-success" : "bg-warning"
+                            )} />
+                          )}
+                        </div>
                         {!isCollapsed && (
-                          <span className="text-sm">{module.label}</span>
+                          <>
+                            <span className="text-sm flex-1">{module.label}</span>
+                            {/* Badge in expanded mode */}
+                            {isSandboxMode && (
+                              module.sandboxReady ? (
+                                <Badge variant="success" className="text-[10px] px-1.5 py-0">
+                                  <Check className="h-3 w-3 mr-0.5" />
+                                  Sandbox
+                                </Badge>
+                              ) : (
+                                <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                                  <AlertTriangle className="h-3 w-3 mr-0.5" />
+                                  Prod
+                                </Badge>
+                              )
+                            )}
+                          </>
                         )}
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -164,22 +218,45 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
                     <SidebarMenuButton
                       onClick={() => {
                         if (isCollapsed) {
-                          handleNavigate(module.path);
+                          handleNavigate(module.path, module);
                         } else {
                           toggleGroup(module.id);
                         }
                       }}
                       className={cn(
-                        "w-full justify-start gap-3 py-3 transition-all duration-200",
+                        "w-full justify-start gap-3 py-3 transition-all duration-200 relative",
                         "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                         isActive && "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
                       )}
                       tooltip={isCollapsed ? module.label : undefined}
                     >
-                      <Icon className="h-5 w-5 shrink-0" />
+                      <div className="relative">
+                        <Icon className="h-5 w-5 shrink-0" />
+                        {/* Dot indicator in collapsed mode */}
+                        {isCollapsed && isSandboxMode && (
+                          <span className={cn(
+                            "absolute -top-1 -right-1 h-2 w-2 rounded-full border border-sidebar",
+                            module.sandboxReady ? "bg-success" : "bg-warning"
+                          )} />
+                        )}
+                      </div>
                       {!isCollapsed && (
                         <>
                           <span className="text-sm flex-1">{module.label}</span>
+                          {/* Badge in expanded mode */}
+                          {isSandboxMode && (
+                            module.sandboxReady ? (
+                              <Badge variant="success" className="text-[10px] px-1.5 py-0 mr-1">
+                                <Check className="h-3 w-3 mr-0.5" />
+                                Sandbox
+                              </Badge>
+                            ) : (
+                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 mr-1">
+                                <AlertTriangle className="h-3 w-3 mr-0.5" />
+                                Prod
+                              </Badge>
+                            )
+                          )}
                           <ChevronDown className={cn(
                             "h-4 w-4 transition-transform duration-200",
                             isExpanded && "rotate-180"
@@ -257,6 +334,60 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
           </div>
         </SidebarFooter>
       )}
+
+      {/* Sandbox Legend Footer */}
+      {isSandboxMode && !isCollapsed && (
+        <SidebarFooter className="border-t border-sidebar-border p-3">
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium text-sidebar-foreground/60 uppercase tracking-wide mb-2">
+              Leyenda
+            </p>
+            <div className="flex items-center gap-2 text-xs">
+              <span className="h-2 w-2 rounded-full bg-success" />
+              <span className="text-sidebar-foreground/70">Migrado a Sandbox</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs">
+              <span className="h-2 w-2 rounded-full bg-warning" />
+              <span className="text-sidebar-foreground/70">Afecta Producción</span>
+            </div>
+          </div>
+        </SidebarFooter>
+      )}
+
+      {/* Production Warning Dialog */}
+      <AlertDialog open={showProductionWarning} onOpenChange={setShowProductionWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              Advertencia: Módulo de Producción
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3 pt-2">
+              <p>
+                Este módulo <strong>NO está migrado a Sandbox</strong> y afectará directamente los{' '}
+                <strong className="text-warning">datos de PRODUCCIÓN</strong>.
+              </p>
+              <p>
+                Cualquier cambio que realices será permanente y visible para todos los usuarios del sistema.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                ¿Estás seguro de que deseas continuar?
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingNavigation(null)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmProductionNavigation}
+              className="bg-warning hover:bg-warning/90"
+            >
+              Continuar a Producción
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sidebar>
   );
 }
