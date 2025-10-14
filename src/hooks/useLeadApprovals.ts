@@ -40,6 +40,11 @@ export const useLeadApprovals = () => {
       // Convertir datos de la DB al tipo AssignedLead con compatibilidad
       const typedLeads: AssignedLead[] = (data || []).map(lead => ({
         ...lead,
+        // ✅ Mapear campos con prefijo lead_ para AssignedLead
+        lead_nombre: lead.nombre,
+        lead_email: lead.email,
+        lead_telefono: lead.telefono,
+        lead_fecha_creacion: lead.fecha_creacion,
         lead_estado: lead.lead_estado as LeadEstado,
         // Mantener compatibilidad con campos antiguos para no romper funcionalidad existente
         approval_stage: lead.final_decision ? 
