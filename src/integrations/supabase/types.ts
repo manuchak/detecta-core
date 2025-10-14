@@ -10212,6 +10212,10 @@ export type Database = {
         Args: { p_zona_id: string }
         Returns: Json
       }
+      check_zone_capacity_v2: {
+        Args: { p_is_test?: boolean; p_zona_id: string }
+        Returns: Json
+      }
       clean_duplicate_service_ids: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -10611,6 +10615,31 @@ export type Database = {
           lead_telefono: string
           motivo_pool: string
           scheduled_call_datetime: string
+          zona_nombre: string
+          zona_preferida_id: string
+        }[]
+      }
+      get_analyst_assigned_leads_v2: {
+        Args: { p_is_test?: boolean }
+        Returns: {
+          analista_email: string
+          analista_nombre: string
+          approval_stage: string
+          fecha_entrada_pool: string
+          final_decision: string
+          has_successful_call: boolean
+          interview_in_progress: boolean
+          interview_started_at: string
+          lead_email: string
+          lead_estado: string
+          lead_fecha_creacion: string
+          lead_id: string
+          lead_nombre: string
+          lead_telefono: string
+          motivo_pool: string
+          notas: string
+          phone_interview_completed: boolean
+          second_interview_required: boolean
           zona_nombre: string
           zona_preferida_id: string
         }[]
@@ -11770,6 +11799,15 @@ export type Database = {
           | { p_lead_id: string; p_motivo?: string; p_zona_id: string }
         Returns: boolean
       }
+      move_lead_to_pool_v2: {
+        Args: {
+          p_is_test?: boolean
+          p_lead_id: string
+          p_motivo: string
+          p_zona_id: string
+        }
+        Returns: boolean
+      }
       obtener_deficit_dinamico_nacional: {
         Args: { p_fecha_desde?: string; p_fecha_hasta?: string }
         Returns: {
@@ -11832,6 +11870,10 @@ export type Database = {
       }
       reactivate_lead_from_pool: {
         Args: { p_lead_id: string; p_nuevo_estado?: string }
+        Returns: boolean
+      }
+      reactivate_lead_from_pool_v2: {
+        Args: { p_is_test?: boolean; p_lead_id: string; p_nuevo_estado: string }
         Returns: boolean
       }
       recomendar_gps_para_instalacion: {
@@ -11920,14 +11962,24 @@ export type Database = {
         Returns: number
       }
       update_approval_process: {
-        Args: {
-          p_decision: string
-          p_decision_reason: string
-          p_interview_method: string
-          p_lead_id: string
-          p_notes: string
-          p_stage: string
-        }
+        Args:
+          | {
+              p_decision: string
+              p_decision_reason: string
+              p_interview_method: string
+              p_lead_id: string
+              p_notes: string
+              p_stage: string
+            }
+          | {
+              p_decision?: string
+              p_decision_reason?: string
+              p_interview_method?: string
+              p_is_test?: boolean
+              p_lead_id: string
+              p_notes?: string
+              p_stage: string
+            }
         Returns: boolean
       }
       update_last_login: {
