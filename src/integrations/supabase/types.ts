@@ -1207,6 +1207,7 @@ export type Database = {
           fuente_reclutamiento: string | null
           id: string
           inversion_inicial_disponible: number | null
+          is_test: boolean | null
           nombre: string
           notas_recruiter: string | null
           telefono: string | null
@@ -1227,6 +1228,7 @@ export type Database = {
           fuente_reclutamiento?: string | null
           id?: string
           inversion_inicial_disponible?: number | null
+          is_test?: boolean | null
           nombre: string
           notas_recruiter?: string | null
           telefono?: string | null
@@ -1247,6 +1249,7 @@ export type Database = {
           fuente_reclutamiento?: string | null
           id?: string
           inversion_inicial_disponible?: number | null
+          is_test?: boolean | null
           nombre?: string
           notas_recruiter?: string | null
           telefono?: string | null
@@ -2786,6 +2789,71 @@ export type Database = {
             columns: ["devolucion_id"]
             isOneToOne: false
             referencedRelation: "devoluciones_proveedor"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dialfire_call_logs: {
+        Row: {
+          agent_id: string | null
+          agent_notes: string | null
+          call_duration: number | null
+          call_ended_at: string | null
+          call_outcome: string | null
+          call_started_at: string | null
+          campaign_id: string | null
+          candidato_id: string | null
+          created_at: string | null
+          dialfire_call_id: string | null
+          id: string
+          is_test: boolean | null
+          metadata: Json | null
+          phone_number: string | null
+          recording_url: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          agent_notes?: string | null
+          call_duration?: number | null
+          call_ended_at?: string | null
+          call_outcome?: string | null
+          call_started_at?: string | null
+          campaign_id?: string | null
+          candidato_id?: string | null
+          created_at?: string | null
+          dialfire_call_id?: string | null
+          id?: string
+          is_test?: boolean | null
+          metadata?: Json | null
+          phone_number?: string | null
+          recording_url?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          agent_notes?: string | null
+          call_duration?: number | null
+          call_ended_at?: string | null
+          call_outcome?: string | null
+          call_started_at?: string | null
+          campaign_id?: string | null
+          candidato_id?: string | null
+          created_at?: string | null
+          dialfire_call_id?: string | null
+          id?: string
+          is_test?: boolean | null
+          metadata?: Json | null
+          phone_number?: string | null
+          recording_url?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dialfire_call_logs_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "candidatos_custodios"
             referencedColumns: ["id"]
           },
         ]
@@ -4799,6 +4867,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           id: string
+          is_test: boolean | null
           lead_id: string
           requires_reschedule: boolean | null
           rescheduled_from_call_id: string | null
@@ -4814,6 +4883,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           id?: string
+          is_test?: boolean | null
           lead_id: string
           requires_reschedule?: boolean | null
           rescheduled_from_call_id?: string | null
@@ -4829,6 +4899,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           id?: string
+          is_test?: boolean | null
           lead_id?: string
           requires_reschedule?: boolean | null
           rescheduled_from_call_id?: string | null
@@ -7971,6 +8042,75 @@ export type Database = {
         }
         Relationships: []
       }
+      sandbox_promotions: {
+        Row: {
+          approval_justification: string | null
+          approved_by: string | null
+          created_at: string | null
+          created_by: string
+          current_phase: number | null
+          deployment_completed_at: string | null
+          deployment_started_at: string | null
+          deployment_strategy: string | null
+          description: string
+          error_log: string | null
+          id: string
+          live_metrics: Json | null
+          promotion_type: string
+          rollback_date: string | null
+          rollback_reason: string | null
+          status: string | null
+          test_results: Json | null
+          title: string
+          updated_at: string | null
+          validation_criteria: Json | null
+        }
+        Insert: {
+          approval_justification?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          created_by: string
+          current_phase?: number | null
+          deployment_completed_at?: string | null
+          deployment_started_at?: string | null
+          deployment_strategy?: string | null
+          description: string
+          error_log?: string | null
+          id?: string
+          live_metrics?: Json | null
+          promotion_type: string
+          rollback_date?: string | null
+          rollback_reason?: string | null
+          status?: string | null
+          test_results?: Json | null
+          title: string
+          updated_at?: string | null
+          validation_criteria?: Json | null
+        }
+        Update: {
+          approval_justification?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          created_by?: string
+          current_phase?: number | null
+          deployment_completed_at?: string | null
+          deployment_started_at?: string | null
+          deployment_strategy?: string | null
+          description?: string
+          error_log?: string | null
+          id?: string
+          live_metrics?: Json | null
+          promotion_type?: string
+          rollback_date?: string | null
+          rollback_reason?: string | null
+          status?: string | null
+          test_results?: Json | null
+          title?: string
+          updated_at?: string | null
+          validation_criteria?: Json | null
+        }
+        Relationships: []
+      }
       security_audit_log: {
         Row: {
           action: string
@@ -9140,6 +9280,7 @@ export type Database = {
           duration_seconds: number | null
           ended_at: string | null
           id: string
+          is_test: boolean | null
           lead_id: string
           phone_number: string | null
           recommendation: string | null
@@ -9166,6 +9307,7 @@ export type Database = {
           duration_seconds?: number | null
           ended_at?: string | null
           id?: string
+          is_test?: boolean | null
           lead_id: string
           phone_number?: string | null
           recommendation?: string | null
@@ -9192,6 +9334,7 @@ export type Database = {
           duration_seconds?: number | null
           ended_at?: string | null
           id?: string
+          is_test?: boolean | null
           lead_id?: string
           phone_number?: string | null
           recommendation?: string | null
@@ -11080,6 +11223,10 @@ export type Database = {
           role: string
           updated_at: string
         }[]
+      }
+      get_sandbox_metrics: {
+        Args: { p_is_test?: boolean; p_start_date?: string }
+        Returns: Json
       }
       get_scheduled_services_summary: {
         Args: { date_filter: string }

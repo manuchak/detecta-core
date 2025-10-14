@@ -74,3 +74,9 @@ verify_jwt = true
 
 [functions.create-readonly-access]
 verify_jwt = true
+
+[functions.dialfire-webhook]
+verify_jwt = false
+
+[functions.vapi-call-test]
+verify_jwt = true

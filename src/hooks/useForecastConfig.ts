@@ -24,7 +24,6 @@ export interface ForecastConfigUpdate {
   show_advanced?: boolean;
 }
 
-// Hook para obtener la configuración global
 export const useForecastConfig = () => {
   return useQuery({
     queryKey: ["forecast-config"],
@@ -42,11 +41,10 @@ export const useForecastConfig = () => {
 
       return data as ForecastConfig;
     },
-    staleTime: 5 * 60 * 1000, // 5 minutos
+    staleTime: 5 * 60 * 1000,
   });
 };
 
-// Hook para actualizar la configuración global (solo admins/managers)
 export const useUpdateForecastConfig = () => {
   const queryClient = useQueryClient();
 
@@ -77,24 +75,21 @@ export const useUpdateForecastConfig = () => {
   });
 };
 
-// Hook para verificar si el usuario puede modificar la configuración
 export const useCanModifyForecastConfig = () => {
   return useQuery({
     queryKey: ["can-modify-forecast-config"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
-        .in("role", ["admin", "owner", "manager"]);
+      const { data, error } = await supabase.rpc('user_has_role_secure', {
+        check_role: 'admin'
+      });
 
       if (error) {
         console.error("Error checking user roles:", error);
         return false;
       }
 
-      return data && data.length > 0;
+      return data || false;
     },
-    staleTime: 10 * 60 * 1000, // 10 minutos
+    staleTime: 10 * 60 * 1000,
   });
 };

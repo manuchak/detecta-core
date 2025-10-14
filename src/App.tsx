@@ -6,6 +6,7 @@ import { Toaster as SonnerToaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { DraftResumeProvider, useDraftResume } from '@/contexts/DraftResumeContext';
+import { SandboxProvider } from '@/contexts/SandboxContext';
 import { lazy, Suspense } from 'react';
 import { LastRouteRestorer } from '@/components/global/LastRouteRestorer';
 import { GlobalResumeCTA } from '@/components/global/GlobalResumeCTA';
@@ -48,6 +49,8 @@ const RegistroInstaladores = lazy(() => import('@/pages/Installers/RegistroInsta
 const Landing = lazy(() => import('@/pages/Landing/Landing'));
 const WMSPage = lazy(() => import('@/pages/WMS/WMSPage'));
 const CustodianPortal = lazy(() => import('@/pages/custodian/CustodianPortal'));
+const SandboxTesting = lazy(() => import('@/pages/SandboxTesting'));
+const SandboxDeployment = lazy(() => import('@/pages/SandboxDeployment'));
 const CustodianDashboard = lazy(() => import('@/pages/custodian/CustodianDashboard'));
 const CustodianTickets = lazy(() => import('@/pages/custodian/CustodianTickets'));
 const CustodianPortalAdmin = lazy(() => import('@/pages/admin/CustodianPortalAdmin'));
@@ -117,8 +120,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
         <AuthProvider>
-          <DraftResumeProvider>
-            <Router>
+          <SandboxProvider>
+            <DraftResumeProvider>
+              <Router>
               <LastRouteRestorer />
               <div className="min-h-screen bg-background">
                 <Suspense fallback={<LoadingFallback />}>
@@ -593,16 +597,44 @@ function App() {
                   }
                 />
                 
+                {/* Sandbox Routes */}
+                <Route
+                  path="/sandbox-testing"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner']}>
+                        <DashboardLayout>
+                          <SandboxTesting />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/sandbox-deployment"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner']}>
+                        <DashboardLayout>
+                          <SandboxDeployment />
+                        </DashboardLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                
                 {/* 404 route - MUST BE LAST */}
                 <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
               <GlobalResumeCTA />
             </div>
-          </Router>
-          <Toaster />
-          <SonnerToaster />
-        </DraftResumeProvider>
+            </Router>
+            <Toaster />
+            <SonnerToaster />
+          </DraftResumeProvider>
+        </SandboxProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
