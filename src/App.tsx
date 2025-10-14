@@ -7,6 +7,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { DraftResumeProvider, useDraftResume } from '@/contexts/DraftResumeContext';
 import { SandboxProvider } from '@/contexts/SandboxContext';
+import { SandboxRouteGuard } from '@/components/sandbox/SandboxRouteGuard';
 import { lazy, Suspense } from 'react';
 import { LastRouteRestorer } from '@/components/global/LastRouteRestorer';
 import { GlobalResumeCTA } from '@/components/global/GlobalResumeCTA';
@@ -124,9 +125,10 @@ function App() {
             <DraftResumeProvider>
               <Router>
               <LastRouteRestorer />
-              <div className="min-h-screen bg-background">
-                <Suspense fallback={<LoadingFallback />}>
-                  <Routes>
+              <SandboxRouteGuard>
+                <div className="min-h-screen bg-background">
+                  <Suspense fallback={<LoadingFallback />}>
+                    <Routes>
                   {/* Main route - Leads as principal page */}
                   <Route path="/" element={<SimpleLeadsPage />} />
                   
@@ -626,10 +628,11 @@ function App() {
                 
                 {/* 404 route - MUST BE LAST */}
                 <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
-              <GlobalResumeCTA />
-            </div>
+                  </Routes>
+                </Suspense>
+                <GlobalResumeCTA />
+              </div>
+              </SandboxRouteGuard>
             </Router>
             <Toaster />
             <SonnerToaster />

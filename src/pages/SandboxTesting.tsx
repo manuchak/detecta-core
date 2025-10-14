@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,14 +9,9 @@ import { useNavigate } from "react-router-dom";
 import { TestTube2, TrendingUp, Clock, DollarSign } from "lucide-react";
 
 const SandboxTesting = () => {
-  const { isSandboxMode, toggleSandboxMode } = useSandbox();
+  const { isSandboxMode } = useSandbox();
   const navigate = useNavigate();
   const { data: metrics, isLoading } = useSandboxMetrics(true);
-
-  // Activar sandbox automáticamente al entrar
-  useEffect(() => {
-    if (!isSandboxMode) toggleSandboxMode();
-  }, []);
 
   const MetricCard = ({ title, value, icon: Icon, subtitle }: any) => (
     <Card className="p-4">
