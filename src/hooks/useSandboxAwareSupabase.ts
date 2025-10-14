@@ -57,16 +57,9 @@ export function useSandboxAwareSupabase() {
     /**
      * Query builder con filtro automático por is_test
      * 
-     * IMPORTANTE: Debes encadenar .select() inmediatamente después
-     * 
      * @example
      * ```typescript
-     * // ✅ CORRECTO
      * const { data } = await sbx.from('leads').select('*')
-     * 
-     * // ❌ INCORRECTO - no guardes el builder
-     * const builder = sbx.from('leads')
-     * const { data } = await builder.select('*') // No funciona con filtro
      * ```
      */
     from: (table: string) => {
@@ -77,12 +70,18 @@ export function useSandboxAwareSupabase() {
         return baseQuery;
       }
       
-      // Retornar proxy con filtro aplicado
-      return {
-        select: (columns: string = '*', options?: any) => {
-          return baseQuery.select(columns, options).eq('is_test', isSandboxMode);
+      // Crear proxy que intercepta métodos y agrega filtro is_test
+      return new Proxy(baseQuery, {
+        get(target, prop) {
+          if (prop === 'select') {
+            return (columns: string = '*', options?: any) => {
+              return target.select(columns, options).eq('is_test', isSandboxMode);
+            };
+          }
+          // Para otros métodos, devolver el método original
+          return (target as any)[prop];
         }
-      };
+      });
     },
     
     /**
@@ -113,20 +112,42 @@ export function useSandboxAwareSupabase() {
      * 
      * @example
      * ```typescript
-     * await sbx.update('leads', { estado: 'aprobado' }, { id: leadId })
+     * await sbx.update('leads', { estado: 'aprobado' }).eq('id', leadId)
      * // Solo actualiza leads del mismo ambiente (test o producción)
      * ```
      */
-    update: async (table: string, updates: any, filter: any) => {
+    update: (table: string, updates: any) => {
+      const baseQuery = supabase.from(table).update(updates);
+      
       if (!isSandboxAware(table)) {
-        return supabase.from(table).update(updates).match(filter);
+        return baseQuery;
       }
       
-      // Agregar filtro is_test a la condición
-      return supabase
-        .from(table)
-        .update(updates)
-        .match({ ...filter, is_test: isSandboxMode });
+      // Retornar query builder con filtro is_test pre-aplicado
+      return baseQuery.eq('is_test', isSandboxMode);
+    },
+    
+    /**
+     * UPSERT con validación de ambiente
+     * Crea o actualiza registros según el ambiente
+     * 
+     * @example
+     * ```typescript
+     * await sbx.upsert('lead_approval_process', { lead_id: 'x', analyst_id: 'y', ... })
+     * // Automáticamente marca como test si estamos en Sandbox
+     * ```
+     */
+    upsert: async (table: string, data: any | any[]) => {
+      if (!isSandboxAware(table)) {
+        return supabase.from(table).upsert(data);
+      }
+      
+      // Marcar como test si estamos en Sandbox
+      const upsertData = Array.isArray(data) 
+        ? data.map(d => ({ ...d, is_test: isSandboxMode }))
+        : { ...data, is_test: isSandboxMode };
+      
+      return supabase.from(table).upsert(upsertData);
     },
     
     /**
@@ -135,19 +156,19 @@ export function useSandboxAwareSupabase() {
      * 
      * @example
      * ```typescript
-     * await sbx.delete('leads', { id: leadId })
+     * await sbx.delete('leads').eq('id', leadId)
      * // Solo elimina leads del mismo ambiente
      * ```
      */
-    delete: async (table: string, filter: any) => {
+    delete: (table: string) => {
+      const baseQuery = supabase.from(table).delete();
+      
       if (!isSandboxAware(table)) {
-        return supabase.from(table).delete().match(filter);
+        return baseQuery;
       }
       
-      return supabase
-        .from(table)
-        .delete()
-        .match({ ...filter, is_test: isSandboxMode });
+      // Retornar query builder con filtro is_test pre-aplicado
+      return baseQuery.eq('is_test', isSandboxMode);
     },
     
     /**

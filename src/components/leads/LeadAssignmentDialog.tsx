@@ -73,7 +73,7 @@ export const LeadAssignmentDialog = ({
           await sbx.update('leads', { 
             asignado_a: selectedAnalyst,
             updated_at: new Date().toISOString()
-          }, { id });
+          }).eq('id', id);
         }
 
         toast({
@@ -85,7 +85,7 @@ export const LeadAssignmentDialog = ({
         await sbx.update('leads', { 
           asignado_a: selectedAnalyst,
           updated_at: new Date().toISOString()
-        }, { id: leadId });
+        }).eq('id', leadId);
 
         toast({
           title: "Candidato asignado",
@@ -117,7 +117,7 @@ export const LeadAssignmentDialog = ({
       await sbx.update('leads', { 
         asignado_a: null,
         updated_at: new Date().toISOString()
-      }, { id: leadId });
+      }).eq('id', leadId);
 
       toast({
         title: "Asignación removida",

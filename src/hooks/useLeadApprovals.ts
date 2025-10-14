@@ -231,8 +231,9 @@ export const useLeadApprovals = () => {
       console.log('Lead asignado a:', leadData?.asignado_a);
       console.log('Usuario actual:', user.id);
 
-      // Crear/actualizar el proceso de aprobación
-      const { error: approvalError } = await sbx.update('lead_approval_process', {
+      // Crear/actualizar el proceso de aprobación usando upsert
+      const { error: approvalError } = await sbx.upsert('lead_approval_process', {
+        lead_id: lead.lead_id,
         analyst_id: user.id,
         current_stage: 'approved',
         interview_method: 'manual',
@@ -242,7 +243,7 @@ export const useLeadApprovals = () => {
         phone_interview_completed: true,
         second_interview_required: false,
         updated_at: new Date().toISOString()
-      }, { lead_id: lead.lead_id });
+      });
 
       if (approvalError) {
         console.error('Error en lead_approval_process:', approvalError);
@@ -253,7 +254,7 @@ export const useLeadApprovals = () => {
       const { error: leadError } = await sbx.update('leads', {
         estado: 'aprobado',
         updated_at: new Date().toISOString()
-      }, { id: lead.lead_id });
+      }).eq('id', lead.lead_id);
 
       if (leadError) {
         console.error('Error actualizando lead:', leadError);
@@ -319,8 +320,9 @@ export const useLeadApprovals = () => {
       console.log('Lead asignado a:', leadData?.asignado_a);
       console.log('Usuario actual:', user.id);
 
-      // Crear/actualizar el proceso de aprobación
-      const { error: approvalError } = await sbx.update('lead_approval_process', {
+      // Crear/actualizar el proceso de aprobación usando upsert
+      const { error: approvalError } = await sbx.upsert('lead_approval_process', {
+        lead_id: lead.lead_id,
         analyst_id: user.id,
         current_stage: 'second_interview',
         interview_method: 'manual',
@@ -330,7 +332,7 @@ export const useLeadApprovals = () => {
         phone_interview_completed: true,
         second_interview_required: true,
         updated_at: new Date().toISOString()
-      }, { lead_id: lead.lead_id });
+      });
 
       if (approvalError) {
         console.error('Error en lead_approval_process:', approvalError);
@@ -416,7 +418,7 @@ export const useLeadApprovals = () => {
         estado: 'rechazado',
         motivo_rechazo: finalReason,
         updated_at: new Date().toISOString()
-      }, { id: lead.lead_id });
+      }).eq('id', lead.lead_id);
 
       if (leadError) {
         console.error('Error actualizando lead:', leadError);
