@@ -14,6 +14,8 @@ import { ExperienceForm } from "./forms/ExperienceForm";
 import { ReferralForm } from "./forms/ReferralForm";
 import { useLeadsStable as useLeads } from "@/hooks/useLeadsStable";
 import { Lead } from "@/types/leadTypes";
+import { useSandboxAwareSupabase } from "@/hooks/useSandboxAwareSupabase";
+import { SandboxDataWarning } from "@/components/sandbox/SandboxDataWarning";
 
 interface EnhancedLeadFormProps {
   editingLead?: Lead | null;
@@ -77,6 +79,7 @@ interface ValidationResult {
 
 export const EnhancedLeadForm = ({ editingLead, onSuccess, onCancel }: EnhancedLeadFormProps) => {
   const { createLead, updateLead } = useLeads();
+  const sbx = useSandboxAwareSupabase(); // Hook seguro para Sandbox
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
@@ -355,6 +358,9 @@ export const EnhancedLeadForm = ({ editingLead, onSuccess, onCancel }: EnhancedL
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Advertencia de Sandbox */}
+      <SandboxDataWarning entityType="lead" action={editingLead ? "update" : "create"} />
+      
       {/* Información Personal */}
       <Card>
         <CardHeader>

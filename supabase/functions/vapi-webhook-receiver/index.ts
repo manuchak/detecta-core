@@ -57,7 +57,24 @@ serve(async (req) => {
         autoDecision = 'aprobar'
       }
 
-      // Update VAPI call log with complete results
+      // 🔒 SEGURIDAD: Obtener is_test del call log para validar ambiente
+      const { data: callLog, error: fetchError } = await supabase
+        .from('vapi_call_logs')
+        .select('is_test, lead_id')
+        .eq('vapi_call_id', call.id)
+        .single()
+
+      if (fetchError || !callLog) {
+        console.error('❌ Call log not found:', fetchError)
+        return new Response(
+          JSON.stringify({ error: 'Call log not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      console.log(`📊 Processing ${callLog.is_test ? 'TEST' : 'PRODUCTION'} call for lead ${callLog.lead_id}`)
+
+      // Update VAPI call log with complete results (con validación de ambiente)
       const { error: updateError } = await supabase.rpc('update_vapi_call_with_results', {
         p_vapi_call_id: call.id,
         p_call_status: call.status || 'completed',
@@ -68,7 +85,8 @@ serve(async (req) => {
           ...interviewData,
           auto_decision: autoDecision,
           vapi_analysis: analysis,
-          raw_payload: payload
+          raw_payload: payload,
+          is_test: callLog.is_test // ⚠️ Propagar flag para auditoría
         },
         p_analysis_score: analysisScore,
         p_recording_url: recordingUrl || null,

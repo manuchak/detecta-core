@@ -4570,6 +4570,7 @@ export type Database = {
           id: string
           interview_interrupted: boolean | null
           interview_method: string | null
+          is_test: boolean | null
           last_session_id: string | null
           lead_id: string
           phone_interview_completed: boolean | null
@@ -4590,6 +4591,7 @@ export type Database = {
           id?: string
           interview_interrupted?: boolean | null
           interview_method?: string | null
+          is_test?: boolean | null
           last_session_id?: string | null
           lead_id: string
           phone_interview_completed?: boolean | null
@@ -4610,6 +4612,7 @@ export type Database = {
           id?: string
           interview_interrupted?: boolean | null
           interview_method?: string | null
+          is_test?: boolean | null
           last_session_id?: string | null
           lead_id?: string
           phone_interview_completed?: boolean | null
@@ -4661,6 +4664,7 @@ export type Database = {
           interview_in_progress: boolean | null
           interview_session_id: string | null
           interview_started_at: string | null
+          is_test: boolean | null
           last_autosave_at: string | null
           last_contact_attempt_at: string | null
           last_contact_outcome: string | null
@@ -4696,6 +4700,7 @@ export type Database = {
           interview_in_progress?: boolean | null
           interview_session_id?: string | null
           interview_started_at?: string | null
+          is_test?: boolean | null
           last_autosave_at?: string | null
           last_contact_attempt_at?: string | null
           last_contact_outcome?: string | null
@@ -4731,6 +4736,7 @@ export type Database = {
           interview_in_progress?: boolean | null
           interview_session_id?: string | null
           interview_started_at?: string | null
+          is_test?: boolean | null
           last_autosave_at?: string | null
           last_contact_attempt_at?: string | null
           last_contact_outcome?: string | null
@@ -10247,6 +10253,16 @@ export type Database = {
         }
         Returns: string
       }
+      create_lead_from_webhook: {
+        Args: {
+          p_email: string
+          p_fuente: string
+          p_is_test?: boolean
+          p_nombre: string
+          p_telefono: string
+        }
+        Returns: string
+      }
       create_new_role: {
         Args: { new_role: string }
         Returns: undefined
@@ -11977,15 +11993,15 @@ export type Database = {
         Args: {
           p_analysis_score: number
           p_call_status: string
-          p_cost_usd?: number
+          p_cost_usd: number
           p_duration_seconds: number
-          p_recording_url?: string
+          p_recording_url: string
           p_structured_data: Json
           p_summary: string
           p_transcript: string
           p_vapi_call_id: string
         }
-        Returns: boolean
+        Returns: undefined
       }
       upsert_user_profile: {
         Args: {

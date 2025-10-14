@@ -34,6 +34,8 @@ import { QuickFilters, QuickFilterPreset } from "./QuickFilters";
 import { LeadDetailsDialog } from "./LeadDetailsDialog";
 import { TeamManagementView } from "./TeamManagementView";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSandboxAwareSupabase } from "@/hooks/useSandboxAwareSupabase";
+import { SandboxDataWarning } from "@/components/sandbox/SandboxDataWarning";
 
 interface LeadsTableProps {
   onEditLead?: (lead: Lead) => void;
@@ -445,7 +447,11 @@ export const LeadsTable = ({ onEditLead, onQuickPreview, filterByDecision = 'all
 
       {/* Main content - only show when we have access and data */}
       {canAccess && !isLoading && !error && leads && leads.length > 0 && (
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <>
+          {/* Advertencia de Sandbox */}
+          <SandboxDataWarning entityType="lead" action="view" />
+          
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="leads" className="flex items-center space-x-2">
               <User className="h-4 w-4" />
@@ -458,7 +464,7 @@ export const LeadsTable = ({ onEditLead, onQuickPreview, filterByDecision = 'all
           </TabsList>
 
           <TabsContent value="leads" className="space-y-4">
-          <LeadsMetricsDashboard 
+            <LeadsMetricsDashboard
             leads={filteredLeads || []} 
             dateFrom={advancedFilters.dateFrom || undefined}
             dateTo={advancedFilters.dateTo || undefined}
@@ -848,6 +854,7 @@ export const LeadsTable = ({ onEditLead, onQuickPreview, filterByDecision = 'all
             )}
           </TabsContent>
         </Tabs>
+        </>
       )}
 
       {/* Dialogs - always rendered but controlled by state */}
