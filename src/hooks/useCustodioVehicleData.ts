@@ -99,7 +99,16 @@ export function useCustodioVehicleData(custodioNombre?: string) {
 
   const shouldShowVehicle = (): boolean => {
     if (!vehicleData) return false;
-    return ['custodio_vehiculo', 'armado_vehiculo'].includes(vehicleData.tipo_custodio);
+    
+    // Solo mostrar si tiene el tipo correcto
+    const hasVehicleType = ['custodio_vehiculo', 'armado_vehiculo'].includes(vehicleData.tipo_custodio);
+    if (!hasVehicleType) return false;
+    
+    // Y además tiene datos reales (no fallback)
+    const hasRealData = vehicleData.marca !== 'No especificado' && 
+                        vehicleData.modelo !== 'No especificado';
+    
+    return hasRealData;
   };
 
   const isHybridCustodian = (): boolean => {

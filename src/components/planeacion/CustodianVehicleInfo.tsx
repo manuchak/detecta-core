@@ -62,6 +62,15 @@ export function CustodianVehicleInfo({ custodioNombre, className = '' }: Custodi
           )}
         </div>
       )}
+      
+      {/* Mensaje sutil para custodios híbridos sin datos de vehículo */}
+      {isHybridCustodian() && !shouldShowVehicle() && (
+        <div className="ml-5">
+          <span className="apple-text-caption text-muted-foreground/60 italic">
+            Vehículo pendiente de registro
+          </span>
+        </div>
+      )}
     </div>
   );
 }
