@@ -18,7 +18,37 @@ export const useLeadApprovals = () => {
 
   const fetchAssignedLeads = async () => {
     try {
+      // ✅ Paso 3: Validar consistencia al inicio
+      const localStorageSandbox = localStorage.getItem('sandbox-mode') === 'true';
+      const timestamp = localStorage.getItem('sandbox-mode-timestamp') || 'Desconocido';
+      
+      console.log('🔍 LeadApprovals: Validación de consistencia', {
+        localStorage: localStorageSandbox,
+        contextValue: sbx.isSandboxMode,
+        timestamp,
+        url: window.location.href
+      });
+      
+      if (localStorageSandbox !== sbx.isSandboxMode) {
+        console.error('⚠️ INCONSISTENCIA CRÍTICA DETECTADA', {
+          localStorage: localStorageSandbox,
+          contextValue: sbx.isSandboxMode,
+          timestamp
+        });
+        
+        toast({
+          title: "⚠️ Inconsistencia de Ambiente",
+          description: "El modo Sandbox no está sincronizado. Recargando...",
+          variant: "destructive"
+        });
+        
+        // Forzar recarga para sincronizar
+        setTimeout(() => window.location.reload(), 1500);
+        return;
+      }
+      
       console.log('🔍 LeadApprovals: Fetching assigned leads...');
+      console.log(`📍 Ambiente confirmado: ${sbx.isSandboxMode ? '🧪 SANDBOX' : '🛡️ PRODUCCIÓN'}`);
       
       const { data: { user } } = await supabase.auth.getUser();
       console.log('🔍 LeadApprovals: Current user:', user?.id, user?.email);

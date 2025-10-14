@@ -10,16 +10,34 @@ const SandboxContext = createContext<SandboxContextType | undefined>(undefined);
 export const SandboxProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isSandboxMode, setIsSandboxMode] = useState(false);
 
-  // Persistir en localStorage
+  // Persistir en localStorage y validar consistencia
   useEffect(() => {
     const saved = localStorage.getItem('sandbox-mode');
+    const timestamp = localStorage.getItem('sandbox-mode-timestamp');
+    
+    console.log('🔍 SandboxContext: Inicializando desde localStorage', {
+      savedValue: saved,
+      timestamp: timestamp,
+      currentDate: new Date().toISOString()
+    });
+    
     if (saved === 'true') setIsSandboxMode(true);
   }, []);
 
   const toggleSandboxMode = () => {
     setIsSandboxMode(prev => {
       const newValue = !prev;
+      const timestamp = new Date().toISOString();
+      
       localStorage.setItem('sandbox-mode', String(newValue));
+      localStorage.setItem('sandbox-mode-timestamp', timestamp);
+      
+      console.log(`🔄 SandboxContext: Modo cambiado a ${newValue ? 'SANDBOX' : 'PRODUCCIÓN'}`, {
+        newValue,
+        timestamp,
+        url: window.location.href
+      });
+      
       return newValue;
     });
   };

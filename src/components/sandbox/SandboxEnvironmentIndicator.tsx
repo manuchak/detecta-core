@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TestTube2, Shield, AlertTriangle } from 'lucide-react';
 import { useSandbox } from '@/contexts/SandboxContext';
 import { Button } from '@/components/ui/button';
@@ -31,7 +31,38 @@ export const SandboxEnvironmentIndicator: React.FC<SandboxEnvironmentIndicatorPr
   const { isSandboxMode, toggleSandboxMode } = useSandbox();
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [understoodRisks, setUnderstoodRisks] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<string>('');
   const navigate = useNavigate();
+
+  // ✅ Validar consistencia con localStorage al montar
+  useEffect(() => {
+    const localStorageSandbox = localStorage.getItem('sandbox-mode') === 'true';
+    const timestamp = localStorage.getItem('sandbox-mode-timestamp') || 'Desconocido';
+    
+    setLastUpdate(timestamp);
+    
+    if (localStorageSandbox !== isSandboxMode) {
+      console.error('⚠️ INCONSISTENCIA DETECTADA en SandboxEnvironmentIndicator', {
+        localStorage: localStorageSandbox,
+        contextValue: isSandboxMode,
+        timestamp
+      });
+      
+      toast({
+        title: "⚠️ Inconsistencia Detectada",
+        description: "Recargando para sincronizar el modo Sandbox...",
+        variant: "destructive"
+      });
+      
+      // Forzar recarga para sincronizar
+      window.location.reload();
+    } else {
+      console.log('✅ SandboxEnvironmentIndicator: Consistencia validada', {
+        mode: isSandboxMode ? 'SANDBOX' : 'PRODUCCIÓN',
+        timestamp
+      });
+    }
+  }, [isSandboxMode]);
 
   const handleToggleRequest = () => {
     if (!isSandboxMode) {

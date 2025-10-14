@@ -11,13 +11,33 @@ export const SandboxRouteGuard: React.FC<SandboxRouteGuardProps> = ({ children }
   const { isSandboxMode, toggleSandboxMode } = useSandbox();
 
   useEffect(() => {
-    const isSandboxRoute = location.pathname.startsWith('/sandbox-');
+    // ✅ Paso 4: Leer parámetro de URL para forzar modo
+    const searchParams = new URLSearchParams(location.search);
+    const urlSandboxParam = searchParams.get('sandbox');
+    
+    if (urlSandboxParam !== null) {
+      const forcedSandboxMode = urlSandboxParam === 'true';
+      
+      console.log('🔧 SandboxRouteGuard: Forzando modo desde URL', {
+        urlParam: urlSandboxParam,
+        forcedMode: forcedSandboxMode ? 'SANDBOX' : 'PRODUCCIÓN',
+        currentMode: isSandboxMode ? 'SANDBOX' : 'PRODUCCIÓN'
+      });
+      
+      if (forcedSandboxMode !== isSandboxMode) {
+        toggleSandboxMode();
+      }
+      
+      return;
+    }
     
     // Activar sandbox automáticamente al entrar a rutas /sandbox-*
+    const isSandboxRoute = location.pathname.startsWith('/sandbox-');
     if (isSandboxRoute && !isSandboxMode) {
+      console.log('🧪 SandboxRouteGuard: Activando sandbox por ruta /sandbox-*');
       toggleSandboxMode();
     }
-  }, [location.pathname, isSandboxMode, toggleSandboxMode]);
+  }, [location.pathname, location.search, isSandboxMode, toggleSandboxMode]);
 
   return <>{children}</>;
 };
