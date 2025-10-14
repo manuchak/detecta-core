@@ -10623,25 +10623,42 @@ export type Database = {
         Args: { p_is_test?: boolean }
         Returns: {
           analista_email: string
+          analista_id: string
           analista_nombre: string
-          approval_stage: string
+          asignado_a: string
+          credenciales_enviadas: boolean
+          current_stage: string
+          decision_reason: string
+          email: string
+          empresa: string
+          fecha_activacion_custodio: string
+          fecha_aprobacion: string
+          fecha_contacto: string
+          fecha_creacion: string
           fecha_entrada_pool: string
+          fecha_instalacion_gps: string
+          fecha_psicometricos: string
+          fecha_toxicologicos: string
           final_decision: string
-          has_successful_call: boolean
-          interview_in_progress: boolean
-          interview_started_at: string
-          lead_email: string
+          fuente: string
+          interview_method: string
           lead_estado: string
-          lead_fecha_creacion: string
           lead_id: string
-          lead_nombre: string
-          lead_telefono: string
+          mensaje: string
           motivo_pool: string
+          motivo_rechazo: string
+          nombre: string
           notas: string
           phone_interview_completed: boolean
+          phone_interview_date: string
+          phone_interview_notes: string
+          second_interview_completed: boolean
+          second_interview_date: string
+          second_interview_notes: string
           second_interview_required: boolean
+          telefono: string
+          zona_id: string
           zona_nombre: string
-          zona_preferida_id: string
         }[]
       }
       get_available_roles_secure: {
