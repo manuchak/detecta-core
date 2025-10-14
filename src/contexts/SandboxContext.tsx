@@ -3,9 +3,13 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 interface SandboxContextType {
   isSandboxMode: boolean;
   toggleSandboxMode: () => void;
+  subscribeModeChange: (callback: (newMode: boolean) => void) => () => void;
 }
 
 const SandboxContext = createContext<SandboxContextType | undefined>(undefined);
+
+// Event emitter para notificar cambios de modo
+const modeChangeListeners = new Set<(newMode: boolean) => void>();
 
 export const SandboxProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isSandboxMode, setIsSandboxMode] = useState(false);
@@ -38,12 +42,28 @@ export const SandboxProvider: React.FC<{ children: React.ReactNode }> = ({ child
         url: window.location.href
       });
       
+      // Notificar a todos los listeners
+      modeChangeListeners.forEach(listener => {
+        try {
+          listener(newValue);
+        } catch (error) {
+          console.error('Error en listener de cambio de modo:', error);
+        }
+      });
+      
       return newValue;
     });
   };
 
+  const subscribeModeChange = (callback: (newMode: boolean) => void) => {
+    modeChangeListeners.add(callback);
+    return () => {
+      modeChangeListeners.delete(callback);
+    };
+  };
+
   return (
-    <SandboxContext.Provider value={{ isSandboxMode, toggleSandboxMode }}>
+    <SandboxContext.Provider value={{ isSandboxMode, toggleSandboxMode, subscribeModeChange }}>
       {children}
     </SandboxContext.Provider>
   );

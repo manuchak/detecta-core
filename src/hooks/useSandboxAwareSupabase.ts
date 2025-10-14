@@ -199,7 +199,12 @@ export function useSandboxAwareSupabase() {
         p_is_test: isSandboxMode
       };
       
-      console.log(`🔧 RPC Call [${isSandboxMode ? 'SANDBOX' : 'PROD'}]: ${actualFunctionName}`, enhancedParams);
+      console.log(`🔧 RPC Call [${isSandboxMode ? 'SANDBOX' : 'PROD'}]: ${actualFunctionName}`, {
+        originalFunction: functionName,
+        mappedFunction: actualFunctionName,
+        p_is_test: isSandboxMode,
+        params: enhancedParams
+      });
       
       return supabase.rpc(actualFunctionName, enhancedParams);
     },

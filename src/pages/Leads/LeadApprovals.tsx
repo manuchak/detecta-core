@@ -29,6 +29,8 @@ import { ApprovalAdvancedFiltersState } from "@/components/leads/approval/Approv
 import { MoveToPoolDialog } from "@/components/leads/pool/MoveToPoolDialog";
 import { SessionRecoveryDialog } from "@/components/leads/approval/SessionRecoveryDialog";
 import { InterruptedInterviewDialog } from "@/components/leads/approval/InterruptedInterviewDialog";
+import { SandboxBanner } from "@/components/sandbox/SandboxBanner";
+import { useSandbox } from "@/contexts/SandboxContext";
 import { supabase } from "@/integrations/supabase/client";
 import { exportLeadsToCSV } from "@/utils/exportLeadsCSV";
 import { toast } from "@/hooks/use-toast";
@@ -37,6 +39,8 @@ console.log('🚀 LeadApprovals: Module loaded successfully');
 
 export const LeadApprovals = () => {
   console.log('🚀 LeadApprovals: Component rendering started');
+  
+  const { isSandboxMode } = useSandbox();
   
   const {
     assignedLeads,
@@ -53,6 +57,23 @@ export const LeadApprovals = () => {
   console.log('📊 LeadApprovals: Hook state - loading:', loading, 'assignedLeads:', assignedLeads?.length || 0);
   
   const { moveToPool } = usePoolReserva();
+
+  // Validación de ambiente vs conteo de datos
+  useEffect(() => {
+    if (assignedLeads.length > 0) {
+      const isAnomalous = 
+        (isSandboxMode && assignedLeads.length > 100) || 
+        (!isSandboxMode && assignedLeads.length < 5);
+      
+      if (isAnomalous) {
+        console.warn('⚠️ Posible inconsistencia de ambiente:', {
+          modo: isSandboxMode ? 'SANDBOX' : 'PRODUCCIÓN',
+          cantidadCandidatos: assignedLeads.length,
+          esperado: isSandboxMode ? '< 100' : '> 5'
+        });
+      }
+    }
+  }, [assignedLeads.length, isSandboxMode]);
 
   const [selectedLead, setSelectedLead] = useState<AssignedLead | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -288,10 +309,23 @@ export const LeadApprovals = () => {
   try {
     return (
       <TooltipProvider>
-        <div className="space-y-6 p-6">{/* rest of content will be preserved */}
+        <div className="space-y-6 p-6">
+        <SandboxBanner dataCount={assignedLeads.length} />
+        
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Aprobación de Candidatos</h1>
+          <div className="space-y-1">
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-semibold tracking-tight">Aprobación de Candidatos</h1>
+              <Badge 
+                variant={isSandboxMode ? "outline" : "default"}
+                className={isSandboxMode 
+                  ? "border-warning text-warning bg-warning/10" 
+                  : "bg-primary text-primary-foreground"
+                }
+              >
+                {isSandboxMode ? '🧪 SANDBOX' : '🛡️ PRODUCCIÓN'}
+              </Badge>
+            </div>
             <p className="text-muted-foreground">
               Gestiona las entrevistas y aprobaciones de los candidatos asignados.
             </p>

@@ -11,10 +11,23 @@ import { validateLeadForApproval, getValidationMessage } from "@/utils/leadValid
 
 export const useLeadApprovals = () => {
   const sbx = useSandboxAwareSupabase(); // ✅ Hook Sandbox-aware
+  const { isSandboxMode, subscribeModeChange } = useSandbox();
   const [assignedLeads, setAssignedLeads] = useState<AssignedLead[]>([]);
   const [callLogs, setCallLogs] = useState<VapiCallLog[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+
+  // ✅ Auto-refresh al cambiar de modo
+  useEffect(() => {
+    const unsubscribe = subscribeModeChange((newMode) => {
+      console.log('🔄 useLeadApprovals: Modo cambiado, recargando datos...', { newMode });
+      setAssignedLeads([]); // Limpiar datos para feedback visual
+      setLoading(true);
+      fetchAssignedLeads();
+    });
+
+    return unsubscribe;
+  }, []);
 
   const fetchAssignedLeads = async () => {
     try {
@@ -24,15 +37,15 @@ export const useLeadApprovals = () => {
       
       console.log('🔍 LeadApprovals: Validación de consistencia', {
         localStorage: localStorageSandbox,
-        contextValue: sbx.isSandboxMode,
+        contextValue: isSandboxMode,
         timestamp,
         url: window.location.href
       });
       
-      if (localStorageSandbox !== sbx.isSandboxMode) {
+      if (localStorageSandbox !== isSandboxMode) {
         console.error('⚠️ INCONSISTENCIA CRÍTICA DETECTADA', {
           localStorage: localStorageSandbox,
-          contextValue: sbx.isSandboxMode,
+          contextValue: isSandboxMode,
           timestamp
         });
         
@@ -48,7 +61,7 @@ export const useLeadApprovals = () => {
       }
       
       console.log('🔍 LeadApprovals: Fetching assigned leads...');
-      console.log(`📍 Ambiente confirmado: ${sbx.isSandboxMode ? '🧪 SANDBOX' : '🛡️ PRODUCCIÓN'}`);
+      console.log(`📍 Ambiente confirmado: ${isSandboxMode ? '🧪 SANDBOX' : '🛡️ PRODUCCIÓN'}`);
       
       const { data: { user } } = await supabase.auth.getUser();
       console.log('🔍 LeadApprovals: Current user:', user?.id, user?.email);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TestTube2, Shield, AlertTriangle } from 'lucide-react';
+import { TestTube2, Shield, AlertTriangle, Loader2 } from 'lucide-react';
 import { useSandbox } from '@/contexts/SandboxContext';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -32,6 +32,7 @@ export const SandboxEnvironmentIndicator: React.FC<SandboxEnvironmentIndicatorPr
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [understoodRisks, setUnderstoodRisks] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string>('');
+  const [isChanging, setIsChanging] = useState(false);
   const navigate = useNavigate();
 
   // ✅ Validar consistencia con localStorage al montar
@@ -66,12 +67,22 @@ export const SandboxEnvironmentIndicator: React.FC<SandboxEnvironmentIndicatorPr
 
   const handleToggleRequest = () => {
     if (!isSandboxMode) {
-      // Switching to Sandbox - no confirmation needed
+      // Switching to Sandbox - direct change with loading
+      setIsChanging(true);
       toggleSandboxMode();
+      
       toast({
-        title: "🧪 Modo Sandbox Activado",
-        description: "Ahora puedes probar cambios sin riesgo",
+        title: "🧪 Cargando datos de prueba...",
+        description: "Cambiando a modo Sandbox",
       });
+
+      setTimeout(() => {
+        setIsChanging(false);
+        toast({
+          title: "🧪 Modo Sandbox Activado",
+          description: "Ahora estás trabajando con datos de prueba seguros.",
+        });
+      }, 1000);
     } else {
       // Switching to Production - show confirmation
       setShowConfirmDialog(true);
@@ -80,16 +91,33 @@ export const SandboxEnvironmentIndicator: React.FC<SandboxEnvironmentIndicatorPr
   };
 
   const handleConfirmChange = () => {
-    if (!understoodRisks) return;
+    if (!understoodRisks) {
+      toast({
+        title: "Confirmación requerida",
+        description: "Debes confirmar que deseas cambiar a producción.",
+        variant: "destructive",
+      });
+      return;
+    }
     
+    setIsChanging(true);
     toggleSandboxMode();
     setShowConfirmDialog(false);
     setUnderstoodRisks(false);
+    
     toast({
-      title: "🛡️ Modo Producción Activado",
-      description: "Ten cuidado - Los cambios afectarán datos reales",
-      variant: "destructive",
+      title: "🛡️ Cargando datos reales...",
+      description: "Cambiando a modo Producción",
     });
+
+    setTimeout(() => {
+      setIsChanging(false);
+      toast({
+        title: "🛡️ Modo Producción Activado",
+        description: "ADVERTENCIA: Ahora estás trabajando con datos REALES.",
+        variant: "destructive",
+      });
+    }, 1000);
   };
 
   if (collapsed) {
@@ -149,11 +177,19 @@ export const SandboxEnvironmentIndicator: React.FC<SandboxEnvironmentIndicatorPr
 
         <Button
           onClick={handleToggleRequest}
+          disabled={isChanging}
           variant="ghost"
           size="sm"
           className="w-full justify-center h-8 text-xs font-normal hover:bg-accent/50 transition-all duration-300"
         >
-          {isSandboxMode ? 'Ir a Producción' : 'Ir a Sandbox'}
+          {isChanging ? (
+            <>
+              <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+              Cambiando...
+            </>
+          ) : (
+            isSandboxMode ? 'Ir a Producción' : 'Ir a Sandbox'
+          )}
         </Button>
 
         <div className="mt-4 pt-4 border-t border-border/30">
