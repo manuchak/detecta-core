@@ -75,11 +75,70 @@ export function ContextualEditModal({
       return;
     }
     
+    // 🚀 FIX: Ejecutar directamente acciones de configuración (add_armed, remove_armed)
+    if (mode === 'add_armed' || mode === 'remove_armed') {
+      await executeConfigChange(mode);
+      return;
+    }
+    
     // Mostrar preview antes de proceder para otros modos
     if (mode === 'basic_info') {
       setCurrentView('basic_form');
     } else {
       setCurrentView('preview');
+    }
+  };
+
+  const executeConfigChange = async (mode: EditMode) => {
+    if (!service) return;
+    
+    console.log('[ContextualEditModal] executeConfigChange', { mode, serviceId: service.id_servicio });
+    setIsProcessing(true);
+    
+    try {
+      let updatedData: Partial<EditableService> = {};
+      
+      switch (mode) {
+        case 'remove_armed':
+          updatedData = {
+            requiere_armado: false,
+            armado_asignado: null,
+            estado_planeacion: service.custodio_asignado 
+              ? 'completamente_planeado'
+              : service.estado_planeacion
+          };
+          await onSave(service.id_servicio, updatedData);
+          console.log('[ContextualEditModal] Armado removido exitosamente');
+          toast.success('Armado removido del servicio', {
+            duration: 3000,
+            description: 'El servicio ahora es solo de custodia'
+          });
+          break;
+          
+        case 'add_armed':
+          updatedData = {
+            requiere_armado: true,
+            estado_planeacion: 'pendiente_asignacion'
+          };
+          await onSave(service.id_servicio, updatedData);
+          console.log('[ContextualEditModal] Armado agregado exitosamente');
+          toast.success('Armado agregado al servicio', {
+            duration: 3000,
+            description: 'Ahora puedes asignar personal armado'
+          });
+          break;
+          
+        default:
+          toast.info('Acción en desarrollo');
+      }
+      
+      // Cerrar modal inmediatamente después del toast
+      onOpenChange(false);
+    } catch (error) {
+      console.error('[ContextualEditModal] Error applying config change:', error);
+      toast.error('Error al aplicar los cambios');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
