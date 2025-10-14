@@ -131,6 +131,10 @@ export function PendingAssignmentModal({
 
       setCustodianAssigned(assignmentData);
 
+      // 🔄 CRITICAL FIX: Siempre refetch después de asignar custodio
+      // Esto garantiza que la tarjeta se actualice incluso si requiere armado
+      onAssignmentComplete();
+
       // Check if service requires armed guard
       if (service.requiere_armado) {
         toast.success('Custodio asignado exitosamente', {
@@ -142,7 +146,6 @@ export function PendingAssignmentModal({
           description: `${assignmentData.custodio_nombre} ha sido asignado al servicio ${service.id_servicio}`
         });
         onOpenChange(false);
-        onAssignmentComplete();
       }
     } catch (error) {
       console.error('Error assigning custodian:', error);
