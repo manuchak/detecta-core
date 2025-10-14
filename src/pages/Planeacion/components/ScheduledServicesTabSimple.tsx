@@ -405,25 +405,34 @@ export function ScheduledServicesTab() {
                     </div>
                   </div>
                   
-                  {/* Línea 3: Custodio + Vehículo + Armado Adicional */}
+                  {/* Línea 3: Custodio + Vehículo */}
                   <CustodianVehicleInfo 
                     custodioNombre={service.custodio_nombre}
                     className="mb-3"
                   />
                   
-                  {/* Armado Adicional (solo si NO es híbrido y tiene armado asignado) */}
-                  {(service.incluye_armado || service.armado_nombre) && 
-                   service.armado_nombre && (
-                    <div className="flex items-center space-x-2 mb-3 pt-2 border-t border-border/30">
-                      <Shield className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span className="apple-text-caption font-medium text-foreground">
-                        {service.armado_nombre}
-                      </span>
-                      <span className="apple-text-caption text-muted-foreground/60 italic">
-                        (Acompañante)
-                      </span>
-                    </div>
-                  )}
+                  {/* Armado Adicional - Componente inline para detectar custodio híbrido */}
+                  {(() => {
+                    const custodianData = useCustodioVehicleData(service.custodio_nombre);
+                    const isHybridCustodian = custodianData.isHybridCustodian();
+                    
+                    // Solo mostrar armado adicional si:
+                    // 1. Hay un armado asignado con nombre
+                    // 2. El custodio NO es híbrido (porque ya tiene porte de arma)
+                    return service.armado_asignado && 
+                           service.armado_nombre && 
+                           !isHybridCustodian ? (
+                      <div className="flex items-center space-x-2 mb-3 pt-2 border-t border-border/30">
+                        <Shield className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span className="apple-text-caption font-medium text-foreground">
+                          {service.armado_nombre}
+                        </span>
+                        <span className="apple-text-caption text-muted-foreground/60 italic">
+                          (Acompañante)
+                        </span>
+                      </div>
+                    ) : null;
+                  })()}
                   
                   {/* Línea 3.5: Planificador (solo si existe) */}
                   {service.planner_name && (
