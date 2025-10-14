@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { TestTube2, Shield, AlertTriangle, ArrowRightLeft } from 'lucide-react';
+import { TestTube2, Shield, AlertTriangle } from 'lucide-react';
 import { useSandbox } from '@/contexts/SandboxContext';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import {
@@ -69,11 +68,7 @@ export const SandboxEnvironmentIndicator: React.FC<SandboxEnvironmentIndicatorPr
           <TooltipTrigger asChild>
             <button
               onClick={handleToggleRequest}
-              className={`w-full p-3 flex items-center justify-center transition-colors border-l-4 ${
-                isSandboxMode
-                  ? 'bg-warning/20 border-warning hover:bg-warning/30'
-                  : 'bg-success/20 border-success hover:bg-success/30'
-              }`}
+              className="w-full p-3 flex items-center justify-center hover:bg-accent/50 transition-all duration-300 ease-out"
             >
               {isSandboxMode ? (
                 <TestTube2 className="h-5 w-5 text-warning" />
@@ -82,12 +77,9 @@ export const SandboxEnvironmentIndicator: React.FC<SandboxEnvironmentIndicatorPr
               )}
             </button>
           </TooltipTrigger>
-          <TooltipContent side="right">
-            <p className="font-semibold">
-              {isSandboxMode ? 'Modo Sandbox' : 'Producción'}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Click para cambiar a {isSandboxMode ? 'Producción' : 'Sandbox'}
+          <TooltipContent side="right" className="text-xs">
+            <p className="font-medium">
+              {isSandboxMode ? 'Sandbox' : 'Producción'}
             </p>
           </TooltipContent>
         </Tooltip>
@@ -98,101 +90,96 @@ export const SandboxEnvironmentIndicator: React.FC<SandboxEnvironmentIndicatorPr
   return (
     <>
       <div
-        className={`p-4 border-l-4 transition-all ${
+        className={`px-4 py-5 border rounded-lg transition-all duration-300 ease-out ${
           isSandboxMode
-            ? 'bg-warning/10 border-warning'
-            : 'bg-success/10 border-success'
+            ? 'bg-warning/5 border-warning/20'
+            : 'bg-success/5 border-success/20'
         }`}
       >
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
             {isSandboxMode ? (
-              <TestTube2 className="h-5 w-5 text-warning" />
+              <TestTube2 className="h-4 w-4 text-warning" />
             ) : (
-              <Shield className="h-5 w-5 text-success" />
+              <Shield className="h-4 w-4 text-success" />
             )}
-            <span className="font-bold text-sm">
-              {isSandboxMode ? 'MODO SANDBOX' : 'PRODUCCIÓN'}
+            <span className="font-medium text-sm tracking-tight">
+              {isSandboxMode ? 'Sandbox' : 'Producción'}
             </span>
           </div>
-          <Badge variant={isSandboxMode ? 'outline' : 'default'}>
-            {isSandboxMode ? 'PRUEBAS' : 'LIVE'}
-          </Badge>
+          <div className={`h-2 w-2 rounded-full ${isSandboxMode ? 'bg-warning' : 'bg-success'}`} />
         </div>
 
-        <p className="text-xs text-muted-foreground mb-3">
+        <p className="text-[11px] text-muted-foreground mb-4 leading-relaxed">
           {isSandboxMode
-            ? 'Probando cambios sin riesgo'
-            : 'Datos reales - Ten cuidado'}
+            ? 'Entorno de pruebas seguro'
+            : 'Operaciones en vivo'}
         </p>
 
         <Button
           onClick={handleToggleRequest}
-          variant="outline"
+          variant="ghost"
           size="sm"
-          className="w-full gap-2"
+          className="w-full justify-center h-8 text-xs font-normal hover:bg-accent/50 transition-all duration-300"
         >
-          <ArrowRightLeft className="h-4 w-4" />
-          Cambiar a {isSandboxMode ? 'Producción' : 'Sandbox'}
+          {isSandboxMode ? 'Ir a Producción' : 'Ir a Sandbox'}
         </Button>
 
-        <div className="mt-3 pt-3 border-t border-border/50">
-          <p className="text-xs font-medium mb-2">Accesos rápidos:</p>
-          <div className="space-y-1">
+        <div className="mt-4 pt-4 border-t border-border/30">
+          <div className="space-y-1.5">
             {isSandboxMode ? (
               <>
                 <button
                   onClick={() => navigate('/sandbox-testing')}
-                  className="w-full text-left text-xs hover:bg-background/50 p-1.5 rounded transition-colors"
+                  className="w-full text-left text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent/30 px-2 py-1.5 rounded transition-all duration-200"
                 >
-                  🧪 Panel de Pruebas
+                  Panel de Pruebas
                 </button>
                 <button
                   onClick={() => navigate('/sandbox-deployment')}
-                  className="w-full text-left text-xs hover:bg-background/50 p-1.5 rounded transition-colors"
+                  className="w-full text-left text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent/30 px-2 py-1.5 rounded transition-all duration-200"
                 >
-                  📊 Ver Promociones
+                  Ver Promociones
                 </button>
               </>
             ) : (
-              <>
-                <button
-                  onClick={() => navigate('/')}
-                  className="w-full text-left text-xs hover:bg-background/50 p-1.5 rounded transition-colors"
-                >
-                  📈 Métricas en vivo
-                </button>
-              </>
+              <button
+                onClick={() => navigate('/')}
+                className="w-full text-left text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent/30 px-2 py-1.5 rounded transition-all duration-200"
+              >
+                Métricas en vivo
+              </button>
             )}
           </div>
         </div>
       </div>
 
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-              Confirmar Cambio de Ambiente
+            <AlertDialogTitle className="flex items-center gap-2.5 text-base font-medium">
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              Cambiar a Producción
             </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-4 pt-4">
-              <div className="p-4 bg-success/10 border border-success rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <Shield className="h-5 w-5 text-success" />
-                  <span className="font-bold">PRODUCCIÓN (LIVE)</span>
-                </div>
+            <AlertDialogDescription className="space-y-6 pt-6">
+              <div className="flex items-center gap-3 px-1">
+                <Shield className="h-5 w-5 text-success" />
+                <span className="text-sm font-medium text-foreground">Entorno de Producción</span>
               </div>
 
-              <div className="space-y-2">
-                <p className="font-semibold">IMPORTANTE:</p>
-                <ul className="space-y-1 text-sm">
-                  <li>• Los cambios afectarán datos reales</li>
-                  <li>• Las llamadas consumirán créditos</li>
-                  <li>• Las modificaciones serán permanentes</li>
-                </ul>
+              <div className="space-y-3 px-1">
+                <p className="text-[13px] leading-relaxed text-muted-foreground">
+                  Los cambios afectarán datos reales
+                </p>
+                <p className="text-[13px] leading-relaxed text-muted-foreground">
+                  Las llamadas consumirán créditos
+                </p>
+                <p className="text-[13px] leading-relaxed text-muted-foreground">
+                  Las modificaciones serán permanentes
+                </p>
               </div>
 
-              <div className="flex items-start space-x-2 pt-2">
+              <div className="flex items-start space-x-3 pt-2 px-1">
                 <Checkbox
                   id="understand-risks"
                   checked={understoodRisks}
@@ -200,20 +187,21 @@ export const SandboxEnvironmentIndicator: React.FC<SandboxEnvironmentIndicatorPr
                 />
                 <Label
                   htmlFor="understand-risks"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                  className="text-[13px] font-normal leading-relaxed cursor-pointer"
                 >
                   Entiendo los riesgos
                 </Label>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="gap-2">
             <Button
-              variant="outline"
+              variant="ghost"
               onClick={() => {
                 setShowConfirmDialog(false);
                 setUnderstoodRisks(false);
               }}
+              className="transition-all duration-200"
             >
               Cancelar
             </Button>
@@ -221,8 +209,9 @@ export const SandboxEnvironmentIndicator: React.FC<SandboxEnvironmentIndicatorPr
               variant="destructive"
               onClick={handleConfirmChange}
               disabled={!understoodRisks}
+              className="transition-all duration-200"
             >
-              Cambiar a Producción
+              Confirmar
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
