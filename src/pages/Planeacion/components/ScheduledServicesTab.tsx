@@ -107,24 +107,23 @@ export function ScheduledServicesTab() {
     const isPendingAssignment = needsCustodianAssignment || needsArmedGuardAssignment;
 
     if (isPendingAssignment) {
-      // Use PendingAssignmentModal for services that need assignments
-      // Convertir directamente el servicio a PendingService sin usar servicioToPending 
-      // ya que el service puede no tener todos los campos de tipo Servicio
-      const pendingService: any = {
+      // ✅ Conversión robusta y tipada usando el hook de transformación
+      const pendingService = servicioToPending({
         id: service.id,
-        id_servicio: service.id_servicio || service.id,
-        nombre_cliente: service.cliente_nombre || service.nombre_cliente,
-        origen: service.origen,
-        destino: service.destino,
-        fecha_hora_cita: service.fecha_hora_cita,
+        folio: service.id_servicio || service.id,
+        cliente: service.cliente_nombre || service.nombre_cliente || '',
+        origen_texto: service.origen || '',
+        destino_texto: service.destino || '',
+        fecha_programada: service.fecha_hora_cita?.split('T')[0] || '',
+        hora_ventana_inicio: service.fecha_hora_cita?.split('T')[1]?.substring(0,5) || '09:00',
         tipo_servicio: service.tipo_servicio || 'custodia',
         requiere_armado: service.incluye_armado || service.requiere_armado || false,
-        observaciones: service.observaciones,
+        notas_especiales: service.observaciones,
         created_at: service.created_at || new Date().toISOString(),
-        custodio_asignado: service.custodio_nombre,
-        armado_asignado: service.armado_asignado,
+        custodio_asignado: service.custodio_nombre ? { nombre: service.custodio_nombre } : null,
         estado: service.estado
-      };
+      } as any);
+      
       setSelectedPendingService(pendingService);
       setAssignmentModalOpen(true);
     } else {

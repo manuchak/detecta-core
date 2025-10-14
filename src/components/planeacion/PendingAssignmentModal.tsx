@@ -59,16 +59,19 @@ export function PendingAssignmentModal({
   // Mostrar ContextualEditModal si estamos editando un servicio existente
   React.useEffect(() => {
     if (open) {
-      // Si el servicio ya existe y estamos en modo 'auto', mostrar ContextualEditModal
-      // pero solo si el usuario no ha interactuado todavía
-      if (isEditingExisting && mode === 'auto' && !hasInteracted) {
-        setShowContextualEdit(true);
-      } else if (hasInteracted) {
-        console.log('[PendingAssignmentModal] Mantengo showContextualEdit=false tras interacción');
+      // 🛡️ GUARD: Si ya interactuó, NUNCA re-abrir ContextualEditModal
+      if (hasInteracted) {
+        console.log('[PendingAssignmentModal] Guard: hasInteracted=true, mantengo showContextualEdit=false');
         setShowContextualEdit(false);
+        return; // ⚠️ EARLY RETURN - No re-calcular paso
+      }
+      
+      // Solo mostrar ContextualEditModal en modo 'auto' Y si no ha interactuado
+      if (isEditingExisting && mode === 'auto') {
+        setShowContextualEdit(true);
       } else {
         setShowContextualEdit(false);
-        // Asegurar que el paso correcto esté activo basado en el servicio
+        // Determinar paso correcto
         if (mode === 'direct_armed' || (service && service.custodio_asignado)) {
           setCurrentStep('armed');
         } else {
@@ -76,10 +79,11 @@ export function PendingAssignmentModal({
         }
       }
     } else {
-      // Reset cuando se cierra el modal
+      // Reset cuando se cierra
       setHasInteracted(false);
+      setShowContextualEdit(false);
     }
-  }, [open, isEditingExisting, mode, service, hasInteracted]);
+  }, [open, isEditingExisting, mode, service?.custodio_asignado, hasInteracted]);
 
   // Debug: Monitor state changes
   React.useEffect(() => {
@@ -180,28 +184,32 @@ export function PendingAssignmentModal({
   };
 
   const handleStartReassignment = (type: 'custodian' | 'armed_guard', _service?: any) => {
-    console.log('[PendingAssignmentModal] handleStartReassignment', {
+    console.log('[PendingAssignmentModal] handleStartReassignment INICIO', {
       type,
       antes: { showContextualEdit, currentStep, hasInteracted },
-      service: service?.id_servicio
+      serviceId: service?.id_servicio
     });
     
+    // 🎯 Orden crítico de operaciones:
+    // 1. Marcar interacción (previene re-apertura)
     setHasInteracted(true);
-    setShowContextualEdit(false); // Ocultar ContextualEditModal
     
-    // Cambiar al paso correcto DESPUÉS de ocultar ContextualEditModal
-    if (type === 'custodian') {
-      setCurrentStep('custodian');
-    } else {
-      setCurrentStep('armed');
-    }
+    // 2. Forzar cierre del ContextualEditModal
+    setShowContextualEdit(false);
     
-    console.log('[PendingAssignmentModal] Estados actualizados', {
-      despues: { 
-        showContextualEdit: false, 
-        currentStep: type === 'custodian' ? 'custodian' : 'armed',
-        hasInteracted: true 
-      }
+    // 3. Usar requestAnimationFrame para garantizar que el render ocurra
+    requestAnimationFrame(() => {
+      // 4. Cambiar al paso correcto DESPUÉS de que React haya procesado los cambios anteriores
+      const targetStep = type === 'custodian' ? 'custodian' : 'armed';
+      setCurrentStep(targetStep);
+      
+      console.log('[PendingAssignmentModal] handleStartReassignment COMPLETADO', {
+        despues: { 
+          showContextualEdit: false, 
+          currentStep: targetStep,
+          hasInteracted: true 
+        }
+      });
     });
   };
 
@@ -227,6 +235,14 @@ export function PendingAssignmentModal({
     observaciones: service.observaciones
   } : null;
 
+
+  console.log('[PendingAssignmentModal] Render', {
+    showContextualEdit,
+    currentStep,
+    hasInteracted,
+    serviceId: service?.id_servicio,
+    timestamp: Date.now()
+  });
 
   return (
     <>
