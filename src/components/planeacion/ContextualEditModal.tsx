@@ -71,6 +71,12 @@ export function ContextualEditModal({
       if (service) {
         console.log('[ContextualEditModal] onStartReassignment llamada', { type });
         onStartReassignment(type, service);
+        
+        // 🔄 DYNAMIC: Después de la asignación, volver a 'selection' para recalcular
+        setTimeout(() => {
+          setCurrentView('selection');
+          setSelectedEditMode(null);
+        }, 500);
       }
       
       return;

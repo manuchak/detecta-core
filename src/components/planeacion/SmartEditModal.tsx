@@ -35,6 +35,7 @@ export function SmartEditModal({
   const [currentView, setCurrentView] = useState<SmartViewMode>('analysis');
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
   const [assignmentMode, setAssignmentMode] = useState<AssignmentMode>('auto');
+  const [serviceVersion, setServiceVersion] = useState(0);
   const { setEditIntent } = useEditWorkflow();
 
   // Reset state when modal opens/closes
@@ -45,6 +46,13 @@ export function SmartEditModal({
       setAssignmentMode('auto');
     }
   }, [open]);
+
+  // 🔄 DYNAMIC: Detectar cambios en el servicio y recalcular sugerencias
+  useEffect(() => {
+    if (open && service) {
+      setServiceVersion(v => v + 1);
+    }
+  }, [open, service?.custodio_asignado, service?.armado_asignado]);
 
   if (!service) return null;
 
@@ -365,7 +373,8 @@ export function SmartEditModal({
         mode={assignmentMode}
         onAssignmentComplete={() => {
           onAssignmentComplete?.();
-          onOpenChange(false);
+          // 🔄 DYNAMIC: Volver a 'analysis' para recalcular sugerencias
+          setCurrentView('analysis');
         }}
       />
 

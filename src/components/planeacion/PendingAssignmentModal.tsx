@@ -131,17 +131,16 @@ export function PendingAssignmentModal({
 
       setCustodianAssigned(assignmentData);
 
-      // 🔄 CRITICAL FIX: Siempre refetch después de asignar custodio
-      // Esto garantiza que la tarjeta se actualice incluso si requiere armado
-      onAssignmentComplete();
-
       // Check if service requires armed guard
       if (service.requiere_armado) {
         toast.success('Custodio asignado exitosamente', {
           description: 'Ahora proceda a asignar el armado requerido'
         });
+        // 🔄 DYNAMIC: Actualizar el estado local del servicio para que el siguiente paso tenga la info correcta
         setCurrentStep('armed');
       } else {
+        // 🔄 DYNAMIC: Solo refetch y cerrar si NO requiere armado
+        onAssignmentComplete();
         toast.success('Servicio asignado exitosamente', {
           description: `${assignmentData.custodio_nombre} ha sido asignado al servicio ${service.id_servicio}`
         });
