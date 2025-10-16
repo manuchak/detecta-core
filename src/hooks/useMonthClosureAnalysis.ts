@@ -209,6 +209,21 @@ export const useMonthClosureAnalysis = () => {
         status
       });
 
+      console.log('📊 COMPARACIÓN MoM vs MTD:', {
+        monthOverMonth: {
+          label: `${getMonthName(currentMonth)} parcial vs ${getMonthName(previousMonth)} completo`,
+          value: servicesPercent.toFixed(1) + '%',
+          currentServices,
+          prevServices
+        },
+        mtdComparison: {
+          label: `${mtdComparison.periodLabel.current} vs ${mtdComparison.periodLabel.previous}`,
+          value: mtdComparison.growth.services.toFixed(1) + '%',
+          current: mtdComparison.current.services,
+          previous: mtdComparison.previous.services
+        }
+      });
+
       return {
         current,
         target,

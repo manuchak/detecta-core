@@ -82,12 +82,12 @@ export const PerformanceAlertsCard = () => {
     });
   }
 
-  // Contextual Pace Alert
+  // Contextual Pace Alert - Using MTD comparison for accurate growth
   const contextualPace = getContextualPaceStatus(
     monthData.currentPace,
     monthData.requiredPace,
     monthData.requiredPaceForPrevMonth,
-    monthData.monthOverMonth.servicesPercent,
+    monthData.mtdComparison.growth.services, // ✅ MTD comparison instead of partial vs full month
     monthData.status
   );
 
@@ -186,7 +186,7 @@ export const PerformanceAlertsCard = () => {
               </div>
             </div>
             <div>
-              <div className="text-muted-foreground mb-1">vs Mes Anterior</div>
+              <div className="text-muted-foreground mb-1">vs {monthData.mtdComparison.periodLabel.previous}</div>
               <div className={`text-base font-bold ${contextualPace.details.momGrowthPercent >= 0 ? 'text-success' : 'text-destructive'}`}>
                 {contextualPace.details.momGrowthPercent >= 0 ? '+' : ''}{contextualPace.details.momGrowthPercent.toFixed(1)}%
               </div>
