@@ -30,9 +30,27 @@ export function useSmartEditSuggestions(service: EditableService | null): {
     const isPending = service.estado_planeacion === 'pendiente_asignacion';
 
     // Detectar la acción más crítica (Hero Action)
+    // ORDEN LÓGICO: Cliente → Custodio → Armado
     let heroSuggestion: EditSuggestion | null = null;
 
-    if (needsArmedAssignment) {
+    // PRIORIDAD 1: Custodio sin asignar (SIEMPRE primero)
+    if (!hasCustodio && isPending) {
+      heroSuggestion = {
+        mode: 'custodian_only',
+        title: 'Asignar Custodio',
+        description: 'El servicio necesita un custodio para completar la planeación',
+        priority: 'high',
+        icon: 'User',
+        color: 'blue',
+        estimatedTime: '1 min',
+        consequences: [
+          'El servicio estará listo para operar',
+          service.requiere_armado ? 'Después podrás asignar el armado requerido' : undefined
+        ].filter(Boolean) as string[]
+      };
+    } 
+    // PRIORIDAD 2: Armado pendiente (solo si ya hay custodio)
+    else if (needsArmedAssignment && hasCustodio) {
       heroSuggestion = {
         mode: 'armed_only',
         title: 'Asignar Armado Pendiente',
@@ -43,16 +61,18 @@ export function useSmartEditSuggestions(service: EditableService | null): {
         estimatedTime: '2 min',
         consequences: ['El servicio pasará a estado confirmado', 'Se notificará al armado asignado']
       };
-    } else if (!hasCustodio && isPending) {
+    }
+    // CASO ESPECIAL: Requiere armado pero no hay custodio
+    else if (needsArmedAssignment && !hasCustodio) {
       heroSuggestion = {
         mode: 'custodian_only',
-        title: 'Asignar Custodio',
-        description: 'El servicio necesita un custodio para completar la planeación',
+        title: 'Asignar Custodio Primero',
+        description: 'Debes asignar un custodio antes de asignar el armado',
         priority: 'high',
         icon: 'User',
-        color: 'blue',
+        color: 'orange',
         estimatedTime: '1 min',
-        consequences: ['El servicio estará listo para operar']
+        consequences: ['Después podrás asignar el armado requerido', 'El flujo correcto es: Cliente → Custodio → Armado']
       };
     }
 
