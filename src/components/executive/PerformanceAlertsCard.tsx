@@ -1,7 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useMonthClosureAnalysis } from '@/hooks/useMonthClosureAnalysis';
 import { useYearOverYearComparison } from '@/hooks/useYearOverYearComparison';
-import { Loader2, AlertTriangle, CheckCircle, AlertCircle } from 'lucide-react';
+import { Loader2, AlertTriangle, CheckCircle, AlertCircle, TrendingUp } from 'lucide-react';
+import { getContextualPaceStatus } from '@/utils/paceStatus';
 
 interface Alert {
   level: 'critical' | 'warning' | 'success';
@@ -81,20 +82,33 @@ export const PerformanceAlertsCard = () => {
     });
   }
 
-  // Pace alert
-  if (monthData.currentPace >= monthData.requiredPace) {
-    alerts.push({
-      level: 'success',
-      message: 'Ritmo diario estable',
-      icon: CheckCircle
-    });
-  } else {
-    alerts.push({
-      level: 'warning',
-      message: 'Ritmo diario insuficiente',
-      icon: AlertCircle
-    });
-  }
+  // Contextual Pace Alert
+  const contextualPace = getContextualPaceStatus(
+    monthData.currentPace,
+    monthData.requiredPace,
+    monthData.requiredPaceForPrevMonth,
+    monthData.monthOverMonth.servicesPercent,
+    monthData.status
+  );
+
+  const paceIconMap = {
+    check: CheckCircle,
+    alert: AlertCircle,
+    x: AlertTriangle
+  };
+
+  const paceLevelMap = {
+    excellent: 'success' as const,
+    good: 'success' as const,
+    warning: 'warning' as const,
+    critical: 'critical' as const
+  };
+
+  alerts.push({
+    level: paceLevelMap[contextualPace.level],
+    message: contextualPace.message,
+    icon: paceIconMap[contextualPace.icon]
+  });
 
   const alertStyles = {
     critical: 'text-destructive bg-destructive/10 border-destructive/20',
@@ -155,6 +169,40 @@ export const PerformanceAlertsCard = () => {
                 <span className="text-sm">PRIORIDAD #3: Mantener momentum</span>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Pace Details */}
+        <div className="mt-4 p-3 bg-muted/50 rounded-lg space-y-3">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <TrendingUp className="h-4 w-4 text-primary" />
+            Análisis de Ritmo Diario
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <div className="text-muted-foreground mb-1">Ritmo Actual</div>
+              <div className="text-base font-bold text-foreground">
+                {contextualPace.details.currentPace.toFixed(2)} srv/día
+              </div>
+            </div>
+            <div>
+              <div className="text-muted-foreground mb-1">vs Mes Anterior</div>
+              <div className={`text-base font-bold ${contextualPace.details.momGrowthPercent >= 0 ? 'text-success' : 'text-destructive'}`}>
+                {contextualPace.details.momGrowthPercent >= 0 ? '+' : ''}{contextualPace.details.momGrowthPercent.toFixed(1)}%
+              </div>
+            </div>
+            <div>
+              <div className="text-muted-foreground mb-1">Para Superar {monthData.previousMonth.monthName}</div>
+              <div className={`text-base font-bold ${monthData.currentPace >= contextualPace.details.requiredPaceForPrevMonth ? 'text-success' : 'text-warning'}`}>
+                {contextualPace.details.requiredPaceForPrevMonth.toFixed(2)} srv/día {monthData.currentPace >= contextualPace.details.requiredPaceForPrevMonth ? '✅' : '⚠️'}
+              </div>
+            </div>
+            <div>
+              <div className="text-muted-foreground mb-1">Para Meta Optimista</div>
+              <div className={`text-base font-bold ${monthData.currentPace >= contextualPace.details.requiredPaceForTarget ? 'text-success' : 'text-muted-foreground'}`}>
+                {contextualPace.details.requiredPaceForTarget.toFixed(2)} srv/día {monthData.currentPace >= contextualPace.details.requiredPaceForTarget ? '✅' : '🎯'}
+              </div>
+            </div>
           </div>
         </div>
 

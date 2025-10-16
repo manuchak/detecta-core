@@ -58,3 +58,114 @@ export const getStatusBgColor = (status: PaceStatus): string => {
       return 'bg-destructive/10 border-destructive/20';
   }
 };
+
+export interface ContextualPaceConfig {
+  level: 'excellent' | 'good' | 'warning' | 'critical';
+  color: 'success' | 'warning' | 'destructive';
+  icon: 'check' | 'alert' | 'x';
+  message: string;
+  details: {
+    currentPace: number;
+    requiredPaceForTarget: number;
+    requiredPaceForPrevMonth: number;
+    momGrowthPercent: number;
+  };
+}
+
+/**
+ * Determines contextual pace status considering both target and MoM growth
+ * @param currentPace - Current daily pace (e.g., 42.63 services/day)
+ * @param requiredPaceForTarget - Required pace to reach optimistic target
+ * @param requiredPaceForPrevMonth - Required pace to surpass previous month
+ * @param momGrowthPercent - Month-over-month growth percentage
+ * @param status - Month closure status ('Supera' | 'Igual' | 'Por debajo')
+ * @returns Contextual status configuration with message and color
+ */
+export const getContextualPaceStatus = (
+  currentPace: number,
+  requiredPaceForTarget: number,
+  requiredPaceForPrevMonth: number,
+  momGrowthPercent: number,
+  status: 'Supera' | 'Igual' | 'Por debajo'
+): ContextualPaceConfig => {
+  const beatingPrevMonth = currentPace >= requiredPaceForPrevMonth;
+  const onTargetForProjection = currentPace >= requiredPaceForTarget;
+
+  // Excellent: Beating previous month with strong growth (>15%)
+  if (status === 'Supera' && momGrowthPercent > 15) {
+    return {
+      level: 'excellent',
+      color: 'success',
+      icon: 'check',
+      message: 'Ritmo excelente - Superando expectativas',
+      details: {
+        currentPace,
+        requiredPaceForTarget,
+        requiredPaceForPrevMonth,
+        momGrowthPercent
+      }
+    };
+  }
+
+  // Good: Beating previous month but below optimistic target
+  if (beatingPrevMonth && !onTargetForProjection) {
+    return {
+      level: 'good',
+      color: 'success',
+      icon: 'check',
+      message: 'Ritmo sólido - Por encima de mes anterior',
+      details: {
+        currentPace,
+        requiredPaceForTarget,
+        requiredPaceForPrevMonth,
+        momGrowthPercent
+      }
+    };
+  }
+
+  // Excellent: Meeting both targets
+  if (beatingPrevMonth && onTargetForProjection) {
+    return {
+      level: 'excellent',
+      color: 'success',
+      icon: 'check',
+      message: 'Ritmo excelente - En meta optimista',
+      details: {
+        currentPace,
+        requiredPaceForTarget,
+        requiredPaceForPrevMonth,
+        momGrowthPercent
+      }
+    };
+  }
+
+  // Warning: Not beating previous month pace but growing overall
+  if (!beatingPrevMonth && momGrowthPercent > 0) {
+    return {
+      level: 'warning',
+      color: 'warning',
+      icon: 'alert',
+      message: 'Ritmo moderado - Acelerar captación',
+      details: {
+        currentPace,
+        requiredPaceForTarget,
+        requiredPaceForPrevMonth,
+        momGrowthPercent
+      }
+    };
+  }
+
+  // Critical: Below previous month and declining
+  return {
+    level: 'critical',
+    color: 'destructive',
+    icon: 'x',
+    message: 'Ritmo insuficiente - Acción inmediata requerida',
+    details: {
+      currentPace,
+      requiredPaceForTarget,
+      requiredPaceForPrevMonth,
+      momGrowthPercent
+    }
+  };
+};

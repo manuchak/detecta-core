@@ -50,6 +50,7 @@ interface MonthClosureData {
   status: 'Por debajo' | 'Igual' | 'Supera';
   daysRemaining: number;
   requiredPace: number;
+  requiredPaceForPrevMonth: number;
   currentPace: number;
   paceStatus: ReturnType<typeof getPaceStatus>;
   mtdComparison: MTDComparisonData;
@@ -182,6 +183,7 @@ export const useMonthClosureAnalysis = () => {
       };
 
       const requiredPace = (target.services - current.services) / daysRemaining;
+      const requiredPaceForPrevMonth = (prevServices - current.services) / daysRemaining;
       const paceNeeded = Math.ceil(requiredPace);
       
       // Status comparing projection vs previous month (not vs target)
@@ -199,6 +201,14 @@ export const useMonthClosureAnalysis = () => {
         status = 'Igual'; // Within 2% of previous month
       }
 
+      console.log('🎯 PACE CALCULATION:', {
+        currentPace: currentPace.toFixed(2),
+        requiredPaceForTarget: requiredPace.toFixed(2),
+        requiredPaceForPrevMonth: requiredPaceForPrevMonth.toFixed(2),
+        momGrowthPercent: servicesPercent.toFixed(1) + '%',
+        status
+      });
+
       return {
         current,
         target,
@@ -213,6 +223,7 @@ export const useMonthClosureAnalysis = () => {
         status,
         daysRemaining,
         requiredPace: Math.round(requiredPace * 100) / 100,
+        requiredPaceForPrevMonth: Math.round(requiredPaceForPrevMonth * 100) / 100,
         currentPace: Math.round(currentPace * 100) / 100,
         paceStatus,
         mtdComparison
