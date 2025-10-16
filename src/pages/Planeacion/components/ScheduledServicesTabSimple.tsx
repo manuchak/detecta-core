@@ -6,8 +6,8 @@ import { usePendingServices } from '@/hooks/usePendingServices';
 import { usePendingArmadoServices } from '@/hooks/usePendingArmadoServices';
 import { useServiciosPlanificados } from '@/hooks/useServiciosPlanificados';
 import { useServiceTransformations } from '@/hooks/useServiceTransformations';
-import { useCustodioVehicleData } from '@/hooks/useCustodioVehicleData';
 import { PendingAssignmentModal } from '@/components/planeacion/PendingAssignmentModal';
+import { AdditionalArmedGuard } from '@/components/planeacion/AdditionalArmedGuard';
 import { EditServiceModal, type EditableService } from '@/components/planeacion/EditServiceModal';
 import { ContextualEditModal } from '@/components/planeacion/ContextualEditModal';
 import { ReassignmentModal, type ServiceForReassignment } from '@/components/planeacion/ReassignmentModal';
@@ -411,28 +411,12 @@ export function ScheduledServicesTab() {
                     className="mb-3"
                   />
                   
-                  {/* Armado Adicional - Componente inline para detectar custodio híbrido */}
-                  {(() => {
-                    const custodianData = useCustodioVehicleData(service.custodio_nombre);
-                    const isHybridCustodian = custodianData.isHybridCustodian();
-                    
-                    // Solo mostrar armado adicional si:
-                    // 1. Hay un armado asignado con nombre
-                    // 2. El custodio NO es híbrido (porque ya tiene porte de arma)
-                    return service.armado_asignado && 
-                           service.armado_nombre && 
-                           !isHybridCustodian ? (
-                      <div className="flex items-center space-x-2 mb-3 pt-2 border-t border-border/30">
-                        <Shield className="w-3.5 h-3.5 text-muted-foreground" />
-                        <span className="apple-text-caption font-medium text-foreground">
-                          {service.armado_nombre}
-                        </span>
-                        <span className="apple-text-caption text-muted-foreground/60 italic">
-                          (Acompañante)
-                        </span>
-                      </div>
-                    ) : null;
-                  })()}
+                  {/* Armado Adicional */}
+                  <AdditionalArmedGuard 
+                    custodioNombre={service.custodio_nombre}
+                    armadoAsignado={service.armado_asignado}
+                    armadoNombre={service.armado_nombre}
+                  />
                   
                   {/* Línea 3.5: Planificador (solo si existe) */}
                   {service.planner_name && (
