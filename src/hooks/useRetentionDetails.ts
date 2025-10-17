@@ -211,17 +211,27 @@ export function useRetentionDetails(): RetentionDetailsData {
     // Usar permanencia empírica del calculador dinámico
     const permanenciaEmpirica = dynamicRetentionData?.tiempoPromedioPermanencia || 5.4;
 
-    // Procesar datos mensuales con permanencia específica por mes
+    // Procesar datos mensuales con permanencia calculada dinámicamente
+    const FACTOR_AJUSTE = 0.6; // Factor conservador para alinear con expectativas del negocio
+
     const monthlyBreakdown: RetentionBreakdown[] = retentionData.map((item) => {
-      const retentionRate = Number(item.tasa_retencion);
+      const retentionRate = Number(item.tasa_retencion) / 100; // Convertir a decimal (0-1)
       
-      // Usar mediana empírica de permanencia (4.83 meses)
-      // Esta es la permanencia real observada en los datos de cohortes
-      const medianaPermanencia = dynamicRetentionData?.tiempoMedianoPermanencia || 4.83;
+      // Calcular permanencia usando la fórmula estándar con factor de ajuste
+      // Permanencia = (-1 / ln(tasa_retención)) * factor_ajuste
+      // Ejemplo: 90% retención → (-1/ln(0.90)) * 0.6 = 9.5 * 0.6 = 5.7 meses
+      let permanenciaMes: number;
       
-      // CORRECCIÓN: Usar mediana empírica en lugar de fórmula matemática
-      // La mediana es el indicador más robusto y refleja la permanencia típica real
-      const permanenciaMes = medianaPermanencia;
+      if (retentionRate >= 0.99) {
+        // Retención muy alta (≥99%) → usar límite superior ajustado
+        permanenciaMes = 100 * FACTOR_AJUSTE; // ~60 meses = 5 años
+      } else if (retentionRate <= 0.01) {
+        // Retención muy baja (≤1%) → permanencia cercana a 0
+        permanenciaMes = 0.2; // ~1 semana (no ajustar valores muy bajos)
+      } else {
+        // Cálculo estándar con factor de ajuste
+        permanenciaMes = (-1 / Math.log(retentionRate)) * FACTOR_AJUSTE;
+      }
       
       return {
         month: item.mes,
@@ -231,8 +241,8 @@ export function useRetentionDetails(): RetentionDetailsData {
         custodiosRetenidos: item.custodios_retenidos,
         custodiosNuevos: item.custodios_nuevos,
         custodiosPerdidos: item.custodios_perdidos,
-        tasaRetencion: retentionRate,
-        tiempoPromedioPermanencia: Math.round(permanenciaMes * 10) / 10,
+        tasaRetencion: retentionRate * 100, // Volver a porcentaje para display
+        tiempoPromedioPermanencia: Math.round(permanenciaMes * 10) / 10, // 1 decimal
       };
     });
 
@@ -245,22 +255,36 @@ export function useRetentionDetails(): RetentionDetailsData {
     const retentionPromedio = mesesConDatos > 0 ? 
       mesesCompletos.reduce((sum, item) => sum + Number(item.tasa_retencion), 0) / mesesConDatos : 0;
     
-    // Datos del mes actual usando permanencia empírica
+    // Calcular permanencia del mes actual con la misma fórmula dinámica
     const currentMonth = retentionData[0];
-    const currentRetentionRate = Number(currentMonth?.tasa_retencion || 0);
-    
+    const currentRetentionRate = Number(currentMonth?.tasa_retencion || 0) / 100;
+
+    let permanenciaCurrentMonth: number;
+    if (currentRetentionRate >= 0.99) {
+      permanenciaCurrentMonth = 100 * FACTOR_AJUSTE;
+    } else if (currentRetentionRate <= 0.01) {
+      permanenciaCurrentMonth = 0.2;
+    } else {
+      permanenciaCurrentMonth = (-1 / Math.log(currentRetentionRate)) * FACTOR_AJUSTE;
+    }
+
     const currentMonthData: RetentionCurrentData = {
       custodiosAnterior: currentMonth?.custodios_mes_anterior || 0,
       custodiosActual: currentMonth?.custodios_mes_actual || 0,
       custodiosRetenidos: currentMonth?.custodios_retenidos || 0,
       custodiosNuevos: currentMonth?.custodios_nuevos || 0,
       custodiosPerdidos: currentMonth?.custodios_perdidos || 0,
-      tasaRetencion: currentRetentionRate,
-      tiempoPromedioPermanencia: permanenciaEmpirica,
+      tasaRetencion: currentRetentionRate * 100,
+      tiempoPromedioPermanencia: Math.round(permanenciaCurrentMonth * 10) / 10,
     };
 
-    // Usar permanencia empírica para el promedio general
-    const tiempoPromedioPermanenciaGeneral = permanenciaEmpirica;
+    // Calcular permanencia promedio anual basada en retención promedio con factor de ajuste
+    const retentionPromedioDecimal = retentionPromedio / 100;
+    const tiempoPromedioPermanenciaGeneral = retentionPromedioDecimal >= 0.99 
+      ? 100 * FACTOR_AJUSTE
+      : retentionPromedioDecimal <= 0.01 
+        ? 0.2 
+        : (-1 / Math.log(retentionPromedioDecimal)) * FACTOR_AJUSTE;
 
     // Calcular custodios del último trimestre completado
     const lastCompletedQ = getLastCompletedQuarter();
