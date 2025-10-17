@@ -10,6 +10,10 @@ interface ServiceCapacityData {
   availableCustodians: number;
   unavailableCustodians: { returningFromForeign: number; currentlyOnRoute: number };
   recentServices: { total: number; byType: { local: number; regional: number; foraneo: number } };
+  forecastMesActual?: number;
+  serviciosMTD?: number;
+  proyeccionPace?: number;
+  utilizacionVsForecast?: number;
 }
 
 interface ServiceCapacityTooltipProps {
@@ -87,6 +91,13 @@ export const ServiceCapacityTooltip: React.FC<ServiceCapacityTooltipProps> = ({ 
         );
 
       case 'monthlyCapacity':
+        const forecastMesActual = data.forecastMesActual || 0;
+        const serviciosMTD = data.serviciosMTD || 0;
+        const proyeccionPace = data.proyeccionPace || 0;
+        const gapVsForecast = data.monthlyCapacity.total - forecastMesActual;
+        const isPositiveGap = gapVsForecast >= 0;
+        const utilizacionVsForecast = data.utilizacionVsForecast || 0;
+        
         return (
           <div className="space-y-3">
             <h4 className="font-semibold text-sm flex items-center gap-2">
@@ -99,17 +110,35 @@ export const ServiceCapacityTooltip: React.FC<ServiceCapacityTooltipProps> = ({ 
                 <span className="font-medium">{data.monthlyCapacity.total.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span>📈 Servicios reales (promedio):</span>
-                <span className="font-medium">{Math.round(data.recentServices.total / 3).toLocaleString()}</span>
+                <span>🎯 Forecast mes actual:</span>
+                <span className="font-medium">{forecastMesActual > 0 ? forecastMesActual.toLocaleString() : 'Calculando...'}</span>
               </div>
               <div className="flex justify-between">
-                <span>⚡ Eficiencia actual:</span>
-                <span className="font-medium">{Math.round((data.recentServices.total / 3) / data.monthlyCapacity.total * 100)}%</span>
+                <span>📈 Servicios MTD (hasta hoy):</span>
+                <span className="font-medium">{serviciosMTD.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>⚡ Utilización vs Forecast:</span>
+                <span className={`font-medium ${
+                  utilizacionVsForecast > 100 ? 'text-red-600' : 
+                  utilizacionVsForecast > 90 ? 'text-yellow-600' : 
+                  'text-green-600'
+                }`}>
+                  {utilizacionVsForecast.toFixed(1)}%
+                </span>
+              </div>
+            </div>
+            <div className="pt-2 border-t">
+              <div className="flex justify-between text-xs">
+                <span className="font-medium">{isPositiveGap ? '✅ Capacidad extra:' : '⚠️ Déficit:'}</span>
+                <span className={`font-bold ${isPositiveGap ? 'text-green-600' : 'text-red-600'}`}>
+                  {Math.abs(gapVsForecast).toLocaleString()} servicios
+                </span>
               </div>
             </div>
             <div className="pt-2 border-t text-xs text-muted-foreground">
-              <p><strong>Proyección:</strong> 22 días laborables</p>
-              <p>Incluye descansos y rotación saludable</p>
+              <p><strong>Proyección basada en pace:</strong> {proyeccionPace.toLocaleString()} servicios</p>
+              <p>{isPositiveGap ? '🚀 Capacidad para crecer' : '📞 Contratar custodios urgentemente'}</p>
             </div>
           </div>
         );
@@ -148,14 +177,16 @@ export const ServiceCapacityTooltip: React.FC<ServiceCapacityTooltipProps> = ({ 
         );
 
       case 'gapForecast':
-        const gap = data.monthlyCapacity.total - (data.recentServices.total / 3);
-        const isPositive = gap > 0;
+        const forecastActual = data.forecastMesActual || 0;
+        const gap = data.monthlyCapacity.total - forecastActual;
+        const isPositive = gap >= 0;
+        const utilizacionForecast = data.utilizacionVsForecast || 0;
         
         return (
           <div className="space-y-3">
             <h4 className="font-semibold text-sm flex items-center gap-2">
               <Activity className="h-4 w-4" />
-              Gap vs Forecast
+              Gap vs Forecast Real
             </h4>
             <div className="space-y-2 text-xs">
               <div className="flex justify-between">
@@ -163,19 +194,29 @@ export const ServiceCapacityTooltip: React.FC<ServiceCapacityTooltipProps> = ({ 
                 <span className="font-medium">{data.monthlyCapacity.total.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span>📈 Demanda actual (promedio):</span>
-                <span className="font-medium">{Math.round(data.recentServices.total / 3).toLocaleString()}</span>
+                <span>📈 Forecast mes actual:</span>
+                <span className="font-medium">{forecastActual > 0 ? forecastActual.toLocaleString() : 'Calculando...'}</span>
               </div>
               <div className="flex justify-between">
-                <span>{isPositive ? '✅' : '⚠️'} {isPositive ? 'Capacidad extra:' : 'Déficit:'}:</span>
-                <span className={`font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                  {Math.abs(gap).toLocaleString()}
+                <span>⚡ Utilización:</span>
+                <span className={`font-medium ${
+                  utilizacionForecast > 100 ? 'text-red-600' : 
+                  utilizacionForecast > 90 ? 'text-yellow-600' : 
+                  'text-green-600'
+                }`}>
+                  {utilizacionForecast.toFixed(1)}%
+                </span>
+              </div>
+              <div className="flex justify-between font-semibold">
+                <span>{isPositive ? '✅' : '⚠️'} {isPositive ? 'Capacidad extra:' : 'Déficit crítico:'}:</span>
+                <span className={`${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                  {Math.abs(gap).toLocaleString()} servicios
                 </span>
               </div>
             </div>
             <div className="pt-2 border-t text-xs text-muted-foreground">
-              <p>{isPositive ? '🚀 Capacidad para crecer' : '📞 Considerar contratar más custodios'}</p>
-              <p>Análisis basado en tendencia de últimos 3 meses</p>
+              <p>{isPositive ? '🚀 Margen para crecimiento o imprevistos' : '🚨 Contratar custodios urgentemente'}</p>
+              <p>Comparación: Forecast real vs Capacidad disponible</p>
             </div>
           </div>
         );

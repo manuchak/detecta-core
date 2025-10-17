@@ -8,6 +8,7 @@ import {
   IMPROVED_SERVICE_CONFIG,
   HEALTHY_WORK_CONFIG
 } from '@/utils/predictionAlgorithms';
+import { getForecastMesActual } from '@/utils/forecastHelpers';
 
 interface RealCapacityData {
   activeCustodians: number;
@@ -70,9 +71,22 @@ interface ServiceCapacityData {
       foraneo: number;
     };
   };
+  
+  // Forecast del mes actual
+  forecastMesActual?: number;
+  serviciosMTD?: number;
+  proyeccionPace?: number;
+  utilizacionVsForecast?: number;
 }
 
 export const useServiceCapacity = () => {
+  // Obtener forecast del mes actual
+  const { data: forecastData } = useQuery({
+    queryKey: ['forecast-mes-actual'],
+    queryFn: getForecastMesActual,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
   // Obtener capacidad real basada en disponibilidad actual
   const { data: realCapacityData, isLoading } = useQuery<RealCapacityData>({
     queryKey: ['real-time-capacity-analysis'],
@@ -206,7 +220,13 @@ export const useServiceCapacity = () => {
     
     const currentUtilization = (monthlyRealServices / monthlyCapacityTotal) * 100;
 
-    // Determinar alertas basadas en disponibilidad real
+    // Calcular utilización vs forecast real del mes actual
+    const forecastMesActual = forecastData?.forecastMesActual || 0;
+    const utilizacionVsForecast = forecastMesActual > 0 
+      ? (forecastMesActual / monthlyCapacityTotal) * 100 
+      : currentUtilization;
+
+    // Determinar alertas basadas en forecast vs capacidad (prioridad #1)
     let alertType: 'healthy' | 'warning' | 'critical' = 'healthy';
     let alertMessage = 'Capacidad operativa saludable';
     const recommendations: string[] = [];
@@ -214,7 +234,22 @@ export const useServiceCapacity = () => {
     const unavailableTotal = realCapacityData.unavailableCustodians.returningFromForeign + realCapacityData.unavailableCustodians.currentlyOnRoute;
     const availabilityRate = (availableCustodians / activeCustodians) * 100;
 
-    if (availabilityRate < 60) {
+    // PRIORIDAD 1: Comparar forecast vs capacidad
+    if (forecastMesActual > monthlyCapacityTotal) {
+      const deficit = forecastMesActual - monthlyCapacityTotal;
+      alertType = 'critical';
+      alertMessage = `🚨 SOBRECARGA: Forecast (${forecastMesActual.toLocaleString()}) excede capacidad (${monthlyCapacityTotal.toLocaleString()})`;
+      recommendations.push(`Déficit de ${deficit.toLocaleString()} servicios`);
+      recommendations.push(`Contratar ${Math.ceil(deficit / 29)} custodios urgentemente o rechazar servicios`);
+      recommendations.push('Renegociar forecast con clientes o ajustar expectativas');
+    } else if (utilizacionVsForecast > 90) {
+      const buffer = monthlyCapacityTotal - forecastMesActual;
+      alertType = 'warning';
+      alertMessage = `⚠️ RIESGO: Forecast muy cerca del límite (${Math.round(utilizacionVsForecast)}%)`;
+      recommendations.push(`Solo ${buffer.toLocaleString()} servicios de margen (${Math.round(100 - utilizacionVsForecast)}%)`);
+      recommendations.push('Capacidad insuficiente para crecimiento o imprevistos');
+      recommendations.push('Considerar contratación preventiva');
+    } else if (availabilityRate < 60) {
       alertType = 'critical';
       alertMessage = `Solo ${availableCustodians} de ${activeCustodians} custodios disponibles (${Math.round(availabilityRate)}%)`;
       recommendations.push('Muchos custodios indisponibles por servicios foráneos');
@@ -232,6 +267,8 @@ export const useServiceCapacity = () => {
       alertMessage = 'Acercándose a límite de capacidad saludable';
       recommendations.push('Planificar contratación preventiva');
     } else {
+      const surplus = monthlyCapacityTotal - forecastMesActual;
+      recommendations.push(`Capacidad extra de ${surplus.toLocaleString()} servicios (${Math.round((surplus / monthlyCapacityTotal) * 100)}%)`);
       recommendations.push('Capacidad suficiente para crecimiento');
     }
     
@@ -268,9 +305,13 @@ export const useServiceCapacity = () => {
       recentServices: {
         total: totalRecentServices,
         byType: recentServices
-      }
+      },
+      forecastMesActual: forecastData?.forecastMesActual,
+      serviciosMTD: forecastData?.serviciosMTD,
+      proyeccionPace: forecastData?.proyeccionPace,
+      utilizacionVsForecast: Math.round(utilizacionVsForecast * 10) / 10
     };
-  }, [realCapacityData, isLoading]);
+  }, [realCapacityData, isLoading, forecastData]);
 
   return {
     capacityData: capacityAnalysis,
