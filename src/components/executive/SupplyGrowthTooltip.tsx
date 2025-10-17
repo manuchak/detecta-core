@@ -25,8 +25,8 @@ export function SupplyGrowthTooltip({ data }: SupplyGrowthTooltipProps) {
   }
 
   const { monthlyData, summary, qualityMetrics } = data;
-  const recentMonths = monthlyData.slice(0, 6); // Últimos 6 meses
-  const currentMonth = monthlyData[0];
+  const recentMonths = monthlyData.slice(-6); // Últimos 6 meses
+  const currentMonth = monthlyData[monthlyData.length - 1];
 
   return (
     <Card className="w-96">
