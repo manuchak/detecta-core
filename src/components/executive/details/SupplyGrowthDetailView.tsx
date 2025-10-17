@@ -16,32 +16,23 @@ import { useSupplyGrowthDetails } from '@/hooks/useSupplyGrowthDetails';
 
 export function SupplyGrowthDetailView() {
   const { monthlyData, summary, qualityMetrics, loading } = useSupplyGrowthDetails();
-  const [selectedYear, setSelectedYear] = useState('2025');
 
-  // Obtener años disponibles de los datos
-  const availableYears = useMemo(() => {
-    const years = [...new Set(monthlyData.map(data => data.month.split('-')[0]))];
-    return years.sort((a, b) => b.localeCompare(a)); // Más reciente primero
-  }, [monthlyData]);
-
-  // Filtrar datos por año seleccionado
+  // Mostrar últimos 12 meses
   const filteredData = useMemo(() => {
-    return monthlyData.filter(data => data.month.startsWith(selectedYear));
-  }, [monthlyData, selectedYear]);
-
-  // Obtener los últimos 6 meses de todos los datos (más recientes)
-  const recentSixMonths = useMemo(() => {
-    // Ordenar todos los datos por fecha (más reciente primero)
-    const sortedData = [...monthlyData].sort((a, b) => b.month.localeCompare(a.month));
-    return sortedData.slice(0, 6);
+    return monthlyData.slice(-12);
   }, [monthlyData]);
 
-  // Recalcular métricas para el año seleccionado
+  // Obtener los últimos 6 meses
+  const recentSixMonths = useMemo(() => {
+    return monthlyData.slice(-6);
+  }, [monthlyData]);
+
+  // Recalcular métricas para últimos 12 meses
   const yearSummary = useMemo(() => {
     if (filteredData.length === 0) return summary;
     
-    const yearData = filteredData.slice(0, 12); // Máximo 12 meses
-    const currentMonth = yearData[0];
+    const yearData = filteredData; // Ya son máximo 12 meses
+    const currentMonth = yearData[yearData.length - 1]; // Último mes es el más reciente
     
     return {
       ...summary,
@@ -84,33 +75,16 @@ export function SupplyGrowthDetailView() {
     return 'text-gray-600';
   };
 
-  const currentMonth = filteredData[0];
+  const currentMonth = filteredData[filteredData.length - 1];
 
   return (
     <div className="space-y-6">
-      {/* Filtro de Año */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold">Análisis de Supply Growth</h3>
-          <p className="text-sm text-muted-foreground">
-            Evolución y métricas detalladas del crecimiento del supply
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-          <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-32">
-              <SelectValue placeholder="Año" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableYears.map(year => (
-                <SelectItem key={year} value={year}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Header */}
+      <div>
+        <h3 className="text-lg font-semibold">Análisis de Supply Growth</h3>
+        <p className="text-sm text-muted-foreground">
+          Evolución y métricas detalladas del crecimiento del supply (Últimos 12 meses)
+        </p>
       </div>
 
       {/* Header KPI Cards */}
@@ -154,7 +128,7 @@ export function SupplyGrowthDetailView() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <UserPlus className="h-4 w-4" />
-              Nuevos (Año)
+              Nuevos (12M)
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -162,7 +136,7 @@ export function SupplyGrowthDetailView() {
               +{yearSummary.custodiosNuevosAnual}
             </div>
             <p className="text-xs text-muted-foreground">
-              Promedio {selectedYear}
+              Últimos 12 meses
             </p>
           </CardContent>
         </Card>
@@ -179,7 +153,7 @@ export function SupplyGrowthDetailView() {
               {formatPercentage(yearSummary.crecimientoPromedioMensual)}
             </div>
             <p className="text-xs text-muted-foreground">
-              Últimos 12 meses de {selectedYear}
+              Últimos 12 meses
             </p>
           </CardContent>
             </Card>
@@ -307,7 +281,7 @@ export function SupplyGrowthDetailView() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={recentSixMonths.reverse()}>
+              <BarChart data={recentSixMonths}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 
                   dataKey="monthName" 
@@ -393,7 +367,7 @@ export function SupplyGrowthDetailView() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Resumen Ejecutivo - {selectedYear}
+            Resumen Ejecutivo (Últimos 12 meses)
           </CardTitle>
         </CardHeader>
         <CardContent>

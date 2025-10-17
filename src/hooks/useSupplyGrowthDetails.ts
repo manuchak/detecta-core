@@ -291,7 +291,7 @@ export function useSupplyGrowthDetails(): SupplyGrowthDetailsData {
     });
 
     return {
-      monthlyData: monthlyData.reverse(), // Más reciente primero
+      monthlyData: monthlyData, // Orden cronológico ascendente
       summary,
       qualityMetrics,
       loading: false,
