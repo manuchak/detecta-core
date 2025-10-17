@@ -48,10 +48,12 @@ export interface CohortAnalysis {
 }
 
 export interface QuarterlyData {
-  quarter: string;        // "Q1 2024"
+  quarter: string;        // "Q1 2025"
+  year: number;           // 2025
+  quarterNum: number;     // 1-4
   avgRetention: number;   // Retención promedio del Q
   avgPermanence: number;  // Permanencia promedio del Q
-  custodians: number;     // Total custodios del Q
+  custodians: number;     // Promedio custodios del Q
   trend: 'up' | 'down' | 'stable';
 }
 
@@ -275,42 +277,58 @@ export function useRetentionDetails(): RetentionDetailsData {
       ? Math.max(...lastQData.map(m => m.custodiosActual))
       : currentMonth?.custodios_mes_actual || 0;
 
-    // Calcular datos trimestrales
-    const quarterlyData: QuarterlyData[] = [];
-    const currentYear = new Date().getFullYear();
-    
-    // Agrupar datos por trimestre
-    for (let q = 1; q <= 4; q++) {
-      const quarterMonths = monthlyBreakdown.filter(item => {
-        const month = new Date(item.month).getMonth() + 1;
-        return month >= (q - 1) * 3 + 1 && month <= q * 3;
-      });
+    // Calcular datos trimestrales - AGRUPADOS POR AÑO
+    const quarterlyDataMap = new Map<string, { months: RetentionBreakdown[], year: number, quarter: number }>();
+
+    monthlyBreakdown.forEach(item => {
+      const itemDate = new Date(item.month);
+      const itemMonth = itemDate.getMonth() + 1; // 1-12
+      const itemYear = itemDate.getFullYear();
+      const quarter = Math.ceil(itemMonth / 3); // 1-4
+      const key = `${itemYear}-Q${quarter}`;
       
-      if (quarterMonths.length > 0) {
-        const avgRetention = quarterMonths.reduce((sum, m) => sum + m.tasaRetencion, 0) / quarterMonths.length;
-        const avgPermanence = quarterMonths.reduce((sum, m) => sum + m.tiempoPromedioPermanencia, 0) / quarterMonths.length;
-        const custodians = Math.round(quarterMonths.reduce((sum, m) => sum + m.custodiosActual, 0) / quarterMonths.length);
+      if (!quarterlyDataMap.has(key)) {
+        quarterlyDataMap.set(key, { months: [], year: itemYear, quarter });
+      }
+      quarterlyDataMap.get(key)!.months.push(item);
+    });
+
+    // Filtrar solo trimestres COMPLETOS (3 meses) y calcular métricas
+    const quarterlyData: QuarterlyData[] = Array.from(quarterlyDataMap.entries())
+      .filter(([_, data]) => data.months.length === 3) // ✅ Solo trimestres completos
+      .map(([key, data]) => {
+        const avgRetention = data.months.reduce((sum, m) => sum + m.tasaRetencion, 0) / 3;
+        const avgPermanence = data.months.reduce((sum, m) => sum + m.tiempoPromedioPermanencia, 0) / 3;
+        const custodians = Math.round(data.months.reduce((sum, m) => sum + m.custodiosActual, 0) / 3);
         
-        // Calcular tendencia comparando con trimestre anterior
-        let trend: 'up' | 'down' | 'stable' = 'stable';
-        if (q > 1) {
-          const prevQuarter = quarterlyData[q - 2];
-          if (prevQuarter) {
-            const diff = avgRetention - prevQuarter.avgRetention;
-            if (diff > 2) trend = 'up';
-            else if (diff < -2) trend = 'down';
-          }
-        }
-        
-        quarterlyData.push({
-          quarter: `Q${q} ${currentYear}`,
+        return {
+          quarter: `Q${data.quarter} ${data.year}`,
+          year: data.year,
+          quarterNum: data.quarter,
           avgRetention: Math.round(avgRetention * 10) / 10,
           avgPermanence: Math.round(avgPermanence * 10) / 10,
           custodians,
-          trend
-        });
+          trend: 'stable' as 'up' | 'down' | 'stable' // Se calculará después
+        };
+      })
+      .sort((a, b) => {
+        // Ordenar por año y trimestre (más reciente primero)
+        if (a.year !== b.year) return b.year - a.year;
+        return b.quarterNum - a.quarterNum;
+      });
+
+    // Calcular tendencias comparando con trimestre ANTERIOR del mismo año
+    quarterlyData.forEach((q, index) => {
+      if (index < quarterlyData.length - 1) {
+        const prevQuarter = quarterlyData[index + 1];
+        // Solo comparar si es trimestre consecutivo del mismo año
+        if (prevQuarter.year === q.year && prevQuarter.quarterNum === q.quarterNum - 1) {
+          const diff = q.avgPermanence - prevQuarter.avgPermanence;
+          if (diff > 0.5) q.trend = 'up';
+          else if (diff < -0.5) q.trend = 'down';
+        }
       }
-    }
+    });
 
     // Generar análisis de cohortes realista basado en custodios nuevos por mes
     const ahora = new Date();
