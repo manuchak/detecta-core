@@ -252,8 +252,11 @@ export function useRetentionDetails(): RetentionDetailsData {
     
     const totalCustodiosRetenidos = retentionData.reduce((sum, item) => sum + item.custodios_retenidos, 0);
     const totalCustodiosAnteriores = retentionData.reduce((sum, item) => sum + item.custodios_mes_anterior, 0);
-    const retentionPromedio = mesesConDatos > 0 ? 
-      mesesCompletos.reduce((sum, item) => sum + Number(item.tasa_retencion), 0) / mesesConDatos : 0;
+    
+    // Calcular promedio de retención de los últimos 6 meses (2 trimestres) para tarjeta principal
+    const ultimos6Meses = mesesCompletos.slice(0, 6);
+    const retentionPromedio = ultimos6Meses.length > 0 ? 
+      ultimos6Meses.reduce((sum, item) => sum + Number(item.tasa_retencion), 0) / ultimos6Meses.length : 0;
     
     // Calcular permanencia del mes actual con la misma fórmula dinámica
     const currentMonth = retentionData[0];
