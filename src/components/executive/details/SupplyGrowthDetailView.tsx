@@ -75,6 +75,25 @@ export function SupplyGrowthDetailView() {
     return 'text-gray-600';
   };
 
+  // Función personalizada para renderizar etiquetas de porcentaje de crecimiento
+  const renderPercentageLabel = (props: any) => {
+    const { x, y, value } = props;
+    if (value === undefined || value === null) return null;
+    
+    return (
+      <text
+        x={x}
+        y={y - 8}
+        fill="#ef4444"
+        fontSize={10}
+        fontWeight={600}
+        textAnchor="middle"
+      >
+        {formatPercentage(value)}
+      </text>
+    );
+  };
+
   const currentMonth = filteredData[filteredData.length - 1];
 
   return (
@@ -263,6 +282,7 @@ export function SupplyGrowthDetailView() {
                 stroke="#ef4444"
                 strokeWidth={3}
                 dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
+                label={renderPercentageLabel}
               />
             </ComposedChart>
           </ResponsiveContainer>
