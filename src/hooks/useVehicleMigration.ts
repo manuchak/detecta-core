@@ -33,9 +33,34 @@ export function useVehicleMigration() {
     }
   };
 
+  const migrateVehicleForCustodian = async (custodioNombre: string) => {
+    try {
+      const { data, error } = await supabase.rpc('migrate_vehicle_from_servicios_custodia', {
+        p_custodio_nombre: custodioNombre
+      });
+
+      if (error) {
+        console.error('Error en migración individual:', error);
+        return { success: false, error: error.message };
+      }
+
+      if (data?.success) {
+        toast.success(`Vehículo migrado: ${data.marca} ${data.modelo}`);
+        return { success: true, data };
+      } else {
+        console.warn('Migración no exitosa:', data?.message);
+        return { success: false, message: data?.message };
+      }
+    } catch (err) {
+      console.error('Error en migración de vehículo:', err);
+      return { success: false, error: err };
+    }
+  };
+
   return {
     isMigrating,
     migrationResults,
-    runMigration
+    runMigration,
+    migrateVehicleForCustodian
   };
 }

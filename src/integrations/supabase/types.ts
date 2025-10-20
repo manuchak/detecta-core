@@ -11807,6 +11807,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: number
       }
+      migrate_vehicle_from_servicios_custodia: {
+        Args: { p_custodio_nombre: string }
+        Returns: Json
+      }
       move_lead_to_pool: {
         Args:
           | { p_estado_id: string; p_lead_id: string; p_motivo?: string }

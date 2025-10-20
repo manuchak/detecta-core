@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface VehicleData {
   marca: string;
@@ -25,18 +26,58 @@ export function useCustodioVehicleData(custodioNombre?: string) {
     setError(null);
     
     try {
-      // First check if the RPC function exists, if not fall back to basic data
       const { data, error } = await supabase.rpc('get_custodio_vehicle_data', {
         p_custodio_nombre: nombre.trim()
       });
 
       if (error) {
-        console.warn('RPC function not available, using fallback data:', error);
-        // Fallback: return basic vehicle info
+        console.warn('RPC function error:', error);
         setVehicleData({
           marca: 'No especificado',
           modelo: 'No especificado', 
           placa: 'Sin placa',
+          color: 'No especificado',
+          tipo_custodio: 'custodio_vehiculo',
+          fuente: 'error_fallback'
+        });
+        return;
+      }
+
+      // Si no hay datos o fuente es 'none', intentar migración automática
+      if (!data || data.length === 0 || data[0].fuente === 'none') {
+        console.log('No vehicle data found, attempting migration for:', nombre);
+        
+        try {
+          const { data: migrationData, error: migrationError } = await supabase.rpc(
+            'migrate_vehicle_from_servicios_custodia',
+            { p_custodio_nombre: nombre.trim() }
+          );
+
+          if (!migrationError && migrationData?.success) {
+            console.log('Migration successful, refetching vehicle data');
+            toast.success(`Vehículo migrado: ${migrationData.marca} ${migrationData.modelo}`);
+            
+            // Re-fetch después de migración exitosa
+            const { data: newData, error: newError } = await supabase.rpc('get_custodio_vehicle_data', {
+              p_custodio_nombre: nombre.trim()
+            });
+            
+            if (!newError && newData && newData.length > 0) {
+              setVehicleData(newData[0]);
+              return;
+            }
+          } else {
+            console.log('Migration not successful:', migrationData?.message);
+          }
+        } catch (migrationErr) {
+          console.log('Migration attempt failed:', migrationErr);
+        }
+        
+        // Si la migración falla o no hay datos, usar fallback
+        setVehicleData({
+          marca: 'No especificado',
+          modelo: 'No especificado',
+          placa: 'Sin placa', 
           color: 'No especificado',
           tipo_custodio: 'custodio_vehiculo',
           fuente: 'fallback'
@@ -46,20 +87,10 @@ export function useCustodioVehicleData(custodioNombre?: string) {
 
       if (data && data.length > 0) {
         setVehicleData(data[0]);
-      } else {
-        setVehicleData({
-          marca: 'No especificado',
-          modelo: 'No especificado',
-          placa: 'Sin placa', 
-          color: 'No especificado',
-          tipo_custodio: 'custodio_vehiculo',
-          fuente: 'fallback'
-        });
       }
     } catch (err) {
       console.error('Error fetching vehicle data:', err);
       setError('Error al obtener datos del vehículo');
-      // Provide fallback data instead of null to prevent UI errors
       setVehicleData({
         marca: 'No especificado',
         modelo: 'No especificado',
