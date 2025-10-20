@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AssignedLead, LeadEstado } from "@/types/leadTypes";
 import { VapiCallLog } from "@/types/vapiTypes";
 import { validateLeadForApproval, getValidationMessage } from "@/utils/leadValidation";
+import { useSandbox } from "@/hooks";
 
 export const useLeadApprovals = () => {
   const sbx = useSandboxAwareSupabase(); // ✅ Hook Sandbox-aware
