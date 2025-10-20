@@ -10628,34 +10628,25 @@ export type Database = {
         }[]
       }
       get_analyst_assigned_leads_v2: {
-        Args:
-          | {
-              p_date_from?: string
-              p_date_to?: string
-              p_is_test?: boolean
-              p_limit?: number
-              p_offset?: number
-            }
-          | {
-              p_date_from?: string
-              p_date_to?: string
-              p_is_test?: boolean
-              p_limit?: number
-              p_offset?: number
-            }
+        Args: {
+          p_date_from?: string
+          p_date_to?: string
+          p_is_test?: boolean
+          p_limit?: number
+          p_offset?: number
+        }
         Returns: {
           approval_stage: string
           final_decision: string
-          has_scheduled_call: boolean
           lead_email: string
           lead_estado: string
           lead_fecha_creacion: string
           lead_id: string
           lead_nombre: string
           lead_telefono: string
-          next_scheduled_call: string
           notas: string
           phone_interview_completed: boolean
+          scheduled_call_datetime: string
           second_interview_required: boolean
         }[]
       }
