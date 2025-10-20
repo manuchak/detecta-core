@@ -1,6 +1,11 @@
 
 -- Función para obtener leads asignados al analista actual con información del proceso de aprobación
-CREATE OR REPLACE FUNCTION public.get_analyst_assigned_leads()
+CREATE OR REPLACE FUNCTION public.get_analyst_assigned_leads(
+  p_limit INTEGER DEFAULT 50,
+  p_offset INTEGER DEFAULT 0,
+  p_date_from TIMESTAMPTZ DEFAULT NULL,
+  p_date_to TIMESTAMPTZ DEFAULT NULL
+)
 RETURNS TABLE(
   lead_id text,
   lead_nombre text,
@@ -44,17 +49,65 @@ BEGIN
     l.notas as notas
   FROM public.leads l
   LEFT JOIN public.lead_approval_process lap ON l.id = lap.lead_id
-  WHERE l.asignado_a = current_user_id
-    OR (
-      -- También permitir a administradores ver todos los leads asignados
-      EXISTS (
-        SELECT 1 FROM public.user_roles ur
-        WHERE ur.user_id = current_user_id 
-        AND ur.role IN ('admin', 'owner', 'manager')
+  WHERE (
+      l.asignado_a = current_user_id
+      OR (
+        -- También permitir a administradores ver todos los leads asignados
+        EXISTS (
+          SELECT 1 FROM public.user_roles ur
+          WHERE ur.user_id = current_user_id 
+          AND ur.role IN ('admin', 'owner', 'manager')
+        )
+        AND l.asignado_a IS NOT NULL
       )
-      AND l.asignado_a IS NOT NULL
     )
-  ORDER BY l.fecha_creacion DESC;
+    AND l.fecha_entrada_pool IS NULL
+    AND (p_date_from IS NULL OR l.fecha_creacion >= p_date_from)
+    AND (p_date_to IS NULL OR l.fecha_creacion <= p_date_to)
+  ORDER BY l.fecha_creacion DESC
+  LIMIT p_limit
+  OFFSET p_offset;
+END;
+$$;
+
+-- Función para contar leads asignados (para paginación)
+CREATE OR REPLACE FUNCTION public.count_analyst_assigned_leads(
+  p_date_from TIMESTAMPTZ DEFAULT NULL,
+  p_date_to TIMESTAMPTZ DEFAULT NULL
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  current_user_id uuid;
+  total_count INTEGER;
+BEGIN
+  current_user_id := auth.uid();
+  
+  IF current_user_id IS NULL THEN
+    RAISE EXCEPTION 'Usuario no autenticado';
+  END IF;
+  
+  SELECT COUNT(*)::INTEGER INTO total_count
+  FROM public.leads l
+  WHERE (
+      l.asignado_a = current_user_id
+      OR (
+        EXISTS (
+          SELECT 1 FROM public.user_roles ur
+          WHERE ur.user_id = current_user_id 
+          AND ur.role IN ('admin', 'owner', 'manager')
+        )
+        AND l.asignado_a IS NOT NULL
+      )
+    )
+    AND l.fecha_entrada_pool IS NULL
+    AND (p_date_from IS NULL OR l.fecha_creacion >= p_date_from)
+    AND (p_date_to IS NULL OR l.fecha_creacion <= p_date_to);
+  
+  RETURN total_count;
 END;
 $$;
 

@@ -16,6 +16,10 @@ export const useLeadApprovals = () => {
   const [assignedLeads, setAssignedLeads] = useState<AssignedLead[]>([]);
   const [callLogs, setCallLogs] = useState<VapiCallLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(50); // 50 leads por página
+  const [dateFilter, setDateFilter] = useState<{from?: string, to?: string}>({});
   const { toast } = useToast();
 
   // ✅ Auto-refresh al cambiar de modo
@@ -30,8 +34,10 @@ export const useLeadApprovals = () => {
     return unsubscribe;
   }, []);
 
-  const fetchAssignedLeads = async () => {
+  const fetchAssignedLeads = async (currentPage = page, filters = dateFilter) => {
     try {
+      setLoading(true);
+      
       // ✅ Paso 3: Validar consistencia al inicio
       const localStorageSandbox = localStorage.getItem('sandbox-mode') === 'true';
       const timestamp = localStorage.getItem('sandbox-mode-timestamp') || 'Desconocido';
@@ -63,6 +69,7 @@ export const useLeadApprovals = () => {
       
       console.log('🔍 LeadApprovals: Fetching assigned leads...');
       console.log(`📍 Ambiente confirmado: ${isSandboxMode ? '🧪 SANDBOX' : '🛡️ PRODUCCIÓN'}`);
+      console.log(`📄 Página ${currentPage}, mostrando ${pageSize} leads por página`);
       
       const { data: { user } } = await supabase.auth.getUser();
       console.log('🔍 LeadApprovals: Current user:', user?.id, user?.email);
@@ -72,15 +79,37 @@ export const useLeadApprovals = () => {
         throw new Error('Usuario no autenticado');
       }
       
-      console.log('🔍 LeadApprovals: Calling get_analyst_assigned_leads_v2 RPC...');
-      const { data, error } = await sbx.rpc('get_analyst_assigned_leads', {});
+      // Calcular offset para paginación
+      const offset = (currentPage - 1) * pageSize;
+      
+      console.log('🔍 LeadApprovals: Calling get_analyst_assigned_leads RPC with pagination...');
+      // Llamar ambas funciones en paralelo para obtener datos y conteo
+      const [{ data, error }, { data: countData, error: countError }] = await Promise.all([
+        sbx.rpc('get_analyst_assigned_leads', {
+          p_limit: pageSize,
+          p_offset: offset,
+          p_date_from: filters.from || null,
+          p_date_to: filters.to || null
+        }),
+        sbx.rpc('count_analyst_assigned_leads', {
+          p_date_from: filters.from || null,
+          p_date_to: filters.to || null
+        })
+      ]);
       
       if (error) {
         console.error('❌ LeadApprovals: RPC Error:', error);
         throw error;
       }
       
+      if (countError) {
+        console.error('❌ LeadApprovals: Count RPC Error:', countError);
+        throw countError;
+      }
+      
       console.log('✅ LeadApprovals: Assigned leads data received:', data?.length || 0, 'leads');
+      console.log('✅ LeadApprovals: Total count:', countData);
+      
       // Convertir datos de la DB al tipo AssignedLead con compatibilidad
       const typedLeads: AssignedLead[] = (data || []).map(lead => ({
         ...lead,
@@ -105,9 +134,11 @@ export const useLeadApprovals = () => {
         interview_started_at: lead.interview_started_at || null
       }));
       
-      // Filtrar solo los leads que NO están en pool (fecha_entrada_pool es null)
-      const pendingLeads = typedLeads.filter(lead => !lead.fecha_entrada_pool);
-      setAssignedLeads(pendingLeads);
+      setAssignedLeads(typedLeads);
+      setTotalCount(countData || 0);
+      setPage(currentPage);
+      
+      console.log(`✅ Cargados ${typedLeads.length} de ${countData} leads totales (página ${currentPage})`);
       
       if (!data || data.length === 0) {
         console.log('📝 LeadApprovals: No leads assigned to current user');
@@ -115,8 +146,6 @@ export const useLeadApprovals = () => {
           title: "Sin candidatos asignados",
           description: "No tienes candidatos asignados en este momento.",
         });
-      } else {
-        console.log('📊 LeadApprovals: Total leads after filtering:', pendingLeads.length);
       }
     } catch (error) {
       console.error('❌ LeadApprovals: Error fetching assigned leads:', error);
@@ -508,10 +537,25 @@ export const useLeadApprovals = () => {
     await fetchCallLogs();
   };
 
+  // Funciones de paginación
+  const goToPage = (newPage: number) => {
+    fetchAssignedLeads(newPage, dateFilter);
+  };
+
+  const applyDateFilter = (from?: string, to?: string) => {
+    const newFilter = { from, to };
+    setDateFilter(newFilter);
+    fetchAssignedLeads(1, newFilter); // Resetear a página 1 al aplicar filtro
+  };
+
   return {
     assignedLeads,
     callLogs,
     loading,
+    totalCount,
+    page,
+    pageSize,
+    dateFilter,
     fetchAssignedLeads: async () => {
       await fetchAssignedLeads();
       await fetchLeadsWithCallStatus();
@@ -520,6 +564,8 @@ export const useLeadApprovals = () => {
     refreshAfterCall,
     handleApproveLead,
     handleSendToSecondInterview,
-    handleRejectWithReasons
+    handleRejectWithReasons,
+    goToPage,
+    applyDateFilter
   };
 };
