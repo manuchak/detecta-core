@@ -10890,6 +10890,14 @@ export type Database = {
           ultimo_servicio: string
         }[]
       }
+      get_custodios_pendientes_migracion: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          estado: string
+          nombre: string
+          vehiculo_propio: boolean
+        }[]
+      }
       get_estados_safe: {
         Args: Record<PropertyKey, never>
         Returns: {
