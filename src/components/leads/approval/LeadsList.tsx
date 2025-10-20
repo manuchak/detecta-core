@@ -54,156 +54,7 @@ export const LeadsList = ({
     return callLogs.filter(log => log.id === leadId);
   };
 
-  // Función para calcular prioridad FIFO inteligente
-  const calculateLeadPriority = (lead: AssignedLead) => {
-    const now = new Date();
-    let priority = 0;
-    
-    // MÁXIMA PRIORIDAD: Entrevistas interrumpidas (2000 puntos)
-    if (lead.interview_interrupted && lead.interview_session_id) {
-      priority += 2000;
-    }
-    
-    // ALTA PRIORIDAD: Citas programadas inminentes (≤1 hora) (1500 puntos)
-    if (lead.has_scheduled_call && lead.scheduled_call_datetime) {
-      const scheduledDate = new Date(lead.scheduled_call_datetime);
-      const hoursUntilCall = (scheduledDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-      
-      if (hoursUntilCall <= 1 && hoursUntilCall >= 0) {
-        // Cita en la próxima hora - muy alta prioridad
-        priority += 1500;
-      } else if (hoursUntilCall < 0 && hoursUntilCall >= -1) {
-        // Cita vencida por menos de 1 hora - emergencia
-        priority += 1800;
-      } else if (hoursUntilCall > 1) {
-        // Cita programada futura - prioridad media
-        priority += 500;
-      }
-    }
-    
-    // PENALIZACIÓN SEVERA: Leads con intentos fallidos van al final (-1000 a -2000 puntos)
-    const failedOutcomes = ['voicemail', 'no_answer', 'busy', 'wrong_number', 'non_existent_number', 'call_failed'];
-    if (lead.last_contact_outcome && failedOutcomes.includes(lead.last_contact_outcome)) {
-      // Penalización base por intento fallido
-      priority -= 1000;
-      
-      // Penalización progresiva por múltiples intentos fallidos
-      const attempts = lead.contact_attempts_count || 0;
-      priority -= attempts * 200;
-      
-      // Si ya tiene muchos intentos fallidos, va al final absoluto
-      if (attempts >= 3) {
-        priority -= 2000;
-      }
-    }
-    
-    // ALTA PRIORIDAD: Leads nuevos sin intentos fallidos (1000 puntos)
-    const attempts = lead.contact_attempts_count || 0;
-    if (attempts === 0 && !lead.last_contact_outcome) {
-      priority += 1000;
-    }
-    
-    // PRIORIDAD MEDIA: Información incompleta (300 puntos)
-    if (!lead.lead_telefono || !lead.lead_email) {
-      priority += 300;
-    }
-    
-    // AJUSTE POR TIEMPO: Leads antiguos sin gestión (máximo 200 puntos)
-    const creationDate = new Date(lead.lead_fecha_creacion);
-    const daysSinceCreation = Math.floor((now.getTime() - creationDate.getTime()) / (1000 * 60 * 60 * 24));
-    
-    // Solo si no han tenido intentos fallidos
-    if (!lead.last_contact_outcome || !failedOutcomes.includes(lead.last_contact_outcome)) {
-      priority += Math.min(daysSinceCreation * 5, 200);
-    }
-    
-    // AJUSTE FINAL: Llamadas exitosas pendientes de seguimiento
-    if (lead.has_successful_call && !lead.final_decision) {
-      priority += 100;
-    }
-    
-    return priority;
-  };
-
-  const applyQuickFilter = (leads: AssignedLead[], filterId: string | null): AssignedLead[] => {
-    if (!filterId) return leads;
-    
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const threeDaysAgo = new Date(today.getTime() - (3 * 24 * 60 * 60 * 1000));
-    const sevenDaysAgo = new Date(today.getTime() - (7 * 24 * 60 * 60 * 1000));
-    const fifteenDaysAgo = new Date(today.getTime() - (15 * 24 * 60 * 60 * 1000));
-    const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
-    
-    switch (filterId) {
-      case 'newToday':
-        return leads.filter(lead => {
-          const creationDate = new Date(lead.lead_fecha_creacion);
-          const creationDateOnly = new Date(creationDate.getFullYear(), creationDate.getMonth(), creationDate.getDate());
-          return creationDateOnly.getTime() === today.getTime() && (lead.contact_attempts_count || 0) === 0;
-        });
-        
-      case 'urgentPending':
-        return leads.filter(lead => {
-          const creationDate = new Date(lead.lead_fecha_creacion);
-          return creationDate < threeDaysAgo && (lead.contact_attempts_count || 0) === 0;
-        });
-        
-      case 'failedAttempts':
-        return leads.filter(lead => {
-          const failedOutcomes = ['voicemail', 'no_answer', 'busy', 'wrong_number', 'non_existent_number', 'call_failed'];
-          return lead.last_contact_outcome && failedOutcomes.includes(lead.last_contact_outcome);
-        });
-        
-      case 'successfulCalls':
-        return leads.filter(lead => lead.has_successful_call && !lead.final_decision);
-        
-      case 'scheduledToday':
-        return leads.filter(lead => {
-          if (!lead.scheduled_call_datetime) return false;
-          const scheduledDate = new Date(lead.scheduled_call_datetime);
-          const scheduledDateOnly = new Date(scheduledDate.getFullYear(), scheduledDate.getMonth(), scheduledDate.getDate());
-          return scheduledDateOnly.getTime() === today.getTime();
-        });
-        
-      case 'interruptedInterviews':
-        return leads.filter(lead => lead.interview_interrupted && lead.interview_session_id);
-        
-      case 'missingInfo':
-        return leads.filter(lead => !lead.lead_telefono || !lead.lead_email);
-        
-      case 'multipleFailedAttempts':
-        return leads.filter(lead => (lead.contact_attempts_count || 0) >= 3);
-        
-      case 'last3Days':
-        return leads.filter(lead => {
-          const creationDate = new Date(lead.lead_fecha_creacion);
-          return creationDate >= threeDaysAgo;
-        });
-        
-      case 'last7Days':
-        return leads.filter(lead => {
-          const creationDate = new Date(lead.lead_fecha_creacion);
-          return creationDate >= sevenDaysAgo;
-        });
-        
-      case 'last15Days':
-        return leads.filter(lead => {
-          const creationDate = new Date(lead.lead_fecha_creacion);
-          return creationDate >= fifteenDaysAgo;
-        });
-        
-      case 'last30Days':
-        return leads.filter(lead => {
-          const creationDate = new Date(lead.lead_fecha_creacion);
-          return creationDate >= thirtyDaysAgo;
-        });
-        
-      default:
-        return leads;
-    }
-  };
-
+  // Filtros avanzados aplicados en cliente (solo para UI)
   const applyAdvancedFilters = (leads: AssignedLead[], filters: ApprovalAdvancedFiltersState | undefined): AssignedLead[] => {
     if (!filters) return leads;
     
@@ -289,16 +140,14 @@ export const LeadsList = ({
     });
   };
 
+  // ✅ OPTIMIZADO: Filtrado ligero solo en cliente (el backend ya hizo el trabajo pesado)
   const filteredAndSortedLeads = useMemo(() => {
     let filtered = leads;
-
-    // Apply quick filter
-    filtered = applyQuickFilter(filtered, quickFilter);
     
-    // Apply advanced filters
+    // Apply advanced filters (solo UI)
     filtered = applyAdvancedFilters(filtered, advancedFilters);
     
-    // Filter by search term
+    // Filter by search term (solo UI)
     if (searchTerm) {
       filtered = filtered.filter(lead =>
         lead.lead_nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -313,7 +162,7 @@ export const LeadsList = ({
         !lead.final_decision && 
         lead.lead_estado !== 'rechazado' && 
         lead.lead_estado !== 'aprobado' &&
-        !lead.fecha_entrada_pool  // Exclude leads in reserve pool
+        !lead.fecha_entrada_pool
       );
     } else if (activeTab === "approved") {
       filtered = filtered.filter(lead => 
@@ -325,30 +174,16 @@ export const LeadsList = ({
       );
     }
 
-    // Sort leads
-    const sortedLeads = filtered.sort((a, b) => {
-      // Aplicar ordenamiento FIFO inteligente solo en tab "pending"
-      if (activeTab === "pending") {
-        const priorityA = calculateLeadPriority(a);
-        const priorityB = calculateLeadPriority(b);
-        
-        // Ordenar por prioridad descendente (mayor prioridad primero)
-        if (priorityA !== priorityB) {
-          return priorityB - priorityA;
-        }
-      }
-      
-      // Ordenamiento secundario por fecha de creación (más antiguo primero)
-      return new Date(a.lead_fecha_creacion).getTime() - new Date(b.lead_fecha_creacion).getTime();
-    });
+    // ✅ El ordenamiento ya viene del backend (ORDER BY fecha_creacion DESC)
+    // No calculamos prioridad en cliente - ahora solo procesamos ~50 leads
 
-    // Notify parent of filtered leads if callback is provided
+    // Notify parent of filtered leads
     if (onFilteredLeadsChange) {
-      onFilteredLeadsChange(sortedLeads);
+      onFilteredLeadsChange(filtered);
     }
 
-    return sortedLeads;
-  }, [leads, searchTerm, activeTab, quickFilter, advancedFilters, onFilteredLeadsChange]);
+    return filtered;
+  }, [leads, searchTerm, activeTab, advancedFilters, onFilteredLeadsChange]);
 
   return (
     <div className="space-y-4">

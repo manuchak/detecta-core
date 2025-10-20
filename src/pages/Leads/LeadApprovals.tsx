@@ -30,6 +30,7 @@ import { MoveToPoolDialog } from "@/components/leads/pool/MoveToPoolDialog";
 import { SessionRecoveryDialog } from "@/components/leads/approval/SessionRecoveryDialog";
 import { InterruptedInterviewDialog } from "@/components/leads/approval/InterruptedInterviewDialog";
 import { SandboxBanner } from "@/components/sandbox/SandboxBanner";
+import { LeadsPagination } from "@/components/leads/approval/LeadsPagination";
 import { useSandbox } from "@/hooks";
 import { supabase } from "@/integrations/supabase/client";
 import { exportLeadsToCSV } from "@/utils/exportLeadsCSV";
@@ -46,12 +47,17 @@ export const LeadApprovals = () => {
     assignedLeads,
     callLogs,
     loading,
+    totalCount,
+    page,
+    pageSize,
     fetchAssignedLeads,
     fetchCallLogs,
     refreshAfterCall,
     handleApproveLead,
     handleSendToSecondInterview,
-    handleRejectWithReasons
+    handleRejectWithReasons,
+    goToPage,
+    applyDateFilter
   } = useLeadApprovals();
   
   console.log('📊 LeadApprovals: Hook state - loading:', loading, 'assignedLeads:', assignedLeads?.length || 0);
@@ -242,6 +248,45 @@ export const LeadApprovals = () => {
     }
   };
 
+  const handleQuickFilterChange = (filterId: string | null) => {
+    setQuickFilter(filterId);
+    
+    // ✅ OPTIMIZADO: Aplicar filtros de fecha en el backend
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    switch (filterId) {
+      case 'last3Days': {
+        const from = new Date(today);
+        from.setDate(from.getDate() - 3);
+        applyDateFilter(from.toISOString(), undefined);
+        break;
+      }
+      case 'last7Days': {
+        const from = new Date(today);
+        from.setDate(from.getDate() - 7);
+        applyDateFilter(from.toISOString(), undefined);
+        break;
+      }
+      case 'last15Days': {
+        const from = new Date(today);
+        from.setDate(from.getDate() - 15);
+        applyDateFilter(from.toISOString(), undefined);
+        break;
+      }
+      case 'last30Days': {
+        const from = new Date(today);
+        from.setDate(from.getDate() - 30);
+        applyDateFilter(from.toISOString(), undefined);
+        break;
+      }
+      default:
+        // Reset filter - load all
+        applyDateFilter(undefined, undefined);
+        break;
+    }
+  };
+
   const handleResetAdvancedFilters = () => {
     setAdvancedFilters({
       creationDateFrom: '',
@@ -361,9 +406,9 @@ export const LeadApprovals = () => {
           <CardHeader>
             <CardTitle>Candidatos Asignados</CardTitle>
             <CardDescription>
-              Total: {assignedLeads.length} candidatos | 
-              Pendientes: {assignedLeads.filter(l => !l.final_decision).length} |
-              Aprobados: {assignedLeads.filter(l => l.final_decision === 'approved').length}
+              Total: {totalCount} candidatos | 
+              Mostrando página {page} de {Math.ceil(totalCount / pageSize)} | 
+              Pendientes: {assignedLeads.filter(l => !l.final_decision).length} de esta página
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -395,7 +440,7 @@ export const LeadApprovals = () => {
                   activeTab="pending"
                   quickFilter={quickFilter}
                   advancedFilters={advancedFilters}
-                  onQuickFilterChange={setQuickFilter}
+                  onQuickFilterChange={handleQuickFilterChange}
                   onAdvancedFiltersChange={setAdvancedFilters}
                   onResetAdvancedFilters={handleResetAdvancedFilters}
                   onFilteredLeadsChange={handleFilteredLeadsChange}
@@ -409,6 +454,13 @@ export const LeadApprovals = () => {
                   onCompleteMissingInfo={handleCompleteMissingInfo}
                   onLogCall={handleLogCall}
                   onMoveToPool={handleMoveToPool}
+                />
+                <LeadsPagination
+                  currentPage={page}
+                  totalCount={totalCount}
+                  pageSize={pageSize}
+                  onPageChange={goToPage}
+                  loading={loading}
                 />
               </TabsContent>
 
