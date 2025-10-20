@@ -10247,6 +10247,10 @@ export type Database = {
           status: string
         }[]
       }
+      count_analyst_assigned_leads: {
+        Args: { p_date_from?: string; p_date_to?: string }
+        Returns: number
+      }
       crear_kit_instalacion: {
         Args: {
           p_gps_id: string
@@ -10592,29 +10596,29 @@ export type Database = {
         }[]
       }
       get_analyst_assigned_leads: {
-        Args: Record<PropertyKey, never>
+        Args:
+          | Record<PropertyKey, never>
+          | {
+              p_date_from?: string
+              p_date_to?: string
+              p_limit?: number
+              p_offset?: number
+            }
         Returns: {
           analista_email: string
           analista_nombre: string
-          asignado_a: string
-          contact_attempts_count: number
+          email: string
+          fecha_creacion: string
           fecha_entrada_pool: string
           final_decision: string
-          has_scheduled_call: boolean
           has_successful_call: boolean
           interview_in_progress: boolean
-          interview_interrupted: boolean
-          interview_session_id: string
           interview_started_at: string
-          last_contact_outcome: string
-          lead_email: string
           lead_estado: string
-          lead_fecha_creacion: string
           lead_id: string
-          lead_nombre: string
-          lead_telefono: string
-          motivo_pool: string
-          scheduled_call_datetime: string
+          nombre: string
+          notas: string
+          telefono: string
           zona_nombre: string
           zona_preferida_id: string
         }[]
