@@ -18,7 +18,7 @@ import { es } from 'date-fns/locale';
 
 export function ScheduledServicesTab() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const { summary, loading, error, refetch } = useScheduledServices(selectedDate);
+  const { data: summary, isLoading: loading, error, refetch } = useScheduledServices(selectedDate);
   const { summary: pendingSummary, loading: pendingLoading, refetch: refetchPending } = usePendingServices();
   const { summary: pendingArmadoSummary, loading: pendingArmadoLoading, refetch: refetchPendingArmado } = usePendingArmadoServices();
   const { 
@@ -242,7 +242,7 @@ export function ScheduledServicesTab() {
             selectedDate={selectedDate}
             onDateChange={setSelectedDate}
           />
-          <Button variant="ghost" size="sm" onClick={refetch} className="apple-button-ghost">
+          <Button variant="ghost" size="sm" onClick={() => refetch()} className="apple-button-ghost">
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
@@ -273,14 +273,14 @@ export function ScheduledServicesTab() {
           <h3 className="text-title text-lg">
             Servicios del {format(selectedDate, 'PPP', { locale: es })}
           </h3>
-          <Button onClick={refetch} variant="outline" size="sm" className="border-slate-200 text-slate-600 hover:bg-slate-50">
+          <Button onClick={() => refetch()} variant="outline" size="sm" className="border-slate-200 text-slate-600 hover:bg-slate-50">
             Actualizar
           </Button>
         </div>
         <div className="pt-4">
           {error && (
             <div className="text-center py-8 text-red-600">
-              {error}
+              {error instanceof Error ? error.message : 'Error al cargar servicios'}
             </div>
           )}
 

@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 
 export function ScheduledServicesTab() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const { summary, loading, error, refetch } = useScheduledServices(selectedDate);
+  const { data: summary, isLoading: loading, error, refetch } = useScheduledServices(selectedDate);
   const { summary: pendingSummary, loading: pendingLoading, refetch: refetchPending } = usePendingServices();
   const { summary: pendingArmadoSummary, loading: pendingArmadoLoading, refetch: refetchPendingArmado } = usePendingArmadoServices();
   const { 
@@ -312,7 +312,7 @@ export function ScheduledServicesTab() {
           <div className="apple-empty-state">
             <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-3" />
             <div className="apple-text-headline text-red-700">Error al cargar</div>
-            <div className="apple-text-body text-secondary">{error}</div>
+            <div className="apple-text-body text-secondary">{error instanceof Error ? error.message : 'Error desconocido'}</div>
           </div>
         )}
 
