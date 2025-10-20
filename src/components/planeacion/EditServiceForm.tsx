@@ -11,6 +11,36 @@ import { Save, X, AlertTriangle, MapPin, User, Shield } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { z } from 'zod';
+
+// Schema de validación con Zod para seguridad
+const editServiceSchema = z.object({
+  id_servicio: z.string()
+    .trim()
+    .min(1, 'El ID del servicio es requerido')
+    .max(50, 'El ID no puede exceder 50 caracteres')
+    .regex(/^[a-zA-Z0-9_-]+$/, 'Solo se permiten letras, números, guiones y guiones bajos'),
+  nombre_cliente: z.string()
+    .trim()
+    .min(1, 'El nombre del cliente es requerido')
+    .max(200, 'El nombre no puede exceder 200 caracteres'),
+  origen: z.string()
+    .trim()
+    .min(1, 'El origen es requerido')
+    .max(500, 'El origen no puede exceder 500 caracteres'),
+  destino: z.string()
+    .trim()
+    .min(1, 'El destino es requerido')
+    .max(500, 'El destino no puede exceder 500 caracteres'),
+  fecha_hora_cita: z.string()
+    .min(1, 'La fecha y hora son requeridas'),
+  tipo_servicio: z.string()
+    .min(1, 'El tipo de servicio es requerido'),
+  requiere_armado: z.boolean(),
+  observaciones: z.string()
+    .max(1000, 'Las observaciones no pueden exceder 1000 caracteres')
+    .optional()
+});
 
 export interface EditableService {
   id: string;
@@ -45,23 +75,10 @@ export function EditServiceForm({
   onCancel,
   isLoading = false
 }: EditServiceFormProps) {
-  // 🔍 DEBUG: Log render attempt
-  console.log('[EditServiceForm] 🎨 Render attempt', {
-    hasService: !!service,
-    serviceId: service?.id_servicio,
-    serviceData: service ? {
-      id: service.id,
-      id_servicio: service.id_servicio,
-      nombre_cliente: service.nombre_cliente,
-      origen: service.origen,
-      destino: service.destino
-    } : null,
-    isLoading
-  });
-
   const [formData, setFormData] = useState<Partial<EditableService>>({});
   const [hasChanges, setHasChanges] = useState(false);
   const [requiresArmadoChanged, setRequiresArmadoChanged] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   // Initialize form data when service changes
   useEffect(() => {
@@ -95,9 +112,33 @@ export function EditServiceForm({
     return true;
   };
 
+  // Validar campo individual con Zod
+  const validateField = (field: string, value: any): string | null => {
+    try {
+      const fieldSchema = editServiceSchema.shape[field as keyof typeof editServiceSchema.shape];
+      if (fieldSchema) {
+        fieldSchema.parse(value);
+      }
+      return null;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return error.errors[0].message;
+      }
+      return 'Error de validación';
+    }
+  };
+
   // Validar que el ID de servicio no exista en la base de datos
   const validateServiceId = async (newId: string): Promise<boolean> => {
     if (newId === service?.id_servicio) return true;
+    
+    // Validar formato primero
+    const formatError = validateField('id_servicio', newId);
+    if (formatError) {
+      setValidationErrors(prev => ({ ...prev, id_servicio: formatError }));
+      toast.error(formatError);
+      return false;
+    }
     
     try {
       const { data, error } = await supabase
@@ -109,20 +150,37 @@ export function EditServiceForm({
       if (error) throw error;
       
       if (data) {
-        toast.error(`El ID de servicio "${newId}" ya existe`);
+        const errorMsg = `El ID de servicio "${newId}" ya existe`;
+        setValidationErrors(prev => ({ ...prev, id_servicio: errorMsg }));
+        toast.error(errorMsg);
         return false;
       }
       
+      setValidationErrors(prev => {
+        const { id_servicio, ...rest } = prev;
+        return rest;
+      });
       return true;
     } catch (error) {
-      console.error('Error validating service ID:', error);
       toast.error('Error al validar ID de servicio');
       return false;
     }
   };
 
   const handleInputChange = async (field: keyof EditableService, value: any) => {
-    if (field === 'id_servicio') {
+    // Validar formato del campo
+    const error = validateField(field, value);
+    if (error) {
+      setValidationErrors(prev => ({ ...prev, [field]: error }));
+    } else {
+      setValidationErrors(prev => {
+        const { [field]: removed, ...rest } = prev;
+        return rest;
+      });
+    }
+    
+    // Validación especial para ID de servicio (duplicados)
+    if (field === 'id_servicio' && value !== service?.id_servicio) {
       const isValid = await validateServiceId(value);
       if (!isValid) return;
     }
@@ -152,14 +210,31 @@ export function EditServiceForm({
     if (!service || !hasChanges) return;
 
     try {
+      // Validar todos los campos antes de guardar
+      const validationResult = editServiceSchema.safeParse(formData);
+      
+      if (!validationResult.success) {
+        const errors: Record<string, string> = {};
+        validationResult.error.errors.forEach(err => {
+          const field = err.path[0] as string;
+          errors[field] = err.message;
+        });
+        setValidationErrors(errors);
+        toast.error('Por favor, corrige los errores en el formulario');
+        return;
+      }
+      
+      // Validar ID único si cambió
       if (formData.id_servicio && formData.id_servicio !== service.id_servicio) {
         const isValid = await validateServiceId(formData.id_servicio);
         if (!isValid) return;
       }
       
       await onSave(service.id, formData);
+      setValidationErrors({});
     } catch (error) {
       console.error('Error saving service:', error);
+      toast.error('Error al guardar los cambios');
     }
   };
 
@@ -172,11 +247,10 @@ export function EditServiceForm({
   };
 
   if (!service) {
-    console.warn('[EditServiceForm] ⚠️ Service is null/undefined - cannot render form');
     return (
-      <div className="p-6 bg-red-50 border border-red-200 rounded-lg">
-        <p className="text-sm text-red-600 font-medium">⚠️ Error: No se puede cargar el servicio</p>
-        <p className="text-xs text-red-500 mt-2">El servicio no está disponible. Por favor, cierra e intenta de nuevo.</p>
+      <div className="p-6 bg-destructive/10 border border-destructive/20 rounded-lg">
+        <p className="text-sm text-destructive font-medium">⚠️ Error: No se puede cargar el servicio</p>
+        <p className="text-xs text-muted-foreground mt-2">El servicio no está disponible. Por favor, cierra e intenta de nuevo.</p>
       </div>
     );
   }
@@ -285,13 +359,25 @@ export function EditServiceForm({
                 id="id_servicio"
                 value={formData.id_servicio || ''}
                 onChange={(e) => handleInputChange('id_servicio', e.target.value)}
-                placeholder="ID del servicio"
+                placeholder="Ej: SRV-2024-001"
                 disabled={!canEditServiceId()}
                 className={!canEditServiceId() ? 'bg-muted cursor-not-allowed' : ''}
+                maxLength={50}
               />
-              {!canEditServiceId() && (
+              {validationErrors.id_servicio && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  {validationErrors.id_servicio}
+                </p>
+              )}
+              {!canEditServiceId() && !validationErrors.id_servicio && (
                 <p className="text-xs text-muted-foreground">
                   El ID no puede editarse porque el servicio ya inició o está completado
+                </p>
+              )}
+              {canEditServiceId() && !validationErrors.id_servicio && (
+                <p className="text-xs text-muted-foreground">
+                  Solo letras, números, guiones y guiones bajos (máx. 50 caracteres)
                 </p>
               )}
             </div>
@@ -303,8 +389,15 @@ export function EditServiceForm({
                 id="nombre_cliente"
                 value={formData.nombre_cliente || ''}
                 onChange={(e) => handleInputChange('nombre_cliente', e.target.value)}
-                placeholder="Nombre del cliente"
+                placeholder="Nombre completo del cliente"
+                maxLength={200}
               />
+              {validationErrors.nombre_cliente && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  {validationErrors.nombre_cliente}
+                </p>
+              )}
             </div>
             
             {/* Teléfono - SOLO LECTURA */}
@@ -343,7 +436,14 @@ export function EditServiceForm({
                 value={formData.origen || ''}
                 onChange={(e) => handleInputChange('origen', e.target.value)}
                 placeholder="Dirección de origen"
+                maxLength={500}
               />
+              {validationErrors.origen && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  {validationErrors.origen}
+                </p>
+              )}
             </div>
             
             <div className="space-y-2">
@@ -353,7 +453,14 @@ export function EditServiceForm({
                 value={formData.destino || ''}
                 onChange={(e) => handleInputChange('destino', e.target.value)}
                 placeholder="Dirección de destino"
+                maxLength={500}
               />
+              {validationErrors.destino && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  {validationErrors.destino}
+                </p>
+              )}
             </div>
             
             <div className="space-y-2">
@@ -420,7 +527,17 @@ export function EditServiceForm({
                 onChange={(e) => handleInputChange('observaciones', e.target.value)}
                 placeholder="Observaciones adicionales del servicio"
                 rows={3}
+                maxLength={1000}
               />
+              {validationErrors.observaciones && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  {validationErrors.observaciones}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {(formData.observaciones?.length || 0)}/1000 caracteres
+              </p>
             </div>
           </div>
         </div>
@@ -438,7 +555,7 @@ export function EditServiceForm({
         </Button>
         <Button
           onClick={handleSave}
-          disabled={!hasChanges || isLoading}
+          disabled={!hasChanges || isLoading || Object.keys(validationErrors).length > 0}
           className="bg-blue-600 hover:bg-blue-700"
         >
           <Save className="h-4 w-4 mr-2" />
