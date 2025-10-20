@@ -41,6 +41,20 @@ export function EditServiceForm({
   onCancel,
   isLoading = false
 }: EditServiceFormProps) {
+  // 🔍 DEBUG: Log render attempt
+  console.log('[EditServiceForm] 🎨 Render attempt', {
+    hasService: !!service,
+    serviceId: service?.id_servicio,
+    serviceData: service ? {
+      id: service.id,
+      id_servicio: service.id_servicio,
+      nombre_cliente: service.nombre_cliente,
+      origen: service.origen,
+      destino: service.destino
+    } : null,
+    isLoading
+  });
+
   const [formData, setFormData] = useState<Partial<EditableService>>({});
   const [hasChanges, setHasChanges] = useState(false);
   const [requiresArmadoChanged, setRequiresArmadoChanged] = useState(false);
@@ -105,7 +119,15 @@ export function EditServiceForm({
     onCancel();
   };
 
-  if (!service) return null;
+  if (!service) {
+    console.warn('[EditServiceForm] ⚠️ Service is null/undefined - cannot render form');
+    return (
+      <div className="p-6 bg-red-50 border border-red-200 rounded-lg">
+        <p className="text-sm text-red-600 font-medium">⚠️ Error: No se puede cargar el servicio</p>
+        <p className="text-xs text-red-500 mt-2">El servicio no está disponible. Por favor, cierra e intenta de nuevo.</p>
+      </div>
+    );
+  }
 
   const formatDateTime = (dateTimeString: string) => {
     try {

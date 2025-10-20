@@ -45,12 +45,36 @@ export function ContextualEditModal({
     }
   }, [open, resetEditMode]);
 
-  const handleEditModeSelect = async (mode: EditMode, description: string) => {
-    console.log('[ContextualEditModal] handleEditModeSelect', { 
-      mode, 
-      hasReassignmentCallback: !!onStartReassignment,
-      serviceId: service?.id_servicio
+  // 🔍 DEBUG: Detectar cambios en currentView
+  useEffect(() => {
+    console.log('[ContextualEditModal] currentView changed to:', currentView, {
+      hasService: !!service,
+      serviceId: service?.id_servicio,
+      open
     });
+    if (currentView === 'basic_form') {
+      console.log('[ContextualEditModal] ✅ basic_form view activated', {
+        hasService: !!service,
+        serviceId: service?.id_servicio,
+        serviceData: service ? {
+          id: service.id,
+          nombre_cliente: service.nombre_cliente,
+          origen: service.origen
+        } : null
+      });
+    }
+  }, [currentView, service, open]);
+
+  const handleEditModeSelect = async (mode: EditMode, description: string) => {
+    console.log('[ContextualEditModal] 🎯 handleEditModeSelect START', { 
+      mode,
+      description,
+      hasReassignmentCallback: !!onStartReassignment,
+      serviceId: service?.id_servicio,
+      currentView
+    });
+    
+    // Set common state first
     setSelectedEditMode(mode);
     setEditIntent({
       mode,
@@ -58,41 +82,54 @@ export function ContextualEditModal({
       skipSteps: []
     });
     
-    // Para reasignación directa, disparar el flujo inmediatamente
-    if (mode === 'custodian_only' || mode === 'armed_only') {
-      if (!onStartReassignment) {
-        toast.error('No se pudo iniciar la reasignación');
-        return;
-      }
-      
-      const type = mode === 'custodian_only' ? 'custodian' : 'armed_guard';
-      
-      if (service) {
-        console.log('[ContextualEditModal] onStartReassignment llamada', { type });
-        onStartReassignment(type, service);
+    // 🚀 Handle each mode explicitly with switch
+    switch (mode) {
+      case 'custodian_only':
+      case 'armed_only':
+        // Handle reassignment flow
+        console.log('[ContextualEditModal] 🔄 Reassignment mode detected', { mode });
+        if (!onStartReassignment) {
+          toast.error('No se pudo iniciar la reasignación');
+          return;
+        }
         
-        // 🔄 DYNAMIC: Después de la asignación, volver a 'selection' para recalcular
+        const type = mode === 'custodian_only' ? 'custodian' : 'armed_guard';
+        
+        if (service) {
+          console.log('[ContextualEditModal] 📞 Calling onStartReassignment', { type });
+          onStartReassignment(type, service);
+          
+          // Después de la asignación, volver a 'selection' para recalcular
+          setTimeout(() => {
+            setCurrentView('selection');
+            setSelectedEditMode(null);
+          }, 500);
+        }
+        break;
+        
+      case 'add_armed':
+      case 'remove_armed':
+        // Execute config change directly
+        console.log('[ContextualEditModal] ⚙️ Config change mode detected', { mode });
+        await executeConfigChange(mode);
+        break;
+        
+      case 'basic_info':
+        // 🎯 CRITICAL: Direct state change for basic info
+        console.log('[ContextualEditModal] 📝 Basic info mode - switching to basic_form view');
+        // Use setTimeout to ensure state update happens after React batching
         setTimeout(() => {
-          setCurrentView('selection');
-          setSelectedEditMode(null);
-        }, 500);
-      }
-      
-      return;
+          console.log('[ContextualEditModal] ⏰ Executing setCurrentView(basic_form)');
+          setCurrentView('basic_form');
+        }, 0);
+        break;
+        
+      default:
+        console.log('[ContextualEditModal] 🔀 Default mode - switching to preview', { mode });
+        setCurrentView('preview');
     }
     
-    // 🚀 FIX: Ejecutar directamente acciones de configuración (add_armed, remove_armed)
-    if (mode === 'add_armed' || mode === 'remove_armed') {
-      await executeConfigChange(mode);
-      return;
-    }
-    
-    // Mostrar preview antes de proceder para otros modos
-    if (mode === 'basic_info') {
-      setCurrentView('basic_form');
-    } else {
-      setCurrentView('preview');
-    }
+    console.log('[ContextualEditModal] 🏁 handleEditModeSelect END', { mode });
   };
 
   const executeConfigChange = async (mode: EditMode) => {
@@ -306,6 +343,15 @@ export function ContextualEditModal({
 
   if (!service) return null;
 
+  // 🔍 DEBUG: Log render state
+  console.log('[ContextualEditModal] 🎨 RENDER', {
+    currentView,
+    open,
+    hasService: !!service,
+    serviceId: service?.id_servicio,
+    selectedEditMode
+  });
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col apple-surface border-0 shadow-apple-lg">
@@ -398,12 +444,22 @@ export function ContextualEditModal({
 
           {/* Basic Form - Edición Completa */}
           {currentView === 'basic_form' && (
-            <EditServiceForm
-              service={service}
-              onSave={handleBasicFormSave}
-              onCancel={handleCancel}
-              isLoading={isLoading}
-            />
+            <div className="space-y-4">
+              {!service && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-600">⚠️ Debug: Service is null/undefined</p>
+                  <pre className="text-xs mt-2">{JSON.stringify({ currentView, hasService: !!service }, null, 2)}</pre>
+                </div>
+              )}
+              {service && (
+                <EditServiceForm
+                  service={service}
+                  onSave={handleBasicFormSave}
+                  onCancel={handleCancel}
+                  isLoading={isLoading}
+                />
+              )}
+            </div>
           )}
         </div>
       </DialogContent>
