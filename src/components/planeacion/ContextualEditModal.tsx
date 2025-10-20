@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -35,14 +35,20 @@ export function ContextualEditModal({
   const { editIntent, resetEditMode, setEditIntent } = useEditWorkflow();
   const { heroSuggestion, suggestions } = useSmartEditSuggestions(service);
 
-  // Reset state when modal opens/closes
+  // Reset state ONLY on open transitions (false -> true)
+  const wasOpenRef = useRef(open);
   useEffect(() => {
-    if (open) {
+    const wasOpen = wasOpenRef.current;
+    if (open && !wasOpen) {
+      // Modal just opened
       setCurrentView('selection');
       setSelectedEditMode(null);
-    } else {
+    }
+    if (!open && wasOpen) {
+      // Modal just closed
       resetEditMode();
     }
+    wasOpenRef.current = open;
   }, [open, resetEditMode]);
 
   // 🔍 DEBUG: Detectar cambios en currentView
