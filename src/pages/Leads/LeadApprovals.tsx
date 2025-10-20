@@ -50,6 +50,7 @@ export const LeadApprovals = () => {
     totalCount,
     page,
     pageSize,
+    setPageSize,
     fetchAssignedLeads,
     fetchCallLogs,
     refreshAfterCall,
@@ -460,6 +461,7 @@ export const LeadApprovals = () => {
                   totalCount={totalCount}
                   pageSize={pageSize}
                   onPageChange={goToPage}
+                  onPageSizeChange={setPageSize}
                   loading={loading}
                 />
               </TabsContent>

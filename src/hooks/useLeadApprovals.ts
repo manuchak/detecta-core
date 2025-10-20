@@ -18,7 +18,7 @@ export const useLeadApprovals = () => {
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(50); // 50 leads por página
+  const [pageSize, setPageSize] = useState(50); // 50 leads por página (configurable)
   const [dateFilter, setDateFilter] = useState<{from?: string, to?: string}>({});
   const { toast } = useToast();
 
@@ -33,6 +33,17 @@ export const useLeadApprovals = () => {
 
     return unsubscribe;
   }, []);
+
+  // ✅ Resetear a página 1 cuando cambie el tamaño de página
+  useEffect(() => {
+    if (page !== 1) {
+      console.log('🔄 useLeadApprovals: pageSize cambió, reseteando a página 1');
+      setPage(1);
+      fetchAssignedLeads(1, dateFilter);
+    } else {
+      fetchAssignedLeads(1, dateFilter);
+    }
+  }, [pageSize]);
 
   const fetchAssignedLeads = async (currentPage = page, filters = dateFilter) => {
     try {
@@ -548,6 +559,7 @@ export const useLeadApprovals = () => {
     totalCount,
     page,
     pageSize,
+    setPageSize,
     dateFilter,
     fetchAssignedLeads: async () => {
       await fetchAssignedLeads();

@@ -1,11 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { PageSizeSelector } from "./PageSizeSelector";
 
 interface LeadsPaginationProps {
   currentPage: number;
   totalCount: number;
   pageSize: number;
   onPageChange: (page: number) => void;
+  onPageSizeChange?: (size: number) => void;
   loading?: boolean;
 }
 
@@ -14,6 +16,7 @@ export const LeadsPagination = ({
   totalCount,
   pageSize,
   onPageChange,
+  onPageSizeChange,
   loading = false
 }: LeadsPaginationProps) => {
   const totalPages = Math.ceil(totalCount / pageSize);
@@ -26,9 +29,19 @@ export const LeadsPagination = ({
 
   return (
     <div className="flex items-center justify-between border-t border-border pt-4">
-      <p className="text-sm text-muted-foreground">
-        Mostrando <span className="font-medium text-foreground">{startItem}</span> - <span className="font-medium text-foreground">{endItem}</span> de <span className="font-medium text-foreground">{totalCount}</span> candidatos
-      </p>
+      <div className="flex items-center gap-6">
+        <p className="text-sm text-muted-foreground">
+          Mostrando <span className="font-medium text-foreground">{startItem}</span> - <span className="font-medium text-foreground">{endItem}</span> de <span className="font-medium text-foreground">{totalCount}</span> candidatos
+        </p>
+        
+        {onPageSizeChange && (
+          <PageSizeSelector
+            pageSize={pageSize}
+            onPageSizeChange={onPageSizeChange}
+            loading={loading}
+          />
+        )}
+      </div>
       
       <div className="flex items-center gap-2">
         <Button
