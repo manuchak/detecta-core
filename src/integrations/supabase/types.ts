@@ -10251,6 +10251,10 @@ export type Database = {
         Args: { p_date_from?: string; p_date_to?: string }
         Returns: number
       }
+      count_analyst_assigned_leads_v2: {
+        Args: { p_date_from?: string; p_date_to?: string; p_is_test?: boolean }
+        Returns: number
+      }
       crear_kit_instalacion: {
         Args: {
           p_gps_id: string
@@ -10624,45 +10628,46 @@ export type Database = {
         }[]
       }
       get_analyst_assigned_leads_v2: {
-        Args: { p_is_test?: boolean }
+        Args: {
+          p_date_from?: string
+          p_date_to?: string
+          p_is_test?: boolean
+          p_limit?: number
+          p_offset?: number
+        }
         Returns: {
           analista_email: string
           analista_id: string
           analista_nombre: string
           asignado_a: string
+          contact_attempts_count: number
           credenciales_enviadas: boolean
           current_stage: string
-          decision_reason: string
           email: string
           empresa: string
-          fecha_activacion_custodio: string
-          fecha_aprobacion: string
-          fecha_contacto: string
           fecha_creacion: string
           fecha_entrada_pool: string
-          fecha_instalacion_gps: string
-          fecha_psicometricos: string
-          fecha_toxicologicos: string
           final_decision: string
           fuente: string
-          interview_method: string
+          has_scheduled_call: boolean
+          has_successful_call: boolean
+          interview_in_progress: boolean
+          interview_interrupted: boolean
+          interview_session_id: string
+          interview_started_at: string
+          last_contact_date: string
+          last_contact_outcome: string
           lead_estado: string
           lead_id: string
           mensaje: string
-          motivo_pool: string
-          motivo_rechazo: string
           nombre: string
           notas: string
           phone_interview_completed: boolean
-          phone_interview_date: string
-          phone_interview_notes: string
-          second_interview_completed: boolean
-          second_interview_date: string
-          second_interview_notes: string
+          scheduled_call_datetime: string
           second_interview_required: boolean
           telefono: string
-          zona_id: string
           zona_nombre: string
+          zona_preferida_id: string
         }[]
       }
       get_available_roles_secure: {

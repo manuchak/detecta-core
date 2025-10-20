@@ -22,6 +22,7 @@ type SandboxAwareTable = typeof SANDBOX_AWARE_TABLES[number];
  */
 const SANDBOX_RPC_MAPPINGS: Record<string, string> = {
   'get_analyst_assigned_leads': 'get_analyst_assigned_leads_v2',
+  'count_analyst_assigned_leads': 'count_analyst_assigned_leads_v2',
   'check_zone_capacity': 'check_zone_capacity_v2',
   'move_lead_to_pool': 'move_lead_to_pool_v2',
   'reactivate_lead_from_pool': 'reactivate_lead_from_pool_v2'
