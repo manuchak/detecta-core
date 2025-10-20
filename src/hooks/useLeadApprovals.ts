@@ -110,28 +110,21 @@ export const useLeadApprovals = () => {
       console.log('✅ LeadApprovals: Assigned leads data received:', data?.length || 0, 'leads');
       console.log('✅ LeadApprovals: Total count:', countData);
       
-      // Convertir datos de la DB al tipo AssignedLead con compatibilidad
+      // Convertir datos de la DB al tipo AssignedLead
+      // La función RPC ya devuelve los campos con el prefijo correcto (lead_nombre, lead_email, etc.)
       const typedLeads: AssignedLead[] = (data || []).map(lead => ({
-        ...lead,
-        // ✅ Mapear campos con prefijo lead_ para AssignedLead
-        lead_nombre: lead.nombre,
-        lead_email: lead.email,
-        lead_telefono: lead.telefono,
-        lead_fecha_creacion: lead.fecha_creacion,
+        lead_id: lead.lead_id,
+        lead_nombre: lead.lead_nombre,
+        lead_email: lead.lead_email,
+        lead_telefono: lead.lead_telefono,
         lead_estado: lead.lead_estado as LeadEstado,
-        // Mantener compatibilidad con campos antiguos para no romper funcionalidad existente
-        approval_stage: lead.final_decision ? 
-          (lead.final_decision === 'approved' ? 'approved' : 
-           lead.final_decision === 'rejected' ? 'rejected' : 'phone_interview') 
-          : 'phone_interview',
-        phone_interview_completed: lead.has_successful_call || false,
-        second_interview_required: false, // Este campo se puede derivar de otros datos si es necesario
-        // Mantener referencia al nombre del analista en formato anterior si existe código legacy
-        analyst_name: lead.analista_nombre,
-        analyst_email: lead.analista_email,
-        // Nuevos campos para autoguardado e interview en progreso
-        interview_in_progress: lead.interview_in_progress || false,
-        interview_started_at: lead.interview_started_at || null
+        lead_fecha_creacion: lead.lead_fecha_creacion,
+        approval_stage: lead.approval_stage || 'phone_interview',
+        phone_interview_completed: lead.phone_interview_completed || false,
+        second_interview_required: lead.second_interview_required || false,
+        final_decision: lead.final_decision,
+        notas: lead.notas,
+        scheduled_call_datetime: lead.scheduled_call_datetime,
       }));
       
       setAssignedLeads(typedLeads);
