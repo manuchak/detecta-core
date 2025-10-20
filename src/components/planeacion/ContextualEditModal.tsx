@@ -5,13 +5,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { SmartEditSuggestion } from './SmartEditSuggestion';
 import { ContextualFeedback } from './ContextualFeedback';
-import { EditServiceModal } from './EditServiceModal';
+import { EditServiceForm, EditableService } from './EditServiceForm';
 import { useEditWorkflow, type EditMode } from '@/contexts/EditWorkflowContext';
 import { useSmartEditSuggestions } from '@/hooks/useSmartEditSuggestions';
 import { ArrowLeft, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import type { EditableService } from './EditServiceModal';
 
 interface ContextualEditModalProps {
   open: boolean;
@@ -397,16 +396,14 @@ export function ContextualEditModal({
             </div>
           )}
 
+          {/* Basic Form - Edición Completa */}
           {currentView === 'basic_form' && (
-            <div className="h-full">
-              <EditServiceModal
-                open={true}
-                onOpenChange={() => setCurrentView('selection')}
-                service={service}
-                onSave={handleBasicFormSave}
-                isLoading={isLoading}
-              />
-            </div>
+            <EditServiceForm
+              service={service}
+              onSave={handleBasicFormSave}
+              onCancel={handleCancel}
+              isLoading={isLoading}
+            />
           )}
         </div>
       </DialogContent>
