@@ -30,7 +30,7 @@ import { MoveToPoolDialog } from "@/components/leads/pool/MoveToPoolDialog";
 import { SessionRecoveryDialog } from "@/components/leads/approval/SessionRecoveryDialog";
 import { InterruptedInterviewDialog } from "@/components/leads/approval/InterruptedInterviewDialog";
 import { SandboxBanner } from "@/components/sandbox/SandboxBanner";
-import { useSandbox } from "@/contexts/SandboxContext";
+import { useSandbox } from "@/hooks";
 import { supabase } from "@/integrations/supabase/client";
 import { exportLeadsToCSV } from "@/utils/exportLeadsCSV";
 import { toast } from "@/hooks/use-toast";
