@@ -10628,46 +10628,35 @@ export type Database = {
         }[]
       }
       get_analyst_assigned_leads_v2: {
-        Args: {
-          p_date_from?: string
-          p_date_to?: string
-          p_is_test?: boolean
-          p_limit?: number
-          p_offset?: number
-        }
+        Args:
+          | {
+              p_date_from?: string
+              p_date_to?: string
+              p_is_test?: boolean
+              p_limit?: number
+              p_offset?: number
+            }
+          | {
+              p_date_from?: string
+              p_date_to?: string
+              p_is_test?: boolean
+              p_limit?: number
+              p_offset?: number
+            }
         Returns: {
-          analista_email: string
-          analista_id: string
-          analista_nombre: string
-          asignado_a: string
-          contact_attempts_count: number
-          credenciales_enviadas: boolean
-          current_stage: string
-          email: string
-          empresa: string
-          fecha_creacion: string
-          fecha_entrada_pool: string
+          approval_stage: string
           final_decision: string
-          fuente: string
           has_scheduled_call: boolean
-          has_successful_call: boolean
-          interview_in_progress: boolean
-          interview_interrupted: boolean
-          interview_session_id: string
-          interview_started_at: string
-          last_contact_date: string
-          last_contact_outcome: string
+          lead_email: string
           lead_estado: string
+          lead_fecha_creacion: string
           lead_id: string
-          mensaje: string
-          nombre: string
+          lead_nombre: string
+          lead_telefono: string
+          next_scheduled_call: string
           notas: string
           phone_interview_completed: boolean
-          scheduled_call_datetime: string
           second_interview_required: boolean
-          telefono: string
-          zona_nombre: string
-          zona_preferida_id: string
         }[]
       }
       get_available_roles_secure: {
