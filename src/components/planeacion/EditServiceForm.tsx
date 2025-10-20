@@ -9,6 +9,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Save, X, AlertTriangle, MapPin, User, Shield } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface EditableService {
   id: string;
@@ -26,6 +28,8 @@ export interface EditableService {
   armado_asignado?: string;
   observaciones?: string;
   estado_planeacion: string;
+  servicio_iniciado?: boolean;
+  estado_servicio?: string;
 }
 
 interface EditServiceFormProps {
@@ -63,10 +67,8 @@ export function EditServiceForm({
   useEffect(() => {
     if (service) {
       setFormData({
+        id_servicio: service.id_servicio,
         nombre_cliente: service.nombre_cliente,
-        empresa_cliente: service.empresa_cliente || '',
-        email_cliente: service.email_cliente || '',
-        telefono_cliente: service.telefono_cliente || '',
         origen: service.origen,
         destino: service.destino,
         fecha_hora_cita: service.fecha_hora_cita,
@@ -79,7 +81,52 @@ export function EditServiceForm({
     }
   }, [service]);
 
-  const handleInputChange = (field: keyof EditableService, value: any) => {
+  // Determinar si el ID del servicio puede editarse
+  const canEditServiceId = (): boolean => {
+    if (!service) return false;
+    
+    if (service.servicio_iniciado === true) return false;
+    
+    const nonEditableStates = ['en_curso', 'completado', 'cancelado'];
+    if (service.estado_servicio && nonEditableStates.includes(service.estado_servicio)) {
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Validar que el ID de servicio no exista en la base de datos
+  const validateServiceId = async (newId: string): Promise<boolean> => {
+    if (newId === service?.id_servicio) return true;
+    
+    try {
+      const { data, error } = await supabase
+        .from('pc_servicios')
+        .select('id')
+        .eq('folio', newId)
+        .maybeSingle();
+      
+      if (error) throw error;
+      
+      if (data) {
+        toast.error(`El ID de servicio "${newId}" ya existe`);
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error validating service ID:', error);
+      toast.error('Error al validar ID de servicio');
+      return false;
+    }
+  };
+
+  const handleInputChange = async (field: keyof EditableService, value: any) => {
+    if (field === 'id_servicio') {
+      const isValid = await validateServiceId(value);
+      if (!isValid) return;
+    }
+    
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
       
@@ -105,6 +152,11 @@ export function EditServiceForm({
     if (!service || !hasChanges) return;
 
     try {
+      if (formData.id_servicio && formData.id_servicio !== service.id_servicio) {
+        const isValid = await validateServiceId(formData.id_servicio);
+        if (!isValid) return;
+      }
+      
       await onSave(service.id, formData);
     } catch (error) {
       console.error('Error saving service:', error);
@@ -219,6 +271,32 @@ export function EditServiceForm({
           </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* ID del Servicio - EDITABLE si no ha iniciado */}
+            <div className="space-y-2">
+              <Label htmlFor="id_servicio" className="flex items-center gap-2">
+                ID del Servicio *
+                {!canEditServiceId() && (
+                  <Badge variant="secondary" className="text-xs">
+                    Bloqueado
+                  </Badge>
+                )}
+              </Label>
+              <Input
+                id="id_servicio"
+                value={formData.id_servicio || ''}
+                onChange={(e) => handleInputChange('id_servicio', e.target.value)}
+                placeholder="ID del servicio"
+                disabled={!canEditServiceId()}
+                className={!canEditServiceId() ? 'bg-muted cursor-not-allowed' : ''}
+              />
+              {!canEditServiceId() && (
+                <p className="text-xs text-muted-foreground">
+                  El ID no puede editarse porque el servicio ya inició o está completado
+                </p>
+              )}
+            </div>
+            
+            {/* Nombre Cliente - EDITABLE */}
             <div className="space-y-2">
               <Label htmlFor="nombre_cliente">Nombre Cliente *</Label>
               <Input
@@ -229,35 +307,23 @@ export function EditServiceForm({
               />
             </div>
             
+            {/* Teléfono - SOLO LECTURA */}
             <div className="space-y-2">
-              <Label htmlFor="empresa_cliente">Empresa</Label>
-              <Input
-                id="empresa_cliente"
-                value={formData.empresa_cliente || ''}
-                onChange={(e) => handleInputChange('empresa_cliente', e.target.value)}
-                placeholder="Empresa del cliente"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="email_cliente">Email</Label>
-              <Input
-                id="email_cliente"
-                type="email"
-                value={formData.email_cliente || ''}
-                onChange={(e) => handleInputChange('email_cliente', e.target.value)}
-                placeholder="email@ejemplo.com"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="telefono_cliente">Teléfono</Label>
+              <Label htmlFor="telefono_cliente" className="flex items-center gap-2">
+                Teléfono
+                <Badge variant="secondary" className="text-xs">
+                  Solo lectura
+                </Badge>
+              </Label>
               <Input
                 id="telefono_cliente"
-                value={formData.telefono_cliente || ''}
-                onChange={(e) => handleInputChange('telefono_cliente', e.target.value)}
-                placeholder="Teléfono del cliente"
+                value={service.telefono_cliente || 'No disponible'}
+                disabled
+                className="bg-muted cursor-not-allowed"
               />
+              <p className="text-xs text-muted-foreground">
+                Este dato se carga desde la información del cliente en el sistema
+              </p>
             </div>
           </div>
         </div>
