@@ -221,23 +221,45 @@ export const importCustodianServices = async (
             let servicioData: any;
 
             if (mode === 'update') {
-              // UPDATE MODE: Force upsert to bypass RLS SELECT restrictions
+              // UPDATE MODE: Use RPC for estado-only updates to bypass RLS
               servicioData = buildUpdateData(item, fechaCitaResult, createdAtResult, fechaContratacionResult);
               const updatedFields = Object.keys(servicioData).filter(key => key !== 'id_servicio' && key !== 'updated_time');
               console.log(`🔄 UPDATE MODE - Record ${current} (${item.id_servicio}): fields [${updatedFields.join(', ')}]`);
-              console.log(`   Data:`, servicioData);
               
-              const { error } = await supabase
-                .from('servicios_custodia')
-                .upsert(servicioData, { 
-                  onConflict: 'id_servicio',
-                  ignoreDuplicates: false 
+              // Check if only estado is being updated
+              const isEstadoOnlyUpdate = updatedFields.length === 1 && updatedFields[0] === 'estado';
+              
+              if (isEstadoOnlyUpdate && servicioData.estado) {
+                console.log(`🎯 Using RPC update_servicio_estado for ${item.id_servicio}: "${servicioData.estado}"`);
+                
+                const { error } = await supabase.rpc('update_servicio_estado', {
+                  p_id_servicio: item.id_servicio,
+                  p_estado: servicioData.estado
                 });
-              
-              upsertError = error;
-              if (!error) {
-                result.updated++;
-                console.log(`✅ Successfully updated ${item.id_servicio}`);
+                
+                upsertError = error;
+                if (!error) {
+                  result.updated++;
+                  console.log(`✅ Successfully updated estado via RPC: ${item.id_servicio}`);
+                } else {
+                  console.error(`❌ RPC error for ${item.id_servicio}:`, error);
+                }
+              } else {
+                // Fallback: usar upsert para múltiples campos
+                console.log(`   Using upsert for multiple fields:`, servicioData);
+                
+                const { error } = await supabase
+                  .from('servicios_custodia')
+                  .upsert(servicioData, { 
+                    onConflict: 'id_servicio',
+                    ignoreDuplicates: false 
+                  });
+                
+                upsertError = error;
+                if (!error) {
+                  result.updated++;
+                  console.log(`✅ Successfully updated via upsert: ${item.id_servicio}`);
+                }
               }
             } else if (mode === 'create') {
               // CREATE MODE: Only insert new records
@@ -292,9 +314,13 @@ export const importCustodianServices = async (
             if (upsertError) {
               console.error(`Database error for ${item.id_servicio}:`, upsertError);
               
-              // Detect specific RLS errors and provide actionable messages
+              // Detect specific errors and provide actionable messages
               let errorMessage = upsertError.message;
-              if (upsertError.code === '42501' || errorMessage.includes('row-level security')) {
+              
+              // Detect RPC errors
+              if (errorMessage.includes('update_servicio_estado') || errorMessage.includes('No rows found')) {
+                errorMessage = `Error al actualizar estado: El servicio ${item.id_servicio} no existe en la base de datos`;
+              } else if (upsertError.code === '42501' || errorMessage.includes('row-level security')) {
                 errorMessage = `Permisos insuficientes (RLS). Verifica que tu usuario tenga rol de administrador.`;
               } else if (upsertError.code === '23502') {
                 errorMessage = `Campo requerido faltante: ${upsertError.details || 'desconocido'}`;
