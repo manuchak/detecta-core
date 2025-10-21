@@ -8,8 +8,10 @@ import { CPADetailView } from './details/CPADetailView';
 import { ConversionRateDetailView } from './details/ConversionRateDetailView';
 import { CustodianEngagementDetailView } from './details/CustodianEngagementDetailView';
 import { LTVDetailView } from './details/LTVDetailView';
+import { MonthlyCapacityDetailView } from './details/MonthlyCapacityDetailView';
 
-export type KPIType = 'retention' | 'ltv' | 'cpa' | 'conversion' | 'engagement' | 'supply' | 'roi' | 'supply_growth';
+export type KPIType = 'retention' | 'ltv' | 'cpa' | 'conversion' | 'engagement' | 'supply' | 'roi' | 'supply_growth' | 
+  'monthly_capacity' | 'daily_capacity' | 'healthy_utilization' | 'gap_forecast' | 'fleet_efficiency';
 
 interface KPIDetailViewProps {
   selectedKPI: KPIType;
@@ -26,7 +28,12 @@ export function KPIDetailView({ selectedKPI, onClose }: KPIDetailViewProps) {
       engagement: 'Engagement de Usuarios',
       supply: 'Crecimiento de Oferta',
       supply_growth: 'Crecimiento del Supply',
-      roi: 'ROI de Marketing'
+      roi: 'ROI de Marketing',
+      monthly_capacity: 'Capacidad Mensual Proyectada',
+      daily_capacity: 'Capacidad Diaria',
+      healthy_utilization: 'Utilización Saludable',
+      gap_forecast: 'Gap vs Forecast',
+      fleet_efficiency: 'Eficiencia de Flota'
     };
     return titles[kpi];
   };
@@ -45,6 +52,12 @@ export function KPIDetailView({ selectedKPI, onClose }: KPIDetailViewProps) {
         return <CustodianEngagementDetailView />;
       case 'ltv':
         return <LTVDetailView />;
+      case 'monthly_capacity':
+      case 'daily_capacity':
+      case 'healthy_utilization':
+      case 'gap_forecast':
+      case 'fleet_efficiency':
+        return <MonthlyCapacityDetailView />;
       default:
         return (
           <Card>
