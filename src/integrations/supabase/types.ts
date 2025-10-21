@@ -12047,6 +12047,10 @@ export type Database = {
         Args: { p_allowed: boolean; p_permission_id: string }
         Returns: boolean
       }
+      update_servicio_estado: {
+        Args: { p_estado: string; p_id_servicio: string }
+        Returns: undefined
+      }
       update_user_role_by_email: {
         Args: { p_email: string; p_new_role: string }
         Returns: boolean
