@@ -24,15 +24,16 @@ interface ActivationMetrics {
   fast_activation_rate?: number;
 }
 
-interface CohortRetention {
+export interface CohortRetention {
   cohort_month: string;
   initial_size: number;
-  month_1: number;
-  month_2: number;
-  month_3: number;
-  month_4: number;
-  month_5: number;
-  month_6: number;
+  month_0: number;
+  month_1: number | null;
+  month_2: number | null;
+  month_3: number | null;
+  month_4: number | null;
+  month_5: number | null;
+  month_6: number | null;
 }
 
 interface ProductivityStats {
@@ -52,6 +53,52 @@ interface RealRotationMetrics {
   trend: 'up' | 'down' | 'stable';
   trendPercentage: number;
 }
+
+// Validación de calidad de datos de retención
+const validateCohortData = (data: CohortRetention[]): boolean => {
+  const issues: string[] = [];
+  
+  data.forEach(cohort => {
+    // Validar tamaño mínimo (aunque SQL ya lo hace, validamos por si acaso)
+    if (cohort.initial_size < 3) {
+      issues.push(`⚠️ Cohorte ${cohort.cohort_month}: tamaño ${cohort.initial_size} (mínimo recomendado: 3)`);
+    }
+    
+    // Validar Mes 0 = 100%
+    if (cohort.month_0 !== 100.0) {
+      issues.push(`❌ Cohorte ${cohort.cohort_month}: Mes 0 = ${cohort.month_0}% (esperado: 100%)`);
+    }
+    
+    // Validar que retención no suba (solo puede bajar o mantenerse)
+    const months = [
+      cohort.month_0,
+      cohort.month_1, 
+      cohort.month_2, 
+      cohort.month_3, 
+      cohort.month_4, 
+      cohort.month_5,
+      cohort.month_6
+    ];
+    
+    for (let i = 1; i < months.length; i++) {
+      const current = months[i];
+      const previous = months[i - 1];
+      
+      if (current !== null && previous !== null && current > previous) {
+        issues.push(`⚠️ Cohorte ${cohort.cohort_month}: retención aumenta en mes ${i} (${current}% > ${previous}%)`);
+      }
+    }
+  });
+  
+  if (issues.length > 0) {
+    console.warn('🔍 Validación de Cohort Retention Matrix:');
+    issues.forEach(issue => console.warn(issue));
+  } else {
+    console.log('✅ Cohort Retention Matrix: Validación exitosa');
+  }
+  
+  return issues.length === 0;
+};
 
 // Función separada para calcular rotación real usando criterios específicos
 const calculateRotationMetrics = async (): Promise<RealRotationMetrics> => {
@@ -182,6 +229,12 @@ export const useCohortAnalytics = () => {
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_cohort_retention_matrix');
       if (error) throw error;
+      
+      // Validar calidad de datos
+      if (data && Array.isArray(data)) {
+        validateCohortData(data as CohortRetention[]);
+      }
+      
       return data as CohortRetention[];
     },
     staleTime: 5 * 60 * 1000,

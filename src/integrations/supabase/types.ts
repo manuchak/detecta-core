@@ -10667,6 +10667,7 @@ export type Database = {
         Returns: {
           cohort_month: string
           initial_size: number
+          month_0: number
           month_1: number
           month_2: number
           month_3: number
