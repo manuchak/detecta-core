@@ -244,9 +244,20 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
         }
       }
 
-      const result = await importCustodianServices(transformedData, (progress) => {
-        setState(prev => ({ ...prev, progress }));
+      // Detect import mode based on mapping configuration
+      const importMode = isUpdateOnlyMode() ? 'update' : 'auto';
+      console.log(`🎯 Import mode detected: ${importMode}`, { 
+        mappedFields: Object.values(state.mapping).filter(v => v && v !== 'unmapped'),
+        isUpdateOnly: isUpdateOnlyMode()
       });
+
+      const result = await importCustodianServices(
+        transformedData, 
+        (progress) => {
+          setState(prev => ({ ...prev, progress }));
+        },
+        importMode
+      );
 
       setState(prev => ({ ...prev, result, step: 'results' }));
       console.log('🎯 Import completed, moving to results step:', result);

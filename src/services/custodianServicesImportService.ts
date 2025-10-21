@@ -59,16 +59,15 @@ const buildUpdateData = (item: any, fechaCitaResult: any, createdAtResult: any, 
   if (fechaContratacionResult.success && fechaContratacionResult.isoString) {
     updateData.fecha_contratacion = fechaContratacionResult.isoString;
   }
-  // Improved estado validation - allow empty strings and normalize values
+  // ALWAYS include estado if present in CSV - critical for update-only imports
   if (item.estado !== undefined && item.estado !== null) {
     const estadoNormalizado = typeof item.estado === 'string' 
       ? item.estado.trim()
       : String(item.estado).trim();
     
-    // Allow even empty strings to "clear" states, but skip N/A values
-    if (estadoNormalizado !== '#N/A' && estadoNormalizado !== 'N/A') {
-      updateData.estado = estadoNormalizado || 'Pendiente'; // Default if empty
-    }
+    // ALWAYS include estado field for updates, even if empty
+    updateData.estado = estadoNormalizado || 'Pendiente';
+    console.log(`✅ Estado incluido en update: "${estadoNormalizado}" -> "${updateData.estado}"`);
   }
   if (hasValidValue(item.tipo_servicio, 'string')) {
     updateData.tipo_servicio = item.tipo_servicio;
@@ -136,8 +135,10 @@ export interface CustodianServiceImportProgress {
 
 export const importCustodianServices = async (
   data: any[],
-  onProgress?: (progress: CustodianServiceImportProgress) => void
+  onProgress?: (progress: CustodianServiceImportProgress) => void,
+  mode: 'create' | 'update' | 'auto' = 'auto'
 ): Promise<CustodianServiceImportResult> => {
+  console.log(`🚀 Import started in ${mode.toUpperCase()} mode with ${data.length} records`);
   const result: CustodianServiceImportResult = {
     success: false,
     imported: 0,
@@ -216,45 +217,76 @@ export const importCustodianServices = async (
               }
             }
 
-            // Check if record exists first to determine operation type
-            const { data: existingRecord } = await supabase
-              .from('servicios_custodia')
-              .select('id')
-              .eq('id_servicio', item.id_servicio)
-              .maybeSingle();
-
-            // Prepare data based on operation type
-            const isUpdate = !!existingRecord;
-            const servicioData = isUpdate 
-              ? buildUpdateData(item, fechaCitaResult, createdAtResult, fechaContratacionResult)
-              : buildInsertData(item, fechaCitaResult, createdAtResult, fechaContratacionResult);
-
-            // Enhanced logging
-            if (isUpdate) {
-              const updatedFields = Object.keys(servicioData).filter(key => key !== 'id_servicio' && key !== 'updated_time');
-              console.log(`UPDATE record ${current} (${item.id_servicio}): updating fields [${updatedFields.join(', ')}]`);
-            } else {
-              console.log(`INSERT record ${current} (${item.id_servicio}): creating new record`);
-            }
-
-            console.log(`Processing record ${current}:`, servicioData);
-
             let upsertError = null;
-            if (isUpdate) {
-              // Update existing record (only with valid CSV values)
+            let servicioData: any;
+
+            if (mode === 'update') {
+              // UPDATE MODE: Force upsert to bypass RLS SELECT restrictions
+              servicioData = buildUpdateData(item, fechaCitaResult, createdAtResult, fechaContratacionResult);
+              const updatedFields = Object.keys(servicioData).filter(key => key !== 'id_servicio' && key !== 'updated_time');
+              console.log(`🔄 UPDATE MODE - Record ${current} (${item.id_servicio}): fields [${updatedFields.join(', ')}]`);
+              console.log(`   Data:`, servicioData);
+              
               const { error } = await supabase
                 .from('servicios_custodia')
-                .update(servicioData)
-                .eq('id_servicio', servicioData.id_servicio);
+                .upsert(servicioData, { 
+                  onConflict: 'id_servicio',
+                  ignoreDuplicates: false 
+                });
+              
               upsertError = error;
-              if (!error) result.updated++;
-            } else {
-              // Insert new record (with defaults for empty fields)
+              if (!error) {
+                result.updated++;
+                console.log(`✅ Successfully updated ${item.id_servicio}`);
+              }
+            } else if (mode === 'create') {
+              // CREATE MODE: Only insert new records
+              servicioData = buildInsertData(item, fechaCitaResult, createdAtResult, fechaContratacionResult);
+              console.log(`➕ CREATE MODE - Record ${current} (${item.id_servicio}): creating new record`);
+              
               const { error } = await supabase
                 .from('servicios_custodia')
                 .insert(servicioData);
+              
               upsertError = error;
-              if (!error) result.imported++;
+              if (!error) {
+                result.imported++;
+                console.log(`✅ Successfully created ${item.id_servicio}`);
+              }
+            } else {
+              // AUTO MODE: Check if record exists first (original behavior)
+              const { data: existingRecord } = await supabase
+                .from('servicios_custodia')
+                .select('id')
+                .eq('id_servicio', item.id_servicio)
+                .maybeSingle();
+
+              const isUpdate = !!existingRecord;
+              servicioData = isUpdate 
+                ? buildUpdateData(item, fechaCitaResult, createdAtResult, fechaContratacionResult)
+                : buildInsertData(item, fechaCitaResult, createdAtResult, fechaContratacionResult);
+
+              if (isUpdate) {
+                const updatedFields = Object.keys(servicioData).filter(key => key !== 'id_servicio' && key !== 'updated_time');
+                console.log(`🔄 AUTO UPDATE - Record ${current} (${item.id_servicio}): fields [${updatedFields.join(', ')}]`);
+                
+                const { error } = await supabase
+                  .from('servicios_custodia')
+                  .update(servicioData)
+                  .eq('id_servicio', servicioData.id_servicio);
+                
+                upsertError = error;
+                if (!error) result.updated++;
+              } else {
+                console.log(`➕ AUTO INSERT - Record ${current} (${item.id_servicio}): creating new record`);
+                
+                const { error } = await supabase
+                  .from('servicios_custodia')
+                  .insert(servicioData);
+                
+                upsertError = error;
+                if (!error) result.imported++;
+              }
             }
 
             if (upsertError) {
