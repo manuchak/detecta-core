@@ -10192,6 +10192,10 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: boolean
       }
+      check_user_has_admin_access: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       check_user_role: {
         Args: { role_name: string; user_id: string }
         Returns: boolean
