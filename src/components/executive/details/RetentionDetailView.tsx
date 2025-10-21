@@ -1,13 +1,51 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, LabelList } from 'recharts';
 import { TrendingUp, Users, Clock, Target } from 'lucide-react';
 import { useRetentionDetails } from '@/hooks/useRetentionDetails';
 import { DynamicRetentionMetrics } from './DynamicRetentionMetrics';
 
+// Función para calcular línea de tendencia usando regresión lineal
+const calculateTrendline = (data: { tiempoPromedioPermanencia: number }[]) => {
+  const n = data.length;
+  if (n < 2) return data; // Necesitamos al menos 2 puntos
+  
+  // x = índice (0, 1, 2, ..., n-1)
+  // y = tiempoPromedioPermanencia
+  let sumX = 0;
+  let sumY = 0;
+  let sumXY = 0;
+  let sumX2 = 0;
+  
+  data.forEach((point, index) => {
+    const x = index;
+    const y = point.tiempoPromedioPermanencia;
+    sumX += x;
+    sumY += y;
+    sumXY += x * y;
+    sumX2 += x * x;
+  });
+  
+  // Calcular pendiente (b) e intercepto (a)
+  const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+  const intercept = (sumY - slope * sumX) / n;
+  
+  // Generar puntos de la línea de tendencia
+  return data.map((point, index) => ({
+    ...point,
+    trendValue: intercept + slope * index
+  }));
+};
+
 export function RetentionDetailView() {
   const retentionData = useRetentionDetails();
   const { dynamicMetrics, loading } = retentionData;
+
+  // Calcular línea de tendencia para el gráfico de permanencia
+  const dataWithTrend = useMemo(() => 
+    calculateTrendline(retentionData.monthlyBreakdown), 
+    [retentionData.monthlyBreakdown]
+  );
 
   if (loading) {
     return (
@@ -163,7 +201,7 @@ export function RetentionDetailView() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={retentionData.monthlyBreakdown}>
+              <LineChart data={dataWithTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 
                   dataKey="monthName" 
@@ -181,14 +219,32 @@ export function RetentionDetailView() {
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px'
                   }}
-                  formatter={(value: number) => [`${value.toFixed(1)} meses`, 'Tiempo Promedio']}
+                  formatter={(value: number, name: string) => {
+                    if (name === 'trendValue') return [null, null]; // Ocultar tendencia en tooltip
+                    return [`${value.toFixed(1)} meses`, 'Tiempo Promedio'];
+                  }}
                 />
+                
+                {/* Línea de tendencia - PRIMERO (debajo) */}
+                <Line 
+                  type="monotone" 
+                  dataKey="trendValue" 
+                  stroke="#8b5cf6"
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  strokeOpacity={0.4}
+                  dot={false}
+                  name="trendValue"
+                />
+                
+                {/* Línea de datos reales - SEGUNDO (encima) */}
                 <Line 
                   type="monotone" 
                   dataKey="tiempoPromedioPermanencia" 
                   stroke="#8b5cf6"
                   strokeWidth={3}
                   dot={{ fill: '#8b5cf6', strokeWidth: 2 }}
+                  name="Tiempo Promedio"
                 />
               </LineChart>
             </ResponsiveContainer>
