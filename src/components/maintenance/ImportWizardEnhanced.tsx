@@ -60,6 +60,15 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
     fileName: '',
   });
   
+  // Detect if we're in update-only mode (only id_servicio and estado mapped)
+  const isUpdateOnlyMode = useCallback(() => {
+    const mappedDbFields = Object.values(state.mapping).filter(v => v && v !== 'unmapped');
+    const hasIdServicio = mappedDbFields.includes('id_servicio');
+    const hasEstado = mappedDbFields.includes('estado');
+    const onlyTheseTwo = mappedDbFields.length === 2;
+    return hasIdServicio && hasEstado && onlyTheseTwo;
+  }, [state.mapping]);
+  
   const { isVisible, hasLeftTab, resetTabTracking } = useTabVisibility();
   
   // Debug: Log step changes
@@ -202,11 +211,14 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
         .filter(id => id && typeof id === 'string' && id.trim());
 
       if (serviceIds.length > 0) {
-        console.log('🔍 Validating service IDs...');
-        const idValidation = await validateMultipleIds(serviceIds, true);
+        const updateMode = isUpdateOnlyMode();
+        const validationMode = updateMode ? 'update' : 'create';
+        
+        console.log('🔍 Validating service IDs...', { updateMode, validationMode });
+        const idValidation = await validateMultipleIds(serviceIds, true, validationMode);
         
         if (!idValidation.is_valid) {
-          const errorMessage = `IDs duplicados o finalizados detectados: ${idValidation.summary}`;
+          const errorMessage = `${updateMode ? 'IDs no encontrados' : 'IDs duplicados o finalizados detectados'}: ${idValidation.summary}`;
           toast.error(errorMessage);
           
           // Show detailed errors
@@ -383,6 +395,7 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
     const csvFields = state.parsedData?.[0] ? Object.keys(state.parsedData[0]) : [];
     const mappedCount = Object.values(state.mapping).filter(v => v).length;
     const isValidMapping = Object.values(state.mapping).includes('id_servicio');
+    const updateOnlyMode = isUpdateOnlyMode();
 
     // Helper function to get sample data for a CSV column
     const getSampleData = (columnName: string): string[] => {
@@ -444,6 +457,11 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
                 ✓ Configuración válida
               </Badge>
             )}
+            {updateOnlyMode && (
+              <Badge className="text-sm px-3 py-1 bg-blue-100 text-blue-800 border-blue-300">
+                🔄 Modo actualización de estados
+              </Badge>
+            )}
           </div>
         </div>
 
@@ -460,6 +478,11 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
                   <p className="text-sm text-green-800">
                     {state.parsedData.length} registros • {csvFields.length} columnas detectadas
                   </p>
+                  {updateOnlyMode && (
+                    <p className="text-xs text-blue-700 mt-1 font-medium">
+                      ⓘ Modo actualización: Se actualizará únicamente el estado de los IDs existentes
+                    </p>
+                  )}
                 </div>
               </div>
             </CardContent>

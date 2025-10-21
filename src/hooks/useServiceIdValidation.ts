@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 interface ValidationResult {
   is_valid: boolean;
   message: string;
-  type?: 'finished_service' | 'duplicate_service';
+  type?: 'finished_service' | 'duplicate_service' | 'permission_warning';
   existing_service?: {
     id_servicio: string;
     estado: string;
@@ -34,7 +34,8 @@ export const useServiceIdValidation = () => {
 
   const validateSingleId = useCallback(async (
     idServicio: string,
-    excludeFinished: boolean = true
+    excludeFinished: boolean = true,
+    mode: 'create' | 'update' = 'create'
   ): Promise<ValidationResult> => {
     if (!idServicio?.trim()) {
       return {
@@ -55,8 +56,21 @@ export const useServiceIdValidation = () => {
       if (error) {
         console.error('Error validating service ID globally:', error);
         
+        // Handle permission denied errors (42501) non-blockingly in update mode
+        const errorCode = (error as any).code;
+        const errorMessage = error.message || '';
+        
+        if (errorCode === '42501' || errorMessage.includes('permission denied')) {
+          toast.warning('Validación omitida por permisos - continuando con importación');
+          return {
+            is_valid: mode === 'update', // Allow in update mode, block in create mode
+            message: 'Validación omitida por permisos',
+            type: 'permission_warning'
+          };
+        }
+        
         // Distinguir entre errores técnicos y problemas de validación
-        if (error.message?.includes('function') || error.message?.includes('type')) {
+        if (errorMessage?.includes('function') || errorMessage?.includes('type')) {
           toast.error('Error de validación - problema técnico');
           return {
             is_valid: false,
@@ -73,6 +87,14 @@ export const useServiceIdValidation = () => {
 
       // Mejorar mensajes según el tipo de error
       const result = data as ValidationResult;
+      
+      // In update mode, treat duplicates as valid (we're updating existing records)
+      if (mode === 'update' && result.type === 'duplicate_service') {
+        result.is_valid = true;
+        result.message = 'ID existe - será actualizado';
+        return result;
+      }
+      
       if (!result.is_valid && result.type === 'duplicate_service') {
         result.message = 'ID ya existe en el sistema';
       } else if (!result.is_valid && result.type === 'finished_service') {
@@ -93,7 +115,8 @@ export const useServiceIdValidation = () => {
 
   const validateMultipleIds = useCallback(async (
     serviceIds: string[],
-    excludeFinished: boolean = true
+    excludeFinished: boolean = true,
+    mode: 'create' | 'update' = 'create'
   ): Promise<BulkValidationResult> => {
     if (!serviceIds?.length) {
       return {
@@ -122,6 +145,24 @@ export const useServiceIdValidation = () => {
 
       if (error) {
         console.error('Error validating service IDs:', error);
+        
+        // Handle permission denied errors (42501) non-blockingly in update mode
+        const errorCode = (error as any).code;
+        const errorMessage = error.message || '';
+        
+        if (errorCode === '42501' || errorMessage.includes('permission denied')) {
+          toast.warning('Validación omitida por permisos - continuando con importación');
+          return {
+            is_valid: mode === 'update', // Allow in update mode
+            total_checked: cleanIds.length,
+            invalid_count: 0,
+            duplicate_in_input: [],
+            finished_services: [],
+            invalid_services: [],
+            summary: 'Validación omitida por permisos - se actualizarán los registros existentes'
+          };
+        }
+        
         toast.error('Error al validar IDs de servicio');
         return {
           is_valid: false,
@@ -134,7 +175,26 @@ export const useServiceIdValidation = () => {
         };
       }
 
-      return data as BulkValidationResult;
+      const result = data as BulkValidationResult;
+      
+      // In update mode, filter out duplicate service errors (those are expected)
+      if (mode === 'update') {
+        const nonDuplicateErrors = result.invalid_services.filter(
+          inv => inv.type !== 'duplicate_service'
+        );
+        
+        return {
+          ...result,
+          is_valid: nonDuplicateErrors.length === 0,
+          invalid_count: nonDuplicateErrors.length,
+          invalid_services: nonDuplicateErrors,
+          summary: nonDuplicateErrors.length === 0 
+            ? `${cleanIds.length} IDs serán actualizados`
+            : `${nonDuplicateErrors.length} IDs no encontrados, ${cleanIds.length - nonDuplicateErrors.length} serán actualizados`
+        };
+      }
+
+      return result;
     } catch (error) {
       console.error('Error validating service IDs:', error);
       return {
