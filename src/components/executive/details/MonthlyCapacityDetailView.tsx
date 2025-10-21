@@ -30,9 +30,9 @@ export function MonthlyCapacityDetailView() {
     }];
     
     const pieData = [
-      { name: 'Local', value: capacityData.monthlyCapacity.local, color: 'hsl(var(--chart-1))' },
-      { name: 'Regional', value: capacityData.monthlyCapacity.regional, color: 'hsl(var(--chart-2))' },
-      { name: 'Foráneo', value: capacityData.monthlyCapacity.foraneo, color: 'hsl(var(--chart-3))' }
+      { name: 'Local', value: capacityData.monthlyCapacity.local, color: '#4F9EF8' },
+      { name: 'Regional', value: capacityData.monthlyCapacity.regional, color: '#10B981' },
+      { name: 'Foráneo', value: capacityData.monthlyCapacity.foraneo, color: '#A855F7' }
     ];
     
     const comparisonData = [
@@ -103,7 +103,7 @@ export function MonthlyCapacityDetailView() {
       {/* Hero Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {/* Card 1: Capacidad Total Mensual */}
-        <Card>
+        <Card className="flex flex-col">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -112,7 +112,7 @@ export function MonthlyCapacityDetailView() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 flex flex-col justify-between">
             <div className="space-y-1">
               <div className="text-2xl font-bold text-foreground">
                 {capacityData.monthlyCapacity.total.toLocaleString()}
@@ -120,15 +120,15 @@ export function MonthlyCapacityDetailView() {
               <p className="text-xs text-muted-foreground">
                 servicios / 22 días laborables
               </p>
-              <Badge variant={capacityData.alerts.type === 'healthy' ? 'default' : 'destructive'} className="mt-2">
-                {getAlertLabel(capacityData.alerts.type)}
-              </Badge>
             </div>
+            <Badge variant={capacityData.alerts.type === 'healthy' ? 'default' : 'destructive'} className="mt-3 w-fit">
+              {getAlertLabel(capacityData.alerts.type)}
+            </Badge>
           </CardContent>
         </Card>
 
         {/* Card 2: Utilización Actual */}
-        <Card>
+        <Card className="flex flex-col">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -137,8 +137,8 @@ export function MonthlyCapacityDetailView() {
               <Activity className="h-4 w-4 text-muted-foreground" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
+          <CardContent className="flex-1 flex flex-col justify-between">
+            <div className="space-y-2">
               <div className="flex items-baseline gap-2">
                 <div className="text-2xl font-bold text-foreground">
                   {capacityData.utilizationMetrics.current.toFixed(1)}%
@@ -149,19 +149,19 @@ export function MonthlyCapacityDetailView() {
               </div>
               <Progress 
                 value={capacityData.utilizationMetrics.current} 
-                className="h-2 mt-2"
+                className="h-2"
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                {capacityData.utilizationMetrics.current <= 75 ? '✓ Óptima' :
-                 capacityData.utilizationMetrics.current <= 85 ? '⚠ Alta' :
-                 '🚨 Crítica'}
-              </p>
             </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              {capacityData.utilizationMetrics.current <= 75 ? '✓ Óptima' :
+               capacityData.utilizationMetrics.current <= 85 ? '⚠ Alta' :
+               '🚨 Crítica'}
+            </p>
           </CardContent>
         </Card>
 
         {/* Card 3: Custodios Disponibles */}
-        <Card>
+        <Card className="flex flex-col">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -170,8 +170,8 @@ export function MonthlyCapacityDetailView() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
+          <CardContent className="flex-1 flex flex-col justify-between">
+            <div className="space-y-2">
               <div className="flex items-baseline gap-2">
                 <div className="text-2xl font-bold text-foreground">
                   {capacityData.availableCustodians}
@@ -182,17 +182,17 @@ export function MonthlyCapacityDetailView() {
               </div>
               <Progress 
                 value={calculations.availabilityRate} 
-                className="h-2 mt-2"
+                className="h-2"
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                {calculations.availabilityRate.toFixed(0)}% disponibilidad
-              </p>
             </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              {calculations.availabilityRate.toFixed(0)}% disponibilidad
+            </p>
           </CardContent>
         </Card>
 
         {/* Card 4: Gap vs Forecast */}
-        <Card>
+        <Card className="flex flex-col">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -201,7 +201,7 @@ export function MonthlyCapacityDetailView() {
               <Target className="h-4 w-4 text-muted-foreground" />
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 flex flex-col justify-between">
             <div className="space-y-1">
               <div className="flex items-baseline gap-2">
                 <div className={`text-2xl font-bold ${calculations.gapVsForecast >= 0 ? 'text-success' : 'text-destructive'}`}>
@@ -216,10 +216,10 @@ export function MonthlyCapacityDetailView() {
               <p className="text-xs text-muted-foreground">
                 {calculations.gapVsForecast >= 0 ? 'Capacidad extra' : 'Déficit de capacidad'}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Utilización vs forecast: {capacityData.utilizacionVsForecast.toFixed(0)}%
-              </p>
             </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              Utilización vs forecast: {capacityData.utilizacionVsForecast.toFixed(0)}%
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -272,13 +272,13 @@ export function MonthlyCapacityDetailView() {
                 }}
               />
               <Legend />
-              <Bar dataKey="capacidad" fill="hsl(var(--chart-1))" name="Capacidad Mensual" />
-              <Bar dataKey="forecast" fill="hsl(var(--chart-2))" name="Forecast Mes" />
+              <Bar dataKey="capacidad" fill="#4F9EF8" name="Capacidad Mensual" />
+              <Bar dataKey="forecast" fill="#10B981" name="Forecast Mes" />
               <Line 
                 type="monotone" 
                 dataKey="proyeccion" 
-                stroke="hsl(var(--chart-3))" 
-                strokeWidth={2}
+                stroke="#A855F7" 
+                strokeWidth={3}
                 name="Proyección MTD"
               />
               {capacityData.forecastMesActual > capacityData.monthlyCapacity.total && (
@@ -348,9 +348,9 @@ export function MonthlyCapacityDetailView() {
                   }}
                 />
                 <Legend />
-                <Bar dataKey="local" stackId="a" fill="hsl(var(--chart-1))" name="Local" />
-                <Bar dataKey="regional" stackId="a" fill="hsl(var(--chart-2))" name="Regional" />
-                <Bar dataKey="foraneo" stackId="a" fill="hsl(var(--chart-3))" name="Foráneo" />
+                <Bar dataKey="local" stackId="a" fill="#4F9EF8" name="Local" />
+                <Bar dataKey="regional" stackId="a" fill="#10B981" name="Regional" />
+                <Bar dataKey="foraneo" stackId="a" fill="#A855F7" name="Foráneo" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -368,45 +368,45 @@ export function MonthlyCapacityDetailView() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Gauge visual */}
-            <div className="flex flex-col items-center justify-center">
-              <div className="relative inline-flex items-center justify-center">
-                <svg className="w-40 h-40 transform -rotate-90">
-                  <circle
-                    cx="80"
-                    cy="80"
-                    r="70"
-                    stroke="hsl(var(--muted))"
-                    strokeWidth="10"
-                    fill="none"
-                  />
-                  <circle
-                    cx="80"
-                    cy="80"
-                    r="70"
-                    stroke={
-                      calculations.availabilityRate >= 75 ? 'hsl(var(--success))' : 
-                      calculations.availabilityRate >= 60 ? 'hsl(var(--warning))' : 
-                      'hsl(var(--destructive))'
-                    }
-                    strokeWidth="10"
-                    fill="none"
-                    strokeDasharray={`${(calculations.availabilityRate / 100) * 439.6} 439.6`}
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <div className="absolute text-center">
-                  <span className="text-3xl font-bold text-foreground">
-                    {calculations.availabilityRate.toFixed(0)}%
-                  </span>
-                  <p className="text-xs text-muted-foreground">Disponibilidad</p>
+              <div className="flex flex-col items-center justify-center">
+                <div className="relative inline-flex items-center justify-center">
+                  <svg className="w-40 h-40 transform -rotate-90">
+                    <circle
+                      cx="80"
+                      cy="80"
+                      r="70"
+                      stroke="hsl(var(--muted))"
+                      strokeWidth="10"
+                      fill="none"
+                    />
+                    <circle
+                      cx="80"
+                      cy="80"
+                      r="70"
+                      stroke={
+                        calculations.availabilityRate >= 75 ? '#10B981' : 
+                        calculations.availabilityRate >= 60 ? '#F59E0B' : 
+                        '#EF4444'
+                      }
+                      strokeWidth="10"
+                      fill="none"
+                      strokeDasharray={`${(calculations.availabilityRate / 100) * 439.6} 439.6`}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  <div className="absolute text-center">
+                    <span className="text-3xl font-bold text-foreground">
+                      {calculations.availabilityRate.toFixed(0)}%
+                    </span>
+                    <p className="text-xs text-muted-foreground">Disponibilidad</p>
+                  </div>
                 </div>
+                <p className="text-sm text-muted-foreground mt-4 text-center">
+                  {calculations.availabilityRate >= 75 ? '✓ Disponibilidad óptima' :
+                   calculations.availabilityRate >= 60 ? '⚠ Disponibilidad moderada' :
+                   '🚨 Disponibilidad crítica'}
+                </p>
               </div>
-              <p className="text-sm text-muted-foreground mt-4 text-center">
-                {calculations.availabilityRate >= 75 ? '✓ Disponibilidad óptima' :
-                 calculations.availabilityRate >= 60 ? '⚠ Disponibilidad moderada' :
-                 '🚨 Disponibilidad crítica'}
-              </p>
-            </div>
             
             {/* Breakdown */}
             <div className="space-y-4">
@@ -421,7 +421,7 @@ export function MonthlyCapacityDetailView() {
               <div>
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-muted-foreground flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-warning"></div>
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#4F9EF8' }}></div>
                     Regresando de foráneo
                   </span>
                   <span className="font-semibold text-foreground">
@@ -437,7 +437,7 @@ export function MonthlyCapacityDetailView() {
               <div>
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-muted-foreground flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-chart-2"></div>
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#10B981' }}></div>
                     En ruta actualmente
                   </span>
                   <span className="font-semibold text-foreground">
@@ -464,11 +464,11 @@ export function MonthlyCapacityDetailView() {
       {/* Utilization Metrics Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Utilización Actual vs Saludable */}
-        <Card>
-          <CardHeader>
+        <Card className="flex flex-col">
+          <CardHeader className="pb-3">
             <CardTitle className="text-sm">Utilización Actual</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 flex flex-col justify-between">
             <div className="space-y-3">
               <div className="flex justify-between text-xs">
                 <span className="text-foreground">Actual: {capacityData.utilizationMetrics.current.toFixed(1)}%</span>
@@ -488,11 +488,11 @@ export function MonthlyCapacityDetailView() {
         </Card>
         
         {/* Forecast vs Capacidad */}
-        <Card>
-          <CardHeader>
+        <Card className="flex flex-col">
+          <CardHeader className="pb-3">
             <CardTitle className="text-sm">Forecast vs Capacidad</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 flex flex-col justify-between">
             <div className="space-y-3">
               <div className="flex justify-between text-xs">
                 <span className="text-foreground">Utilización: {capacityData.utilizacionVsForecast.toFixed(0)}%</span>
@@ -513,29 +513,29 @@ export function MonthlyCapacityDetailView() {
         </Card>
         
         {/* Distribución de Capacidad */}
-        <Card>
-          <CardHeader>
+        <Card className="flex flex-col">
+          <CardHeader className="pb-3">
             <CardTitle className="text-sm">Distribución de Capacidad</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 flex flex-col justify-between">
             <div className="space-y-3">
               <div className="flex justify-between items-center text-xs">
                 <span className="flex items-center gap-2 text-foreground">
-                  <div className="w-2 h-2 rounded-full bg-chart-1"></div>
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#4F9EF8' }}></div>
                   Local (60%)
                 </span>
                 <span className="font-semibold text-foreground">{capacityData.monthlyCapacity.local}</span>
               </div>
               <div className="flex justify-between items-center text-xs">
                 <span className="flex items-center gap-2 text-foreground">
-                  <div className="w-2 h-2 rounded-full bg-chart-2"></div>
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#10B981' }}></div>
                   Regional (30%)
                 </span>
                 <span className="font-semibold text-foreground">{capacityData.monthlyCapacity.regional}</span>
               </div>
               <div className="flex justify-between items-center text-xs">
                 <span className="flex items-center gap-2 text-foreground">
-                  <div className="w-2 h-2 rounded-full bg-chart-3"></div>
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#A855F7' }}></div>
                   Foráneo (10%)
                 </span>
                 <span className="font-semibold text-foreground">{capacityData.monthlyCapacity.foraneo}</span>
