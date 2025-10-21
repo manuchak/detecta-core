@@ -31,6 +31,7 @@ import {
   CustodianServiceImportProgress
 } from '@/services/custodianServicesImportService';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ServiciosCustodiaImportWizardProps {
   open: boolean;
@@ -231,15 +232,47 @@ export const ServiciosCustodiaImportWizard: React.FC<ServiciosCustodiaImportWiza
   const handleImportConfirm = async () => {
     if (!state.excelData) return;
 
+    // Check permissions before attempting import
+    try {
+      const { data: permissionCheck, error: permissionError } = await supabase
+        .rpc('check_user_has_admin_access');
+
+      if (permissionError || !permissionCheck) {
+        setError('No tienes permisos suficientes para realizar actualizaciones masivas. Contacta a un administrador.');
+        return;
+      }
+    } catch (permError) {
+      console.warn('Could not verify permissions:', permError);
+      // Continue anyway - RLS will catch it if there's an issue
+    }
+
     setState(prev => ({ ...prev, step: 'import' }));
 
     try {
-      // Transform data based on mapping
+      // Transform data based on mapping with estado normalization
       const mappedData = state.excelData.rows.map(row => {
         const mappedRow: any = {};
         Object.entries(state.mapping).forEach(([excelKey, dbField]) => {
           if (dbField) {
-            mappedRow[dbField] = row[excelKey];
+            let value = row[excelKey];
+            
+            // Normalize estado field specifically
+            if (dbField === 'estado' && value) {
+              value = String(value).trim();
+              // Fix common encoding issues
+              value = value
+                .replace(/Ã¡/g, 'á')
+                .replace(/Ã©/g, 'é')
+                .replace(/Ã­/g, 'í')
+                .replace(/Ã³/g, 'ó')
+                .replace(/Ãº/g, 'ú')
+                .replace(/Ã±/g, 'ñ');
+              
+              // Capitalize first letter for consistency
+              value = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+            }
+            
+            mappedRow[dbField] = value;
           }
         });
         return mappedRow;
@@ -603,6 +636,42 @@ export const ServiciosCustodiaImportWizard: React.FC<ServiciosCustodiaImportWiza
                 </div>
               </CardContent>
             </Card>
+
+            {/* Preview of estado changes */}
+            {(() => {
+              const estadoKey = Object.keys(state.mapping).find(k => state.mapping[k] === 'estado');
+              if (estadoKey) {
+                const estadosMap = new Map<string, number>();
+                state.excelData.rows.forEach(row => {
+                  const estado = row[estadoKey];
+                  if (estado) {
+                    const normalizedEstado = String(estado).trim();
+                    estadosMap.set(normalizedEstado, (estadosMap.get(normalizedEstado) || 0) + 1);
+                  }
+                });
+                
+                if (estadosMap.size > 0) {
+                  return (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">Resumen de Estados a Actualizar</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          {Array.from(estadosMap.entries()).map(([estado, count]) => (
+                            <div key={estado} className="flex justify-between items-center">
+                              <Badge variant="outline">{estado}</Badge>
+                              <span className="text-sm text-muted-foreground">{count} registro{count !== 1 ? 's' : ''}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                }
+              }
+              return null;
+            })()}
 
             <div className="flex justify-between">
               <Button variant="outline" onClick={goToPreviousStep}>

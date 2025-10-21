@@ -59,8 +59,16 @@ const buildUpdateData = (item: any, fechaCitaResult: any, createdAtResult: any, 
   if (fechaContratacionResult.success && fechaContratacionResult.isoString) {
     updateData.fecha_contratacion = fechaContratacionResult.isoString;
   }
-  if (hasValidValue(item.estado, 'string')) {
-    updateData.estado = item.estado;
+  // Improved estado validation - allow empty strings and normalize values
+  if (item.estado !== undefined && item.estado !== null) {
+    const estadoNormalizado = typeof item.estado === 'string' 
+      ? item.estado.trim()
+      : String(item.estado).trim();
+    
+    // Allow even empty strings to "clear" states, but skip N/A values
+    if (estadoNormalizado !== '#N/A' && estadoNormalizado !== 'N/A') {
+      updateData.estado = estadoNormalizado || 'Pendiente'; // Default if empty
+    }
   }
   if (hasValidValue(item.tipo_servicio, 'string')) {
     updateData.tipo_servicio = item.tipo_servicio;
@@ -251,8 +259,19 @@ export const importCustodianServices = async (
 
             if (upsertError) {
               console.error(`Database error for ${item.id_servicio}:`, upsertError);
+              
+              // Detect specific RLS errors and provide actionable messages
+              let errorMessage = upsertError.message;
+              if (upsertError.code === '42501' || errorMessage.includes('row-level security')) {
+                errorMessage = `Permisos insuficientes (RLS). Verifica que tu usuario tenga rol de administrador.`;
+              } else if (upsertError.code === '23502') {
+                errorMessage = `Campo requerido faltante: ${upsertError.details || 'desconocido'}`;
+              } else if (upsertError.code === '22P02') {
+                errorMessage = `Error de formato en los datos: ${upsertError.details || 'verifica fechas y números'}`;
+              }
+              
               result.failed++;
-              result.errors.push(`Registro ${current}: Error en base de datos - ${upsertError.message}`);
+              result.errors.push(`Registro ${current} (${item.id_servicio}): ${errorMessage}`);
             } else {
               console.log(`Successfully processed ${item.id_servicio}`);
             }
