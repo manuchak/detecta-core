@@ -199,6 +199,7 @@ export function ReassignmentModal({
 
   const typeLabel = assignmentType === 'custodian' ? 'Custodio' : 'Armado';
   const Icon = assignmentType === 'custodian' ? User : Shield;
+  const actionLabel = currentAssignment ? 'Reasignar' : 'Agregar';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -206,7 +207,7 @@ export function ReassignmentModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <RefreshCw className="h-5 w-5" />
-            Reasignar {typeLabel} - {service.id_servicio}
+            {actionLabel} {typeLabel} - {service.id_servicio}
           </DialogTitle>
         </DialogHeader>
 
@@ -245,7 +246,7 @@ export function ReassignmentModal({
             <div className="space-y-4">
               <h3 className="text-subtitle flex items-center gap-2">
                 <Icon className="h-4 w-4" />
-                Nuevo {typeLabel}
+                {currentAssignment ? `Nuevo ${typeLabel}` : typeLabel}
               </h3>
               
               {loadingOptions || (assignmentType === 'armed_guard' && loadingProveedores) ? (
@@ -485,12 +486,12 @@ export function ReassignmentModal({
 
             {/* Reason */}
             <div className="space-y-2">
-              <Label htmlFor="reason">Razón del cambio *</Label>
+              <Label htmlFor="reason">{currentAssignment ? 'Razón del cambio' : 'Razón de la asignación'} *</Label>
               <Textarea
                 id="reason"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="Describa la razón para esta reasignación..."
+                placeholder={currentAssignment ? "Describa la razón para esta reasignación..." : "Describa la razón para esta asignación..."}
                 rows={3}
               />
             </div>
@@ -586,7 +587,7 @@ export function ReassignmentModal({
                   className="bg-blue-600 hover:bg-blue-700"
                 >
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  {isLoading ? 'Procesando...' : selectedType === 'proveedor' ? 'Asignar Proveedor' : `Reasignar ${typeLabel}`}
+                  {isLoading ? 'Procesando...' : selectedType === 'proveedor' ? 'Asignar Proveedor' : `${actionLabel} ${typeLabel}`}
                 </Button>
               ) : (
                 <Button
