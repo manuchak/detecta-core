@@ -220,12 +220,21 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
 
       if (serviceIds.length > 0) {
         const updateMode = isUpdateOnlyMode();
-        const validationMode = 
+        let validationMode: 'create' | 'update' = 
           importMode === 'auto' 
             ? (updateMode ? 'update' : 'create')
             : importMode === 'update' 
               ? 'update' 
               : 'create';
+        
+        // Salvaguarda: forzar update si importMode es 'update'
+        if (importMode === 'update' && validationMode !== 'update') {
+          console.warn('⚠️ Mode mismatch - forcing update mode', { importMode, updateMode, calculated: validationMode });
+          validationMode = 'update';
+        }
+        
+        console.log('🔍 Validating service IDs...', { importMode, updateMode, validationMode, count: serviceIds.length });
+        toast.info(`Validando (${validationMode.toUpperCase()}): ${serviceIds.length} IDs`, { duration: 2500 });
         
         // ⚡ Fase 2: En UPDATE mode con archivos grandes (>500), skip validación completa
         const shouldSkipValidation = validationMode === 'update' && serviceIds.length > 500;
@@ -240,7 +249,6 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
           // Continue without validation - trust the RPC to handle non-existent IDs
         } else {
           // Validación normal para archivos pequeños o modo CREATE
-          console.log('🔍 Validating service IDs...', { updateMode, validationMode, count: serviceIds.length });
           const idValidation = await validateMultipleIds(serviceIds, true, validationMode);
           
           // En modo UPDATE, solo bloquear si TODOS los IDs son inválidos
@@ -386,7 +394,7 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
       toast.error('Error durante la importación: ' + (error as Error).message);
       setState(prev => ({ ...prev, step: 'preview' }));
     }
-  }, [state.parsedData, state.mapping]);
+  }, [state.parsedData, state.mapping, importMode, isUpdateOnlyMode, isVisible, resetTabTracking, validateMultipleIds, onComplete]);
 
   const handleSaveMapping = useCallback(() => {
     if (!mappingName.trim()) {
