@@ -11987,7 +11987,12 @@ export type Database = {
       validate_multiple_service_ids:
         | {
             Args: { p_exclude_finished?: boolean; p_service_ids: string[] }
-            Returns: Json
+            Returns: {
+              exists: boolean
+              has_permission: boolean
+              id_servicio: string
+              is_finished: boolean
+            }[]
           }
         | {
             Args: {
