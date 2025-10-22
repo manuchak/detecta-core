@@ -101,7 +101,10 @@ export function useSmartEditSuggestions(service: EditableService | null): {
       });
     }
 
-    if (!service.requiere_armado) {
+    // Solo mostrar "Agregar Armado" si tiene custodio y el estado permite cambios
+    if (!service.requiere_armado && 
+        service.custodio_asignado && 
+        !['cancelado', 'finalizado'].includes(service.estado_planeacion || '')) {
       suggestions.push({
         mode: 'add_armed',
         title: 'Agregar Armado',
@@ -112,7 +115,7 @@ export function useSmartEditSuggestions(service: EditableService | null): {
         estimatedTime: '3 min',
         consequences: ['Se requerirá asignar personal armado', 'Puede cambiar la tarifa del servicio']
       });
-    } else {
+    } else if (service.requiere_armado) {
       suggestions.push({
         mode: 'remove_armed',
         title: 'Remover Armado',

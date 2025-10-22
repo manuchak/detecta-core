@@ -127,8 +127,10 @@ export function SmartEditModal({
       }
     }
 
-    // Configuration changes
-    if (!service.requiere_armado) {
+    // Configuration changes - Solo si tiene custodio y estado permite cambios
+    if (!service.requiere_armado && 
+        service.custodio_asignado && 
+        !['cancelado', 'finalizado'].includes(service.estado_planeacion || '')) {
       actions.push({
         id: 'add_armed',
         title: 'Agregar Armado',
@@ -141,7 +143,7 @@ export function SmartEditModal({
           setCurrentView('contextual_edit');
         }
       });
-    } else {
+    } else if (service.requiere_armado) {
       actions.push({
         id: 'remove_armed',
         title: 'Remover Armado',

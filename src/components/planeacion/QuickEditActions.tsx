@@ -196,7 +196,9 @@ export function QuickEditActions({ service, onEditModeSelect }: QuickEditActions
             )}
 
             {/* Configuration Changes */}
-            {!service.requiere_armado ? (
+            {!service.requiere_armado && 
+             service.custodio_asignado && 
+             !['cancelado', 'finalizado'].includes(service.estado_planeacion || '') ? (
               <Button
                 variant="outline"
                 className="apple-button-secondary justify-start h-auto p-4 border-success/20 hover:bg-success/5"
@@ -210,7 +212,9 @@ export function QuickEditActions({ service, onEditModeSelect }: QuickEditActions
                   </div>
                 </div>
               </Button>
-            ) : (
+            ) : null}
+            
+            {service.requiere_armado && (
               <Button
                 variant="outline"
                 className="apple-button-secondary justify-start h-auto p-4 border-destructive/20 hover:bg-destructive/5"
