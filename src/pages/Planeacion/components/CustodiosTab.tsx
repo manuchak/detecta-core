@@ -24,7 +24,7 @@ import { useAuthenticatedQuery } from '@/hooks/useAuthenticatedQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { ColumnDef } from '@tanstack/react-table';
 import { PERFORMANCE_QUERY_CONFIG } from '@/utils/performanceOptimizations';
-import { CustodianServicesImportWizard } from './CustodianServicesImportWizard';
+import { ImportWizardEnhanced } from '@/components/maintenance/ImportWizardEnhanced';
 
 interface CustodioData {
   nombre_custodio: string;
@@ -516,8 +516,8 @@ export const CustodiosTab = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Import Wizard */}
-      <CustodianServicesImportWizard
+      {/* Import Wizard - Usando ImportWizardEnhanced unificado */}
+      <ImportWizardEnhanced
         open={showImportWizard}
         onOpenChange={setShowImportWizard}
         onComplete={() => {

@@ -27,7 +27,7 @@ interface ImportWizardEnhancedProps {
   onComplete?: (results?: CustodianServiceImportResult, filename?: string) => void;
 }
 
-type WizardStep = 'upload' | 'mapping' | 'validation' | 'preview' | 'processing' | 'results';
+type WizardStep = 'upload' | 'mapping' | 'validation' | 'preview' | 'processing' | 'error-detail' | 'results';
 
 interface WizardState {
   step: WizardStep;
@@ -248,25 +248,38 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
               console.log('⚠️ Partial validation in UPDATE mode:', { validCount, invalidCount: idValidation.invalid_count });
               // NO hacer return - continuar con la importación
             } else {
-              // TODOS los IDs son inválidos - bloquear
+              // TODOS los IDs son inválidos - ir a vista de error
               toast.error(`Ningún ID encontrado en la base de datos: ${idValidation.summary}`);
               console.error('❌ No valid IDs found for UPDATE');
               setState(prev => ({ 
                 ...prev, 
-                step: 'mapping',
+                step: 'error-detail', // ✅ FASE 5: Ir a paso dedicado de error
                 result: {
                   success: false,
                   imported: 0,
                   updated: 0,
                   failed: transformedData.length,
-                  errors: [`Ningún ID encontrado: ${idValidation.summary}`],
+                  errors: [
+                    `❌ Ningún ID de servicio encontrado en la base de datos`,
+                    `\n📊 Resumen:`,
+                    `• Total IDs verificados: ${idValidation.total_checked}`,
+                    `• IDs no encontrados: ${idValidation.invalid_count}`,
+                    `\n💡 Posibles causas:`,
+                    `1. Los IDs no existen en la base de datos`,
+                    `2. Los IDs tienen espacios o caracteres adicionales`,
+                    `3. El archivo corresponde a otro sistema o periodo`,
+                    `\n🔧 Solución:`,
+                    `• Verifica que los IDs existan antes de importar`,
+                    `• Usa modo "Crear" si son servicios nuevos`,
+                    `• Revisa el formato de los IDs (sin espacios extra)`
+                  ],
                   warnings: []
                 }
               }));
               return;
             }
           } else if (!idValidation.is_valid && validationMode === 'create') {
-            // En modo CREATE, bloquear siempre si hay duplicados
+            // En modo CREATE, bloquear siempre si hay duplicados - ir a vista de error
             const errorMessage = `IDs duplicados o finalizados detectados: ${idValidation.summary}`;
             toast.error(errorMessage);
             
@@ -276,13 +289,32 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
             
             setState(prev => ({ 
               ...prev, 
-              step: 'mapping',
+              step: 'error-detail', // ✅ FASE 5: Ir a paso dedicado de error
               result: {
                 success: false,
                 imported: 0,
                 updated: 0,
                 failed: transformedData.length,
-                errors: [errorMessage, ...idValidation.invalid_services.map(inv => inv.message)],
+                errors: [
+                  `❌ IDs duplicados o servicios finalizados detectados`,
+                  `\n📊 Resumen:`,
+                  `• Total verificados: ${idValidation.total_checked}`,
+                  `• IDs con problemas: ${idValidation.invalid_count}`,
+                  `• Duplicados: ${idValidation.duplicate_in_input.length}`,
+                  `• Servicios finalizados: ${idValidation.finished_services.length}`,
+                  `\n🔍 Detalles de IDs problemáticos:`,
+                  ...idValidation.invalid_services.slice(0, 10).map(inv => 
+                    `  • ${inv.id_servicio}: ${inv.message}`
+                  ),
+                  ...(idValidation.invalid_services.length > 10 
+                    ? [`\n... y ${idValidation.invalid_services.length - 10} IDs más con problemas`]
+                    : []
+                  ),
+                  `\n💡 Solución:`,
+                  `• Elimina los IDs duplicados del archivo`,
+                  `• Los servicios finalizados no pueden modificarse`,
+                  `• Usa modo "Actualizar" si quieres modificar registros existentes`
+                ],
                 warnings: []
               }
             }));
@@ -1016,6 +1048,97 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
     </div>
   );
 
+  const renderErrorDetailStep = () => {
+    if (!state.result) return null;
+
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-6">
+          <div className="flex justify-center mb-4">
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center">
+              <XCircle className="h-12 w-12 text-red-500" />
+            </div>
+          </div>
+          
+          <h2 className="text-3xl font-bold mb-2 text-red-600">
+            Error de Validación
+          </h2>
+          
+          <p className="text-lg text-muted-foreground">
+            Se encontraron problemas con los datos antes de importar
+          </p>
+        </div>
+
+        <Card className="border-2 border-red-200">
+          <CardHeader className="bg-red-50 border-b border-red-200">
+            <CardTitle className="text-lg font-bold text-red-800 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Detalles del Error
+            </CardTitle>
+            <CardDescription className="text-red-700">
+              Revisa la información a continuación para corregir el problema
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <ScrollArea className="h-96">
+              <div className="space-y-3 pr-4">
+                {state.result.errors.map((error, index) => (
+                  <div key={index} className="p-3 bg-red-50 rounded border-l-4 border-red-400">
+                    <p className="text-sm text-red-800 whitespace-pre-line font-mono">
+                      {error}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-200">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <AlertTriangle className="h-6 w-6 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-blue-900 text-lg mb-2">¿Qué puedes hacer?</h3>
+                <div className="space-y-2 text-blue-800">
+                  <p>• <strong>Corregir el archivo:</strong> Edita tu CSV/Excel según las indicaciones</p>
+                  <p>• <strong>Verificar mapeo:</strong> Revisa que los campos estén correctamente mapeados</p>
+                  <p>• <strong>Cambiar modo:</strong> Si es actualización, asegúrate de usar el modo correcto</p>
+                  <p>• <strong>Consultar soporte:</strong> Si el error persiste, contacta al equipo técnico</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex gap-3 pt-4">
+          <Button 
+            variant="outline" 
+            onClick={() => setState(prev => ({ ...prev, step: 'mapping', result: null }))}
+            className="font-medium"
+          >
+            ← Volver al Mapeo
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={() => setState(prev => ({ ...prev, step: 'upload', result: null }))}
+            className="font-medium flex-1"
+          >
+            📁 Cargar Nuevo Archivo
+          </Button>
+          <Button 
+            onClick={handleClose}
+            className="font-bold"
+          >
+            Cerrar
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
   const renderResultsStep = () => {
     if (!state.result) return null;
 
@@ -1183,14 +1306,14 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
             <div className="space-y-3">
               <div className="flex justify-between items-center text-sm font-medium">
                 <span className="text-muted-foreground">
-                  Paso {['upload', 'mapping', 'validation', 'preview', 'processing', 'results'].indexOf(state.step) + 1} de 6
+                  Paso {['upload', 'mapping', 'validation', 'preview', 'processing', 'error-detail', 'results'].indexOf(state.step) + 1} de 7
                 </span>
                 <span className="text-primary font-bold">
-                  {Math.round(((['upload', 'mapping', 'validation', 'preview', 'processing', 'results'].indexOf(state.step) + 1) / 6) * 100)}% completado
+                  {Math.round(((['upload', 'mapping', 'validation', 'preview', 'processing', 'error-detail', 'results'].indexOf(state.step) + 1) / 7) * 100)}% completado
                 </span>
               </div>
               <Progress 
-                value={((['upload', 'mapping', 'validation', 'preview', 'processing', 'results'].indexOf(state.step) + 1) / 6) * 100} 
+                value={((['upload', 'mapping', 'validation', 'preview', 'processing', 'error-detail', 'results'].indexOf(state.step) + 1) / 7) * 100} 
                 className="h-2"
               />
             </div>
@@ -1200,6 +1323,7 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
             {state.step === 'validation' && renderValidationStep()}
             {state.step === 'preview' && renderPreviewStep()}
             {state.step === 'processing' && renderProcessingStep()}
+            {state.step === 'error-detail' && renderErrorDetailStep()}
             {state.step === 'results' && renderResultsStep()}
           </div>
         </div>

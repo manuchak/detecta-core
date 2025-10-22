@@ -88,38 +88,13 @@ export const validateDataBeforeImport = async (
     }
   });
 
-  // 5. Sample check for existing records in database (check first 100 to estimate conflicts)
-  if (mapping['id_servicio']) {
-    const sampleSize = Math.min(100, data.length);
-    const sampleIds = data.slice(0, sampleSize)
-      .map(row => row[mapping['id_servicio']])
-      .filter(id => id && id.trim() !== '');
+  // 5. ✅ FASE 3: Sampling eliminado - validación de duplicados movida al import
+  // La validación de IDs existentes ahora se hace en validateMultipleIds (hook) o durante el import
 
-    if (sampleIds.length > 0) {
-      try {
-        const { data: existingRecords, error } = await supabase
-          .from('servicios_custodia')
-          .select('id_servicio')
-          .in('id_servicio', sampleIds);
-
-        if (error) {
-          result.warnings.push(`No se pudo verificar duplicados en la base de datos: ${error.message}`);
-        } else if (existingRecords && existingRecords.length > 0) {
-          const existingCount = existingRecords.length;
-          const estimatedTotalExisting = Math.round((existingCount / sampleSize) * data.length);
-          result.warnings.push(
-            `Se encontraron ${existingCount} registros existentes en la muestra de ${sampleSize}. ` +
-            `Estimado: ${estimatedTotalExisting} registros serán actualizados.`
-          );
-        }
-      } catch (error) {
-        result.warnings.push('Error al verificar duplicados en la base de datos');
-      }
-    }
-  }
-
-  // 6. Enhanced date format validation using robust parsing
+  // 6. ✅ FASE 3: Validación de fechas simplificada - validación completa movida al import
+  // Solo verificamos formato básico aquí, la validación detallada ocurre durante el import
   const dateFields = ['fecha_hora_cita', 'created_at', 'fecha_contratacion'];
+  let invalidDateCount = 0;
   dateFields.forEach(dbField => {
     const csvField = Object.keys(mapping).find(key => mapping[key] === dbField);
     if (csvField) {
@@ -128,22 +103,26 @@ export const validateDataBeforeImport = async (
         if (dateValue && dateValue !== '' && dateValue !== 'N/A') {
           const parseResult = parseRobustDate(dateValue);
           
+          // Solo reportar fechas completamente inválidas (errores críticos)
           if (!parseResult.success) {
-            result.invalidData.push({
-              row: index + 1,
-              field: dbField,
-              value: dateValue,
-              reason: `Fecha inválida: ${parseResult.error}`
-            });
-          } else if (parseResult.parsedDate && isProblematicDate(parseResult)) {
-            result.warnings.push(
-              `Fila ${index + 1}, campo ${dbField}: Fecha sospechosa "${dateValue}" parseada como ${parseResult.isoString} - revisar formato`
-            );
+            invalidDateCount++;
+            if (invalidDateCount <= 5) { // Limitar mensajes a primeros 5 errores
+              result.invalidData.push({
+                row: index + 1,
+                field: dbField,
+                value: dateValue,
+                reason: `Fecha inválida: ${parseResult.error}`
+              });
+            }
           }
         }
       });
     }
   });
+  
+  if (invalidDateCount > 5) {
+    result.warnings.push(`${invalidDateCount - 5} fechas inválidas adicionales no mostradas`);
+  }
 
   // 7. Validate numeric fields
   const numericFields = ['km_recorridos', 'km_teorico', 'cobro_cliente', 'tiempo_retraso'];
