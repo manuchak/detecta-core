@@ -219,25 +219,59 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
         const updateMode = isUpdateOnlyMode();
         const validationMode = updateMode ? 'update' : 'create';
         
-        console.log('🔍 Validating service IDs...', { updateMode, validationMode });
-        const idValidation = await validateMultipleIds(serviceIds, true, validationMode);
-        
-        // En modo UPDATE, solo bloquear si TODOS los IDs son inválidos
-        if (!idValidation.is_valid && validationMode === 'update') {
-          const validCount = idValidation.total_checked - idValidation.invalid_count;
+        // En UPDATE mode con archivos grandes (>500), skip validación completa
+        if (validationMode === 'update' && serviceIds.length > 500) {
+          console.log('⚡ Skipping full validation for large UPDATE batch:', { count: serviceIds.length });
+          toast.info(
+            `Modo actualización: ${serviceIds.length} registros se procesarán directamente. ` +
+            `Los IDs no encontrados serán omitidos automáticamente.`,
+            { duration: 5000 }
+          );
+          // Continue without validation - trust the RPC to handle non-existent IDs
+        } else {
+          // Validación normal para archivos pequeños o modo CREATE
+          console.log('🔍 Validating service IDs...', { updateMode, validationMode, count: serviceIds.length });
+          const idValidation = await validateMultipleIds(serviceIds, true, validationMode);
           
-          if (validCount > 0) {
-            // Hay algunos IDs válidos, permitir continuar con warning
-            toast.warning(
-              `${idValidation.invalid_count} IDs no encontrados serán omitidos. ` +
-              `${validCount} registros serán actualizados.`
-            );
-            console.log('⚠️ Partial validation in UPDATE mode:', { validCount, invalidCount: idValidation.invalid_count });
-            // NO hacer return - continuar con la importación
-          } else {
-            // TODOS los IDs son inválidos - bloquear
-            toast.error(`Ningún ID encontrado en la base de datos: ${idValidation.summary}`);
-            console.error('❌ No valid IDs found for UPDATE');
+          // En modo UPDATE, solo bloquear si TODOS los IDs son inválidos
+          if (!idValidation.is_valid && validationMode === 'update') {
+            const validCount = idValidation.total_checked - idValidation.invalid_count;
+            
+            if (validCount > 0) {
+              // Hay algunos IDs válidos, permitir continuar con warning
+              toast.warning(
+                `${idValidation.invalid_count} IDs no encontrados serán omitidos. ` +
+                `${validCount} registros serán actualizados.`
+              );
+              console.log('⚠️ Partial validation in UPDATE mode:', { validCount, invalidCount: idValidation.invalid_count });
+              // NO hacer return - continuar con la importación
+            } else {
+              // TODOS los IDs son inválidos - bloquear
+              toast.error(`Ningún ID encontrado en la base de datos: ${idValidation.summary}`);
+              console.error('❌ No valid IDs found for UPDATE');
+              setState(prev => ({ 
+                ...prev, 
+                step: 'mapping',
+                result: {
+                  success: false,
+                  imported: 0,
+                  updated: 0,
+                  failed: transformedData.length,
+                  errors: [`Ningún ID encontrado: ${idValidation.summary}`],
+                  warnings: []
+                }
+              }));
+              return;
+            }
+          } else if (!idValidation.is_valid && validationMode === 'create') {
+            // En modo CREATE, bloquear siempre si hay duplicados
+            const errorMessage = `IDs duplicados o finalizados detectados: ${idValidation.summary}`;
+            toast.error(errorMessage);
+            
+            if (idValidation.invalid_services.length > 0) {
+              console.warn('Invalid service IDs:', idValidation.invalid_services);
+            }
+            
             setState(prev => ({ 
               ...prev, 
               step: 'mapping',
@@ -246,36 +280,14 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
                 imported: 0,
                 updated: 0,
                 failed: transformedData.length,
-                errors: [`Ningún ID encontrado: ${idValidation.summary}`],
+                errors: [errorMessage, ...idValidation.invalid_services.map(inv => inv.message)],
                 warnings: []
               }
             }));
             return;
+          } else {
+            toast.success(`Validación de IDs exitosa: ${idValidation.summary}`);
           }
-        } else if (!idValidation.is_valid && validationMode === 'create') {
-          // En modo CREATE, bloquear siempre si hay duplicados
-          const errorMessage = `IDs duplicados o finalizados detectados: ${idValidation.summary}`;
-          toast.error(errorMessage);
-          
-          if (idValidation.invalid_services.length > 0) {
-            console.warn('Invalid service IDs:', idValidation.invalid_services);
-          }
-          
-          setState(prev => ({ 
-            ...prev, 
-            step: 'mapping',
-            result: {
-              success: false,
-              imported: 0,
-              updated: 0,
-              failed: transformedData.length,
-              errors: [errorMessage, ...idValidation.invalid_services.map(inv => inv.message)],
-              warnings: []
-            }
-          }));
-          return;
-        } else {
-          toast.success(`Validación de IDs exitosa: ${idValidation.summary}`);
         }
       }
 

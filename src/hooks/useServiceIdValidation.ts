@@ -144,12 +144,32 @@ export const useServiceIdValidation = () => {
         });
 
       if (error) {
-        console.error('Error validating service IDs:', error);
-        
-        // Handle permission denied errors (42501) non-blockingly in update mode
         const errorCode = (error as any).code;
         const errorMessage = error.message || '';
         
+        console.error('Error validating service IDs:', { error, errorCode, errorMessage });
+        
+        // Timeout específico (código 57014) - permitir continuar en UPDATE mode
+        if (errorCode === '57014') {
+          toast.warning(
+            `Validación tardó demasiado (${cleanIds.length} IDs). ` +
+            `${mode === 'update' ? 'Continuando con importación...' : 'Por favor, use lotes más pequeños.'}`,
+            { duration: 5000 }
+          );
+          return {
+            is_valid: mode === 'update', // Permitir en UPDATE, bloquear en CREATE
+            total_checked: cleanIds.length,
+            invalid_count: 0,
+            duplicate_in_input: [],
+            finished_services: [],
+            invalid_services: [],
+            summary: mode === 'update' 
+              ? 'Validación omitida por timeout - los registros se procesarán directamente'
+              : `Timeout al validar ${cleanIds.length} IDs - use lotes más pequeños`
+          };
+        }
+        
+        // Handle permission denied errors (42501) non-blockingly in update mode
         if (errorCode === '42501' || errorMessage.includes('permission denied')) {
           toast.warning('Validación omitida por permisos - continuando con importación');
           return {
@@ -163,6 +183,7 @@ export const useServiceIdValidation = () => {
           };
         }
         
+        // Otros errores
         toast.error('Error al validar IDs de servicio');
         return {
           is_valid: false,
