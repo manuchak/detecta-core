@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,11 +7,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Save, X, AlertTriangle, MapPin, User, Shield } from 'lucide-react';
+import { Save, X, AlertTriangle, MapPin, User, Shield, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
+
+// Hook personalizado para debouncing
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+  
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  
+  return debouncedValue;
+}
 
 // Schema de validación con Zod para seguridad
 const editServiceSchema = z.object({
@@ -79,6 +94,11 @@ export function EditServiceForm({
   const [hasChanges, setHasChanges] = useState(false);
   const [requiresArmadoChanged, setRequiresArmadoChanged] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  
+  // Estados para debouncing del ID de servicio
+  const [serviceIdInput, setServiceIdInput] = useState('');
+  const [isValidatingId, setIsValidatingId] = useState(false);
+  const debouncedServiceId = useDebounce(serviceIdInput, 800);
 
   // Initialize form data when service changes
   useEffect(() => {
@@ -93,10 +113,49 @@ export function EditServiceForm({
         requiere_armado: service.requiere_armado,
         observaciones: service.observaciones || ''
       });
+      setServiceIdInput(service.id_servicio);
       setHasChanges(false);
       setRequiresArmadoChanged(false);
     }
   }, [service]);
+  
+  // Validación asíncrona con debounce para ID de servicio
+  useEffect(() => {
+    const validateDebouncedId = async () => {
+      if (!debouncedServiceId || debouncedServiceId === service?.id_servicio) {
+        setIsValidatingId(false);
+        return;
+      }
+      
+      setIsValidatingId(true);
+      
+      try {
+        const { data, error } = await supabase
+          .from('pc_servicios')
+          .select('id')
+          .eq('folio', debouncedServiceId)
+          .maybeSingle();
+        
+        if (error) throw error;
+        
+        if (data) {
+          const errorMsg = `El ID de servicio "${debouncedServiceId}" ya existe`;
+          setValidationErrors(prev => ({ ...prev, id_servicio: errorMsg }));
+        } else {
+          setValidationErrors(prev => {
+            const { id_servicio, ...rest } = prev;
+            return rest;
+          });
+        }
+      } catch (error) {
+        console.error('Error validating service ID:', error);
+      } finally {
+        setIsValidatingId(false);
+      }
+    };
+    
+    validateDebouncedId();
+  }, [debouncedServiceId, service?.id_servicio]);
 
   // Determinar si el ID del servicio puede editarse
   const canEditServiceId = (): boolean => {
@@ -167,8 +226,43 @@ export function EditServiceForm({
     }
   };
 
-  const handleInputChange = async (field: keyof EditableService, value: any) => {
-    // Validar formato del campo
+  const handleInputChange = useCallback((field: keyof EditableService, value: any) => {
+    // Manejo especial para ID de servicio - solo validación de formato (sincrónica)
+    if (field === 'id_servicio') {
+      // Validación de formato inmediata (rápida, sin database)
+      const formatError = validateField(field, value);
+      if (formatError) {
+        setValidationErrors(prev => ({ ...prev, [field]: formatError }));
+      } else {
+        setValidationErrors(prev => {
+          const { [field]: removed, ...rest } = prev;
+          return rest;
+        });
+      }
+      
+      // Actualizar input local (sin debounce para typing fluido)
+      setServiceIdInput(value);
+      
+      // Actualizar formData
+      setFormData(prev => {
+        const newData = { ...prev, [field]: value };
+        
+        if (service) {
+          const hasAnyChanges = Object.keys(newData).some(key => {
+            const k = key as keyof EditableService;
+            return newData[k] !== (service[k] || '');
+          });
+          setHasChanges(hasAnyChanges);
+        }
+        
+        return newData;
+      });
+      
+      // La validación de duplicados se hará con debounce en el useEffect
+      return;
+    }
+    
+    // Para otros campos, validación normal
     const error = validateField(field, value);
     if (error) {
       setValidationErrors(prev => ({ ...prev, [field]: error }));
@@ -177,12 +271,6 @@ export function EditServiceForm({
         const { [field]: removed, ...rest } = prev;
         return rest;
       });
-    }
-    
-    // Validación especial para ID de servicio (duplicados)
-    if (field === 'id_servicio' && value !== service?.id_servicio) {
-      const isValid = await validateServiceId(value);
-      if (!isValid) return;
     }
     
     setFormData(prev => {
@@ -204,7 +292,7 @@ export function EditServiceForm({
       
       return newData;
     });
-  };
+  }, [service]);
 
   const handleSave = async () => {
     if (!service || !hasChanges) return;
@@ -354,10 +442,16 @@ export function EditServiceForm({
                     Bloqueado
                   </Badge>
                 )}
+                {isValidatingId && (
+                  <Badge variant="outline" className="text-xs flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Validando...
+                  </Badge>
+                )}
               </Label>
               <Input
                 id="id_servicio"
-                value={formData.id_servicio || ''}
+                value={serviceIdInput}
                 onChange={(e) => handleInputChange('id_servicio', e.target.value)}
                 placeholder="Ej: SRV-2024-001"
                 disabled={!canEditServiceId()}
@@ -375,7 +469,7 @@ export function EditServiceForm({
                   El ID no puede editarse porque el servicio ya inició o está completado
                 </p>
               )}
-              {canEditServiceId() && !validationErrors.id_servicio && (
+              {canEditServiceId() && !validationErrors.id_servicio && !isValidatingId && (
                 <p className="text-xs text-muted-foreground">
                   Solo letras, números, guiones y guiones bajos (máx. 50 caracteres)
                 </p>
