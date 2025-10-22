@@ -140,7 +140,8 @@ export const useServiceIdValidation = () => {
       const { data, error } = await supabase
         .rpc('validate_multiple_service_ids', {
           p_service_ids: cleanIds,
-          p_exclude_finished: excludeFinished
+          p_exclude_finished: excludeFinished,
+          p_is_test: false
         });
 
       if (error) {
@@ -180,6 +181,22 @@ export const useServiceIdValidation = () => {
             finished_services: [],
             invalid_services: [],
             summary: 'Validación omitida por permisos - se actualizarán los registros existentes'
+          };
+        }
+        
+        // Handle ambiguous function call errors (PGRST203) in update mode
+        const isAmbiguityError = errorMessage.includes('Could not choose the best candidate function') || 
+                                errorMessage.includes('PGRST203');
+        if (mode === 'update' && isAmbiguityError) {
+          toast.warning('Validación omitida por ambigüedad del RPC - continuando con actualización');
+          return {
+            is_valid: true,
+            total_checked: cleanIds.length,
+            invalid_count: 0,
+            duplicate_in_input: [],
+            finished_services: [],
+            invalid_services: [],
+            summary: 'Validación omitida por ambigüedad del RPC - se continuará en modo Actualizar'
           };
         }
         

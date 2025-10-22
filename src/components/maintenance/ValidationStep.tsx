@@ -27,7 +27,7 @@ export const ValidationStep: React.FC<ValidationStepProps> = ({ validation }) =>
             </CardTitle>
           </div>
           <CardDescription>
-            Validación rápida realizada en una muestra de 20 registros
+            Validación rápida preliminar (muestra de 20 registros). Puede diferir de la validación completa.
           </CardDescription>
         </CardHeader>
       </Card>

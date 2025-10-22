@@ -298,11 +298,19 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
               idValidation.invalid_services.filter(inv => inv.type === 'duplicate_service').length;
             const finishedCount = idValidation.finished_services.length;
             
-            const errorTitle = hasDuplicatesInInput || hasDuplicatesInDB
-              ? hasFinished
-                ? '❌ IDs duplicados y servicios finalizados detectados'
-                : '❌ IDs duplicados detectados'
-              : '❌ Servicios finalizados detectados';
+            // Determinar título del error
+            const hasConnectionError = idValidation.summary.includes('Error de conexión') || 
+                                      idValidation.summary.includes('ambigüedad');
+            
+            const errorTitle = hasConnectionError
+              ? '❌ Error durante la validación'
+              : hasDuplicatesInInput || hasDuplicatesInDB
+                ? hasFinished
+                  ? '❌ IDs duplicados y servicios finalizados detectados'
+                  : '❌ IDs duplicados detectados'
+                : hasFinished
+                  ? '❌ Servicios finalizados detectados'
+                  : '❌ Error durante la validación';
             
             const errorMessage = `${errorTitle}: ${idValidation.summary}`;
             toast.error(errorMessage);
