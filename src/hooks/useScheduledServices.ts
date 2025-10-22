@@ -55,6 +55,19 @@ export function useScheduledServices(selectedDate: Date = new Date()) {
 
         if (data && data.length > 0) {
           const result = data[0];
+          
+          // Validación de estructura de datos
+          if (result.services_data) {
+            result.services_data.forEach((service: any, index: number) => {
+              if (!service.id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(service.id)) {
+                console.warn(`⚠️ Service ${index} has invalid or missing UUID:`, {
+                  id: service.id,
+                  id_servicio: service.id_servicio
+                });
+              }
+            });
+          }
+          
           return {
             total_services: result.total_services || 0,
             assigned_services: result.assigned_services || 0,

@@ -612,15 +612,27 @@ export function useServiciosPlanificados() {
     }) => {
       console.log('🛡️ Reassigning armed guard for service:', serviceId, 'type:', assignmentType);
       
+      // Validación de UUID
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(serviceId)) {
+        throw new Error(`ID de servicio inválido: "${serviceId}". Se esperaba un UUID.`);
+      }
+      
       // Get current service data
       const { data: currentService, error: fetchError } = await supabase
         .from('servicios_planificados')
-        .select('armado_asignado, armado_id, custodio_asignado, custodio_id, estado_planeacion, fecha_hora_cita')
+        .select('armado_asignado, armado_id, custodio_asignado, custodio_id, estado_planeacion, fecha_hora_cita, id_servicio')
         .eq('id', serviceId)
         .single();
 
-      if (fetchError) throw new Error('Error al obtener datos del servicio');
-      if (!currentService) throw new Error('Servicio no encontrado');
+      if (fetchError) {
+        console.error('❌ Fetch error:', fetchError);
+        throw new Error(`Error al obtener datos del servicio: ${fetchError.message}`);
+      }
+      if (!currentService) {
+        throw new Error('Servicio no encontrado en la base de datos');
+      }
+      
+      console.log('✅ Service found:', currentService.id_servicio);
 
       // If custodian is assigned and we're assigning armed guard, service should be confirmed
       const shouldBeConfirmed = currentService.custodio_asignado;

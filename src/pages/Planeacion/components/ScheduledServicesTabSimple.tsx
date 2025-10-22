@@ -177,9 +177,28 @@ export function ScheduledServicesTab() {
   };
 
   const handleReassignArmedGuard = (service: any) => {
-    const serviceForReassignment: ServiceForReassignment = {
+    // Validación defensiva: asegurar que tenemos el UUID correcto
+    const serviceUuid = service.id;
+    
+    // Log para debugging
+    console.log('🔍 handleReassignArmedGuard - service data:', {
       id: service.id,
-      id_servicio: service.id_servicio || service.id,
+      id_servicio: service.id_servicio,
+      isValidUuid: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(service.id)
+    });
+    
+    // Validar que service.id es un UUID válido
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(serviceUuid)) {
+      toast.error('Error de configuración', {
+        description: 'ID de servicio inválido. Por favor recarga la página.'
+      });
+      console.error('❌ Invalid UUID detected:', serviceUuid);
+      return;
+    }
+    
+    const serviceForReassignment: ServiceForReassignment = {
+      id: serviceUuid,  // UUID validado
+      id_servicio: service.id_servicio || 'Sin ID',
       nombre_cliente: service.cliente_nombre || service.nombre_cliente,
       origen: service.origen,
       destino: service.destino,

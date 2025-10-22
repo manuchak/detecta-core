@@ -193,6 +193,12 @@ export function ContextualEditModal({
           
           // 🚀 Transición automática al paso de asignación de armado
           if (onStartReassignment) {
+            // Log para debugging
+            console.log('🚀 Starting reassignment with service:', {
+              id: service.id,
+              id_servicio: service.id_servicio
+            });
+            
             // Pequeño delay para que el usuario vea el toast
             setTimeout(() => {
               onStartReassignment('armed_guard', service);
