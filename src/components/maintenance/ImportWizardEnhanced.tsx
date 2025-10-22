@@ -219,8 +219,10 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
         const updateMode = isUpdateOnlyMode();
         const validationMode = updateMode ? 'update' : 'create';
         
-        // En UPDATE mode con archivos grandes (>500), skip validación completa
-        if (validationMode === 'update' && serviceIds.length > 500) {
+        // ⚡ Fase 2: En UPDATE mode con archivos grandes (>500), skip validación completa
+        const shouldSkipValidation = validationMode === 'update' && serviceIds.length > 500;
+        
+        if (shouldSkipValidation) {
           console.log('⚡ Skipping full validation for large UPDATE batch:', { count: serviceIds.length });
           toast.info(
             `Modo actualización: ${serviceIds.length} registros se procesarán directamente. ` +

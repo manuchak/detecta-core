@@ -11988,10 +11988,10 @@ export type Database = {
         | {
             Args: { p_exclude_finished?: boolean; p_service_ids: string[] }
             Returns: {
-              exists: boolean
               has_permission: boolean
               id_servicio: string
               is_finished: boolean
+              record_exists: boolean
             }[]
           }
         | {
