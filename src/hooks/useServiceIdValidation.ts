@@ -183,14 +183,17 @@ export const useServiceIdValidation = () => {
           inv => inv.type !== 'duplicate_service'
         );
         
+        // Calcular cuántos IDs SÍ existen
+        const existingCount = cleanIds.length - nonDuplicateErrors.length;
+        
         return {
           ...result,
-          is_valid: nonDuplicateErrors.length === 0,
+          is_valid: existingCount > 0, // ← Válido si AL MENOS 1 ID existe
           invalid_count: nonDuplicateErrors.length,
           invalid_services: nonDuplicateErrors,
           summary: nonDuplicateErrors.length === 0 
             ? `${cleanIds.length} IDs serán actualizados`
-            : `${nonDuplicateErrors.length} IDs no encontrados, ${cleanIds.length - nonDuplicateErrors.length} serán actualizados`
+            : `${existingCount} IDs serán actualizados, ${nonDuplicateErrors.length} IDs no encontrados`
         };
       }
 

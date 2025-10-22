@@ -222,11 +222,41 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
         console.log('🔍 Validating service IDs...', { updateMode, validationMode });
         const idValidation = await validateMultipleIds(serviceIds, true, validationMode);
         
-        if (!idValidation.is_valid) {
-          const errorMessage = `${updateMode ? 'IDs no encontrados' : 'IDs duplicados o finalizados detectados'}: ${idValidation.summary}`;
+        // En modo UPDATE, solo bloquear si TODOS los IDs son inválidos
+        if (!idValidation.is_valid && validationMode === 'update') {
+          const validCount = idValidation.total_checked - idValidation.invalid_count;
+          
+          if (validCount > 0) {
+            // Hay algunos IDs válidos, permitir continuar con warning
+            toast.warning(
+              `${idValidation.invalid_count} IDs no encontrados serán omitidos. ` +
+              `${validCount} registros serán actualizados.`
+            );
+            console.log('⚠️ Partial validation in UPDATE mode:', { validCount, invalidCount: idValidation.invalid_count });
+            // NO hacer return - continuar con la importación
+          } else {
+            // TODOS los IDs son inválidos - bloquear
+            toast.error(`Ningún ID encontrado en la base de datos: ${idValidation.summary}`);
+            console.error('❌ No valid IDs found for UPDATE');
+            setState(prev => ({ 
+              ...prev, 
+              step: 'mapping',
+              result: {
+                success: false,
+                imported: 0,
+                updated: 0,
+                failed: transformedData.length,
+                errors: [`Ningún ID encontrado: ${idValidation.summary}`],
+                warnings: []
+              }
+            }));
+            return;
+          }
+        } else if (!idValidation.is_valid && validationMode === 'create') {
+          // En modo CREATE, bloquear siempre si hay duplicados
+          const errorMessage = `IDs duplicados o finalizados detectados: ${idValidation.summary}`;
           toast.error(errorMessage);
           
-          // Show detailed errors
           if (idValidation.invalid_services.length > 0) {
             console.warn('Invalid service IDs:', idValidation.invalid_services);
           }
