@@ -226,53 +226,39 @@ export const importCustodianServices = async (
             let servicioData: any;
 
             if (mode === 'update') {
-              // UPDATE MODE: Use RPC for estado-only updates to bypass RLS
+              // UPDATE MODE: Use RPC to bypass RLS for all updates
               servicioData = buildUpdateData(item, fechaCitaResult, createdAtResult, fechaContratacionResult);
               const idServicio = servicioData.id_servicio; // Already normalized in buildUpdateData
-              const updatedFields = Object.keys(servicioData).filter(key => key !== 'id_servicio' && key !== 'updated_time');
+              
+              // Remove id_servicio from updates object (it's used in WHERE clause)
+              const { id_servicio, updated_time, ...updates } = servicioData;
+              
+              const updatedFields = Object.keys(updates);
               console.log(`🔄 UPDATE MODE - Record ${current} (${idServicio}): fields [${updatedFields.join(', ')}]`);
               
-              // Check if only estado is being updated
-              const isEstadoOnlyUpdate = updatedFields.length === 1 && updatedFields[0] === 'estado';
+              // Use general RPC for all updates (bypasses RLS via SECURITY DEFINER)
+              console.log(`🎯 Using RPC update_servicio_completo for "${idServicio}" (len: ${idServicio.length})`);
               
-              if (isEstadoOnlyUpdate && servicioData.estado) {
-                console.log(`🎯 Using RPC update_servicio_estado for "${idServicio}" (len: ${idServicio.length}): "${servicioData.estado}"`);
-                
-                const { data, error } = await supabase.rpc('update_servicio_estado', {
-                  p_id_servicio: idServicio,
-                  p_estado: servicioData.estado
-                });
-                
-                upsertError = error;
-                const rowsUpdated = data ?? 0;
-                
-                if (!error && rowsUpdated > 0) {
-                  result.updated++;
-                  console.log(`✅ Successfully updated estado via RPC: ${idServicio} (${rowsUpdated} rows)`);
-                } else if (!error && rowsUpdated === 0) {
-                  // No rows updated - ID doesn't exist
-                  upsertError = { message: `ID no encontrado en la base de datos: ${idServicio}` };
-                  console.error(`❌ RPC found 0 rows for ${idServicio}`);
-                  if (result.failed < 3) { // Log details for first 3 failures
-                    console.error(`   Normalized ID: "${idServicio}", length: ${idServicio.length}`);
-                  }
-                } else {
-                  console.error(`❌ RPC error for ${idServicio}:`, error);
+              const { data, error } = await supabase.rpc('update_servicio_completo', {
+                p_id_servicio: idServicio,
+                p_updates: updates
+              });
+              
+              upsertError = error;
+              const rowsUpdated = data ?? 0;
+              
+              if (!error && rowsUpdated > 0) {
+                result.updated++;
+                console.log(`✅ Successfully updated via RPC: ${idServicio} (${rowsUpdated} rows, ${updatedFields.length} fields)`);
+              } else if (!error && rowsUpdated === 0) {
+                // No rows updated - ID doesn't exist
+                upsertError = { message: `ID no encontrado en la base de datos: ${idServicio}` };
+                console.error(`❌ RPC found 0 rows for ${idServicio}`);
+                if (result.failed < 3) { // Log details for first 3 failures
+                  console.error(`   Normalized ID: "${idServicio}", length: ${idServicio.length}`);
                 }
               } else {
-                // Fallback: usar update directo (no upsert) para múltiples campos
-                console.log(`   Using direct update for multiple fields:`, servicioData);
-                
-                const { error } = await supabase
-                  .from('servicios_custodia')
-                  .update(servicioData)
-                  .eq('id_servicio', idServicio);
-                
-                upsertError = error;
-                if (!error) {
-                  result.updated++;
-                  console.log(`✅ Successfully updated via direct update: ${idServicio}`);
-                }
+                console.error(`❌ RPC error for ${idServicio}:`, error);
               }
             } else if (mode === 'create') {
               // CREATE MODE: Only insert new records

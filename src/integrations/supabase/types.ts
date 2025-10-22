@@ -11900,6 +11900,10 @@ export type Database = {
         Args: { p_allowed: boolean; p_permission_id: string }
         Returns: boolean
       }
+      update_servicio_completo: {
+        Args: { p_id_servicio: string; p_updates: Json }
+        Returns: number
+      }
       update_servicio_estado: {
         Args: { p_estado: string; p_id_servicio: string }
         Returns: number
