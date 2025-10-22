@@ -288,7 +288,23 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
             }
           } else if (!idValidation.is_valid && validationMode === 'create') {
             // En modo CREATE, bloquear siempre si hay duplicados - ir a vista de error
-            const errorMessage = `IDs duplicados o finalizados detectados: ${idValidation.summary}`;
+            
+            // Distinguir entre tipos de error
+            const hasDuplicatesInInput = idValidation.duplicate_in_input.length > 0;
+            const hasDuplicatesInDB = idValidation.invalid_services.some(inv => inv.type === 'duplicate_service');
+            const hasFinished = idValidation.finished_services.length > 0;
+            
+            const duplicateCount = idValidation.duplicate_in_input.length + 
+              idValidation.invalid_services.filter(inv => inv.type === 'duplicate_service').length;
+            const finishedCount = idValidation.finished_services.length;
+            
+            const errorTitle = hasDuplicatesInInput || hasDuplicatesInDB
+              ? hasFinished
+                ? '❌ IDs duplicados y servicios finalizados detectados'
+                : '❌ IDs duplicados detectados'
+              : '❌ Servicios finalizados detectados';
+            
+            const errorMessage = `${errorTitle}: ${idValidation.summary}`;
             toast.error(errorMessage);
             
             if (idValidation.invalid_services.length > 0) {
@@ -297,19 +313,19 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
             
             setState(prev => ({ 
               ...prev, 
-              step: 'error-detail', // ✅ FASE 5: Ir a paso dedicado de error
+              step: 'error-detail',
               result: {
                 success: false,
                 imported: 0,
                 updated: 0,
                 failed: transformedData.length,
                 errors: [
-                  `❌ IDs duplicados o servicios finalizados detectados`,
+                  errorTitle,
                   `\n📊 Resumen:`,
-                  `• Total verificados: ${idValidation.total_checked}`,
+                  `• Total IDs verificados: ${idValidation.total_checked}`,
                   `• IDs con problemas: ${idValidation.invalid_count}`,
-                  `• Duplicados: ${idValidation.duplicate_in_input.length}`,
-                  `• Servicios finalizados: ${idValidation.finished_services.length}`,
+                  ...(hasDuplicatesInInput || hasDuplicatesInDB ? [`• Duplicados: ${duplicateCount}`] : []),
+                  ...(hasFinished ? [`• Servicios finalizados: ${finishedCount}`] : []),
                   `\n🔍 Detalles de IDs problemáticos:`,
                   ...idValidation.invalid_services.slice(0, 10).map(inv => 
                     `  • ${inv.id_servicio}: ${inv.message}`
@@ -319,8 +335,8 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
                     : []
                   ),
                   `\n💡 Solución:`,
-                  `• Elimina los IDs duplicados del archivo`,
-                  `• Los servicios finalizados no pueden modificarse`,
+                  ...(hasDuplicatesInInput || hasDuplicatesInDB ? [`• Elimina los IDs duplicados del archivo`] : []),
+                  ...(hasFinished ? [`• Los servicios finalizados no pueden modificarse`] : []),
                   `• Usa modo "Actualizar" si quieres modificar registros existentes`
                 ],
                 warnings: []

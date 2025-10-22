@@ -196,27 +196,87 @@ export const useServiceIdValidation = () => {
         };
       }
 
-      const result = data as BulkValidationResult;
+      // ✅ Transformar array del RPC en BulkValidationResult
+      const rpcResults = data as Array<{
+        id_servicio: string;
+        record_exists: boolean;
+        is_finished: boolean;
+        has_permission: boolean;
+      }>;
+
+      // Detectar duplicados en el INPUT (IDs repetidos en el archivo)
+      const idCounts = new Map<string, number>();
+      cleanIds.forEach(id => idCounts.set(id, (idCounts.get(id) || 0) + 1));
+      const duplicate_in_input = Array.from(idCounts.entries())
+        .filter(([_, count]) => count > 1)
+        .map(([id]) => id);
+
+      // Procesar resultados del RPC
+      const finished_services: string[] = [];
+      const invalid_services: Array<{
+        id_servicio: string;
+        message: string;
+        type: string;
+        existing_service?: any;
+      }> = [];
+
+      rpcResults.forEach(row => {
+        // Si es modo CREATE:
+        if (mode === 'create') {
+          if (row.record_exists) {
+            invalid_services.push({
+              id_servicio: row.id_servicio,
+              message: 'ID ya existe en el sistema',
+              type: 'duplicate_service'
+            });
+          }
+          if (row.is_finished) {
+            finished_services.push(row.id_servicio);
+            invalid_services.push({
+              id_servicio: row.id_servicio,
+              message: 'ID pertenece a un servicio finalizado',
+              type: 'finished_service'
+            });
+          }
+        }
+        
+        // Si es modo UPDATE:
+        if (mode === 'update') {
+          if (!row.record_exists) {
+            invalid_services.push({
+              id_servicio: row.id_servicio,
+              message: 'ID no encontrado en la base de datos',
+              type: 'not_found'
+            });
+          }
+          if (row.is_finished) {
+            finished_services.push(row.id_servicio);
+            // En UPDATE, servicios finalizados NO son error, solo se omiten
+          }
+        }
+      });
+
+      // Construir resultado
+      const notFoundCount = invalid_services.filter(inv => inv.type === 'not_found').length;
+      const existingCount = cleanIds.length - notFoundCount;
       
-      // In update mode, filter out duplicate service errors (those are expected)
-      if (mode === 'update') {
-        const nonDuplicateErrors = result.invalid_services.filter(
-          inv => inv.type !== 'duplicate_service'
-        );
-        
-        // Calcular cuántos IDs SÍ existen
-        const existingCount = cleanIds.length - nonDuplicateErrors.length;
-        
-        return {
-          ...result,
-          is_valid: existingCount > 0, // ← Válido si AL MENOS 1 ID existe
-          invalid_count: nonDuplicateErrors.length,
-          invalid_services: nonDuplicateErrors,
-          summary: nonDuplicateErrors.length === 0 
+      const result: BulkValidationResult = {
+        is_valid: mode === 'create' 
+          ? invalid_services.length === 0 && duplicate_in_input.length === 0
+          : existingCount > 0, // En UPDATE, válido si al menos 1 ID existe
+        total_checked: cleanIds.length,
+        invalid_count: invalid_services.length,
+        duplicate_in_input,
+        finished_services,
+        invalid_services,
+        summary: mode === 'create'
+          ? invalid_services.length === 0 && duplicate_in_input.length === 0
+            ? `${cleanIds.length} IDs validados correctamente`
+            : `${invalid_services.length} IDs con problemas detectados`
+          : notFoundCount === 0
             ? `${cleanIds.length} IDs serán actualizados`
-            : `${existingCount} IDs serán actualizados, ${nonDuplicateErrors.length} IDs no encontrados`
-        };
-      }
+            : `${existingCount} IDs serán actualizados, ${notFoundCount} IDs no encontrados`
+      };
 
       return result;
     } catch (error) {
