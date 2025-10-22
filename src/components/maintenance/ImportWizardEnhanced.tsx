@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { useTabVisibility } from '@/hooks/useTabVisibility';
@@ -59,6 +60,8 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
     result: null,
     fileName: '',
   });
+  
+  const [importMode, setImportMode] = useState<'auto' | 'create' | 'update'>('auto');
   
   // Detect if we're in update-only mode (only id_servicio and estado mapped)
   const isUpdateOnlyMode = useCallback(() => {
@@ -217,7 +220,12 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
 
       if (serviceIds.length > 0) {
         const updateMode = isUpdateOnlyMode();
-        const validationMode = updateMode ? 'update' : 'create';
+        const validationMode = 
+          importMode === 'auto' 
+            ? (updateMode ? 'update' : 'create')
+            : importMode === 'update' 
+              ? 'update' 
+              : 'create';
         
         // ⚡ Fase 2: En UPDATE mode con archivos grandes (>500), skip validación completa
         const shouldSkipValidation = validationMode === 'update' && serviceIds.length > 500;
@@ -325,9 +333,8 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
         }
       }
 
-      // Detect import mode based on mapping configuration
-      const importMode = isUpdateOnlyMode() ? 'update' : 'auto';
-      console.log(`🎯 Import mode detected: ${importMode}`, { 
+      // The import mode is now controlled by the state variable, not auto-detected here
+      console.log(`🎯 Import mode selected: ${importMode}`, {
         mappedFields: Object.values(state.mapping).filter(v => v && v !== 'unmapped'),
         isUpdateOnly: isUpdateOnlyMode()
       });
@@ -549,13 +556,70 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
                 ✓ Configuración válida
               </Badge>
             )}
-            {updateOnlyMode && (
-              <Badge className="text-sm px-3 py-1 bg-blue-100 text-blue-800 border-blue-300">
-                🔄 Modo actualización de estados
-              </Badge>
-            )}
+            <Badge className="text-sm px-3 py-1 bg-blue-100 text-blue-800 border-blue-300">
+              {importMode === 'auto' && updateOnlyMode && '🔄 Modo: Actualizar (auto-detectado)'}
+              {importMode === 'auto' && !updateOnlyMode && '➕ Modo: Crear (auto-detectado)'}
+              {importMode === 'create' && '➕ Modo: Crear Nuevos'}
+              {importMode === 'update' && '🔄 Modo: Actualizar Existentes'}
+            </Badge>
           </div>
         </div>
+
+        {/* Selector de Modo de Importación */}
+        <Card className="bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200">
+          <CardContent className="pt-6">
+            <div className="space-y-3">
+              <Label className="text-base font-semibold text-blue-900">
+                Modo de Importación
+              </Label>
+              <Select value={importMode} onValueChange={(value: 'auto' | 'create' | 'update') => setImportMode(value)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">
+                    🤖 Automático (detectar según campos mapeados)
+                  </SelectItem>
+                  <SelectItem value="create">
+                    ➕ Crear Nuevos Servicios
+                  </SelectItem>
+                  <SelectItem value="update">
+                    🔄 Actualizar Servicios Existentes
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {importMode === 'auto' && (
+                <Alert className="border-blue-200 bg-blue-50">
+                  <AlertDescription className="text-sm text-blue-800">
+                    El sistema detectará automáticamente:
+                    <br/>• <strong>Crear</strong>: Si mapeas 3+ campos (nuevos servicios)
+                    <br/>• <strong>Actualizar</strong>: Si solo mapeas id_servicio + estado
+                  </AlertDescription>
+                </Alert>
+              )}
+              
+              {importMode === 'create' && (
+                <Alert className="border-green-200 bg-green-50">
+                  <AlertDescription className="text-sm text-green-800">
+                    Modo <strong>Crear</strong>: Se insertarán nuevos registros.
+                    <br/>⚠️ Los IDs duplicados serán rechazados.
+                  </AlertDescription>
+                </Alert>
+              )}
+              
+              {importMode === 'update' && (
+                <Alert className="border-amber-200 bg-amber-50">
+                  <AlertDescription className="text-sm text-amber-800">
+                    Modo <strong>Actualizar</strong>: Solo se modificarán registros existentes.
+                    <br/>✓ IDs no encontrados serán omitidos automáticamente.
+                    <br/>✓ Servicios finalizados no se modificarán.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
          {/* Status del archivo cargado */}
         {state.parsedData && state.parsedData.length > 0 && (
