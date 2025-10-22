@@ -4,22 +4,32 @@ import { toast } from 'sonner';
 
 export interface ScheduledService {
   id: string;
+  id_servicio?: string;
   cliente_nombre: string;
+  nombre_cliente?: string;
+  empresa_cliente?: string;
+  email_cliente?: string;
+  telefono_cliente?: string;
   origen: string;
   destino: string;
   fecha_hora_cita: string;
+  tipo_servicio?: string;
   custodio_nombre: string;
   custodio_id?: string;
   armado_nombre?: string;
   armado_id?: string;
+  armado_asignado?: string;
   estado: string;
+  estado_planeacion?: string;
   incluye_armado: boolean;
-  armado_asignado: boolean;
+  requiere_armado?: boolean;
   estado_asignacion?: string;
   auto?: string;
   placa?: string;
   assigned_by?: string;
   planner_name?: string;
+  observaciones?: string;
+  created_at?: string;
 }
 
 export interface ScheduledServicesSummary {
