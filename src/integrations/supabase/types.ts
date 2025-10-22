@@ -11984,10 +11984,24 @@ export type Database = {
         Args: { input_text: string; max_length?: number }
         Returns: string
       }
-      validate_multiple_service_ids: {
-        Args: { p_exclude_finished?: boolean; p_service_ids: string[] }
-        Returns: Json
-      }
+      validate_multiple_service_ids:
+        | {
+            Args: { p_exclude_finished?: boolean; p_service_ids: string[] }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_exclude_finished?: boolean
+              p_is_test?: boolean
+              p_service_ids: string[]
+            }
+            Returns: {
+              exists: boolean
+              has_permission: boolean
+              id_servicio: string
+              is_finished: boolean
+            }[]
+          }
       validate_role_change_secure: {
         Args: { new_role: string; target_user_id: string }
         Returns: boolean
