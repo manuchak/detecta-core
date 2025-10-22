@@ -361,7 +361,7 @@ export function ScheduledServicesTab() {
                           {service.cliente_nombre}
                         </span>
                         <span className="apple-text-caption text-muted-foreground">
-                          {service.id}
+                          {service.id_servicio}
                         </span>
                       </div>
                     </div>
