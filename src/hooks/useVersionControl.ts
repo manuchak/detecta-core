@@ -218,11 +218,18 @@ export const useVersionControl = () => {
     },
   });
 
+  // Get change count for a version
+  const getChangeCount = (versionId: string) => {
+    const cachedChanges = queryClient.getQueryData<SystemChange[]>(['system-changes', versionId]);
+    return cachedChanges?.length || 0;
+  };
+
   return {
     versions,
     versionsLoading,
     getVersionChanges,
     getVersionFeatures,
+    getChangeCount,
     createVersion,
     updateVersion,
     createChange,

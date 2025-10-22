@@ -2,11 +2,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, GitBranch, FileText, Wrench } from "lucide-react";
+import { Plus, GitBranch, FileText, Wrench, BarChart3 } from "lucide-react";
 import { useVersionControl } from "@/hooks/useVersionControl";
 import { VersionCard } from "./VersionCard";
 import { VersionForm } from "./VersionForm";
 import { ChangeLogTable } from "./ChangeLogTable";
+import { ChangeForm } from "./ChangeForm";
+import { VersionMetrics } from "./VersionMetrics";
 import { SystemVersion } from "@/hooks/useVersionControl";
 
 export const VersionControlManager = () => {
@@ -14,8 +16,10 @@ export const VersionControlManager = () => {
     versions,
     versionsLoading,
     getVersionChanges,
+    getChangeCount,
     createVersion,
     updateVersion,
+    createChange,
   } = useVersionControl();
 
   const [showForm, setShowForm] = useState(false);
@@ -118,6 +122,7 @@ export const VersionControlManager = () => {
                   version={currentVersion}
                   onViewDetails={handleViewDetails}
                   onEdit={handleEdit}
+                  changeCount={getChangeCount(currentVersion.id)}
                 />
               </CardContent>
             </Card>
@@ -140,6 +145,7 @@ export const VersionControlManager = () => {
                       version={version}
                       onViewDetails={handleViewDetails}
                       onEdit={handleEdit}
+                      changeCount={getChangeCount(version.id)}
                     />
                   ))}
                 </div>
@@ -156,6 +162,7 @@ export const VersionControlManager = () => {
                 version={version}
                 onViewDetails={handleViewDetails}
                 onEdit={handleEdit}
+                changeCount={getChangeCount(version.id)}
               />
             ))}
           </div>
@@ -171,9 +178,37 @@ interface VersionDetailsProps {
 }
 
 const VersionDetails = ({ version, onBack }: VersionDetailsProps) => {
-  const { getVersionChanges, getVersionFeatures } = useVersionControl();
+  const { getVersionChanges, getVersionFeatures, createChange } = useVersionControl();
   const { data: changes } = getVersionChanges(version.id);
   const { data: features } = getVersionFeatures(version.id);
+  const [showChangeForm, setShowChangeForm] = useState(false);
+
+  const handleCreateChange = async (changeData: any) => {
+    try {
+      await createChange.mutateAsync(changeData);
+      setShowChangeForm(false);
+    } catch (error) {
+      console.error('Error creating change:', error);
+    }
+  };
+
+  if (showChangeForm) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" onClick={() => setShowChangeForm(false)}>
+            ← Volver a Detalles
+          </Button>
+        </div>
+        <ChangeForm
+          versionId={version.id}
+          onSubmit={handleCreateChange}
+          onCancel={() => setShowChangeForm(false)}
+          isLoading={createChange.isPending}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -211,19 +246,46 @@ const VersionDetails = ({ version, onBack }: VersionDetailsProps) => {
       <Tabs defaultValue="changes" className="space-y-4">
         <TabsList>
           <TabsTrigger value="changes">Cambios</TabsTrigger>
+          <TabsTrigger value="metrics">Métricas</TabsTrigger>
           <TabsTrigger value="features">Features</TabsTrigger>
         </TabsList>
 
         <TabsContent value="changes">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Registro de Cambios
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Registro de Cambios
+                </CardTitle>
+                <Button onClick={() => setShowChangeForm(true)} size="sm">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Agregar Cambio
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <ChangeLogTable changes={changes || []} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="metrics">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" />
+                Métricas de la Versión
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {changes && changes.length > 0 ? (
+                <VersionMetrics changes={changes} />
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No hay cambios registrados para generar métricas
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

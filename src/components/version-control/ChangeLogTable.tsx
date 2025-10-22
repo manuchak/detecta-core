@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { SystemChange } from "@/hooks/useVersionControl";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { Filter } from "lucide-react";
 
 interface ChangeLogTableProps {
   changes: SystemChange[];
@@ -41,6 +45,21 @@ const getImpactColor = (impact: string) => {
 };
 
 export const ChangeLogTable = ({ changes }: ChangeLogTableProps) => {
+  const [filterType, setFilterType] = useState<string>('all');
+  const [filterImpact, setFilterImpact] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredChanges = changes.filter(change => {
+    const matchesType = filterType === 'all' || change.change_type === filterType;
+    const matchesImpact = filterImpact === 'all' || change.impact_level === filterImpact;
+    const matchesSearch = searchTerm === '' || 
+      change.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      change.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      change.module.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    return matchesType && matchesImpact && matchesSearch;
+  });
+
   if (changes.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -50,8 +69,54 @@ export const ChangeLogTable = ({ changes }: ChangeLogTableProps) => {
   }
 
   return (
-    <div className="border rounded-lg">
-      <Table>
+    <div className="space-y-4">
+      {/* Filtros */}
+      <div className="flex items-center gap-4 p-4 border rounded-lg bg-muted/50">
+        <Filter className="w-4 h-4 text-muted-foreground" />
+        
+        <Input
+          placeholder="Buscar cambios..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-xs"
+        />
+
+        <Select value={filterType} onValueChange={setFilterType}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los tipos</SelectItem>
+            <SelectItem value="feature">Feature</SelectItem>
+            <SelectItem value="bugfix">Bug Fix</SelectItem>
+            <SelectItem value="enhancement">Enhancement</SelectItem>
+            <SelectItem value="breaking_change">Breaking Change</SelectItem>
+            <SelectItem value="security">Security</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={filterImpact} onValueChange={setFilterImpact}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Impacto" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los impactos</SelectItem>
+            <SelectItem value="critical">Critical</SelectItem>
+            <SelectItem value="high">High</SelectItem>
+            <SelectItem value="medium">Medium</SelectItem>
+            <SelectItem value="low">Low</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {(filterType !== 'all' || filterImpact !== 'all' || searchTerm) && (
+          <Badge variant="secondary">
+            {filteredChanges.length} de {changes.length}
+          </Badge>
+        )}
+      </div>
+
+      <div className="border rounded-lg">
+        <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Título</TableHead>
@@ -62,7 +127,14 @@ export const ChangeLogTable = ({ changes }: ChangeLogTableProps) => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {changes.map((change) => (
+          {filteredChanges.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                No se encontraron cambios con los filtros aplicados
+              </TableCell>
+            </TableRow>
+          ) : (
+            filteredChanges.map((change) => (
             <TableRow key={change.id}>
               <TableCell>
                 <div>
@@ -91,9 +163,11 @@ export const ChangeLogTable = ({ changes }: ChangeLogTableProps) => {
                 {format(new Date(change.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}
               </TableCell>
             </TableRow>
-          ))}
+            ))
+          )}
         </TableBody>
       </Table>
+      </div>
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, GitBranch, Users, Settings } from "lucide-react";
+import { Calendar, GitBranch, Settings, FileText } from "lucide-react";
 import { SystemVersion } from "@/hooks/useVersionControl";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -10,6 +10,7 @@ interface VersionCardProps {
   version: SystemVersion;
   onViewDetails: (version: SystemVersion) => void;
   onEdit?: (version: SystemVersion) => void;
+  changeCount?: number;
 }
 
 const getStatusColor = (status: string) => {
@@ -44,7 +45,7 @@ const getVersionTypeColor = (type: string) => {
   }
 };
 
-export const VersionCard = ({ version, onViewDetails, onEdit }: VersionCardProps) => {
+export const VersionCard = ({ version, onViewDetails, onEdit, changeCount }: VersionCardProps) => {
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
@@ -83,6 +84,12 @@ export const VersionCard = ({ version, onViewDetails, onEdit }: VersionCardProps
             <Calendar className="w-4 h-4" />
             {format(new Date(version.release_date), 'dd/MM/yyyy', { locale: es })}
           </div>
+          {changeCount !== undefined && (
+            <div className="flex items-center gap-1">
+              <FileText className="w-4 h-4" />
+              <span>{changeCount} cambios</span>
+            </div>
+          )}
         </div>
         
         <div className="flex gap-2">
