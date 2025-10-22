@@ -166,7 +166,12 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
         const transformed: any = {};
         Object.entries(state.mapping).forEach(([csvField, dbField]) => {
           if (dbField && row[csvField] !== undefined) {
-            transformed[dbField] = row[csvField];
+            // Sanitize values - trim strings, especially id_servicio and estado
+            let value = row[csvField];
+            if (typeof value === 'string') {
+              value = value.trim();
+            }
+            transformed[dbField] = value;
           }
         });
         return transformed;

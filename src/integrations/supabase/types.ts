@@ -803,7 +803,7 @@ export type Database = {
           calificacion_servicio: number | null
           confirmado_por_armado: boolean | null
           confirmado_por_custodio: boolean | null
-          coordenadas_encuentro: unknown | null
+          coordenadas_encuentro: unknown
           created_at: string
           custodio_id: string | null
           estado_asignacion: string
@@ -828,7 +828,7 @@ export type Database = {
           calificacion_servicio?: number | null
           confirmado_por_armado?: boolean | null
           confirmado_por_custodio?: boolean | null
-          coordenadas_encuentro?: unknown | null
+          coordenadas_encuentro?: unknown
           created_at?: string
           custodio_id?: string | null
           estado_asignacion?: string
@@ -853,7 +853,7 @@ export type Database = {
           calificacion_servicio?: number | null
           confirmado_por_armado?: boolean | null
           confirmado_por_custodio?: boolean | null
-          coordenadas_encuentro?: unknown | null
+          coordenadas_encuentro?: unknown
           created_at?: string
           custodio_id?: string | null
           estado_asignacion?: string
@@ -892,7 +892,7 @@ export type Database = {
           custodio_id: string | null
           document_verification_status: string | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           new_data: Json | null
           performed_by: string
           previous_data: Json | null
@@ -913,7 +913,7 @@ export type Database = {
           custodio_id?: string | null
           document_verification_status?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           new_data?: Json | null
           performed_by: string
           previous_data?: Json | null
@@ -934,7 +934,7 @@ export type Database = {
           custodio_id?: string | null
           document_verification_status?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           new_data?: Json | null
           performed_by?: string
           previous_data?: Json | null
@@ -952,7 +952,7 @@ export type Database = {
           action: string
           created_at: string
           id: string
-          ip: unknown | null
+          ip: unknown
           service_name: string
           user_agent: string | null
           user_id: string
@@ -961,7 +961,7 @@ export type Database = {
           action?: string
           created_at?: string
           id?: string
-          ip?: unknown | null
+          ip?: unknown
           service_name: string
           user_agent?: string | null
           user_id: string
@@ -970,7 +970,7 @@ export type Database = {
           action?: string
           created_at?: string
           id?: string
-          ip?: unknown | null
+          ip?: unknown
           service_name?: string
           user_agent?: string | null
           user_id?: string
@@ -983,7 +983,7 @@ export type Database = {
           created_at: string
           datos_anteriores: Json | null
           datos_nuevos: Json | null
-          direccion_ip: unknown | null
+          direccion_ip: unknown
           fecha_accion: string
           id: string
           motivo: string | null
@@ -996,7 +996,7 @@ export type Database = {
           created_at?: string
           datos_anteriores?: Json | null
           datos_nuevos?: Json | null
-          direccion_ip?: unknown | null
+          direccion_ip?: unknown
           fecha_accion?: string
           id?: string
           motivo?: string | null
@@ -1009,7 +1009,7 @@ export type Database = {
           created_at?: string
           datos_anteriores?: Json | null
           datos_nuevos?: Json | null
-          direccion_ip?: unknown | null
+          direccion_ip?: unknown
           fecha_accion?: string
           id?: string
           motivo?: string | null
@@ -1024,7 +1024,7 @@ export type Database = {
           action_type: string
           created_at: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           justification: string
           new_data: Json
           performed_by: string
@@ -1036,7 +1036,7 @@ export type Database = {
           action_type: string
           created_at?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           justification: string
           new_data: Json
           performed_by: string
@@ -1048,7 +1048,7 @@ export type Database = {
           action_type?: string
           created_at?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           justification?: string
           new_data?: Json
           performed_by?: string
@@ -1211,7 +1211,7 @@ export type Database = {
           nombre: string
           notas_recruiter: string | null
           telefono: string | null
-          ubicacion_residencia: unknown | null
+          ubicacion_residencia: unknown
           updated_at: string | null
           vehiculo_propio: boolean | null
           zona_preferida_id: string | null
@@ -1232,7 +1232,7 @@ export type Database = {
           nombre: string
           notas_recruiter?: string | null
           telefono?: string | null
-          ubicacion_residencia?: unknown | null
+          ubicacion_residencia?: unknown
           updated_at?: string | null
           vehiculo_propio?: boolean | null
           zona_preferida_id?: string | null
@@ -1253,7 +1253,7 @@ export type Database = {
           nombre?: string
           notas_recruiter?: string | null
           telefono?: string | null
-          ubicacion_residencia?: unknown | null
+          ubicacion_residencia?: unknown
           updated_at?: string | null
           vehiculo_propio?: boolean | null
           zona_preferida_id?: string | null
@@ -3171,7 +3171,7 @@ export type Database = {
           programacion_id: string
           timestamp_captura: string | null
           tipo_evidencia: string
-          ubicacion_gps: unknown | null
+          ubicacion_gps: unknown
           verificado: boolean | null
           verificado_por: string | null
         }
@@ -3186,7 +3186,7 @@ export type Database = {
           programacion_id: string
           timestamp_captura?: string | null
           tipo_evidencia: string
-          ubicacion_gps?: unknown | null
+          ubicacion_gps?: unknown
           verificado?: boolean | null
           verificado_por?: string | null
         }
@@ -3201,7 +3201,7 @@ export type Database = {
           programacion_id?: string
           timestamp_captura?: string | null
           tipo_evidencia?: string
-          ubicacion_gps?: unknown | null
+          ubicacion_gps?: unknown
           verificado?: boolean | null
           verificado_por?: string | null
         }
@@ -5981,7 +5981,7 @@ export type Database = {
           entidad: string
           entidad_id: string | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           payload: Json | null
           timestamp: string | null
           user_agent: string | null
@@ -5992,7 +5992,7 @@ export type Database = {
           entidad: string
           entidad_id?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           payload?: Json | null
           timestamp?: string | null
           user_agent?: string | null
@@ -6003,7 +6003,7 @@ export type Database = {
           entidad?: string
           entidad_id?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           payload?: Json | null
           timestamp?: string | null
           user_agent?: string | null
@@ -6026,7 +6026,7 @@ export type Database = {
           nombre: string
           notas: string | null
           rfc: string | null
-          search_vector: unknown | null
+          search_vector: unknown
           sla_minutos_asignacion: number | null
           sla_respuesta_horas: number | null
           tarifas_especiales: boolean | null
@@ -6046,7 +6046,7 @@ export type Database = {
           nombre: string
           notas?: string | null
           rfc?: string | null
-          search_vector?: unknown | null
+          search_vector?: unknown
           sla_minutos_asignacion?: number | null
           sla_respuesta_horas?: number | null
           tarifas_especiales?: boolean | null
@@ -6066,7 +6066,7 @@ export type Database = {
           nombre?: string
           notas?: string | null
           rfc?: string | null
-          search_vector?: unknown | null
+          search_vector?: unknown
           sla_minutos_asignacion?: number | null
           sla_respuesta_horas?: number | null
           tarifas_especiales?: boolean | null
@@ -6196,7 +6196,7 @@ export type Database = {
           lng: number | null
           nombre: string
           rating_promedio: number | null
-          search_vector: unknown | null
+          search_vector: unknown
           tel: string
           tiene_gadgets: boolean | null
           tipo_custodia: Database["public"]["Enums"]["tipo_custodia"] | null
@@ -6221,7 +6221,7 @@ export type Database = {
           lng?: number | null
           nombre: string
           rating_promedio?: number | null
-          search_vector?: unknown | null
+          search_vector?: unknown
           tel: string
           tiene_gadgets?: boolean | null
           tipo_custodia?: Database["public"]["Enums"]["tipo_custodia"] | null
@@ -6246,7 +6246,7 @@ export type Database = {
           lng?: number | null
           nombre?: string
           rating_promedio?: number | null
-          search_vector?: unknown | null
+          search_vector?: unknown
           tel?: string
           tiene_gadgets?: boolean | null
           tipo_custodia?: Database["public"]["Enums"]["tipo_custodia"] | null
@@ -7529,7 +7529,7 @@ export type Database = {
           auto_agregado: boolean
           base_empresa: string | null
           categoria: string | null
-          coordenadas: unknown | null
+          coordenadas: unknown
           created_at: string | null
           descripcion: string | null
           direccion_completa: string
@@ -7547,7 +7547,7 @@ export type Database = {
           auto_agregado?: boolean
           base_empresa?: string | null
           categoria?: string | null
-          coordenadas?: unknown | null
+          coordenadas?: unknown
           created_at?: string | null
           descripcion?: string | null
           direccion_completa: string
@@ -7565,7 +7565,7 @@ export type Database = {
           auto_agregado?: boolean
           base_empresa?: string | null
           categoria?: string | null
-          coordenadas?: unknown | null
+          coordenadas?: unknown
           created_at?: string | null
           descripcion?: string | null
           direccion_completa?: string
@@ -8122,7 +8122,7 @@ export type Database = {
           action: string
           created_at: string | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           new_value: Json | null
           old_value: Json | null
           target_user_id: string | null
@@ -8133,7 +8133,7 @@ export type Database = {
           action: string
           created_at?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           new_value?: Json | null
           old_value?: Json | null
           target_user_id?: string | null
@@ -8144,7 +8144,7 @@ export type Database = {
           action?: string
           created_at?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           new_value?: Json | null
           old_value?: Json | null
           target_user_id?: string | null
@@ -8371,7 +8371,7 @@ export type Database = {
           creado_via: string | null
           created_at: string | null
           destino: string | null
-          duracion_servicio: unknown | null
+          duracion_servicio: unknown
           estado: string | null
           fecha_contratacion: string | null
           fecha_hora_asignacion: string | null
@@ -8412,7 +8412,7 @@ export type Database = {
           telefono_operador_adicional: string | null
           tiempo_estimado: string | null
           tiempo_punto_origen: string | null
-          tiempo_retraso: unknown | null
+          tiempo_retraso: unknown
           tipo_carga: string | null
           tipo_carga_adicional: string | null
           tipo_gadget: string | null
@@ -8434,7 +8434,7 @@ export type Database = {
           creado_via?: string | null
           created_at?: string | null
           destino?: string | null
-          duracion_servicio?: unknown | null
+          duracion_servicio?: unknown
           estado?: string | null
           fecha_contratacion?: string | null
           fecha_hora_asignacion?: string | null
@@ -8475,7 +8475,7 @@ export type Database = {
           telefono_operador_adicional?: string | null
           tiempo_estimado?: string | null
           tiempo_punto_origen?: string | null
-          tiempo_retraso?: unknown | null
+          tiempo_retraso?: unknown
           tipo_carga?: string | null
           tipo_carga_adicional?: string | null
           tipo_gadget?: string | null
@@ -8497,7 +8497,7 @@ export type Database = {
           creado_via?: string | null
           created_at?: string | null
           destino?: string | null
-          duracion_servicio?: unknown | null
+          duracion_servicio?: unknown
           estado?: string | null
           fecha_contratacion?: string | null
           fecha_hora_asignacion?: string | null
@@ -8538,7 +8538,7 @@ export type Database = {
           telefono_operador_adicional?: string | null
           tiempo_estimado?: string | null
           tiempo_punto_origen?: string | null
-          tiempo_retraso?: unknown | null
+          tiempo_retraso?: unknown
           tipo_carga?: string | null
           tipo_carga_adicional?: string | null
           tipo_gadget?: string | null
@@ -9619,7 +9619,7 @@ export type Database = {
       }
       zonas_operacion_nacional: {
         Row: {
-          coordenadas_centro: unknown | null
+          coordenadas_centro: unknown
           created_at: string | null
           estados_incluidos: string[] | null
           id: string
@@ -9629,7 +9629,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
-          coordenadas_centro?: unknown | null
+          coordenadas_centro?: unknown
           created_at?: string | null
           estados_incluidos?: string[] | null
           id?: string
@@ -9639,7 +9639,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
-          coordenadas_centro?: unknown | null
+          coordenadas_centro?: unknown
           created_at?: string | null
           estados_incluidos?: string[] | null
           id?: string
@@ -9790,26 +9790,14 @@ export type Database = {
       }
     }
     Functions: {
-      actualizar_roi_custodios: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      actualizar_tracking_rotacion: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      add_admin_role: {
-        Args: { user_id: string }
-        Returns: undefined
-      }
+      actualizar_roi_custodios: { Args: never; Returns: undefined }
+      actualizar_tracking_rotacion: { Args: never; Returns: undefined }
+      add_admin_role: { Args: { user_id: string }; Returns: undefined }
       archivar_producto: {
         Args: { p_motivo?: string; p_producto_id: string }
         Returns: boolean
       }
-      assign_initial_owner: {
-        Args: { target_email: string }
-        Returns: boolean
-      }
+      assign_initial_owner: { Args: { target_email: string }; Returns: boolean }
       assign_role_secure: {
         Args: {
           audit_reason?: string
@@ -9847,10 +9835,7 @@ export type Database = {
         }
         Returns: Json
       }
-      auto_reactivar_custodios: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      auto_reactivar_custodios: { Args: never; Returns: undefined }
       award_points: {
         Args: {
           p_description: string
@@ -9890,7 +9875,7 @@ export type Database = {
           creado_via: string | null
           created_at: string | null
           destino: string | null
-          duracion_servicio: unknown | null
+          duracion_servicio: unknown
           estado: string | null
           fecha_contratacion: string | null
           fecha_hora_asignacion: string | null
@@ -9931,7 +9916,7 @@ export type Database = {
           telefono_operador_adicional: string | null
           tiempo_estimado: string | null
           tiempo_punto_origen: string | null
-          tiempo_retraso: unknown | null
+          tiempo_retraso: unknown
           tipo_carga: string | null
           tipo_carga_adicional: string | null
           tipo_gadget: string | null
@@ -9940,6 +9925,12 @@ export type Database = {
           tipo_unidad_adicional: string | null
           updated_time: string | null
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "servicios_custodia"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       bypass_rls_get_servicios_safe: {
         Args: { max_records?: number }
@@ -9956,7 +9947,7 @@ export type Database = {
           creado_via: string | null
           created_at: string | null
           destino: string | null
-          duracion_servicio: unknown | null
+          duracion_servicio: unknown
           estado: string | null
           fecha_contratacion: string | null
           fecha_hora_asignacion: string | null
@@ -9997,7 +9988,7 @@ export type Database = {
           telefono_operador_adicional: string | null
           tiempo_estimado: string | null
           tiempo_punto_origen: string | null
-          tiempo_retraso: unknown | null
+          tiempo_retraso: unknown
           tipo_carga: string | null
           tipo_carga_adicional: string | null
           tipo_gadget: string | null
@@ -10006,6 +9997,12 @@ export type Database = {
           tipo_unidad_adicional: string | null
           updated_time: string | null
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "servicios_custodia"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       calcular_costo_promedio_ponderado: {
         Args: { p_producto_id: string }
@@ -10066,10 +10063,7 @@ export type Database = {
           valor_venta: number
         }[]
       }
-      calculate_custodian_level: {
-        Args: { points: number }
-        Returns: number
-      }
+      calculate_custodian_level: { Args: { points: number }; Returns: number }
       calculate_custodian_level_dynamic: {
         Args: { total_points: number }
         Returns: number
@@ -10086,10 +10080,7 @@ export type Database = {
           promedio: number
         }[]
       }
-      calculate_custodio_scores: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      calculate_custodio_scores: { Args: never; Returns: undefined }
       calculate_monthly_retention: {
         Args: { target_month: string }
         Returns: undefined
@@ -10118,50 +10109,17 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: number
       }
-      can_access_call_logs: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      can_access_custodio_portal: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      can_access_financial_data: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      can_access_home: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      can_access_recruitment_data: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      can_manage_lead_assignments: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      can_manage_wms: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      can_view_financial_data: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      can_view_sensitive_kpis: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      check_admin_for_rewards: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      check_admin_secure: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      can_access_call_logs: { Args: never; Returns: boolean }
+      can_access_custodio_portal: { Args: never; Returns: boolean }
+      can_access_financial_data: { Args: never; Returns: boolean }
+      can_access_home: { Args: never; Returns: boolean }
+      can_access_recruitment_data: { Args: never; Returns: boolean }
+      can_manage_lead_assignments: { Args: never; Returns: boolean }
+      can_manage_wms: { Args: never; Returns: boolean }
+      can_view_financial_data: { Args: never; Returns: boolean }
+      can_view_sensitive_kpis: { Args: never; Returns: boolean }
+      check_admin_for_rewards: { Args: never; Returns: boolean }
+      check_admin_secure: { Args: never; Returns: boolean }
       check_custodian_availability: {
         Args: {
           p_custodio_id: string
@@ -10171,7 +10129,7 @@ export type Database = {
         Returns: Json
       }
       check_duplicate_service_ids: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           duplicate_count: number
           id_servicio: string
@@ -10180,7 +10138,7 @@ export type Database = {
         }[]
       }
       check_pending_referral_bonuses: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           custodio_email: string
           custodio_id: string
@@ -10192,10 +10150,7 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: boolean
       }
-      check_user_has_admin_access: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      check_user_has_admin_access: { Args: never; Returns: boolean }
       check_user_role: {
         Args: { role_name: string; user_id: string }
         Returns: boolean
@@ -10212,36 +10167,24 @@ export type Database = {
         Args: { role_name: string; user_id: string }
         Returns: boolean
       }
-      check_zone_capacity: {
-        Args: { p_zona_id: string }
-        Returns: Json
-      }
+      check_zone_capacity: { Args: { p_zona_id: string }; Returns: Json }
       check_zone_capacity_v2: {
         Args: { p_is_test?: boolean; p_zona_id: string }
         Returns: Json
       }
       clean_duplicate_service_ids: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           details: string
           duplicates_found: number
           duplicates_removed: number
         }[]
       }
-      cleanup_expired_interview_progress: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_expired_skills: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
-      clear_redemptions_bypass_rls: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      cleanup_expired_interview_progress: { Args: never; Returns: undefined }
+      cleanup_expired_skills: { Args: never; Returns: number }
+      clear_redemptions_bypass_rls: { Args: never; Returns: undefined }
       compare_dashboard_vs_forensic: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           dashboard_value: number
           discrepancy: number
@@ -10279,10 +10222,7 @@ export type Database = {
         }
         Returns: string
       }
-      create_new_role: {
-        Args: { new_role: string }
-        Returns: undefined
-      }
+      create_new_role: { Args: { new_role: string }; Returns: undefined }
       create_redemptions_bypass_rls: {
         Args: { redemptions_data: Json }
         Returns: {
@@ -10305,9 +10245,17 @@ export type Database = {
         Args: { p_user_id: string; p_user_name: string; p_user_phone: string }
         Returns: number
       }
-      create_vapi_call_log: {
-        Args:
-          | {
+      create_vapi_call_log:
+        | {
+            Args: {
+              p_lead_id: string
+              p_phone_number: string
+              p_vapi_call_id: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
               p_analysis_score?: number
               p_auto_decision?: string
               p_lead_id: string
@@ -10317,39 +10265,25 @@ export type Database = {
               p_structured_data?: Json
               p_vapi_call_id: string
             }
-          | {
-              p_lead_id: string
-              p_phone_number: string
-              p_vapi_call_id: string
-            }
-        Returns: string
-      }
+            Returns: boolean
+          }
       current_user_has_role: {
         Args: { required_role: string }
         Returns: boolean
       }
-      current_user_is_coordinator_or_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      current_user_is_coordinator_or_admin: { Args: never; Returns: boolean }
       custodio_tiene_actividad_reciente: {
         Args: { p_nombre_custodio: string }
         Returns: boolean
       }
-      daily_duplicate_cleanup: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      daily_duplicate_cleanup: { Args: never; Returns: undefined }
       delete_reward_bypass_rls: {
         Args: { reward_id: string }
         Returns: boolean
       }
-      delete_role: {
-        Args: { target_role: string }
-        Returns: undefined
-      }
+      delete_role: { Args: { target_role: string }; Returns: undefined }
       detect_suspicious_patterns: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           count_found: number
           pattern_description: string
@@ -10370,26 +10304,13 @@ export type Database = {
           sample_service_id: string
         }[]
       }
-      ensure_admin_privileges: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      ensure_default_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      es_c4_monitoreo: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      es_planificador: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      es_usuario_admin: {
-        Args: Record<PropertyKey, never> | { user_id: string }
-        Returns: boolean
-      }
+      ensure_admin_privileges: { Args: never; Returns: undefined }
+      ensure_default_admin: { Args: never; Returns: undefined }
+      es_c4_monitoreo: { Args: never; Returns: boolean }
+      es_planificador: { Args: never; Returns: boolean }
+      es_usuario_admin:
+        | { Args: never; Returns: boolean }
+        | { Args: { user_id: string }; Returns: boolean }
       flag_service_for_review: {
         Args: {
           p_flag_reason: string
@@ -10402,7 +10323,7 @@ export type Database = {
         Returns: string
       }
       forensic_audit_servicios_enero_actual: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           clientes_distintos: number
           custodios_con_hash_na: number
@@ -10436,20 +10357,11 @@ export type Database = {
           total_registros_raw: number
         }[]
       }
-      generar_alertas_automaticas: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      generar_folio_servicio: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      generate_recepcion_number: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      generar_alertas_automaticas: { Args: never; Returns: undefined }
+      generar_folio_servicio: { Args: never; Returns: string }
+      generate_recepcion_number: { Args: never; Returns: string }
       get_activation_metrics_safe: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           activated_custodians: number
           activation_rate: number
@@ -10458,14 +10370,14 @@ export type Database = {
         }[]
       }
       get_active_custodians_60_days: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           count: number
           custodians: string[]
         }[]
       }
       get_active_custodians_count: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           count: number
           custodians: string[]
@@ -10486,7 +10398,7 @@ export type Database = {
           creado_via: string | null
           created_at: string | null
           destino: string | null
-          duracion_servicio: unknown | null
+          duracion_servicio: unknown
           estado: string | null
           fecha_contratacion: string | null
           fecha_hora_asignacion: string | null
@@ -10527,7 +10439,7 @@ export type Database = {
           telefono_operador_adicional: string | null
           tiempo_estimado: string | null
           tiempo_punto_origen: string | null
-          tiempo_retraso: unknown | null
+          tiempo_retraso: unknown
           tipo_carga: string | null
           tipo_carga_adicional: string | null
           tipo_gadget: string | null
@@ -10536,9 +10448,15 @@ export type Database = {
           tipo_unidad_adicional: string | null
           updated_time: string | null
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "servicios_custodia"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_all_redemptions_bypass_rls: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           admin_notes: string
           created_at: string
@@ -10553,7 +10471,7 @@ export type Database = {
         }[]
       }
       get_all_rewards: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           availability: number
           category: string
@@ -10569,14 +10487,14 @@ export type Database = {
         }[]
       }
       get_all_user_roles_safe: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           role: string
           user_id: string
         }[]
       }
       get_all_users_with_roles: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           created_at: string
           display_name: string
@@ -10590,7 +10508,7 @@ export type Database = {
         }[]
       }
       get_all_users_with_roles_secure: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           created_at: string
           display_name: string
@@ -10603,34 +10521,61 @@ export type Database = {
           role_priority: number
         }[]
       }
-      get_analyst_assigned_leads: {
-        Args:
-          | Record<PropertyKey, never>
-          | {
+      get_analyst_assigned_leads:
+        | {
+            Args: {
               p_date_from?: string
               p_date_to?: string
               p_limit?: number
               p_offset?: number
             }
-        Returns: {
-          analista_email: string
-          analista_nombre: string
-          email: string
-          fecha_creacion: string
-          fecha_entrada_pool: string
-          final_decision: string
-          has_successful_call: boolean
-          interview_in_progress: boolean
-          interview_started_at: string
-          lead_estado: string
-          lead_id: string
-          nombre: string
-          notas: string
-          telefono: string
-          zona_nombre: string
-          zona_preferida_id: string
-        }[]
-      }
+            Returns: {
+              analista_email: string
+              analista_nombre: string
+              email: string
+              fecha_creacion: string
+              fecha_entrada_pool: string
+              final_decision: string
+              has_successful_call: boolean
+              interview_in_progress: boolean
+              interview_started_at: string
+              lead_estado: string
+              lead_id: string
+              nombre: string
+              notas: string
+              telefono: string
+              zona_nombre: string
+              zona_preferida_id: string
+            }[]
+          }
+        | {
+            Args: never
+            Returns: {
+              analista_email: string
+              analista_nombre: string
+              asignado_a: string
+              contact_attempts_count: number
+              fecha_entrada_pool: string
+              final_decision: string
+              has_scheduled_call: boolean
+              has_successful_call: boolean
+              interview_in_progress: boolean
+              interview_interrupted: boolean
+              interview_session_id: string
+              interview_started_at: string
+              last_contact_outcome: string
+              lead_email: string
+              lead_estado: string
+              lead_fecha_creacion: string
+              lead_id: string
+              lead_nombre: string
+              lead_telefono: string
+              motivo_pool: string
+              scheduled_call_datetime: string
+              zona_nombre: string
+              zona_preferida_id: string
+            }[]
+          }
       get_analyst_assigned_leads_v2: {
         Args: {
           p_date_from?: string
@@ -10654,10 +10599,7 @@ export type Database = {
           second_interview_required: boolean
         }[]
       }
-      get_available_roles_secure: {
-        Args: Record<PropertyKey, never>
-        Returns: string[]
-      }
+      get_available_roles_secure: { Args: never; Returns: string[] }
       get_ciudades_safe: {
         Args: { estado_uuid: string }
         Returns: {
@@ -10667,7 +10609,7 @@ export type Database = {
         }[]
       }
       get_cohort_retention_matrix: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           cohort_month: string
           initial_size: number
@@ -10681,7 +10623,7 @@ export type Database = {
         }[]
       }
       get_current_user_ranking_stats: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           km_totales: number
           nombre_custodio: string
@@ -10691,20 +10633,11 @@ export type Database = {
           total_viajes: number
         }[]
       }
-      get_current_user_role: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      get_current_user_role_safe: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      get_current_user_role_secure: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      get_current_user_role: { Args: never; Returns: string }
+      get_current_user_role_safe: { Args: never; Returns: string }
+      get_current_user_role_secure: { Args: never; Returns: string }
       get_current_user_roles_safe: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           role: string
         }[]
@@ -10723,7 +10656,7 @@ export type Database = {
         }[]
       }
       get_custodian_performance_safe: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           km_totales: number
           nombre_custodio: string
@@ -10733,7 +10666,7 @@ export type Database = {
         }[]
       }
       get_custodian_performance_stats: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           km_totales: number
           nombre_custodio: string
@@ -10743,7 +10676,7 @@ export type Database = {
         }[]
       }
       get_custodian_performance_unified: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           km_totales: number
           nombre_custodio: string
@@ -10782,7 +10715,7 @@ export type Database = {
         }[]
       }
       get_custodians_levels_and_average: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           average_level: number
           level_1_count: number
@@ -10827,7 +10760,7 @@ export type Database = {
         }[]
       }
       get_custodios_activos_disponibles: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           created_at: string
           disponibilidad: string
@@ -10861,7 +10794,7 @@ export type Database = {
         }[]
       }
       get_custodios_estadisticas_planeacion: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           estados: string
           ingresos_total: number
@@ -10884,7 +10817,7 @@ export type Database = {
         }[]
       }
       get_custodios_operativos_activos: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           km_promedio: number
           nombre_custodio: string
@@ -10896,7 +10829,7 @@ export type Database = {
         }[]
       }
       get_custodios_pendientes_migracion: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           estado: string
           nombre: string
@@ -10904,7 +10837,7 @@ export type Database = {
         }[]
       }
       get_estados_safe: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           codigo: string
           id: string
@@ -10934,7 +10867,7 @@ export type Database = {
           creado_via: string | null
           created_at: string | null
           destino: string | null
-          duracion_servicio: unknown | null
+          duracion_servicio: unknown
           estado: string | null
           fecha_contratacion: string | null
           fecha_hora_asignacion: string | null
@@ -10975,7 +10908,7 @@ export type Database = {
           telefono_operador_adicional: string | null
           tiempo_estimado: string | null
           tiempo_punto_origen: string | null
-          tiempo_retraso: unknown | null
+          tiempo_retraso: unknown
           tipo_carga: string | null
           tipo_carga_adicional: string | null
           tipo_gadget: string | null
@@ -10984,9 +10917,15 @@ export type Database = {
           tipo_unidad_adicional: string | null
           updated_time: string | null
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "servicios_custodia"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_historical_monthly_data: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           gmv: number
           month: number
@@ -10996,7 +10935,7 @@ export type Database = {
         }[]
       }
       get_income_distribution_by_threshold: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           avg_income: number
           avg_services: number
@@ -11029,7 +10968,7 @@ export type Database = {
         }[]
       }
       get_marcas_vehiculos_safe: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           id: string
           nombre: string
@@ -11053,7 +10992,7 @@ export type Database = {
         }[]
       }
       get_monthly_productivity_stats: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           active_custodians: number
           avg_income_per_custodian: number
@@ -11083,7 +11022,7 @@ export type Database = {
         }[]
       }
       get_my_permissions: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           allowed: boolean
           created_at: string
@@ -11113,7 +11052,7 @@ export type Database = {
         }[]
       }
       get_points_system_config: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           id: string
           level_names: Json
@@ -11124,7 +11063,7 @@ export type Database = {
         }[]
       }
       get_profiles_bypass_rls: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           created_at: string
           display_name: string
@@ -11136,9 +11075,15 @@ export type Database = {
           photo_url: string | null
           updated_at: string
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "profiles"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_quick_metrics_fallback: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           last_updated: string
           metric_name: string
@@ -11183,7 +11128,7 @@ export type Database = {
         }[]
       }
       get_redemptions_with_custodian_info: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           admin_notes: string
           created_at: string
@@ -11202,7 +11147,7 @@ export type Database = {
         }[]
       }
       get_reward_categories_with_stats: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           active_rewards: number
           color: string
@@ -11216,12 +11161,9 @@ export type Database = {
           total_rewards: number
         }[]
       }
-      get_reward_image_url: {
-        Args: { image_path: string }
-        Returns: string
-      }
+      get_reward_image_url: { Args: { image_path: string }; Returns: string }
       get_rewards_bypass_rls: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           availability: number | null
           category: string | null
@@ -11235,9 +11177,15 @@ export type Database = {
           point_cost: number
           updated_at: string | null
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "rewards"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_rewards_with_category: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           availability: number
           category_color: string
@@ -11277,7 +11225,7 @@ export type Database = {
         }[]
       }
       get_role_permissions_secure: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           allowed: boolean
           created_at: string
@@ -11317,7 +11265,7 @@ export type Database = {
           creado_via: string | null
           created_at: string | null
           destino: string | null
-          duracion_servicio: unknown | null
+          duracion_servicio: unknown
           estado: string | null
           fecha_contratacion: string | null
           fecha_hora_asignacion: string | null
@@ -11358,7 +11306,7 @@ export type Database = {
           telefono_operador_adicional: string | null
           tiempo_estimado: string | null
           tiempo_punto_origen: string | null
-          tiempo_retraso: unknown | null
+          tiempo_retraso: unknown
           tipo_carga: string | null
           tipo_carga_adicional: string | null
           tipo_gadget: string | null
@@ -11367,6 +11315,12 @@ export type Database = {
           tipo_unidad_adicional: string | null
           updated_time: string | null
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "servicios_custodia"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_services_by_phone: {
         Args: { p_phone: string }
@@ -11380,7 +11334,7 @@ export type Database = {
         }[]
       }
       get_services_by_user_phone: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           client_name: string
           date: string
@@ -11409,7 +11363,7 @@ export type Database = {
         }[]
       }
       get_user_confirmation_status: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           email: string
           email_confirmed_at: string
@@ -11418,40 +11372,29 @@ export type Database = {
           user_id: string
         }[]
       }
-      get_user_role: {
-        Args: { user_id: string }
-        Returns: string
-      }
-      get_user_role_direct: {
-        Args: Record<PropertyKey, never> | { user_uid: string }
-        Returns: string
-      }
-      get_user_role_for_recruitment: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      get_user_role_safe: {
-        Args: { user_uid: string }
-        Returns: string
-      }
-      get_user_role_secure: {
-        Args: Record<PropertyKey, never> | { user_uuid: string }
-        Returns: string
-      }
+      get_user_role: { Args: { user_id: string }; Returns: string }
+      get_user_role_direct:
+        | { Args: never; Returns: string }
+        | { Args: { user_uid: string }; Returns: string }
+      get_user_role_for_recruitment: { Args: never; Returns: string }
+      get_user_role_safe: { Args: { user_uid: string }; Returns: string }
+      get_user_role_secure:
+        | { Args: never; Returns: string }
+        | { Args: { user_uuid: string }; Returns: string }
       get_user_roles: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           role: string
         }[]
       }
       get_user_roles_safe: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           role: string
         }[]
       }
       get_user_services_by_phone: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           destino: string
           estado: string
@@ -11466,7 +11409,7 @@ export type Database = {
         }[]
       }
       get_user_services_by_phone_secure: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           destino: string
           estado: string
@@ -11529,7 +11472,7 @@ export type Database = {
           creado_via: string | null
           created_at: string | null
           destino: string | null
-          duracion_servicio: unknown | null
+          duracion_servicio: unknown
           estado: string | null
           fecha_contratacion: string | null
           fecha_hora_asignacion: string | null
@@ -11570,7 +11513,7 @@ export type Database = {
           telefono_operador_adicional: string | null
           tiempo_estimado: string | null
           tiempo_punto_origen: string | null
-          tiempo_retraso: unknown | null
+          tiempo_retraso: unknown
           tipo_carga: string | null
           tipo_carga_adicional: string | null
           tipo_gadget: string | null
@@ -11579,6 +11522,12 @@ export type Database = {
           tipo_unidad_adicional: string | null
           updated_time: string | null
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "servicios_custodia"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_user_skills: {
         Args: { check_user_id: string }
@@ -11589,7 +11538,7 @@ export type Database = {
         }[]
       }
       get_user_statistics: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           admin_users: number
           custodio_users: number
@@ -11601,7 +11550,7 @@ export type Database = {
         }[]
       }
       get_users_with_roles_for_admin: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           created_at: string
           email: string
@@ -11610,7 +11559,7 @@ export type Database = {
         }[]
       }
       get_users_with_roles_secure: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           display_name: string
           email: string
@@ -11619,7 +11568,7 @@ export type Database = {
         }[]
       }
       get_weekly_leaderboard: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           custodio_id: string
           km_totales: number
@@ -11654,10 +11603,7 @@ export type Database = {
           nombre: string
         }[]
       }
-      has_management_role: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      has_management_role: { Args: never; Returns: boolean }
       has_role: {
         Args: { role_name: string; user_uuid: string }
         Returns: boolean
@@ -11666,120 +11612,66 @@ export type Database = {
         Args: { point_id: string }
         Returns: undefined
       }
-      is_admin: {
-        Args: Record<PropertyKey, never> | { user_id: string }
-        Returns: boolean
-      }
-      is_admin_bypass_rls: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_admin_email_secure: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_admin_no_recursion: {
-        Args: { user_uuid: string }
-        Returns: boolean
-      }
-      is_admin_or_owner: {
-        Args: Record<PropertyKey, never> | { user_uuid: string }
-        Returns: boolean
-      }
-      is_admin_safe: {
-        Args: { check_user_id: string }
-        Returns: boolean
-      }
-      is_admin_secure: {
-        Args: Record<PropertyKey, never> | { user_id: string }
-        Returns: boolean
-      }
-      is_admin_user: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_admin_user_secure: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_coordinator_or_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_coordinator_or_security: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_current_user_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_custodio: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_installer_or_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_sales_executive_or_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_security_analyst_or_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      is_admin:
+        | { Args: { user_id: string }; Returns: boolean }
+        | { Args: never; Returns: boolean }
+      is_admin_bypass_rls: { Args: never; Returns: boolean }
+      is_admin_email_secure: { Args: never; Returns: boolean }
+      is_admin_no_recursion: { Args: { user_uuid: string }; Returns: boolean }
+      is_admin_or_owner:
+        | { Args: { user_uuid: string }; Returns: boolean }
+        | { Args: never; Returns: boolean }
+      is_admin_safe: { Args: { check_user_id: string }; Returns: boolean }
+      is_admin_secure:
+        | { Args: never; Returns: boolean }
+        | { Args: { user_id: string }; Returns: boolean }
+      is_admin_user: { Args: never; Returns: boolean }
+      is_admin_user_secure: { Args: never; Returns: boolean }
+      is_coordinator_or_admin: { Args: never; Returns: boolean }
+      is_coordinator_or_security: { Args: never; Returns: boolean }
+      is_current_user_admin: { Args: never; Returns: boolean }
+      is_custodio: { Args: never; Returns: boolean }
+      is_installer_or_admin: { Args: never; Returns: boolean }
+      is_sales_executive_or_admin: { Args: never; Returns: boolean }
+      is_security_analyst_or_admin: { Args: never; Returns: boolean }
       is_service_owner: {
         Args: { service_custodio_id: string; user_id: string }
         Returns: boolean
       }
-      is_super_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_supply_admin_or_higher: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_supply_manager: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_whatsapp_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      is_super_admin: { Args: never; Returns: boolean }
+      is_supply_admin_or_higher: { Args: never; Returns: boolean }
+      is_supply_manager: { Args: never; Returns: boolean }
+      is_whatsapp_admin: { Args: never; Returns: boolean }
       link_user_to_custodio_services: {
         Args: { p_phone: string; p_user_id: string }
         Returns: {
           linked_services: number
         }[]
       }
-      log_sensitive_access: {
-        Args:
-          | {
+      log_sensitive_access:
+        | {
+            Args: {
               additional_data?: Json
               operation: string
               record_id?: string
               table_name: string
             }
-          | {
+            Returns: undefined
+          }
+        | {
+            Args: {
               additional_data?: Json
               operation: string
               record_id?: string
               table_name: string
             }
-        Returns: undefined
-      }
+            Returns: undefined
+          }
       log_sensitive_data_access: {
         Args: { operation: string; table_name: string; user_role?: string }
         Returns: undefined
       }
-      manually_verify_user: {
-        Args: { user_email: string }
-        Returns: boolean
-      }
+      manually_verify_user: { Args: { user_email: string }; Returns: boolean }
       marcar_producto_inactivo: {
         Args: { p_motivo?: string; p_producto_id: string }
         Returns: boolean
@@ -11788,40 +11680,25 @@ export type Database = {
         Args: { p_lead_id: string; p_reason: string; p_session_id: string }
         Returns: boolean
       }
-      migrar_armados_historicos: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
-      migrar_custodios_historicos: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
-      migrate_existing_categories: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      migrate_existing_contact_data: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      migrate_roles_to_skills: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
-      migrate_vehicle_data_from_services: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
+      migrar_armados_historicos: { Args: never; Returns: number }
+      migrar_custodios_historicos: { Args: never; Returns: number }
+      migrate_existing_categories: { Args: never; Returns: undefined }
+      migrate_existing_contact_data: { Args: never; Returns: undefined }
+      migrate_roles_to_skills: { Args: never; Returns: number }
+      migrate_vehicle_data_from_services: { Args: never; Returns: number }
       migrate_vehicle_from_servicios_custodia: {
         Args: { p_custodio_nombre: string }
         Returns: Json
       }
-      move_lead_to_pool: {
-        Args:
-          | { p_estado_id: string; p_lead_id: string; p_motivo?: string }
-          | { p_lead_id: string; p_motivo?: string; p_zona_id: string }
-        Returns: boolean
-      }
+      move_lead_to_pool:
+        | {
+            Args: { p_estado_id: string; p_lead_id: string; p_motivo?: string }
+            Returns: boolean
+          }
+        | {
+            Args: { p_lead_id: string; p_motivo?: string; p_zona_id: string }
+            Returns: boolean
+          }
       move_lead_to_pool_v2: {
         Args: {
           p_is_test?: boolean
@@ -11875,22 +11752,13 @@ export type Database = {
           tipo_plan: string
         }[]
       }
-      parse_tiempo_retraso: {
-        Args: { tiempo_str: string }
-        Returns: unknown
-      }
-      populate_historical_retention_data: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      parse_tiempo_retraso: { Args: { tiempo_str: string }; Returns: unknown }
+      populate_historical_retention_data: { Args: never; Returns: undefined }
       procesar_bono_referido: {
         Args: { p_referido_id: string }
         Returns: boolean
       }
-      puede_acceder_planeacion: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      puede_acceder_planeacion: { Args: never; Returns: boolean }
       reactivate_lead_from_pool: {
         Args: { p_lead_id: string; p_nuevo_estado?: string }
         Returns: boolean
@@ -11920,17 +11788,11 @@ export type Database = {
         Returns: string
       }
       refresh_armados_operativos_disponibles: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: undefined
       }
-      refresh_custodios_operativos_activos: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      restaurar_producto: {
-        Args: { p_producto_id: string }
-        Returns: boolean
-      }
+      refresh_custodios_operativos_activos: { Args: never; Returns: undefined }
+      restaurar_producto: { Args: { p_producto_id: string }; Returns: boolean }
       review_flagged_service: {
         Args: {
           p_admin_notes?: string
@@ -11958,12 +11820,9 @@ export type Database = {
         }
         Returns: boolean
       }
-      self_verify_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      self_verify_admin: { Args: never; Returns: boolean }
       test_recruitment_system_access: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           access_status: string
           record_count: number
@@ -11980,10 +11839,7 @@ export type Database = {
         }
         Returns: string
       }
-      update_all_custodian_levels: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
+      update_all_custodian_levels: { Args: never; Returns: number }
       update_approval_process: {
         Args: {
           p_decision?: string
@@ -11996,10 +11852,7 @@ export type Database = {
         }
         Returns: undefined
       }
-      update_last_login: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      update_last_login: { Args: never; Returns: boolean }
       update_lead_state_after_interview: {
         Args: {
           p_interview_notes?: string
@@ -12049,7 +11902,7 @@ export type Database = {
       }
       update_servicio_estado: {
         Args: { p_estado: string; p_id_servicio: string }
-        Returns: undefined
+        Returns: number
       }
       update_user_role_by_email: {
         Args: { p_email: string; p_new_role: string }
@@ -12096,16 +11949,13 @@ export type Database = {
         Args: { required_role: string; user_id: string }
         Returns: boolean
       }
-      user_has_role_direct: {
-        Args: { role_name: string }
-        Returns: boolean
-      }
-      user_has_role_secure: {
-        Args:
-          | { check_role: string }
-          | { required_role: string; user_uuid: string }
-        Returns: boolean
-      }
+      user_has_role_direct: { Args: { role_name: string }; Returns: boolean }
+      user_has_role_secure:
+        | {
+            Args: { required_role: string; user_uuid: string }
+            Returns: boolean
+          }
+        | { Args: { check_role: string }; Returns: boolean }
       user_has_skill: {
         Args: {
           check_user_id: string
@@ -12125,10 +11975,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      validate_image_url: {
-        Args: { url: string }
-        Returns: boolean
-      }
+      validate_image_url: { Args: { url: string }; Returns: boolean }
       validate_input_text: {
         Args: { input_text: string; max_length?: number }
         Returns: string
@@ -12141,10 +11988,7 @@ export type Database = {
         Args: { new_role: string; target_user_id: string }
         Returns: boolean
       }
-      validate_role_input: {
-        Args: { role_name: string }
-        Returns: boolean
-      }
+      validate_role_input: { Args: { role_name: string }; Returns: boolean }
       validate_service_distance: {
         Args: {
           p_destino: string
@@ -12167,10 +12011,7 @@ export type Database = {
         Args: { p_exclude_finished?: boolean; p_id_servicio: string }
         Returns: Json
       }
-      validate_user_session: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      validate_user_session: { Args: never; Returns: boolean }
       verificar_admin_seguro: {
         Args: { check_user_id: string }
         Returns: boolean
@@ -12220,10 +12061,7 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: boolean
       }
-      verify_user_role: {
-        Args: { role_to_check: string }
-        Returns: boolean
-      }
+      verify_user_role: { Args: { role_to_check: string }; Returns: boolean }
     }
     Enums: {
       actor_touchpoint: "C4" | "Planificador" | "Custodio" | "Cliente"

@@ -32,8 +32,13 @@ const hasValidValue = (value: any, type: 'string' | 'number' | 'date' = 'string'
 
 // Build data object for updating existing records (only include valid CSV values)
 const buildUpdateData = (item: any, fechaCitaResult: any, createdAtResult: any, fechaContratacionResult: any) => {
+  // Normalize id_servicio - trim whitespace
+  const idNormalizado = typeof item.id_servicio === 'string' 
+    ? item.id_servicio.trim() 
+    : String(item.id_servicio || '').trim();
+  
   const updateData: any = {
-    id_servicio: item.id_servicio, // Always include for WHERE clause
+    id_servicio: idNormalizado, // Always include normalized ID for WHERE clause
     updated_time: new Date().toISOString() // Always update timestamp
   };
 
@@ -223,42 +228,50 @@ export const importCustodianServices = async (
             if (mode === 'update') {
               // UPDATE MODE: Use RPC for estado-only updates to bypass RLS
               servicioData = buildUpdateData(item, fechaCitaResult, createdAtResult, fechaContratacionResult);
+              const idServicio = servicioData.id_servicio; // Already normalized in buildUpdateData
               const updatedFields = Object.keys(servicioData).filter(key => key !== 'id_servicio' && key !== 'updated_time');
-              console.log(`🔄 UPDATE MODE - Record ${current} (${item.id_servicio}): fields [${updatedFields.join(', ')}]`);
+              console.log(`🔄 UPDATE MODE - Record ${current} (${idServicio}): fields [${updatedFields.join(', ')}]`);
               
               // Check if only estado is being updated
               const isEstadoOnlyUpdate = updatedFields.length === 1 && updatedFields[0] === 'estado';
               
               if (isEstadoOnlyUpdate && servicioData.estado) {
-                console.log(`🎯 Using RPC update_servicio_estado for ${item.id_servicio}: "${servicioData.estado}"`);
+                console.log(`🎯 Using RPC update_servicio_estado for "${idServicio}" (len: ${idServicio.length}): "${servicioData.estado}"`);
                 
-                const { error } = await supabase.rpc('update_servicio_estado', {
-                  p_id_servicio: item.id_servicio,
+                const { data, error } = await supabase.rpc('update_servicio_estado', {
+                  p_id_servicio: idServicio,
                   p_estado: servicioData.estado
                 });
                 
                 upsertError = error;
-                if (!error) {
+                const rowsUpdated = data ?? 0;
+                
+                if (!error && rowsUpdated > 0) {
                   result.updated++;
-                  console.log(`✅ Successfully updated estado via RPC: ${item.id_servicio}`);
+                  console.log(`✅ Successfully updated estado via RPC: ${idServicio} (${rowsUpdated} rows)`);
+                } else if (!error && rowsUpdated === 0) {
+                  // No rows updated - ID doesn't exist
+                  upsertError = { message: `ID no encontrado en la base de datos: ${idServicio}` };
+                  console.error(`❌ RPC found 0 rows for ${idServicio}`);
+                  if (result.failed < 3) { // Log details for first 3 failures
+                    console.error(`   Normalized ID: "${idServicio}", length: ${idServicio.length}`);
+                  }
                 } else {
-                  console.error(`❌ RPC error for ${item.id_servicio}:`, error);
+                  console.error(`❌ RPC error for ${idServicio}:`, error);
                 }
               } else {
-                // Fallback: usar upsert para múltiples campos
-                console.log(`   Using upsert for multiple fields:`, servicioData);
+                // Fallback: usar update directo (no upsert) para múltiples campos
+                console.log(`   Using direct update for multiple fields:`, servicioData);
                 
                 const { error } = await supabase
                   .from('servicios_custodia')
-                  .upsert(servicioData, { 
-                    onConflict: 'id_servicio',
-                    ignoreDuplicates: false 
-                  });
+                  .update(servicioData)
+                  .eq('id_servicio', idServicio);
                 
                 upsertError = error;
                 if (!error) {
                   result.updated++;
-                  console.log(`✅ Successfully updated via upsert: ${item.id_servicio}`);
+                  console.log(`✅ Successfully updated via direct update: ${idServicio}`);
                 }
               }
             } else if (mode === 'create') {
@@ -312,14 +325,19 @@ export const importCustodianServices = async (
             }
 
             if (upsertError) {
-              console.error(`Database error for ${item.id_servicio}:`, upsertError);
+              const idServicio = typeof item.id_servicio === 'string' 
+                ? item.id_servicio.trim() 
+                : String(item.id_servicio || '').trim();
+              console.error(`Database error for ${idServicio}:`, upsertError);
               
               // Detect specific errors and provide actionable messages
-              let errorMessage = upsertError.message;
+              let errorMessage = upsertError.message || 'Error desconocido';
               
-              // Detect RPC errors
-              if (errorMessage.includes('update_servicio_estado') || errorMessage.includes('No rows found')) {
-                errorMessage = `Error al actualizar estado: El servicio ${item.id_servicio} no existe en la base de datos`;
+              // Detect RPC errors and ID not found
+              if (errorMessage.includes('ID no encontrado')) {
+                errorMessage = `El servicio "${idServicio}" no existe en la base de datos`;
+              } else if (errorMessage.includes('update_servicio_estado') || errorMessage.includes('No rows found')) {
+                errorMessage = `Error al actualizar estado: El servicio ${idServicio} no existe en la base de datos`;
               } else if (upsertError.code === '42501' || errorMessage.includes('row-level security')) {
                 errorMessage = `Permisos insuficientes (RLS). Verifica que tu usuario tenga rol de administrador.`;
               } else if (upsertError.code === '23502') {
@@ -329,7 +347,7 @@ export const importCustodianServices = async (
               }
               
               result.failed++;
-              result.errors.push(`Registro ${current} (${item.id_servicio}): ${errorMessage}`);
+              result.errors.push(`Registro ${current} (${idServicio}): ${errorMessage}`);
             } else {
               console.log(`Successfully processed ${item.id_servicio}`);
             }
