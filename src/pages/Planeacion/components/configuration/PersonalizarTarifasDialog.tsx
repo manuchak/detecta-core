@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +24,7 @@ export default function PersonalizarTarifasDialog({
 }: PersonalizarTarifasDialogProps) {
   const { createEsquema, getEsquemaEstandar } = useEsquemasArmados();
   const [loading, setLoading] = useState(false);
+  const initializedRef = useRef(false);
 
   const [formData, setFormData] = useState({
     tarifa_base_12h: 1300,
@@ -35,19 +36,25 @@ export default function PersonalizarTarifasDialog({
 
   // Inicializar con valores del esquema actual o estándar
   useEffect(() => {
-    if (open) {
-      const esquemaBase = esquemaActual || getEsquemaEstandar();
-      if (esquemaBase?.configuracion) {
-        setFormData({
-          tarifa_base_12h: Number(esquemaBase.configuracion.tarifa_base_12h) || 1300,
-          tarifa_hora_extra: Number(esquemaBase.configuracion.tarifa_hora_extra) || 150,
-          viaticos_diarios: Number(esquemaBase.configuracion.viaticos_diarios) || 300,
-          horas_base_incluidas: Number(esquemaBase.configuracion.horas_base_incluidas) || 12,
-          aplica_viaticos_foraneos: esquemaBase.configuracion.aplica_viaticos_foraneos ?? true,
-        });
-      }
+    if (!open) {
+      initializedRef.current = false;
+      return;
     }
-  }, [open, esquemaActual, getEsquemaEstandar]);
+    
+    if (initializedRef.current) return;
+
+    const esquemaBase = esquemaActual || getEsquemaEstandar();
+    if (esquemaBase?.configuracion) {
+      setFormData({
+        tarifa_base_12h: Number(esquemaBase.configuracion.tarifa_base_12h) || 1300,
+        tarifa_hora_extra: Number(esquemaBase.configuracion.tarifa_hora_extra) || 150,
+        viaticos_diarios: Number(esquemaBase.configuracion.viaticos_diarios) || 300,
+        horas_base_incluidas: Number(esquemaBase.configuracion.horas_base_incluidas) || 12,
+        aplica_viaticos_foraneos: esquemaBase.configuracion.aplica_viaticos_foraneos ?? true,
+      });
+    }
+    initializedRef.current = true;
+  }, [open, esquemaActual?.id]);
 
   const handleInputChange = (field: string, value: number | boolean) => {
     // Para valores numéricos, convertir NaN o Infinity a 0
