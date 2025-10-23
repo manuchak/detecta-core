@@ -21,6 +21,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { useTabVisibility } from '@/hooks/useTabVisibility';
 import { parseRobustDate } from '@/utils/dateUtils';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ImportWizardEnhancedProps {
   open: boolean;
@@ -219,6 +220,28 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
         .filter(id => id && typeof id === 'string' && id.trim());
 
       if (serviceIds.length > 0) {
+        // ✅ NUEVO: Verificar sesión antes de validar IDs
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (!session || sessionError) {
+          toast.error('Sesión expirada', {
+            description: 'Por favor recarga la página e intenta nuevamente',
+            duration: 5000
+          });
+          setState(prev => ({ 
+            ...prev, 
+            step: 'mapping',
+            result: {
+              success: false,
+              imported: 0,
+              updated: 0,
+              failed: transformedData.length,
+              errors: ['⚠️ Sesión expirada - por favor recarga la página'],
+              warnings: []
+            }
+          }));
+          return;
+        }
+        
         const updateMode = isUpdateOnlyMode();
         let validationMode: 'create' | 'update' = 
           importMode === 'auto' 

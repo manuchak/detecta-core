@@ -164,6 +164,22 @@ export const useServiceIdValidation = () => {
           details: (error as any).details
         });
         
+        // ✅ NUEVO: Detectar error de autenticación específicamente
+        if (errorMessage.includes('No hay usuario autenticado') || errorCode === 'P0001') {
+          toast.error('Sesión expirada', {
+            description: 'Por favor recarga la página e intenta nuevamente'
+          });
+          return {
+            is_valid: false,
+            total_checked: cleanIds.length,
+            invalid_count: cleanIds.length,
+            duplicate_in_input: [],
+            finished_services: [],
+            invalid_services: [],
+            summary: '⚠️ Sesión expirada - por favor recarga la página'
+          };
+        }
+        
         // Si el error menciona "is_test" o "column does not exist" (bug crítico de DB)
         if (errorMessage.includes('is_test') || errorMessage.includes('does not exist')) {
           toast.error('Error de configuración de base de datos', {
