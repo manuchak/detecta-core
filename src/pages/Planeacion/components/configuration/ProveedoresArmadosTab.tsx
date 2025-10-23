@@ -43,10 +43,11 @@ interface ProveedorFormData {
   zonas_cobertura: string[];
   servicios_disponibles: string[];
   capacidad_maxima: number;
-  tarifa_base_local: number;
-  tarifa_base_foraneo: number;
-  tarifa_alta_seguridad: number;
-  descuento_volumen: number;
+  horas_base_incluidas: number;
+  tarifa_base_12h: number;
+  tarifa_hora_extra: number;
+  viaticos_diarios: number;
+  aplica_viaticos_foraneos: boolean;
   disponibilidad_24h: boolean;
   tiempo_respuesta_promedio: number;
   observaciones: string;
@@ -61,10 +62,11 @@ const initialFormData: ProveedorFormData = {
   zonas_cobertura: [],
   servicios_disponibles: ['local'],
   capacidad_maxima: 10,
-  tarifa_base_local: 0,
-  tarifa_base_foraneo: 0,
-  tarifa_alta_seguridad: 0,
-  descuento_volumen: 0,
+  horas_base_incluidas: 12,
+  tarifa_base_12h: 1300,
+  tarifa_hora_extra: 150,
+  viaticos_diarios: 300,
+  aplica_viaticos_foraneos: true,
   disponibilidad_24h: false,
   tiempo_respuesta_promedio: 60,
   observaciones: ''
@@ -133,10 +135,11 @@ export function ProveedoresArmadosTab() {
       zonas_cobertura: proveedor.zonas_cobertura || [],
       servicios_disponibles: proveedor.servicios_disponibles || ['local'],
       capacidad_maxima: proveedor.capacidad_maxima || 10,
-      tarifa_base_local: proveedor.tarifa_base_local || 0,
-      tarifa_base_foraneo: proveedor.tarifa_base_foraneo || 0,
-      tarifa_alta_seguridad: proveedor.tarifa_alta_seguridad || 0,
-      descuento_volumen: proveedor.descuento_volumen || 0,
+      horas_base_incluidas: 12,
+      tarifa_base_12h: 1300,
+      tarifa_hora_extra: 150,
+      viaticos_diarios: 300,
+      aplica_viaticos_foraneos: true,
       disponibilidad_24h: proveedor.disponibilidad_24h || false,
       tiempo_respuesta_promedio: proveedor.tiempo_respuesta_promedio || 60,
       observaciones: proveedor.observaciones || ''
@@ -291,13 +294,19 @@ export function ProveedoresArmadosTab() {
                 </div>
               </div>
 
-              {/* Capacidad y Tarifas */}
+              {/* Capacidad y Modelo de Pago */}
               <Separator />
               <div className="space-y-4">
-                <h4 className="font-medium">Capacidad y Tarifas</h4>
+                <div className="flex items-center gap-2">
+                  <h4 className="font-medium">Capacidad y Modelo de Pago</h4>
+                  <Badge variant="outline" className="text-xs">
+                    ⏱️ Esquema: Tiempo Fijo
+                  </Badge>
+                </div>
+                
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="capacidad_maxima">Capacidad Máxima</Label>
+                    <Label htmlFor="capacidad_maxima">Capacidad Máxima de Custodios</Label>
                     <Input
                       id="capacidad_maxima"
                       type="number"
@@ -318,42 +327,103 @@ export function ProveedoresArmadosTab() {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="tarifa_base_local">Tarifa Local ($)</Label>
-                    <Input
-                      id="tarifa_base_local"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={formData.tarifa_base_local}
-                      onChange={(e) => handleInputChange('tarifa_base_local', parseFloat(e.target.value))}
-                    />
+                {/* Configuración de Tarifas según Esquema de Tiempo Fijo */}
+                <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <DollarSign className="h-4 w-4 text-primary" />
+                    <span>Configuración de Tarifas (Tiempo Fijo)</span>
                   </div>
-                  <div>
-                    <Label htmlFor="tarifa_base_foraneo">Tarifa Foráneo ($)</Label>
-                    <Input
-                      id="tarifa_base_foraneo"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={formData.tarifa_base_foraneo}
-                      onChange={(e) => handleInputChange('tarifa_base_foraneo', parseFloat(e.target.value))}
-                    />
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="horas_base_incluidas">Horas Base Incluidas</Label>
+                      <Input
+                        id="horas_base_incluidas"
+                        type="number"
+                        min="1"
+                        value={formData.horas_base_incluidas}
+                        onChange={(e) => handleInputChange('horas_base_incluidas', parseInt(e.target.value))}
+                        placeholder="12"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Horas incluidas en la tarifa base
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="tarifa_base_12h">Tarifa Base ($MXN)</Label>
+                      <Input
+                        id="tarifa_base_12h"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.tarifa_base_12h}
+                        onChange={(e) => handleInputChange('tarifa_base_12h', parseFloat(e.target.value))}
+                        placeholder="1300"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Pago por {formData.horas_base_incluidas || 12} horas de trabajo
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="tarifa_alta_seguridad">Tarifa Alta Seguridad ($)</Label>
-                    <Input
-                      id="tarifa_alta_seguridad"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={formData.tarifa_alta_seguridad}
-                      onChange={(e) => handleInputChange('tarifa_alta_seguridad', parseFloat(e.target.value))}
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="tarifa_hora_extra">Tarifa Hora Extra ($MXN)</Label>
+                      <Input
+                        id="tarifa_hora_extra"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.tarifa_hora_extra}
+                        onChange={(e) => handleInputChange('tarifa_hora_extra', parseFloat(e.target.value))}
+                        placeholder="150"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Por cada hora adicional
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="viaticos_diarios">Viáticos Diarios ($MXN)</Label>
+                      <Input
+                        id="viaticos_diarios"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.viaticos_diarios}
+                        onChange={(e) => handleInputChange('viaticos_diarios', parseFloat(e.target.value))}
+                        placeholder="300"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Para servicios foráneos que excedan jornada base
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2 pt-2">
+                    <input
+                      type="checkbox"
+                      id="aplica_viaticos_foraneos"
+                      checked={formData.aplica_viaticos_foraneos}
+                      onChange={(e) => handleInputChange('aplica_viaticos_foraneos', e.target.checked)}
+                      className="rounded border-gray-300"
                     />
+                    <Label htmlFor="aplica_viaticos_foraneos" className="cursor-pointer">
+                      Aplicar viáticos automáticamente en servicios foráneos que excedan {formData.horas_base_incluidas || 12}h
+                    </Label>
+                  </div>
+                  
+                  {/* Ejemplo de cálculo */}
+                  <div className="bg-primary/5 border border-primary/20 rounded p-3 text-sm">
+                    <p className="font-medium text-foreground mb-2">📊 Ejemplo de Cálculo:</p>
+                    <ul className="text-muted-foreground space-y-1 text-xs">
+                      <li>• Servicio de 14 horas: ${formData.tarifa_base_12h || 1300} (base) + ${(formData.tarifa_hora_extra || 150) * 2} (2h extra) = ${(formData.tarifa_base_12h || 1300) + ((formData.tarifa_hora_extra || 150) * 2)}</li>
+                      <li>• Si es foráneo: +${formData.viaticos_diarios || 300} viáticos = ${(formData.tarifa_base_12h || 1300) + ((formData.tarifa_hora_extra || 150) * 2) + (formData.viaticos_diarios || 300)}</li>
+                    </ul>
                   </div>
                 </div>
-
+                
                 <div className="flex items-center space-x-2">
                   <Switch
                     checked={formData.disponibilidad_24h}
@@ -474,6 +544,27 @@ export function ProveedoresArmadosTab() {
                         {SERVICIOS_DISPONIBLES.find(s => s.value === servicio)?.label || servicio}
                       </Badge>
                     ))}
+                  </div>
+                </div>
+
+                <div className="border-t pt-4">
+                  <h5 className="text-sm font-medium mb-2 flex items-center gap-2">
+                    <DollarSign className="w-4 h-4" />
+                    Esquema de Pago: Tiempo Fijo
+                  </h5>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Tarifa Base (12h):</span>
+                      <p className="font-medium">$1,300 MXN</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Hora Extra:</span>
+                      <p className="font-medium">$150 MXN</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Viáticos:</span>
+                      <p className="font-medium">$300 MXN</p>
+                    </div>
                   </div>
                 </div>
 
