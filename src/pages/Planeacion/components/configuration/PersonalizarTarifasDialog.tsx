@@ -44,6 +44,10 @@ export default function PersonalizarTarifasDialog({
   }, [open, esquemaActual]);
 
   const handleInputChange = (field: string, value: number | boolean) => {
+    // Ensure numeric values are valid
+    if (typeof value === 'number' && (isNaN(value) || !isFinite(value))) {
+      return;
+    }
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -76,10 +80,10 @@ export default function PersonalizarTarifasDialog({
   // Vista previa de cálculo
   const calcularEjemplo = () => {
     const horasEjemplo = 14;
-    const horasExtra = Math.max(0, horasEjemplo - formData.horas_base_incluidas);
-    const costoBase = formData.tarifa_base_12h;
-    const costoExtra = horasExtra * formData.tarifa_hora_extra;
-    const viaticos = formData.aplica_viaticos_foraneos ? formData.viaticos_diarios : 0;
+    const horasExtra = Math.max(0, horasEjemplo - Number(formData.horas_base_incluidas ?? 12));
+    const costoBase = Number(formData.tarifa_base_12h ?? 0);
+    const costoExtra = horasExtra * Number(formData.tarifa_hora_extra ?? 0);
+    const viaticos = formData.aplica_viaticos_foraneos ? Number(formData.viaticos_diarios ?? 0) : 0;
     return costoBase + costoExtra + viaticos;
   };
 
@@ -197,16 +201,16 @@ export default function PersonalizarTarifasDialog({
             <div className="grid grid-cols-3 gap-3 mt-3">
               <div>
                 <p className="text-xs text-muted-foreground">Tarifa Base (12h)</p>
-                <p className="text-sm font-medium">${formData.tarifa_base_12h.toFixed(2)}</p>
+                <p className="text-sm font-medium">${Number(formData.tarifa_base_12h ?? 0).toFixed(2)}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">2 Horas Extra</p>
-                <p className="text-sm font-medium">${(formData.tarifa_hora_extra * 2).toFixed(2)}</p>
+                <p className="text-sm font-medium">${(Number(formData.tarifa_hora_extra ?? 0) * 2).toFixed(2)}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Viáticos</p>
                 <p className="text-sm font-medium">
-                  ${formData.aplica_viaticos_foraneos ? formData.viaticos_diarios.toFixed(2) : '0.00'}
+                  ${formData.aplica_viaticos_foraneos ? Number(formData.viaticos_diarios ?? 0).toFixed(2) : '0.00'}
                 </p>
               </div>
             </div>
