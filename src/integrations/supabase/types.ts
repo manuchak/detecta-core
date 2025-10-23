@@ -806,6 +806,7 @@ export type Database = {
           coordenadas_encuentro: unknown
           created_at: string
           custodio_id: string | null
+          esquema_pago_id: string | null
           estado_asignacion: string
           estado_pago: string | null
           fecha_ultima_actualizacion_pago: string | null
@@ -835,6 +836,7 @@ export type Database = {
           coordenadas_encuentro?: unknown
           created_at?: string
           custodio_id?: string | null
+          esquema_pago_id?: string | null
           estado_asignacion?: string
           estado_pago?: string | null
           fecha_ultima_actualizacion_pago?: string | null
@@ -864,6 +866,7 @@ export type Database = {
           coordenadas_encuentro?: unknown
           created_at?: string
           custodio_id?: string | null
+          esquema_pago_id?: string | null
           estado_asignacion?: string
           estado_pago?: string | null
           fecha_ultima_actualizacion_pago?: string | null
@@ -884,6 +887,13 @@ export type Database = {
           verificacion_identidad_timestamp?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "asignacion_armados_esquema_pago_id_fkey"
+            columns: ["esquema_pago_id"]
+            isOneToOne: false
+            referencedRelation: "esquemas_pago_armados"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fk_personal_proveedor"
             columns: ["personal_proveedor_id"]
@@ -3011,6 +3021,39 @@ export type Database = {
           tarifas_negociadas?: Json | null
           telefono_principal?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      esquemas_pago_armados: {
+        Row: {
+          activo: boolean | null
+          configuracion: Json
+          created_at: string | null
+          descripcion: string | null
+          id: string
+          nombre: string
+          tipo_esquema: string
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          configuracion: Json
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre: string
+          tipo_esquema: string
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          configuracion?: Json
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+          tipo_esquema?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -5881,6 +5924,8 @@ export type Database = {
           archivo_comprobante_url: string | null
           asignacion_id: string
           created_at: string
+          desglose_calculo: Json | null
+          esquema_pago_id: string | null
           estado_conciliacion: string | null
           fecha_pago: string
           folio_comprobante: string | null
@@ -5900,6 +5945,8 @@ export type Database = {
           archivo_comprobante_url?: string | null
           asignacion_id: string
           created_at?: string
+          desglose_calculo?: Json | null
+          esquema_pago_id?: string | null
           estado_conciliacion?: string | null
           fecha_pago: string
           folio_comprobante?: string | null
@@ -5919,6 +5966,8 @@ export type Database = {
           archivo_comprobante_url?: string | null
           asignacion_id?: string
           created_at?: string
+          desglose_calculo?: Json | null
+          esquema_pago_id?: string | null
           estado_conciliacion?: string | null
           fecha_pago?: string
           folio_comprobante?: string | null
@@ -5940,6 +5989,13 @@ export type Database = {
             columns: ["asignacion_id"]
             isOneToOne: false
             referencedRelation: "asignacion_armados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagos_proveedores_armados_esquema_pago_id_fkey"
+            columns: ["esquema_pago_id"]
+            isOneToOne: false
+            referencedRelation: "esquemas_pago_armados"
             referencedColumns: ["id"]
           },
           {
@@ -7534,6 +7590,7 @@ export type Database = {
           documentacion_legal: string[] | null
           documentos_completos: boolean | null
           email_contacto: string
+          esquema_pago_id: string | null
           id: string
           licencias_vigentes: boolean | null
           nombre_empresa: string
@@ -7562,6 +7619,7 @@ export type Database = {
           documentacion_legal?: string[] | null
           documentos_completos?: boolean | null
           email_contacto: string
+          esquema_pago_id?: string | null
           id?: string
           licencias_vigentes?: boolean | null
           nombre_empresa: string
@@ -7590,6 +7648,7 @@ export type Database = {
           documentacion_legal?: string[] | null
           documentos_completos?: boolean | null
           email_contacto?: string
+          esquema_pago_id?: string | null
           id?: string
           licencias_vigentes?: boolean | null
           nombre_empresa?: string
@@ -7607,7 +7666,15 @@ export type Database = {
           updated_at?: string
           zonas_cobertura?: string[]
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "proveedores_armados_esquema_pago_id_fkey"
+            columns: ["esquema_pago_id"]
+            isOneToOne: false
+            referencedRelation: "esquemas_pago_armados"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       puntos_encuentro_predefinidos: {
         Row: {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { calcularPagoSegunEsquema, PaymentCalculationResult } from '@/utils/paymentCalculations';
 
 export interface ProveedorPagoRecord {
   id: string;
@@ -38,6 +39,8 @@ export interface CreatePagoData {
   folio_comprobante?: string;
   referencia_bancaria?: string;
   observaciones?: string;
+  desglose_calculo?: any;
+  esquema_pago_id?: string;
 }
 
 export interface MassivePaymentData {
@@ -291,6 +294,61 @@ export function useProveedoresPagos(proveedorId?: string, startDate?: Date, endD
     };
   };
 
+  const calcularMontoAutomatico = async (asignacionId: string): Promise<PaymentCalculationResult | null> => {
+    try {
+      const { data: asignacion, error } = await supabase
+        .from('asignacion_armados')
+        .select(`
+          *,
+          servicios_custodia(km_recorridos, duracion_servicio, tipo_servicio),
+          esquemas_pago_armados(*)
+        `)
+        .eq('id', asignacionId)
+        .single();
+      
+      if (error || !asignacion) {
+        console.error('Error fetching assignment for calculation:', error);
+        return null;
+      }
+
+      // Get payment scheme - either from assignment or from provider
+      let esquema = asignacion.esquemas_pago_armados;
+      
+      if (!esquema && asignacion.proveedor_armado_id) {
+        const { data: proveedor } = await supabase
+          .from('proveedores_armados')
+          .select('esquemas_pago_armados(*)')
+          .eq('id', asignacion.proveedor_armado_id)
+          .single();
+        
+        esquema = proveedor?.esquemas_pago_armados;
+      }
+
+      if (!esquema) {
+        console.warn('No payment scheme found for assignment:', asignacionId);
+        return null;
+      }
+
+      const serviceData = {
+        km_recorridos: asignacion.servicios_custodia?.km_recorridos,
+        duracion_servicio: asignacion.servicios_custodia?.duracion_servicio,
+        tipo_servicio: asignacion.servicios_custodia?.tipo_servicio,
+      };
+
+      const result = calcularPagoSegunEsquema(esquema, serviceData);
+      
+      // Add scheme ID to the breakdown for later reference
+      if (result && result.desglose) {
+        result.desglose.esquema_id = esquema.id;
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Error calculating automatic payment:', error);
+      return null;
+    }
+  };
+
   return {
     serviciosConPagos,
     loading,
@@ -298,6 +356,7 @@ export function useProveedoresPagos(proveedorId?: string, startDate?: Date, endD
     registrarPago,
     registrarPagosMasivos,
     getResumenFinanciero,
+    calcularMontoAutomatico,
     refetch: loadServiciosConPagos,
   };
 }

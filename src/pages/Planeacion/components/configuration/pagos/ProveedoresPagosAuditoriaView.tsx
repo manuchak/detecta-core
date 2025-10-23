@@ -26,6 +26,7 @@ export function ProveedoresPagosAuditoriaView() {
     registrarPago,
     registrarPagosMasivos,
     getResumenFinanciero,
+    calcularMontoAutomatico,
   } = useProveedoresPagos(selectedProveedor === 'todos' ? undefined : selectedProveedor);
 
   const filteredServicios = selectedProveedor === 'todos'
@@ -134,6 +135,7 @@ export function ProveedoresPagosAuditoriaView() {
         onOpenChange={setShowPagoDialog}
         servicio={selectedServicio}
         onConfirm={registrarPago}
+        calcularMontoAutomatico={calcularMontoAutomatico}
       />
 
       <RegistrarPagoMasivoDialog
