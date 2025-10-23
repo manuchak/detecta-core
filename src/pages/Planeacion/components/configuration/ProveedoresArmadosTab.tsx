@@ -467,6 +467,14 @@ export function ProveedoresArmadosTab() {
                     <Badge className={getStatusColor(proveedor)}>
                       {getStatusText(proveedor)}
                     </Badge>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleManageBases(proveedor)}
+                      title="Gestionar bases del proveedor"
+                    >
+                      <Building2 className="w-4 h-4" />
+                    </Button>
                     <Button variant="ghost" size="sm" onClick={() => handleEdit(proveedor)}>
                       <Edit2 className="w-4 h-4" />
                     </Button>
@@ -567,6 +575,16 @@ export function ProveedoresArmadosTab() {
           <ProveedoresPagosAuditoriaView />
         </TabsContent>
       </Tabs>
+
+      {/* Dialog de Bases */}
+      {selectedProveedorForBases && (
+        <BasesProveedorDialog
+          open={basesDialogOpen}
+          onOpenChange={setBasesDialogOpen}
+          proveedorId={selectedProveedorForBases.id}
+          proveedorNombre={selectedProveedorForBases.nombre}
+        />
+      )}
     </div>
   );
 }
