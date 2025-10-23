@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Edit2, Shield, FileCheck, AlertTriangle, Building2, Phone, Mail, DollarSign } from 'lucide-react';
 import { useProveedoresArmados, CreateProveedorData, UpdateProveedorData } from '@/hooks/useProveedoresArmados';
 import { ProveedoresPagosAuditoriaView } from './pagos/ProveedoresPagosAuditoriaView';
+import { BasesProveedorDialog } from './BasesProveedorDialog';
 import { toast } from 'sonner';
 
 const ZONAS_DISPONIBLES = [
@@ -43,14 +44,11 @@ interface ProveedorFormData {
   zonas_cobertura: string[];
   servicios_disponibles: string[];
   capacidad_maxima: number;
-  horas_base_incluidas: number;
-  tarifa_base_12h: number;
-  tarifa_hora_extra: number;
-  viaticos_diarios: number;
-  aplica_viaticos_foraneos: boolean;
   disponibilidad_24h: boolean;
   tiempo_respuesta_promedio: number;
   observaciones: string;
+  licencias_vigentes: boolean;
+  documentos_completos: boolean;
 }
 
 const initialFormData: ProveedorFormData = {
@@ -62,14 +60,11 @@ const initialFormData: ProveedorFormData = {
   zonas_cobertura: [],
   servicios_disponibles: ['local'],
   capacidad_maxima: 10,
-  horas_base_incluidas: 12,
-  tarifa_base_12h: 1300,
-  tarifa_hora_extra: 150,
-  viaticos_diarios: 300,
-  aplica_viaticos_foraneos: true,
   disponibilidad_24h: false,
   tiempo_respuesta_promedio: 60,
-  observaciones: ''
+  observaciones: '',
+  licencias_vigentes: true,
+  documentos_completos: true
 };
 
 export function ProveedoresArmadosTab() {
@@ -79,6 +74,8 @@ export function ProveedoresArmadosTab() {
   const [formData, setFormData] = useState<ProveedorFormData>(initialFormData);
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('maestro');
+  const [basesDialogOpen, setBasesDialogOpen] = useState(false);
+  const [selectedProveedorForBases, setSelectedProveedorForBases] = useState<{ id: string; nombre: string } | null>(null);
 
   const handleInputChange = (field: keyof ProveedorFormData, value: any) => {
     setFormData(prev => ({
@@ -135,17 +132,22 @@ export function ProveedoresArmadosTab() {
       zonas_cobertura: proveedor.zonas_cobertura || [],
       servicios_disponibles: proveedor.servicios_disponibles || ['local'],
       capacidad_maxima: proveedor.capacidad_maxima || 10,
-      horas_base_incluidas: 12,
-      tarifa_base_12h: 1300,
-      tarifa_hora_extra: 150,
-      viaticos_diarios: 300,
-      aplica_viaticos_foraneos: true,
       disponibilidad_24h: proveedor.disponibilidad_24h || false,
       tiempo_respuesta_promedio: proveedor.tiempo_respuesta_promedio || 60,
-      observaciones: proveedor.observaciones || ''
+      observaciones: proveedor.observaciones || '',
+      licencias_vigentes: proveedor.licencias_vigentes ?? true,
+      documentos_completos: proveedor.documentos_completos ?? true
     });
     setEditingProveedor(proveedor.id);
     setIsDialogOpen(true);
+  };
+
+  const handleManageBases = (proveedor: any) => {
+    setSelectedProveedorForBases({
+      id: proveedor.id,
+      nombre: proveedor.nombre_empresa
+    });
+    setBasesDialogOpen(true);
   };
 
   const handleCloseDialog = () => {
@@ -294,19 +296,14 @@ export function ProveedoresArmadosTab() {
                 </div>
               </div>
 
-              {/* Capacidad y Modelo de Pago */}
+              {/* Capacidad y Operación */}
               <Separator />
               <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <h4 className="font-medium">Capacidad y Modelo de Pago</h4>
-                  <Badge variant="outline" className="text-xs">
-                    ⏱️ Esquema: Tiempo Fijo
-                  </Badge>
-                </div>
+                <h4 className="font-medium">Capacidad y Operación</h4>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="capacidad_maxima">Capacidad Máxima de Custodios</Label>
+                    <Label htmlFor="capacidad_maxima">Capacidad Máxima de Armados</Label>
                     <Input
                       id="capacidad_maxima"
                       type="number"
@@ -326,104 +323,7 @@ export function ProveedoresArmadosTab() {
                     />
                   </div>
                 </div>
-                
-                {/* Configuración de Tarifas según Esquema de Tiempo Fijo */}
-                <div className="p-4 bg-muted/50 rounded-lg space-y-4">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <DollarSign className="h-4 w-4 text-primary" />
-                    <span>Configuración de Tarifas (Tiempo Fijo)</span>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="horas_base_incluidas">Horas Base Incluidas</Label>
-                      <Input
-                        id="horas_base_incluidas"
-                        type="number"
-                        min="1"
-                        value={formData.horas_base_incluidas}
-                        onChange={(e) => handleInputChange('horas_base_incluidas', parseInt(e.target.value))}
-                        placeholder="12"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Horas incluidas en la tarifa base
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="tarifa_base_12h">Tarifa Base ($MXN)</Label>
-                      <Input
-                        id="tarifa_base_12h"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={formData.tarifa_base_12h}
-                        onChange={(e) => handleInputChange('tarifa_base_12h', parseFloat(e.target.value))}
-                        placeholder="1300"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Pago por {formData.horas_base_incluidas || 12} horas de trabajo
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="tarifa_hora_extra">Tarifa Hora Extra ($MXN)</Label>
-                      <Input
-                        id="tarifa_hora_extra"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={formData.tarifa_hora_extra}
-                        onChange={(e) => handleInputChange('tarifa_hora_extra', parseFloat(e.target.value))}
-                        placeholder="150"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Por cada hora adicional
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="viaticos_diarios">Viáticos Diarios ($MXN)</Label>
-                      <Input
-                        id="viaticos_diarios"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={formData.viaticos_diarios}
-                        onChange={(e) => handleInputChange('viaticos_diarios', parseFloat(e.target.value))}
-                        placeholder="300"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Para servicios foráneos que excedan jornada base
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2 pt-2">
-                    <input
-                      type="checkbox"
-                      id="aplica_viaticos_foraneos"
-                      checked={formData.aplica_viaticos_foraneos}
-                      onChange={(e) => handleInputChange('aplica_viaticos_foraneos', e.target.checked)}
-                      className="rounded border-gray-300"
-                    />
-                    <Label htmlFor="aplica_viaticos_foraneos" className="cursor-pointer">
-                      Aplicar viáticos automáticamente en servicios foráneos que excedan {formData.horas_base_incluidas || 12}h
-                    </Label>
-                  </div>
-                  
-                  {/* Ejemplo de cálculo */}
-                  <div className="bg-primary/5 border border-primary/20 rounded p-3 text-sm">
-                    <p className="font-medium text-foreground mb-2">📊 Ejemplo de Cálculo:</p>
-                    <ul className="text-muted-foreground space-y-1 text-xs">
-                      <li>• Servicio de 14 horas: ${formData.tarifa_base_12h || 1300} (base) + ${(formData.tarifa_hora_extra || 150) * 2} (2h extra) = ${(formData.tarifa_base_12h || 1300) + ((formData.tarifa_hora_extra || 150) * 2)}</li>
-                      <li>• Si es foráneo: +${formData.viaticos_diarios || 300} viáticos = ${(formData.tarifa_base_12h || 1300) + ((formData.tarifa_hora_extra || 150) * 2) + (formData.viaticos_diarios || 300)}</li>
-                    </ul>
-                  </div>
-                </div>
-                
+
                 <div className="flex items-center space-x-2">
                   <Switch
                     checked={formData.disponibilidad_24h}
@@ -431,6 +331,68 @@ export function ProveedoresArmadosTab() {
                   />
                   <Label>Disponibilidad 24/7</Label>
                 </div>
+                
+                {/* Información de Tarifas (Solo lectura - desde esquema) */}
+                <div className="p-4 bg-muted/30 rounded-lg border border-border">
+                  <div className="flex items-center gap-2 text-sm font-medium mb-3">
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    <span>Modelo de Pago: Tiempo Fijo</span>
+                    <Badge variant="outline" className="text-xs">
+                      Desde Esquema Estándar
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4 text-sm text-muted-foreground">
+                    <div>
+                      <p className="text-xs">Tarifa Base (12h)</p>
+                      <p className="font-medium text-foreground">$1,300 MXN</p>
+                    </div>
+                    <div>
+                      <p className="text-xs">Hora Extra</p>
+                      <p className="font-medium text-foreground">$150 MXN</p>
+                    </div>
+                    <div>
+                      <p className="text-xs">Viáticos</p>
+                      <p className="font-medium text-foreground">$300 MXN</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-3">
+                    💡 Las tarifas se gestionan desde el esquema de pago estándar. Para tarifas personalizadas, crea un esquema específico.
+                  </p>
+                </div>
+              </div>
+
+              {/* Documentación */}
+              <Separator />
+              <div className="space-y-4">
+                <h4 className="font-medium">Estado de Documentación</h4>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                    <Label htmlFor="licencias_vigentes" className="cursor-pointer">
+                      Licencias de Portación Vigentes
+                    </Label>
+                    <Switch
+                      id="licencias_vigentes"
+                      checked={formData.licencias_vigentes}
+                      onCheckedChange={(checked) => handleInputChange('licencias_vigentes', checked)}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                    <Label htmlFor="documentos_completos" className="cursor-pointer">
+                      Documentación Completa
+                    </Label>
+                    <Switch
+                      id="documentos_completos"
+                      checked={formData.documentos_completos}
+                      onCheckedChange={(checked) => handleInputChange('documentos_completos', checked)}
+                    />
+                  </div>
+                </div>
+
+                <p className="text-xs text-muted-foreground">
+                  El proveedor estará activo cuando ambas validaciones estén completas
+                </p>
               </div>
 
               {/* Observaciones */}

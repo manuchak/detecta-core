@@ -12,10 +12,6 @@ export interface CreateProveedorData {
   zonas_cobertura: string[];
   servicios_disponibles: string[];
   capacidad_maxima: number;
-  tarifa_base_local?: number;
-  tarifa_base_foraneo?: number;
-  tarifa_alta_seguridad?: number;
-  descuento_volumen?: number;
   disponibilidad_24h: boolean;
   tiempo_respuesta_promedio?: number;
   observaciones?: string;
@@ -74,8 +70,8 @@ export function useProveedoresArmados() {
           numero_servicios_empresa: 0,
           capacidad_actual: 0,
           activo: true,
-          licencias_vigentes: false,
-          documentos_completos: false
+          licencias_vigentes: true,
+          documentos_completos: true
         })
         .select()
         .single();

@@ -800,6 +800,7 @@ export type Database = {
           armado_id: string | null
           armado_nombre_verificado: string | null
           asignado_por: string | null
+          base_proveedor_id: string | null
           calificacion_servicio: number | null
           confirmado_por_armado: boolean | null
           confirmado_por_custodio: boolean | null
@@ -830,6 +831,7 @@ export type Database = {
           armado_id?: string | null
           armado_nombre_verificado?: string | null
           asignado_por?: string | null
+          base_proveedor_id?: string | null
           calificacion_servicio?: number | null
           confirmado_por_armado?: boolean | null
           confirmado_por_custodio?: boolean | null
@@ -860,6 +862,7 @@ export type Database = {
           armado_id?: string | null
           armado_nombre_verificado?: string | null
           asignado_por?: string | null
+          base_proveedor_id?: string | null
           calificacion_servicio?: number | null
           confirmado_por_armado?: boolean | null
           confirmado_por_custodio?: boolean | null
@@ -887,6 +890,13 @@ export type Database = {
           verificacion_identidad_timestamp?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "asignacion_armados_base_proveedor_id_fkey"
+            columns: ["base_proveedor_id"]
+            isOneToOne: false
+            referencedRelation: "bases_proveedores_armados"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "asignacion_armados_esquema_pago_id_fkey"
             columns: ["esquema_pago_id"]
@@ -1152,6 +1162,74 @@ export type Database = {
             columns: ["instalador_id"]
             isOneToOne: false
             referencedRelation: "instaladores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bases_proveedores_armados: {
+        Row: {
+          activa: boolean | null
+          capacidad_armados: number | null
+          ciudad: string
+          codigo_postal: string | null
+          contacto_base: string | null
+          coordenadas_lat: number | null
+          coordenadas_lng: number | null
+          created_at: string | null
+          direccion_completa: string
+          es_base_principal: boolean | null
+          horario_operacion: string | null
+          id: string
+          nombre_base: string
+          observaciones: string | null
+          proveedor_id: string
+          telefono_base: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          activa?: boolean | null
+          capacidad_armados?: number | null
+          ciudad: string
+          codigo_postal?: string | null
+          contacto_base?: string | null
+          coordenadas_lat?: number | null
+          coordenadas_lng?: number | null
+          created_at?: string | null
+          direccion_completa: string
+          es_base_principal?: boolean | null
+          horario_operacion?: string | null
+          id?: string
+          nombre_base: string
+          observaciones?: string | null
+          proveedor_id: string
+          telefono_base?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          activa?: boolean | null
+          capacidad_armados?: number | null
+          ciudad?: string
+          codigo_postal?: string | null
+          contacto_base?: string | null
+          coordenadas_lat?: number | null
+          coordenadas_lng?: number | null
+          created_at?: string | null
+          direccion_completa?: string
+          es_base_principal?: boolean | null
+          horario_operacion?: string | null
+          id?: string
+          nombre_base?: string
+          observaciones?: string | null
+          proveedor_id?: string
+          telefono_base?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bases_proveedores_armados_proveedor_id_fkey"
+            columns: ["proveedor_id"]
+            isOneToOne: false
+            referencedRelation: "proveedores_armados"
             referencedColumns: ["id"]
           },
         ]
