@@ -807,13 +807,17 @@ export type Database = {
           created_at: string
           custodio_id: string | null
           estado_asignacion: string
+          estado_pago: string | null
+          fecha_ultima_actualizacion_pago: string | null
           hora_encuentro: string | null
           id: string
           moneda: string | null
+          notas_pago: string | null
           observaciones: string | null
           personal_proveedor_id: string | null
           proveedor_armado_id: string | null
           punto_encuentro: string | null
+          requiere_factura: boolean | null
           servicio_custodia_id: string | null
           tarifa_acordada: number | null
           tiempo_respuesta_minutos: number | null
@@ -832,13 +836,17 @@ export type Database = {
           created_at?: string
           custodio_id?: string | null
           estado_asignacion?: string
+          estado_pago?: string | null
+          fecha_ultima_actualizacion_pago?: string | null
           hora_encuentro?: string | null
           id?: string
           moneda?: string | null
+          notas_pago?: string | null
           observaciones?: string | null
           personal_proveedor_id?: string | null
           proveedor_armado_id?: string | null
           punto_encuentro?: string | null
+          requiere_factura?: boolean | null
           servicio_custodia_id?: string | null
           tarifa_acordada?: number | null
           tiempo_respuesta_minutos?: number | null
@@ -857,13 +865,17 @@ export type Database = {
           created_at?: string
           custodio_id?: string | null
           estado_asignacion?: string
+          estado_pago?: string | null
+          fecha_ultima_actualizacion_pago?: string | null
           hora_encuentro?: string | null
           id?: string
           moneda?: string | null
+          notas_pago?: string | null
           observaciones?: string | null
           personal_proveedor_id?: string | null
           proveedor_armado_id?: string | null
           punto_encuentro?: string | null
+          requiere_factura?: boolean | null
           servicio_custodia_id?: string | null
           tarifa_acordada?: number | null
           tiempo_respuesta_minutos?: number | null
@@ -5860,6 +5872,81 @@ export type Database = {
             columns: ["servicio_id"]
             isOneToOne: false
             referencedRelation: "servicios_monitoreo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pagos_proveedores_armados: {
+        Row: {
+          archivo_comprobante_url: string | null
+          asignacion_id: string
+          created_at: string
+          estado_conciliacion: string | null
+          fecha_pago: string
+          folio_comprobante: string | null
+          id: string
+          metodo_pago: string
+          moneda: string
+          monto_pagado: number
+          numero_factura: string | null
+          observaciones: string | null
+          proveedor_id: string
+          referencia_bancaria: string | null
+          registrado_por: string | null
+          servicio_custodia_id: string
+          updated_at: string
+        }
+        Insert: {
+          archivo_comprobante_url?: string | null
+          asignacion_id: string
+          created_at?: string
+          estado_conciliacion?: string | null
+          fecha_pago: string
+          folio_comprobante?: string | null
+          id?: string
+          metodo_pago: string
+          moneda?: string
+          monto_pagado: number
+          numero_factura?: string | null
+          observaciones?: string | null
+          proveedor_id: string
+          referencia_bancaria?: string | null
+          registrado_por?: string | null
+          servicio_custodia_id: string
+          updated_at?: string
+        }
+        Update: {
+          archivo_comprobante_url?: string | null
+          asignacion_id?: string
+          created_at?: string
+          estado_conciliacion?: string | null
+          fecha_pago?: string
+          folio_comprobante?: string | null
+          id?: string
+          metodo_pago?: string
+          moneda?: string
+          monto_pagado?: number
+          numero_factura?: string | null
+          observaciones?: string | null
+          proveedor_id?: string
+          referencia_bancaria?: string | null
+          registrado_por?: string | null
+          servicio_custodia_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagos_proveedores_armados_asignacion_id_fkey"
+            columns: ["asignacion_id"]
+            isOneToOne: false
+            referencedRelation: "asignacion_armados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagos_proveedores_armados_proveedor_id_fkey"
+            columns: ["proveedor_id"]
+            isOneToOne: false
+            referencedRelation: "proveedores_armados"
             referencedColumns: ["id"]
           },
         ]

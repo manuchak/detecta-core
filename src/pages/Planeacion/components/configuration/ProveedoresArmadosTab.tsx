@@ -9,8 +9,10 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Edit2, Shield, FileCheck, AlertTriangle, Building2, Phone, Mail } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Edit2, Shield, FileCheck, AlertTriangle, Building2, Phone, Mail, DollarSign } from 'lucide-react';
 import { useProveedoresArmados, CreateProveedorData, UpdateProveedorData } from '@/hooks/useProveedoresArmados';
+import { ProveedoresPagosAuditoriaView } from './pagos/ProveedoresPagosAuditoriaView';
 import { toast } from 'sonner';
 
 const ZONAS_DISPONIBLES = [
@@ -74,6 +76,7 @@ export function ProveedoresArmadosTab() {
   const [editingProveedor, setEditingProveedor] = useState<string | null>(null);
   const [formData, setFormData] = useState<ProveedorFormData>(initialFormData);
   const [submitting, setSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>('maestro');
 
   const handleInputChange = (field: keyof ProveedorFormData, value: any) => {
     setFormData(prev => ({
@@ -174,7 +177,7 @@ export function ProveedoresArmadosTab() {
         <div>
           <h3 className="text-lg font-semibold">Proveedores de Armados</h3>
           <p className="text-sm text-muted-foreground">
-            Gestiona proveedores externos de personal armado
+            Gestiona proveedores externos y administra pagos
           </p>
         </div>
         
@@ -384,8 +387,22 @@ export function ProveedoresArmadosTab() {
         </Dialog>
       </div>
 
-      {/* Lista de Proveedores */}
-      <div className="grid gap-4">
+      {/* Tabs for different views */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="maestro" className="gap-2">
+            <Building2 className="h-4 w-4" />
+            <span>Datos Maestros</span>
+          </TabsTrigger>
+          <TabsTrigger value="pagos" className="gap-2">
+            <DollarSign className="h-4 w-4" />
+            <span>Pagos & Auditoría</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="maestro" className="space-y-6">
+          {/* Lista de Proveedores */}
+          <div className="grid gap-4">
         {proveedores.length === 0 ? (
           <Card>
             <CardContent className="flex items-center justify-center py-8">
@@ -490,7 +507,13 @@ export function ProveedoresArmadosTab() {
             </Card>
           ))
         )}
-      </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="pagos">
+          <ProveedoresPagosAuditoriaView />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

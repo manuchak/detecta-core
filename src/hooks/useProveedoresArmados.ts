@@ -190,6 +190,48 @@ export function useProveedoresArmados() {
     }
   };
 
+  const getProveedorFinancialMetrics = async (proveedorId: string) => {
+    try {
+      const { data: asignaciones, error } = await supabase
+        .from('asignacion_armados')
+        .select('tarifa_acordada, estado_pago, moneda')
+        .eq('proveedor_armado_id', proveedorId)
+        .eq('tipo_asignacion', 'proveedor')
+        .eq('estado_asignacion', 'completado');
+
+      if (error) {
+        console.error('Error fetching financial metrics:', error);
+        throw error;
+      }
+
+      const total_servicios = asignaciones?.length || 0;
+      const monto_total_pendiente = asignaciones
+        ?.filter(a => a.estado_pago === 'pendiente')
+        .reduce((sum, a) => sum + (Number(a.tarifa_acordada) || 0), 0) || 0;
+      const monto_total_pagado = asignaciones
+        ?.filter(a => a.estado_pago === 'pagado')
+        .reduce((sum, a) => sum + (Number(a.tarifa_acordada) || 0), 0) || 0;
+      const monto_en_proceso = asignaciones
+        ?.filter(a => a.estado_pago === 'en_proceso')
+        .reduce((sum, a) => sum + (Number(a.tarifa_acordada) || 0), 0) || 0;
+
+      return {
+        total_servicios,
+        monto_total_pendiente,
+        monto_total_pagado,
+        monto_en_proceso,
+      };
+    } catch (error: any) {
+      console.error('Error in getProveedorFinancialMetrics:', error);
+      return {
+        total_servicios: 0,
+        monto_total_pendiente: 0,
+        monto_total_pagado: 0,
+        monto_en_proceso: 0,
+      };
+    }
+  };
+
   return {
     proveedores,
     loading,
@@ -199,6 +241,7 @@ export function useProveedoresArmados() {
     deleteProveedor,
     toggleProveedorStatus,
     updateProveedorDocumentStatus,
+    getProveedorFinancialMetrics,
     refetch: loadProveedores
   };
 }
