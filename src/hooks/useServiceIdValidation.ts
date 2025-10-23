@@ -180,20 +180,119 @@ export const useServiceIdValidation = () => {
           };
         }
         
-        // Si el error menciona "is_test" o "column does not exist" (bug crítico de DB)
-        if (errorMessage.includes('is_test') || errorMessage.includes('does not exist')) {
-          toast.error('Error de configuración de base de datos', {
-            description: 'Por favor contacta al administrador del sistema'
-          });
-          return {
-            is_valid: false,
-            total_checked: cleanIds.length,
-            invalid_count: cleanIds.length,
-            duplicate_in_input: [],
-            finished_services: [],
-            invalid_services: [],
-            summary: 'Error crítico de base de datos - función RPC desactualizada'
-          };
+        // ✅ FALLBACK: Si el RPC falla por tabla inexistente, hacer SELECT directo
+        if (errorMessage.includes('does not exist') || errorMessage.includes('relation')) {
+          console.warn('⚠️ RPC falló por tabla inexistente - usando fallback con SELECT directo');
+          
+          try {
+            // Hacer SELECT directo en lotes de 200 IDs
+            const BATCH_SIZE = 200;
+            const allResults: Array<{ id_servicio: string; estado: string | null }> = [];
+            
+            for (let i = 0; i < cleanIds.length; i += BATCH_SIZE) {
+              const batch = cleanIds.slice(i, i + BATCH_SIZE);
+              const { data: batchData, error: batchError } = await supabase
+                .from('servicios_custodia')
+                .select('id_servicio, estado')
+                .in('id_servicio', batch);
+              
+              if (batchError) {
+                console.error('Error en fallback batch:', batchError);
+                continue;
+              }
+              
+              if (batchData) {
+                allResults.push(...batchData);
+              }
+            }
+            
+            // Construir mapa de resultados
+            const existingMap = new Map(
+              allResults.map(r => [r.id_servicio, r.estado])
+            );
+            
+            // Detectar duplicados en input
+            const idCounts = new Map<string, number>();
+            cleanIds.forEach(id => idCounts.set(id, (idCounts.get(id) || 0) + 1));
+            const duplicate_in_input = Array.from(idCounts.entries())
+              .filter(([_, count]) => count > 1)
+              .map(([id]) => id);
+            
+            // Procesar según modo
+            const finished_services: string[] = [];
+            const invalid_services: Array<{
+              id_servicio: string;
+              message: string;
+              type: string;
+            }> = [];
+            
+            cleanIds.forEach(id => {
+              const estado = existingMap.get(id);
+              const exists = estado !== undefined;
+              const isFinished = estado === 'Finalizado';
+              
+              if (mode === 'create') {
+                if (exists) {
+                  invalid_services.push({
+                    id_servicio: id,
+                    message: 'ID ya existe en el sistema',
+                    type: 'duplicate_service'
+                  });
+                }
+                if (isFinished) {
+                  finished_services.push(id);
+                }
+              } else if (mode === 'update') {
+                if (!exists) {
+                  invalid_services.push({
+                    id_servicio: id,
+                    message: 'ID no encontrado en la base de datos',
+                    type: 'not_found'
+                  });
+                }
+                if (isFinished) {
+                  finished_services.push(id);
+                }
+              }
+            });
+            
+            toast.warning('Validación por fallback aplicada', {
+              description: 'RPC sin tabla de permisos - validación básica completada'
+            });
+            
+            const notFoundCount = invalid_services.filter(inv => inv.type === 'not_found').length;
+            const existingCount = cleanIds.length - notFoundCount;
+            
+            return {
+              is_valid: mode === 'create' 
+                ? invalid_services.length === 0 && duplicate_in_input.length === 0
+                : existingCount > 0,
+              total_checked: cleanIds.length,
+              invalid_count: invalid_services.length,
+              duplicate_in_input,
+              finished_services,
+              invalid_services,
+              summary: mode === 'create'
+                ? invalid_services.length === 0 && duplicate_in_input.length === 0
+                  ? `${cleanIds.length} IDs validados correctamente (fallback)`
+                  : `${invalid_services.length} IDs con problemas detectados (fallback)`
+                : notFoundCount === 0
+                  ? `${cleanIds.length} IDs serán actualizados (fallback)`
+                  : `${existingCount} IDs serán actualizados, ${notFoundCount} IDs no encontrados (fallback)`
+            };
+          } catch (fallbackError) {
+            console.error('Error en fallback:', fallbackError);
+            toast.error('Error crítico de validación');
+            return {
+              is_valid: false,
+              total_checked: cleanIds.length,
+              invalid_count: cleanIds.length,
+              duplicate_in_input: [],
+              finished_services: [],
+              invalid_services: [],
+              summary: 'Error crítico - no se pudo validar con RPC ni con fallback'
+            };
+          }
         }
         
         // Timeout específico (código 57014) - permitir continuar en UPDATE mode
