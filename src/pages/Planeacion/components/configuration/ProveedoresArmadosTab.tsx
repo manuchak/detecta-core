@@ -413,21 +413,21 @@ export function ProveedoresArmadosTab() {
                         <>
                           <div className="grid grid-cols-3 gap-4 text-sm text-muted-foreground">
                             <div>
-                              <p className="text-xs">Tarifa Base ({esquema.configuracion.horas_base_incluidas}h)</p>
+                              <p className="text-xs">Tarifa Base ({esquema.configuracion?.horas_base_incluidas ?? 12}h)</p>
                               <p className="font-medium text-foreground">
-                                ${esquema.configuracion.tarifa_base_12h.toFixed(2)} MXN
+                                ${Number(esquema.configuracion?.tarifa_base_12h ?? 0).toFixed(2)} MXN
                               </p>
                             </div>
                             <div>
                               <p className="text-xs">Hora Extra</p>
                               <p className="font-medium text-foreground">
-                                ${esquema.configuracion.tarifa_hora_extra.toFixed(2)} MXN
+                                ${Number(esquema.configuracion?.tarifa_hora_extra ?? 0).toFixed(2)} MXN
                               </p>
                             </div>
                             <div>
                               <p className="text-xs">Viáticos</p>
                               <p className="font-medium text-foreground">
-                                ${esquema.configuracion.viaticos_diarios.toFixed(2)} MXN
+                                ${Number(esquema.configuracion?.viaticos_diarios ?? 0).toFixed(2)} MXN
                               </p>
                             </div>
                           </div>
@@ -638,7 +638,7 @@ export function ProveedoresArmadosTab() {
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-muted-foreground">Rating:</span>
                     <Badge variant="outline">
-                      {proveedor.rating_proveedor.toFixed(1)}/5.0
+                      {Number(proveedor.rating_proveedor ?? 0).toFixed(1)}/5.0
                     </Badge>
                     <Switch
                       checked={proveedor.activo}
