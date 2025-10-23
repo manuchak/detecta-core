@@ -115,7 +115,10 @@ export function ProveedoresArmadosTab() {
     try {
       const dataToSubmit = {
         ...formData,
-        // Si esquema_pago_id es null, dejarlo así (usará esquema estándar por defecto en backend)
+        // Convertir strings vacíos a null para campos opcionales
+        rfc: formData.rfc?.trim() || null,
+        observaciones: formData.observaciones?.trim() || null,
+        tiempo_respuesta_promedio: formData.tiempo_respuesta_promedio || null,
         esquema_pago_id: formData.esquema_pago_id || null
       };
 
@@ -127,8 +130,11 @@ export function ProveedoresArmadosTab() {
       setIsDialogOpen(false);
       setFormData(initialFormData);
       setEditingProveedor(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting form:', error);
+      if (error?.message?.includes('duplicate key')) {
+        toast.error('Ya existe un proveedor con este RFC');
+      }
     } finally {
       setSubmitting(false);
     }

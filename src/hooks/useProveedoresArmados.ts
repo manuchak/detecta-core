@@ -61,10 +61,18 @@ export function useProveedoresArmados() {
 
   const createProveedor = async (proveedorData: CreateProveedorData) => {
     try {
+      // Limpiar datos antes de insertar
+      const cleanedData = {
+        ...proveedorData,
+        rfc: proveedorData.rfc?.trim() || null,
+        observaciones: proveedorData.observaciones?.trim() || null,
+        tiempo_respuesta_promedio: proveedorData.tiempo_respuesta_promedio || null,
+      };
+
       const { data, error } = await supabase
         .from('proveedores_armados')
         .insert({
-          ...proveedorData,
+          ...cleanedData,
           rating_proveedor: 0,
           tasa_confirmacion_empresa: 0,
           numero_servicios_empresa: 0,
@@ -86,7 +94,11 @@ export function useProveedoresArmados() {
       return data;
     } catch (error: any) {
       console.error('Error in createProveedor:', error);
-      toast.error('Error al crear proveedor');
+      if (error?.message?.includes('duplicate key') && error?.message?.includes('rfc')) {
+        toast.error('Ya existe un proveedor con este RFC');
+      } else {
+        toast.error('Error al crear proveedor');
+      }
       throw error;
     }
   };
@@ -95,9 +107,17 @@ export function useProveedoresArmados() {
     try {
       const { id, ...updateData } = proveedorData;
       
+      // Limpiar datos antes de actualizar
+      const cleanedData = {
+        ...updateData,
+        rfc: updateData.rfc?.trim() || null,
+        observaciones: updateData.observaciones?.trim() || null,
+        tiempo_respuesta_promedio: updateData.tiempo_respuesta_promedio || null,
+      };
+      
       const { data, error } = await supabase
         .from('proveedores_armados')
-        .update(updateData)
+        .update(cleanedData)
         .eq('id', id)
         .select()
         .single();
@@ -112,7 +132,11 @@ export function useProveedoresArmados() {
       return data;
     } catch (error: any) {
       console.error('Error in updateProveedor:', error);
-      toast.error('Error al actualizar proveedor');
+      if (error?.message?.includes('duplicate key') && error?.message?.includes('rfc')) {
+        toast.error('Ya existe otro proveedor con este RFC');
+      } else {
+        toast.error('Error al actualizar proveedor');
+      }
       throw error;
     }
   };
