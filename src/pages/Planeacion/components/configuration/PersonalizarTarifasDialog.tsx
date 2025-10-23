@@ -38,17 +38,25 @@ export default function PersonalizarTarifasDialog({
     if (open) {
       const esquemaBase = esquemaActual || getEsquemaEstandar();
       if (esquemaBase?.configuracion) {
-        setFormData(esquemaBase.configuracion);
+        setFormData({
+          tarifa_base_12h: Number(esquemaBase.configuracion.tarifa_base_12h) || 1300,
+          tarifa_hora_extra: Number(esquemaBase.configuracion.tarifa_hora_extra) || 150,
+          viaticos_diarios: Number(esquemaBase.configuracion.viaticos_diarios) || 300,
+          horas_base_incluidas: Number(esquemaBase.configuracion.horas_base_incluidas) || 12,
+          aplica_viaticos_foraneos: esquemaBase.configuracion.aplica_viaticos_foraneos ?? true,
+        });
       }
     }
-  }, [open, esquemaActual]);
+  }, [open, esquemaActual, getEsquemaEstandar]);
 
   const handleInputChange = (field: string, value: number | boolean) => {
-    // Ensure numeric values are valid
-    if (typeof value === 'number' && (isNaN(value) || !isFinite(value))) {
-      return;
+    // Para valores numéricos, convertir NaN o Infinity a 0
+    if (typeof value === 'number') {
+      const safeValue = (isNaN(value) || !isFinite(value)) ? 0 : value;
+      setFormData(prev => ({ ...prev, [field]: safeValue }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }));
     }
-    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -111,7 +119,7 @@ export default function PersonalizarTarifasDialog({
                     type="number"
                     step="50"
                     value={formData.tarifa_base_12h}
-                    onChange={(e) => handleInputChange('tarifa_base_12h', parseFloat(e.target.value))}
+                    onChange={(e) => handleInputChange('tarifa_base_12h', parseFloat(e.target.value) || 0)}
                     className="pl-7"
                     required
                   />
@@ -126,7 +134,7 @@ export default function PersonalizarTarifasDialog({
                   min="8"
                   max="24"
                   value={formData.horas_base_incluidas}
-                  onChange={(e) => handleInputChange('horas_base_incluidas', parseInt(e.target.value))}
+                  onChange={(e) => handleInputChange('horas_base_incluidas', parseInt(e.target.value) || 12)}
                   required
                 />
               </div>
@@ -146,7 +154,7 @@ export default function PersonalizarTarifasDialog({
                     type="number"
                     step="10"
                     value={formData.tarifa_hora_extra}
-                    onChange={(e) => handleInputChange('tarifa_hora_extra', parseFloat(e.target.value))}
+                    onChange={(e) => handleInputChange('tarifa_hora_extra', parseFloat(e.target.value) || 0)}
                     className="pl-7"
                     required
                   />
@@ -162,7 +170,7 @@ export default function PersonalizarTarifasDialog({
                     type="number"
                     step="50"
                     value={formData.viaticos_diarios}
-                    onChange={(e) => handleInputChange('viaticos_diarios', parseFloat(e.target.value))}
+                    onChange={(e) => handleInputChange('viaticos_diarios', parseFloat(e.target.value) || 0)}
                     className="pl-7"
                     required
                   />
