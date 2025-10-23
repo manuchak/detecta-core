@@ -12,8 +12,10 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Edit2, Shield, FileCheck, AlertTriangle, Building2, Phone, Mail, DollarSign } from 'lucide-react';
 import { useProveedoresArmados, CreateProveedorData, UpdateProveedorData } from '@/hooks/useProveedoresArmados';
+import { useEsquemasArmados } from '@/hooks/useEsquemasArmados';
 import { ProveedoresPagosAuditoriaView } from './pagos/ProveedoresPagosAuditoriaView';
 import { BasesProveedorDialog } from './BasesProveedorDialog';
+import PersonalizarTarifasDialog from './PersonalizarTarifasDialog';
 import { toast } from 'sonner';
 
 const ZONAS_DISPONIBLES = [
@@ -49,6 +51,7 @@ interface ProveedorFormData {
   observaciones: string;
   licencias_vigentes: boolean;
   documentos_completos: boolean;
+  esquema_pago_id?: string | null;
 }
 
 const initialFormData: ProveedorFormData = {
@@ -64,11 +67,13 @@ const initialFormData: ProveedorFormData = {
   tiempo_respuesta_promedio: 60,
   observaciones: '',
   licencias_vigentes: true,
-  documentos_completos: true
+  documentos_completos: true,
+  esquema_pago_id: null
 };
 
 export function ProveedoresArmadosTab() {
   const { proveedores, loading, createProveedor, updateProveedor, toggleProveedorStatus, updateProveedorDocumentStatus } = useProveedoresArmados();
+  const { esquemas, getEsquemaById, getEsquemaEstandar } = useEsquemasArmados();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProveedor, setEditingProveedor] = useState<string | null>(null);
   const [formData, setFormData] = useState<ProveedorFormData>(initialFormData);
@@ -76,6 +81,7 @@ export function ProveedoresArmadosTab() {
   const [activeTab, setActiveTab] = useState<string>('maestro');
   const [basesDialogOpen, setBasesDialogOpen] = useState(false);
   const [selectedProveedorForBases, setSelectedProveedorForBases] = useState<{ id: string; nombre: string } | null>(null);
+  const [personalizarDialogOpen, setPersonalizarDialogOpen] = useState(false);
 
   const handleInputChange = (field: keyof ProveedorFormData, value: any) => {
     setFormData(prev => ({
@@ -107,10 +113,16 @@ export function ProveedoresArmadosTab() {
     setSubmitting(true);
 
     try {
+      const dataToSubmit = {
+        ...formData,
+        // Si esquema_pago_id es null, dejarlo así (usará esquema estándar por defecto en backend)
+        esquema_pago_id: formData.esquema_pago_id || null
+      };
+
       if (editingProveedor) {
-        await updateProveedor({ id: editingProveedor, ...formData } as UpdateProveedorData);
+        await updateProveedor({ id: editingProveedor, ...dataToSubmit } as UpdateProveedorData);
       } else {
-        await createProveedor(formData as CreateProveedorData);
+        await createProveedor(dataToSubmit as CreateProveedorData);
       }
       setIsDialogOpen(false);
       setFormData(initialFormData);
@@ -136,7 +148,8 @@ export function ProveedoresArmadosTab() {
       tiempo_respuesta_promedio: proveedor.tiempo_respuesta_promedio || 60,
       observaciones: proveedor.observaciones || '',
       licencias_vigentes: proveedor.licencias_vigentes ?? true,
-      documentos_completos: proveedor.documentos_completos ?? true
+      documentos_completos: proveedor.documentos_completos ?? true,
+      esquema_pago_id: proveedor.esquema_pago_id || null
     });
     setEditingProveedor(proveedor.id);
     setIsDialogOpen(true);
@@ -148,6 +161,11 @@ export function ProveedoresArmadosTab() {
       nombre: proveedor.nombre_empresa
     });
     setBasesDialogOpen(true);
+  };
+
+  const handleEsquemaCreated = (esquemaId: string) => {
+    handleInputChange('esquema_pago_id', esquemaId);
+    toast.success('Esquema personalizado creado y asignado');
   };
 
   const handleCloseDialog = () => {
@@ -332,32 +350,96 @@ export function ProveedoresArmadosTab() {
                   <Label>Disponibilidad 24/7</Label>
                 </div>
                 
-                {/* Información de Tarifas (Solo lectura - desde esquema) */}
-                <div className="p-4 bg-muted/30 rounded-lg border border-border">
-                  <div className="flex items-center gap-2 text-sm font-medium mb-3">
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
-                    <span>Modelo de Pago: Tiempo Fijo</span>
-                    <Badge variant="outline" className="text-xs">
-                      Desde Esquema Estándar
-                    </Badge>
+                {/* Esquema de Pago */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="esquema_pago">Esquema de Pago</Label>
+                    <Button 
+                      type="button"
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setPersonalizarDialogOpen(true)}
+                    >
+                      Personalizar Tarifas
+                    </Button>
                   </div>
-                  <div className="grid grid-cols-3 gap-4 text-sm text-muted-foreground">
-                    <div>
-                      <p className="text-xs">Tarifa Base (12h)</p>
-                      <p className="font-medium text-foreground">$1,300 MXN</p>
+                  
+                  <Select 
+                    value={formData.esquema_pago_id || 'estandar'}
+                    onValueChange={(value) => handleInputChange('esquema_pago_id', value === 'estandar' ? null : value)}
+                  >
+                    <SelectTrigger id="esquema_pago">
+                      <SelectValue placeholder="Seleccionar esquema" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="estandar">
+                        📋 Esquema Estándar
+                      </SelectItem>
+                      {esquemas
+                        .filter(e => e.activo && !e.nombre_esquema.toLowerCase().includes('estándar') && !e.nombre_esquema.toLowerCase().includes('estandar'))
+                        .map(esquema => (
+                          <SelectItem key={esquema.id} value={esquema.id}>
+                            {esquema.nombre_esquema}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+
+                  {/* Vista previa del esquema seleccionado */}
+                  <div className="p-4 bg-muted/30 rounded-lg border border-border">
+                    <div className="flex items-center gap-2 text-sm font-medium mb-3">
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      <span>Modelo de Pago: Tiempo Fijo</span>
+                      {!formData.esquema_pago_id && (
+                        <Badge variant="outline" className="text-xs">
+                          Estándar
+                        </Badge>
+                      )}
                     </div>
-                    <div>
-                      <p className="text-xs">Hora Extra</p>
-                      <p className="font-medium text-foreground">$150 MXN</p>
-                    </div>
-                    <div>
-                      <p className="text-xs">Viáticos</p>
-                      <p className="font-medium text-foreground">$300 MXN</p>
-                    </div>
+                    {(() => {
+                      const esquema = formData.esquema_pago_id 
+                        ? getEsquemaById(formData.esquema_pago_id)
+                        : getEsquemaEstandar();
+                      
+                      if (!esquema) {
+                        return (
+                          <p className="text-sm text-muted-foreground">
+                            Selecciona un esquema para ver las tarifas
+                          </p>
+                        );
+                      }
+
+                      return (
+                        <>
+                          <div className="grid grid-cols-3 gap-4 text-sm text-muted-foreground">
+                            <div>
+                              <p className="text-xs">Tarifa Base ({esquema.configuracion.horas_base_incluidas}h)</p>
+                              <p className="font-medium text-foreground">
+                                ${esquema.configuracion.tarifa_base_12h.toFixed(2)} MXN
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs">Hora Extra</p>
+                              <p className="font-medium text-foreground">
+                                ${esquema.configuracion.tarifa_hora_extra.toFixed(2)} MXN
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs">Viáticos</p>
+                              <p className="font-medium text-foreground">
+                                ${esquema.configuracion.viaticos_diarios.toFixed(2)} MXN
+                              </p>
+                            </div>
+                          </div>
+                          {esquema.descripcion && (
+                            <p className="text-xs text-muted-foreground mt-3">
+                              {esquema.descripcion}
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-3">
-                    💡 Las tarifas se gestionan desde el esquema de pago estándar. Para tarifas personalizadas, crea un esquema específico.
-                  </p>
                 </div>
               </div>
 
@@ -585,6 +667,15 @@ export function ProveedoresArmadosTab() {
           proveedorNombre={selectedProveedorForBases.nombre}
         />
       )}
+
+      {/* Dialog de Personalización de Tarifas */}
+      <PersonalizarTarifasDialog
+        open={personalizarDialogOpen}
+        onOpenChange={setPersonalizarDialogOpen}
+        proveedorNombre={formData.nombre_empresa || 'Nuevo Proveedor'}
+        esquemaActual={formData.esquema_pago_id ? getEsquemaById(formData.esquema_pago_id) : undefined}
+        onEsquemaCreated={handleEsquemaCreated}
+      />
     </div>
   );
 }
