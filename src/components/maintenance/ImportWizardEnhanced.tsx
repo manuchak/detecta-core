@@ -306,6 +306,13 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
               idValidation.invalid_services.filter(inv => inv.type === 'duplicate_service').length;
             const finishedCount = idValidation.finished_services.length;
             
+            // ✨ NUEVO: Detectar si TODOS los errores son duplicados en DB (no finished, no otros errores)
+            const allAreDuplicatesInDB = hasDuplicatesInDB && 
+              !hasFinished && 
+              !hasDuplicatesInInput &&
+              idValidation.invalid_services.every(inv => inv.type === 'duplicate_service') &&
+              idValidation.invalid_services.length === idValidation.total_checked;
+            
             // Determinar título del error
             const hasConnectionError = idValidation.summary.includes('Error de conexión') || 
                                       idValidation.summary.includes('ambigüedad');
@@ -351,11 +358,22 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
                     : []
                   ),
                   `\n💡 Solución:`,
-                  ...(hasDuplicatesInInput || hasDuplicatesInDB ? [`• Elimina los IDs duplicados del archivo`] : []),
+                  ...(hasDuplicatesInInput || hasDuplicatesInDB ? [
+                    allAreDuplicatesInDB 
+                      ? `• Los IDs ya existen en la base de datos`
+                      : `• Elimina los IDs duplicados del archivo`
+                  ] : []),
                   ...(hasFinished ? [`• Los servicios finalizados no pueden modificarse`] : []),
-                  `• Usa modo "Actualizar" si quieres modificar registros existentes`
+                  ...(allAreDuplicatesInDB ? [
+                    `\n🔄 Cambio Rápido:`,
+                    `• Puedes cambiar a modo "Actualizar" para modificar estos servicios existentes`
+                  ] : [
+                    `• Usa modo "Actualizar" si quieres modificar registros existentes`
+                  ])
                 ],
-                warnings: []
+                warnings: [],
+                // ✨ NUEVO: Sugerir cambio de modo si todos son duplicados en DB
+                suggestedAction: allAreDuplicatesInDB ? 'switch_to_update' : undefined
               }
             }));
             return;
@@ -624,9 +642,18 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
               {importMode === 'auto' && (
                 <Alert className="border-blue-200 bg-blue-50">
                   <AlertDescription className="text-sm text-blue-800">
-                    El sistema detectará automáticamente:
-                    <br/>• <strong>Crear</strong>: Si mapeas 3+ campos (nuevos servicios)
-                    <br/>• <strong>Actualizar</strong>: Si solo mapeas id_servicio + estado
+                    <div className="space-y-2">
+                      <div className="font-semibold">El sistema detectará automáticamente:</div>
+                      <div>
+                        📅 <strong>Carga Diaria (Crear)</strong>: Si mapeas 3+ campos → servicios NUEVOS
+                      </div>
+                      <div>
+                        📆 <strong>Actualización Mensual (Actualizar)</strong>: Si solo mapeas id_servicio + estado
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-blue-200 text-xs">
+                        💡 Tip: Si los IDs ya existen y quieres actualizarlos, usa modo "Actualizar" manualmente
+                      </div>
+                    </div>
                   </AlertDescription>
                 </Alert>
               )}
@@ -634,18 +661,15 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
               {importMode === 'create' && (
                 <Alert className="border-green-200 bg-green-50">
                   <AlertDescription className="text-sm text-green-800">
-                    Modo <strong>Crear</strong>: Se insertarán nuevos registros.
-                    <br/>⚠️ Los IDs duplicados serán rechazados.
+                    📅 <strong>Modo Crear</strong>: Solo para servicios NUEVOS. Los IDs NO deben existir en la base de datos.
                   </AlertDescription>
                 </Alert>
               )}
               
               {importMode === 'update' && (
-                <Alert className="border-amber-200 bg-amber-50">
-                  <AlertDescription className="text-sm text-amber-800">
-                    Modo <strong>Actualizar</strong>: Solo se modificarán registros existentes.
-                    <br/>✓ IDs no encontrados serán omitidos automáticamente.
-                    <br/>✓ Servicios finalizados no se modificarán.
+                <Alert className="border-orange-200 bg-orange-50">
+                  <AlertDescription className="text-sm text-orange-800">
+                    📆 <strong>Modo Actualizar</strong>: Solo para servicios EXISTENTES. Los IDs deben existir en la base de datos.
                   </AlertDescription>
                 </Alert>
               )}
@@ -1147,6 +1171,13 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
   const renderErrorDetailStep = () => {
     if (!state.result) return null;
 
+    const handleSwitchToUpdateMode = () => {
+      console.log('🔄 Switching to UPDATE mode from error screen');
+      setImportMode('update');
+      toast.success('Modo cambiado a ACTUALIZAR. Procesando validación...');
+      setState(prev => ({ ...prev, step: 'preview', result: null }));
+    };
+
     return (
       <div className="space-y-6">
         <div className="text-center py-6">
@@ -1164,6 +1195,31 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
             Se encontraron problemas con los datos antes de importar
           </p>
         </div>
+
+        {/* ✨ NUEVO: Botón de cambio rápido si se sugiere cambiar a UPDATE */}
+        {state.result.suggestedAction === 'switch_to_update' && (
+          <Alert className="border-blue-500 bg-blue-50">
+            <AlertDescription>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1">
+                  <div className="font-semibold text-blue-900 mb-1">
+                    💡 Solución Rápida Detectada
+                  </div>
+                  <p className="text-sm text-blue-800">
+                    Los IDs ya existen en la base de datos. Cambia a modo <strong>Actualizar</strong> para modificar estos servicios.
+                  </p>
+                </div>
+                <Button 
+                  onClick={handleSwitchToUpdateMode}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shrink-0"
+                  size="lg"
+                >
+                  🔄 Cambiar a Modo Actualizar
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <Card className="border-2 border-red-200">
           <CardHeader className="bg-red-50 border-b border-red-200">

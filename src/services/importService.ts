@@ -7,6 +7,7 @@ export interface ImportResult {
   failed: number;
   errors: string[];
   warnings: string[];
+  suggestedAction?: 'switch_to_update' | 'switch_to_create';
 }
 
 export interface ImportProgress {

@@ -15,12 +15,14 @@ interface ImportResultsStepProps {
   result: ImportResult;
   onClose: () => void;
   onStartOver: () => void;
+  onSwitchToUpdateMode?: () => void;
 }
 
 export default function ImportResultsStep({
   result,
   onClose,
-  onStartOver
+  onStartOver,
+  onSwitchToUpdateMode
 }: ImportResultsStepProps) {
   const handleDownloadErrorLog = () => {
     if (result.errors.length === 0) return;
@@ -98,6 +100,31 @@ export default function ImportResultsStep({
           </CardContent>
         </Card>
       </div>
+
+      {/* Quick Switch to Update Mode */}
+      {result.suggestedAction === 'switch_to_update' && onSwitchToUpdateMode && (
+        <Alert className="border-blue-500 bg-blue-50">
+          <Info className="h-4 w-4 text-blue-600" />
+          <AlertDescription>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1">
+                <div className="font-semibold text-blue-900 mb-1">
+                  💡 Solución Rápida
+                </div>
+                <p className="text-sm text-blue-800">
+                  Los IDs ya existen en la base de datos. ¿Quieres cambiar a modo <strong>Actualizar</strong> para modificarlos?
+                </p>
+              </div>
+              <Button 
+                onClick={onSwitchToUpdateMode}
+                className="bg-blue-600 hover:bg-blue-700 text-white shrink-0"
+              >
+                🔄 Cambiar a Modo Actualizar
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Success Message */}
       {result.success && (
