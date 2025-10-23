@@ -55,7 +55,7 @@ export default function PersonalizarTarifasDialog({
       const nombreEsquema = `Personalizado - ${proveedorNombre}`;
       
       const nuevoEsquema = await createEsquema({
-        nombre_esquema: nombreEsquema,
+        nombre: nombreEsquema,
         tipo_esquema: 'tiempo_fijo',
         configuracion: formData,
         descripcion: `Esquema personalizado para ${proveedorNombre}`,

@@ -15,7 +15,7 @@ export default function EsquemasArmadosTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEsquema, setEditingEsquema] = useState<EsquemaPagoArmado | null>(null);
   const [formData, setFormData] = useState<CreateEsquemaData>({
-    nombre_esquema: '',
+    nombre: '',
     tipo_esquema: 'tiempo_fijo',
     configuracion: {
       tarifa_base_12h: 1300,
@@ -32,7 +32,7 @@ export default function EsquemasArmadosTab() {
     if (esquema) {
       setEditingEsquema(esquema);
       setFormData({
-        nombre_esquema: esquema.nombre_esquema,
+        nombre: esquema.nombre,
         tipo_esquema: esquema.tipo_esquema,
         configuracion: esquema.configuracion,
         descripcion: esquema.descripcion || '',
@@ -41,7 +41,7 @@ export default function EsquemasArmadosTab() {
     } else {
       setEditingEsquema(null);
       setFormData({
-        nombre_esquema: '',
+        nombre: '',
         tipo_esquema: 'tiempo_fijo',
         configuracion: {
           tarifa_base_12h: 1300,
@@ -89,8 +89,8 @@ export default function EsquemasArmadosTab() {
   };
 
   const isEsquemaEstandar = (esquema: EsquemaPagoArmado) => {
-    return esquema.nombre_esquema.toLowerCase().includes('estándar') || 
-           esquema.nombre_esquema.toLowerCase().includes('estandar');
+    return esquema.nombre.toLowerCase().includes('estándar') || 
+           esquema.nombre.toLowerCase().includes('estandar');
   };
 
   if (loading) {
@@ -125,7 +125,7 @@ export default function EsquemasArmadosTab() {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <CardTitle className="text-lg">{esquema.nombre_esquema}</CardTitle>
+                    <CardTitle className="text-lg">{esquema.nombre}</CardTitle>
                     {isEsquemaEstandar(esquema) && (
                       <Badge variant="default" className="gap-1">
                         <Star className="w-3 h-3" />
@@ -231,8 +231,8 @@ export default function EsquemasArmadosTab() {
                 <Label htmlFor="nombre">Nombre del Esquema</Label>
                 <Input
                   id="nombre"
-                  value={formData.nombre_esquema}
-                  onChange={(e) => handleInputChange('nombre_esquema', e.target.value)}
+                  value={formData.nombre}
+                  onChange={(e) => handleInputChange('nombre', e.target.value)}
                   placeholder="Ej: Premium, Zona Metropolitana, etc."
                   required
                 />

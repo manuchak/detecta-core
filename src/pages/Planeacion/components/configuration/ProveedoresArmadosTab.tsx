@@ -376,10 +376,10 @@ export function ProveedoresArmadosTab() {
                         📋 Esquema Estándar
                       </SelectItem>
                       {esquemas
-                        .filter(e => e.activo && !e.nombre_esquema.toLowerCase().includes('estándar') && !e.nombre_esquema.toLowerCase().includes('estandar'))
+                        .filter(e => e.activo && !e.nombre.toLowerCase().includes('estándar') && !e.nombre.toLowerCase().includes('estandar'))
                         .map(esquema => (
                           <SelectItem key={esquema.id} value={esquema.id}>
-                            {esquema.nombre_esquema}
+                            {esquema.nombre}
                           </SelectItem>
                         ))}
                     </SelectContent>

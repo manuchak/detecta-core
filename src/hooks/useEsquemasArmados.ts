@@ -4,7 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export interface EsquemaPagoArmado {
   id: string;
-  nombre_esquema: string;
+  nombre: string;
   tipo_esquema: string;
   configuracion: {
     tarifa_base_12h: number;
@@ -20,7 +20,7 @@ export interface EsquemaPagoArmado {
 }
 
 export interface CreateEsquemaData {
-  nombre_esquema: string;
+  nombre: string;
   tipo_esquema: string;
   configuracion: {
     tarifa_base_12h: number;
@@ -51,7 +51,7 @@ export function useEsquemasArmados() {
       const { data, error: fetchError } = await supabase
         .from('esquemas_pago_armados')
         .select('*')
-        .order('nombre_esquema');
+        .order('nombre');
 
       if (fetchError) throw fetchError;
 
@@ -74,7 +74,7 @@ export function useEsquemasArmados() {
       const { data, error: insertError } = await supabase
         .from('esquemas_pago_armados')
         .insert([{
-          nombre_esquema: esquemaData.nombre_esquema,
+          nombre: esquemaData.nombre,
           tipo_esquema: esquemaData.tipo_esquema,
           configuracion: esquemaData.configuracion,
           descripcion: esquemaData.descripcion,
@@ -87,7 +87,7 @@ export function useEsquemasArmados() {
 
       toast({
         title: 'Esquema creado',
-        description: `Se creó el esquema "${esquemaData.nombre_esquema}" exitosamente.`,
+        description: `Se creó el esquema "${esquemaData.nombre}" exitosamente.`,
       });
 
       await loadEsquemas();
@@ -108,7 +108,7 @@ export function useEsquemasArmados() {
       const { error: updateError } = await supabase
         .from('esquemas_pago_armados')
         .update({
-          nombre_esquema: esquemaData.nombre_esquema,
+          nombre: esquemaData.nombre,
           tipo_esquema: esquemaData.tipo_esquema,
           configuracion: esquemaData.configuracion,
           descripcion: esquemaData.descripcion,
@@ -120,7 +120,7 @@ export function useEsquemasArmados() {
 
       toast({
         title: 'Esquema actualizado',
-        description: `Se actualizó el esquema "${esquemaData.nombre_esquema}" exitosamente.`,
+        description: `Se actualizó el esquema "${esquemaData.nombre}" exitosamente.`,
       });
 
       await loadEsquemas();
@@ -183,7 +183,7 @@ export function useEsquemasArmados() {
   };
 
   const getEsquemaEstandar = (): EsquemaPagoArmado | undefined => {
-    return esquemas.find(e => e.nombre_esquema.toLowerCase().includes('estándar') || e.nombre_esquema.toLowerCase().includes('estandar'));
+    return esquemas.find(e => e.nombre.toLowerCase().includes('estándar') || e.nombre.toLowerCase().includes('estandar'));
   };
 
   useEffect(() => {
