@@ -137,18 +137,48 @@ export const useServiceIdValidation = () => {
         .filter(id => id?.trim())
         .map(id => id.trim());
 
+      // Log para debugging
+      console.log('🔍 Validating service IDs:', {
+        count: cleanIds.length,
+        mode,
+        excludeFinished,
+        sample: cleanIds.slice(0, 3)
+      });
+
       const { data, error } = await supabase
         .rpc('validate_multiple_service_ids', {
           p_service_ids: cleanIds,
-          p_exclude_finished: excludeFinished,
-          p_is_test: false
+          p_exclude_finished: excludeFinished
+          // ✅ Sin p_is_test - usa la función correcta con 2 parámetros
         });
 
       if (error) {
         const errorCode = (error as any).code;
         const errorMessage = error.message || '';
         
-        console.error('Error validating service IDs:', { error, errorCode, errorMessage });
+        console.error('❌ RPC Error Details:', { 
+          error, 
+          errorCode, 
+          errorMessage,
+          hint: (error as any).hint,
+          details: (error as any).details
+        });
+        
+        // Si el error menciona "is_test" o "column does not exist" (bug crítico de DB)
+        if (errorMessage.includes('is_test') || errorMessage.includes('does not exist')) {
+          toast.error('Error de configuración de base de datos', {
+            description: 'Por favor contacta al administrador del sistema'
+          });
+          return {
+            is_valid: false,
+            total_checked: cleanIds.length,
+            invalid_count: cleanIds.length,
+            duplicate_in_input: [],
+            finished_services: [],
+            invalid_services: [],
+            summary: 'Error crítico de base de datos - función RPC desactualizada'
+          };
+        }
         
         // Timeout específico (código 57014) - permitir continuar en UPDATE mode
         if (errorCode === '57014') {
