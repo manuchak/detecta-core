@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, Users, MapPin, DollarSign, Database, Navigation } from 'lucide-react';
+import { Settings, Users, MapPin, DollarSign, Database, Navigation, Shield } from 'lucide-react';
 
 // Lazy import de componentes existentes para configuración
 import ClientesTab from './ClientesTab';
 import { CustodiosTab } from './CustodiosTab';
 import { MatrizPreciosTab } from './MatrizPreciosTab';
 import { ContextualMeetingPointsTab } from './configuration/ContextualMeetingPointsTab';
+import ProveedoresArmadosTab from './configuration/ProveedoresArmadosTab';
 
 export function PlanningConfigurationTab() {
   const [activeConfigTab, setActiveConfigTab] = useState('clientes');
@@ -25,7 +26,7 @@ export function PlanningConfigurationTab() {
 
       {/* Configuration Tabs */}
       <Tabs value={activeConfigTab} onValueChange={setActiveConfigTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 lg:w-[800px]">
+        <TabsList className="grid w-full grid-cols-5 lg:w-[1000px]">
           <TabsTrigger value="clientes" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Clientes
@@ -41,6 +42,10 @@ export function PlanningConfigurationTab() {
           <TabsTrigger value="precios" className="flex items-center gap-2">
             <DollarSign className="h-4 w-4" />
             Matriz Precios
+          </TabsTrigger>
+          <TabsTrigger value="proveedores" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Proveedores Armados
           </TabsTrigger>
         </TabsList>
 
@@ -102,6 +107,11 @@ export function PlanningConfigurationTab() {
               <MatrizPreciosTab />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Proveedores Armados Tab */}
+        <TabsContent value="proveedores" className="space-y-6 mt-6">
+          <ProveedoresArmadosTab />
         </TabsContent>
       </Tabs>
 
