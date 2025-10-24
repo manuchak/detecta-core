@@ -8605,6 +8605,7 @@ export type Database = {
           destino: string | null
           duracion_servicio: unknown
           estado: string | null
+          estado_planeacion: string | null
           fecha_contratacion: string | null
           fecha_hora_asignacion: string | null
           fecha_hora_cita: string | null
@@ -8636,6 +8637,7 @@ export type Database = {
           placa_carga_adicional: string | null
           presentacion: string | null
           proveedor: string | null
+          requiere_armado: boolean | null
           ruta: string | null
           telefono: string | null
           telefono_armado: string | null
@@ -8668,6 +8670,7 @@ export type Database = {
           destino?: string | null
           duracion_servicio?: unknown
           estado?: string | null
+          estado_planeacion?: string | null
           fecha_contratacion?: string | null
           fecha_hora_asignacion?: string | null
           fecha_hora_cita?: string | null
@@ -8699,6 +8702,7 @@ export type Database = {
           placa_carga_adicional?: string | null
           presentacion?: string | null
           proveedor?: string | null
+          requiere_armado?: boolean | null
           ruta?: string | null
           telefono?: string | null
           telefono_armado?: string | null
@@ -8731,6 +8735,7 @@ export type Database = {
           destino?: string | null
           duracion_servicio?: unknown
           estado?: string | null
+          estado_planeacion?: string | null
           fecha_contratacion?: string | null
           fecha_hora_asignacion?: string | null
           fecha_hora_cita?: string | null
@@ -8762,6 +8767,7 @@ export type Database = {
           placa_carga_adicional?: string | null
           presentacion?: string | null
           proveedor?: string | null
+          requiere_armado?: boolean | null
           ruta?: string | null
           telefono?: string | null
           telefono_armado?: string | null
@@ -10109,6 +10115,7 @@ export type Database = {
           destino: string | null
           duracion_servicio: unknown
           estado: string | null
+          estado_planeacion: string | null
           fecha_contratacion: string | null
           fecha_hora_asignacion: string | null
           fecha_hora_cita: string | null
@@ -10140,6 +10147,7 @@ export type Database = {
           placa_carga_adicional: string | null
           presentacion: string | null
           proveedor: string | null
+          requiere_armado: boolean | null
           ruta: string | null
           telefono: string | null
           telefono_armado: string | null
@@ -10181,6 +10189,7 @@ export type Database = {
           destino: string | null
           duracion_servicio: unknown
           estado: string | null
+          estado_planeacion: string | null
           fecha_contratacion: string | null
           fecha_hora_asignacion: string | null
           fecha_hora_cita: string | null
@@ -10212,6 +10221,7 @@ export type Database = {
           placa_carga_adicional: string | null
           presentacion: string | null
           proveedor: string | null
+          requiere_armado: boolean | null
           ruta: string | null
           telefono: string | null
           telefono_armado: string | null
@@ -10632,6 +10642,7 @@ export type Database = {
           destino: string | null
           duracion_servicio: unknown
           estado: string | null
+          estado_planeacion: string | null
           fecha_contratacion: string | null
           fecha_hora_asignacion: string | null
           fecha_hora_cita: string | null
@@ -10663,6 +10674,7 @@ export type Database = {
           placa_carga_adicional: string | null
           presentacion: string | null
           proveedor: string | null
+          requiere_armado: boolean | null
           ruta: string | null
           telefono: string | null
           telefono_armado: string | null
@@ -11101,6 +11113,7 @@ export type Database = {
           destino: string | null
           duracion_servicio: unknown
           estado: string | null
+          estado_planeacion: string | null
           fecha_contratacion: string | null
           fecha_hora_asignacion: string | null
           fecha_hora_cita: string | null
@@ -11132,6 +11145,7 @@ export type Database = {
           placa_carga_adicional: string | null
           presentacion: string | null
           proveedor: string | null
+          requiere_armado: boolean | null
           ruta: string | null
           telefono: string | null
           telefono_armado: string | null
@@ -11499,6 +11513,7 @@ export type Database = {
           destino: string | null
           duracion_servicio: unknown
           estado: string | null
+          estado_planeacion: string | null
           fecha_contratacion: string | null
           fecha_hora_asignacion: string | null
           fecha_hora_cita: string | null
@@ -11530,6 +11545,7 @@ export type Database = {
           placa_carga_adicional: string | null
           presentacion: string | null
           proveedor: string | null
+          requiere_armado: boolean | null
           ruta: string | null
           telefono: string | null
           telefono_armado: string | null
@@ -11706,6 +11722,7 @@ export type Database = {
           destino: string | null
           duracion_servicio: unknown
           estado: string | null
+          estado_planeacion: string | null
           fecha_contratacion: string | null
           fecha_hora_asignacion: string | null
           fecha_hora_cita: string | null
@@ -11737,6 +11754,7 @@ export type Database = {
           placa_carga_adicional: string | null
           presentacion: string | null
           proveedor: string | null
+          requiere_armado: boolean | null
           ruta: string | null
           telefono: string | null
           telefono_armado: string | null

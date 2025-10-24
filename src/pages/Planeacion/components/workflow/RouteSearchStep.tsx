@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { useClientesFromPricing, useDestinosFromPricing } from '@/hooks/useClientesFromPricing';
 import { useOrigenesConFrecuencia } from '@/hooks/useOrigenesConFrecuencia';
 import { CreateRouteModal } from './CreateRouteModal';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface RouteData {
   cliente_nombre: string;
@@ -53,6 +54,7 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
   const [searchError, setSearchError] = useState<string>('');
   const [isUpdatingFromCreation, setIsUpdatingFromCreation] = useState(false);
 
+  const queryClient = useQueryClient();
   const { data: clientesFromPricing = [] } = useClientesFromPricing();
   const { data: origenesConFrecuencia = [] } = useOrigenesConFrecuencia(cliente);
   const { data: destinosFromPricing = [] } = useDestinosFromPricing(cliente, origen);
@@ -67,10 +69,18 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
     // No buscar si estamos actualizando desde creación de ruta
     if (isUpdatingFromCreation) return;
     
-    if (cliente && origen && destino) {
+    // Verificar frescura de queries antes de buscar
+    const origenesState = queryClient.getQueryState(['origenes-con-frecuencia', cliente]);
+    const destinosState = queryClient.getQueryState(['destinos-from-pricing', cliente, origen]);
+    
+    const now = Date.now();
+    const isDataFresh = origenesState?.dataUpdatedAt && (now - origenesState.dataUpdatedAt) < 10000 &&
+                        destinosState?.dataUpdatedAt && (now - destinosState.dataUpdatedAt) < 10000;
+    
+    if (cliente && origen && destino && isDataFresh) {
       searchPrice();
     }
-  }, [cliente, origen, destino, isUpdatingFromCreation]);
+  }, [cliente, origen, destino, isUpdatingFromCreation, queryClient]);
 
   const searchPrice = async () => {
     if (!cliente || !origen || !destino) return;
