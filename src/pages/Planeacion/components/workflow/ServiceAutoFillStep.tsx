@@ -136,6 +136,175 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
     }
   };
 
+  const handleIdInternoChange = (value: string) => {
+    setIdInternoCliente(value);
+    if (onDraftChange) {
+      onDraftChange({
+        servicio_id: servicioId,
+        id_interno_cliente: value,
+        fecha_programada: fechaProgramada,
+        hora_ventana_inicio: horaInicio,
+        tipo_servicio: tipoServicio,
+        incluye_armado: incluyeArmado,
+        gadgets_seleccionados: gadgetsSeleccionados,
+        observaciones,
+        fecha_recepcion: fechaRecepcion,
+        hora_recepcion: horaRecepcion
+      });
+    }
+  };
+
+  const handleFechaProgramadaChange = (value: string) => {
+    setFechaProgramada(value);
+    if (onDraftChange) {
+      onDraftChange({
+        servicio_id: servicioId,
+        id_interno_cliente: idInternoCliente,
+        fecha_programada: value,
+        hora_ventana_inicio: horaInicio,
+        tipo_servicio: tipoServicio,
+        incluye_armado: incluyeArmado,
+        gadgets_seleccionados: gadgetsSeleccionados,
+        observaciones,
+        fecha_recepcion: fechaRecepcion,
+        hora_recepcion: horaRecepcion
+      });
+    }
+  };
+
+  const handleHoraInicioChange = (value: string) => {
+    setHoraInicio(value);
+    if (onDraftChange) {
+      onDraftChange({
+        servicio_id: servicioId,
+        id_interno_cliente: idInternoCliente,
+        fecha_programada: fechaProgramada,
+        hora_ventana_inicio: value,
+        tipo_servicio: tipoServicio,
+        incluye_armado: incluyeArmado,
+        gadgets_seleccionados: gadgetsSeleccionados,
+        observaciones,
+        fecha_recepcion: fechaRecepcion,
+        hora_recepcion: horaRecepcion
+      });
+    }
+  };
+
+  const handleTipoServicioChange = (value: string) => {
+    setTipoServicio(value);
+    // Lógica bidireccional: actualizar automáticamente el switch de armado
+    let newIncluyeArmado = incluyeArmado;
+    if (value === 'custodia_sin_arma') {
+      setIncluyeArmado(false);
+      newIncluyeArmado = false;
+      toast.info('Servicio sin arma: custodio armado desactivado automáticamente');
+    } else if (value === 'custodia_armada' || value === 'custodia_armada_reforzada') {
+      setIncluyeArmado(true);
+      newIncluyeArmado = true;
+      toast.info('Servicio armado: custodio armado activado automáticamente');
+    }
+    
+    if (onDraftChange) {
+      onDraftChange({
+        servicio_id: servicioId,
+        id_interno_cliente: idInternoCliente,
+        fecha_programada: fechaProgramada,
+        hora_ventana_inicio: horaInicio,
+        tipo_servicio: value,
+        incluye_armado: newIncluyeArmado,
+        gadgets_seleccionados: gadgetsSeleccionados,
+        observaciones,
+        fecha_recepcion: fechaRecepcion,
+        hora_recepcion: horaRecepcion
+      });
+    }
+  };
+
+  const handleIncluyeArmadoChange = (checked: boolean) => {
+    if (tipoServicio === 'custodia_sin_arma') return;
+    
+    setIncluyeArmado(checked);
+    let newTipoServicio = tipoServicio;
+    if (checked) {
+      if (tipoServicio === 'custodia_sin_arma') {
+        setTipoServicio('custodia_armada');
+        newTipoServicio = 'custodia_armada';
+      }
+    } else {
+      setTipoServicio('custodia_sin_arma');
+      newTipoServicio = 'custodia_sin_arma';
+    }
+    
+    if (onDraftChange) {
+      onDraftChange({
+        servicio_id: servicioId,
+        id_interno_cliente: idInternoCliente,
+        fecha_programada: fechaProgramada,
+        hora_ventana_inicio: horaInicio,
+        tipo_servicio: newTipoServicio,
+        incluye_armado: checked,
+        gadgets_seleccionados: gadgetsSeleccionados,
+        observaciones,
+        fecha_recepcion: fechaRecepcion,
+        hora_recepcion: horaRecepcion
+      });
+    }
+  };
+
+  const handleObservacionesChange = (value: string) => {
+    setObservaciones(value);
+    if (onDraftChange) {
+      onDraftChange({
+        servicio_id: servicioId,
+        id_interno_cliente: idInternoCliente,
+        fecha_programada: fechaProgramada,
+        hora_ventana_inicio: horaInicio,
+        tipo_servicio: tipoServicio,
+        incluye_armado: incluyeArmado,
+        gadgets_seleccionados: gadgetsSeleccionados,
+        observaciones: value,
+        fecha_recepcion: fechaRecepcion,
+        hora_recepcion: horaRecepcion
+      });
+    }
+  };
+
+  const handleFechaRecepcionChange = (value: string) => {
+    setFechaRecepcion(value);
+    if (onDraftChange) {
+      onDraftChange({
+        servicio_id: servicioId,
+        id_interno_cliente: idInternoCliente,
+        fecha_programada: fechaProgramada,
+        hora_ventana_inicio: horaInicio,
+        tipo_servicio: tipoServicio,
+        incluye_armado: incluyeArmado,
+        gadgets_seleccionados: gadgetsSeleccionados,
+        observaciones,
+        fecha_recepcion: value,
+        hora_recepcion: horaRecepcion
+      });
+    }
+  };
+
+  const handleHoraRecepcionChange = (value: string) => {
+    setHoraRecepcion(value);
+    if (onDraftChange) {
+      onDraftChange({
+        servicio_id: servicioId,
+        id_interno_cliente: idInternoCliente,
+        fecha_programada: fechaProgramada,
+        hora_ventana_inicio: horaInicio,
+        tipo_servicio: tipoServicio,
+        incluye_armado: incluyeArmado,
+        gadgets_seleccionados: gadgetsSeleccionados,
+        observaciones,
+        fecha_recepcion: fechaRecepcion,
+        hora_recepcion: value
+      });
+    }
+  };
+
   // Auto-fill basado en la ruta y tipo de servicio de la matriz de precios
   useEffect(() => {
     // Detectar si incluye armado basado en tipo_servicio de la matriz
@@ -482,7 +651,7 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
                 id="id-interno-cliente"
                 placeholder="Ej: CLI-2024-001, REF-ABC123, etc."
                 value={idInternoCliente}
-                onChange={(e) => setIdInternoCliente(e.target.value)}
+                onChange={(e) => handleIdInternoChange(e.target.value)}
                 className="h-14 text-lg"
                 maxLength={50}
               />
@@ -512,7 +681,7 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
                       id="fecha-recepcion"
                       type="date"
                       value={fechaRecepcion}
-                      onChange={(e) => setFechaRecepcion(e.target.value)}
+                      onChange={(e) => handleFechaRecepcionChange(e.target.value)}
                       className="h-12 text-base"
                     />
                   </div>
@@ -525,7 +694,7 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
                       id="hora-recepcion"
                       type="time"
                       value={horaRecepcion}
-                      onChange={(e) => setHoraRecepcion(e.target.value)}
+                      onChange={(e) => handleHoraRecepcionChange(e.target.value)}
                       className="h-12 text-base"
                     />
                   </div>
@@ -557,7 +726,7 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
                       id="fecha"
                       type="date"
                       value={fechaProgramada}
-                      onChange={(e) => setFechaProgramada(e.target.value)}
+                      onChange={(e) => handleFechaProgramadaChange(e.target.value)}
                       min={format(new Date(), 'yyyy-MM-dd')}
                       className="h-12 text-base"
                     />
@@ -572,7 +741,7 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
                       id="hora-inicio"
                       type="time"
                       value={horaInicio}
-                      onChange={(e) => setHoraInicio(e.target.value)}
+                      onChange={(e) => handleHoraInicioChange(e.target.value)}
                       className="h-12 text-base"
                     />
                   </div>
@@ -589,17 +758,7 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
               </Label>
               <Select 
                 value={tipoServicio} 
-                onValueChange={(value) => {
-                  setTipoServicio(value);
-                  // Lógica bidireccional: actualizar automáticamente el switch de armado
-                  if (value === 'custodia_sin_arma') {
-                    setIncluyeArmado(false);
-                    toast.info('Servicio sin arma: custodio armado desactivado automáticamente');
-                  } else if (value === 'custodia_armada' || value === 'custodia_armada_reforzada') {
-                    setIncluyeArmado(true);
-                    toast.info('Servicio armado: custodio armado activado automáticamente');
-                  }
-                }}
+                onValueChange={handleTipoServicioChange}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -635,20 +794,7 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
               <Switch
                 checked={incluyeArmado}
                 disabled={tipoServicio === 'custodia_sin_arma'}
-                onCheckedChange={(checked) => {
-                  if (tipoServicio === 'custodia_sin_arma') return; // Prevenir cambios cuando está deshabilitado
-                  
-                  setIncluyeArmado(checked);
-                  if (checked) {
-                    // Si activa armado pero está en custodia sin arma, cambiar a custodia armada
-                    if (tipoServicio === 'custodia_sin_arma') {
-                      setTipoServicio('custodia_armada');
-                    }
-                  } else {
-                    // Si desactiva armado, cambiar a custodia sin arma
-                    setTipoServicio('custodia_sin_arma');
-                  }
-                }}
+                onCheckedChange={handleIncluyeArmadoChange}
               />
             </div>
 
@@ -698,7 +844,7 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
                 id="observaciones"
                 placeholder="Notas adicionales, instrucciones especiales, etc."
                 value={observaciones}
-                onChange={(e) => setObservaciones(e.target.value)}
+                onChange={(e) => handleObservacionesChange(e.target.value)}
                 rows={3}
               />
             </div>
