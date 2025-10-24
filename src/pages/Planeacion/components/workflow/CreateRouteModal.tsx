@@ -151,14 +151,27 @@ export function CreateRouteModal({
         justification: formData.justificacion
       });
 
-      // Invalidar queries para sincronizar el estado
-      await queryClient.invalidateQueries({ queryKey: ['clientes-from-pricing'] });
-      await queryClient.invalidateQueries({ queryKey: ['origenes-con-frecuencia', clientName] });
-      await queryClient.invalidateQueries({ queryKey: ['destinos-from-pricing', clientName] });
+      // Refrescar queries activas para sincronizar el estado INMEDIATAMENTE
+      await queryClient.refetchQueries({ 
+        queryKey: ['origenes-con-frecuencia', clientName],
+        type: 'active' // Solo refrescar queries que están siendo observadas
+      });
+
+      await queryClient.refetchQueries({ 
+        queryKey: ['destinos-from-pricing', clientName],
+        type: 'active'
+      });
+
+      await queryClient.refetchQueries({ 
+        queryKey: ['clientes-from-pricing'],
+        type: 'active'
+      });
+
+      // Invalidar queries no activas para que se refresquen cuando se monten
       await queryClient.invalidateQueries({ queryKey: ['matriz_precios_rutas'] });
 
-      // Pequeño delay para asegurar sincronización
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Delay más largo para asegurar que los datos se propaguen
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       toast.success('Ruta creada exitosamente', {
         description: 'La ruta ha sido registrada y está lista para usar'

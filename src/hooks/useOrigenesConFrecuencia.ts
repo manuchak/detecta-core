@@ -51,9 +51,10 @@ export const useOrigenesConFrecuencia = (clienteNombre?: string) => {
       }
     },
     enabled: !!clienteNombre,
-    staleTime: 5 * 60 * 1000, // Considerar datos frescos por 5 minutos
-    gcTime: 15 * 60 * 1000, // Mantener en cache por 15 minutos
+    staleTime: 2 * 60 * 1000, // 2 minutos - balance entre cache y frescura
+    gcTime: 10 * 60 * 1000, // 10 minutos - suficiente para sesiones activas
     refetchOnWindowFocus: false, // No refetch al cambiar de ventana
+    refetchOnMount: true, // Refrescar al montar si los datos están stale
     retry: 2, // Intentar 2 veces antes de fallar
     retryDelay: 1000, // 1 segundo entre reintentos
   });

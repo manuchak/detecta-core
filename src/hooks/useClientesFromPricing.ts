@@ -88,5 +88,9 @@ export const useDestinosFromPricing = (clienteNombre?: string, origenTexto?: str
       return Array.from(new Set(data?.map(row => row.destino_texto) || []));
     },
     enabled: !!clienteNombre,
+    staleTime: 2 * 60 * 1000, // 2 minutos - balance entre cache y frescura
+    gcTime: 10 * 60 * 1000, // 10 minutos - suficiente para sesiones activas
+    refetchOnWindowFocus: false, // No refetch al cambiar de ventana
+    refetchOnMount: true, // Refrescar al montar si los datos están stale
   });
 };
