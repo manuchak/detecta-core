@@ -67,6 +67,11 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
     return roles.includes(userRole || '');
   };
 
+  const canAccessSandboxToggle = () => {
+    // Solo admin y owner pueden cambiar entre entornos
+    return userRole === 'admin' || userRole === 'owner';
+  };
+
   const filterChildren = (children?: NavigationChild[]) => {
     if (!children) return [];
     return children.filter(child => hasRoleAccess(child.roles));
@@ -151,8 +156,10 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
         </Button>
       </div>
 
-      {/* Environment Indicator */}
-      <SandboxEnvironmentIndicator collapsed={isCollapsed} />
+      {/* Environment Indicator - Solo para Admin y Owner */}
+      {canAccessSandboxToggle() && (
+        <SandboxEnvironmentIndicator collapsed={isCollapsed} />
+      )}
 
       <SidebarContent>
         <SidebarGroup>
