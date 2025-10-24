@@ -111,6 +111,42 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
     return () => clearTimeout(timeoutId);
   }, [servicioId, validateServiceId]);
 
+  // Sincronizar estado con initialDraft cuando cambia (restauración de draft)
+  useEffect(() => {
+    if (initialDraft) {
+      if (initialDraft.servicio_id !== undefined) {
+        setServicioId(initialDraft.servicio_id);
+      }
+      if (initialDraft.id_interno_cliente !== undefined) {
+        setIdInternoCliente(initialDraft.id_interno_cliente);
+      }
+      if (initialDraft.fecha_programada !== undefined) {
+        setFechaProgramada(initialDraft.fecha_programada);
+      }
+      if (initialDraft.hora_ventana_inicio !== undefined) {
+        setHoraInicio(initialDraft.hora_ventana_inicio);
+      }
+      if (initialDraft.tipo_servicio !== undefined) {
+        setTipoServicio(initialDraft.tipo_servicio);
+      }
+      if (initialDraft.incluye_armado !== undefined) {
+        setIncluyeArmado(initialDraft.incluye_armado);
+      }
+      if (initialDraft.gadgets_seleccionados !== undefined) {
+        setGadgetsSeleccionados(initialDraft.gadgets_seleccionados);
+      }
+      if (initialDraft.observaciones !== undefined) {
+        setObservaciones(initialDraft.observaciones);
+      }
+      if (initialDraft.fecha_recepcion !== undefined) {
+        setFechaRecepcion(initialDraft.fecha_recepcion);
+      }
+      if (initialDraft.hora_recepcion !== undefined) {
+        setHoraRecepcion(initialDraft.hora_recepcion);
+      }
+    }
+  }, [initialDraft]);
+
   const handleServiceIdChange = (value: string) => {
     setServicioId(value);
     // Reset validation when user is typing
