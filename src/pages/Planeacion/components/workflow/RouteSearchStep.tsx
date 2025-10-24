@@ -51,6 +51,7 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchError, setSearchError] = useState<string>('');
+  const [isUpdatingFromCreation, setIsUpdatingFromCreation] = useState(false);
 
   const { data: clientesFromPricing = [] } = useClientesFromPricing();
   const { data: origenesConFrecuencia = [] } = useOrigenesConFrecuencia(cliente);
@@ -63,10 +64,13 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
 
   // Auto-buscar precio cuando se tengan cliente, origen y destino
   useEffect(() => {
+    // No buscar si estamos actualizando desde creación de ruta
+    if (isUpdatingFromCreation) return;
+    
     if (cliente && origen && destino) {
       searchPrice();
     }
-  }, [cliente, origen, destino]);
+  }, [cliente, origen, destino, isUpdatingFromCreation]);
 
   const searchPrice = async () => {
     if (!cliente || !origen || !destino) return;
@@ -182,26 +186,43 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
     }
   };
 
-  const handleRouteCreated = (newRoute: any) => {
-    // After route is created, automatically select it and continue
-    const incluye_armado = newRoute.tipo_servicio && !['SIN ARMA', 'Sin arma', 'SN ARMA', 'NO ARMADA', 'No Armada'].includes(newRoute.tipo_servicio);
-    
-    setPriceEstimate({
-      precio_sugerido: newRoute.valor_bruto ?? null,
-      precio_custodio: newRoute.precio_custodio ?? null,
-      pago_custodio_sin_arma: newRoute.pago_sin_arma ?? null,
-      costo_operativo: newRoute.costo_operativo ?? null,
-      margen_estimado: null,
-      distancia_km: newRoute.distancia_km ?? null,
-      tipo_servicio: newRoute.tipo_servicio ?? null,
-      incluye_armado,
-      ruta_encontrada: `${newRoute.origen_texto} → ${newRoute.destino_texto}`
-    });
-    
-    setSearchError('');
-    toast.success('Ruta seleccionada automáticamente', {
-      description: 'Puedes continuar con el siguiente paso'
-    });
+  const handleRouteCreated = async (newRoute: any) => {
+    try {
+      setIsUpdatingFromCreation(true);
+      
+      // Validar que la ruta tenga los campos necesarios
+      if (!newRoute?.origen_texto || !newRoute?.destino_texto) {
+        console.error('Nueva ruta incompleta:', newRoute);
+        toast.error('Error: La ruta creada está incompleta');
+        return;
+      }
+      
+      // After route is created, automatically select it and continue
+      const incluye_armado = newRoute.tipo_servicio && 
+        !['SIN ARMA', 'Sin arma', 'SN ARMA', 'NO ARMADA', 'No Armada'].includes(newRoute.tipo_servicio);
+      
+      setPriceEstimate({
+        precio_sugerido: newRoute.valor_bruto ?? null,
+        precio_custodio: newRoute.precio_custodio ?? null,
+        pago_custodio_sin_arma: newRoute.pago_sin_arma ?? null,
+        costo_operativo: newRoute.costo_operativo ?? null,
+        margen_estimado: null,
+        distancia_km: newRoute.distancia_km ?? null,
+        tipo_servicio: newRoute.tipo_servicio ?? null,
+        incluye_armado,
+        ruta_encontrada: `${newRoute.origen_texto} → ${newRoute.destino_texto}`
+      });
+      
+      setSearchError('');
+      toast.success('Ruta seleccionada automáticamente', {
+        description: 'Puedes continuar con el siguiente paso'
+      });
+    } catch (error) {
+      console.error('Error en handleRouteCreated:', error);
+      toast.error('Error al procesar la nueva ruta');
+    } finally {
+      setIsUpdatingFromCreation(false);
+    }
   };
 
   return (

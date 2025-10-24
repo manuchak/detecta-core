@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useRouteAudit } from '@/hooks/useRouteAudit';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -41,6 +42,7 @@ export function CreateRouteModal({
   freeTextMode = false
 }: CreateRouteModalProps) {
   const { logRouteAction, checkDailyLimit, logging } = useRouteAudit();
+  const queryClient = useQueryClient();
   const [creating, setCreating] = useState(false);
   const [canCreateToday, setCanCreateToday] = useState<boolean | null>(null);
   
@@ -149,8 +151,17 @@ export function CreateRouteModal({
         justification: formData.justificacion
       });
 
+      // Invalidar queries para sincronizar el estado
+      await queryClient.invalidateQueries({ queryKey: ['clientes-from-pricing'] });
+      await queryClient.invalidateQueries({ queryKey: ['origenes-con-frecuencia', clientName] });
+      await queryClient.invalidateQueries({ queryKey: ['destinos-from-pricing', clientName] });
+      await queryClient.invalidateQueries({ queryKey: ['matriz_precios_rutas'] });
+
+      // Pequeño delay para asegurar sincronización
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       toast.success('Ruta creada exitosamente', {
-        description: 'La ruta ha sido registrada y auditada correctamente'
+        description: 'La ruta ha sido registrada y está lista para usar'
       });
 
       // Call parent callback with new route
