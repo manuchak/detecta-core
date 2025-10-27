@@ -26,6 +26,15 @@ interface RouteData {
   distancia_km?: number;
   tipo_servicio?: string;
   incluye_armado?: boolean;
+  es_ruta_reparto?: boolean;
+  puntos_intermedios?: Array<{
+    orden: number;
+    nombre: string;
+    direccion: string;
+    tiempo_estimado_parada_min: number;
+    observaciones?: string;
+  }>;
+  numero_paradas?: number;
 }
 
 interface ServiceData extends RouteData {

@@ -28,6 +28,15 @@ interface ServiceData {
   observaciones?: string;
   fecha_recepcion?: string;
   hora_recepcion?: string;
+  es_ruta_reparto?: boolean;
+  puntos_intermedios?: Array<{
+    orden: number;
+    nombre: string;
+    direccion: string;
+    tiempo_estimado_parada_min: number;
+    observaciones?: string;
+  }>;
+  numero_paradas?: number;
 }
 
 interface AssignmentData extends ServiceData {
@@ -408,6 +417,52 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
               )}
             </div>
           </div>
+
+          {/* 🆕 INFORMACIÓN DE RUTA MULTI-PUNTO */}
+          {serviceData.es_ruta_reparto && serviceData.puntos_intermedios && serviceData.puntos_intermedios.length > 0 && (
+            <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-4 border border-blue-200">
+              <div className="flex items-center gap-2 mb-3">
+                <MapPin className="h-4 w-4 text-blue-600" />
+                <h4 className="font-semibold text-blue-900 dark:text-blue-100">
+                  Ruta de Reparto - {serviceData.numero_paradas} paradas
+                </h4>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-start gap-2">
+                  <Badge variant="outline" className="mt-0.5">1</Badge>
+                  <div>
+                    <strong>Origen:</strong> {serviceData.origen || serviceData.cliente_nombre}
+                  </div>
+                </div>
+                {serviceData.puntos_intermedios.map((punto, index) => (
+                  <div key={index} className="flex items-start gap-2">
+                    <Badge variant="outline" className="mt-0.5">{index + 2}</Badge>
+                    <div>
+                      <strong>{punto.nombre || `Parada ${index + 1}`}:</strong> {punto.direccion}
+                      <span className="text-muted-foreground ml-2">
+                        (~{punto.tiempo_estimado_parada_min} min)
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                <div className="flex items-start gap-2">
+                  <Badge variant="outline" className="mt-0.5">
+                    {serviceData.puntos_intermedios.length + 2}
+                  </Badge>
+                  <div>
+                    <strong>Destino final:</strong> {serviceData.destino || serviceData.destino_texto}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-blue-200">
+                <p className="text-xs text-blue-800 dark:text-blue-200 flex items-center gap-2">
+                  <AlertCircle className="h-3 w-3" />
+                  El mismo custodio realizará toda la ruta completa
+                </p>
+              </div>
+            </div>
+          )}
+
 
           {/* Search Bar */}
           <UniversalSearchBar

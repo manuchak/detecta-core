@@ -5122,6 +5122,7 @@ export type Database = {
           destino_texto: string
           dias_operacion: string | null
           distancia_km: number | null
+          es_ruta_reparto: boolean | null
           fecha_vigencia: string
           id: string
           margen_neto_calculado: number | null
@@ -5132,6 +5133,7 @@ export type Database = {
           precio_desde_casa: number | null
           precio_historico_2022: number | null
           precio_operativo_logistico: number | null
+          puntos_intermedios: Json | null
           tipo_servicio: string | null
           tipo_viaje: string | null
           updated_at: string
@@ -5149,6 +5151,7 @@ export type Database = {
           destino_texto: string
           dias_operacion?: string | null
           distancia_km?: number | null
+          es_ruta_reparto?: boolean | null
           fecha_vigencia?: string
           id?: string
           margen_neto_calculado?: number | null
@@ -5159,6 +5162,7 @@ export type Database = {
           precio_desde_casa?: number | null
           precio_historico_2022?: number | null
           precio_operativo_logistico?: number | null
+          puntos_intermedios?: Json | null
           tipo_servicio?: string | null
           tipo_viaje?: string | null
           updated_at?: string
@@ -5176,6 +5180,7 @@ export type Database = {
           destino_texto?: string
           dias_operacion?: string | null
           distancia_km?: number | null
+          es_ruta_reparto?: boolean | null
           fecha_vigencia?: string
           id?: string
           margen_neto_calculado?: number | null
@@ -5186,6 +5191,7 @@ export type Database = {
           precio_desde_casa?: number | null
           precio_historico_2022?: number | null
           precio_operativo_logistico?: number | null
+          puntos_intermedios?: Json | null
           tipo_servicio?: string | null
           tipo_viaje?: string | null
           updated_at?: string
@@ -8604,6 +8610,7 @@ export type Database = {
           created_at: string | null
           destino: string | null
           duracion_servicio: unknown
+          es_ruta_reparto: boolean | null
           estado: string | null
           estado_planeacion: string | null
           fecha_contratacion: string | null
@@ -8637,6 +8644,7 @@ export type Database = {
           placa_carga_adicional: string | null
           presentacion: string | null
           proveedor: string | null
+          puntos_intermedios: Json | null
           requiere_armado: boolean | null
           ruta: string | null
           telefono: string | null
@@ -8669,6 +8677,7 @@ export type Database = {
           created_at?: string | null
           destino?: string | null
           duracion_servicio?: unknown
+          es_ruta_reparto?: boolean | null
           estado?: string | null
           estado_planeacion?: string | null
           fecha_contratacion?: string | null
@@ -8702,6 +8711,7 @@ export type Database = {
           placa_carga_adicional?: string | null
           presentacion?: string | null
           proveedor?: string | null
+          puntos_intermedios?: Json | null
           requiere_armado?: boolean | null
           ruta?: string | null
           telefono?: string | null
@@ -8734,6 +8744,7 @@ export type Database = {
           created_at?: string | null
           destino?: string | null
           duracion_servicio?: unknown
+          es_ruta_reparto?: boolean | null
           estado?: string | null
           estado_planeacion?: string | null
           fecha_contratacion?: string | null
@@ -8767,6 +8778,7 @@ export type Database = {
           placa_carga_adicional?: string | null
           presentacion?: string | null
           proveedor?: string | null
+          puntos_intermedios?: Json | null
           requiere_armado?: boolean | null
           ruta?: string | null
           telefono?: string | null
@@ -10098,6 +10110,27 @@ export type Database = {
           ruta_encontrada: string
         }[]
       }
+      buscar_precio_ruta_reparto: {
+        Args: {
+          p_cliente_nombre: string
+          p_destino_final: string
+          p_numero_paradas?: number
+          p_origen: string
+        }
+        Returns: {
+          cliente_nombre: string
+          costo_operativo: number
+          destino_texto: string
+          distancia_km: number
+          id: string
+          numero_paradas: number
+          origen_texto: string
+          precio_custodio: number
+          puntos_intermedios: Json
+          tipo_servicio: string
+          valor_bruto: number
+        }[]
+      }
       bypass_rls_get_servicios: {
         Args: { max_records?: number }
         Returns: {
@@ -10114,6 +10147,7 @@ export type Database = {
           created_at: string | null
           destino: string | null
           duracion_servicio: unknown
+          es_ruta_reparto: boolean | null
           estado: string | null
           estado_planeacion: string | null
           fecha_contratacion: string | null
@@ -10147,6 +10181,7 @@ export type Database = {
           placa_carga_adicional: string | null
           presentacion: string | null
           proveedor: string | null
+          puntos_intermedios: Json | null
           requiere_armado: boolean | null
           ruta: string | null
           telefono: string | null
@@ -10188,6 +10223,7 @@ export type Database = {
           created_at: string | null
           destino: string | null
           duracion_servicio: unknown
+          es_ruta_reparto: boolean | null
           estado: string | null
           estado_planeacion: string | null
           fecha_contratacion: string | null
@@ -10221,6 +10257,7 @@ export type Database = {
           placa_carga_adicional: string | null
           presentacion: string | null
           proveedor: string | null
+          puntos_intermedios: Json | null
           requiere_armado: boolean | null
           ruta: string | null
           telefono: string | null
@@ -10641,6 +10678,7 @@ export type Database = {
           created_at: string | null
           destino: string | null
           duracion_servicio: unknown
+          es_ruta_reparto: boolean | null
           estado: string | null
           estado_planeacion: string | null
           fecha_contratacion: string | null
@@ -10674,6 +10712,7 @@ export type Database = {
           placa_carga_adicional: string | null
           presentacion: string | null
           proveedor: string | null
+          puntos_intermedios: Json | null
           requiere_armado: boolean | null
           ruta: string | null
           telefono: string | null
@@ -11112,6 +11151,7 @@ export type Database = {
           created_at: string | null
           destino: string | null
           duracion_servicio: unknown
+          es_ruta_reparto: boolean | null
           estado: string | null
           estado_planeacion: string | null
           fecha_contratacion: string | null
@@ -11145,6 +11185,7 @@ export type Database = {
           placa_carga_adicional: string | null
           presentacion: string | null
           proveedor: string | null
+          puntos_intermedios: Json | null
           requiere_armado: boolean | null
           ruta: string | null
           telefono: string | null
@@ -11512,6 +11553,7 @@ export type Database = {
           created_at: string | null
           destino: string | null
           duracion_servicio: unknown
+          es_ruta_reparto: boolean | null
           estado: string | null
           estado_planeacion: string | null
           fecha_contratacion: string | null
@@ -11545,6 +11587,7 @@ export type Database = {
           placa_carga_adicional: string | null
           presentacion: string | null
           proveedor: string | null
+          puntos_intermedios: Json | null
           requiere_armado: boolean | null
           ruta: string | null
           telefono: string | null
@@ -11721,6 +11764,7 @@ export type Database = {
           created_at: string | null
           destino: string | null
           duracion_servicio: unknown
+          es_ruta_reparto: boolean | null
           estado: string | null
           estado_planeacion: string | null
           fecha_contratacion: string | null
@@ -11754,6 +11798,7 @@ export type Database = {
           placa_carga_adicional: string | null
           presentacion: string | null
           proveedor: string | null
+          puntos_intermedios: Json | null
           requiere_armado: boolean | null
           ruta: string | null
           telefono: string | null

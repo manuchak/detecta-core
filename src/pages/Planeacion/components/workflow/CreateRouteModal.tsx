@@ -55,7 +55,15 @@ export function CreateRouteModal({
     distancia_km: '',
     tipo_servicio: 'Punto A-B',
     dias_operacion: [] as string[],
-    justificacion: ''
+    justificacion: '',
+    es_ruta_reparto: false,
+    puntos_intermedios: [] as Array<{
+      orden: number;
+      nombre: string;
+      direccion: string;
+      tiempo_estimado_parada_min: number;
+      observaciones?: string;
+    }>
   });
 
   const handleOpenChange = async (newOpen: boolean) => {
@@ -144,6 +152,10 @@ export function CreateRouteModal({
         // La BD almacena: '["lunes","martes"]' (string JSON)
         // NO enviar: ['lunes','martes'] (array directo) ❌
         dias_operacion: JSON.stringify(formData.dias_operacion),
+        es_ruta_reparto: formData.es_ruta_reparto || false,
+        puntos_intermedios: formData.es_ruta_reparto && formData.puntos_intermedios
+          ? JSON.stringify(formData.puntos_intermedios)
+          : '[]',
         activo: true,
         created_by: user.id
       };
@@ -204,7 +216,9 @@ export function CreateRouteModal({
         distancia_km: '',
         tipo_servicio: 'Punto A-B',
         dias_operacion: [],
-        justificacion: ''
+        justificacion: '',
+        es_ruta_reparto: false,
+        puntos_intermedios: []
       });
       onOpenChange(false);
 

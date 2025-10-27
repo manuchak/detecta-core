@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, MapPin, DollarSign, AlertTriangle, CheckCircle, Plus, RefreshCw } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Search, MapPin, DollarSign, AlertTriangle, CheckCircle, Plus, RefreshCw, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useClientesFromPricing, useDestinosFromPricing } from '@/hooks/useClientesFromPricing';
@@ -13,7 +14,7 @@ import { useOrigenesConFrecuencia } from '@/hooks/useOrigenesConFrecuencia';
 import { CreateRouteModal } from './CreateRouteModal';
 import { useQueryClient } from '@tanstack/react-query';
 
-interface RouteData {
+export interface RouteData {
   cliente_nombre: string;
   origen_texto: string;
   destino_texto: string;
@@ -25,6 +26,15 @@ interface RouteData {
   distancia_km?: number;
   tipo_servicio?: string;
   incluye_armado?: boolean;
+  es_ruta_reparto?: boolean;
+  puntos_intermedios?: Array<{
+    orden: number;
+    nombre: string;
+    direccion: string;
+    tiempo_estimado_parada_min: number;
+    observaciones?: string;
+  }>;
+  numero_paradas?: number;
 }
 
 interface RouteSearchStepProps {
@@ -38,6 +48,14 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
   const [origen, setOrigen] = useState(initialDraft?.origen_texto || '');
   const [destino, setDestino] = useState(initialDraft?.destino_texto || '');
   const [distanciaKm, setDistanciaKm] = useState(initialDraft?.distancia_km?.toString() || '');
+  const [esRutaReparto, setEsRutaReparto] = useState(initialDraft?.es_ruta_reparto || false);
+  const [puntosIntermedios, setPuntosIntermedios] = useState<Array<{
+    orden: number;
+    nombre: string;
+    direccion: string;
+    tiempo_estimado_parada_min: number;
+    observaciones?: string;
+  }>>(initialDraft?.puntos_intermedios || []);
   const [priceEstimate, setPriceEstimate] = useState<any>(initialDraft?.precio_sugerido ? {
     precio_sugerido: initialDraft.precio_sugerido,
     precio_custodio: initialDraft.precio_custodio,
@@ -87,7 +105,43 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
 
     setLoading(true);
     try {
-      // Búsqueda directa con origen incluido
+      // 🆕 SI ES RUTA REPARTO, usar RPC especializado
+      if (esRutaReparto) {
+        const { data, error } = await supabase.rpc('buscar_precio_ruta_reparto', {
+          p_cliente_nombre: cliente,
+          p_origen: origen,
+          p_destino_final: destino,
+          p_numero_paradas: puntosIntermedios.length
+        });
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          const row = data[0];
+          setPriceEstimate({
+            precio_sugerido: row.valor_bruto ?? null,
+            precio_custodio: row.precio_custodio ?? null,
+            costo_operativo: row.costo_operativo ?? null,
+            distancia_km: row.distancia_km ?? null,
+            tipo_servicio: row.tipo_servicio ?? null,
+            es_ruta_reparto: true,
+            puntos_intermedios: row.puntos_intermedios,
+            numero_paradas: row.numero_paradas,
+            ruta_encontrada: `${row.origen_texto} → ${row.destino_texto} (${row.numero_paradas} paradas)`
+          });
+          setSearchError('');
+          toast.success(`Pricing encontrado para ruta de reparto (${row.numero_paradas} paradas)`);
+          return;
+        } else {
+          setPriceEstimate(null);
+          setSearchError(`No se encontró pricing para ruta de reparto ${origen} → ${destino}. Puedes crear una nueva.`);
+          toast.warning('No se encontró pricing para ruta de reparto. Puedes crear una nueva.');
+        }
+        setLoading(false);
+        return;
+      }
+
+      // Búsqueda directa con origen incluido (punto-a-punto)
       const { data, error } = await supabase
         .from('matriz_precios_rutas')
         .select('cliente_nombre, origen_texto, destino_texto, valor_bruto, precio_custodio, pago_custodio_sin_arma, costo_operativo, margen_neto_calculado, distancia_km, tipo_servicio')
@@ -165,6 +219,23 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
       toast.error('Por favor completa cliente, origen y destino');
       return;
     }
+    
+    if (esRutaReparto && puntosIntermedios.length === 0) {
+      toast.error('Agrega al menos un punto intermedio para ruta de reparto');
+      return;
+    }
+
+    // Validar que todos los puntos tengan nombre y dirección
+    if (esRutaReparto) {
+      const puntosIncompletos = puntosIntermedios.filter(
+        p => !p.nombre.trim() || !p.direccion.trim()
+      );
+      
+      if (puntosIncompletos.length > 0) {
+        toast.error(`Completa los datos de ${puntosIncompletos.length} punto(s) intermedio(s)`);
+        return;
+      }
+    }
 
     const routeData: RouteData = {
       cliente_nombre: cliente,
@@ -177,7 +248,10 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
       margen_estimado: priceEstimate?.margen_estimado,
       distancia_km: priceEstimate?.distancia_km || (distanciaKm ? Number(distanciaKm) : undefined),
       tipo_servicio: priceEstimate?.tipo_servicio,
-      incluye_armado: priceEstimate?.incluye_armado
+      incluye_armado: priceEstimate?.incluye_armado,
+      es_ruta_reparto: esRutaReparto,
+      puntos_intermedios: esRutaReparto ? puntosIntermedios : [],
+      numero_paradas: puntosIntermedios.length
     };
 
     onComplete(routeData);
@@ -430,6 +504,123 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
                   />
                 </div>
               </div>
+            )}
+
+            {/* 🆕 TOGGLE PARA RUTA DE REPARTO */}
+            {cliente && origen && destino && (
+              <div className="flex items-center space-x-2 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200">
+                <Switch
+                  id="es-ruta-reparto"
+                  checked={esRutaReparto}
+                  onCheckedChange={(checked) => {
+                    setEsRutaReparto(checked);
+                    if (!checked) setPuntosIntermedios([]);
+                  }}
+                />
+                <div className="flex-1">
+                  <Label htmlFor="es-ruta-reparto" className="text-sm font-medium cursor-pointer">
+                    Ruta de reparto (múltiples puntos de entrega)
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Activa si el servicio incluye entregas en varios puntos con el mismo custodio
+                  </p>
+                </div>
+                <Badge variant={esRutaReparto ? "default" : "outline"}>
+                  {esRutaReparto ? `${puntosIntermedios.length} paradas` : 'Punto a punto'}
+                </Badge>
+              </div>
+            )}
+
+            {/* 🆕 SECCIÓN DE PUNTOS INTERMEDIOS */}
+            {esRutaReparto && (
+              <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Puntos de Entrega Intermedios
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {puntosIntermedios.map((punto, index) => (
+                    <div key={index} className="flex items-start gap-3 p-3 bg-background rounded-lg border">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold shrink-0 mt-2">
+                        {index + 1}
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <Input
+                          placeholder="Nombre del punto (ej: Sucursal Centro)"
+                          value={punto.nombre}
+                          onChange={(e) => {
+                            const updated = [...puntosIntermedios];
+                            updated[index] = { ...updated[index], nombre: e.target.value };
+                            setPuntosIntermedios(updated);
+                          }}
+                        />
+                        <Input
+                          placeholder="Dirección completa"
+                          value={punto.direccion}
+                          onChange={(e) => {
+                            const updated = [...puntosIntermedios];
+                            updated[index] = { ...updated[index], direccion: e.target.value };
+                            setPuntosIntermedios(updated);
+                          }}
+                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input
+                            type="number"
+                            placeholder="Tiempo en parada (min)"
+                            value={punto.tiempo_estimado_parada_min}
+                            onChange={(e) => {
+                              const updated = [...puntosIntermedios];
+                              updated[index] = { ...updated[index], tiempo_estimado_parada_min: parseInt(e.target.value) || 15 };
+                              setPuntosIntermedios(updated);
+                            }}
+                          />
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => setPuntosIntermedios(puntosIntermedios.filter((_, i) => i !== index))}
+                            className="text-destructive"
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setPuntosIntermedios([...puntosIntermedios, {
+                      orden: puntosIntermedios.length + 1,
+                      nombre: '',
+                      direccion: '',
+                      tiempo_estimado_parada_min: 15
+                    }])}
+                    className="w-full"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Agregar punto de entrega
+                  </Button>
+                  
+                  {puntosIntermedios.length > 0 && (
+                    <div className="bg-muted/50 rounded-lg p-3 text-sm">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium">Resumen de Ruta:</span>
+                        <Badge>{puntosIntermedios.length + 2} puntos totales</Badge>
+                      </div>
+                      <div className="space-y-1 text-xs text-muted-foreground">
+                        <div>1. {origen} (Origen)</div>
+                        {puntosIntermedios.map((p, i) => (
+                          <div key={i}>{i + 2}. {p.nombre || `Parada ${i + 1}`}</div>
+                        ))}
+                        <div>{puntosIntermedios.length + 2}. {destino} (Destino final)</div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             )}
           </div>
 
