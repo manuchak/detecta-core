@@ -109,6 +109,17 @@ export function CreateRouteModal({
 
     if (!validateForm()) return;
 
+    // 🔍 Pre-insert type validation
+    console.log('🔍 [CreateRouteModal] Pre-insert validation:', {
+      dias_operacion_value: formData.dias_operacion,
+      dias_operacion_type: typeof formData.dias_operacion,
+      is_array: Array.isArray(formData.dias_operacion),
+      will_stringify: true,
+      cliente: clientName,
+      origen: formData.origen_texto,
+      destino: formData.destino_texto
+    });
+
     if (canCreateToday === false) {
       toast.error('Has alcanzado el límite diario de creación de rutas');
       return;
@@ -129,7 +140,10 @@ export function CreateRouteModal({
         costo_operativo: formData.costo_operativo ? parseFloat(formData.costo_operativo) : null,
         distancia_km: parseFloat(formData.distancia_km),
         tipo_servicio: formData.tipo_servicio,
-        dias_operacion: formData.dias_operacion,
+        // IMPORTANTE: dias_operacion debe ser JSON string porque la columna en DB es TEXT
+        // La BD almacena: '["lunes","martes"]' (string JSON)
+        // NO enviar: ['lunes','martes'] (array directo) ❌
+        dias_operacion: JSON.stringify(formData.dias_operacion),
         activo: true,
         created_by: user.id
       };
@@ -195,9 +209,23 @@ export function CreateRouteModal({
       onOpenChange(false);
 
     } catch (err) {
-      console.error('Error creating route:', err);
+      console.error('❌ [CreateRouteModal] Error creating route:', {
+        error: err,
+        errorMessage: err instanceof Error ? err.message : 'Unknown',
+        errorDetails: err instanceof Error ? err.stack : null,
+        formData: {
+          cliente: clientName,
+          origen: formData.origen_texto,
+          destino: formData.destino_texto,
+          dias_operacion_type: typeof formData.dias_operacion,
+          dias_operacion: formData.dias_operacion
+        }
+      });
+      
       toast.error('Error al crear la ruta', {
-        description: err instanceof Error ? err.message : 'Error desconocido'
+        description: err instanceof Error 
+          ? `${err.message}. Revisa la consola para más detalles.`
+          : 'Error desconocido. Contacta a soporte técnico.'
       });
     } finally {
       setCreating(false);
