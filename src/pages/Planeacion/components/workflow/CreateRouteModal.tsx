@@ -9,8 +9,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useRouteAudit } from '@/hooks/useRouteAudit';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2, Plus, XCircle, MapPin } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface CreateRouteModalProps {
   open: boolean;
@@ -84,6 +87,38 @@ export function CreateRouteModal({
     }));
   };
 
+  const addPuntoIntermedio = () => {
+    setFormData(prev => ({
+      ...prev,
+      puntos_intermedios: [
+        ...prev.puntos_intermedios,
+        {
+          orden: prev.puntos_intermedios.length + 1,
+          nombre: '',
+          direccion: '',
+          tiempo_estimado_parada_min: 15,
+          observaciones: ''
+        }
+      ]
+    }));
+  };
+
+  const removePuntoIntermedio = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      puntos_intermedios: prev.puntos_intermedios.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updatePuntoIntermedio = (index: number, field: string, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      puntos_intermedios: prev.puntos_intermedios.map((punto, i) =>
+        i === index ? { ...punto, [field]: value } : punto
+      )
+    }));
+  };
+
   const validateForm = (): boolean => {
     if (!formData.origen_texto || formData.origen_texto.trim().length === 0) {
       toast.error('El origen es requerido');
@@ -109,6 +144,28 @@ export function CreateRouteModal({
       toast.error('La justificación debe tener al menos 20 caracteres');
       return false;
     }
+
+    // Validar puntos intermedios si es ruta de reparto
+    if (formData.es_ruta_reparto) {
+      if (formData.puntos_intermedios.length === 0) {
+        toast.error('Debes agregar al menos un punto intermedio para rutas de reparto');
+        return false;
+      }
+      
+      const puntosIncompletos = formData.puntos_intermedios.filter(
+        p => !p.nombre.trim() || !p.direccion.trim()
+      );
+      
+      if (puntosIncompletos.length > 0) {
+        toast.error(`Completa nombre y dirección de ${puntosIncompletos.length} punto(s) intermedio(s)`);
+        return false;
+      }
+      
+      if (formData.puntos_intermedios.length > 10) {
+        toast.warning('Ruta con más de 10 paradas. Verifica tiempos estimados.');
+      }
+    }
+    
     return true;
   };
 
@@ -389,6 +446,104 @@ export function CreateRouteModal({
               ))}
             </div>
           </div>
+
+          {/* Multi-point route toggle */}
+          <div className="flex items-center space-x-2 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200">
+            <Switch
+              id="es-ruta-reparto"
+              checked={formData.es_ruta_reparto}
+              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, es_ruta_reparto: checked }))}
+            />
+            <div className="flex-1">
+              <Label htmlFor="es-ruta-reparto" className="text-sm font-medium cursor-pointer">
+                Ruta de reparto (múltiples puntos de entrega)
+              </Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Activa si el servicio incluye entregas en varios puntos con el mismo custodio
+              </p>
+            </div>
+            <Badge variant={formData.es_ruta_reparto ? "default" : "outline"}>
+              {formData.es_ruta_reparto ? `${formData.puntos_intermedios.length} paradas` : 'Punto a punto'}
+            </Badge>
+          </div>
+
+          {/* Multi-point route configuration */}
+          {formData.es_ruta_reparto && (
+            <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Puntos de Entrega Intermedios
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {formData.puntos_intermedios.map((punto, index) => (
+                  <div key={index} className="flex items-start gap-3 p-3 bg-background rounded-lg border">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold shrink-0">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <Input
+                        placeholder="Nombre del punto (ej: Sucursal Centro)"
+                        value={punto.nombre}
+                        onChange={(e) => updatePuntoIntermedio(index, 'nombre', e.target.value)}
+                      />
+                      <Input
+                        placeholder="Dirección completa"
+                        value={punto.direccion}
+                        onChange={(e) => updatePuntoIntermedio(index, 'direccion', e.target.value)}
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input
+                          type="number"
+                          placeholder="Tiempo (min)"
+                          value={punto.tiempo_estimado_parada_min}
+                          onChange={(e) => updatePuntoIntermedio(index, 'tiempo_estimado_parada_min', parseInt(e.target.value) || 15)}
+                        />
+                        <Button 
+                          type="button"
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => removePuntoIntermedio(index)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Eliminar
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                <Button 
+                  type="button"
+                  variant="outline" 
+                  size="sm" 
+                  onClick={addPuntoIntermedio}
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Agregar punto de entrega
+                </Button>
+                
+                {formData.puntos_intermedios.length > 0 && (
+                  <div className="bg-muted/50 rounded-lg p-3 text-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium">Resumen de Ruta:</span>
+                      <Badge>{formData.puntos_intermedios.length + 2} puntos totales</Badge>
+                    </div>
+                    <div className="space-y-1 text-xs text-muted-foreground">
+                      <div>1. {formData.origen_texto || 'Origen'} (Origen)</div>
+                      {formData.puntos_intermedios.map((p, i) => (
+                        <div key={i}>{i + 2}. {p.nombre || `Parada ${i + 1}`} (~{p.tiempo_estimado_parada_min} min)</div>
+                      ))}
+                      <div>{formData.puntos_intermedios.length + 2}. {formData.destino_texto || 'Destino'} (Destino final)</div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Justification */}
           <div className="space-y-2">
