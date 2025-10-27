@@ -19,6 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { DraftStatusBadge } from '@/components/workflow/DraftStatusBadge';
 import { DraftRestoredBanner } from '@/components/workflow/DraftRestoredBanner';
+import { TabReturnNotification } from '@/components/workflow/TabReturnNotification';
 
 interface RouteData {
   cliente_nombre: string;
@@ -149,8 +150,10 @@ export function RequestCreationWorkflow() {
   const [hasInvalidatedState, setHasInvalidatedState] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [showRestoredBanner, setShowRestoredBanner] = useState(false);
+  const [showTabReturnNotification, setShowTabReturnNotification] = useState(false);
 
   // CRITICAL: UI State Hydration - Sync UI states when persistedData changes
+  // 🆕 MEJORADO: Previene regresiones usando comparación de índice de pasos
   useEffect(() => {
     // Skip if restoring (handled by auto-restore effect)
     if (isRestoring) return;
@@ -170,13 +173,28 @@ export function RequestCreationWorkflow() {
       armedAssignmentData
     ].filter(Boolean).length;
     
-    // Only hydrate if persistedData is MORE complete than local state
-    if (persistedMeaningful > localMeaningful) {
-      console.log('🔄 [RequestCreationWorkflow] Hydrating UI from persistedData:', {
+    // 🆕 NUEVA LÓGICA: Prevenir regresiones usando índice de pasos
+    const stepOrder = ['route', 'service', 'assignment', 'armed_assignment', 'final_confirmation'];
+    const persistedStepIndex = stepOrder.indexOf(persistedData.currentStep);
+    const localStepIndex = stepOrder.indexOf(currentStep);
+    
+    const isSameSession = persistedData.sessionId === sessionIdRef.current;
+    const persistedIsAhead = persistedStepIndex >= localStepIndex;
+    
+    const shouldHydrate = (
+      persistedMeaningful > localMeaningful &&  // Más pasos completos
+      isSameSession &&                           // Misma sesión
+      persistedIsAhead                           // No regresar al usuario
+    );
+    
+    if (shouldHydrate) {
+      console.log('🔄 [RequestCreationWorkflow] Hidratando UI from persistedData:', {
         sessionId: persistedData.sessionId,
         step: persistedData.currentStep,
         persistedMeaningful,
         localMeaningful,
+        persistedStepIndex,
+        localStepIndex,
         timestamp: new Date().toISOString()
       });
       
@@ -189,6 +207,18 @@ export function RequestCreationWorkflow() {
       setModifiedSteps(persistedData.modifiedSteps);
       
       setShowRestoredBanner(true);
+    } else if (persistedMeaningful > 0 && localMeaningful === 0) {
+      // 🆕 CASO ESPECIAL: Si local está vacío pero persisted tiene datos,
+      // el banner de auto-restore se encargará
+      console.log('ℹ️ [RequestCreationWorkflow] Hay datos persistidos pero local está vacío');
+    } else {
+      console.log('⏭️ [RequestCreationWorkflow] Skip hydration:', {
+        persistedMeaningful,
+        localMeaningful,
+        isSameSession,
+        persistedIsAhead,
+        shouldHydrate
+      });
     }
   }, [
     persistedData.currentStep,
@@ -199,7 +229,8 @@ export function RequestCreationWorkflow() {
     persistedData.createdServiceDbId,
     persistedData.modifiedSteps,
     persistedData.sessionId,
-    isRestoring
+    isRestoring,
+    currentStep  // 🆕 Agregar currentStep como dependencia
   ]);
 
   // Auto-restore draft seamlessly on mount (without prompts or time thresholds)
@@ -245,6 +276,54 @@ export function RequestCreationWorkflow() {
 
     return () => clearTimeout(handler);
   }, [currentStep, routeData, serviceData, assignmentData, armedAssignmentData, createdServiceDbId, modifiedSteps, persistedData.drafts, persistedData.lastEditedStep, updateFormData]);
+
+  // 🆕 NUEVO: Guardar INMEDIATAMENTE al cambiar de pestaña (sin esperar debounce)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        console.log('📱 [RequestCreationWorkflow] Tab oculto - guardando estado actual INMEDIATAMENTE');
+        // Forzar guardado SÍNCRONO del estado actual
+        updateFormData({
+          currentStep,
+          routeData,
+          serviceData,
+          assignmentData,
+          armedAssignmentData,
+          createdServiceDbId,
+          modifiedSteps,
+          sessionId: sessionIdRef.current,
+          drafts: persistedData.drafts,
+          lastEditedStep: persistedData.lastEditedStep,
+        });
+      } else if (!document.hidden && currentStep !== 'route') {
+        // 🆕 Usuario regresó y NO está en el primer paso
+        setShowTabReturnNotification(true);
+        
+        // Auto-dismiss después de 5 segundos
+        setTimeout(() => {
+          setShowTabReturnNotification(false);
+        }, 5000);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [currentStep, routeData, serviceData, assignmentData, armedAssignmentData, createdServiceDbId, modifiedSteps, persistedData.drafts, persistedData.lastEditedStep, updateFormData]);
+
+  // 🆕 NUEVO: Logging de cambios de currentStep para debugging
+  useEffect(() => {
+    console.log('🎯 [RequestCreationWorkflow] currentStep changed:', {
+      newStep: currentStep,
+      sessionId: sessionIdRef.current,
+      hasRouteData: !!routeData,
+      hasServiceData: !!serviceData,
+      hasAssignmentData: !!assignmentData,
+      timestamp: new Date().toISOString()
+    });
+  }, [currentStep, routeData, serviceData, assignmentData]);
   
   // Hook para manejar servicios planificados
   const { createServicioPlanificado, assignArmedGuard, isLoading } = useServiciosPlanificados();
@@ -598,6 +677,15 @@ export function RequestCreationWorkflow() {
 
   return (
     <div className="space-y-6">
+      {/* Tab Return Notification */}
+      {showTabReturnNotification && (
+        <TabReturnNotification 
+          currentStep={currentStep}
+          lastSaved={lastSaved}
+          onDismiss={() => setShowTabReturnNotification(false)}
+        />
+      )}
+
       {/* Draft Restored Banner */}
       {showRestoredBanner && (
         <DraftRestoredBanner

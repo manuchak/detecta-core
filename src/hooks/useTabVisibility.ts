@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 export const useTabVisibility = () => {
   const [isVisible, setIsVisible] = useState(!document.hidden);
   const [hasLeftTab, setHasLeftTab] = useState(false);
+  const [lastReturnTime, setLastReturnTime] = useState<Date | null>(null); // 🆕 NUEVO
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -12,6 +13,9 @@ export const useTabVisibility = () => {
       // Track if user has left the tab during a process
       if (!currentlyVisible) {
         setHasLeftTab(true);
+      } else {
+        // 🆕 NUEVO: Registrar cuando regresa
+        setLastReturnTime(new Date());
       }
     };
 
@@ -24,11 +28,13 @@ export const useTabVisibility = () => {
 
   const resetTabTracking = () => {
     setHasLeftTab(false);
+    setLastReturnTime(null); // 🆕 NUEVO
   };
 
   return {
     isVisible,
     hasLeftTab,
+    lastReturnTime, // 🆕 NUEVO
     resetTabTracking
   };
 };
