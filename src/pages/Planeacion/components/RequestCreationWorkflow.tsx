@@ -269,6 +269,13 @@ export function RequestCreationWorkflow() {
   // ✅ CAMBIO #3: Detectar y procesar flag de restauración forzada desde banner
   useEffect(() => {
     const forceRestoreFlag = sessionStorage.getItem('scw_force_restore');
+    const suppressionFlag = sessionStorage.getItem('scw_suppress_restore');
+    
+    // 🆕 NO restaurar si el usuario pidió "Empezar de nuevo"
+    if (suppressionFlag === '1') {
+      console.log('🚫 [RequestCreationWorkflow] Suppression flag active - skipping forced restore');
+      return;
+    }
     
     if (forceRestoreFlag === '1' && hasDraft) {
       console.log('🎯 [RequestCreationWorkflow] Force restore flag detected - hydrating immediately');
@@ -787,13 +794,22 @@ export function RequestCreationWorkflow() {
           timeSinceSave={getTimeSinceSave()}
           onDismiss={() => setShowRestoredBanner(false)}
           onStartFresh={() => {
-            console.log('🗑️ User requested fresh start');
+            console.log('🗑️ User requested fresh start - FULL RESET');
+            
+            // 🆕 PASO 1: Limpiar TODOS los flags de control
             sessionStorage.setItem('scw_suppress_restore', '1');
+            sessionStorage.removeItem('scw_force_restore');
+            
+            // 🆕 PASO 2: Prevenir próxima persistencia
             skipNextPersistRef.current = true;
+            
+            // 🆕 PASO 3: Limpiar draft de localStorage
             clearDraft();
+            
+            // 🆕 PASO 4: Cerrar banner inmediatamente
             setShowRestoredBanner(false);
             
-            // Reset to initial state
+            // 🆕 PASO 5: Resetear TODOS los estados a valores iniciales
             setCurrentStep('route');
             setRouteData(null);
             setServiceData(null);
@@ -801,6 +817,12 @@ export function RequestCreationWorkflow() {
             setArmedAssignmentData(null);
             setCreatedServiceDbId(null);
             setModifiedSteps([]);
+            setHasInvalidatedState(false);
+            
+            // 🆕 PASO 6: Resetear refs de control
+            autoRestoreDoneRef.current = false;  // Permitir auto-restore en FUTURAS sesiones
+            
+            console.log('✅ Full reset completed - user starting fresh');
           }}
         />
       )}

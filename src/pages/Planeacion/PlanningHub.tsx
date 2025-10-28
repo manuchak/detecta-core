@@ -151,6 +151,16 @@ export default function PlanningHub() {
         // Forzar guardado SÍNCRONO antes de cerrar
         console.log('💾 [PlanningHub] Dialog closing - forcing save');
         window.dispatchEvent(new CustomEvent('force-workflow-save'));
+        
+        // 🆕 Limpiar suppression flag si no hay draft (usuario cerró limpio)
+        setTimeout(() => {
+          const exactKey = user ? `service_creation_workflow_${user.id}` : 'service_creation_workflow';
+          const hasDraft = localStorage.getItem(exactKey);
+          if (!hasDraft) {
+            sessionStorage.removeItem('scw_suppress_restore');
+            console.log('🧹 Cleared suppression flag - no draft exists');
+          }
+        }, 100);
       }
       setShowCreateWorkflow(open);
     }
