@@ -226,12 +226,24 @@ export function CreateRouteModal({
 
       if (insertError) throw insertError;
 
-      // Log the audit
-      await logRouteAction({
+      // Log the audit (non-blocking - don't await to prevent audit failures from blocking route creation)
+      logRouteAction({
         route_id: newRoute.id,
         action_type: 'created',
         new_data: routeData,
         justification: formData.justificacion
+      }).catch(auditErr => {
+        // Log but don't fail the route creation
+        console.warn('⚠️ [CreateRouteModal] Audit logging failed (non-critical):', {
+          auditError: auditErr,
+          auditErrorMessage: auditErr instanceof Error ? auditErr.message : 'Unknown',
+          route: newRoute.id
+        });
+        
+        // Show warning to user
+        toast.warning('Ruta creada, pero no se pudo registrar en auditoría', {
+          description: 'La ruta se creó correctamente, pero hubo un problema al registrar el log de auditoría.'
+        });
       });
 
       // Refrescar queries activas para sincronizar el estado INMEDIATAMENTE
@@ -280,10 +292,15 @@ export function CreateRouteModal({
       onOpenChange(false);
 
     } catch (err) {
+      // Capture Supabase error with proper typing
+      const supabaseError = err as { message?: string; code?: string; details?: string; hint?: string };
+      
       console.error('❌ [CreateRouteModal] Error creating route:', {
         error: err,
-        errorMessage: err instanceof Error ? err.message : 'Unknown',
-        errorDetails: err instanceof Error ? err.stack : null,
+        errorMessage: supabaseError.message || (err instanceof Error ? err.message : 'Unknown'),
+        errorCode: supabaseError.code,
+        errorDetails: supabaseError.details || (err instanceof Error ? err.stack : null),
+        errorHint: supabaseError.hint,
         formData: {
           cliente: clientName,
           origen: formData.origen_texto,
@@ -293,10 +310,28 @@ export function CreateRouteModal({
         }
       });
       
+      // Build more informative error message
+      let errorDescription = 'Error desconocido. Contacta a soporte técnico.';
+      
+      if (supabaseError.message) {
+        errorDescription = supabaseError.message;
+        
+        // Add hint if exists
+        if (supabaseError.hint) {
+          errorDescription += `\n\n💡 Sugerencia: ${supabaseError.hint}`;
+        }
+        
+        // If it's a permission error, give specific message
+        if (supabaseError.code === '42501' || errorDescription.toLowerCase().includes('permission')) {
+          errorDescription = 'No tienes permisos para crear rutas. Contacta a un coordinador o administrador.';
+        }
+      } else if (err instanceof Error) {
+        errorDescription = err.message;
+      }
+      
       toast.error('Error al crear la ruta', {
-        description: err instanceof Error 
-          ? `${err.message}. Revisa la consola para más detalles.`
-          : 'Error desconocido. Contacta a soporte técnico.'
+        description: errorDescription,
+        duration: 8000 // More time to read the message
       });
     } finally {
       setCreating(false);
