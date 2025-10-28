@@ -67,6 +67,8 @@ export const useDestinosFromPricing = (clienteNombre?: string, origenTexto?: str
   return useQuery({
     queryKey: ['destinos-from-pricing', clienteNombre, origenTexto],
     queryFn: async (): Promise<string[]> => {
+      console.log('🔍 [useDestinosFromPricing] Buscando destinos:', { clienteNombre, origenTexto });
+      
       if (!clienteNombre) return [];
 
       let query = supabase
@@ -82,15 +84,23 @@ export const useDestinosFromPricing = (clienteNombre?: string, origenTexto?: str
 
       const { data, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ [useDestinosFromPricing] Error:', error);
+        throw error;
+      }
 
       // Retornar destinos únicos
-      return Array.from(new Set(data?.map(row => row.destino_texto) || []));
+      const destinos = Array.from(new Set(data?.map(row => row.destino_texto) || []));
+      console.log('✅ [useDestinosFromPricing] Destinos encontrados:', destinos.length, destinos);
+      
+      return destinos;
     },
     enabled: !!clienteNombre,
     staleTime: 2 * 60 * 1000, // 2 minutos - balance entre cache y frescura
     gcTime: 10 * 60 * 1000, // 10 minutos - suficiente para sesiones activas
     refetchOnWindowFocus: false, // No refetch al cambiar de ventana
     refetchOnMount: true, // Refrescar al montar si los datos están stale
+    retry: 2, // Reintentar 2 veces en caso de error
+    retryDelay: 1000, // Esperar 1 segundo entre reintentos
   });
 };

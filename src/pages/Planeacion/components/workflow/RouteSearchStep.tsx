@@ -75,7 +75,12 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
   const queryClient = useQueryClient();
   const { data: clientesFromPricing = [] } = useClientesFromPricing();
   const { data: origenesConFrecuencia = [] } = useOrigenesConFrecuencia(cliente);
-  const { data: destinosFromPricing = [] } = useDestinosFromPricing(cliente, origen);
+  const { 
+    data: destinosFromPricing = [], 
+    isLoading: isLoadingDestinos,
+    isError: isErrorDestinos,
+    error: errorDestinos
+  } = useDestinosFromPricing(cliente, origen);
 
   // Filtrar clientes para sugerencias
   const clienteSuggestions = clientesFromPricing
@@ -87,6 +92,9 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
     // No buscar si estamos actualizando desde creación de ruta
     if (isUpdatingFromCreation) return;
     
+    // No buscar si destinos aún están cargando
+    if (isLoadingDestinos) return;
+    
     // Verificar frescura de queries antes de buscar
     const origenesState = queryClient.getQueryState(['origenes-con-frecuencia', cliente]);
     const destinosState = queryClient.getQueryState(['destinos-from-pricing', cliente, origen]);
@@ -95,16 +103,25 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
     const isDataFresh = origenesState?.dataUpdatedAt && (now - origenesState.dataUpdatedAt) < 10000 &&
                         destinosState?.dataUpdatedAt && (now - destinosState.dataUpdatedAt) < 10000;
     
-    if (cliente && origen && destino && isDataFresh) {
+    if (cliente && origen && destino && isDataFresh && !isLoadingDestinos) {
       searchPrice();
     }
-  }, [cliente, origen, destino, isUpdatingFromCreation, queryClient]);
+  }, [cliente, origen, destino, isUpdatingFromCreation, queryClient, isLoadingDestinos]);
 
   const searchPrice = async () => {
     if (!cliente || !origen || !destino) return;
 
     setLoading(true);
+    setSearchError(''); // Limpiar errores previos
+    
     try {
+      console.log('🔍 [RouteSearchStep] Buscando precio:', {
+        cliente,
+        origen,
+        destino,
+        esRutaReparto,
+        puntosIntermedios: puntosIntermedios.length
+      });
       // 🆕 SI ES RUTA REPARTO, usar RPC especializado
       if (esRutaReparto) {
         const { data, error } = await supabase.rpc('buscar_precio_ruta_reparto', {
@@ -206,9 +223,21 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
         toast.error(`No se encontró pricing para ${cliente}: ${origen} → ${destino}`);
       }
     } catch (err: any) {
-      console.error('Error searching price:', err);
-      toast.error('Error al buscar precio');
+      console.error('❌ [RouteSearchStep] Error searching price:', {
+        error: err,
+        message: err?.message,
+        stack: err?.stack,
+        cliente,
+        origen,
+        destino
+      });
+      
+      const errorMessage = err?.message || 'Error desconocido al buscar precio';
+      toast.error('Error al buscar precio', {
+        description: errorMessage
+      });
       setPriceEstimate(null);
+      setSearchError(`Error: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -456,17 +485,53 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
                     }}
                     disabled={!cliente || !origen}
                   >
-                    <SelectTrigger className={`h-12 ${destino ? 'form-field-completed' : !origen ? 'opacity-50' : 'form-field-required'}`}>
+                    <SelectTrigger 
+                      className={`h-12 ${destino ? 'form-field-completed' : !origen ? 'opacity-50' : 'form-field-required'}`}
+                      disabled={!cliente || !origen || isLoadingDestinos}
+                    >
                       <SelectValue placeholder={
-                        !origen ? "Primero selecciona origen" : "Seleccionar destino..."
+                        !origen 
+                          ? "Primero selecciona origen" 
+                          : isLoadingDestinos 
+                            ? "Cargando destinos..." 
+                            : "Seleccionar destino..."
                       } />
                     </SelectTrigger>
                     <SelectContent>
-                      {destinosFromPricing.map((destinoOption) => (
-                        <SelectItem key={destinoOption} value={destinoOption}>
-                          <div className="font-medium">{destinoOption}</div>
-                        </SelectItem>
-                      ))}
+                      {isLoadingDestinos ? (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          <RefreshCw className="h-4 w-4 animate-spin mx-auto mb-2" />
+                          Cargando destinos disponibles...
+                        </div>
+                      ) : isErrorDestinos ? (
+                        <div className="p-4 text-center text-sm text-destructive">
+                          <AlertTriangle className="h-4 w-4 mx-auto mb-2" />
+                          Error al cargar destinos. Intenta de nuevo.
+                        </div>
+                      ) : destinosFromPricing.length === 0 ? (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          <MapPin className="h-4 w-4 mx-auto mb-2" />
+                          No hay destinos disponibles para {origen}
+                          <div className="mt-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => setShowCreateModal(true)}
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              Crear nueva ruta
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          {destinosFromPricing.map((destinoOption) => (
+                            <SelectItem key={destinoOption} value={destinoOption}>
+                              <div className="font-medium">{destinoOption}</div>
+                            </SelectItem>
+                          ))}
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
