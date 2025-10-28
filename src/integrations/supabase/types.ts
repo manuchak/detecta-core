@@ -8020,6 +8020,7 @@ export type Database = {
           id: string
           monto_bono: number | null
           notas: string | null
+          referrer_id: string
           updated_at: string
         }
         Insert: {
@@ -8035,6 +8036,7 @@ export type Database = {
           id?: string
           monto_bono?: number | null
           notas?: string | null
+          referrer_id: string
           updated_at?: string
         }
         Update: {
@@ -8050,6 +8052,7 @@ export type Database = {
           id?: string
           monto_bono?: number | null
           notas?: string | null
+          referrer_id?: string
           updated_at?: string
         }
         Relationships: [
