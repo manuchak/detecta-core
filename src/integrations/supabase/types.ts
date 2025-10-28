@@ -1098,6 +1098,53 @@ export type Database = {
           },
         ]
       }
+      audit_pricing_access: {
+        Row: {
+          accessed_cliente: string | null
+          accessed_route_id: string | null
+          action_type: string
+          created_at: string
+          id: string
+          ip_address: unknown
+          sensitive_fields_accessed: string[] | null
+          user_agent: string | null
+          user_id: string
+          user_role: string
+        }
+        Insert: {
+          accessed_cliente?: string | null
+          accessed_route_id?: string | null
+          action_type: string
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          sensitive_fields_accessed?: string[] | null
+          user_agent?: string | null
+          user_id: string
+          user_role: string
+        }
+        Update: {
+          accessed_cliente?: string | null
+          accessed_route_id?: string | null
+          action_type?: string
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          sensitive_fields_accessed?: string[] | null
+          user_agent?: string | null
+          user_id?: string
+          user_role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_pricing_access_accessed_route_id_fkey"
+            columns: ["accessed_route_id"]
+            isOneToOne: false
+            referencedRelation: "matriz_precios_rutas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       auditoria_instalaciones: {
         Row: {
           aspectos_mejora: string[] | null
@@ -10397,6 +10444,7 @@ export type Database = {
       can_manage_wms: { Args: never; Returns: boolean }
       can_view_financial_data: { Args: never; Returns: boolean }
       can_view_sensitive_kpis: { Args: never; Returns: boolean }
+      can_view_sensitive_pricing: { Args: never; Returns: boolean }
       check_admin_for_rewards: { Args: never; Returns: boolean }
       check_admin_secure: { Args: never; Returns: boolean }
       check_custodian_availability: {
@@ -10803,6 +10851,10 @@ export type Database = {
           role_category: string
           role_priority: number
         }[]
+      }
+      get_allowed_pricing_fields: {
+        Args: { p_user_id: string }
+        Returns: string[]
       }
       get_analyst_assigned_leads:
         | {
