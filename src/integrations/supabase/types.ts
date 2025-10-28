@@ -12325,6 +12325,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      user_has_wms_access: { Args: never; Returns: boolean }
       validar_horario_instalacion: {
         Args: { fecha_programada: string }
         Returns: boolean
