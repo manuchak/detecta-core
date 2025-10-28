@@ -414,10 +414,16 @@ export function usePersistedForm<T>({
       setHasDraft(false);
       setLastSaved(null);
       hasChangesRef.current = false;
+      
+      // 🆕 NEW: Reset memory to prevent reconciliation
+      formDataRef.current = initialData;
+      setFormData(initialData);
+      
+      console.log(`🗑️ [usePersistedForm] Draft cleared and reset to initialData (key=${key})`);
     } catch (error) {
       console.error('Error clearing draft:', error);
     }
-  }, [storageKey]);
+  }, [storageKey, initialData, key]);
 
   // Manual save
   const saveDraft = useCallback(() => {

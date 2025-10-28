@@ -71,6 +71,7 @@ export function RequestCreationWorkflow() {
   // Refs to control persistence behavior
   const skipNextPersistRef = useRef(false);
   const autoRestoreDoneRef = useRef(false);
+  const skipHydrationRef = useRef(false);  // 🆕 NEW: Bypass hydration after "start fresh"
   const mountTimeRef = useRef(Date.now());
   const sessionIdRef = useRef(crypto.randomUUID());
   
@@ -157,6 +158,13 @@ export function RequestCreationWorkflow() {
   // CRITICAL: UI State Hydration - Sync UI states when persistedData changes
   // 🆕 MEJORADO: Previene regresiones usando comparación de índice de pasos
   useEffect(() => {
+    // 🆕 NEW: Skip if bypass flag is set (after "start fresh")
+    if (skipHydrationRef.current) {
+      console.log('⏭️ Skipping hydration due to skipHydrationRef flag');
+      skipHydrationRef.current = false;
+      return;
+    }
+    
     // Skip if restoring (handled by auto-restore effect)
     if (isRestoring) return;
     
@@ -322,7 +330,14 @@ export function RequestCreationWorkflow() {
   }, [currentStep, routeData, serviceData, assignmentData, armedAssignmentData, createdServiceDbId, modifiedSteps, persistedData.drafts, persistedData.lastEditedStep, updateFormData, saveDraft]);
 
   // Persist state changes (with skip mechanism)
+  const persistTimerRef = useRef<NodeJS.Timeout | null>(null);  // 🆕 NEW: Track debounce timer
+  
   useEffect(() => {
+    // Clear previous timer
+    if (persistTimerRef.current) {
+      clearTimeout(persistTimerRef.current);
+    }
+    
     // Skip this persistence cycle if flagged
     if (skipNextPersistRef.current) {
       console.log('⏭️ Skipping persistence cycle due to recent discard');
@@ -331,7 +346,7 @@ export function RequestCreationWorkflow() {
     }
     
     setIsSaving(true);
-    const handler = setTimeout(() => {
+    persistTimerRef.current = setTimeout(() => {  // 🆕 Store timer ref
       updateFormData({
         currentStep,
         routeData,
@@ -345,9 +360,15 @@ export function RequestCreationWorkflow() {
         lastEditedStep: persistedData.lastEditedStep,
       });
       setIsSaving(false);
+      persistTimerRef.current = null;
     }, 500); // Debounce to avoid excessive saves
 
-    return () => clearTimeout(handler);
+    return () => {
+      if (persistTimerRef.current) {
+        clearTimeout(persistTimerRef.current);
+        persistTimerRef.current = null;
+      }
+    };
   }, [currentStep, routeData, serviceData, assignmentData, armedAssignmentData, createdServiceDbId, modifiedSteps, persistedData.drafts, persistedData.lastEditedStep, updateFormData]);
 
   // 🆕 NUEVO: Guardar INMEDIATAMENTE al cambiar de pestaña (sin esperar debounce)
@@ -796,6 +817,9 @@ export function RequestCreationWorkflow() {
           onStartFresh={() => {
             console.log('🗑️ User requested fresh start - FULL RESET');
             
+            // 🆕 PASO 0: BLOQUEAR hidratación inmediata
+            skipHydrationRef.current = true;
+            
             // 🆕 PASO 1: Limpiar TODOS los flags de control
             sessionStorage.setItem('scw_suppress_restore', '1');
             sessionStorage.removeItem('scw_force_restore');
@@ -803,8 +827,28 @@ export function RequestCreationWorkflow() {
             // 🆕 PASO 2: Prevenir próxima persistencia
             skipNextPersistRef.current = true;
             
+            // 🆕 PASO 2.5: Cancelar timers pendientes de debounce
+            if (persistTimerRef.current) {
+              clearTimeout(persistTimerRef.current);
+              persistTimerRef.current = null;
+            }
+            
             // 🆕 PASO 3: Limpiar draft de localStorage
             clearDraft();
+            
+            // 🆕 PASO 3.5: Forzar actualización de persistedData a valores vacíos
+            updateFormData({
+              currentStep: 'route',
+              routeData: null,
+              serviceData: null,
+              assignmentData: null,
+              armedAssignmentData: null,
+              createdServiceDbId: null,
+              modifiedSteps: [],
+              sessionId: crypto.randomUUID(),  // Nuevo sessionId
+              drafts: {},
+              lastEditedStep: null,
+            });
             
             // 🆕 PASO 4: Cerrar banner inmediatamente
             setShowRestoredBanner(false);
@@ -820,7 +864,8 @@ export function RequestCreationWorkflow() {
             setHasInvalidatedState(false);
             
             // 🆕 PASO 6: Resetear refs de control
-            autoRestoreDoneRef.current = false;  // Permitir auto-restore en FUTURAS sesiones
+            autoRestoreDoneRef.current = false;
+            sessionIdRef.current = crypto.randomUUID();
             
             console.log('✅ Full reset completed - user starting fresh');
           }}
