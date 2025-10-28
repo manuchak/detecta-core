@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 import { PlusCircle, Settings, BarChart3, Smartphone, Calendar, TrendingUp, Shield, AlertTriangle, ExternalLink, Save, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RequestCreationWorkflow } from './components/RequestCreationWorkflow';
@@ -26,6 +28,7 @@ export default function PlanningHub() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCreateWorkflow, setShowCreateWorkflow] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
@@ -138,6 +141,21 @@ export default function PlanningHub() {
     return false;
   })();
 
+  // ✅ NUEVO: Handler para cerrar dialog con guardado forzado
+  const handleDialogClose = (open: boolean) => {
+    if (!open && hasDraftBanner) {
+      // Mostrar confirmación si hay cambios sin guardar
+      setShowDiscardConfirm(true);
+    } else {
+      if (!open) {
+        // Forzar guardado SÍNCRONO antes de cerrar
+        console.log('💾 [PlanningHub] Dialog closing - forcing save');
+        window.dispatchEvent(new CustomEvent('force-workflow-save'));
+      }
+      setShowCreateWorkflow(open);
+    }
+  };
+
   return (
     <div className="h-full">
       {/* Draft Banner - Persistent reminder */}
@@ -207,7 +225,12 @@ export default function PlanningHub() {
       <Tabs defaultValue="dashboard" className="h-full">
         <TabsList className="apple-tabs-minimal">
           <TabsTrigger value="dashboard" className="apple-tab">Dashboard</TabsTrigger>
-          <TabsTrigger value="services" className="apple-tab">Servicios</TabsTrigger>
+          <TabsTrigger value="services" className="apple-tab relative">
+            Servicios
+            {hasDraftBanner && (
+              <Badge className="absolute -top-1 -right-1 h-2 w-2 p-0 bg-primary border-0" />
+            )}
+          </TabsTrigger>
           <TabsTrigger value="query" className="apple-tab">Consultas</TabsTrigger>
           <TabsTrigger value="gps" className="apple-tab">GPS</TabsTrigger>
           <TabsTrigger value="config" className="apple-tab">Configuración</TabsTrigger>
@@ -246,7 +269,7 @@ export default function PlanningHub() {
       />
       
       {/* Create Service Modal */}
-      <Dialog open={showCreateWorkflow} onOpenChange={setShowCreateWorkflow}>
+      <Dialog open={showCreateWorkflow} onOpenChange={handleDialogClose}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto" aria-describedby="create-service-description">
           <DialogHeader>
             <DialogTitle>Crear Nuevo Servicio</DialogTitle>
@@ -257,6 +280,31 @@ export default function PlanningHub() {
           <RequestCreationWorkflow />
         </DialogContent>
       </Dialog>
+
+      {/* ✅ NUEVO: Confirmación de descarte */}
+      <AlertDialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Cerrar sin completar?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tienes cambios en progreso. Tu borrador se guardará automáticamente y podrás continuar más tarde.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowDiscardConfirm(false)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              console.log('💾 [PlanningHub] User confirmed close - forcing save');
+              window.dispatchEvent(new CustomEvent('force-workflow-save'));
+              setShowCreateWorkflow(false);
+              setShowDiscardConfirm(false);
+            }}>
+              Cerrar (guardar borrador)
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

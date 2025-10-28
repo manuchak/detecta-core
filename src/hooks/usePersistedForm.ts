@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 /**
  * Sanitizes draft data before persisting to localStorage
@@ -346,12 +347,41 @@ export function usePersistedForm<T>({
     };
   }, [storageKey, user?.id, isMeaningfulDraft, initialData, key]);
 
+  // Validate draft integrity
+  const validateDraftIntegrity = useCallback((data: T): boolean => {
+    try {
+      // Verify JSON serializability
+      JSON.stringify(data);
+      
+      // Check if draft is meaningful
+      if (isMeaningfulDraft && !isMeaningfulDraft(data)) {
+        console.warn('⚠️ [usePersistedForm] Draft not meaningful, clearing');
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('❌ [usePersistedForm] Draft validation failed:', error);
+      return false;
+    }
+  }, [isMeaningfulDraft]);
+
   // Restore draft
   const restoreDraft = useCallback(() => {
     try {
       const stored = localStorage.getItem(storageKey);
       if (stored) {
         const parsed: PersistedData<T> = JSON.parse(stored);
+        
+        // ✅ NUEVO: Validar integridad antes de restaurar
+        if (!validateDraftIntegrity(parsed.data)) {
+          console.warn('⚠️ [usePersistedForm] Draft integrity check failed, clearing');
+          localStorage.removeItem(storageKey);
+          setHasDraft(false);
+          toast.error('El borrador guardado estaba corrupto y fue eliminado');
+          return;
+        }
+        
         setFormData(parsed.data);
         formDataRef.current = parsed.data;
         setIsRestoring(true);
@@ -363,9 +393,12 @@ export function usePersistedForm<T>({
         setTimeout(() => setIsRestoring(false), 100);
       }
     } catch (error) {
-      console.error('Error restoring draft:', error);
+      console.error('❌ [usePersistedForm] Error restoring draft:', error);
+      localStorage.removeItem(storageKey); // Limpiar draft corrupto
+      setHasDraft(false);
+      toast.error('Error al restaurar el borrador');
     }
-  }, [storageKey, onRestore]);
+  }, [storageKey, onRestore, validateDraftIntegrity]);
 
   // Clear draft
   const clearDraft = useCallback(() => {

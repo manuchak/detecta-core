@@ -20,6 +20,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { DraftStatusBadge } from '@/components/workflow/DraftStatusBadge';
 import { DraftRestoredBanner } from '@/components/workflow/DraftRestoredBanner';
 import { TabReturnNotification } from '@/components/workflow/TabReturnNotification';
+import { SavingIndicator } from '@/components/workflow/SavingIndicator';
 
 interface RouteData {
   cliente_nombre: string;
@@ -116,8 +117,8 @@ export function RequestCreationWorkflow() {
       lastEditedStep: undefined,
     },
     hydrateOnMount: true, // CRITICAL: Early hydration before first render
-    autoSaveInterval: 10000, // Auto-save every 10 seconds (reduced from 30)
-    saveOnChangeDebounceMs: 700, // Save 700ms after changes
+    autoSaveInterval: 30000, // ✅ OPTIMIZADO: Auto-save every 30 seconds (mejor performance)
+    saveOnChangeDebounceMs: 1000, // ✅ OPTIMIZADO: Save 1s after changes (reduce writes)
     isMeaningfulDraft: (data) => {
       // A draft is meaningful if:
       // - Any step draft has content, or
@@ -151,6 +152,7 @@ export function RequestCreationWorkflow() {
   const [isValidating, setIsValidating] = useState(false);
   const [showRestoredBanner, setShowRestoredBanner] = useState(false);
   const [showTabReturnNotification, setShowTabReturnNotification] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // CRITICAL: UI State Hydration - Sync UI states when persistedData changes
   // 🆕 MEJORADO: Previene regresiones usando comparación de índice de pasos
@@ -250,6 +252,31 @@ export function RequestCreationWorkflow() {
     }
   }, [hasDraft, isRestoring, restoreDraft, clearDraft]);
 
+  // ✅ NUEVO: Evento personalizado para forzar guardado
+  useEffect(() => {
+    const handleForceSave = () => {
+      console.log('💾 [RequestCreationWorkflow] Force save triggered');
+      setIsSaving(true);
+      updateFormData({
+        currentStep,
+        routeData,
+        serviceData,
+        assignmentData,
+        armedAssignmentData,
+        createdServiceDbId,
+        modifiedSteps,
+        sessionId: sessionIdRef.current,
+        drafts: persistedData.drafts,
+        lastEditedStep: persistedData.lastEditedStep,
+      });
+      saveDraft(); // Forzar guardado inmediato
+      setTimeout(() => setIsSaving(false), 300);
+    };
+
+    window.addEventListener('force-workflow-save', handleForceSave);
+    return () => window.removeEventListener('force-workflow-save', handleForceSave);
+  }, [currentStep, routeData, serviceData, assignmentData, armedAssignmentData, createdServiceDbId, modifiedSteps, persistedData.drafts, persistedData.lastEditedStep, updateFormData, saveDraft]);
+
   // Persist state changes (with skip mechanism)
   useEffect(() => {
     // Skip this persistence cycle if flagged
@@ -259,6 +286,7 @@ export function RequestCreationWorkflow() {
       return;
     }
     
+    setIsSaving(true);
     const handler = setTimeout(() => {
       updateFormData({
         currentStep,
@@ -272,6 +300,7 @@ export function RequestCreationWorkflow() {
         drafts: persistedData.drafts,
         lastEditedStep: persistedData.lastEditedStep,
       });
+      setIsSaving(false);
     }, 500); // Debounce to avoid excessive saves
 
     return () => clearTimeout(handler);
@@ -713,7 +742,14 @@ export function RequestCreationWorkflow() {
       {/* Progress Steps */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle>Progreso del Flujo</CardTitle>
+          <div className="flex items-center gap-4">
+            <CardTitle>Progreso del Flujo</CardTitle>
+            <SavingIndicator 
+              isSaving={isSaving}
+              lastSaved={lastSaved}
+              getTimeSinceSave={getTimeSinceSave}
+            />
+          </div>
           <DraftStatusBadge 
             lastSaved={lastSaved}
             getTimeSinceSave={getTimeSinceSave}

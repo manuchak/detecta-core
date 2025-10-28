@@ -35,6 +35,7 @@ export interface RouteData {
     observaciones?: string;
   }>;
   numero_paradas?: number;
+  searchError?: string; // ✅ NUEVO: Persistir errores
 }
 
 interface RouteSearchStepProps {
@@ -69,7 +70,7 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
   const [loading, setLoading] = useState(false);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [searchError, setSearchError] = useState<string>('');
+  const [searchError, setSearchError] = useState<string>(initialDraft?.searchError || '');
   const [isUpdatingFromCreation, setIsUpdatingFromCreation] = useState(false);
 
   const queryClient = useQueryClient();
@@ -237,7 +238,18 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
         description: errorMessage
       });
       setPriceEstimate(null);
-      setSearchError(`Error: ${errorMessage}`);
+      const error = `Error: ${errorMessage}`;
+      setSearchError(error);
+      
+      // ✅ NUEVO: Persistir error en draft
+      if (onDraftChange) {
+        onDraftChange({
+          cliente_nombre: cliente,
+          origen_texto: origen,
+          destino_texto: destino,
+          searchError: error
+        });
+      }
     } finally {
       setLoading(false);
     }
