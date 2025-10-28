@@ -64,11 +64,17 @@ export default function PlanningHub() {
       const stored = localStorage.getItem('service_creation_workflow_dialog_state');
       const suppressionFlag = sessionStorage.getItem('scw_suppress_restore');
       
+      // ✅ FASE 3: No auto-abrir si hay suppression flag
+      if (suppressionFlag === '1') {
+        console.log('🚫 [PlanningHub] Suppression flag active - not auto-opening');
+        return;
+      }
+      
       // Check if there's actually a meaningful draft with exact key match
       const exactKey = user ? `service_creation_workflow_${user.id}` : 'service_creation_workflow';
       const draftData = localStorage.getItem(exactKey);
       
-      if (draftData && suppressionFlag !== '1') {
+      if (draftData) {
         try {
           const parsed = JSON.parse(draftData);
           

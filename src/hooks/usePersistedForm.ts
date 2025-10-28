@@ -229,6 +229,19 @@ export function usePersistedForm<T>({
         console.log(`📱 [usePersistedForm] App moving to background - saving (key=${key})`);
         saveToStorage(formDataRef.current, true);
       } else if (document.visibilityState === 'visible') {
+        // ✅ FASE 2: Verificar si hay hard clear activo
+        const hardClearMarker = `${storageKey}_hard_clear`;
+        const hardClearTimestamp = localStorage.getItem(hardClearMarker);
+        
+        if (hardClearTimestamp) {
+          const timeSinceClear = Date.now() - parseInt(hardClearTimestamp);
+          
+          if (timeSinceClear < 2000) {
+            console.log('🚫 [usePersistedForm] Hard clear active - skipping reconciliation');
+            return;
+          }
+        }
+        
         // Reconcile: check if storage has a more complete draft
         console.log(`👁️ [usePersistedForm] Tab visible - reconciling (key=${key})`);
         try {
@@ -401,28 +414,40 @@ export function usePersistedForm<T>({
   }, [storageKey, onRestore, validateDraftIntegrity]);
 
   // Clear draft
-  const clearDraft = useCallback(() => {
-    try {
-      if (autoSaveTimerRef.current) {
-        clearInterval(autoSaveTimerRef.current);
-      }
-      if (immediateSaveTimerRef.current) {
-        clearTimeout(immediateSaveTimerRef.current);
-      }
-      
-      localStorage.removeItem(storageKey);
-      setHasDraft(false);
-      setLastSaved(null);
-      hasChangesRef.current = false;
-      
-      // 🆕 NEW: Reset memory to prevent reconciliation
-      formDataRef.current = initialData;
-      setFormData(initialData);
-      
-      console.log(`🗑️ [usePersistedForm] Draft cleared and reset to initialData (key=${key})`);
-    } catch (error) {
-      console.error('Error clearing draft:', error);
+  const clearDraft = useCallback((hardClear = false) => {
+    console.log(`🗑️ [usePersistedForm] clearDraft called (hardClear=${hardClear}, key=${key})`);
+    
+    // Cancelar todos los timers
+    if (autoSaveTimerRef.current) {
+      clearInterval(autoSaveTimerRef.current);
     }
+    if (immediateSaveTimerRef.current) {
+      clearTimeout(immediateSaveTimerRef.current);
+    }
+    
+    // Limpiar localStorage
+    localStorage.removeItem(storageKey);
+    
+    // ✅ FASE 2: Si es hard clear, marcar para prevenir re-hidratación
+    if (hardClear) {
+      // Usar timestamp para tracking temporal
+      const hardClearMarker = `${storageKey}_hard_clear`;
+      localStorage.setItem(hardClearMarker, Date.now().toString());
+      
+      // Auto-limpiar marker después de 2 segundos
+      setTimeout(() => {
+        localStorage.removeItem(hardClearMarker);
+      }, 2000);
+    }
+    
+    // Resetear estados
+    setHasDraft(false);
+    setLastSaved(null);
+    hasChangesRef.current = false;
+    formDataRef.current = initialData;
+    setFormData(initialData);
+    
+    console.log(`✅ [usePersistedForm] Draft cleared (key=${key})`);
   }, [storageKey, initialData, key]);
 
   // Manual save

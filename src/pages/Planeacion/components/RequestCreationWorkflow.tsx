@@ -781,8 +781,17 @@ export function RequestCreationWorkflow() {
         toast.success('✅ Servicio guardado exitosamente');
       }
       
-      // CRITICAL: Set suppression flag to prevent auto-restore after successful completion
-      sessionStorage.setItem('scw_suppress_restore', '1');
+      // ✅ FASE 1: Limpiar draft ANTES de resetear
+      console.log('✅ Service created successfully - clearing draft');
+      clearDraft();
+      
+      // ✅ FASE 1: Limpiar TODOS los flags de sesión
+      sessionStorage.removeItem('scw_suppress_restore');
+      sessionStorage.removeItem('scw_force_restore');
+      localStorage.removeItem('service_creation_workflow_dialog_state');
+      
+      // ✅ FASE 1: Pequeño delay para asegurar limpieza
+      await new Promise(resolve => setTimeout(resolve, 50));
       
       // Resetear después de un delay para mostrar la confirmación
       setTimeout(() => {
@@ -815,45 +824,17 @@ export function RequestCreationWorkflow() {
           timeSinceSave={getTimeSinceSave()}
           onDismiss={() => setShowRestoredBanner(false)}
           onStartFresh={() => {
-            console.log('🗑️ User requested fresh start - FULL RESET');
+            console.log('🗑️ User requested fresh start - HARD CLEAR');
             
-            // 🆕 PASO 0: BLOQUEAR hidratación inmediata
-            skipHydrationRef.current = true;
+            // ✅ FASE 2: PASO 1: Hard clear del draft (previene re-hidratación)
+            clearDraft(true);  // hardClear = true
             
-            // 🆕 PASO 1: Limpiar TODOS los flags de control
+            // ✅ FASE 2: PASO 2: Limpiar flags de control
             sessionStorage.setItem('scw_suppress_restore', '1');
             sessionStorage.removeItem('scw_force_restore');
+            localStorage.removeItem('service_creation_workflow_dialog_state');
             
-            // 🆕 PASO 2: Prevenir próxima persistencia
-            skipNextPersistRef.current = true;
-            
-            // 🆕 PASO 2.5: Cancelar timers pendientes de debounce
-            if (persistTimerRef.current) {
-              clearTimeout(persistTimerRef.current);
-              persistTimerRef.current = null;
-            }
-            
-            // 🆕 PASO 3: Limpiar draft de localStorage
-            clearDraft();
-            
-            // 🆕 PASO 3.5: Forzar actualización de persistedData a valores vacíos
-            updateFormData({
-              currentStep: 'route',
-              routeData: null,
-              serviceData: null,
-              assignmentData: null,
-              armedAssignmentData: null,
-              createdServiceDbId: null,
-              modifiedSteps: [],
-              sessionId: crypto.randomUUID(),  // Nuevo sessionId
-              drafts: {},
-              lastEditedStep: null,
-            });
-            
-            // 🆕 PASO 4: Cerrar banner inmediatamente
-            setShowRestoredBanner(false);
-            
-            // 🆕 PASO 5: Resetear TODOS los estados a valores iniciales
+            // ✅ FASE 2: PASO 3: Resetear estados a valores iniciales
             setCurrentStep('route');
             setRouteData(null);
             setServiceData(null);
@@ -863,11 +844,33 @@ export function RequestCreationWorkflow() {
             setModifiedSteps([]);
             setHasInvalidatedState(false);
             
-            // 🆕 PASO 6: Resetear refs de control
+            // ✅ FASE 2: PASO 4: Resetear refs
             autoRestoreDoneRef.current = false;
             sessionIdRef.current = crypto.randomUUID();
+            skipHydrationRef.current = true;
             
-            console.log('✅ Full reset completed - user starting fresh');
+            // ✅ FASE 2: PASO 5: Actualizar form data a estado limpio
+            updateFormData({
+              currentStep: 'route',
+              routeData: null,
+              serviceData: null,
+              assignmentData: null,
+              armedAssignmentData: null,
+              createdServiceDbId: null,
+              modifiedSteps: [],
+              sessionId: crypto.randomUUID(),
+              drafts: {},
+              lastEditedStep: null,
+            });
+            
+            // ✅ FASE 2: PASO 6: Cerrar banner
+            setShowRestoredBanner(false);
+            
+            // ✅ FASE 2: PASO 7: Limpiar suppression flag después de 2s
+            setTimeout(() => {
+              sessionStorage.removeItem('scw_suppress_restore');
+              console.log('✅ Fresh start complete - ready for new service');
+            }, 2000);
           }}
         />
       )}
