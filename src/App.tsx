@@ -6,9 +6,9 @@ import { Toaster as SonnerToaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { DraftResumeProvider, useDraftResume } from '@/contexts/DraftResumeContext';
-import { SandboxProvider } from '@/contexts/SandboxContext';
+import { SandboxProvider, useSandbox } from '@/contexts/SandboxContext';
 import { SandboxRouteGuard } from '@/components/sandbox/SandboxRouteGuard';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { LastRouteRestorer } from '@/components/global/LastRouteRestorer';
 import { GlobalResumeCTA } from '@/components/global/GlobalResumeCTA';
 
@@ -75,6 +75,20 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import RoleProtectedRoute from '@/components/RoleProtectedRoute';
 import PermissionProtectedRoute from '@/components/PermissionProtectedRoute';
 
+// Componente para sincronizar userRole entre AuthContext y SandboxContext
+function SandboxRoleSync({ children }: { children: React.ReactNode }) {
+  const { userRole } = useAuth();
+  const { updateUserRole } = useSandbox();
+  
+  useEffect(() => {
+    if (updateUserRole) {
+      updateUserRole(userRole);
+    }
+  }, [userRole, updateUserRole]);
+  
+  return <>{children}</>;
+}
+
 // Resume Route Handler Component
 function ResumeRouteHandler() {
   const { getDraftCatalog } = useDraftResume();
@@ -122,13 +136,14 @@ function App() {
       <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
         <AuthProvider>
           <SandboxProvider>
-            <DraftResumeProvider>
-              <Router>
-              <LastRouteRestorer />
-              <SandboxRouteGuard>
-                <div className="min-h-screen bg-background">
-                  <Suspense fallback={<LoadingFallback />}>
-                    <Routes>
+            <SandboxRoleSync>
+              <DraftResumeProvider>
+                <Router>
+                <LastRouteRestorer />
+                <SandboxRouteGuard>
+                  <div className="min-h-screen bg-background">
+                    <Suspense fallback={<LoadingFallback />}>
+                      <Routes>
                   {/* Main route - Leads as principal page */}
                   <Route path="/" element={<SimpleLeadsPage />} />
                   
@@ -637,6 +652,7 @@ function App() {
             <Toaster />
             <SonnerToaster />
           </DraftResumeProvider>
+        </SandboxRoleSync>
         </SandboxProvider>
         </AuthProvider>
       </ThemeProvider>

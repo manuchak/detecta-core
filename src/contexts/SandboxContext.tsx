@@ -4,6 +4,7 @@ interface SandboxContextType {
   isSandboxMode: boolean;
   toggleSandboxMode: () => void;
   subscribeModeChange: (callback: (newMode: boolean) => void) => () => void;
+  updateUserRole?: (role: string | null) => void;
 }
 
 const SandboxContext = createContext<SandboxContextType | undefined>(undefined);
@@ -13,6 +14,7 @@ const modeChangeListeners = new Set<(newMode: boolean) => void>();
 
 export const SandboxProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isSandboxMode, setIsSandboxMode] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   // Persistir en localStorage y validar consistencia
   useEffect(() => {
@@ -29,6 +31,15 @@ export const SandboxProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   const toggleSandboxMode = () => {
+    // 🚫 Validar permisos antes de cambiar
+    if (userRole && userRole !== 'admin' && userRole !== 'owner') {
+      console.warn('🚫 SandboxContext: Intento de cambio de modo sin permisos', {
+        userRole,
+        currentMode: isSandboxMode ? 'SANDBOX' : 'PRODUCCIÓN'
+      });
+      return; // Bloquear cambio
+    }
+    
     setIsSandboxMode(prev => {
       const newValue = !prev;
       const timestamp = new Date().toISOString();
@@ -39,7 +50,8 @@ export const SandboxProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.log(`🔄 SandboxContext: Modo cambiado a ${newValue ? 'SANDBOX' : 'PRODUCCIÓN'}`, {
         newValue,
         timestamp,
-        url: window.location.href
+        url: window.location.href,
+        userRole
       });
       
       // Notificar a todos los listeners
@@ -54,6 +66,12 @@ export const SandboxProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return newValue;
     });
   };
+  
+  // Función para actualizar el rol del usuario desde AuthContext
+  const updateUserRole = (role: string | null) => {
+    setUserRole(role);
+    console.log('🔄 SandboxContext: Rol de usuario actualizado', { role });
+  };
 
   const subscribeModeChange = (callback: (newMode: boolean) => void) => {
     modeChangeListeners.add(callback);
@@ -63,7 +81,7 @@ export const SandboxProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   return (
-    <SandboxContext.Provider value={{ isSandboxMode, toggleSandboxMode, subscribeModeChange }}>
+    <SandboxContext.Provider value={{ isSandboxMode, toggleSandboxMode, subscribeModeChange, updateUserRole }}>
       {children}
     </SandboxContext.Provider>
   );
