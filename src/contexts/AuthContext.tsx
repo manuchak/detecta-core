@@ -35,7 +35,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // Mapeo de permisos por rol
+  /**
+   * ⚠️ SECURITY NOTE: UI-ONLY permission mapping
+   * 
+   * These permission checks control the visibility of UI elements ONLY.
+   * They are NOT security boundaries and should NEVER be trusted for authorization.
+   * 
+   * - User roles are fetched securely from the backend via get_current_user_role_secure()
+   * - All actual authorization MUST be enforced server-side via RLS policies
+   * - This mapping exists solely for improving UX by hiding inaccessible features
+   * - Attackers can bypass these checks, but RLS policies will block unauthorized data access
+   * 
+   * Security is enforced at:
+   * ✅ Database level: Row Level Security (RLS) policies on all tables
+   * ✅ Edge functions: JWT validation and role checks
+   * ✅ RPC functions: SECURITY DEFINER functions with proper role validation
+   */
   const getPermissionsForRole = (role: string | null): AuthPermissions => {
     switch (role) {
       case 'admin':
