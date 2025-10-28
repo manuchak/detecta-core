@@ -11330,6 +11330,17 @@ export type Database = {
           tipo_vehiculo: string
         }[]
       }
+      get_modelos_vehiculos_safe: {
+        Args: { p_marca_id?: string }
+        Returns: {
+          año_fin: number
+          año_inicio: number
+          id: string
+          marca_id: string
+          nombre: string
+          tipo_vehiculo: string
+        }[]
+      }
       get_monthly_productivity_stats: {
         Args: never
         Returns: {
