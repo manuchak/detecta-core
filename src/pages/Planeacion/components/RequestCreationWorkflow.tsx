@@ -180,23 +180,27 @@ export function RequestCreationWorkflow() {
     const persistedStepIndex = stepOrder.indexOf(persistedData.currentStep);
     const localStepIndex = stepOrder.indexOf(currentStep);
     
-    const isSameSession = persistedData.sessionId === sessionIdRef.current;
     const persistedIsAhead = persistedStepIndex >= localStepIndex;
     
+    // ✅ CAMBIO #1: Remover validación de sessionId - permitir hidratación cross-session
     const shouldHydrate = (
       persistedMeaningful > localMeaningful &&  // Más pasos completos
-      isSameSession &&                           // Misma sesión
-      persistedIsAhead                           // No regresar al usuario
+      persistedIsAhead &&                        // No regresar al usuario
+      !isRestoring                               // No hidratar durante restore
     );
     
     if (shouldHydrate) {
+      // ✅ CAMBIO #4: Mejorar logging para debugging
       console.log('🔄 [RequestCreationWorkflow] Hidratando UI from persistedData:', {
-        sessionId: persistedData.sessionId,
+        persistedSessionId: persistedData.sessionId,
+        currentSessionId: sessionIdRef.current,
         step: persistedData.currentStep,
         persistedMeaningful,
         localMeaningful,
         persistedStepIndex,
         localStepIndex,
+        persistedIsAhead,
+        shouldHydrate: true,
         timestamp: new Date().toISOString()
       });
       
@@ -217,7 +221,6 @@ export function RequestCreationWorkflow() {
       console.log('⏭️ [RequestCreationWorkflow] Skip hydration:', {
         persistedMeaningful,
         localMeaningful,
-        isSameSession,
         persistedIsAhead,
         shouldHydrate
       });
@@ -235,22 +238,56 @@ export function RequestCreationWorkflow() {
     currentStep  // 🆕 Agregar currentStep como dependencia
   ]);
 
-  // Auto-restore draft seamlessly on mount (without prompts or time thresholds)
+  // ✅ CAMBIO #5: Permitir múltiples restauraciones si el draft cambia
   useEffect(() => {
     const suppressionFlag = sessionStorage.getItem('scw_suppress_restore');
+    const forceRestoreFlag = sessionStorage.getItem('scw_force_restore');
     
-    // Auto-restore if:
-    // 1. There's a draft
-    // 2. Not already restoring
-    // 3. Haven't auto-restored yet this mount
-    // 4. Not suppressed this session
-    if (hasDraft && !isRestoring && !autoRestoreDoneRef.current && suppressionFlag !== '1') {
-      console.log('🔄 Auto-restoring draft seamlessly on mount');
-      autoRestoreDoneRef.current = true;
-      restoreDraft();
+    if (hasDraft && !isRestoring && suppressionFlag !== '1') {
+      // Solo auto-restore si:
+      // 1. Hay un force flag explícito, O
+      // 2. Es el primer mount Y no se ha hecho restore todavía
+      const shouldAutoRestore = forceRestoreFlag === '1' || !autoRestoreDoneRef.current;
+      
+      if (shouldAutoRestore) {
+        console.log('🔄 Auto-restoring draft:', {
+          reason: forceRestoreFlag === '1' ? 'forced' : 'initial_mount'
+        });
+        
+        autoRestoreDoneRef.current = true;
+        restoreDraft();
+        setShowRestoredBanner(true);
+        
+        // Limpiar force flag
+        if (forceRestoreFlag === '1') {
+          sessionStorage.removeItem('scw_force_restore');
+        }
+      }
+    }
+  }, [hasDraft, isRestoring, restoreDraft]);
+
+  // ✅ CAMBIO #3: Detectar y procesar flag de restauración forzada desde banner
+  useEffect(() => {
+    const forceRestoreFlag = sessionStorage.getItem('scw_force_restore');
+    
+    if (forceRestoreFlag === '1' && hasDraft) {
+      console.log('🎯 [RequestCreationWorkflow] Force restore flag detected - hydrating immediately');
+      
+      // Limpiar flag
+      sessionStorage.removeItem('scw_force_restore');
+      
+      // Forzar hidratación inmediata del UI
+      setCurrentStep(persistedData.currentStep);
+      setRouteData(persistedData.routeData);
+      setServiceData(persistedData.serviceData);
+      setAssignmentData(persistedData.assignmentData);
+      setArmedAssignmentData(persistedData.armedAssignmentData);
+      setCreatedServiceDbId(persistedData.createdServiceDbId);
+      setModifiedSteps(persistedData.modifiedSteps);
+      
       setShowRestoredBanner(true);
     }
-  }, [hasDraft, isRestoring, restoreDraft, clearDraft]);
+  }, [hasDraft, persistedData]);
 
   // ✅ NUEVO: Evento personalizado para forzar guardado
   useEffect(() => {
@@ -324,14 +361,43 @@ export function RequestCreationWorkflow() {
           drafts: persistedData.drafts,
           lastEditedStep: persistedData.lastEditedStep,
         });
-      } else if (!document.hidden && currentStep !== 'route') {
-        // 🆕 Usuario regresó y NO está en el primer paso
-        setShowTabReturnNotification(true);
+      } else if (!document.hidden) {
+        // ✅ CAMBIO #5: Hidratación en regreso de pestaña
+        console.log('👁️ [RequestCreationWorkflow] Tab visible - checking for updates');
         
-        // Auto-dismiss después de 5 segundos
-        setTimeout(() => {
-          setShowTabReturnNotification(false);
-        }, 5000);
+        // Verificar si persistedData tiene más progreso que el estado local
+        const persistedMeaningful = [
+          persistedData.routeData,
+          persistedData.serviceData,
+          persistedData.assignmentData,
+          persistedData.armedAssignmentData
+        ].filter(Boolean).length;
+        
+        const localMeaningful = [
+          routeData,
+          serviceData,
+          assignmentData,
+          armedAssignmentData
+        ].filter(Boolean).length;
+        
+        // Si hay más datos persistidos, hidratar inmediatamente
+        if (persistedMeaningful > localMeaningful) {
+          console.log('🔄 [RequestCreationWorkflow] Detected more complete persisted state - hydrating');
+          
+          setCurrentStep(persistedData.currentStep);
+          setRouteData(persistedData.routeData);
+          setServiceData(persistedData.serviceData);
+          setAssignmentData(persistedData.assignmentData);
+          setArmedAssignmentData(persistedData.armedAssignmentData);
+          setCreatedServiceDbId(persistedData.createdServiceDbId);
+          setModifiedSteps(persistedData.modifiedSteps);
+        }
+        
+        // Mostrar notificación si no está en el primer paso
+        if (currentStep !== 'route') {
+          setShowTabReturnNotification(true);
+          setTimeout(() => setShowTabReturnNotification(false), 5000);
+        }
       }
     };
 

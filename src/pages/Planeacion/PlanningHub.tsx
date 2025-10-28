@@ -171,6 +171,11 @@ export default function PlanningHub() {
               size="sm"
               onClick={() => {
                 console.log('📂 User clicked banner to continue draft');
+                
+                // ✅ CAMBIO #2: Limpiar suppression flag y forzar restauración
+                sessionStorage.removeItem('scw_suppress_restore');
+                sessionStorage.setItem('scw_force_restore', '1');
+                
                 setShowCreateWorkflow(true);
               }}
               className="ml-4"
