@@ -451,26 +451,50 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
       nombreCompleto: string;
       licenciaPortacion?: string;
       verificacionData: any;
-      es_lead_virtual?: boolean;      // 🆕 NUEVO
-      lead_id_origen?: string;        // 🆕 NUEVO
+      es_lead_virtual?: boolean;
+      lead_id_origen?: string;
+      armado_virtual_uuid?: string;  // UUID virtual generado por la vista
     }
   ) => {
     try {
+      console.log('🔄 [assignArmedGuard] Inicio de asignación:', {
+        servicioId,
+        armadoId,
+        es_lead_virtual: personalData?.es_lead_virtual,
+        lead_id_origen: personalData?.lead_id_origen,
+        armado_virtual_uuid: personalData?.armado_virtual_uuid,
+        timestamp: new Date().toISOString()
+      });
+      
       let armadoFinalId = armadoId;
       
-      // 🆕 NUEVO: Si es un lead virtual, convertirlo primero
+      // 🆕 Si es un lead virtual, convertirlo primero
       if (personalData?.es_lead_virtual && personalData?.lead_id_origen) {
         toast.info('Convirtiendo candidato a armado operativo...', {
           description: 'Primer servicio del candidato. Creando perfil operativo.'
         });
         
         try {
+          console.log('🔄 [assignArmedGuard] Llamando a convertir_lead_a_armado_operativo:', {
+            lead_id_origen: personalData.lead_id_origen,
+            armado_virtual_uuid: personalData.armado_virtual_uuid
+          });
+          
           const { data: nuevoArmadoId, error: conversionError } = await supabase.rpc(
             'convertir_lead_a_armado_operativo',
             { p_lead_id: personalData.lead_id_origen }
           );
           
-          if (conversionError) throw conversionError;
+          if (conversionError) {
+            console.error('❌ [assignArmedGuard] Error en conversión RPC:', conversionError);
+            throw conversionError;
+          }
+          
+          console.log('✅ [assignArmedGuard] Lead convertido exitosamente:', {
+            lead_id_origen: personalData.lead_id_origen,
+            nuevoArmadoId,
+            armado_virtual_uuid_anterior: armadoId
+          });
           
           armadoFinalId = nuevoArmadoId;
           
@@ -478,7 +502,7 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
             description: 'Ya puede recibir asignaciones futuras como armado operativo.'
           });
         } catch (conversionError: any) {
-          console.error('Error convirtiendo lead:', conversionError);
+          console.error('❌ [assignArmedGuard] Error al convertir lead:', conversionError);
           toast.error('Error al convertir candidato', {
             description: conversionError.message || 'No se pudo completar la conversión'
           });
