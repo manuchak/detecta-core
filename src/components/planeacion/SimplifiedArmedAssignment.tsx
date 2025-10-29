@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -7,10 +7,12 @@ import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AddressAutocomplete } from '@/components/ui/address-autocomplete';
-import { Building2, Shield, Search, MapPin, Phone, Users, AlertTriangle, Clock } from 'lucide-react';
+import { Building2, Shield, Search, MapPin, Phone, Users, AlertTriangle, Clock, Zap } from 'lucide-react';
 import { useArmedGuardsWithTracking } from '@/hooks/useArmedGuardsWithTracking';
 import { useCustodioVehicleData } from '@/hooks/useCustodioVehicleData';
 import { ExternalArmedVerificationModal } from './ExternalArmedVerificationModal';
+import { ArmedGuardFilters } from './ArmedGuardFilters';
+import { useArmedGuardFilters } from '@/hooks/useArmedGuardFilters';
 import { toast } from 'sonner';
 
 interface ArmedGuardData {
@@ -61,6 +63,17 @@ export function SimplifiedArmedAssignment({
   const { isHybridCustodian } = useCustodioVehicleData(serviceData.custodio_asignado || undefined);
   const custodioIsHybrid = isHybridCustodian();
 
+  // Use filter hook for internal guards
+  const {
+    filterConfig,
+    filteredGuards: filteredAndSortedGuards,
+    updateFilter,
+    resetFilters,
+    availableZones,
+    totalCount,
+    filteredCount,
+  } = useArmedGuardFilters(armedGuards);
+
   // Set default meeting time
   useEffect(() => {
     if (serviceData.fecha_hora_cita && !meetingTime) {
@@ -70,15 +83,23 @@ export function SimplifiedArmedAssignment({
     }
   }, [serviceData.fecha_hora_cita, meetingTime]);
 
-  // Filter providers and guards based on global search
-  const filteredProviders = providers.filter(p =>
-    p.nombre_empresa.toLowerCase().includes(globalSearch.toLowerCase()) ||
-    p.zonas_cobertura?.some(z => z.toLowerCase().includes(globalSearch.toLowerCase()))
+  // Filter providers based on global search
+  const filteredProviders = useMemo(() => 
+    providers.filter(p =>
+      p.nombre_empresa.toLowerCase().includes(globalSearch.toLowerCase()) ||
+      p.zonas_cobertura?.some(z => z.toLowerCase().includes(globalSearch.toLowerCase()))
+    ),
+    [providers, globalSearch]
   );
 
-  const filteredGuards = armedGuards.filter(g =>
-    g.nombre.toLowerCase().includes(globalSearch.toLowerCase()) ||
-    g.zona_base?.toLowerCase().includes(globalSearch.toLowerCase())
+  // Apply global search on top of filtered guards
+  const searchedGuards = useMemo(() =>
+    filteredAndSortedGuards.filter(g =>
+      g.nombre.toLowerCase().includes(globalSearch.toLowerCase()) ||
+      g.zona_base?.toLowerCase().includes(globalSearch.toLowerCase()) ||
+      g.telefono?.toLowerCase().includes(globalSearch.toLowerCase())
+    ),
+    [filteredAndSortedGuards, globalSearch]
   );
 
   const handleInternalAssignment = (guard: any) => {
@@ -86,7 +107,7 @@ export function SimplifiedArmedAssignment({
   };
 
   const handleConfirmInternal = () => {
-    const guard = armedGuards.find(g => g.id === selectedGuard);
+    const guard = searchedGuards.find(g => g.id === selectedGuard);
     if (!guard) {
       toast.error('Debe seleccionar un armado');
       return;
@@ -172,9 +193,9 @@ export function SimplifiedArmedAssignment({
           <TabsTrigger value="internos" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
             Armados Internos
-            {filteredGuards.length > 0 && (
+            {searchedGuards.length > 0 && (
               <Badge variant="secondary" className="ml-2">
-                {filteredGuards.length}
+                {searchedGuards.length}
               </Badge>
             )}
           </TabsTrigger>
@@ -232,15 +253,31 @@ export function SimplifiedArmedAssignment({
 
         {/* Tab 2: Internal Guards */}
         <TabsContent value="internos" className="space-y-3 mt-4">
-          {filteredGuards.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <AlertTriangle className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>No se encontraron armados disponibles</p>
+          {/* Filters Component */}
+          <ArmedGuardFilters
+            filterConfig={filterConfig}
+            onFilterChange={updateFilter}
+            onReset={resetFilters}
+            resultsCount={searchedGuards.length}
+            totalCount={totalCount}
+            availableZones={availableZones}
+          />
+
+          {searchedGuards.length === 0 ? (
+            <div className="text-center py-12">
+              <Shield className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+              <p className="text-lg font-medium">No se encontraron armados</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Intenta ajustar los filtros o buscar por zona
+              </p>
+              <Button variant="outline" className="mt-4" onClick={resetFilters}>
+                Limpiar Filtros
+              </Button>
             </div>
           ) : (
             <>
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {filteredGuards.slice(0, 10).map((guard) => (
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {searchedGuards.slice(0, 20).map((guard) => (
                   <Card
                     key={guard.id}
                     className={`p-3 cursor-pointer transition-colors ${
@@ -250,34 +287,57 @@ export function SimplifiedArmedAssignment({
                     }`}
                     onClick={() => handleInternalAssignment(guard)}
                   >
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <div className="font-medium flex items-center gap-2">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="font-medium flex items-center gap-2 flex-wrap">
                           <Shield className="h-4 w-4" />
                           {guard.nombre}
+                          
+                          {/* Top Performer Badge */}
+                          {guard.productivityScore && guard.productivityScore > 150 && (
+                            <Badge variant="default" className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">
+                              <Zap className="h-3 w-3 mr-1" />
+                              Top Performer
+                            </Badge>
+                          )}
+                          
+                          {/* Availability Badge */}
+                          <Badge
+                            variant={guard.disponibilidad === 'disponible' ? 'success' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {guard.disponibilidad === 'disponible' ? 'Disponible' : 'Ocupado'}
+                          </Badge>
+                        </div>
+                        
+                        <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground flex-wrap">
                           {guard.rating_promedio > 0 && (
-                            <span className="text-yellow-500 text-sm">
-                              ⭐ {guard.rating_promedio.toFixed(1)}
+                            <span className="flex items-center gap-1">
+                              ⭐ <strong className="text-foreground">{guard.rating_promedio.toFixed(1)}</strong>
+                            </span>
+                          )}
+                          <span className="flex items-center gap-1">
+                            📊 <strong className="text-foreground">{guard.numero_servicios}</strong> servicios
+                          </span>
+                          {guard.experiencia_anos > 0 && (
+                            <span className="flex items-center gap-1">
+                              🎯 <strong className="text-foreground">{guard.experiencia_anos}</strong> años exp.
                             </span>
                           )}
                         </div>
-                        <div className="text-sm text-muted-foreground">
+                        
+                        <div className="text-sm text-muted-foreground mt-1">
                           📱 {guard.telefono} | 📍 {guard.zona_base}
                         </div>
                       </div>
-                      <Badge
-                        variant={guard.disponibilidad === 'disponible' ? 'success' : 'secondary'}
-                      >
-                        {guard.disponibilidad === 'disponible' ? 'Disponible' : 'Ocupado'}
-                      </Badge>
                     </div>
                   </Card>
                 ))}
               </div>
 
-              {filteredGuards.length > 10 && (
+              {searchedGuards.length > 20 && (
                 <p className="text-center text-sm text-muted-foreground">
-                  Mostrando 10 de {filteredGuards.length} resultados. Usa la búsqueda para refinar.
+                  Mostrando 20 de {searchedGuards.length} resultados. Usa los filtros para refinar.
                 </p>
               )}
 
