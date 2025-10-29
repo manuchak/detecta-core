@@ -411,3 +411,59 @@ export interface FiltrosClientes {
   activo?: boolean;
   busqueda?: string;
 }
+
+// =====================================================
+// INTERFACES PARA ASIGNACIÓN DE ARMADOS
+// =====================================================
+
+/**
+ * Datos de servicio pendiente de asignación
+ * 
+ * ⚠️ IMPORTANTE: custodio_asignado debe ser string directo, NO objeto
+ * 
+ * ✅ Ejemplo correcto: "Juan Pérez"
+ * ❌ Ejemplo incorrecto: { nombre: "Juan Pérez" }
+ * 
+ * Este formato garantiza compatibilidad con PendingAssignmentModal
+ * y SimplifiedArmedAssignment para renderizar correctamente los tabs
+ * y filtros personalizables de armados internos.
+ */
+export interface PendingServiceAssignment {
+  id?: string;
+  id_servicio?: string;
+  folio?: string;
+  nombre_cliente: string;
+  empresa_cliente?: string;
+  email_cliente?: string;
+  telefono_cliente?: string;
+  origen_texto: string;
+  destino_texto: string;
+  fecha_programada: string;
+  hora_ventana_inicio: string;
+  tipo_servicio: string;
+  requiere_armado: boolean;
+  notas_especiales?: string;
+  created_at: string;
+  custodio_asignado: string | null; // ⚠️ Debe ser string, no objeto
+  armado_asignado?: string | null;
+  estado?: EstadoServicio;
+}
+
+/**
+ * Punto intermedio para rutas de reparto
+ * 
+ * ⚠️ IMPORTANTE: puntos_intermedios debe ser array directo en JSONB
+ * 
+ * ❌ NO usar: JSON.stringify(puntos_intermedios)
+ * ✅ SÍ usar: puntos_intermedios (array directo)
+ * 
+ * Supabase convierte automáticamente arrays JavaScript a JSONB.
+ * El uso de JSON.stringify() causa errores de check constraint.
+ */
+export interface PuntoIntermedio {
+  orden: number;
+  nombre: string;
+  direccion: string;
+  tiempo_estimado_parada_min: number;
+  observaciones?: string;
+}

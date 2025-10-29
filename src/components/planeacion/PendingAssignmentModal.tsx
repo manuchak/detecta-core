@@ -42,10 +42,17 @@ export function PendingAssignmentModal({
     const hasCustodio = service && 'custodio_asignado' in service && service.custodio_asignado;
     return hasCustodio ? 'armed' : 'custodian';
   });
-  const [custodianAssigned, setCustodianAssigned] = useState<any>(
-    service && service.custodio_asignado ? 
-      { custodio_nombre: service.custodio_asignado } : null
-  );
+  // 🛡️ LÓGICA DEFENSIVA: Manejar ambos formatos (string u objeto)
+  const [custodianAssigned, setCustodianAssigned] = useState<any>(() => {
+    if (!service?.custodio_asignado) return null;
+    
+    // Manejar ambos formatos para máxima compatibilidad
+    const custodioNombre = typeof service.custodio_asignado === 'string'
+      ? service.custodio_asignado
+      : (service.custodio_asignado as any).nombre;
+      
+    return { custodio_nombre: custodioNombre };
+  });
   const { assignCustodian, assignArmedGuard } = useServiciosPlanificados();
   const { servicioToEditable } = useServiceTransformations();
 

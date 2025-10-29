@@ -115,7 +115,8 @@ export function ScheduledServicesTab() {
         requiere_armado: service.incluye_armado || service.requiere_armado || false,
         notas_especiales: service.observaciones,
         created_at: service.created_at || new Date().toISOString(),
-        custodio_asignado: service.custodio_nombre ? { nombre: service.custodio_nombre } : null,
+        // ✅ CORRECCIÓN: Enviar string directo, no objeto - PendingAssignmentModal espera string
+        custodio_asignado: service.custodio_nombre || null,
         estado: service.estado
       } as any);
       
