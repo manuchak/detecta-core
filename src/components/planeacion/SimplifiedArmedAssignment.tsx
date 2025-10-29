@@ -1,0 +1,362 @@
+import React, { useState, useEffect } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AddressAutocomplete } from '@/components/ui/address-autocomplete';
+import { Building2, Shield, Search, MapPin, Phone, Users, AlertTriangle, Clock } from 'lucide-react';
+import { useArmedGuardsWithTracking } from '@/hooks/useArmedGuardsWithTracking';
+import { useCustodioVehicleData } from '@/hooks/useCustodioVehicleData';
+import { ExternalArmedVerificationModal } from './ExternalArmedVerificationModal';
+import { toast } from 'sonner';
+
+interface ArmedGuardData {
+  armado_id: string;
+  armado_nombre: string;
+  punto_encuentro: string;
+  hora_encuentro: string;
+  observaciones?: string;
+  tipo_asignacion: 'interno' | 'proveedor';
+  proveedor_id?: string;
+  personalId?: string;
+  nombreCompleto?: string;
+  licenciaPortacion?: string;
+  verificacionData?: any;
+}
+
+interface ServiceData {
+  servicio_id?: string;
+  origen?: string;
+  destino?: string;
+  fecha_hora_cita?: string;
+  custodio_asignado?: string;
+  custodio_id?: string;
+}
+
+interface SimplifiedArmedAssignmentProps {
+  serviceData: ServiceData;
+  onComplete: (data: ArmedGuardData) => void;
+  onSkip: () => void;
+  onBack: () => void;
+}
+
+export function SimplifiedArmedAssignment({
+  serviceData,
+  onComplete,
+  onSkip,
+  onBack
+}: SimplifiedArmedAssignmentProps) {
+  const [activeTab, setActiveTab] = useState<'externos' | 'internos'>('externos');
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [selectedProvider, setSelectedProvider] = useState<any>(null);
+  const [selectedGuard, setSelectedGuard] = useState<string | null>(null);
+  const [showExternalModal, setShowExternalModal] = useState(false);
+  const [meetingPoint, setMeetingPoint] = useState('');
+  const [meetingTime, setMeetingTime] = useState('');
+
+  const { armedGuards, providers, loading, error } = useArmedGuardsWithTracking();
+  const { isHybridCustodian } = useCustodioVehicleData(serviceData.custodio_asignado || undefined);
+  const custodioIsHybrid = isHybridCustodian();
+
+  // Set default meeting time
+  useEffect(() => {
+    if (serviceData.fecha_hora_cita && !meetingTime) {
+      const serviceTime = new Date(serviceData.fecha_hora_cita);
+      serviceTime.setMinutes(serviceTime.getMinutes() - 30);
+      setMeetingTime(serviceTime.toTimeString().slice(0, 5));
+    }
+  }, [serviceData.fecha_hora_cita, meetingTime]);
+
+  // Filter providers and guards based on global search
+  const filteredProviders = providers.filter(p =>
+    p.nombre_empresa.toLowerCase().includes(globalSearch.toLowerCase()) ||
+    p.zonas_cobertura?.some(z => z.toLowerCase().includes(globalSearch.toLowerCase()))
+  );
+
+  const filteredGuards = armedGuards.filter(g =>
+    g.nombre.toLowerCase().includes(globalSearch.toLowerCase()) ||
+    g.zona_base?.toLowerCase().includes(globalSearch.toLowerCase())
+  );
+
+  const handleInternalAssignment = (guard: any) => {
+    setSelectedGuard(guard.id);
+  };
+
+  const handleConfirmInternal = () => {
+    const guard = armedGuards.find(g => g.id === selectedGuard);
+    if (!guard) {
+      toast.error('Debe seleccionar un armado');
+      return;
+    }
+
+    if (!meetingPoint.trim()) {
+      toast.error('Debe especificar el punto de encuentro');
+      return;
+    }
+
+    if (!meetingTime.trim()) {
+      toast.error('Debe especificar la hora de encuentro');
+      return;
+    }
+
+    onComplete({
+      armado_id: guard.id,
+      armado_nombre: guard.nombre,
+      punto_encuentro: meetingPoint,
+      hora_encuentro: meetingTime,
+      tipo_asignacion: 'interno'
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+          <p className="text-muted-foreground">Cargando opciones de armado...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Error al cargar armados</AlertTitle>
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Hybrid custodian warning */}
+      {custodioIsHybrid && (
+        <Alert className="border-warning bg-warning/5">
+          <AlertTriangle className="h-4 w-4 text-warning" />
+          <AlertTitle className="text-warning">Custodio híbrido detectado</AlertTitle>
+          <AlertDescription>
+            El custodio asignado ({serviceData.custodio_asignado}) ya cuenta con porte de arma.
+            Solo asigna un armado adicional si el cliente lo solicita explícitamente.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Global Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar proveedor o armado..."
+          value={globalSearch}
+          onChange={(e) => setGlobalSearch(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'externos' | 'internos')}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="externos" className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            Proveedores Externos
+            {filteredProviders.length > 0 && (
+              <Badge variant="secondary" className="ml-2">
+                {filteredProviders.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="internos" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Armados Internos
+            {filteredGuards.length > 0 && (
+              <Badge variant="secondary" className="ml-2">
+                {filteredGuards.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Tab 1: External Providers */}
+        <TabsContent value="externos" className="space-y-3 mt-4">
+          {filteredProviders.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <AlertTriangle className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p>No se encontraron proveedores</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              {filteredProviders.map((provider) => (
+                <Card
+                  key={provider.id}
+                  className="p-4 hover:border-primary/50 transition-colors cursor-pointer"
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-2">
+                      <div className="font-semibold text-lg flex items-center gap-2">
+                        <Building2 className="h-5 w-5 text-primary" />
+                        {provider.nombre_empresa}
+                      </div>
+                      <div className="text-sm text-muted-foreground space-y-1">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-3 w-3" />
+                          Cobertura: {provider.zonas_cobertura?.join(', ') || 'Nacional'}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-3 w-3" />
+                          {provider.telefono_contacto}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Users className="h-3 w-3" />
+                          {provider.servicios_completados || 0} servicios completados
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => {
+                        setSelectedProvider(provider);
+                        setShowExternalModal(true);
+                      }}
+                    >
+                      Asignar Personal →
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Tab 2: Internal Guards */}
+        <TabsContent value="internos" className="space-y-3 mt-4">
+          {filteredGuards.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <AlertTriangle className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p>No se encontraron armados disponibles</p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {filteredGuards.slice(0, 10).map((guard) => (
+                  <Card
+                    key={guard.id}
+                    className={`p-3 cursor-pointer transition-colors ${
+                      selectedGuard === guard.id
+                        ? 'border-primary bg-primary/5'
+                        : 'hover:border-primary/50'
+                    }`}
+                    onClick={() => handleInternalAssignment(guard)}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <div className="font-medium flex items-center gap-2">
+                          <Shield className="h-4 w-4" />
+                          {guard.nombre}
+                          {guard.rating_promedio > 0 && (
+                            <span className="text-yellow-500 text-sm">
+                              ⭐ {guard.rating_promedio.toFixed(1)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          📱 {guard.telefono} | 📍 {guard.zona_base}
+                        </div>
+                      </div>
+                      <Badge
+                        variant={guard.disponibilidad === 'disponible' ? 'success' : 'secondary'}
+                      >
+                        {guard.disponibilidad === 'disponible' ? 'Disponible' : 'Ocupado'}
+                      </Badge>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+
+              {filteredGuards.length > 10 && (
+                <p className="text-center text-sm text-muted-foreground">
+                  Mostrando 10 de {filteredGuards.length} resultados. Usa la búsqueda para refinar.
+                </p>
+              )}
+
+              {/* Meeting details for internal assignment */}
+              {selectedGuard && (
+                <Card className="p-4 space-y-4 border-primary">
+                  <h3 className="font-semibold">Detalles del encuentro</h3>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="meeting-point">Punto de Encuentro *</Label>
+                    <AddressAutocomplete
+                      value={meetingPoint}
+                      onChange={setMeetingPoint}
+                      placeholder="Ingresa la dirección del punto de encuentro"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="meeting-time">Hora de Encuentro *</Label>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="meeting-time"
+                        type="time"
+                        value={meetingTime}
+                        onChange={(e) => setMeetingTime(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <Button onClick={handleConfirmInternal} className="w-full">
+                    Confirmar Asignación
+                  </Button>
+                </Card>
+              )}
+            </>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Action Buttons */}
+      <div className="flex gap-2 pt-4 border-t">
+        <Button variant="outline" onClick={onBack}>
+          Volver
+        </Button>
+        <Button variant="ghost" onClick={onSkip}>
+          Continuar sin armado
+        </Button>
+      </div>
+
+      {/* External Assignment Modal */}
+      {selectedProvider && (
+        <ExternalArmedVerificationModal
+          open={showExternalModal}
+          onOpenChange={setShowExternalModal}
+          proveedorId={selectedProvider.id}
+          proveedorNombre={selectedProvider.nombre_empresa}
+          servicioId={serviceData.servicio_id || ''}
+          onConfirm={(data) => {
+            // Set default meeting point to service origin if not specified
+            const defaultMeetingPoint = meetingPoint || serviceData.origen || '';
+            const defaultMeetingTime = meetingTime || '09:00';
+
+            onComplete({
+              tipo_asignacion: 'proveedor',
+              proveedor_id: selectedProvider.id,
+              armado_id: data.personalId,
+              armado_nombre: data.nombreCompleto,
+              punto_encuentro: defaultMeetingPoint,
+              hora_encuentro: defaultMeetingTime,
+              personalId: data.personalId,
+              nombreCompleto: data.nombreCompleto,
+              licenciaPortacion: data.licenciaPortacion,
+              verificacionData: data.verificacionData
+            });
+            setShowExternalModal(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}

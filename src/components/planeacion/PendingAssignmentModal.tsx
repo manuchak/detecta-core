@@ -7,7 +7,7 @@ import { User, MapPin, Clock, Shield, Calendar, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CustodianAssignmentStep } from '@/pages/Planeacion/components/workflow/CustodianAssignmentStep';
-import { ArmedGuardAssignmentStep } from '@/components/planeacion/ArmedGuardAssignmentStep';
+import { SimplifiedArmedAssignment } from '@/components/planeacion/SimplifiedArmedAssignment';
 import { ContextualEditModal } from './ContextualEditModal';
 import { useServiciosPlanificados } from '@/hooks/useServiciosPlanificados';
 import { toast } from 'sonner';
@@ -367,7 +367,7 @@ export function PendingAssignmentModal({
               )}
               
               {currentStep === 'armed' && custodianAssigned && (
-                <ArmedGuardAssignmentStep
+                <SimplifiedArmedAssignment
                   serviceData={{
                     ...serviceData,
                     custodio_asignado: custodianAssigned.custodio_nombre,
