@@ -913,6 +913,57 @@ export type Database = {
           },
         ]
       }
+      asignacion_personal_externo_audit: {
+        Row: {
+          accion: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          nombre_completo: string
+          personal_id: string
+          proveedor_id: string
+          realizado_por: string
+          servicio_id: string | null
+        }
+        Insert: {
+          accion: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          nombre_completo: string
+          personal_id: string
+          proveedor_id: string
+          realizado_por: string
+          servicio_id?: string | null
+        }
+        Update: {
+          accion?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          nombre_completo?: string
+          personal_id?: string
+          proveedor_id?: string
+          realizado_por?: string
+          servicio_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asignacion_personal_externo_audit_personal_id_fkey"
+            columns: ["personal_id"]
+            isOneToOne: false
+            referencedRelation: "personal_proveedor_armados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asignacion_personal_externo_audit_proveedor_id_fkey"
+            columns: ["proveedor_id"]
+            isOneToOne: false
+            referencedRelation: "proveedores_armados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assignment_audit_log: {
         Row: {
           action_type: string
@@ -12492,6 +12543,7 @@ export type Database = {
         | "ejecutivo_ventas"
         | "coordinador_operaciones"
         | "tecnico_instalador"
+        | "planificador"
       canal_comunicacion: "whatsapp" | "app" | "telefono" | "email"
       disponibilidad_custodio:
         | "disponible"
@@ -12689,6 +12741,7 @@ export const Constants = {
         "ejecutivo_ventas",
         "coordinador_operaciones",
         "tecnico_instalador",
+        "planificador",
       ],
       canal_comunicacion: ["whatsapp", "app", "telefono", "email"],
       disponibilidad_custodio: [

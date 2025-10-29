@@ -89,12 +89,18 @@ export function usePersonalProveedorArmados() {
 
   const createPersonal = async (personalData: CreatePersonalData) => {
     try {
+      // Obtener usuario actual
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuario no autenticado');
+
       const dataToInsert = {
         ...personalData,
         estado_verificacion: personalData.estado_verificacion || 'verificado',
         disponible_para_servicios: personalData.disponible_para_servicios ?? true,
         activo: personalData.activo ?? true,
-        observaciones: personalData.observaciones || 'Personal de proveedor externo'
+        observaciones: personalData.observaciones || 'Personal de proveedor externo',
+        created_by: user.id,
+        updated_by: user.id
       };
 
       const { data, error } = await supabase
@@ -108,21 +114,48 @@ export function usePersonalProveedorArmados() {
         throw error;
       }
 
+      // Registrar en auditoría
+      await supabase.from('asignacion_personal_externo_audit').insert({
+        personal_id: data.id,
+        proveedor_id: personalData.proveedor_id,
+        accion: 'creado',
+        nombre_completo: personalData.nombre_completo,
+        realizado_por: user.id,
+        metadata: {
+          observaciones: personalData.observaciones
+        }
+      });
+
       toast.success('Personal agregado exitosamente');
       await loadPersonal();
       return data;
     } catch (error: any) {
       console.error('Error in createPersonal:', error);
-      toast.error('Error al agregar personal');
+      
+      // Manejar error específico de permisos
+      if (error.code === '42501' || error.message?.includes('permission denied')) {
+        toast.error('No tienes permisos para agregar personal. Se requiere rol de Planificador.');
+      } else {
+        toast.error('Error al agregar personal');
+      }
       throw error;
     }
   };
 
   const updatePersonal = async (id: string, updates: Partial<PersonalProveedorArmado>) => {
     try {
+      // Obtener usuario actual
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuario no autenticado');
+
+      const dataToUpdate = {
+        ...updates,
+        updated_by: user.id
+      };
+
       const { data, error } = await supabase
         .from('personal_proveedor_armados')
-        .update(updates)
+        .update(dataToUpdate)
         .eq('id', id)
         .select()
         .single();
@@ -132,12 +165,29 @@ export function usePersonalProveedorArmados() {
         throw error;
       }
 
+      // Registrar en auditoría
+      await supabase.from('asignacion_personal_externo_audit').insert({
+        personal_id: id,
+        proveedor_id: data.proveedor_id,
+        accion: 'actualizado',
+        nombre_completo: data.nombre_completo,
+        realizado_por: user.id,
+        metadata: {
+          cambios: updates
+        }
+      });
+
       toast.success('Personal actualizado exitosamente');
       await loadPersonal();
       return data;
     } catch (error: any) {
       console.error('Error in updatePersonal:', error);
-      toast.error('Error al actualizar personal');
+      
+      if (error.code === '42501' || error.message?.includes('permission denied')) {
+        toast.error('No tienes permisos para actualizar personal. Se requiere rol de Planificador.');
+      } else {
+        toast.error('Error al actualizar personal');
+      }
       throw error;
     }
   };

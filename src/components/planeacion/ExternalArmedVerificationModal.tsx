@@ -4,7 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ShieldAlert } from 'lucide-react';
 import { usePersonalProveedorArmados, type VerificacionLicencia } from '@/hooks/usePersonalProveedorArmados';
+import { useUserRole } from '@/hooks/useUserRole';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface ExternalArmedVerificationModalProps {
@@ -30,12 +34,14 @@ export const ExternalArmedVerificationModal: React.FC<ExternalArmedVerificationM
   onConfirm
 }) => {
   const { getPersonalByProveedor, createPersonal } = usePersonalProveedorArmados();
+  const { isPlanificador, userId, loading: roleLoading } = useUserRole();
   const [selectedPersonalId, setSelectedPersonalId] = useState<string>('');
   const [showNewPersonalInput, setShowNewPersonalInput] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [loading, setLoading] = useState(false);
 
   const personalDelProveedor = getPersonalByProveedor(proveedorId);
+  const canModify = isPlanificador();
 
   useEffect(() => {
     if (!open) {
@@ -46,18 +52,39 @@ export const ExternalArmedVerificationModal: React.FC<ExternalArmedVerificationM
   }, [open]);
 
   const handleConfirm = async () => {
-    if (!selectedPersonalId) return;
+    if (!selectedPersonalId || !userId) return;
+
+    if (!canModify) {
+      toast.error('No tienes permisos para asignar personal. Se requiere rol de Planificador.');
+      return;
+    }
 
     const personal = personalDelProveedor.find(p => p.id === selectedPersonalId);
     if (!personal) return;
 
     setLoading(true);
     try {
+      // Registrar asignación en auditoría
+      await supabase.from('asignacion_personal_externo_audit').insert({
+        personal_id: personal.id,
+        proveedor_id: proveedorId,
+        servicio_id: servicioId,
+        accion: 'asignado',
+        nombre_completo: personal.nombre_completo,
+        realizado_por: userId,
+        metadata: {
+          proveedor: proveedorNombre,
+          servicio: servicioId
+        }
+      });
+
       await onConfirm({
         personalId: personal.id,
         nombreCompleto: personal.nombre_completo,
         verificacionData: { valida: true }
       });
+      
+      toast.success('Personal asignado exitosamente');
       onOpenChange(false);
     } catch (error) {
       console.error('Error:', error);
@@ -73,6 +100,16 @@ export const ExternalArmedVerificationModal: React.FC<ExternalArmedVerificationM
       return;
     }
 
+    if (!canModify) {
+      toast.error('No tienes permisos para crear personal. Se requiere rol de Planificador.');
+      return;
+    }
+
+    if (!userId) {
+      toast.error('Usuario no autenticado');
+      return;
+    }
+
     setLoading(true);
     try {
       const nuevoPersonal = await createPersonal({
@@ -81,6 +118,21 @@ export const ExternalArmedVerificationModal: React.FC<ExternalArmedVerificationM
         estado_verificacion: 'verificado',
         disponible_para_servicios: true,
         activo: true
+      });
+
+      // Registrar asignación en auditoría
+      await supabase.from('asignacion_personal_externo_audit').insert({
+        personal_id: nuevoPersonal.id,
+        proveedor_id: proveedorId,
+        servicio_id: servicioId,
+        accion: 'asignado',
+        nombre_completo: nuevoPersonal.nombre_completo,
+        realizado_por: userId,
+        metadata: {
+          proveedor: proveedorNombre,
+          servicio: servicioId,
+          recien_creado: true
+        }
       });
 
       await onConfirm({
@@ -93,7 +145,7 @@ export const ExternalArmedVerificationModal: React.FC<ExternalArmedVerificationM
       onOpenChange(false);
     } catch (error) {
       console.error('Error:', error);
-      toast.error('Error al crear personal');
+      // El hook createPersonal ya maneja el error de permisos
     } finally {
       setLoading(false);
     }
@@ -107,6 +159,14 @@ export const ExternalArmedVerificationModal: React.FC<ExternalArmedVerificationM
         </DialogHeader>
 
         <div className="space-y-4">
+          {!roleLoading && !canModify && (
+            <Alert variant="destructive">
+              <ShieldAlert className="h-4 w-4" />
+              <AlertDescription>
+                No tienes permisos para asignar personal. Se requiere rol de <strong>Planificador</strong>.
+              </AlertDescription>
+            </Alert>
+          )}
           <div>
             <label className="text-sm font-medium mb-2 block">
               Personal Registrado
@@ -145,6 +205,7 @@ export const ExternalArmedVerificationModal: React.FC<ExternalArmedVerificationM
               variant="outline"
               className="w-full"
               onClick={() => setShowNewPersonalInput(true)}
+              disabled={!canModify || roleLoading}
             >
               + Agregar Nuevo Elemento
             </Button>
@@ -196,7 +257,7 @@ export const ExternalArmedVerificationModal: React.FC<ExternalArmedVerificationM
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={!selectedPersonalId || loading}
+            disabled={!selectedPersonalId || loading || !canModify || roleLoading}
           >
             {loading ? 'Asignando...' : 'Confirmar Asignación'}
           </Button>
