@@ -44,12 +44,30 @@ export function PendingAssignmentModal({
   });
   // 🛡️ LÓGICA DEFENSIVA: Manejar ambos formatos (string u objeto)
   const [custodianAssigned, setCustodianAssigned] = useState<any>(() => {
-    if (!service?.custodio_asignado) return null;
+    // 🔍 DEBUG LOG: Verificar inicialización de custodianAssigned
+    console.log('🔍 [PendingAssignmentModal] Inicializando custodianAssigned:', {
+      service_custodio_asignado: service?.custodio_asignado,
+      tipo: typeof service?.custodio_asignado,
+      es_null: service?.custodio_asignado === null,
+      es_undefined: service?.custodio_asignado === undefined,
+      es_string: typeof service?.custodio_asignado === 'string',
+      valor_directo: service?.custodio_asignado
+    });
+    
+    if (!service?.custodio_asignado) {
+      console.log('⚠️ [PendingAssignmentModal] custodio_asignado es null/undefined, retornando null');
+      return null;
+    }
     
     // Manejar ambos formatos para máxima compatibilidad
     const custodioNombre = typeof service.custodio_asignado === 'string'
       ? service.custodio_asignado
       : (service.custodio_asignado as any).nombre;
+    
+    console.log('✅ [PendingAssignmentModal] custodianAssigned construido:', {
+      custodio_nombre: custodioNombre,
+      objeto_completo: { custodio_nombre: custodioNombre }
+    });
       
     return { custodio_nombre: custodioNombre };
   });
@@ -373,12 +391,11 @@ export function PendingAssignmentModal({
                 />
               )}
               
-              {currentStep === 'armed' && custodianAssigned && (
+              {currentStep === 'armed' && (custodianAssigned || service?.custodio_asignado) && (
                 <SimplifiedArmedAssignment
                   serviceData={{
                     ...serviceData,
-                    custodio_asignado: custodianAssigned.custodio_nombre,
-                    custodio_id: custodianAssigned.custodio_asignado_id
+                    custodio_asignado: custodianAssigned?.custodio_nombre || service?.custodio_asignado
                   }}
                   onComplete={handleArmedGuardAssignmentComplete}
                   onSkip={handleArmedGuardSkip}

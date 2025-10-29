@@ -115,10 +115,21 @@ export function ScheduledServicesTab() {
         requiere_armado: service.incluye_armado || service.requiere_armado || false,
         notas_especiales: service.observaciones,
         created_at: service.created_at || new Date().toISOString(),
-        // ✅ CORRECCIÓN: Enviar string directo, no objeto - PendingAssignmentModal espera string
-        custodio_asignado: service.custodio_nombre || null,
+        // ✅ CORRECCIÓN + DEBUG: Enviar string directo con fallback múltiple
+        custodio_asignado: service.custodio_nombre || service.custodio_asignado || null,
         estado: service.estado
       } as any);
+      
+      // 🔍 DEBUG LOG: Verificar datos antes de abrir modal
+      console.log('🔍 [ScheduledServicesTab] Abriendo modal con servicio:', {
+        id: service.id,
+        id_servicio: service.id_servicio,
+        custodio_nombre: service.custodio_nombre,
+        custodio_asignado_construido: service.custodio_nombre || service.custodio_asignado || null,
+        armado_asignado: service.armado_asignado,
+        requiere_armado: service.incluye_armado || service.requiere_armado,
+        pendingService_completo: pendingService
+      });
       
       setSelectedPendingService(pendingService);
       setAssignmentModalOpen(true);
