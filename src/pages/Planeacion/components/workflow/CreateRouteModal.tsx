@@ -172,7 +172,24 @@ export function CreateRouteModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) return;
+    // 🚀 Enhanced logging - Start of route creation
+    const startTimestamp = new Date().toISOString();
+    console.log('🚀 [CreateRouteModal] Inicio de creación de ruta:', {
+      timestamp: startTimestamp,
+      cliente: clientName,
+      origen: formData.origen_texto,
+      destino: formData.destino_texto,
+      valor_bruto: formData.valor_bruto,
+      justificacion_length: formData.justificacion.length,
+      dias_operacion: formData.dias_operacion,
+      es_ruta_reparto: formData.es_ruta_reparto,
+      puntos_intermedios_count: formData.puntos_intermedios.length
+    });
+
+    if (!validateForm()) {
+      console.error('❌ [CreateRouteModal] Validación de formulario falló');
+      return;
+    }
 
     // 🔍 Pre-insert type validation
     console.log('🔍 [CreateRouteModal] Pre-insert validation:', {
@@ -196,6 +213,21 @@ export function CreateRouteModal({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuario no autenticado');
 
+      // Get user role for enhanced logging
+      let userRole = 'unknown';
+      try {
+        const { data } = await supabase.rpc('get_current_user_role_secure');
+        userRole = data || 'unknown';
+      } catch (roleErr) {
+        console.warn('⚠️ Could not fetch user role:', roleErr);
+      }
+      
+      console.log('👤 [CreateRouteModal] Usuario autenticado:', {
+        email: user.email,
+        user_id: user.id,
+        role: userRole
+      });
+
       const routeData = {
         cliente_nombre: clientName,
         origen_texto: formData.origen_texto.trim(),
@@ -217,6 +249,16 @@ export function CreateRouteModal({
         created_by: user.id
       };
 
+      console.log('💾 [CreateRouteModal] Insertando ruta en BD...', {
+        routeData_summary: {
+          cliente: routeData.cliente_nombre,
+          origen: routeData.origen_texto,
+          destino: routeData.destino_texto,
+          valor_bruto: routeData.valor_bruto,
+          dias_operacion_stringified: routeData.dias_operacion
+        }
+      });
+
       // Insert route
       const { data: newRoute, error: insertError } = await supabase
         .from('matriz_precios_rutas')
@@ -224,7 +266,21 @@ export function CreateRouteModal({
         .select()
         .single();
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('💥 [CreateRouteModal] Error en INSERT de Supabase:', {
+          error: insertError,
+          code: insertError.code,
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint
+        });
+        throw insertError;
+      }
+
+      console.log('✅ [CreateRouteModal] Ruta creada exitosamente en BD:', {
+        route_id: newRoute.id,
+        timestamp: new Date().toISOString()
+      });
 
       // Log the audit (non-blocking - don't await to prevent audit failures from blocking route creation)
       logRouteAction({
@@ -246,27 +302,40 @@ export function CreateRouteModal({
         });
       });
 
+      console.log('🔄 [CreateRouteModal] Iniciando refresh de queries del cache...');
+
       // Refrescar queries activas para sincronizar el estado INMEDIATAMENTE
+      // exact: false para refrescar todas las variantes de estas queries
       await queryClient.refetchQueries({ 
         queryKey: ['origenes-con-frecuencia', clientName],
-        type: 'active' // Solo refrescar queries que están siendo observadas
+        type: 'active',
+        exact: false  // Refrescar todas las queries relacionadas
       });
 
       await queryClient.refetchQueries({ 
         queryKey: ['destinos-from-pricing', clientName],
-        type: 'active'
+        type: 'active',
+        exact: false
       });
 
       await queryClient.refetchQueries({ 
         queryKey: ['clientes-from-pricing'],
-        type: 'active'
+        type: 'active',
+        exact: false
       });
 
       // Invalidar queries no activas para que se refresquen cuando se monten
-      await queryClient.invalidateQueries({ queryKey: ['matriz_precios_rutas'] });
+      await queryClient.invalidateQueries({ 
+        queryKey: ['matriz_precios_rutas'],
+        exact: false  // Invalidar todas las variantes
+      });
 
-      // Delay más largo para asegurar que los datos se propaguen
-      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log('✅ [CreateRouteModal] Queries refrescadas exitosamente');
+
+      // Delay más largo para asegurar que los datos se propaguen completamente
+      // Aumentado de 500ms a 1500ms para prevenir race conditions
+      console.log('⏳ [CreateRouteModal] Esperando 1.5s para propagación de datos...');
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
       toast.success('Ruta creada exitosamente', {
         description: 'La ruta ha sido registrada y está lista para usar'
@@ -295,18 +364,41 @@ export function CreateRouteModal({
       // Capture Supabase error with proper typing
       const supabaseError = err as { message?: string; code?: string; details?: string; hint?: string };
       
-      console.error('❌ [CreateRouteModal] Error creating route:', {
+      // Enhanced error logging with user context
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      let userRole = 'unknown';
+      try {
+        const { data } = await supabase.rpc('get_current_user_role_secure');
+        userRole = data || 'unknown';
+      } catch (roleErr) {
+        console.warn('⚠️ Could not fetch user role in error handler:', roleErr);
+      }
+      
+      console.error('❌ [CreateRouteModal] Error completo al crear ruta:', {
+        timestamp: new Date().toISOString(),
         error: err,
         errorMessage: supabaseError.message || (err instanceof Error ? err.message : 'Unknown'),
         errorCode: supabaseError.code,
         errorDetails: supabaseError.details || (err instanceof Error ? err.stack : null),
         errorHint: supabaseError.hint,
+        userData: {
+          email: user?.email || 'unknown',
+          user_id: user?.id || 'unknown',
+          role: userRole
+        },
         formData: {
           cliente: clientName,
           origen: formData.origen_texto,
           destino: formData.destino_texto,
+          valor_bruto: formData.valor_bruto,
+          precio_custodio: formData.precio_custodio,
+          distancia_km: formData.distancia_km,
           dias_operacion_type: typeof formData.dias_operacion,
-          dias_operacion: formData.dias_operacion
+          dias_operacion: formData.dias_operacion,
+          dias_operacion_length: formData.dias_operacion.length,
+          justificacion_length: formData.justificacion.length,
+          es_ruta_reparto: formData.es_ruta_reparto
         }
       });
       
