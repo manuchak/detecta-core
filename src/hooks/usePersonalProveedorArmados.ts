@@ -42,6 +42,9 @@ export interface CreatePersonalData {
   vigencia_licencia?: string;
   documento_identidad?: string;
   observaciones?: string;
+  estado_verificacion?: 'pendiente' | 'verificado' | 'rechazado';
+  disponible_para_servicios?: boolean;
+  activo?: boolean;
 }
 
 export function usePersonalProveedorArmados() {
@@ -86,9 +89,17 @@ export function usePersonalProveedorArmados() {
 
   const createPersonal = async (personalData: CreatePersonalData) => {
     try {
+      const dataToInsert = {
+        ...personalData,
+        estado_verificacion: personalData.estado_verificacion || 'verificado',
+        disponible_para_servicios: personalData.disponible_para_servicios ?? true,
+        activo: personalData.activo ?? true,
+        observaciones: personalData.observaciones || 'Personal de proveedor externo'
+      };
+
       const { data, error } = await supabase
         .from('personal_proveedor_armados')
-        .insert(personalData)
+        .insert(dataToInsert)
         .select()
         .single();
 
