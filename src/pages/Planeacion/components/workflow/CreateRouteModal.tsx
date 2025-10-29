@@ -242,9 +242,10 @@ export function CreateRouteModal({
         // NO enviar: ['lunes','martes'] (array directo) ❌
         dias_operacion: JSON.stringify(formData.dias_operacion),
         es_ruta_reparto: formData.es_ruta_reparto || false,
-        puntos_intermedios: formData.es_ruta_reparto && formData.puntos_intermedios
-          ? JSON.stringify(formData.puntos_intermedios)
-          : '[]',
+        // CORRECTO: puntos_intermedios es JSONB (array) - Supabase convierte automáticamente
+        puntos_intermedios: formData.es_ruta_reparto && formData.puntos_intermedios.length > 0
+          ? formData.puntos_intermedios
+          : [],
         activo: true,
         created_by: user.id
       };
