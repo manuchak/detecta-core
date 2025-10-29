@@ -55,6 +55,11 @@ export interface ArmedGuardOperativo {
   categoria_disponibilidad_conflicto?: string;
   razon_no_disponible?: string;
   scoring_proximidad?: number;
+  
+  // 🆕 Campos para armados virtuales (leads de Supply)
+  es_lead_virtual?: boolean;      // Flag: ¿Es un lead de Supply?
+  lead_id_origen?: string;        // ID original del lead
+  lead_estado_original?: string;  // Estado del lead (contactado/aprobado)
 }
 
 export interface ProveedorArmado {
@@ -134,11 +139,12 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
       const unavailableIds = unavailableGuards?.map(u => u.armado_id) || [];
       console.log('Found unavailable armed guards:', unavailableIds.length);
       
-      // Query the actual armados_operativos table excluding unavailable ones
+      // 🆕 Query a la vista unificada que incluye leads de Supply
       let guardsQuery = supabase
-        .from('armados_operativos')
+        .from('armados_disponibles_extendido')
         .select('*')
         .eq('estado', 'activo')
+        .order('numero_servicios', { ascending: true })  // Priorizar "nuevos" (0 servicios)
         .order('score_total', { ascending: false });
       
       // Filter out unavailable guards if any found
@@ -199,9 +205,10 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
           console.warn('Zone OR parse error detected, retrying without zone filter');
           // Retry without zone filter but keep the other filters
           let retryQuery = supabase
-            .from('armados_operativos')
+            .from('armados_disponibles_extendido')
             .select('*')
             .eq('estado', 'activo')
+            .order('numero_servicios', { ascending: true })
             .order('score_total', { ascending: false });
 
           if (filters?.tipo_servicio && ['local', 'foraneo', 'alta_seguridad'].includes(filters.tipo_servicio)) {
@@ -444,9 +451,41 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
       nombreCompleto: string;
       licenciaPortacion?: string;
       verificacionData: any;
+      es_lead_virtual?: boolean;      // 🆕 NUEVO
+      lead_id_origen?: string;        // 🆕 NUEVO
     }
   ) => {
     try {
+      let armadoFinalId = armadoId;
+      
+      // 🆕 NUEVO: Si es un lead virtual, convertirlo primero
+      if (personalData?.es_lead_virtual && personalData?.lead_id_origen) {
+        toast.info('Convirtiendo candidato a armado operativo...', {
+          description: 'Primer servicio del candidato. Creando perfil operativo.'
+        });
+        
+        try {
+          const { data: nuevoArmadoId, error: conversionError } = await supabase.rpc(
+            'convertir_lead_a_armado_operativo',
+            { p_lead_id: personalData.lead_id_origen }
+          );
+          
+          if (conversionError) throw conversionError;
+          
+          armadoFinalId = nuevoArmadoId;
+          
+          toast.success('Candidato convertido exitosamente', {
+            description: 'Ya puede recibir asignaciones futuras como armado operativo.'
+          });
+        } catch (conversionError: any) {
+          console.error('Error convirtiendo lead:', conversionError);
+          toast.error('Error al convertir candidato', {
+            description: conversionError.message || 'No se pudo completar la conversión'
+          });
+          throw conversionError;
+        }
+      }
+      
       // Construir timestamp completo: fecha + hora
       const [hours, minutes] = horaEncuentro.split(':');
       const fullTimestamp = new Date(`${fechaServicio}T${hours}:${minutes}:00`);
@@ -462,7 +501,7 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
         tarifa_acordada: tarifaAcordada,
         asignado_por: (await supabase.auth.getUser()).data.user?.id,
         ...(tipoAsignacion === 'interno' 
-          ? { armado_id: armadoId } 
+          ? { armado_id: armadoFinalId }  // 🆕 Usar ID convertido si aplica
           : { proveedor_armado_id: providerId, armado_id: armadoId }
         )
       };

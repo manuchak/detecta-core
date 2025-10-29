@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { AppleTimePicker } from '@/components/ui/apple-time-picker';
 import { SmartLocationDropdown } from '@/components/ui/smart-location-dropdown';
 import { ArmedCallManagementModal } from './ArmedCallManagementModal';
-import { Shield, User, MapPin, Clock, Phone, CheckCircle2, AlertCircle, Star, ChevronDown, ChevronUp, PhoneCall } from 'lucide-react';
+import { Shield, User, MapPin, Clock, Phone, CheckCircle2, AlertCircle, Star, ChevronDown, ChevronUp, PhoneCall, Sparkles, Info } from 'lucide-react';
 
 interface ArmedGuard {
   id: string;
@@ -23,6 +23,10 @@ interface ArmedGuard {
   tasa_confirmacion: number;
   equipamiento_disponible?: string[];
   observaciones?: string;
+  // 🆕 Campos para armados virtuales (leads de Supply)
+  es_lead_virtual?: boolean;
+  lead_id_origen?: string;
+  lead_estado_original?: string;
 }
 
 interface ArmedProvider {
@@ -52,6 +56,8 @@ interface ExpandableArmedCardProps {
     type: 'interno' | 'proveedor';
     puntoEncuentro: string;
     horaEncuentro: string;
+    es_lead_virtual?: boolean;      // 🆕 NUEVO
+    lead_id_origen?: string;        // 🆕 NUEVO
   }) => void;
   onCallManagement?: (guardId: string) => void;
   serviceData?: {
@@ -141,7 +147,12 @@ export function ExpandableArmedCard({
         id,
         type,
         puntoEncuentro,
-        horaEncuentro
+        horaEncuentro,
+        // 🆕 Pasar datos de lead virtual si aplica
+        ...(guard?.es_lead_virtual && {
+          es_lead_virtual: true,
+          lead_id_origen: guard.lead_id_origen
+        })
       });
     }
   };
@@ -171,6 +182,7 @@ export function ExpandableArmedCard({
       ref={cardRef}
       className={`
         transition-all duration-300 cursor-pointer relative
+        ${guard?.es_lead_virtual ? 'border-blue-300 bg-blue-50/30' : ''}
         ${isSelected 
           ? 'border-primary bg-primary/5 ring-2 ring-primary/20 shadow-lg' 
           : 'border-border hover:border-primary/50 hover:shadow-md'
@@ -208,9 +220,22 @@ export function ExpandableArmedCard({
               <div className="flex-1">
                 <h3 className="font-semibold text-lg">{displayName}</h3>
                 <div className="flex items-center gap-2 mt-1">
-                  <Badge variant={getAvailabilityStatus() === 'success' ? 'default' : 'secondary'}>
-                    {getAvailabilityText()}
-                  </Badge>
+                  {/* 🆕 Badge especial para leads virtuales */}
+                  {guard?.es_lead_virtual ? (
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
+                      <Star className="h-3 w-3 mr-1" />
+                      Nuevo Candidato
+                    </Badge>
+                  ) : guard?.numero_servicios === 0 ? (
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                      <Star className="h-3 w-3 mr-1" />
+                      Sin Servicios (0)
+                    </Badge>
+                  ) : (
+                    <Badge variant={getAvailabilityStatus() === 'success' ? 'default' : 'secondary'}>
+                      {getAvailabilityText()}
+                    </Badge>
+                  )}
                   {(guard?.rating_promedio || provider?.rating_proveedor) && (
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                       <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
@@ -248,6 +273,19 @@ export function ExpandableArmedCard({
             {/* Stats */}
             {guard && (
               <div className="grid grid-cols-2 gap-4 mt-4 text-sm">
+                {/* 🆕 Información adicional para leads virtuales */}
+                {guard.es_lead_virtual && (
+                  <div className="col-span-2 mb-2">
+                    <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                      <Info className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-xs text-blue-700">
+                        <strong>Candidato de Supply</strong> - Estado: {guard.lead_estado_original === 'contactado' ? 'Contactado' : 'Aprobado'}
+                        <br/>
+                        Se convertirá en armado operativo al asignar su primer servicio.
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div>
                   <div className="text-muted-foreground">Experiencia</div>
                   <div className="font-medium">{guard.experiencia_anos} años</div>

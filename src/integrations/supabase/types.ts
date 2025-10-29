@@ -9990,6 +9990,43 @@ export type Database = {
       }
     }
     Views: {
+      armados_disponibles_extendido: {
+        Row: {
+          created_at: string | null
+          disponibilidad: string | null
+          email: string | null
+          equipamiento_disponible: string[] | null
+          es_lead_virtual: boolean | null
+          estado: string | null
+          experiencia_anos: number | null
+          fecha_ultimo_servicio: string | null
+          fecha_vencimiento_licencia: string | null
+          fuente: string | null
+          id: string | null
+          lead_estado_original: string | null
+          lead_id_origen: string | null
+          licencia_portacion: string | null
+          nombre: string | null
+          numero_servicios: number | null
+          proveedor_id: string | null
+          rating_promedio: number | null
+          restricciones_horario: Json | null
+          score_comunicacion: number | null
+          score_confiabilidad: number | null
+          score_disponibilidad: number | null
+          score_total: number | null
+          servicios_permitidos: string[] | null
+          tasa_confiabilidad: number | null
+          tasa_confirmacion: number | null
+          tasa_respuesta: number | null
+          telefono: string | null
+          tipo_armado: string | null
+          updated_at: string | null
+          zona_base: string | null
+          zonas_permitidas: string[] | null
+        }
+        Relationships: []
+      }
       armados_operativos_disponibles: {
         Row: {
           created_at: string | null
@@ -10523,6 +10560,10 @@ export type Database = {
           metric_name: string
           status: string
         }[]
+      }
+      convertir_lead_a_armado_operativo: {
+        Args: { p_lead_id: string }
+        Returns: string
       }
       count_analyst_assigned_leads: {
         Args: { p_date_from?: string; p_date_to?: string }

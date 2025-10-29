@@ -30,6 +30,10 @@ interface ArmedGuard {
   tasa_confirmacion: number;
   equipamiento_disponible?: string[];
   observaciones?: string;
+  // 🆕 Campos para armados virtuales (leads de Supply)
+  es_lead_virtual?: boolean;
+  lead_id_origen?: string;
+  lead_estado_original?: string;
 }
 
 interface ArmedProvider {
@@ -220,6 +224,8 @@ const { armedGuards: hookArmedGuards, providers: hookProviders, loading, error, 
       nombreCompleto: string;
       telefono?: string;
       licenciaPortacion?: string;
+      es_lead_virtual?: boolean;      // 🆕 NUEVO
+      lead_id_origen?: string;        // 🆕 NUEVO
     }
   ) => {
     try {
@@ -239,6 +245,11 @@ const { armedGuards: hookArmedGuards, providers: hookProviders, loading, error, 
         personal_externo_id: externalPersonalData?.personalId,
         personal_externo_telefono: externalPersonalData?.telefono,
         personal_externo_licencia: externalPersonalData?.licenciaPortacion,
+        // 🆕 Guardar datos de lead virtual para conversión posterior
+        ...(externalPersonalData?.es_lead_virtual && {
+          es_lead_virtual: true,
+          lead_id_origen: externalPersonalData.lead_id_origen
+        })
       };
 
       console.log('🔧 DEBUG: Assignment data created', newAssignmentData);
@@ -333,6 +344,17 @@ const { armedGuards: hookArmedGuards, providers: hookProviders, loading, error, 
 
       // Persist assignment using already-initialized hook function
       const serviceId = assignmentData.servicio_id || serviceData.servicio_id || assignmentData.cliente_nombre || '';
+      
+      // 🆕 Preparar personalData si existe
+      const personalDataParam = assignmentData.personal_externo_id ? {
+        personalId: assignmentData.personal_externo_id,
+        nombreCompleto: assignmentData.armado_nombre || '',
+        licenciaPortacion: assignmentData.personal_externo_licencia,
+        verificacionData: {},
+        es_lead_virtual: (assignmentData as any).es_lead_virtual,
+        lead_id_origen: (assignmentData as any).lead_id_origen
+      } : undefined;
+
       await assignArmedGuard(
         serviceId,
         assignmentData.custodio_asignado_id || '',
@@ -341,7 +363,9 @@ const { armedGuards: hookArmedGuards, providers: hookProviders, loading, error, 
         assignmentData.punto_encuentro || '',
         assignmentData.hora_encuentro || '',
         assignmentData.fecha_programada || new Date().toISOString().split('T')[0],
-        assignmentData.proveedor_id
+        assignmentData.proveedor_id,
+        undefined, // tarifaAcordada
+        personalDataParam
       );
       console.log('✅ Armed guard assignment persisted to database');
       
@@ -400,6 +424,8 @@ const { armedGuards: hookArmedGuards, providers: hookProviders, loading, error, 
     type: 'interno' | 'proveedor';
     puntoEncuentro: string;
     horaEncuentro: string;
+    es_lead_virtual?: boolean;      // 🆕 NUEVO
+    lead_id_origen?: string;        // 🆕 NUEVO
   }) => {
     console.log('🔧 DEBUG: Starting direct assignment process', data);
     
@@ -424,8 +450,21 @@ const { armedGuards: hookArmedGuards, providers: hookProviders, loading, error, 
       return;
     }
 
-    // Si es armado interno, proceder directamente
-    await proceedWithAssignment(selectedGuard as ArmedGuard, 'interno', data.puntoEncuentro, data.horaEncuentro);
+    // Si es armado interno, proceder directamente con datos de lead virtual si aplica
+    const externalPersonalData = data.es_lead_virtual && data.lead_id_origen ? {
+      personalId: data.id,
+      nombreCompleto: (selectedGuard as ArmedGuard).nombre,
+      es_lead_virtual: true,
+      lead_id_origen: data.lead_id_origen
+    } : undefined;
+    
+    await proceedWithAssignment(
+      selectedGuard as ArmedGuard, 
+      'interno', 
+      data.puntoEncuentro, 
+      data.horaEncuentro,
+      externalPersonalData
+    );
   };
 
   const createTimeRecommendationWrapper = (selectedTime: string) => {
@@ -543,6 +582,18 @@ const { armedGuards: hookArmedGuards, providers: hookProviders, loading, error, 
 
             {/* Armed Guards List with Expandable Cards */}
             <div className="space-y-6">
+              {/* 🆕 Info banner sobre leads virtuales */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-blue-700">
+                    <strong>Ahora puedes asignar candidatos de Supply directamente</strong>
+                    <br/>
+                    Los candidatos con badge "Nuevo Candidato" se convertirán automáticamente en armados operativos al completar su primera asignación.
+                  </div>
+                </div>
+              </div>
+
               <div className="flex items-center justify-between mb-4">
                 <div className="text-lg font-semibold">Armados Internos</div>
                 <Badge variant="secondary" className="text-xs">

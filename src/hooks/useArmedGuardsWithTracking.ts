@@ -23,6 +23,9 @@ export interface ArmedGuard {
   fecha_ultimo_servicio?: string;
   created_at?: string;
   updated_at?: string;
+  es_lead_virtual?: boolean;
+  lead_id_origen?: string;
+  lead_estado_original?: string;
 }
 
 export interface ArmedProvider {
@@ -94,7 +97,10 @@ export function useArmedGuardsWithTracking(serviceData?: ServiceRequest) {
     observaciones: '',
     fecha_ultimo_servicio: guard.fecha_ultimo_servicio,
     created_at: guard.created_at,
-    updated_at: guard.updated_at
+    updated_at: guard.updated_at,
+    es_lead_virtual: guard.es_lead_virtual,
+    lead_id_origen: guard.lead_id_origen,
+    lead_estado_original: guard.lead_estado_original
   }));
 
   const providers: ArmedProvider[] = operativeProviders.map(provider => ({
@@ -124,7 +130,16 @@ export function useArmedGuardsWithTracking(serviceData?: ServiceRequest) {
     puntoEncuentro: string,
     horaEncuentro: string,
     fechaServicio: string,
-    providerId?: string
+    providerId?: string,
+    tarifaAcordada?: number,
+    personalData?: {
+      personalId: string;
+      nombreCompleto: string;
+      licenciaPortacion?: string;
+      verificacionData: any;
+      es_lead_virtual?: boolean;
+      lead_id_origen?: string;
+    }
   ) => {
     return assignOperativeGuard(
       servicioId,
@@ -134,7 +149,9 @@ export function useArmedGuardsWithTracking(serviceData?: ServiceRequest) {
       puntoEncuentro,
       horaEncuentro,
       fechaServicio,
-      providerId
+      providerId,
+      tarifaAcordada,
+      personalData
     );
   };
 
