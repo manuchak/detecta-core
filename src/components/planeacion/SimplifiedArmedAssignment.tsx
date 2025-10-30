@@ -181,7 +181,7 @@ export function SimplifiedArmedAssignment({
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'externos' | 'internos')}>
         <TabsList className="grid w-full grid-cols-2 bg-background/95 backdrop-blur-apple supports-[backdrop-filter]:bg-background/80 shadow-apple-soft border border-border/50">
-          <TabsTrigger value="externos" className="flex items-center gap-2 data-[state=active]:bg-corporate-blue/10 data-[state=active]:text-corporate-blue transition-all duration-200">
+          <TabsTrigger value="externos" className="flex items-center gap-2 data-[state=active]:bg-corporate-blue data-[state=active]:text-white data-[state=active]:font-semibold data-[state=active]:shadow-sm text-muted-foreground transition-all duration-200">
             <Building2 className="h-4 w-4" />
             Proveedores Externos
             {filteredProviders.length > 0 && (
@@ -190,7 +190,7 @@ export function SimplifiedArmedAssignment({
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="internos" className="flex items-center gap-2 data-[state=active]:bg-corporate-blue/10 data-[state=active]:text-corporate-blue transition-all duration-200">
+          <TabsTrigger value="internos" className="flex items-center gap-2 data-[state=active]:bg-corporate-blue data-[state=active]:text-white data-[state=active]:font-semibold data-[state=active]:shadow-sm text-muted-foreground transition-all duration-200">
             <Shield className="h-4 w-4" />
             Armados Internos
             {searchedGuards.length > 0 && (
@@ -296,7 +296,7 @@ export function SimplifiedArmedAssignment({
                           
                           {/* Top Performer Badge */}
                           {guard.productivityScore && guard.productivityScore > 150 && (
-                            <Badge variant="default" className="bg-gradient-to-r from-corporate-blue to-corporate-gold text-white border-0 shadow-sm">
+                            <Badge variant="default" className="bg-amber-500 text-white font-semibold border-0 shadow-sm hover:bg-amber-600 transition-colors">
                               <Zap className="h-3 w-3 mr-1" />
                               Top Performer
                             </Badge>
@@ -304,10 +304,10 @@ export function SimplifiedArmedAssignment({
                           
                           {/* Availability Badge */}
                           <Badge
-                            variant={guard.disponibilidad === 'disponible' ? 'success' : 'secondary'}
-                            className="text-xs"
+                            variant="default"
+                            className={guard.disponibilidad === 'disponible' ? 'bg-green-600 text-white font-medium text-xs' : 'bg-muted text-muted-foreground font-medium text-xs'}
                           >
-                            {guard.disponibilidad === 'disponible' ? 'Disponible' : 'Ocupado'}
+                            {guard.disponibilidad === 'disponible' ? '✓ Disponible' : 'Ocupado'}
                           </Badge>
                         </div>
                         

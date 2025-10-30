@@ -51,7 +51,7 @@ export function ArmedGuardFilters({
       onClick: () => onFilterChange({ disponibilidad: 'disponible' }),
     },
     {
-      label: 'Top Rated (⭐4.5+)',
+      label: 'Top Rated (4.5+)',
       active: filterConfig.ratingMinimo >= 4.5,
       onClick: () => onFilterChange({ ratingMinimo: 4.5, ordenarPor: 'rating' }),
     },
@@ -72,8 +72,8 @@ export function ArmedGuardFilters({
             variant={filter.active ? 'default' : 'outline'}
             className={`cursor-pointer transition-all duration-200 ${
               filter.active 
-                ? 'bg-corporate-blue hover:bg-corporate-blue/90 shadow-apple-soft' 
-                : 'hover:bg-corporate-blue/10 hover:border-corporate-blue/50'
+                ? 'bg-corporate-blue hover:bg-corporate-blue/90 text-white font-medium shadow-apple-soft' 
+                : 'text-muted-foreground hover:bg-corporate-blue/10 hover:border-corporate-blue/50 border-border'
             }`}
             onClick={filter.onClick}
           >
