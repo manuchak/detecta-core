@@ -11,6 +11,7 @@ import { RouteSearchStep } from './workflow/RouteSearchStep';
 import { ServiceAutoFillStep } from './workflow/ServiceAutoFillStep';
 import { CustodianAssignmentStep } from './workflow/CustodianAssignmentStep';
 import { EnhancedArmedGuardAssignmentStep } from './workflow/EnhancedArmedGuardAssignmentStep';
+import { SimplifiedArmedAssignment } from '@/components/planeacion/SimplifiedArmedAssignment';
 import { FinalConfirmationStep } from './workflow/FinalConfirmationStep';
 import { ConflictMonitor } from './workflow/ConflictMonitor';
 import { useCustodianVehicles } from '@/hooks/useCustodianVehicles';
@@ -1012,19 +1013,71 @@ export function RequestCreationWorkflow() {
           />
         )}
         
-        {currentStep === 'armed_assignment' && serviceData && assignmentData && currentlyNeedsArmed && (
-          <EnhancedArmedGuardAssignmentStep 
-            serviceData={{...serviceData, ...assignmentData}}
-            onComplete={handleArmedAssignmentComplete}
-            onBack={() => setCurrentStep('assignment')}
-            onSkip={() => {
-              // Permitir saltar la asignación de armado si ya no se necesita
-              console.log('🚫 Armado ya no requerido, ir a confirmación final');
-              toast.info('Continuando sin armado');
-              setCurrentStep('final_confirmation');
-            }}
-          />
-        )}
+        {currentStep === 'armed_assignment' && serviceData && assignmentData && currentlyNeedsArmed && (() => {
+          // 🧩 Construir serviceData para SimplifiedArmedAssignment
+          const simplifiedServiceData = {
+            servicio_id: serviceData.servicio_id,
+            origen: serviceData.origen_texto,
+            destino: serviceData.destino_texto,
+            fecha_hora_cita: `${serviceData.fecha_programada}T${serviceData.hora_ventana_inicio}`,
+            custodio_asignado: assignmentData?.custodio_nombre || ''
+          };
+          
+          // 🔍 DEBUG LOG: Verificar datos que entran al componente de armado
+          console.log('🔍 [Wizard] armed_assignment step → simplifiedServiceData', {
+            serviceData,
+            assignmentData,
+            simplifiedServiceData,
+            currentlyNeedsArmed
+          });
+          
+          // 🧩 Adaptador de onComplete: SimplifiedArmedAssignment → ArmedAssignmentData
+          const handleSimplifiedComplete = (data: {
+            armado_id: string;
+            armado_nombre: string;
+            punto_encuentro: string;
+            hora_encuentro: string;
+            tipo_asignacion: 'interno' | 'proveedor';
+            proveedor_id?: string;
+            observaciones?: string;
+            personalId?: string;
+            nombreCompleto?: string;
+            licenciaPortacion?: string;
+            verificacionData?: any;
+          }) => {
+            const armedData: ArmedAssignmentData = {
+              ...serviceData,
+              ...assignmentData,
+              armado_asignado_id: data.armado_id,
+              armado_nombre: data.armado_nombre,
+              tipo_asignacion: data.tipo_asignacion,
+              proveedor_id: data.proveedor_id,
+              punto_encuentro: data.punto_encuentro,
+              hora_encuentro: data.hora_encuentro,
+              estado_asignacion: 'pendiente'
+            };
+            
+            console.log('🧩 [Wizard] Adaptación onComplete: SimplifiedArmedAssignment → ArmedAssignmentData', {
+              input: data,
+              output: armedData
+            });
+            
+            handleArmedAssignmentComplete(armedData);
+          };
+          
+          return (
+            <SimplifiedArmedAssignment
+              serviceData={simplifiedServiceData}
+              onComplete={handleSimplifiedComplete}
+              onBack={() => setCurrentStep('assignment')}
+              onSkip={() => {
+                console.log('🚫 [Wizard] Skip armado, ir a confirmación');
+                toast.info('Continuando sin armado');
+                setCurrentStep('final_confirmation');
+              }}
+            />
+          );
+        })()}
         
         {currentStep === 'final_confirmation' && serviceData && assignmentData && (
           <>
