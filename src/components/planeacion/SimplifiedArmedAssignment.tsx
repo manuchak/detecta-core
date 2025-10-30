@@ -174,14 +174,14 @@ export function SimplifiedArmedAssignment({
           placeholder="Buscar proveedor o armado..."
           value={globalSearch}
           onChange={(e) => setGlobalSearch(e.target.value)}
-          className="pl-10"
+          className="pl-10 border-border/50 focus:border-corporate-blue focus:ring-corporate-blue/20 transition-all duration-200"
         />
       </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'externos' | 'internos')}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="externos" className="flex items-center gap-2">
+        <TabsList className="grid w-full grid-cols-2 bg-background/95 backdrop-blur-apple supports-[backdrop-filter]:bg-background/80 shadow-apple-soft border border-border/50">
+          <TabsTrigger value="externos" className="flex items-center gap-2 data-[state=active]:bg-corporate-blue/10 data-[state=active]:text-corporate-blue transition-all duration-200">
             <Building2 className="h-4 w-4" />
             Proveedores Externos
             {filteredProviders.length > 0 && (
@@ -190,7 +190,7 @@ export function SimplifiedArmedAssignment({
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="internos" className="flex items-center gap-2">
+          <TabsTrigger value="internos" className="flex items-center gap-2 data-[state=active]:bg-corporate-blue/10 data-[state=active]:text-corporate-blue transition-all duration-200">
             <Shield className="h-4 w-4" />
             Armados Internos
             {searchedGuards.length > 0 && (
@@ -213,7 +213,7 @@ export function SimplifiedArmedAssignment({
               {filteredProviders.map((provider) => (
                 <Card
                   key={provider.id}
-                  className="p-4 hover:border-primary/50 transition-colors cursor-pointer"
+                  className="p-4 hover:border-corporate-blue/30 hover:shadow-apple-soft transition-all duration-200 cursor-pointer shadow-sm"
                 >
                   <div className="flex justify-between items-start">
                     <div className="space-y-2">
@@ -241,6 +241,7 @@ export function SimplifiedArmedAssignment({
                         setSelectedProvider(provider);
                         setShowExternalModal(true);
                       }}
+                      className="bg-corporate-blue hover:bg-corporate-blue/90 transition-all duration-200"
                     >
                       Asignar Personal →
                     </Button>
@@ -280,10 +281,10 @@ export function SimplifiedArmedAssignment({
                 {searchedGuards.slice(0, 20).map((guard) => (
                   <Card
                     key={guard.id}
-                    className={`p-3 cursor-pointer transition-colors ${
+                    className={`p-4 cursor-pointer transition-all duration-200 ${
                       selectedGuard === guard.id
-                        ? 'border-primary bg-primary/5'
-                        : 'hover:border-primary/50'
+                        ? 'border-corporate-blue bg-corporate-blue/5 shadow-apple-raised'
+                        : 'hover:border-corporate-blue/30 hover:shadow-apple-soft'
                     }`}
                     onClick={() => handleInternalAssignment(guard)}
                   >
@@ -295,7 +296,7 @@ export function SimplifiedArmedAssignment({
                           
                           {/* Top Performer Badge */}
                           {guard.productivityScore && guard.productivityScore > 150 && (
-                            <Badge variant="default" className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">
+                            <Badge variant="default" className="bg-gradient-to-r from-corporate-blue to-corporate-gold text-white border-0 shadow-sm">
                               <Zap className="h-3 w-3 mr-1" />
                               Top Performer
                             </Badge>

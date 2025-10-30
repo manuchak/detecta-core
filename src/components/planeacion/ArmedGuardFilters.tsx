@@ -70,7 +70,11 @@ export function ArmedGuardFilters({
           <Badge
             key={filter.label}
             variant={filter.active ? 'default' : 'outline'}
-            className="cursor-pointer hover:bg-primary/80 transition-colors"
+            className={`cursor-pointer transition-all duration-200 ${
+              filter.active 
+                ? 'bg-corporate-blue hover:bg-corporate-blue/90 shadow-apple-soft' 
+                : 'hover:bg-corporate-blue/10 hover:border-corporate-blue/50'
+            }`}
             onClick={filter.onClick}
           >
             {filter.label}
@@ -112,7 +116,7 @@ export function ArmedGuardFilters({
 
       {/* Advanced Filters */}
       {showAdvanced && (
-        <Card className="p-4 space-y-4 bg-secondary/20">
+        <Card className="p-4 space-y-4 bg-gradient-to-br from-background to-corporate-blue/5 border-corporate-blue/20 shadow-apple-soft">
           <div className="grid grid-cols-2 gap-4">
             {/* Sort By */}
             <div className="space-y-2">
