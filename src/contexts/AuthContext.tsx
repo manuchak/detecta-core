@@ -16,6 +16,7 @@ interface AuthContextType {
   session: Session | null;
   userRole: string | null;
   loading: boolean;
+  roleLoading: boolean;
   permissions: AuthPermissions;
   hasPermission: (permission: keyof AuthPermissions) => boolean;
   hasRole: (roles: string | string[]) => boolean;
@@ -32,7 +33,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Session loading only
+  const [roleLoading, setRoleLoading] = useState(false); // Role loading separate
   const { toast } = useToast();
 
   /**
@@ -120,29 +122,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Memoize permissions to prevent infinite re-renders
   const permissions = useMemo(() => getPermissionsForRole(userRole), [userRole]);
 
-  const fetchUserRole = async () => {
-    try {
-      if (!supabase.auth.getSession) {
-        console.log('🔍 Auth not ready yet');
+  const fetchUserRoleWithTimeout = async (timeoutMs = 5000): Promise<string> => {
+    console.time('⏱️ Role fetch duration');
+    
+    const timeoutPromise = new Promise<string>((resolve) => {
+      setTimeout(() => {
+        console.warn('⚠️ Role RPC timeout - falling back to unverified');
+        console.timeEnd('⏱️ Role fetch duration');
+        resolve('unverified');
+      }, timeoutMs);
+    });
+
+    const fetchPromise = (async () => {
+      try {
+        if (!supabase.auth.getSession) {
+          console.log('🔍 Auth not ready yet');
+          return 'unverified';
+        }
+
+        console.log('🔍 Fetching user role via RPC...');
+        
+        const { data, error } = await supabase.rpc('get_current_user_role_secure');
+
+        if (error) {
+          console.error('❌ RPC error fetching user role:', error);
+          console.timeEnd('⏱️ Role fetch duration');
+          return 'unverified';
+        }
+
+        console.log('✅ RPC result - user role:', data || 'unverified');
+        console.timeEnd('⏱️ Role fetch duration');
+        return data || 'unverified';
+      } catch (err) {
+        console.error('❌ Exception in fetchUserRole:', err);
+        console.timeEnd('⏱️ Role fetch duration');
         return 'unverified';
       }
+    })();
 
-      console.log('🔍 Fetching user role via RPC...');
-      
-      // Use secure function to get user role
-      const { data, error } = await supabase.rpc('get_current_user_role_secure');
-
-      if (error) {
-        console.error('❌ RPC error fetching user role:', error);
-        return 'unverified';
-      }
-
-      console.log('✅ RPC result - user role:', data || 'unverified');
-      return data || 'unverified';
-    } catch (err) {
-      console.error('❌ Exception in fetchUserRole:', err);
-      return 'unverified';
-    }
+    return Promise.race([fetchPromise, timeoutPromise]);
   };
 
   const assignRole = async (userId: string, role: string): Promise<boolean> => {
@@ -214,13 +232,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (currentSession?.user) {
           setSession(currentSession);
           setUser(currentSession.user);
-          setLoading(true);
+          
+          // 🎯 CRITICAL: Set loading=false immediately after session is confirmed
+          // This unblocks the UI while role fetches in parallel
+          setLoading(false);
+          console.log('✅ Session loaded - UI unblocked');
           
           console.log(`🔄 Fetching role for: ${currentSession.user.email}`);
           
-          // Always fetch role from database securely
+          // Fetch role in parallel without blocking UI
+          setRoleLoading(true);
           try {
-            const role = await fetchUserRole();
+            const role = await fetchUserRoleWithTimeout(5000);
             if (mounted) {
               setUserRole(role);
               console.log(`✅ Role set: ${role} for ${currentSession.user.email}`);
@@ -233,8 +256,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           } finally {
             if (mounted) {
-              setLoading(false);
-              console.log('✅ Auth loading complete');
+              setRoleLoading(false);
+              console.log('✅ Role loading complete');
             }
           }
         } else {
@@ -243,6 +266,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(null);
           setUserRole(null);
           setLoading(false);
+          setRoleLoading(false);
         }
         
         // Handle auth events
@@ -283,10 +307,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
       
+      // 🎯 CRITICAL: Unblock UI immediately after session check
+      setLoading(false);
+      console.log('✅ Initial session loaded - UI unblocked');
+      
       if (currentSession?.user) {
         console.log(`🔄 Loading initial role for: ${currentSession.user.email}`);
+        
+        // Fetch role in parallel without blocking
+        setRoleLoading(true);
         try {
-          const role = await fetchUserRole();
+          const role = await fetchUserRoleWithTimeout(5000);
           if (mounted) {
             setUserRole(role);
             console.log(`✅ Initial role loaded: ${role} for ${currentSession.user.email}`);
@@ -297,12 +328,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUserRole('unverified');
             console.log('⚠️ Fallback to unverified role');
           }
+        } finally {
+          if (mounted) {
+            setRoleLoading(false);
+            console.log('✅ Initial role loading complete');
+          }
         }
-      }
-      
-      if (mounted) {
-        setLoading(false);
-        console.log('✅ Initial auth check complete');
       }
     });
 
@@ -480,6 +511,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     session,
     userRole,
     loading,
+    roleLoading,
     permissions,
     hasPermission,
     hasRole,
@@ -505,6 +537,7 @@ export const useAuth = () => {
       session: null,
       userRole: null,
       loading: true,
+      roleLoading: false,
       permissions: {
         canViewLeads: false,
         canEditLeads: false,
