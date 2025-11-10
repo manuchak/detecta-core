@@ -64,6 +64,7 @@ const SIERCPPage = lazy(() => import('@/pages/evaluation/SIERCPPage'));
 const SIERCPMethodologyPage = lazy(() => import('@/pages/evaluation/SIERCPMethodologyPage'));
 const ServiceWorkflowDocumentation = lazy(() => import('@/pages/Documentation/ServiceWorkflowDocumentation'));
 const PlaneacionDashboard = lazy(() => import('@/pages/Planeacion/PlaneacionDashboard'));
+const ReportesHub = lazy(() => import('@/pages/Reportes'));
 const DuplicateCleanupPage = lazy(() => import('@/pages/Maintenance/DuplicateCleanupPage'));
 const VersionControlPage = lazy(() => import('@/pages/Administration/VersionControlPage'));
 const AdministrationHub = lazy(() => import('@/pages/Administration/AdministrationHub'));
@@ -595,6 +596,20 @@ function App() {
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'coordinador_operaciones', 'planificador']}>
                         <PlaneacionDashboard />
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                {/* Reportes de Planeación - Solo Admin/Owner */}
+                <Route
+                  path="/reportes"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner']}>
+                        <UnifiedLayout>
+                          <ReportesHub />
+                        </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
                   }

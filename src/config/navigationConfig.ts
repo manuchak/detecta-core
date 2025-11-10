@@ -10,6 +10,8 @@ import {
   Settings,
   Shield,
   CheckCircle2,
+  BarChart3,
+  TrendingUp,
   LucideIcon
 } from 'lucide-react';
 
@@ -81,6 +83,33 @@ export const navigationModules: NavigationModule[] = [
     icon: CalendarCheck,
     path: '/planeacion',
     sandboxReady: false
+  },
+  {
+    id: 'reportes',
+    label: 'Reportes',
+    icon: BarChart3,
+    path: '/reportes',
+    roles: ['admin', 'owner'],
+    matchPaths: ['/reportes/area', '/reportes/planificadores'],
+    sandboxReady: false,
+    children: [
+      {
+        id: 'reportes_area',
+        label: 'Performance del Área',
+        path: '/reportes/area',
+        roles: ['admin', 'owner'],
+        icon: TrendingUp,
+        sandboxReady: false
+      },
+      {
+        id: 'reportes_planificadores',
+        label: 'Performance de Planificadores',
+        path: '/reportes/planificadores',
+        roles: ['admin', 'owner'],
+        icon: Users,
+        sandboxReady: false
+      }
+    ]
   },
   {
     id: 'services',
