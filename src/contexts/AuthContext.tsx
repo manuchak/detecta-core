@@ -16,7 +16,6 @@ interface AuthContextType {
   session: Session | null;
   userRole: string | null;
   loading: boolean;
-  roleLoading: boolean;
   permissions: AuthPermissions;
   hasPermission: (permission: keyof AuthPermissions) => boolean;
   hasRole: (roles: string | string[]) => boolean;
@@ -33,8 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true); // Session loading only
-  const [roleLoading, setRoleLoading] = useState(false); // Role loading separate
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   /**
@@ -122,45 +120,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Memoize permissions to prevent infinite re-renders
   const permissions = useMemo(() => getPermissionsForRole(userRole), [userRole]);
 
-  const fetchUserRoleWithTimeout = async (timeoutMs = 5000): Promise<string> => {
-    console.time('⏱️ Role fetch duration');
-    
-    const timeoutPromise = new Promise<string>((resolve) => {
-      setTimeout(() => {
-        console.warn('⚠️ Role RPC timeout - falling back to unverified');
-        console.timeEnd('⏱️ Role fetch duration');
-        resolve('unverified');
-      }, timeoutMs);
-    });
+  const fetchUserRole = async () => {
+    try {
+      if (!supabase.auth.getSession) {
+        console.log('Auth not ready yet');
+        return null;
+      }
 
-    const fetchPromise = (async () => {
-      try {
-        if (!supabase.auth.getSession) {
-          console.log('🔍 Auth not ready yet');
-          return 'unverified';
-        }
+      // Use secure function to get user role
+      const { data, error } = await supabase.rpc('get_current_user_role_secure');
 
-        console.log('🔍 Fetching user role via RPC...');
-        
-        const { data, error } = await supabase.rpc('get_current_user_role_secure');
-
-        if (error) {
-          console.error('❌ RPC error fetching user role:', error);
-          console.timeEnd('⏱️ Role fetch duration');
-          return 'unverified';
-        }
-
-        console.log('✅ RPC result - user role:', data || 'unverified');
-        console.timeEnd('⏱️ Role fetch duration');
-        return data || 'unverified';
-      } catch (err) {
-        console.error('❌ Exception in fetchUserRole:', err);
-        console.timeEnd('⏱️ Role fetch duration');
+      if (error) {
+        console.error('Error fetching user role:', error);
         return 'unverified';
       }
-    })();
 
-    return Promise.race([fetchPromise, timeoutPromise]);
+      console.log('Fetched user role:', data);
+      return data || 'unverified';
+    } catch (err) {
+      console.error('Error in fetchUserRole:', err);
+      return 'unverified';
+    }
   };
 
   const assignRole = async (userId: string, role: string): Promise<boolean> => {
@@ -226,47 +206,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async (event, currentSession) => {
         if (!mounted) return;
 
-        console.log("🔐 Auth state changed:", event, currentSession?.user?.email);
+        console.log("Auth state changed:", event, currentSession?.user?.email);
         
         // Secure role fetching - no hardcoded email bypasses
         if (currentSession?.user) {
           setSession(currentSession);
           setUser(currentSession.user);
+          setLoading(true); // Indicar que estamos cargando el rol
           
-          // 🎯 CRITICAL: Set loading=false immediately after session is confirmed
-          // This unblocks the UI while role fetches in parallel
-          setLoading(false);
-          console.log('✅ Session loaded - UI unblocked');
-          
-          console.log(`🔄 Fetching role for: ${currentSession.user.email}`);
-          
-          // Fetch role in parallel without blocking UI
-          setRoleLoading(true);
+          // Always fetch role from database securely - NO setTimeout
           try {
-            const role = await fetchUserRoleWithTimeout(5000);
+            const role = await fetchUserRole();
             if (mounted) {
               setUserRole(role);
-              console.log(`✅ Role set: ${role} for ${currentSession.user.email}`);
+              console.log(`✅ User role fetched successfully: ${role} for ${currentSession.user.email}`);
             }
           } catch (error) {
             console.error('❌ Error fetching user role:', error);
             if (mounted) {
               setUserRole('unverified');
-              console.log('⚠️ Fallback to unverified role');
             }
           } finally {
             if (mounted) {
-              setRoleLoading(false);
-              console.log('✅ Role loading complete');
+              setLoading(false);
             }
           }
         } else {
-          console.log('👤 No user session - clearing state');
           setSession(currentSession);
           setUser(null);
           setUserRole(null);
           setLoading(false);
-          setRoleLoading(false);
         }
         
         // Handle auth events
@@ -303,21 +272,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
       if (!mounted) return;
       
-      console.log("🔍 Initial session check:", currentSession?.user?.email || 'No session');
+      console.log("Initial session check:", currentSession?.user?.email);
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
       
-      // 🎯 CRITICAL: Unblock UI immediately after session check
-      setLoading(false);
-      console.log('✅ Initial session loaded - UI unblocked');
-      
       if (currentSession?.user) {
-        console.log(`🔄 Loading initial role for: ${currentSession.user.email}`);
-        
-        // Fetch role in parallel without blocking
-        setRoleLoading(true);
         try {
-          const role = await fetchUserRoleWithTimeout(5000);
+          const role = await fetchUserRole();
           if (mounted) {
             setUserRole(role);
             console.log(`✅ Initial role loaded: ${role} for ${currentSession.user.email}`);
@@ -326,14 +287,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error('❌ Error loading initial role:', error);
           if (mounted) {
             setUserRole('unverified');
-            console.log('⚠️ Fallback to unverified role');
-          }
-        } finally {
-          if (mounted) {
-            setRoleLoading(false);
-            console.log('✅ Initial role loading complete');
           }
         }
+      }
+      
+      if (mounted) {
+        setLoading(false);
       }
     });
 
@@ -511,7 +470,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     session,
     userRole,
     loading,
-    roleLoading,
     permissions,
     hasPermission,
     hasRole,
@@ -537,7 +495,6 @@ export const useAuth = () => {
       session: null,
       userRole: null,
       loading: true,
-      roleLoading: false,
       permissions: {
         canViewLeads: false,
         canEditLeads: false,

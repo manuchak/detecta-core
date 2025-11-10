@@ -75,20 +75,17 @@ const SignUp = lazy(() => import('@/pages/Auth/SignUp'));
 import ProtectedRoute from '@/components/ProtectedRoute';
 import RoleProtectedRoute from '@/components/RoleProtectedRoute';
 import PermissionProtectedRoute from '@/components/PermissionProtectedRoute';
-import { LazyErrorBoundary } from '@/components/global/LazyErrorBoundary';
 
 // Componente para sincronizar userRole entre AuthContext y SandboxContext
 function SandboxRoleSync({ children }: { children: React.ReactNode }) {
-  const { userRole, loading } = useAuth();
+  const { userRole } = useAuth();
   const { updateUserRole } = useSandbox();
   
   useEffect(() => {
-    // Only sync when loading is complete and we have a valid role
-    if (!loading && userRole && updateUserRole) {
-      console.log('🔄 Syncing role to Sandbox:', userRole);
+    if (updateUserRole) {
       updateUserRole(userRole);
     }
-  }, [userRole, loading, updateUserRole]);
+  }, [userRole, updateUserRole]);
   
   return <>{children}</>;
 }
@@ -146,9 +143,8 @@ function App() {
                 <LastRouteRestorer />
                 <SandboxRouteGuard>
                   <div className="min-h-screen bg-background">
-                    <LazyErrorBoundary>
-                      <Suspense fallback={<LoadingFallback />}>
-                        <Routes>
+                    <Suspense fallback={<LoadingFallback />}>
+                      <Routes>
                   {/* Main route - Leads as principal page */}
                   <Route 
                     path="/" 
@@ -671,7 +667,6 @@ function App() {
                 <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>
-              </LazyErrorBoundary>
                 <GlobalResumeCTA />
               </div>
               </SandboxRouteGuard>

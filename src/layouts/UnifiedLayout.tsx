@@ -24,28 +24,13 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
-    console.log('🎨 UnifiedLayout state:', { 
-      loading, 
-      isInitializing, 
-      hasUser: !!user, 
-      userRole,
-      userEmail: user?.email 
-    });
-
-    // Safety timeout - force initialization to complete after 8 seconds
-    const timeoutId = setTimeout(() => {
-      console.warn('⚠️ UnifiedLayout: Safety timeout reached, forcing initialization complete');
+    if (!loading && user) {
+      if (userRole !== null) {
+        setIsInitializing(false);
+      }
+    } else if (!loading && !user) {
       setIsInitializing(false);
-    }, 8000);
-
-    // Complete initialization as soon as AuthContext finishes loading
-    if (!loading) {
-      console.log('✅ UnifiedLayout: Auth loading complete, ending initialization');
-      setIsInitializing(false);
-      clearTimeout(timeoutId);
     }
-
-    return () => clearTimeout(timeoutId);
   }, [loading, user, userRole]);
 
   // Show loading skeleton while checking authentication
@@ -69,9 +54,8 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
     return <Navigate to="/auth/login" replace />;
   }
 
-  // Only block if userRole is explicitly null (not loaded yet)
-  // Allow 'unverified' and other roles to pass through
-  if (userRole === null) {
+  // User role verification
+  if (!userRole) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="space-y-4 text-center">
