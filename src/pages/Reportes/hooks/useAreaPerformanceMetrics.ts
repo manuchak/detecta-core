@@ -45,9 +45,9 @@ export const useAreaPerformanceMetrics = (periodo: PeriodoReporte = 'mes') => {
       // Para armados, contar los que han tenido servicios en los últimos 30 días
       const { data: armadosActivos, error: armadosError } = await supabase
         .from('servicios_custodia')
-        .select('armado_asignado')
+        .select('armado')
         .gte('created_at', fechaInicioISO)
-        .not('armado_asignado', 'is', null);
+        .not('armado', 'is', null);
       
       if (armadosError) throw armadosError;
       
@@ -84,7 +84,7 @@ export const useAreaPerformanceMetrics = (periodo: PeriodoReporte = 'mes') => {
       
       const serviciosConArmado = servicios?.filter(s => s.requiere_armado).length || 0;
       const serviciosConArmadoAsignado = servicios?.filter(s => 
-        s.requiere_armado && s.armado_asignado
+        s.requiere_armado && s.armado
       ).length || 0;
       const cumplimientoArmados = serviciosConArmado > 0
         ? (serviciosConArmadoAsignado / serviciosConArmado) * 100
@@ -108,7 +108,7 @@ export const useAreaPerformanceMetrics = (periodo: PeriodoReporte = 'mes') => {
         cumplimientoArmados: Math.round(cumplimientoArmados * 10) / 10,
         
         custodiosActivosPromedio: custodiosActivos?.[0]?.count || 0,
-        armadosActivosPromedio: new Set(armadosActivos?.map(s => s.armado_asignado)).size || 0,
+        armadosActivosPromedio: new Set(armadosActivos?.map(s => s.armado)).size || 0,
         utilizacionRecursos: 68.5,
         
         serviciosPorEstado,
