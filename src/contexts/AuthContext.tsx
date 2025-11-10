@@ -212,28 +212,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (currentSession?.user) {
           setSession(currentSession);
           setUser(currentSession.user);
-          setUserRole(null); // Reset role
+          setLoading(true); // Indicar que estamos cargando el rol
           
-          // Always fetch role from database securely
-          setTimeout(async () => {
+          // Always fetch role from database securely - NO setTimeout
+          try {
+            const role = await fetchUserRole();
             if (mounted) {
-              try {
-                const role = await fetchUserRole();
-                if (mounted) {
-                  setUserRole(role);
-                }
-              } catch (error) {
-                console.error('Error fetching user role:', error);
-                if (mounted) {
-                  setUserRole('unverified');
-                }
-              }
+              setUserRole(role);
+              console.log(`✅ User role fetched successfully: ${role} for ${currentSession.user.email}`);
             }
-          }, 50);
+          } catch (error) {
+            console.error('❌ Error fetching user role:', error);
+            if (mounted) {
+              setUserRole('unverified');
+            }
+          } finally {
+            if (mounted) {
+              setLoading(false);
+            }
+          }
         } else {
           setSession(currentSession);
           setUser(null);
           setUserRole(null);
+          setLoading(false);
         }
         
         // Handle auth events
@@ -244,7 +246,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             description: `Has iniciado sesión como ${currentSession.user.email}`,
           });
           
-          // Update last login
+          // Update last login (non-blocking)
           setTimeout(async () => {
             if (mounted) {
               try {
@@ -267,7 +269,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     // Check for existing session
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
       if (!mounted) return;
       
       console.log("Initial session check:", currentSession?.user?.email);
@@ -275,14 +277,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentSession?.user ?? null);
       
       if (currentSession?.user) {
-        fetchUserRole().then(role => {
+        try {
+          const role = await fetchUserRole();
           if (mounted) {
             setUserRole(role);
+            console.log(`✅ Initial role loaded: ${role} for ${currentSession.user.email}`);
           }
-        });
+        } catch (error) {
+          console.error('❌ Error loading initial role:', error);
+          if (mounted) {
+            setUserRole('unverified');
+          }
+        }
       }
       
-      setLoading(false);
+      if (mounted) {
+        setLoading(false);
+      }
     });
 
     return () => {
