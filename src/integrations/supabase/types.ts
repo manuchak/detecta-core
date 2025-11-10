@@ -3137,6 +3137,36 @@ export type Database = {
           },
         ]
       }
+      edge_function_rate_limits: {
+        Row: {
+          action_type: string
+          created_at: string
+          function_name: string
+          id: string
+          metadata: Json | null
+          timestamp: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          function_name: string
+          id?: string
+          metadata?: Json | null
+          timestamp?: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          function_name?: string
+          id?: string
+          metadata?: Json | null
+          timestamp?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       empresas_instaladoras: {
         Row: {
           años_experiencia: number | null
@@ -10564,6 +10594,15 @@ export type Database = {
           total_amount: number
         }[]
       }
+      check_rate_limit: {
+        Args: {
+          p_action_type: string
+          p_function_name: string
+          p_limit_count?: number
+          p_window_hours?: number
+        }
+        Returns: Json
+      }
       check_route_creation_limit: {
         Args: { p_user_id: string }
         Returns: boolean
@@ -10600,6 +10639,7 @@ export type Database = {
       }
       cleanup_expired_interview_progress: { Args: never; Returns: undefined }
       cleanup_expired_skills: { Args: never; Returns: number }
+      cleanup_old_rate_limits: { Args: never; Returns: number }
       clear_redemptions_bypass_rls: { Args: never; Returns: undefined }
       compare_dashboard_vs_forensic: {
         Args: never
