@@ -146,7 +146,14 @@ function App() {
                     <Suspense fallback={<LoadingFallback />}>
                       <Routes>
                   {/* Main route - Leads as principal page */}
-                  <Route path="/" element={<SimpleLeadsPage />} />
+                  <Route 
+                    path="/" 
+                    element={
+                      <ProtectedRoute>
+                        <SimpleLeadsPage />
+                      </ProtectedRoute>
+                    } 
+                  />
                   
                   {/* Deep-link routes for draft resumption */}
                   <Route path="/resume/*" element={
