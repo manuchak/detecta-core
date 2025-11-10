@@ -41,7 +41,7 @@ export const usePlanificadoresPerformance = (periodo: PeriodoReporte = 'mes') =>
       ) || [];
       
       const { data: servicios, error: serviciosError } = await supabase
-        .from('servicios_custodia')
+        .from('pc_servicios')
         .select('*')
         .gte('created_at', fechaInicioISO);
       
@@ -53,20 +53,20 @@ export const usePlanificadoresPerformance = (periodo: PeriodoReporte = 'mes') =>
         const userId = planificador.id;
         
         const serviciosPlanificador = servicios?.filter(s => 
-          s.created_by_user_id === userId
+          s.created_by === userId
         ) || [];
         
         const totalServicios = serviciosPlanificador.length;
         
         const serviciosConfirmados = serviciosPlanificador.filter(s => 
-          s.estado_planeacion === 'confirmado' || s.estado_planeacion === 'en_curso'
+          s.custodio_asignado_id && s.estado !== 'cancelado'
         ).length;
         const tasaAceptacion = totalServicios > 0 
           ? (serviciosConfirmados / totalServicios) * 100 
           : 0;
         
         const serviciosCompletados = serviciosPlanificador.filter(s => 
-          s.estado_planeacion === 'completado'
+          s.estado === 'finalizado'
         ).length;
         const tasaCompletado = totalServicios > 0
           ? (serviciosCompletados / totalServicios) * 100
@@ -79,18 +79,12 @@ export const usePlanificadoresPerformance = (periodo: PeriodoReporte = 'mes') =>
         
         const custodiosDistintos = new Set(
           serviciosPlanificador
-            .filter(s => s.custodio_asignado)
-            .map(s => s.custodio_asignado)
-        ).size;
-        
-        const armadosDistintos = new Set(
-          serviciosPlanificador
-            .filter(s => s.armado_asignado)
-            .map(s => s.armado_asignado)
+            .filter(s => s.custodio_asignado_id)
+            .map(s => s.custodio_asignado_id)
         ).size;
         
         const serviciosActivosAhora = serviciosPlanificador.filter(s => 
-          s.estado_planeacion === 'en_curso' || s.estado_planeacion === 'confirmado'
+          s.estado !== 'cancelado' && s.estado !== 'finalizado'
         ).length;
         
         const score = calcularScore({
@@ -116,7 +110,7 @@ export const usePlanificadoresPerformance = (periodo: PeriodoReporte = 'mes') =>
           serviciosConIncidenciasPorcentaje: Math.round(serviciosConIncidenciasPorcentaje * 10) / 10,
           
           custodiosDistintos,
-          armadosDistintos,
+          armadosDistintos: 0,
           
           score: Math.round(score),
           ranking: 0,
