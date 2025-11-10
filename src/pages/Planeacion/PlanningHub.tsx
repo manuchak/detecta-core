@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Settings, BarChart3, Smartphone, Calendar, TrendingUp, Shield, AlertTriangle, ExternalLink, Save, Clock } from 'lucide-react';
+import { PlusCircle, Settings, BarChart3, Smartphone, Calendar, TrendingUp, Shield, AlertTriangle, ExternalLink, Save, Clock, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RequestCreationWorkflow } from './components/RequestCreationWorkflow';
 import { OperationalDashboard } from './components/OperationalDashboard';
@@ -220,6 +220,31 @@ export default function PlanningHub() {
           </Button>
         </div>
       </div>
+
+      {/* Reportes Quick Access Widget - Admin/Owner Only */}
+      {(user?.role === 'admin' || user?.role === 'owner') && (
+        <Card className="mb-6 bg-gradient-to-r from-chart-1/10 to-chart-2/10 border-chart-1/30 hover:shadow-md transition-all duration-200">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold flex items-center gap-2 text-foreground">
+                  <BarChart3 className="h-5 w-5 text-chart-1" />
+                  Reportes y Análisis de Performance
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Visualiza métricas del área y planificadores individuales
+                </p>
+              </div>
+              <Link to="/planeacion/reportes">
+                <Button variant="default" size="lg" className="gap-2">
+                  Ver Reportes Completos
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
       {/* Alert for duplicate services */}
       {!checkingDuplicates && totalDuplicates > 0 && (
         <Alert className="mb-6 border-warning bg-warning/5">

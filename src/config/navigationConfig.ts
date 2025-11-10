@@ -82,31 +82,21 @@ export const navigationModules: NavigationModule[] = [
     label: 'Planeación',
     icon: CalendarCheck,
     path: '/planeacion',
-    sandboxReady: false
-  },
-  {
-    id: 'reportes',
-    label: 'Reportes',
-    icon: BarChart3,
-    path: '/reportes',
-    roles: ['admin', 'owner'],
-    matchPaths: ['/reportes/area', '/reportes/planificadores'],
+    matchPaths: ['/planeacion/reportes'],
     sandboxReady: false,
     children: [
       {
-        id: 'reportes_area',
-        label: 'Performance del Área',
-        path: '/reportes/area',
-        roles: ['admin', 'owner'],
-        icon: TrendingUp,
+        id: 'planeacion_dashboard',
+        label: 'Dashboard Operacional',
+        path: '/planeacion',
         sandboxReady: false
       },
       {
-        id: 'reportes_planificadores',
-        label: 'Performance de Planificadores',
-        path: '/reportes/planificadores',
+        id: 'planeacion_reportes',
+        label: 'Reportes',
+        path: '/planeacion/reportes',
         roles: ['admin', 'owner'],
-        icon: Users,
+        icon: BarChart3,
         sandboxReady: false
       }
     ]

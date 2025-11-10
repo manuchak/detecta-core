@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TrendingUp, Users, BarChart3 } from 'lucide-react';
+import { TrendingUp, Users, BarChart3, CalendarCheck } from 'lucide-react';
+import { CustomBreadcrumb } from '@/components/ui/custom-breadcrumb';
 import AreaPerformanceDashboard from './components/AreaPerformanceDashboard';
 import PlanificadoresPerformanceDashboard from './components/PlanificadoresPerformanceDashboard';
 
@@ -9,6 +10,14 @@ export default function ReportesHub() {
   
   return (
     <div className="p-6 space-y-6">
+      {/* Breadcrumb Navigation */}
+      <CustomBreadcrumb 
+        items={[
+          { label: 'Planeación', href: '/planeacion', icon: CalendarCheck },
+          { label: 'Reportes', icon: BarChart3 }
+        ]}
+      />
+
       {/* Header */}
       <div className="space-y-2">
         <div className="flex items-center gap-2">

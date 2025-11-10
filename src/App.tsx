@@ -603,7 +603,7 @@ function App() {
                 
                 {/* Reportes de Planeación - Solo Admin/Owner */}
                 <Route
-                  path="/reportes"
+                  path="/planeacion/reportes"
                   element={
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner']}>
