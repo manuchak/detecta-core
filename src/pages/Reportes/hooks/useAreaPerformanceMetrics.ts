@@ -37,14 +37,14 @@ export const useAreaPerformanceMetrics = (periodo: PeriodoReporte = 'mes') => {
       if (serviciosError) throw serviciosError;
       
       const { data: custodiosActivos, error: custodiosError } = await supabase
-        .from('custodios')
+        .from('custodios_operativos')
         .select('id')
         .eq('estado', 'activo');
       
       if (custodiosError) throw custodiosError;
       
       const { data: armadosActivos, error: armadosError } = await supabase
-        .from('personal_armado')
+        .from('armados_operativos')
         .select('id')
         .eq('estado', 'activo');
       
