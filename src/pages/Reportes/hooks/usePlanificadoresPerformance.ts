@@ -29,19 +29,16 @@ export const usePlanificadoresPerformance = (periodo: PeriodoReporte = 'mes') =>
       
       const fechaInicioISO = fechaInicio.toISOString();
       
-      const { data: planificadores, error: planificadoresError } = await supabase
-        .from('user_roles')
-        .select(`
-          user_id,
-          profiles!inner (
-            id,
-            display_name,
-            email
-          )
-        `)
-        .eq('role', 'planificador');
+      // Usar la función RPC segura que hace el join correctamente
+      const { data: allUsersData, error: planificadoresError } = await supabase
+        .rpc('get_all_users_with_roles_secure');
       
       if (planificadoresError) throw planificadoresError;
+      
+      // Filtrar solo los planificadores
+      const planificadores = allUsersData?.filter((user: any) => 
+        user.role === 'planificador'
+      ) || [];
       
       const { data: servicios, error: serviciosError } = await supabase
         .from('servicios_custodia')
@@ -52,9 +49,8 @@ export const usePlanificadoresPerformance = (periodo: PeriodoReporte = 'mes') =>
       
       const diasEnPeriodo = Math.ceil((now.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24));
       
-      const performances: PlanificadorPerformance[] = (planificadores || []).map((planificador: any) => {
-        const userId = planificador.user_id;
-        const profile = planificador.profiles;
+      const performances: PlanificadorPerformance[] = planificadores.map((planificador: any) => {
+        const userId = planificador.id;
         
         const serviciosPlanificador = servicios?.filter(s => 
           s.created_by_user_id === userId
@@ -105,10 +101,10 @@ export const usePlanificadoresPerformance = (periodo: PeriodoReporte = 'mes') =>
         });
         
         return {
-          id: profile?.id || userId,
-          user_id: userId,
-          nombre: profile?.display_name || 'Sin nombre',
-          email: profile?.email || '',
+          id: planificador.id,
+          user_id: planificador.id,
+          nombre: planificador.display_name || 'Sin nombre',
+          email: planificador.email || '',
           
           serviciosCreados: totalServicios,
           serviciosPorDia: totalServicios / diasEnPeriodo,
