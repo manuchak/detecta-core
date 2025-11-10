@@ -36,17 +36,18 @@ export const useAreaPerformanceMetrics = (periodo: PeriodoReporte = 'mes') => {
       
       if (serviciosError) throw serviciosError;
       
+      // Usar las mismas RPCs del Dashboard para medir custodios activos
       const { data: custodiosActivos, error: custodiosError } = await supabase
-        .from('custodios_operativos')
-        .select('id')
-        .eq('estado', 'activo');
+        .rpc('get_active_custodians_count');
       
       if (custodiosError) throw custodiosError;
       
+      // Para armados, contar los que han tenido servicios en los últimos 30 días
       const { data: armadosActivos, error: armadosError } = await supabase
-        .from('armados_operativos')
-        .select('id')
-        .eq('estado', 'activo');
+        .from('servicios_custodia')
+        .select('armado_asignado')
+        .gte('created_at', fechaInicioISO)
+        .not('armado_asignado', 'is', null);
       
       if (armadosError) throw armadosError;
       
@@ -106,8 +107,8 @@ export const useAreaPerformanceMetrics = (periodo: PeriodoReporte = 'mes') => {
         tasaReplanificacion,
         cumplimientoArmados: Math.round(cumplimientoArmados * 10) / 10,
         
-        custodiosActivosPromedio: custodiosActivos?.length || 0,
-        armadosActivosPromedio: armadosActivos?.length || 0,
+        custodiosActivosPromedio: custodiosActivos?.[0]?.count || 0,
+        armadosActivosPromedio: new Set(armadosActivos?.map(s => s.armado_asignado)).size || 0,
         utilizacionRecursos: 68.5,
         
         serviciosPorEstado,
