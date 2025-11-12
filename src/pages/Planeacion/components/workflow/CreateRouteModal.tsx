@@ -202,6 +202,43 @@ export function CreateRouteModal({
     return true;
   };
 
+  const ensureClientExists = async (clienteName: string, userId: string) => {
+    // Verificar si ya existe en pc_clientes
+    const { data: existingClient } = await supabase
+      .from('pc_clientes')
+      .select('id')
+      .eq('nombre', clienteName.trim())
+      .maybeSingle();
+
+    if (existingClient) {
+      console.log('✅ Cliente ya existe en pc_clientes:', existingClient.id);
+      return existingClient.id;
+    }
+
+    // Crear nuevo cliente
+    console.log('🆕 Creando nuevo cliente en pc_clientes:', clienteName);
+    const { data: newClient, error } = await supabase
+      .from('pc_clientes')
+      .insert({
+        nombre: clienteName.trim(),
+        contacto_nombre: 'Por definir',
+        contacto_tel: 'Por definir',
+        activo: true,
+        notas: 'Cliente creado automáticamente desde flujo de servicio',
+        created_by: userId
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('❌ Error creando cliente:', error);
+      throw new Error(`No se pudo crear el cliente: ${error.message}`);
+    }
+
+    toast.success(`Cliente "${clienteName}" registrado exitosamente`);
+    return newClient.id;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -285,6 +322,9 @@ export function CreateRouteModal({
     setCreating(true);
     
     try {
+      // 🆕 NUEVO: Asegurar que el cliente existe en pc_clientes
+      await ensureClientExists(clientName, user.id);
+
       // Get user role for enhanced logging
       let userRole = 'unknown';
       try {
@@ -373,6 +413,11 @@ export function CreateRouteModal({
       console.log('🔄 [CreateRouteModal] Iniciando refresh de queries del cache...');
 
       // Refrescar queries
+      await queryClient.refetchQueries({ 
+        queryKey: ['all-clientes-unified'], // 🆕 NUEVO
+        type: 'active',
+      });
+
       await queryClient.refetchQueries({ 
         queryKey: ['origenes-con-frecuencia', clientName],
         type: 'active',

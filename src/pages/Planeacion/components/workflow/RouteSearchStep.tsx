@@ -6,13 +6,14 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Search, MapPin, DollarSign, AlertTriangle, CheckCircle, Plus, RefreshCw, XCircle } from 'lucide-react';
+import { Search, MapPin, DollarSign, AlertTriangle, CheckCircle, Plus, RefreshCw, XCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useClientesFromPricing, useDestinosFromPricing } from '@/hooks/useClientesFromPricing';
+import { useAllClientes, useDestinosFromPricing } from '@/hooks/useClientesFromPricing';
 import { useOrigenesConFrecuencia } from '@/hooks/useOrigenesConFrecuencia';
 import { CreateRouteModal } from './CreateRouteModal';
 import { useQueryClient } from '@tanstack/react-query';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export interface RouteData {
   cliente_nombre: string;
@@ -74,7 +75,7 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
   const [isUpdatingFromCreation, setIsUpdatingFromCreation] = useState(false);
 
   const queryClient = useQueryClient();
-  const { data: clientesFromPricing = [] } = useClientesFromPricing();
+  const { data: allClientes = [] } = useAllClientes();
   const { data: origenesConFrecuencia = [] } = useOrigenesConFrecuencia(cliente);
   const { 
     data: destinosFromPricing = [], 
@@ -84,9 +85,14 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
   } = useDestinosFromPricing(cliente, origen);
 
   // Filtrar clientes para sugerencias
-  const clienteSuggestions = clientesFromPricing
-    .filter(c => c.cliente_nombre.toLowerCase().includes(cliente.toLowerCase()))
-    .slice(0, 5);
+  const clienteSuggestions = allClientes
+    .filter(c => c.nombre.toLowerCase().includes(cliente.toLowerCase()))
+    .slice(0, 8); // Aumentar a 8 sugerencias
+  
+  // Verificar si el cliente escrito es nuevo
+  const isNewClient = cliente.trim().length >= 3 && !allClientes.some(c => 
+    c.nombre.toLowerCase() === cliente.toLowerCase()
+  );
 
   // Auto-buscar precio cuando se tengan cliente, origen y destino
   useEffect(() => {
@@ -256,8 +262,13 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
   };
 
   const handleContinue = () => {
-    if (!cliente || !origen || !destino) {
-      toast.error('Por favor completa cliente, origen y destino');
+    if (!cliente || cliente.trim().length < 3) {
+      toast.error('Escribe al menos 3 caracteres para el nombre del cliente');
+      return;
+    }
+    
+    if (!origen || !destino) {
+      toast.error('Por favor completa origen y destino');
       return;
     }
     
@@ -304,6 +315,8 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
     // Limpiar origen y destino cuando se cambia cliente
     setOrigen('');
     setDestino('');
+    setPriceEstimate(null);
+    setSearchError('');
     
     // Notify draft change
     if (onDraftChange) {
@@ -406,16 +419,39 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
                     <button
                       key={index}
                       className="w-full text-left px-4 py-3 hover:bg-muted/80 border-b border-border last:border-b-0 transition-colors"
-                      onClick={() => selectClientSuggestion(c.cliente_nombre)}
+                      onClick={() => selectClientSuggestion(c.nombre)}
                     >
-                      <div className="font-semibold text-foreground">{c.cliente_nombre}</div>
-                      <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                        <MapPin className="h-3 w-3" />
-                        {c.servicios_count} rutas disponibles
+                      <div className="flex items-center justify-between">
+                        <div className="font-semibold text-foreground">{c.nombre}</div>
+                        {c.tiene_rutas ? (
+                          <Badge variant="secondary" className="text-xs">
+                            {c.rutas_count} {c.rutas_count === 1 ? 'ruta' : 'rutas'}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-xs bg-blue-50 dark:bg-blue-950">
+                            Cliente registrado
+                          </Badge>
+                        )}
                       </div>
+                      {c.tiene_rutas && (
+                        <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                          <MapPin className="h-3 w-3" />
+                          Rutas disponibles
+                        </div>
+                      )}
                     </button>
                   ))}
                 </div>
+              )}
+              
+              {/* Indicador de Cliente Nuevo */}
+              {isNewClient && (
+                <Alert className="mt-2 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+                  <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <AlertDescription className="text-sm text-blue-800 dark:text-blue-200">
+                    <strong>Cliente nuevo:</strong> "{cliente}" será registrado automáticamente al crear la ruta
+                  </AlertDescription>
+                </Alert>
               )}
             </div>
 
