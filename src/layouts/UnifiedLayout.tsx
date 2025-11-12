@@ -20,21 +20,10 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
   children, 
   sidebarStats 
 }) => {
-  const { user, loading, userRole } = useAuth();
-  const [isInitializing, setIsInitializing] = useState(true);
+  const { user, loading, roleLoading } = useAuth();
 
-  useEffect(() => {
-    if (!loading && user) {
-      if (userRole !== null) {
-        setIsInitializing(false);
-      }
-    } else if (!loading && !user) {
-      setIsInitializing(false);
-    }
-  }, [loading, user, userRole]);
-
-  // Show loading skeleton while checking authentication
-  if (loading || isInitializing) {
+  // Show loading skeleton while checking authentication (session only)
+  if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="space-y-4">
@@ -42,7 +31,7 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
             <Skeleton className="h-8 w-64 mx-auto" />
             <Skeleton className="h-4 w-48 mx-auto mt-2" />
-            <p className="text-sm text-muted-foreground mt-4">Cargando...</p>
+            <p className="text-sm text-muted-foreground mt-4">Verificando sesión...</p>
           </div>
         </div>
       </div>
@@ -54,22 +43,20 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
     return <Navigate to="/auth/login" replace />;
   }
 
-  // User role verification
-  if (!userRole) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="space-y-4 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="text-sm text-muted-foreground">Verificando permisos...</p>
-          <p className="text-xs text-muted-foreground">Usuario: {user.email}</p>
-        </div>
-      </div>
-    );
-  }
+  // Show role loading banner (non-blocking)
+  const roleLoadingBanner = roleLoading && (
+    <div className="bg-muted/50 border-b border-border px-4 py-2 text-center">
+      <p className="text-xs text-muted-foreground">
+        <span className="inline-block animate-pulse mr-2">●</span>
+        Verificando permisos...
+      </p>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-background">
       <SimplifiedTopBar />
+      {roleLoadingBanner}
       
       <SidebarProvider defaultOpen={true}>
         <div className="flex w-full min-h-[calc(100vh-3rem)]">
