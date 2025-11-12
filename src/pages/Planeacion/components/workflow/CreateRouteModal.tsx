@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,12 +9,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useRouteAudit } from '@/hooks/useRouteAudit';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { AlertCircle, AlertTriangle, Loader2, Plus, XCircle, MapPin } from 'lucide-react';
+import { AlertCircle, Loader2, Plus, XCircle, MapPin } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DuplicateRouteDialog } from '@/components/dialogs/DuplicateRouteDialog';
 
 interface CreateRouteModalProps {
   open: boolean;
@@ -49,9 +48,6 @@ export function CreateRouteModal({
   const queryClient = useQueryClient();
   const [creating, setCreating] = useState(false);
   const [canCreateToday, setCanCreateToday] = useState<boolean | null>(null);
-  const [existingRouteWarning, setExistingRouteWarning] = useState<any>(null);
-  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
-  const [pendingRouteData, setPendingRouteData] = useState<any>(null);
   
   const [formData, setFormData] = useState({
     origen_texto: origin,
@@ -78,38 +74,9 @@ export function CreateRouteModal({
       // Check daily limit when opening modal
       const canCreate = await checkDailyLimit();
       setCanCreateToday(canCreate);
-    } else {
-      // Reset warning when closing
-      setExistingRouteWarning(null);
     }
     onOpenChange(newOpen);
   };
-
-  // Real-time validation for duplicate routes
-  useEffect(() => {
-    const checkExistingRoute = async () => {
-      if (!formData.destino_texto.trim() || formData.destino_texto.trim().length < 3) {
-        setExistingRouteWarning(null);
-        return;
-      }
-      
-      try {
-        const { data } = await supabase
-          .from('matriz_precios_rutas')
-          .select('id, valor_bruto, precio_custodio, distancia_km, activo')
-          .eq('cliente_nombre', clientName)
-          .eq('destino_texto', formData.destino_texto.trim())
-          .maybeSingle();
-        
-        setExistingRouteWarning(data);
-      } catch (error) {
-        console.error('Error checking existing route:', error);
-      }
-    };
-    
-    const debounceTimer = setTimeout(checkExistingRoute, 500);
-    return () => clearTimeout(debounceTimer);
-  }, [formData.destino_texto, clientName]);
 
   const handleDayToggle = (day: string) => {
     setFormData(prev => ({
@@ -246,45 +213,6 @@ export function CreateRouteModal({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuario no autenticado');
 
-      // ✅ VALIDACIÓN PRE-INSERCIÓN: Verificar si la ruta ya existe
-      const { data: existingRoute } = await supabase
-        .from('matriz_precios_rutas')
-        .select('id, cliente_nombre, destino_texto, valor_bruto, precio_custodio, distancia_km, activo')
-        .eq('cliente_nombre', clientName)
-        .eq('destino_texto', formData.destino_texto.trim())
-        .maybeSingle();
-
-      if (existingRoute) {
-        console.log('⚠️ [CreateRouteModal] Ruta duplicada encontrada:', existingRoute);
-        
-        // Preparar datos para el diálogo
-        const newData = {
-          destino_texto: formData.destino_texto.trim(),
-          valor_bruto: parseFloat(formData.valor_bruto),
-          precio_custodio: parseFloat(formData.precio_custodio),
-          distancia_km: parseFloat(formData.distancia_km),
-        };
-        
-        setPendingRouteData({ existingRoute, newData, user });
-        setShowDuplicateDialog(true);
-        setCreating(false);
-        return; // Esperar decisión del usuario
-      }
-
-      // Si no hay duplicado, continuar con la creación normal
-      await createOrUpdateRoute(user, null);
-
-    } catch (err) {
-      handleCreateError(err);
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const createOrUpdateRoute = async (user: any, existingRouteId: string | null) => {
-    setCreating(true);
-    
-    try {
       // Get user role for enhanced logging
       let userRole = 'unknown';
       try {
@@ -309,8 +237,12 @@ export function CreateRouteModal({
         costo_operativo: formData.costo_operativo ? parseFloat(formData.costo_operativo) : null,
         distancia_km: parseFloat(formData.distancia_km),
         tipo_servicio: formData.tipo_servicio,
+        // IMPORTANTE: dias_operacion debe ser JSON string porque la columna en DB es TEXT
+        // La BD almacena: '["lunes","martes"]' (string JSON)
+        // NO enviar: ['lunes','martes'] (array directo) ❌
         dias_operacion: JSON.stringify(formData.dias_operacion),
         es_ruta_reparto: formData.es_ruta_reparto || false,
+        // CORRECTO: puntos_intermedios es JSONB (array) - Supabase convierte automáticamente
         puntos_intermedios: formData.es_ruta_reparto && formData.puntos_intermedios.length > 0
           ? formData.puntos_intermedios
           : [],
@@ -318,8 +250,7 @@ export function CreateRouteModal({
         created_by: user.id
       };
 
-      console.log('💾 [CreateRouteModal] Guardando ruta en BD...', {
-        isUpdate: !!existingRouteId,
+      console.log('💾 [CreateRouteModal] Insertando ruta en BD...', {
         routeData_summary: {
           cliente: routeData.cliente_nombre,
           origen: routeData.origen_texto,
@@ -329,18 +260,15 @@ export function CreateRouteModal({
         }
       });
 
-      // ✅ UPSERT en lugar de INSERT para manejar duplicados automáticamente
+      // Insert route
       const { data: newRoute, error: insertError } = await supabase
         .from('matriz_precios_rutas')
-        .upsert(routeData, {
-          onConflict: 'cliente_nombre,destino_texto',
-          ignoreDuplicates: false  // Actualizar si existe
-        })
+        .insert(routeData)
         .select()
         .single();
 
       if (insertError) {
-        console.error('💥 [CreateRouteModal] Error en UPSERT de Supabase:', {
+        console.error('💥 [CreateRouteModal] Error en INSERT de Supabase:', {
           error: insertError,
           code: insertError.code,
           message: insertError.message,
@@ -350,33 +278,39 @@ export function CreateRouteModal({
         throw insertError;
       }
 
-      console.log('✅ [CreateRouteModal] Ruta guardada exitosamente en BD:', {
+      console.log('✅ [CreateRouteModal] Ruta creada exitosamente en BD:', {
         route_id: newRoute.id,
-        was_update: !!existingRouteId,
         timestamp: new Date().toISOString()
       });
 
-      // Log the audit (non-blocking)
+      // Log the audit (non-blocking - don't await to prevent audit failures from blocking route creation)
       logRouteAction({
         route_id: newRoute.id,
-        action_type: existingRouteId ? 'updated' : 'created',
-        previous_data: existingRouteId ? pendingRouteData?.existingRoute : null,
+        action_type: 'created',
         new_data: routeData,
         justification: formData.justificacion
       }).catch(auditErr => {
-        console.warn('⚠️ [CreateRouteModal] Audit logging failed (non-critical):', auditErr);
-        toast.warning('Ruta guardada, pero no se pudo registrar en auditoría', {
-          description: 'La ruta se guardó correctamente, pero hubo un problema al registrar el log de auditoría.'
+        // Log but don't fail the route creation
+        console.warn('⚠️ [CreateRouteModal] Audit logging failed (non-critical):', {
+          auditError: auditErr,
+          auditErrorMessage: auditErr instanceof Error ? auditErr.message : 'Unknown',
+          route: newRoute.id
+        });
+        
+        // Show warning to user
+        toast.warning('Ruta creada, pero no se pudo registrar en auditoría', {
+          description: 'La ruta se creó correctamente, pero hubo un problema al registrar el log de auditoría.'
         });
       });
 
       console.log('🔄 [CreateRouteModal] Iniciando refresh de queries del cache...');
 
-      // Refrescar queries
+      // Refrescar queries activas para sincronizar el estado INMEDIATAMENTE
+      // exact: false para refrescar todas las variantes de estas queries
       await queryClient.refetchQueries({ 
         queryKey: ['origenes-con-frecuencia', clientName],
         type: 'active',
-        exact: false
+        exact: false  // Refrescar todas las queries relacionadas
       });
 
       await queryClient.refetchQueries({ 
@@ -391,21 +325,24 @@ export function CreateRouteModal({
         exact: false
       });
 
+      // Invalidar queries no activas para que se refresquen cuando se monten
       await queryClient.invalidateQueries({ 
         queryKey: ['matriz_precios_rutas'],
-        exact: false
+        exact: false  // Invalidar todas las variantes
       });
 
       console.log('✅ [CreateRouteModal] Queries refrescadas exitosamente');
 
+      // Delay más largo para asegurar que los datos se propaguen completamente
+      // Aumentado de 500ms a 1500ms para prevenir race conditions
+      console.log('⏳ [CreateRouteModal] Esperando 1.5s para propagación de datos...');
       await new Promise(resolve => setTimeout(resolve, 1500));
 
-      toast.success(existingRouteId ? 'Ruta actualizada exitosamente' : 'Ruta creada exitosamente', {
-        description: existingRouteId 
-          ? 'La ruta existente ha sido actualizada con los nuevos valores'
-          : 'La ruta ha sido registrada y está lista para usar'
+      toast.success('Ruta creada exitosamente', {
+        description: 'La ruta ha sido registrada y está lista para usar'
       });
 
+      // Call parent callback with new route
       onRouteCreated(newRoute);
       
       // Reset form and close
@@ -422,22 +359,12 @@ export function CreateRouteModal({
         es_ruta_reparto: false,
         puntos_intermedios: []
       });
-      setExistingRouteWarning(null);
-      setPendingRouteData(null);
       onOpenChange(false);
 
     } catch (err) {
-      handleCreateError(err);
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const handleCreateError = (err: unknown) => {
-    // Capture Supabase error with proper typing
-    const supabaseError = err as { message?: string; code?: string; details?: string; hint?: string };
-    
-    (async () => {
+      // Capture Supabase error with proper typing
+      const supabaseError = err as { message?: string; code?: string; details?: string; hint?: string };
+      
       // Enhanced error logging with user context
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -449,21 +376,6 @@ export function CreateRouteModal({
         console.warn('⚠️ Could not fetch user role in error handler:', roleErr);
       }
       
-      // ✅ DETECCIÓN ESPECÍFICA DE ERROR DE DUPLICADO
-      const isDuplicateError = 
-        supabaseError.code === '23505' || 
-        supabaseError.message?.includes('duplicate key') ||
-        supabaseError.message?.includes('matriz_precios_rutas_cliente_destino_unique');
-
-      if (isDuplicateError) {
-        console.error('🔴 [CreateRouteModal] Error de ruta duplicada detectado:', supabaseError);
-        toast.error('Ruta duplicada', {
-          description: `Ya existe una ruta para ${clientName} → ${formData.destino_texto.trim()}. Por favor, edita la ruta existente o usa un destino diferente.`,
-          duration: 8000
-        });
-        return;
-      }
-
       console.error('❌ [CreateRouteModal] Error completo al crear ruta:', {
         timestamp: new Date().toISOString(),
         error: err,
@@ -512,22 +424,11 @@ export function CreateRouteModal({
       
       toast.error('Error al crear la ruta', {
         description: errorDescription,
-        duration: 8000
+        duration: 8000 // More time to read the message
       });
-    })();
-  };
-
-  const handleDuplicateConfirm = () => {
-    setShowDuplicateDialog(false);
-    if (pendingRouteData) {
-      createOrUpdateRoute(pendingRouteData.user, pendingRouteData.existingRoute.id);
+    } finally {
+      setCreating(false);
     }
-  };
-
-  const handleDuplicateCancel = () => {
-    setShowDuplicateDialog(false);
-    setPendingRouteData(null);
-    setCreating(false);
   };
 
   return (
@@ -584,23 +485,6 @@ export function CreateRouteModal({
               />
             </div>
           </div>
-
-          {/* ✅ ADVERTENCIA DE RUTA EXISTENTE */}
-          {existingRouteWarning && (
-            <Alert className="border-amber-500 bg-amber-50 dark:bg-amber-950/30">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-amber-800 dark:text-amber-200">
-                <strong>⚠️ Ruta Existente:</strong> Ya hay una ruta registrada para este destino
-                <div className="mt-2 text-sm space-y-1">
-                  <div>• Precio actual: <strong>${existingRouteWarning.valor_bruto?.toFixed(2)}</strong></div>
-                  <div>• Estado: <strong>{existingRouteWarning.activo ? 'Activa' : 'Inactiva'}</strong></div>
-                  <div className="text-xs mt-2 text-muted-foreground">
-                    Al continuar, se te pedirá confirmar si deseas actualizar la ruta existente.
-                  </div>
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
 
           {/* Pricing fields */}
           <div className="grid grid-cols-2 gap-4">
@@ -837,17 +721,6 @@ export function CreateRouteModal({
           </DialogFooter>
         </form>
       </DialogContent>
-
-      {/* ✅ DIÁLOGO DE CONFIRMACIÓN DE DUPLICADO */}
-      {showDuplicateDialog && pendingRouteData && (
-        <DuplicateRouteDialog
-          open={showDuplicateDialog}
-          existingRoute={pendingRouteData.existingRoute}
-          newData={pendingRouteData.newData}
-          onConfirm={handleDuplicateConfirm}
-          onCancel={handleDuplicateCancel}
-        />
-      )}
     </Dialog>
   );
 }

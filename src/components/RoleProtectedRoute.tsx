@@ -47,16 +47,6 @@ const RoleProtectedRoute = ({
 
   // Verificar acceso por roles
   if (allowedRoles && (!userRole || !hasRole(allowedRoles))) {
-    // Log detallado para debugging
-    console.warn('🚫 RoleProtectedRoute: Access denied', {
-      user: user?.email,
-      userRole,
-      allowedRoles,
-      hasRole: hasRole(allowedRoles),
-      path: window.location.pathname,
-      timestamp: new Date().toISOString()
-    });
-    
     if (showAccessDenied) {
       return (
         <div className="min-h-screen flex items-center justify-center bg-background p-6">
@@ -67,10 +57,7 @@ const RoleProtectedRoute = ({
                 <p className="text-muted-foreground mb-4">
                   No tienes permisos para acceder a esta sección.
                 </p>
-                <div className="space-y-2 text-sm bg-muted p-3 rounded-md">
-                  <p>
-                    <span className="font-medium">Usuario:</span> {user?.email || 'No identificado'}
-                  </p>
+                <div className="space-y-2 text-sm">
                   <p>
                     <span className="font-medium">Tu rol:</span> {userRole || 'No asignado'}
                   </p>
@@ -78,9 +65,6 @@ const RoleProtectedRoute = ({
                     <span className="font-medium">Roles requeridos:</span> {allowedRoles.join(', ')}
                   </p>
                 </div>
-                <p className="text-xs text-muted-foreground mt-4">
-                  Si crees que esto es un error, contacta al administrador.
-                </p>
               </div>
             </CardContent>
           </Card>
@@ -92,16 +76,6 @@ const RoleProtectedRoute = ({
 
   // Verificar acceso por permisos específicos
   if (requiredPermission && !hasPermission(requiredPermission)) {
-    // Log detallado para debugging
-    console.warn('🚫 RoleProtectedRoute: Permission denied', {
-      user: user?.email,
-      userRole,
-      requiredPermission,
-      hasPermission: hasPermission(requiredPermission),
-      path: window.location.pathname,
-      timestamp: new Date().toISOString()
-    });
-    
     if (showAccessDenied) {
       return (
         <div className="min-h-screen flex items-center justify-center bg-background p-6">
@@ -112,10 +86,7 @@ const RoleProtectedRoute = ({
                 <p className="text-muted-foreground mb-4">
                   Tu rol actual no tiene los permisos necesarios para esta acción.
                 </p>
-                <div className="space-y-2 text-sm bg-muted p-3 rounded-md">
-                  <p>
-                    <span className="font-medium">Usuario:</span> {user?.email || 'No identificado'}
-                  </p>
+                <div className="space-y-2 text-sm">
                   <p>
                     <span className="font-medium">Tu rol:</span> {userRole || 'No asignado'}
                   </p>
@@ -123,9 +94,6 @@ const RoleProtectedRoute = ({
                     <span className="font-medium">Permiso requerido:</span> {requiredPermission}
                   </p>
                 </div>
-                <p className="text-xs text-muted-foreground mt-4">
-                  Si crees que esto es un error, contacta al administrador.
-                </p>
               </div>
             </CardContent>
           </Card>
