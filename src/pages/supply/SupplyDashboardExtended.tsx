@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useSupplyDashboard } from "@/hooks/useSupplyDashboard";
 import { Link } from "react-router-dom";
+import { DailyCallStats } from "@/components/supply/DailyCallStats";
 
 const SupplyDashboardExtended = () => {
   const { 
@@ -71,6 +72,9 @@ const SupplyDashboardExtended = () => {
             </Button>
           </div>
         </div>
+
+        {/* Dashboard de Métricas de Llamadas */}
+        <DailyCallStats />
 
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
