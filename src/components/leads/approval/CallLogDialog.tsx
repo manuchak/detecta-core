@@ -117,12 +117,25 @@ export const CallLogDialog = ({
 
     setLoading(true);
     try {
+      // Validar que el usuario esté autenticado
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !user) {
+        toast({
+          title: "Error de autenticación",
+          description: "No se pudo verificar tu sesión. Por favor inicia sesión nuevamente.",
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
+      }
+
       // Preparar datos del insert
       const insertData: any = {
         lead_id: lead.lead_id,
         call_outcome: callOutcome,
         call_notes: callNotes || null,
-        created_by: (await supabase.auth.getUser()).data.user?.id,
+        created_by: user.id,
       };
 
 
