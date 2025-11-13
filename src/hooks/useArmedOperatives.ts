@@ -75,17 +75,36 @@ export function useArmedOperatives() {
 
   const createOperative = async (operativeData: CreateArmedOperativeData): Promise<ArmedOperative | null> => {
     try {
-      // Check for duplicates by name and phone
-      const { data: existing } = await supabase
+      // Check for duplicates by name (case-insensitive, normalized) and phone
+      const normalizedName = operativeData.nombre.trim().toLowerCase();
+      
+      // Check by normalized name
+      const { data: existingByName } = await supabase
         .from('armados_operativos')
         .select('id, nombre, telefono')
-        .eq('nombre', operativeData.nombre)
+        .ilike('nombre', normalizedName)
         .eq('tipo_armado', 'interno')
         .maybeSingle();
 
-      if (existing) {
-        toast.error(`Ya existe un armado con el nombre "${operativeData.nombre}"`);
+      if (existingByName) {
+        toast.error(`Ya existe un armado con el nombre "${existingByName.nombre}"`);
         return null;
+      }
+
+      // Check by phone if provided
+      if (operativeData.telefono) {
+        const normalizedPhone = operativeData.telefono.replace(/\s+/g, '');
+        const { data: existingByPhone } = await supabase
+          .from('armados_operativos')
+          .select('id, nombre, telefono')
+          .eq('telefono', normalizedPhone)
+          .eq('tipo_armado', 'interno')
+          .maybeSingle();
+
+        if (existingByPhone) {
+          toast.error(`Ya existe un armado con el teléfono ${operativeData.telefono}: "${existingByPhone.nombre}"`);
+          return null;
+        }
       }
 
       const newOperative = {
