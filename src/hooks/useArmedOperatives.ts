@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { z } from 'zod';
+
+// Schema de validación para teléfono
+const phoneSchema = z.string()
+  .regex(/^[0-9]{10}$/, 'El teléfono debe tener exactamente 10 dígitos')
+  .optional()
+  .or(z.literal(''));
 
 export interface ArmedOperative {
   id: string;
@@ -75,6 +82,15 @@ export function useArmedOperatives() {
 
   const createOperative = async (operativeData: CreateArmedOperativeData): Promise<ArmedOperative | null> => {
     try {
+      // Validar formato de teléfono si fue proporcionado
+      if (operativeData.telefono && operativeData.telefono.trim() !== '') {
+        const phoneValidation = phoneSchema.safeParse(operativeData.telefono);
+        if (!phoneValidation.success) {
+          toast.error('El teléfono debe tener exactamente 10 dígitos numéricos');
+          return null;
+        }
+      }
+
       // Check for duplicates by name (case-insensitive, normalized) and phone
       const normalizedName = operativeData.nombre.trim().toLowerCase();
       

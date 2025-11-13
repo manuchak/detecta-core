@@ -7,6 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Phone, MapPin, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useArmedOperatives, CreateArmedOperativeData } from '@/hooks/useArmedOperatives';
+import { z } from 'zod';
+
+// Schema de validación para teléfono mexicano (10 dígitos)
+const phoneSchema = z.string()
+  .regex(/^[0-9]{10}$/, 'Debe tener exactamente 10 dígitos')
+  .or(z.string().length(0)); // Permite campo vacío
 
 const ZONAS_DISPONIBLES = [
   'Ciudad de México',
@@ -27,13 +33,15 @@ interface QuickArmedRegistrationModalProps {
   onOpenChange: (open: boolean) => void;
   prefilledName?: string;
   onSuccess?: (armedId: string, armedName: string) => void;
+  onCancel?: () => void;
 }
 
 export function QuickArmedRegistrationModal({ 
   open, 
   onOpenChange, 
   prefilledName = '',
-  onSuccess 
+  onSuccess,
+  onCancel 
 }: QuickArmedRegistrationModalProps) {
   const { createOperative } = useArmedOperatives();
   const [formData, setFormData] = useState<CreateArmedOperativeData>({
@@ -43,12 +51,44 @@ export function QuickArmedRegistrationModal({
     origen: 'registro_rapido'
   });
   const [submitting, setSubmitting] = useState(false);
+  const [phoneError, setPhoneError] = useState<string>('');
 
   React.useEffect(() => {
     if (prefilledName) {
       setFormData(prev => ({ ...prev, nombre: prefilledName }));
     }
   }, [prefilledName]);
+
+  const handlePhoneChange = (value: string) => {
+    // Solo permitir dígitos y limitar a 10 caracteres
+    const cleaned = value.replace(/\D/g, '').slice(0, 10);
+    setFormData(prev => ({ ...prev, telefono: cleaned }));
+    
+    // Validar en tiempo real
+    if (cleaned.length > 0 && cleaned.length !== 10) {
+      setPhoneError('Debe tener 10 dígitos');
+    } else {
+      setPhoneError('');
+    }
+  };
+
+  const handleCancel = () => {
+    // Reset form
+    setFormData({
+      nombre: '',
+      telefono: '',
+      zona_base: '',
+      origen: 'registro_rapido'
+    });
+    setPhoneError('');
+    
+    // Call parent onCancel to clear searchQuery
+    if (onCancel) {
+      onCancel();
+    }
+    
+    onOpenChange(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +99,15 @@ export function QuickArmedRegistrationModal({
 
     if (!formData.zona_base) {
       return;
+    }
+
+    // Validar teléfono si fue proporcionado
+    if (formData.telefono) {
+      const validation = phoneSchema.safeParse(formData.telefono);
+      if (!validation.success) {
+        setPhoneError('Formato inválido: debe tener 10 dígitos');
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -77,6 +126,7 @@ export function QuickArmedRegistrationModal({
         zona_base: '',
         origen: 'registro_rapido'
       });
+      setPhoneError('');
     }
   };
 
@@ -129,13 +179,22 @@ export function QuickArmedRegistrationModal({
             <Input
               id="telefono"
               value={formData.telefono}
-              onChange={(e) => setFormData(prev => ({ ...prev, telefono: e.target.value }))}
+              onChange={(e) => handlePhoneChange(e.target.value)}
               placeholder="Ej: 5512345678"
               type="tel"
+              maxLength={10}
+              className={phoneError ? 'border-destructive focus-visible:ring-destructive' : ''}
             />
-            <p className="text-xs text-muted-foreground">
-              Opcional, pero recomendado para contacto directo
-            </p>
+            {phoneError ? (
+              <p className="text-xs text-destructive flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {phoneError}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Opcional, pero recomendado (10 dígitos)
+              </p>
+            )}
           </div>
 
           {/* Zona Base */}
@@ -179,12 +238,15 @@ export function QuickArmedRegistrationModal({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={handleCancel}
               disabled={submitting}
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={submitting || !formData.nombre.trim() || !formData.zona_base}>
+            <Button 
+              type="submit" 
+              disabled={submitting || !formData.nombre.trim() || !formData.zona_base || !!phoneError}
+            >
               {submitting ? 'Registrando...' : 'Registrar Armado'}
             </Button>
           </DialogFooter>
