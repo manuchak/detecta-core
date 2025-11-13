@@ -58,7 +58,7 @@ export const DailyCallStats = () => {
       const { count: pendingCount, error: pendingError } = await supabase
         .from('leads')
         .select('*', { count: 'exact', head: true })
-        .is('assigned_to', null);
+        .is('asignado_a', null);
 
       if (pendingError) throw pendingError;
 
