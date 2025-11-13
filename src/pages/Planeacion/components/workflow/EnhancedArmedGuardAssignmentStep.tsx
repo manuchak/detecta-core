@@ -534,6 +534,11 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
     setSearchQuery(''); // Clear search
   };
 
+  // Handle modal cancellation - clear search query
+  const handleQuickRegistrationCancel = () => {
+    setSearchQuery('');
+  };
+
   // Filter armed guards by search query
   const filteredArmedGuards = armedGuards.filter(guard => 
     guard.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -844,6 +849,7 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
         onOpenChange={setShowQuickRegistrationModal}
         prefilledName={searchQuery}
         onSuccess={handleQuickRegistrationSuccess}
+        onCancel={handleQuickRegistrationCancel}
       />
     </>
   );
