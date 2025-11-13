@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { AppleTimePicker } from '@/components/ui/apple-time-picker';
 import { SmartLocationDropdown } from '@/components/ui/smart-location-dropdown';
 import { useMeetingTimeCalculator } from '@/hooks/useMeetingTimeCalculator';
@@ -10,8 +11,9 @@ import { useAssignmentAudit } from '@/hooks/useAssignmentAudit';
 import { useCustodianVehicles } from '@/hooks/useCustodianVehicles';
 import { AssignmentConfirmationModal } from './AssignmentConfirmationModal';
 import { ExternalArmedVerificationModal } from '@/components/planeacion/ExternalArmedVerificationModal';
+import { QuickArmedRegistrationModal } from '@/components/planeacion/QuickArmedRegistrationModal';
 import { ExpandableArmedCard } from '@/components/planeacion/ExpandableArmedCard';
-import { Shield, User, MapPin, Clock, Phone, MessageCircle, CheckCircle2, AlertCircle, Info } from 'lucide-react';
+import { Shield, User, MapPin, Clock, Phone, MessageCircle, CheckCircle2, AlertCircle, Info, Search, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ArmedGuard {
@@ -93,9 +95,18 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
   const [showExternalVerificationModal, setShowExternalVerificationModal] = useState(false);
   const [selectedProviderForVerification, setSelectedProviderForVerification] = useState<ArmedProvider | null>(null);
   const [assignmentData, setAssignmentData] = useState<ArmedGuardAssignmentData | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showQuickRegistrationModal, setShowQuickRegistrationModal] = useState(false);
 
-// Use enhanced hooks with fallback mock data
-const { armedGuards: hookArmedGuards, providers: hookProviders, loading, error, assignArmedGuard } = useArmedGuardsWithTracking(serviceData);
+  // Use enhanced hooks with fallback mock data
+  const { 
+    armedGuards: hookArmedGuards, 
+    providers: hookProviders, 
+    loading, 
+    error,
+    assignArmedGuard,
+    refetch
+  } = useArmedGuardsWithTracking(serviceData);
   const { logAssignmentAction } = useAssignmentAudit();
   const { getPrincipalVehicle } = useCustodianVehicles(serviceData.custodio_asignado_id);
 
@@ -477,6 +488,23 @@ const { armedGuards: hookArmedGuards, providers: hookProviders, loading, error, 
     toast.info('Formulario reiniciado para nueva asignación');
   };
 
+  // Handle successful quick registration
+  const handleQuickRegistrationSuccess = (armedId: string, armedName: string) => {
+    toast.success(`Armado "${armedName}" registrado. Recargando lista...`);
+    refetch(); // Refresh the list
+    setSearchQuery(''); // Clear search
+  };
+
+  // Filter armed guards by search query
+  const filteredArmedGuards = armedGuards.filter(guard => 
+    guard.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    guard.zona_base?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    guard.telefono?.includes(searchQuery)
+  );
+
+  const hasSearchQuery = searchQuery.trim().length > 0;
+  const noResultsFound = hasSearchQuery && filteredArmedGuards.length === 0;
+
   // Get vehicle information for confirmation modal
   const principalVehicle = getPrincipalVehicle(serviceData.custodio_asignado_id || '');
 
@@ -594,15 +622,60 @@ const { armedGuards: hookArmedGuards, providers: hookProviders, loading, error, 
                 </div>
               </div>
 
+              {/* Search and Quick Registration */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por nombre, zona o teléfono..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="default"
+                    onClick={() => setShowQuickRegistrationModal(true)}
+                    className="flex items-center gap-2 whitespace-nowrap"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    Registrar Nuevo
+                  </Button>
+                </div>
+
+                {noResultsFound && (
+                  <div className="bg-muted/50 border border-border rounded-lg p-4">
+                    <div className="text-center space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        No se encontraron armados que coincidan con "<strong>{searchQuery}</strong>"
+                      </p>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => {
+                          setShowQuickRegistrationModal(true);
+                        }}
+                        className="gap-2"
+                      >
+                        <UserPlus className="h-4 w-4" />
+                        Registrar "{searchQuery}" como nuevo armado
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="flex items-center justify-between mb-4">
                 <div className="text-lg font-semibold">Armados Internos</div>
                 <Badge variant="secondary" className="text-xs">
-                  {armedGuards.filter(guard => guard.disponibilidad === 'disponible').length} disponibles
+                  {filteredArmedGuards.filter(guard => guard.disponibilidad === 'disponible').length} {hasSearchQuery ? 'encontrados' : 'disponibles'}
                 </Badge>
               </div>
               <div className="space-y-4">
-                {armedGuards.filter(guard => guard.disponibilidad === 'disponible').length > 0 ? (
-                  armedGuards.filter(guard => guard.disponibilidad === 'disponible').map((guard) => (
+                {filteredArmedGuards.filter(guard => guard.disponibilidad === 'disponible').length > 0 ? (
+                  filteredArmedGuards.filter(guard => guard.disponibilidad === 'disponible').map((guard) => (
                     <ExpandableArmedCard
                       key={guard.id}
                       guard={guard}
@@ -617,6 +690,11 @@ const { armedGuards: hookArmedGuards, providers: hookProviders, loading, error, 
                       getTimeRecommendation={createTimeRecommendationWrapper}
                     />
                   ))
+                ) : hasSearchQuery ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Shield className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <div>No se encontraron resultados para tu búsqueda</div>
+                  </div>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
                     <Shield className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -698,6 +776,14 @@ const { armedGuards: hookArmedGuards, providers: hookProviders, loading, error, 
           data={confirmationData}
         />
       )}
+
+      {/* Quick Armed Registration Modal */}
+      <QuickArmedRegistrationModal
+        open={showQuickRegistrationModal}
+        onOpenChange={setShowQuickRegistrationModal}
+        prefilledName={searchQuery}
+        onSuccess={handleQuickRegistrationSuccess}
+      />
     </>
   );
 }

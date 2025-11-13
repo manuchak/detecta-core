@@ -10,6 +10,7 @@ import { CustodiosTab } from './CustodiosTab';
 import { MatrizPreciosTab } from './MatrizPreciosTab';
 import { ContextualMeetingPointsTab } from './configuration/ContextualMeetingPointsTab';
 import ProveedoresArmadosTab from './configuration/ProveedoresArmadosTab';
+import { ArmedsPendingValidation } from './configuration/ArmedsPendingValidation';
 
 export function PlanningConfigurationTab() {
   const [activeConfigTab, setActiveConfigTab] = useState('clientes');
@@ -26,7 +27,7 @@ export function PlanningConfigurationTab() {
 
       {/* Configuration Tabs */}
       <Tabs value={activeConfigTab} onValueChange={setActiveConfigTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 lg:w-[1000px]">
+        <TabsList className="grid w-full grid-cols-6 lg:w-[1200px]">
           <TabsTrigger value="clientes" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Clientes
@@ -45,7 +46,11 @@ export function PlanningConfigurationTab() {
           </TabsTrigger>
           <TabsTrigger value="proveedores" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
-            Proveedores Armados
+            Proveedores
+          </TabsTrigger>
+          <TabsTrigger value="armados-pendientes" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Validación
           </TabsTrigger>
         </TabsList>
 
@@ -112,6 +117,15 @@ export function PlanningConfigurationTab() {
         {/* Proveedores Armados Tab */}
         <TabsContent value="proveedores" className="space-y-6 mt-6">
           <ProveedoresArmadosTab />
+        </TabsContent>
+
+        {/* Armados Pendientes Validación Tab */}
+        <TabsContent value="armados-pendientes" className="space-y-6 mt-6">
+          <Card>
+            <CardContent className="pt-6">
+              <ArmedsPendingValidation />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
