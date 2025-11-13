@@ -15,6 +15,7 @@ import { QuickArmedRegistrationModal } from '@/components/planeacion/QuickArmedR
 import { ExpandableArmedCard } from '@/components/planeacion/ExpandableArmedCard';
 import { Shield, User, MapPin, Clock, Phone, MessageCircle, CheckCircle2, AlertCircle, Info, Search, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ArmedGuard {
   id: string;
@@ -97,6 +98,7 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
   const [assignmentData, setAssignmentData] = useState<ArmedGuardAssignmentData | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showQuickRegistrationModal, setShowQuickRegistrationModal] = useState(false);
+  const [assignmentCounts, setAssignmentCounts] = useState<Record<string, number>>({});
 
   // Use enhanced hooks with fallback mock data
   const { 
@@ -192,6 +194,28 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
     }
   }, [calculatedMeetingTime, horaEncuentro]);
 
+  // Load assignment counts for guards with pending verification
+  useEffect(() => {
+    const loadAssignmentCounts = async () => {
+      const pendingGuards = armedGuards.filter(g => (g as any).verificacion_pendiente === true);
+      if (pendingGuards.length === 0) return;
+
+      const counts: Record<string, number> = {};
+      await Promise.all(
+        pendingGuards.map(async (guard) => {
+          const { count } = await supabase
+            .from('asignacion_armados')
+            .select('*', { count: 'exact', head: true })
+            .eq('armado_id', guard.id);
+          counts[guard.id] = count || 0;
+        })
+      );
+      setAssignmentCounts(counts);
+    };
+
+    loadAssignmentCounts();
+  }, [armedGuards]);
+
   const handleAssignArmed = async () => {
     console.log('🔧 DEBUG: Starting assignment process', {
       selectedArmed,
@@ -213,6 +237,21 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
     console.log('🔧 DEBUG: Selected guard', selectedGuard);
 
     if (!selectedGuard) return;
+
+    // 🔴 Validation: Check 3-assignment limit for guards with pending verification
+    if (selectedType === 'interno') {
+      const guard = selectedGuard as ArmedGuard;
+      const isPending = (guard as any).verificacion_pendiente === true;
+      const currentCount = assignmentCounts[guard.id] || 0;
+
+      if (isPending && currentCount >= 3) {
+        toast.error(
+          `El armado "${guard.nombre}" alcanzó el límite de 3 asignaciones. Debe completar su verificación en Supply antes de asignar más servicios.`,
+          { duration: 5000 }
+        );
+        return;
+      }
+    }
 
     // Si es proveedor externo, abrir modal de verificación
     if (selectedType === 'proveedor') {
@@ -675,21 +714,43 @@ export function EnhancedArmedGuardAssignmentStep({ serviceData, onComplete, onBa
               </div>
               <div className="space-y-4">
                 {filteredArmedGuards.filter(guard => guard.disponibilidad === 'disponible').length > 0 ? (
-                  filteredArmedGuards.filter(guard => guard.disponibilidad === 'disponible').map((guard) => (
-                    <ExpandableArmedCard
-                      key={guard.id}
-                      guard={guard}
-                      type="interno"
-                      isSelected={selectedArmed === guard.id}
-                      isExpanded={expandedCard === guard.id}
-                      onSelect={() => handleCardSelect(guard.id, 'interno')}
-                      onExpand={() => handleCardExpand(guard.id)}
-                      onConfirmAssignment={handleDirectAssignment}
-                      calculatedMeetingTime={calculatedMeetingTime}
-                      formatDisplayTime={formatDisplayTime}
-                      getTimeRecommendation={createTimeRecommendationWrapper}
-                    />
-                  ))
+                  filteredArmedGuards.filter(guard => guard.disponibilidad === 'disponible').map((guard) => {
+                    const isPending = (guard as any).verificacion_pendiente === true;
+                    const assignmentCount = assignmentCounts[guard.id] || 0;
+                    const isLimitReached = isPending && assignmentCount >= 3;
+
+                    return (
+                      <div key={guard.id} className="relative">
+                        {isPending && (
+                          <div className="absolute -top-2 right-2 z-10 flex gap-1">
+                            <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-300">
+                              ⚠️ Verificación pendiente
+                            </Badge>
+                            {assignmentCount >= 2 && (
+                              <Badge 
+                                variant={isLimitReached ? "destructive" : "outline"} 
+                                className={isLimitReached ? "text-xs" : "text-xs bg-orange-50 text-orange-700 border-orange-300"}
+                              >
+                                {isLimitReached ? '🚫 Límite alcanzado' : `${assignmentCount}/3 servicios`}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
+                        <ExpandableArmedCard
+                          guard={guard}
+                          type="interno"
+                          isSelected={selectedArmed === guard.id && !isLimitReached}
+                          isExpanded={expandedCard === guard.id}
+                          onSelect={() => !isLimitReached && handleCardSelect(guard.id, 'interno')}
+                          onExpand={() => handleCardExpand(guard.id)}
+                          onConfirmAssignment={handleDirectAssignment}
+                          calculatedMeetingTime={calculatedMeetingTime}
+                          formatDisplayTime={formatDisplayTime}
+                          getTimeRecommendation={createTimeRecommendationWrapper}
+                        />
+                      </div>
+                    );
+                  })
                 ) : hasSearchQuery ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Shield className="h-8 w-8 mx-auto mb-2 opacity-50" />
