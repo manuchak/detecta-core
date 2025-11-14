@@ -152,8 +152,24 @@ export const CallLogDialog = ({
 
       if (error) throw error;
 
+      // ✅ FASE 2: Log para debugging y mensajes específicos por tipo
+      console.log('✅ Llamada registrada:', {
+        lead_id: lead.lead_id,
+        lead_nombre: lead.lead_nombre,
+        call_outcome: callOutcome,
+        timestamp: new Date().toISOString()
+      });
+
+      // Mensajes específicos según el tipo de llamada
+      const failedOutcomes = ['voicemail', 'no_answer', 'busy', 'wrong_number', 'non_existent_number', 'call_failed'];
+      const isFailed = failedOutcomes.includes(callOutcome);
+      
       const successMessage = callOutcome === 'reschedule_requested' 
-        ? "Llamada registrada y reprogramada exitosamente"
+        ? "📅 Llamada registrada y reprogramada exitosamente"
+        : callOutcome === 'successful'
+        ? "✅ Llamada exitosa registrada - Lead actualizado"
+        : isFailed
+        ? "📞 Intento de llamada registrado - Revisa el filtro 'Intentos fallidos'"
         : "El resultado de la llamada ha sido guardado exitosamente";
 
       toast({

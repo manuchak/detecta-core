@@ -138,6 +138,33 @@ export const ImprovedLeadCard = ({
                     Incompleta
                   </Badge>
                 )}
+                {/* ✅ FASE 2: Badge visual para último resultado de llamada */}
+                {lead.last_contact_outcome && (() => {
+                  const failedOutcomes = ['voicemail', 'no_answer', 'busy', 'wrong_number', 'non_existent_number', 'call_failed'];
+                  const isFailed = failedOutcomes.includes(lead.last_contact_outcome);
+                  
+                  const outcomeLabels: Record<string, string> = {
+                    successful: '✅ Exitosa',
+                    no_answer: '📵 No contestó',
+                    busy: '📞 Ocupado',
+                    voicemail: '📧 Buzón',
+                    reschedule_requested: '📅 Reprogramada',
+                    wrong_number: '❌ Núm. equivocado',
+                    non_existent_number: '❌ No existe',
+                    call_failed: '⚠️ Falló',
+                    numero_no_disponible: '⚠️ No disponible',
+                    out_of_service: '❌ Fuera de servicio'
+                  };
+                  
+                  return (
+                    <Badge 
+                      variant={isFailed ? "destructive" : "default"}
+                      className="text-xs px-1.5 py-0.5"
+                    >
+                      {outcomeLabels[lead.last_contact_outcome] || lead.last_contact_outcome}
+                    </Badge>
+                  );
+                })()}
                 {lead.has_scheduled_call && (
                   <Badge variant="outline" className="text-xs px-1.5 py-0.5 text-blue-800 border-blue-300 bg-blue-100 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-700 font-medium">
                     <Calendar className="h-2.5 w-2.5 mr-1" />
