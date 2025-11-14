@@ -138,11 +138,15 @@ export const useLeadApprovals = () => {
         scheduled_call_datetime: lead.scheduled_call_datetime,
       }));
       
-      setAssignedLeads(typedLeads);
+      // ✅ CORRECCIÓN FASE 1: Obtener call status de manera síncrona ANTES de actualizar estado
+      const leadsWithCallStatus = await fetchLeadsWithCallStatus(typedLeads);
+      
+      // ✅ Ahora sí actualizar estado con todos los datos completos
+      setAssignedLeads(leadsWithCallStatus);
       setTotalCount(countData || 0);
       setPage(currentPage);
       
-      console.log(`✅ Cargados ${typedLeads.length} de ${countData} leads totales (página ${currentPage})`);
+      console.log(`✅ Cargados ${leadsWithCallStatus.length} de ${countData} leads totales con estado de llamadas actualizado (página ${currentPage})`);
       
       if (!data || data.length === 0) {
         console.log('📝 LeadApprovals: No leads assigned to current user');
@@ -179,11 +183,11 @@ export const useLeadApprovals = () => {
     }
   };
 
-  // Fetch leads with call status
-  const fetchLeadsWithCallStatus = async () => {
+  // ✅ Fetch leads with call status - CORREGIDO: Recibe leads como parámetro para evitar race condition
+  const fetchLeadsWithCallStatus = async (currentLeads: AssignedLead[]): Promise<AssignedLead[]> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) return currentLeads;
 
       // Get manual call logs including reschedule information
       const { data: callData } = await supabase
@@ -191,8 +195,8 @@ export const useLeadApprovals = () => {
         .select('lead_id, call_outcome, scheduled_datetime, created_at')
         .order('created_at', { ascending: false });
 
-      // Update leads with call status
-      setAssignedLeads(prev => prev.map(lead => {
+      // Update leads with call status y RETORNAR el array actualizado
+      const updatedLeads = currentLeads.map(lead => {
         const leadCalls = callData?.filter(call => call.lead_id === lead.lead_id) || [];
         const hasSuccessfulCall = leadCalls.some(call => call.call_outcome === 'successful');
         const lastCall = leadCalls[0];
@@ -207,13 +211,28 @@ export const useLeadApprovals = () => {
         return {
           ...lead,
           has_successful_call: hasSuccessfulCall,
-          last_call_outcome: lastCall?.call_outcome,
+          last_contact_outcome: lastCall?.call_outcome, // ✅ CAMBIO: last_call_outcome -> last_contact_outcome
           has_scheduled_call: !!rescheduledCall,
-          scheduled_call_datetime: rescheduledCall?.scheduled_datetime
+          scheduled_call_datetime: rescheduledCall?.scheduled_datetime,
+          contact_attempts_count: leadCalls.length // ✅ NUEVO: Contador de intentos
         };
-      }));
+      });
+
+      // ✅ FASE 4: Logging para monitoreo
+      const failedOutcomes = ['voicemail', 'no_answer', 'busy', 'wrong_number', 'non_existent_number', 'call_failed'];
+      console.log('📊 Estado de llamadas actualizado:', {
+        totalLeads: updatedLeads.length,
+        conLlamadas: updatedLeads.filter(l => l.contact_attempts_count && l.contact_attempts_count > 0).length,
+        llamadasExitosas: updatedLeads.filter(l => l.has_successful_call).length,
+        intentosFallidos: updatedLeads.filter(l => {
+          return l.last_contact_outcome && failedOutcomes.includes(l.last_contact_outcome);
+        }).length
+      });
+      
+      return updatedLeads;
     } catch (error) {
       console.error('Error fetching call status:', error);
+      return currentLeads; // Retornar leads sin cambios si hay error
     }
   };
 
