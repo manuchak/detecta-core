@@ -4,7 +4,8 @@ import { useToast } from '@/hooks/use-toast';
 
 export type AppRole = 'admin' | 'planificador' | 'supply_admin' | 'bi' | 
   'monitoring_supervisor' | 'monitoring' | 'supply' | 'soporte' | 'owner' |
-  'custodio' | 'ejecutivo_ventas' | 'coordinador_operaciones' | 'tecnico_instalador';
+  'custodio' | 'ejecutivo_ventas' | 'coordinador_operaciones' | 'tecnico_instalador' |
+  'supply_lead';
 
 export function useUserRole() {
   const [roles, setRoles] = useState<AppRole[]>([]);

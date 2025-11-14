@@ -637,11 +637,13 @@ export type Database = {
           licencia_portacion: string | null
           nombre: string
           numero_servicios: number | null
+          origen: string | null
           proveedor_id: string | null
           rating_promedio: number | null
           restricciones_horario: Json | null
           score_comunicacion: number | null
           score_confiabilidad: number | null
+          score_desempeno: number | null
           score_disponibilidad: number | null
           score_total: number | null
           servicios_permitidos: string[] | null
@@ -651,6 +653,7 @@ export type Database = {
           telefono: string | null
           tipo_armado: string
           updated_at: string
+          verificacion_pendiente: boolean | null
           zona_base: string | null
           zonas_permitidas: string[] | null
         }
@@ -668,11 +671,13 @@ export type Database = {
           licencia_portacion?: string | null
           nombre: string
           numero_servicios?: number | null
+          origen?: string | null
           proveedor_id?: string | null
           rating_promedio?: number | null
           restricciones_horario?: Json | null
           score_comunicacion?: number | null
           score_confiabilidad?: number | null
+          score_desempeno?: number | null
           score_disponibilidad?: number | null
           score_total?: number | null
           servicios_permitidos?: string[] | null
@@ -682,6 +687,7 @@ export type Database = {
           telefono?: string | null
           tipo_armado?: string
           updated_at?: string
+          verificacion_pendiente?: boolean | null
           zona_base?: string | null
           zonas_permitidas?: string[] | null
         }
@@ -699,11 +705,13 @@ export type Database = {
           licencia_portacion?: string | null
           nombre?: string
           numero_servicios?: number | null
+          origen?: string | null
           proveedor_id?: string | null
           rating_promedio?: number | null
           restricciones_horario?: Json | null
           score_comunicacion?: number | null
           score_confiabilidad?: number | null
+          score_desempeno?: number | null
           score_disponibilidad?: number | null
           score_total?: number | null
           servicios_permitidos?: string[] | null
@@ -713,6 +721,7 @@ export type Database = {
           telefono?: string | null
           tipo_armado?: string
           updated_at?: string
+          verificacion_pendiente?: boolean | null
           zona_base?: string | null
           zonas_permitidas?: string[] | null
         }
@@ -3136,6 +3145,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      edge_function_rate_limits: {
+        Row: {
+          action_type: string
+          created_at: string
+          function_name: string
+          id: string
+          metadata: Json | null
+          timestamp: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          function_name: string
+          id?: string
+          metadata?: Json | null
+          timestamp?: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          function_name?: string
+          id?: string
+          metadata?: Json | null
+          timestamp?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       empresas_instaladoras: {
         Row: {
@@ -10564,6 +10603,15 @@ export type Database = {
           total_amount: number
         }[]
       }
+      check_rate_limit: {
+        Args: {
+          p_action_type: string
+          p_function_name: string
+          p_limit_count?: number
+          p_window_hours?: number
+        }
+        Returns: Json
+      }
       check_route_creation_limit: {
         Args: { p_user_id: string }
         Returns: boolean
@@ -10600,6 +10648,7 @@ export type Database = {
       }
       cleanup_expired_interview_progress: { Args: never; Returns: undefined }
       cleanup_expired_skills: { Args: never; Returns: number }
+      cleanup_old_rate_limits: { Args: never; Returns: number }
       clear_redemptions_bypass_rls: { Args: never; Returns: undefined }
       compare_dashboard_vs_forensic: {
         Args: never
@@ -12544,6 +12593,7 @@ export type Database = {
         | "coordinador_operaciones"
         | "tecnico_instalador"
         | "planificador"
+        | "supply_lead"
       canal_comunicacion: "whatsapp" | "app" | "telefono" | "email"
       disponibilidad_custodio:
         | "disponible"
@@ -12742,6 +12792,7 @@ export const Constants = {
         "coordinador_operaciones",
         "tecnico_instalador",
         "planificador",
+        "supply_lead",
       ],
       canal_comunicacion: ["whatsapp", "app", "telefono", "email"],
       disponibilidad_custodio: [
