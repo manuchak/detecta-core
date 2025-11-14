@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -73,7 +72,7 @@ export const CallLogDialog = ({
       if (error) throw error;
       
       setContactAttempts(data?.length || 0);
-      setLastContactOutcome(data?.[0]?.call_outcome || null);
+      setLastContactOutcome(data && data.length > 0 ? data[0].call_outcome : null);
     } catch (error) {
       console.error('Error fetching contact summary:', error);
     }

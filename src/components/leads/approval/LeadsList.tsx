@@ -202,6 +202,7 @@ export const LeadsList = ({
           filters={advancedFilters}
           onFiltersChange={onAdvancedFiltersChange}
           onResetFilters={onResetAdvancedFilters}
+          leads={filteredAndSortedLeads}
         />
       )}
 

@@ -29,12 +29,14 @@ interface ApprovalAdvancedFiltersProps {
   filters: ApprovalAdvancedFiltersState;
   onFiltersChange: (filters: ApprovalAdvancedFiltersState) => void;
   onResetFilters: () => void;
+  leads?: any[]; // Optional prop for displaying counts
 }
 
 export const ApprovalAdvancedFilters = ({ 
   filters, 
   onFiltersChange, 
-  onResetFilters 
+  onResetFilters,
+  leads = []
 }: ApprovalAdvancedFiltersProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -48,6 +50,42 @@ export const ApprovalAdvancedFilters = ({
   const getActiveFiltersCount = () => {
     return Object.values(filters).filter(value => value && value !== 'all' && value !== '').length;
   };
+
+  // Calculate counts for filters
+  const getCounts = () => {
+    if (!leads || leads.length === 0) return {};
+
+    return {
+      contactAttempts: {
+        none: leads.filter((l: any) => !l.intentos_contacto || l.intentos_contacto === 0).length,
+        one: leads.filter((l: any) => l.intentos_contacto === 1).length,
+        twoToFive: leads.filter((l: any) => l.intentos_contacto >= 2 && l.intentos_contacto <= 5).length,
+        moreThanFive: leads.filter((l: any) => l.intentos_contacto > 5).length
+      },
+      lastContactOutcome: {
+        successful: leads.filter((l: any) => l.ultima_llamada_resultado === 'successful').length,
+        no_answer: leads.filter((l: any) => l.ultima_llamada_resultado === 'no_answer').length,
+        voicemail: leads.filter((l: any) => l.ultima_llamada_resultado === 'voicemail').length,
+        busy: leads.filter((l: any) => l.ultima_llamada_resultado === 'busy').length,
+        wrong_number: leads.filter((l: any) => l.ultima_llamada_resultado === 'wrong_number').length,
+        call_failed: leads.filter((l: any) => l.ultima_llamada_resultado === 'call_failed').length
+      },
+      hasSuccessfulCall: {
+        true: leads.filter((l: any) => l.tuvo_llamada_exitosa).length,
+        false: leads.filter((l: any) => !l.tuvo_llamada_exitosa).length
+      },
+      hasScheduledCall: {
+        true: leads.filter((l: any) => l.proxima_llamada_programada).length,
+        false: leads.filter((l: any) => !l.proxima_llamada_programada).length
+      },
+      interviewInterrupted: {
+        true: leads.filter((l: any) => l.entrevista_interrumpida).length,
+        false: leads.filter((l: any) => !l.entrevista_interrumpida).length
+      }
+    };
+  };
+
+  const counts = getCounts();
 
   const activeFiltersCount = getActiveFiltersCount();
 
@@ -163,10 +201,18 @@ export const ApprovalAdvancedFilters = ({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Cualquier cantidad</SelectItem>
-                      <SelectItem value="0">Sin contactar (0)</SelectItem>
-                      <SelectItem value="1-2">1-2 intentos</SelectItem>
-                      <SelectItem value="3-5">3-5 intentos</SelectItem>
-                      <SelectItem value="5+">5+ intentos</SelectItem>
+                      <SelectItem value="0">
+                        Sin contactar (0) {counts.contactAttempts?.none ? `· ${counts.contactAttempts.none}` : ''}
+                      </SelectItem>
+                      <SelectItem value="1-2">
+                        1-2 intentos {counts.contactAttempts?.one ? `· ${counts.contactAttempts.one}` : ''}
+                      </SelectItem>
+                      <SelectItem value="3-5">
+                        3-5 intentos {counts.contactAttempts?.twoToFive ? `· ${counts.contactAttempts.twoToFive}` : ''}
+                      </SelectItem>
+                      <SelectItem value="5+">
+                        5+ intentos {counts.contactAttempts?.moreThanFive ? `· ${counts.contactAttempts.moreThanFive}` : ''}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -179,12 +225,24 @@ export const ApprovalAdvancedFilters = ({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Cualquier resultado</SelectItem>
-                      <SelectItem value="successful">Exitoso</SelectItem>
-                      <SelectItem value="no_answer">Sin respuesta</SelectItem>
-                      <SelectItem value="voicemail">Buzón de voz</SelectItem>
-                      <SelectItem value="busy">Línea ocupada</SelectItem>
-                      <SelectItem value="wrong_number">Número equivocado</SelectItem>
-                      <SelectItem value="call_failed">Llamada fallida</SelectItem>
+                      <SelectItem value="successful">
+                        Exitoso {counts.lastContactOutcome?.successful ? `· ${counts.lastContactOutcome.successful}` : ''}
+                      </SelectItem>
+                      <SelectItem value="no_answer">
+                        Sin respuesta {counts.lastContactOutcome?.no_answer ? `· ${counts.lastContactOutcome.no_answer}` : ''}
+                      </SelectItem>
+                      <SelectItem value="voicemail">
+                        Buzón de voz {counts.lastContactOutcome?.voicemail ? `· ${counts.lastContactOutcome.voicemail}` : ''}
+                      </SelectItem>
+                      <SelectItem value="busy">
+                        Línea ocupada {counts.lastContactOutcome?.busy ? `· ${counts.lastContactOutcome.busy}` : ''}
+                      </SelectItem>
+                      <SelectItem value="wrong_number">
+                        Número equivocado {counts.lastContactOutcome?.wrong_number ? `· ${counts.lastContactOutcome.wrong_number}` : ''}
+                      </SelectItem>
+                      <SelectItem value="call_failed">
+                        Llamada fallida {counts.lastContactOutcome?.call_failed ? `· ${counts.lastContactOutcome.call_failed}` : ''}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -197,8 +255,12 @@ export const ApprovalAdvancedFilters = ({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todas</SelectItem>
-                      <SelectItem value="true">Solo con llamada exitosa</SelectItem>
-                      <SelectItem value="false">Sin llamada exitosa</SelectItem>
+                      <SelectItem value="true">
+                        Solo con llamada exitosa {counts.hasSuccessfulCall?.true ? `· ${counts.hasSuccessfulCall.true}` : ''}
+                      </SelectItem>
+                      <SelectItem value="false">
+                        Sin llamada exitosa {counts.hasSuccessfulCall?.false ? `· ${counts.hasSuccessfulCall.false}` : ''}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -211,8 +273,12 @@ export const ApprovalAdvancedFilters = ({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todas</SelectItem>
-                      <SelectItem value="true">Solo con cita programada</SelectItem>
-                      <SelectItem value="false">Sin cita programada</SelectItem>
+                      <SelectItem value="true">
+                        Solo con cita programada {counts.hasScheduledCall?.true ? `· ${counts.hasScheduledCall.true}` : ''}
+                      </SelectItem>
+                      <SelectItem value="false">
+                        Sin cita programada {counts.hasScheduledCall?.false ? `· ${counts.hasScheduledCall.false}` : ''}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
