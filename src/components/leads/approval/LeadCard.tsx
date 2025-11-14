@@ -101,7 +101,7 @@ export const LeadCard = ({
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
                 <h3 className="font-semibold text-lg">{lead.lead_nombre}</h3>
-                {getStatusBadge(lead.approval_stage, lead.final_decision)}
+                {getStatusBadge(lead.current_stage, lead.final_decision)}
                 {hasMissingInfo && (
                   <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200">
                     <AlertTriangle className="h-3 w-3 mr-1" />

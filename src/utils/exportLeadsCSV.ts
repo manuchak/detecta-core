@@ -112,7 +112,7 @@ export const exportLeadsToCSV = (leads: AssignedLead[], filterName: string = "to
     escapeCsvValue(lead.final_decision === 'approved' ? 'Aprobado' : 
                    lead.final_decision === 'rejected' ? 'Rechazado' : 
                    'Pendiente'),
-    escapeCsvValue(lead.approval_stage || "N/A"),
+    escapeCsvValue(lead.current_stage || "N/A"),
     escapeCsvValue(lead.phone_interview_completed ? "Sí" : "No"),
     escapeCsvValue(lead.second_interview_required ? "Sí" : "No"),
     escapeCsvValue(lead.analista_nombre || "Sin Asignar"),

@@ -11009,22 +11009,18 @@ export type Database = {
               p_offset?: number
             }
             Returns: {
-              analista_email: string
-              analista_nombre: string
-              email: string
-              fecha_creacion: string
-              fecha_entrada_pool: string
+              current_stage: string
               final_decision: string
-              has_successful_call: boolean
-              interview_in_progress: boolean
-              interview_started_at: string
+              lead_email: string
               lead_estado: string
+              lead_fecha_creacion: string
               lead_id: string
-              nombre: string
+              lead_nombre: string
+              lead_telefono: string
               notas: string
-              telefono: string
-              zona_nombre: string
-              zona_preferida_id: string
+              phone_interview_completed: boolean
+              scheduled_call_datetime: string
+              second_interview_required: boolean
             }[]
           }
         | {

@@ -51,9 +51,9 @@ export interface AssignedLead {
   lead_telefono: string;
   lead_estado: LeadEstado;
   lead_fecha_creacion: string;
-  approval_stage?: string; // Opcional para compatibilidad
-  phone_interview_completed?: boolean; // Opcional para compatibilidad
-  second_interview_required?: boolean; // Opcional para compatibilidad
+  current_stage?: string; // Etapa actual del proceso de aprobación
+  phone_interview_completed?: boolean; // Si completó entrevista telefónica
+  second_interview_required?: boolean; // Si requiere segunda entrevista
   final_decision: string | null;
   notas?: string; // Campo para almacenar información adicional del candidato
   
