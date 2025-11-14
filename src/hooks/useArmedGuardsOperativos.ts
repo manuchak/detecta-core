@@ -530,8 +530,20 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
         )
       };
 
-      // Si es proveedor externo y tenemos datos del personal, agregarlos
-      if (tipoAsignacion === 'proveedor' && personalData) {
+      // 🆕 Obtener nombre del armado SIEMPRE para ambos tipos
+      if (tipoAsignacion === 'interno') {
+        // Para armados internos, obtener el nombre desde armados_operativos
+        const { data: armadoData, error: armadoError } = await supabase
+          .from('armados_operativos')
+          .select('nombre')
+          .eq('id', armadoFinalId)
+          .single();
+        
+        if (!armadoError && armadoData) {
+          assignmentData.armado_nombre_verificado = armadoData.nombre;
+        }
+      } else if (tipoAsignacion === 'proveedor' && personalData) {
+        // Para externos, usar los datos proporcionados
         assignmentData.personal_proveedor_id = personalData.personalId;
         assignmentData.armado_nombre_verificado = personalData.nombreCompleto;
         assignmentData.verificacion_identidad_timestamp = new Date().toISOString();

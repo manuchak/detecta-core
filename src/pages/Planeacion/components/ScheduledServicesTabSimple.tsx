@@ -77,6 +77,16 @@ export function ScheduledServicesTab() {
       };
     }
     
+    // 🆕 Mostrar nombre del armado cuando está asignado
+    if (service.incluye_armado && service.armado_asignado && service.armado_nombre) {
+      return {
+        color: 'bg-blue-500',
+        icon: Shield,
+        message: `Armado: ${service.armado_nombre}`,
+        actionIcon: CheckCircle2
+      };
+    }
+    
     // Si falta custodio (crítico)
     if (!service.custodio_nombre) {
       return {
