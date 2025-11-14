@@ -17,7 +17,7 @@ export interface ApprovalAdvancedFiltersState {
   scheduledCallDateTo: string;
   contactAttempts: string;
   lastContactOutcome: string;
-  approvalStage: string;
+  currentStage: string;
   finalDecision: string;
   hasSuccessfulCall: string;
   hasScheduledCall: string;
@@ -224,8 +224,8 @@ export const ApprovalAdvancedFilters = ({
               <h4 className="text-sm font-medium text-muted-foreground">Estado y Aprobación</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="approvalStage">Etapa de aprobación</Label>
-                  <Select value={filters.approvalStage} onValueChange={(value) => handleFilterChange('approvalStage', value)}>
+                  <Label htmlFor="currentStage">Etapa de aprobación</Label>
+                  <Select value={filters.currentStage} onValueChange={(value) => handleFilterChange('currentStage', value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Todas las etapas" />
                     </SelectTrigger>

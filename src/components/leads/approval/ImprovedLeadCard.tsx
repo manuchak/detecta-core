@@ -131,7 +131,7 @@ export const ImprovedLeadCard = ({
                 )}
               </div>
               <div className="flex items-center gap-1.5 flex-wrap">
-                {getStatusBadge(lead.approval_stage, lead.final_decision)}
+                {getStatusBadge(lead.current_stage, lead.final_decision)}
                 {hasMissingInfo && (
                   <Badge variant="outline" className="text-xs px-1.5 py-0.5 text-amber-800 border-amber-300 bg-amber-100 dark:bg-amber-900 dark:text-amber-200 dark:border-amber-700 font-medium">
                     <AlertTriangle className="h-2.5 w-2.5 mr-1" />
@@ -268,7 +268,9 @@ export const ImprovedLeadCard = ({
                   <Button
                     size="sm"
                     onClick={() => onApproveLead(lead)}
-                    className="h-7 px-3 bg-emerald-500 hover:bg-emerald-600 text-emerald-50 text-xs"
+                    disabled={hasMissingInfo}
+                    className="h-7 px-3 bg-emerald-500 hover:bg-emerald-600 text-emerald-50 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={hasMissingInfo ? `Completa la información faltante: ${validation.missingFields.join(', ')}` : undefined}
                   >
                     <CheckCircle className="h-3 w-3 mr-1" />
                     Aprobar
