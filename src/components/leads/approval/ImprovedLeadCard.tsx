@@ -15,7 +15,8 @@ import {
   AlertTriangle,
   MoreHorizontal,
   PhoneCall,
-  Archive
+  Archive,
+  Rocket
 } from "lucide-react";
 import {
   Tooltip,
@@ -47,6 +48,7 @@ interface ImprovedLeadCardProps {
   onCompleteMissingInfo: (lead: AssignedLead) => void;
   onLogCall: (lead: AssignedLead) => void;
   onMoveToPool?: (lead: AssignedLead) => void;
+  onIniciarLiberacion?: (lead: AssignedLead) => void;
 }
 
 export const ImprovedLeadCard = ({
@@ -61,7 +63,8 @@ export const ImprovedLeadCard = ({
   onReject,
   onCompleteMissingInfo,
   onLogCall,
-  onMoveToPool
+  onMoveToPool,
+  onIniciarLiberacion
 }: ImprovedLeadCardProps) => {
   const validation = validateLeadForApproval(lead);
   const hasMissingInfo = !validation.isValid;
@@ -314,6 +317,25 @@ export const ImprovedLeadCard = ({
                 </TooltipContent>
               </Tooltip>
             </div>
+          )}
+
+          {/* Botón Iniciar Liberación - Solo para aprobados */}
+          {lead.final_decision === 'approved' && onIniciarLiberacion && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  onClick={() => onIniciarLiberacion(lead)}
+                  className="h-7 px-3 bg-amber-500 hover:bg-amber-600 text-white text-xs"
+                >
+                  <Rocket className="h-3 w-3 mr-1" />
+                  Iniciar Liberación
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Iniciar proceso de liberación del custodio</p>
+              </TooltipContent>
+            </Tooltip>
           )}
 
           {/* Si no hay llamada exitosa, mostrar acciones de contacto */}

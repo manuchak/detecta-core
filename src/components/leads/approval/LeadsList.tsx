@@ -26,6 +26,7 @@ interface LeadsListProps {
   onCompleteMissingInfo: (lead: AssignedLead) => void;
   onLogCall: (lead: AssignedLead) => void;
   onMoveToPool?: (lead: AssignedLead) => void;
+  onIniciarLiberacion?: (lead: AssignedLead) => void;
 }
 
 export const LeadsList = ({
@@ -49,6 +50,7 @@ export const LeadsList = ({
   onCompleteMissingInfo,
   onLogCall,
   onMoveToPool,
+  onIniciarLiberacion,
 }: LeadsListProps) => {
   const getLeadCallLogs = (leadId: string) => {
     return callLogs.filter(log => log.id === leadId);
@@ -231,6 +233,7 @@ export const LeadsList = ({
                 onCompleteMissingInfo={onCompleteMissingInfo}
                 onLogCall={onLogCall}
                 onMoveToPool={onMoveToPool}
+                onIniciarLiberacion={onIniciarLiberacion}
               />
             );
           })}
