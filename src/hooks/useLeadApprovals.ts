@@ -360,6 +360,20 @@ export const useLeadApprovals = () => {
         throw new Error(`Error actualizando lead: ${leadError.message}`);
       }
 
+      // 🔄 SINCRONIZACIÓN CRÍTICA: Actualizar candidatos_custodios
+      const { error: candidatoError } = await sbx.update('candidatos_custodios', {
+        estado_proceso: 'aprobado',
+        updated_at: new Date().toISOString()
+      }).eq('id', lead.lead_id);
+
+      if (candidatoError) {
+        console.error('Error actualizando candidato:', candidatoError);
+        // No lanzar error para no bloquear el flujo, pero registrar
+        console.warn('⚠️ Lead aprobado pero candidato no sincronizado');
+      } else {
+        console.log('✅ Candidato sincronizado con estado: aprobado');
+      }
+
       console.log('Lead aprobado exitosamente');
 
       toast({
