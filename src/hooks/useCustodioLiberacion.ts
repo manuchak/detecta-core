@@ -71,6 +71,24 @@ export const useCustodioLiberacion = () => {
         .single();
       
       if (error) throw error;
+
+      // 🔄 SINCRONIZACIÓN CRÍTICA: Actualizar estado del candidato
+      const { error: candidatoError } = await supabase
+        .from('candidatos_custodios')
+        .update({
+          estado_proceso: 'en_liberacion',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', candidato_id);
+
+      if (candidatoError) {
+        console.error('Error actualizando estado del candidato:', candidatoError);
+        // No lanzar error para no bloquear, pero registrar
+        console.warn('⚠️ Liberación creada pero candidato no sincronizado');
+      } else {
+        console.log('✅ Candidato sincronizado con estado: en_liberacion');
+      }
+      
       return data;
     },
     onSuccess: () => {
