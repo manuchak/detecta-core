@@ -77,10 +77,11 @@ const SupplyDashboardExtended = () => {
         <DailyCallStats />
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Resumen General</TabsTrigger>
             <TabsTrigger value="processing">Procesamiento Leads</TabsTrigger>
             <TabsTrigger value="custodians">Custodios</TabsTrigger>
+            <TabsTrigger value="liberacion">Liberación</TabsTrigger>
             <TabsTrigger value="automation">Automatización</TabsTrigger>
           </TabsList>
 

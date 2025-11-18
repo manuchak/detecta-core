@@ -2300,6 +2300,164 @@ export type Database = {
           },
         ]
       }
+      custodio_liberacion: {
+        Row: {
+          aprobado_por_supply: string | null
+          candidato_id: string
+          created_at: string | null
+          created_by: string | null
+          documentacion_antecedentes: boolean | null
+          documentacion_completa: boolean | null
+          documentacion_curp: boolean | null
+          documentacion_domicilio: boolean | null
+          documentacion_ine: boolean | null
+          documentacion_licencia: boolean | null
+          documentacion_rfc: boolean | null
+          estado_liberacion: string
+          fecha_aprobacion_supply: string | null
+          fecha_documentacion_completa: string | null
+          fecha_instalacion_gps: string | null
+          fecha_liberacion: string | null
+          fecha_psicometricos: string | null
+          fecha_toxicologicos: string | null
+          fecha_vehiculo_completo: string | null
+          gps_imei: string | null
+          gps_numero_linea: string | null
+          id: string
+          instalacion_gps_completado: boolean | null
+          instalador_id: string | null
+          liberado_por: string | null
+          notas_documentacion: string | null
+          notas_gps: string | null
+          notas_liberacion: string | null
+          notas_psicometricos: string | null
+          notas_toxicologicos: string | null
+          notas_vehiculo: string | null
+          psicometricos_archivo_url: string | null
+          psicometricos_completado: boolean | null
+          psicometricos_puntaje: number | null
+          psicometricos_resultado: string | null
+          toxicologicos_archivo_url: string | null
+          toxicologicos_completado: boolean | null
+          toxicologicos_resultado: string | null
+          updated_at: string | null
+          vehiculo_año: number | null
+          vehiculo_capturado: boolean | null
+          vehiculo_color: string | null
+          vehiculo_marca: string | null
+          vehiculo_modelo: string | null
+          vehiculo_placa: string | null
+          vehiculo_poliza_seguro: boolean | null
+          vehiculo_tarjeta_circulacion: boolean | null
+        }
+        Insert: {
+          aprobado_por_supply?: string | null
+          candidato_id: string
+          created_at?: string | null
+          created_by?: string | null
+          documentacion_antecedentes?: boolean | null
+          documentacion_completa?: boolean | null
+          documentacion_curp?: boolean | null
+          documentacion_domicilio?: boolean | null
+          documentacion_ine?: boolean | null
+          documentacion_licencia?: boolean | null
+          documentacion_rfc?: boolean | null
+          estado_liberacion?: string
+          fecha_aprobacion_supply?: string | null
+          fecha_documentacion_completa?: string | null
+          fecha_instalacion_gps?: string | null
+          fecha_liberacion?: string | null
+          fecha_psicometricos?: string | null
+          fecha_toxicologicos?: string | null
+          fecha_vehiculo_completo?: string | null
+          gps_imei?: string | null
+          gps_numero_linea?: string | null
+          id?: string
+          instalacion_gps_completado?: boolean | null
+          instalador_id?: string | null
+          liberado_por?: string | null
+          notas_documentacion?: string | null
+          notas_gps?: string | null
+          notas_liberacion?: string | null
+          notas_psicometricos?: string | null
+          notas_toxicologicos?: string | null
+          notas_vehiculo?: string | null
+          psicometricos_archivo_url?: string | null
+          psicometricos_completado?: boolean | null
+          psicometricos_puntaje?: number | null
+          psicometricos_resultado?: string | null
+          toxicologicos_archivo_url?: string | null
+          toxicologicos_completado?: boolean | null
+          toxicologicos_resultado?: string | null
+          updated_at?: string | null
+          vehiculo_año?: number | null
+          vehiculo_capturado?: boolean | null
+          vehiculo_color?: string | null
+          vehiculo_marca?: string | null
+          vehiculo_modelo?: string | null
+          vehiculo_placa?: string | null
+          vehiculo_poliza_seguro?: boolean | null
+          vehiculo_tarjeta_circulacion?: boolean | null
+        }
+        Update: {
+          aprobado_por_supply?: string | null
+          candidato_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          documentacion_antecedentes?: boolean | null
+          documentacion_completa?: boolean | null
+          documentacion_curp?: boolean | null
+          documentacion_domicilio?: boolean | null
+          documentacion_ine?: boolean | null
+          documentacion_licencia?: boolean | null
+          documentacion_rfc?: boolean | null
+          estado_liberacion?: string
+          fecha_aprobacion_supply?: string | null
+          fecha_documentacion_completa?: string | null
+          fecha_instalacion_gps?: string | null
+          fecha_liberacion?: string | null
+          fecha_psicometricos?: string | null
+          fecha_toxicologicos?: string | null
+          fecha_vehiculo_completo?: string | null
+          gps_imei?: string | null
+          gps_numero_linea?: string | null
+          id?: string
+          instalacion_gps_completado?: boolean | null
+          instalador_id?: string | null
+          liberado_por?: string | null
+          notas_documentacion?: string | null
+          notas_gps?: string | null
+          notas_liberacion?: string | null
+          notas_psicometricos?: string | null
+          notas_toxicologicos?: string | null
+          notas_vehiculo?: string | null
+          psicometricos_archivo_url?: string | null
+          psicometricos_completado?: boolean | null
+          psicometricos_puntaje?: number | null
+          psicometricos_resultado?: string | null
+          toxicologicos_archivo_url?: string | null
+          toxicologicos_completado?: boolean | null
+          toxicologicos_resultado?: string | null
+          updated_at?: string | null
+          vehiculo_año?: number | null
+          vehiculo_capturado?: boolean | null
+          vehiculo_color?: string | null
+          vehiculo_marca?: string | null
+          vehiculo_modelo?: string | null
+          vehiculo_placa?: string | null
+          vehiculo_poliza_seguro?: boolean | null
+          vehiculo_tarjeta_circulacion?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custodio_liberacion_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: true
+            referencedRelation: "candidatos_custodios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custodio_performance_metrics: {
         Row: {
           created_at: string
@@ -10215,6 +10373,18 @@ export type Database = {
         }
         Relationships: []
       }
+      v_liberacion_metrics: {
+        Row: {
+          con_docs: number | null
+          con_gps: number | null
+          con_psico: number | null
+          dias_promedio: number | null
+          estado_liberacion: string | null
+          total: number | null
+          ultimos_7_dias: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       actualizar_roi_custodios: { Args: never; Returns: undefined }
@@ -12140,6 +12310,10 @@ export type Database = {
       is_supply_admin_or_higher: { Args: never; Returns: boolean }
       is_supply_manager: { Args: never; Returns: boolean }
       is_whatsapp_admin: { Args: never; Returns: boolean }
+      liberar_custodio_a_planeacion: {
+        Args: { p_liberacion_id: string; p_liberado_por: string }
+        Returns: Json
+      }
       link_user_to_custodio_services: {
         Args: { p_phone: string; p_user_id: string }
         Returns: {
