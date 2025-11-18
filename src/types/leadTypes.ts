@@ -1,4 +1,3 @@
-
 // Unified Lead interface used across the application
 // Estados del proceso custodio
 export type LeadEstado = 
@@ -6,6 +5,7 @@ export type LeadEstado =
   | 'contactado'
   | 'en_revision'
   | 'aprobado'
+  | 'en_liberacion'
   | 'rechazado'
   | 'psicometricos_pendiente'
   | 'psicometricos_completado'

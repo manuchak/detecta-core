@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   BarChart3,
   TrendingUp,
+  Rocket,
   LucideIcon
 } from 'lucide-react';
 
@@ -57,7 +58,7 @@ export const navigationModules: NavigationModule[] = [
     label: 'Leads',
     icon: UserCheck,
     path: '/leads',
-    matchPaths: ['/leads/approvals'],
+    matchPaths: ['/leads/approvals', '/leads/liberacion'],
     sandboxReady: true,
     children: [
       {
@@ -74,6 +75,15 @@ export const navigationModules: NavigationModule[] = [
         matchPaths: ['/leads/approvals'],
         icon: CheckCircle2,
         sandboxReady: true
+      },
+      {
+        id: 'leads_liberacion',
+        label: 'Liberación',
+        path: '/leads/liberacion',
+        roles: ['admin', 'owner', 'supply_admin', 'supply_lead'],
+        matchPaths: ['/leads/liberacion'],
+        icon: Rocket,
+        sandboxReady: false
       }
     ]
   },
