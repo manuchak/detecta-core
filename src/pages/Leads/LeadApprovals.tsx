@@ -1,5 +1,6 @@
 
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AssignedLead } from "@/types/leadTypes";
 import { useLeadApprovals } from "@/hooks/useLeadApprovals";
 import { usePoolReserva } from "@/hooks/usePoolReserva";
+import { useCustodioLiberacion } from "@/hooks/useCustodioLiberacion";
 import { LeadsList } from "@/components/leads/approval/LeadsList";
 import { LeadDialogs } from "@/components/leads/approval/LeadDialogs";
 import { ScheduledCallsView } from "@/components/leads/approval/ScheduledCallsView";
@@ -64,6 +66,8 @@ export const LeadApprovals = () => {
   console.log('📊 LeadApprovals: Hook state - loading:', loading, 'assignedLeads:', assignedLeads?.length || 0);
   
   const { moveToPool } = usePoolReserva();
+  const { createLiberacion } = useCustodioLiberacion();
+  const navigate = useNavigate();
 
   // Validación de ambiente vs conteo de datos
   useEffect(() => {
@@ -231,6 +235,23 @@ export const LeadApprovals = () => {
   const handleMoveToPool = (lead: AssignedLead) => {
     setSelectedLead(lead);
     setShowMoveToPoolDialog(true);
+  };
+
+  const handleIniciarLiberacion = async (lead: AssignedLead) => {
+    try {
+      await createLiberacion.mutateAsync(lead.lead_id);
+      toast({
+        title: "Liberación iniciada",
+        description: `Se ha iniciado el proceso de liberación para ${lead.lead_nombre}`
+      });
+      navigate('/leads/liberacion');
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo iniciar el proceso de liberación",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleConfirmReject = (reasons: string[], customReason: string) => {
@@ -455,6 +476,7 @@ export const LeadApprovals = () => {
                   onCompleteMissingInfo={handleCompleteMissingInfo}
                   onLogCall={handleLogCall}
                   onMoveToPool={handleMoveToPool}
+                  onIniciarLiberacion={handleIniciarLiberacion}
                 />
                 <LeadsPagination
                   currentPage={page}
@@ -483,6 +505,7 @@ export const LeadApprovals = () => {
                   onCompleteMissingInfo={handleCompleteMissingInfo}
                   onLogCall={handleLogCall}
                   onMoveToPool={handleMoveToPool}
+                  onIniciarLiberacion={handleIniciarLiberacion}
                 />
               </TabsContent>
 
@@ -503,6 +526,7 @@ export const LeadApprovals = () => {
                   onCompleteMissingInfo={handleCompleteMissingInfo}
                   onLogCall={handleLogCall}
                   onMoveToPool={handleMoveToPool}
+                  onIniciarLiberacion={handleIniciarLiberacion}
                 />
               </TabsContent>
 
