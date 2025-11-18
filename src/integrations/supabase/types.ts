@@ -5072,6 +5072,7 @@ export type Database = {
       leads: {
         Row: {
           asignado_a: string | null
+          candidato_custodio_id: string | null
           contact_attempts_count: number | null
           created_at: string
           credenciales_enviadas: boolean | null
@@ -5108,6 +5109,7 @@ export type Database = {
         }
         Insert: {
           asignado_a?: string | null
+          candidato_custodio_id?: string | null
           contact_attempts_count?: number | null
           created_at?: string
           credenciales_enviadas?: boolean | null
@@ -5144,6 +5146,7 @@ export type Database = {
         }
         Update: {
           asignado_a?: string | null
+          candidato_custodio_id?: string | null
           contact_attempts_count?: number | null
           created_at?: string
           credenciales_enviadas?: boolean | null
@@ -5179,6 +5182,13 @@ export type Database = {
           zona_preferida_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "leads_candidato_custodio_id_fkey"
+            columns: ["candidato_custodio_id"]
+            isOneToOne: false
+            referencedRelation: "candidatos_custodios"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "leads_zona_preferida_id_fkey"
             columns: ["zona_preferida_id"]
@@ -11170,57 +11180,40 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: string[]
       }
-      get_analyst_assigned_leads:
-        | {
-            Args: {
-              p_date_from?: string
-              p_date_to?: string
-              p_limit?: number
-              p_offset?: number
-            }
-            Returns: {
-              current_stage: string
-              final_decision: string
-              lead_email: string
-              lead_estado: string
-              lead_fecha_creacion: string
-              lead_id: string
-              lead_nombre: string
-              lead_telefono: string
-              notas: string
-              phone_interview_completed: boolean
-              scheduled_call_datetime: string
-              second_interview_required: boolean
-            }[]
-          }
-        | {
-            Args: never
-            Returns: {
-              analista_email: string
-              analista_nombre: string
-              asignado_a: string
-              contact_attempts_count: number
-              fecha_entrada_pool: string
-              final_decision: string
-              has_scheduled_call: boolean
-              has_successful_call: boolean
-              interview_in_progress: boolean
-              interview_interrupted: boolean
-              interview_session_id: string
-              interview_started_at: string
-              last_contact_outcome: string
-              lead_email: string
-              lead_estado: string
-              lead_fecha_creacion: string
-              lead_id: string
-              lead_nombre: string
-              lead_telefono: string
-              motivo_pool: string
-              scheduled_call_datetime: string
-              zona_nombre: string
-              zona_preferida_id: string
-            }[]
-          }
+      get_analyst_assigned_leads: {
+        Args: {
+          p_date_from?: string
+          p_date_to?: string
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: {
+          analista_email: string
+          analista_nombre: string
+          asignado_a: string
+          candidato_custodio_id: string
+          contact_attempts_count: number
+          fecha_entrada_pool: string
+          final_decision: string
+          has_scheduled_call: boolean
+          has_successful_call: boolean
+          interview_in_progress: boolean
+          interview_interrupted: boolean
+          interview_session_id: string
+          interview_started_at: string
+          last_contact_outcome: string
+          lead_email: string
+          lead_estado: string
+          lead_fecha_creacion: string
+          lead_id: string
+          lead_nombre: string
+          lead_telefono: string
+          motivo_pool: string
+          scheduled_call_datetime: string
+          zona_nombre: string
+          zona_preferida_id: string
+        }[]
+      }
       get_analyst_assigned_leads_v2: {
         Args: {
           p_date_from?: string
@@ -12493,6 +12486,17 @@ export type Database = {
         Returns: boolean
       }
       self_verify_admin: { Args: never; Returns: boolean }
+      sync_lead_to_candidato: {
+        Args: {
+          p_email: string
+          p_estado_proceso: string
+          p_fuente: string
+          p_lead_id: string
+          p_nombre: string
+          p_telefono: string
+        }
+        Returns: string
+      }
       test_recruitment_system_access: {
         Args: never
         Returns: {

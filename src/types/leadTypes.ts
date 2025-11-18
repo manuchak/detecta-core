@@ -84,6 +84,9 @@ export interface AssignedLead {
   zona_nombre?: string;
   fecha_entrada_pool?: string;
   motivo_pool?: string;
+  
+  // 🔗 ARQUITECTURA: Vínculo con candidatos_custodios
+  candidato_custodio_id?: string; // UUID del candidato en candidatos_custodios (se crea al aprobar)
 }
 
 export interface ManualCallLog {

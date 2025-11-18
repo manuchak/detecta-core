@@ -360,21 +360,23 @@ export const useLeadApprovals = () => {
         throw new Error(`Error actualizando lead: ${leadError.message}`);
       }
 
-      // 🔄 SINCRONIZACIÓN CRÍTICA: Actualizar candidatos_custodios
-      const { error: candidatoError } = await sbx.update('candidatos_custodios', {
-        estado_proceso: 'aprobado',
-        updated_at: new Date().toISOString()
-      }).eq('id', lead.lead_id);
+      // 🔄 ARQUITECTURA: Sincronizar lead con candidatos_custodios usando función RPC
+      const { data: candidatoId, error: syncError } = await supabase
+        .rpc('sync_lead_to_candidato', {
+          p_lead_id: lead.lead_id,
+          p_nombre: lead.lead_nombre,
+          p_email: lead.lead_email,
+          p_telefono: lead.lead_telefono || '',
+          p_fuente: 'Plataforma Detecta',
+          p_estado_proceso: 'aprobado'
+        });
 
-      if (candidatoError) {
-        console.error('Error actualizando candidato:', candidatoError);
-        // No lanzar error para no bloquear el flujo, pero registrar
-        console.warn('⚠️ Lead aprobado pero candidato no sincronizado');
-      } else {
-        console.log('✅ Candidato sincronizado con estado: aprobado');
+      if (syncError) {
+        console.error('❌ Error sincronizando candidato:', syncError);
+        throw new Error(`Error vinculando candidato: ${syncError.message}`);
       }
 
-      console.log('Lead aprobado exitosamente');
+      console.log('✅ Lead aprobado y candidato vinculado:', candidatoId);
 
       toast({
         title: "Candidato aprobado",

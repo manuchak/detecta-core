@@ -47,7 +47,22 @@ export const useCustodioLiberacion = () => {
 
   // Crear registro de liberación
   const createLiberacion = useMutation({
-    mutationFn: async (candidato_id: string) => {
+    mutationFn: async (lead_id: string) => {
+      // 🔄 ARQUITECTURA: Obtener candidato_custodio_id del lead
+      const { data: lead, error: leadError } = await supabase
+        .from('leads')
+        .select('candidato_custodio_id, nombre, email, telefono')
+        .eq('id', lead_id)
+        .single();
+
+      if (leadError) throw new Error(`Error obteniendo lead: ${leadError.message}`);
+      
+      if (!lead?.candidato_custodio_id) {
+        throw new Error('Este lead no tiene un candidato vinculado. Debe ser aprobado primero.');
+      }
+
+      const candidato_id = lead.candidato_custodio_id;
+
       const { data: existing } = await supabase
         .from('custodio_liberacion')
         .select('id')
@@ -83,7 +98,6 @@ export const useCustodioLiberacion = () => {
 
       if (candidatoError) {
         console.error('Error actualizando estado del candidato:', candidatoError);
-        // No lanzar error para no bloquear, pero registrar
         console.warn('⚠️ Liberación creada pero candidato no sincronizado');
       } else {
         console.log('✅ Candidato sincronizado con estado: en_liberacion');
