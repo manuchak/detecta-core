@@ -134,6 +134,7 @@ export const useLeadsStable = (dateFrom?: string, dateTo?: string) => {
     empresa?: string;
     fuente?: string;
     mensaje?: string;
+    last_interview_data?: Record<string, any>;
   }) => {
     if (!mountedRef.current) return;
 
