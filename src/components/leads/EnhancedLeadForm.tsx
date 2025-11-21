@@ -294,11 +294,11 @@ export const EnhancedLeadForm = ({ editingLead, onSuccess, onCancel }: EnhancedL
         estado: formData.estado_lead as LeadEstado,
         mensaje: formData.mensaje,
         notas: formData.notas,
-        empresa: "", // Campo requerido por el tipo Lead
+        empresa: "",
         fuente: "form_robusto",
-        // Campos adicionales como JSON en mensaje
-        datos_completos: JSON.stringify({
+        last_interview_data: {
           edad: formData.edad,
+          nivel_escolaridad: formData.nivel_escolaridad,
           ubicacion: {
             estado_id: formData.estado_id,
             ciudad_id: formData.ciudad_id,
@@ -323,10 +323,12 @@ export const EnhancedLeadForm = ({ editingLead, onSuccess, onCancel }: EnhancedL
             referencias: formData.referencias
           },
           referido: {
-            custodio_id: formData.custodio_referente_id,
-            custodio_nombre: formData.custodio_referente_nombre
-          }
-        })
+            custodio_id: formData.custodio_referente_id || null,
+            custodio_nombre: formData.custodio_referente_nombre || null
+          },
+          form_type: 'form_robusto',
+          fecha_llenado: new Date().toISOString()
+        }
       };
 
       if (editingLead) {
@@ -346,9 +348,14 @@ export const EnhancedLeadForm = ({ editingLead, onSuccess, onCancel }: EnhancedL
       onSuccess();
     } catch (error) {
       console.error('Error saving lead:', error);
+      
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : "Error desconocido al guardar el candidato";
+      
       toast({
         title: "Error",
-        description: "Error al guardar el candidato",
+        description: `Error al guardar el candidato: ${errorMessage}`,
         variant: "destructive",
       });
     } finally {
