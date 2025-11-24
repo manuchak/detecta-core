@@ -168,7 +168,7 @@ const LiberacionChecklistModal = ({
               </AccordionContent>
             </AccordionItem>
 
-            {/* 2. Psicométricos */}
+            {/* 2. Psicométricos - OPCIONAL */}
             <AccordionItem value="psico">
               <AccordionTrigger>
                 <div className="flex items-center gap-2">
@@ -178,6 +178,7 @@ const LiberacionChecklistModal = ({
                     <div className="h-5 w-5 rounded-full border-2 border-muted-foreground" />
                   )}
                   <span>2. Psicométricos ({progress.psicometricos}%)</span>
+                  <Badge variant="secondary" className="ml-2 text-xs">Opcional</Badge>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="space-y-3">

@@ -187,6 +187,7 @@ export const useCustodioLiberacion = () => {
   });
 
   // Calcular progreso del checklist
+  // Psicométricos ahora es OPCIONAL - no afecta el total
   const calculateProgress = (liberacion: CustodioLiberacion): ChecklistProgress => {
     const documentacion = [
       liberacion.documentacion_ine,
@@ -214,13 +215,14 @@ export const useCustodioLiberacion = () => {
     
     const gps = liberacion.instalacion_gps_completado ? 100 : 0;
     
+    // Total calculado SIN psicométricos (4 componentes en lugar de 5)
     const total = Math.round(
-      (documentacion / 6 * 100 + psicometricos + toxicologicos + vehiculo + gps) / 5
+      (documentacion / 6 * 100 + toxicologicos + vehiculo + gps) / 4
     );
     
     return {
       documentacion: Math.round((documentacion / 6) * 100),
-      psicometricos,
+      psicometricos, // Se muestra pero NO afecta el total
       toxicologicos,
       vehiculo: Math.round(vehiculo),
       gps,
