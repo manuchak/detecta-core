@@ -31,6 +31,7 @@ import { CustodioLiberacion } from '@/types/liberacion';
 import { useCustodioLiberacion } from '@/hooks/useCustodioLiberacion';
 import LiberacionProgressBar from './LiberacionProgressBar';
 import { useToast } from '@/hooks/use-toast';
+import { LiberacionWarningsDialog } from './LiberacionWarningsDialog';
 
 interface LiberacionChecklistModalProps {
   liberacion: CustodioLiberacion;
@@ -49,6 +50,8 @@ const LiberacionChecklistModal = ({
   const { toast } = useToast();
   const [liberacion, setLiberacion] = useState<CustodioLiberacion>(initialLiberacion);
   const [isSaving, setIsSaving] = useState(false);
+  const [showWarnings, setShowWarnings] = useState(false);
+  const [currentWarnings, setCurrentWarnings] = useState<string[]>([]);
 
   useEffect(() => {
     setLiberacion(initialLiberacion);
@@ -80,29 +83,40 @@ const LiberacionChecklistModal = ({
   };
 
   const handleLiberar = async () => {
-    if (progress.total < 100) {
-      toast({
-        title: 'Checklist incompleto',
-        description: 'Debes completar el 100% del checklist antes de liberar',
-        variant: 'destructive'
-      });
-      return;
-    }
-
+    // MODO FLEXIBLE: No validar progreso, liberar siempre
+    // Los warnings se mostrarán automáticamente en el diálogo
+    
     setIsSaving(true);
     try {
-      await liberarCustodio.mutateAsync(liberacion.id);
-      onSuccess();
-      onClose();
+      const result = await liberarCustodio.mutateAsync({ 
+        liberacion_id: liberacion.id,
+        forzar: true // Modo flexible por defecto
+      });
+      
+      // Si hay warnings, mostrar diálogo
+      if (result.tiene_warnings && result.warnings.length > 0) {
+        setCurrentWarnings(result.warnings);
+        setShowWarnings(true);
+        setIsSaving(false);
+      } else {
+        // Liberación sin warnings, continuar
+        onSuccess();
+        onClose();
+      }
     } catch (error: any) {
       toast({
         title: 'Error',
         description: error.message || 'No se pudo liberar el custodio',
         variant: 'destructive'
       });
-    } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleConfirmWithWarnings = async () => {
+    setShowWarnings(false);
+    onSuccess();
+    onClose();
   };
 
   const esVehiculoRequerido = liberacion.candidato?.vehiculo_propio === true;
@@ -445,7 +459,7 @@ const LiberacionChecklistModal = ({
           </Button>
           <Button
             onClick={handleLiberar}
-            disabled={isSaving || progress.total < 100}
+            disabled={isSaving}
             className="bg-green-600 hover:bg-green-700"
           >
             {isSaving ? (
@@ -457,6 +471,15 @@ const LiberacionChecklistModal = ({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Dialog de advertencias */}
+      <LiberacionWarningsDialog
+        open={showWarnings}
+        warnings={currentWarnings}
+        onConfirm={handleConfirmWithWarnings}
+        onCancel={() => setShowWarnings(false)}
+        isLoading={false}
+      />
     </Dialog>
   );
 };
