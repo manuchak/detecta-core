@@ -156,26 +156,51 @@ export const useCustodioLiberacion = () => {
     }
   });
 
-  // Liberar custodio (función final)
+  // Liberar custodio (función final) - con soporte para warnings
   const liberarCustodio = useMutation({
-    mutationFn: async (liberacion_id: string) => {
+    mutationFn: async ({ 
+      liberacion_id, 
+      forzar = true 
+    }: { 
+      liberacion_id: string;
+      forzar?: boolean;
+    }) => {
       const { data: user } = await supabase.auth.getUser();
       
       const { data, error } = await supabase.rpc('liberar_custodio_a_planeacion', {
         p_liberacion_id: liberacion_id,
-        p_liberado_por: user.user?.id
+        p_liberado_por: user.user?.id,
+        p_forzar_liberacion: forzar // Modo flexible por defecto
       });
       
       if (error) throw error;
-      return data;
+      return data as {
+        success: boolean;
+        pc_custodio_id: string;
+        candidato_id: string;
+        warnings: string[];
+        fases_incompletas: string[];
+        tiene_warnings: boolean;
+        mensaje: string;
+      };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['custodio-liberacion'] });
       queryClient.invalidateQueries({ queryKey: ['custodios'] });
-      toast({
-        title: '🎉 Custodio Liberado',
-        description: 'El custodio ha sido activado y está disponible para Planificación'
-      });
+      
+      // Mostrar toast con warnings si existen
+      if (data.tiene_warnings) {
+        toast({
+          title: '⚠️ Custodio Liberado con Advertencias',
+          description: data.mensaje,
+          variant: 'default'
+        });
+      } else {
+        toast({
+          title: '🎉 Custodio Liberado',
+          description: 'El custodio ha sido activado y está disponible para Planificación'
+        });
+      }
     },
     onError: (error: Error) => {
       toast({
