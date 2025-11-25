@@ -80,3 +80,9 @@ verify_jwt = false
 
 [functions.vapi-call-test]
 verify_jwt = true
+
+[functions.apify-data-fetcher]
+verify_jwt = false
+
+[functions.procesar-incidente-rrss]
+verify_jwt = false

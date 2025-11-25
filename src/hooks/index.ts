@@ -29,3 +29,4 @@ export { useAssignmentAudit } from './useAssignmentAudit';
 export { useSecurityAudit } from './useSecurityAudit';
 export { usePersistedForm } from './usePersistedForm';
 export { useAllClientes, useClientesFromPricing, useOrigenesFromPricing, useDestinosFromPricing } from './useClientesFromPricing';
+export { useIncidentesRRSS, useIncidentesStats } from './useIncidentesRRSS';
