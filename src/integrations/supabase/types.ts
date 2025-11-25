@@ -3918,6 +3918,141 @@ export type Database = {
           },
         ]
       }
+      incidentes_rrss: {
+        Row: {
+          apify_actor_id: string | null
+          apify_run_id: string | null
+          armas_mencionadas: boolean | null
+          autor: string | null
+          carretera: string | null
+          confianza_clasificacion: number | null
+          coordenadas_lat: number | null
+          coordenadas_lng: number | null
+          created_at: string | null
+          empresa_afectada: string | null
+          engagement_comments: number | null
+          engagement_likes: number | null
+          engagement_shares: number | null
+          entidades_mencionadas: Json | null
+          error_procesamiento: string | null
+          estado: string | null
+          fecha_publicacion: string | null
+          geocoding_confianza: number | null
+          geocoding_metodo: string | null
+          grupo_delictivo_atribuido: string | null
+          hashtags: string[] | null
+          id: string
+          keywords_detectados: string[] | null
+          media_urls: string[] | null
+          menciones: string[] | null
+          monto_perdida_estimado: number | null
+          municipio: string | null
+          num_victimas: number | null
+          procesado: boolean | null
+          procesado_at: string | null
+          red_social: string
+          resumen_ai: string | null
+          sentimiento: string | null
+          severidad: string | null
+          subtipo: string | null
+          texto_original: string
+          tipo_carga_mencionada: string | null
+          tipo_incidente: string
+          ubicacion_normalizada: string | null
+          ubicacion_texto_original: string | null
+          updated_at: string | null
+          url_publicacion: string | null
+        }
+        Insert: {
+          apify_actor_id?: string | null
+          apify_run_id?: string | null
+          armas_mencionadas?: boolean | null
+          autor?: string | null
+          carretera?: string | null
+          confianza_clasificacion?: number | null
+          coordenadas_lat?: number | null
+          coordenadas_lng?: number | null
+          created_at?: string | null
+          empresa_afectada?: string | null
+          engagement_comments?: number | null
+          engagement_likes?: number | null
+          engagement_shares?: number | null
+          entidades_mencionadas?: Json | null
+          error_procesamiento?: string | null
+          estado?: string | null
+          fecha_publicacion?: string | null
+          geocoding_confianza?: number | null
+          geocoding_metodo?: string | null
+          grupo_delictivo_atribuido?: string | null
+          hashtags?: string[] | null
+          id?: string
+          keywords_detectados?: string[] | null
+          media_urls?: string[] | null
+          menciones?: string[] | null
+          monto_perdida_estimado?: number | null
+          municipio?: string | null
+          num_victimas?: number | null
+          procesado?: boolean | null
+          procesado_at?: string | null
+          red_social: string
+          resumen_ai?: string | null
+          sentimiento?: string | null
+          severidad?: string | null
+          subtipo?: string | null
+          texto_original: string
+          tipo_carga_mencionada?: string | null
+          tipo_incidente?: string
+          ubicacion_normalizada?: string | null
+          ubicacion_texto_original?: string | null
+          updated_at?: string | null
+          url_publicacion?: string | null
+        }
+        Update: {
+          apify_actor_id?: string | null
+          apify_run_id?: string | null
+          armas_mencionadas?: boolean | null
+          autor?: string | null
+          carretera?: string | null
+          confianza_clasificacion?: number | null
+          coordenadas_lat?: number | null
+          coordenadas_lng?: number | null
+          created_at?: string | null
+          empresa_afectada?: string | null
+          engagement_comments?: number | null
+          engagement_likes?: number | null
+          engagement_shares?: number | null
+          entidades_mencionadas?: Json | null
+          error_procesamiento?: string | null
+          estado?: string | null
+          fecha_publicacion?: string | null
+          geocoding_confianza?: number | null
+          geocoding_metodo?: string | null
+          grupo_delictivo_atribuido?: string | null
+          hashtags?: string[] | null
+          id?: string
+          keywords_detectados?: string[] | null
+          media_urls?: string[] | null
+          menciones?: string[] | null
+          monto_perdida_estimado?: number | null
+          municipio?: string | null
+          num_victimas?: number | null
+          procesado?: boolean | null
+          procesado_at?: string | null
+          red_social?: string
+          resumen_ai?: string | null
+          sentimiento?: string | null
+          severidad?: string | null
+          subtipo?: string | null
+          texto_original?: string
+          tipo_carga_mencionada?: string | null
+          tipo_incidente?: string
+          ubicacion_normalizada?: string | null
+          ubicacion_texto_original?: string | null
+          updated_at?: string | null
+          url_publicacion?: string | null
+        }
+        Relationships: []
+      }
       instalacion_documentacion: {
         Row: {
           completado: boolean | null
@@ -12305,6 +12440,25 @@ export type Database = {
       has_role: {
         Args: { role_name: string; user_uuid: string }
         Returns: boolean
+      }
+      incidentes_en_radio: {
+        Args: {
+          p_dias_atras?: number
+          p_lat: number
+          p_lng: number
+          p_radio_km?: number
+          p_tipo_incidente?: string
+        }
+        Returns: {
+          distancia_km: number
+          fecha_publicacion: string
+          id: string
+          keywords_detectados: string[]
+          severidad: string
+          texto_original: string
+          tipo_incidente: string
+          ubicacion_texto_original: string
+        }[]
       }
       increment_meeting_point_usage: {
         Args: { point_id: string }
