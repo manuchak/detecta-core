@@ -12494,19 +12494,14 @@ export type Database = {
       is_supply_admin_or_higher: { Args: never; Returns: boolean }
       is_supply_manager: { Args: never; Returns: boolean }
       is_whatsapp_admin: { Args: never; Returns: boolean }
-      liberar_custodio_a_planeacion:
-        | {
-            Args: { p_liberacion_id: string; p_liberado_por: string }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_forzar_liberacion?: boolean
-              p_liberacion_id: string
-              p_liberado_por: string
-            }
-            Returns: Json
-          }
+      liberar_custodio_a_planeacion: {
+        Args: {
+          p_forzar_liberacion?: boolean
+          p_liberacion_id: string
+          p_liberado_por: string
+        }
+        Returns: Json
+      }
       link_user_to_custodio_services: {
         Args: { p_phone: string; p_user_id: string }
         Returns: {
