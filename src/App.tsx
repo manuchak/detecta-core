@@ -39,6 +39,7 @@ const LandingManager = lazy(() => import('@/pages/Admin/LandingManager'));
 const MonitoringPage = lazy(() => import('@/pages/Monitoring/MonitoringPage'));
 const SupplyChainMonitoring = lazy(() => import('@/pages/Monitoring/SupplyChainMonitoring'));
 const ForensicAuditPage = lazy(() => import('@/pages/Monitoring/ForensicAuditPage'));
+const IncidentesRRSSPage = lazy(() => import('@/pages/Incidentes/IncidentesRRSSPage'));
 const TicketsList = lazy(() => import('@/pages/Tickets/TicketsList'));
 const ServicesPage = lazy(() => import('@/pages/Services/ServicesPage').then(module => ({ default: module.ServicesPage })));
 const RendimientoPage = lazy(() => import('@/pages/Services/RendimientoPage'));
@@ -351,6 +352,20 @@ function App() {
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'jefe_seguridad', 'analista_seguridad']}>
                         <UnifiedLayout>
                           <ForensicAuditPage />
+                        </UnifiedLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                {/* Incidentes RRSS - Intelligence */}
+                <Route
+                  path="/incidentes-rrss"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'jefe_seguridad', 'analista_seguridad']}>
+                        <UnifiedLayout>
+                          <IncidentesRRSSPage />
                         </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
