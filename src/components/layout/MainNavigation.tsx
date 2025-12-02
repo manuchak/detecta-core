@@ -23,7 +23,8 @@ import {
   Settings,
   LogOut,
   User,
-  ChevronDown
+  ChevronDown,
+  AlertTriangle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -96,6 +97,14 @@ const navigationItems: NavigationItem[] = [
     icon: Bot,
     route: '/ai-advanced',
     roles: ['admin', 'owner', 'manager']
+  },
+  {
+    id: 'incidentes',
+    title: 'Incidentes RRSS',
+    description: 'Inteligencia de incidentes',
+    icon: AlertTriangle,
+    route: '/incidentes-rrss',
+    roles: ['admin', 'owner', 'supply_admin', 'jefe_seguridad', 'analista_seguridad']
   }
 ];
 
