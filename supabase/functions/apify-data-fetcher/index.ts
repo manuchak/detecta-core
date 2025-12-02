@@ -18,9 +18,25 @@ serve(async (req) => {
     }
 
     const { actor_id, force_run = false } = await req.json().catch(() => ({}));
-    const ACTOR_ID = actor_id || Deno.env.get('APIFY_DEFAULT_ACTOR_ID');
+    
+    // Obtener Actor ID con fallback por defecto
+    const envActorId = Deno.env.get('APIFY_DEFAULT_ACTOR_ID');
+    let ACTOR_ID = actor_id || envActorId || 'apidojo~tweet-scraper';
+    
+    // Validar que el Actor ID no sea una URL (error común de configuración)
+    if (ACTOR_ID.includes('http://') || ACTOR_ID.includes('https://')) {
+      console.error(`❌ ACTOR_ID inválido (contiene URL): "${ACTOR_ID}"`);
+      console.log('🔄 Usando fallback: apidojo~tweet-scraper');
+      ACTOR_ID = 'apidojo~tweet-scraper';
+    }
+    
+    // Validar formato correcto (username~actor-name)
+    if (!ACTOR_ID.includes('~') && !ACTOR_ID.includes('/')) {
+      console.warn(`⚠️ ACTOR_ID podría tener formato incorrecto: "${ACTOR_ID}"`);
+    }
 
     console.log(`🔄 Iniciando fetch de Apify Actor: ${ACTOR_ID}`);
+    console.log(`📡 Env APIFY_DEFAULT_ACTOR_ID: ${envActorId ? envActorId.substring(0, 20) + '...' : 'no configurado'}`);
 
     let datasetId: string;
 
