@@ -1401,12 +1401,84 @@ export type Database = {
         }
         Relationships: []
       }
+      candidato_risk_checklist: {
+        Row: {
+          actitud_defensiva: boolean | null
+          antecedentes_laborales_negativos: boolean | null
+          antecedentes_penales: boolean | null
+          cambios_frecuentes_empleo: boolean | null
+          candidato_id: string
+          created_at: string | null
+          documentacion_incompleta: boolean | null
+          evaluado_por: string | null
+          id: string
+          inconsistencias_cv: boolean | null
+          nerviosismo_excesivo: boolean | null
+          notas: string | null
+          referencias_no_verificables: boolean | null
+          respuestas_evasivas: boolean | null
+          risk_level: string | null
+          risk_score: number | null
+          updated_at: string | null
+          zona_alto_riesgo: boolean | null
+        }
+        Insert: {
+          actitud_defensiva?: boolean | null
+          antecedentes_laborales_negativos?: boolean | null
+          antecedentes_penales?: boolean | null
+          cambios_frecuentes_empleo?: boolean | null
+          candidato_id: string
+          created_at?: string | null
+          documentacion_incompleta?: boolean | null
+          evaluado_por?: string | null
+          id?: string
+          inconsistencias_cv?: boolean | null
+          nerviosismo_excesivo?: boolean | null
+          notas?: string | null
+          referencias_no_verificables?: boolean | null
+          respuestas_evasivas?: boolean | null
+          risk_level?: string | null
+          risk_score?: number | null
+          updated_at?: string | null
+          zona_alto_riesgo?: boolean | null
+        }
+        Update: {
+          actitud_defensiva?: boolean | null
+          antecedentes_laborales_negativos?: boolean | null
+          antecedentes_penales?: boolean | null
+          cambios_frecuentes_empleo?: boolean | null
+          candidato_id?: string
+          created_at?: string | null
+          documentacion_incompleta?: boolean | null
+          evaluado_por?: string | null
+          id?: string
+          inconsistencias_cv?: boolean | null
+          nerviosismo_excesivo?: boolean | null
+          notas?: string | null
+          referencias_no_verificables?: boolean | null
+          respuestas_evasivas?: boolean | null
+          risk_level?: string | null
+          risk_score?: number | null
+          updated_at?: string | null
+          zona_alto_riesgo?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidato_risk_checklist_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: true
+            referencedRelation: "candidatos_custodios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidatos_custodios: {
         Row: {
           calificacion_inicial: number | null
           created_at: string | null
           disponibilidad_horarios: Json | null
           email: string | null
+          estado_detallado: string | null
           estado_proceso: string | null
           expectativa_ingresos: number | null
           experiencia_seguridad: boolean | null
@@ -1428,6 +1500,7 @@ export type Database = {
           created_at?: string | null
           disponibilidad_horarios?: Json | null
           email?: string | null
+          estado_detallado?: string | null
           estado_proceso?: string | null
           expectativa_ingresos?: number | null
           experiencia_seguridad?: boolean | null
@@ -1449,6 +1522,7 @@ export type Database = {
           created_at?: string | null
           disponibilidad_horarios?: Json | null
           email?: string | null
+          estado_detallado?: string | null
           estado_proceso?: string | null
           expectativa_ingresos?: number | null
           experiencia_seguridad?: boolean | null
@@ -2637,6 +2711,47 @@ export type Database = {
           },
         ]
       }
+      custodio_state_transitions: {
+        Row: {
+          candidato_id: string
+          changed_by: string | null
+          created_at: string | null
+          from_state: string | null
+          id: string
+          metadata: Json | null
+          reason: string | null
+          to_state: string
+        }
+        Insert: {
+          candidato_id: string
+          changed_by?: string | null
+          created_at?: string | null
+          from_state?: string | null
+          id?: string
+          metadata?: Json | null
+          reason?: string | null
+          to_state: string
+        }
+        Update: {
+          candidato_id?: string
+          changed_by?: string | null
+          created_at?: string | null
+          from_state?: string | null
+          id?: string
+          metadata?: Json | null
+          reason?: string | null
+          to_state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custodio_state_transitions_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "candidatos_custodios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custodios_operativos: {
         Row: {
           certificaciones: string[] | null
@@ -3396,6 +3511,83 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      entrevistas_estructuradas: {
+        Row: {
+          areas_mejora: string[] | null
+          candidato_id: string
+          created_at: string | null
+          decision: string | null
+          duracion_minutos: number | null
+          entrevistador_id: string | null
+          fecha_entrevista: string | null
+          fortalezas: string[] | null
+          id: string
+          motivo_decision: string | null
+          notas_generales: string | null
+          rating_actitud: number | null
+          rating_comunicacion: number | null
+          rating_disponibilidad: number | null
+          rating_experiencia: number | null
+          rating_motivacion: number | null
+          rating_profesionalismo: number | null
+          rating_promedio: number | null
+          tipo_entrevista: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          areas_mejora?: string[] | null
+          candidato_id: string
+          created_at?: string | null
+          decision?: string | null
+          duracion_minutos?: number | null
+          entrevistador_id?: string | null
+          fecha_entrevista?: string | null
+          fortalezas?: string[] | null
+          id?: string
+          motivo_decision?: string | null
+          notas_generales?: string | null
+          rating_actitud?: number | null
+          rating_comunicacion?: number | null
+          rating_disponibilidad?: number | null
+          rating_experiencia?: number | null
+          rating_motivacion?: number | null
+          rating_profesionalismo?: number | null
+          rating_promedio?: number | null
+          tipo_entrevista?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          areas_mejora?: string[] | null
+          candidato_id?: string
+          created_at?: string | null
+          decision?: string | null
+          duracion_minutos?: number | null
+          entrevistador_id?: string | null
+          fecha_entrevista?: string | null
+          fortalezas?: string[] | null
+          id?: string
+          motivo_decision?: string | null
+          notas_generales?: string | null
+          rating_actitud?: number | null
+          rating_comunicacion?: number | null
+          rating_disponibilidad?: number | null
+          rating_experiencia?: number | null
+          rating_motivacion?: number | null
+          rating_profesionalismo?: number | null
+          rating_promedio?: number | null
+          tipo_entrevista?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entrevistas_estructuradas_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "candidatos_custodios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       esquemas_pago_armados: {
         Row: {
@@ -9693,6 +9885,36 @@ export type Database = {
           },
         ]
       }
+      supply_feature_flags: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          flag_key: string
+          flag_value: boolean | null
+          id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          flag_key: string
+          flag_value?: boolean | null
+          id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          flag_key?: string
+          flag_value?: boolean | null
+          id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       system_changes: {
         Row: {
           affected_components: string[] | null
@@ -10551,6 +10773,18 @@ export type Database = {
           skill: Database["public"]["Enums"]["user_skill_type"] | null
           status: string | null
           user_id: string | null
+        }
+        Relationships: []
+      }
+      v_interview_metrics: {
+        Row: {
+          aprobados: number | null
+          duracion_promedio: number | null
+          promedio_general: number | null
+          rechazados: number | null
+          segunda_entrevista: number | null
+          semana: string | null
+          total_entrevistas: number | null
         }
         Relationships: []
       }
@@ -12709,6 +12943,15 @@ export type Database = {
           p_servicio_id: string
         }
         Returns: string
+      }
+      transition_candidato_state: {
+        Args: {
+          p_candidato_id: string
+          p_metadata?: Json
+          p_new_state: string
+          p_reason?: string
+        }
+        Returns: Json
       }
       update_all_custodian_levels: { Args: never; Returns: number }
       update_approval_process: {

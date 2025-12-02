@@ -33,6 +33,7 @@ const NotFound = lazy(() => import('@/pages/NotFound'));
 const SimpleLeadsPage = lazy(() => import('@/pages/Leads/SimpleLeadsPage'));
 const LeadApprovals = lazy(() => import('@/pages/Leads/LeadApprovals'));
 const LiberacionPage = lazy(() => import('@/pages/Leads/LiberacionPage'));
+const EvaluacionesPage = lazy(() => import('@/pages/Leads/EvaluacionesPage'));
 const AssignOwnerRole = lazy(() => import('@/pages/Admin/AssignOwnerRole'));
 const AssignRole = lazy(() => import('@/pages/Admin/AssignRole'));
 const LandingManager = lazy(() => import('@/pages/Admin/LandingManager'));
@@ -272,6 +273,19 @@ function App() {
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'supply_lead']}>
                         <UnifiedLayout>
                           <LiberacionPage />
+                        </UnifiedLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/leads/evaluaciones"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'supply_lead', 'coordinador_operaciones']}>
+                        <UnifiedLayout>
+                          <EvaluacionesPage />
                         </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
