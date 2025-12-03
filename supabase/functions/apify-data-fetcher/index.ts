@@ -106,6 +106,28 @@ serve(async (req) => {
     const items = await itemsResponse.json();
     console.log(`✅ Descargados ${items.length} items`);
 
+    // LOGGING EXTENSIVO: Mostrar estructura del primer item
+    if (items.length > 0) {
+      console.log('📋 ===== ESTRUCTURA DE ITEMS =====');
+      console.log(`📋 Keys del primer item: ${JSON.stringify(Object.keys(items[0]))}`);
+      console.log(`📋 Ejemplo item (primeros 1000 chars): ${JSON.stringify(items[0]).substring(0, 1000)}`);
+      
+      // Buscar campos de URL disponibles
+      const urlFields = ['url', 'postUrl', 'tweetUrl', 'twitterUrl', 'link', 'permalink'];
+      const foundUrlFields = urlFields.filter(field => items[0][field] !== undefined);
+      console.log(`📋 Campos de URL encontrados: ${foundUrlFields.length > 0 ? foundUrlFields.join(', ') : 'NINGUNO'}`);
+      
+      // Buscar campos de texto disponibles
+      const textFields = ['text', 'caption', 'full_text', 'content', 'body', 'description'];
+      const foundTextFields = textFields.filter(field => items[0][field] !== undefined);
+      console.log(`📋 Campos de texto encontrados: ${foundTextFields.length > 0 ? foundTextFields.join(', ') : 'NINGUNO'}`);
+      
+      // Buscar campos de autor disponibles
+      console.log(`📋 Campo author: ${JSON.stringify(items[0].author || 'NO EXISTE')}`);
+      console.log(`📋 Campo user: ${JSON.stringify(items[0].user || 'NO EXISTE')}`);
+      console.log(`📋 Campo username: ${items[0].username || 'NO EXISTE'}`);
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -116,13 +138,39 @@ serve(async (req) => {
       insertados: 0,
       duplicados: 0,
       errores: 0,
+      sin_url: 0,
+      sin_texto: 0,
       procesados_ai: 0
     };
 
     for (const item of items) {
       try {
-        const url = item.url || item.postUrl;
-        if (!url) continue;
+        // Buscar URL en múltiples campos posibles
+        const url = item.url || item.postUrl || item.tweetUrl || item.twitterUrl || item.link || item.permalink;
+        
+        if (!url) {
+          results.sin_url++;
+          console.warn(`⚠️ Item #${results.sin_url} sin URL. Keys disponibles: ${Object.keys(item).slice(0, 10).join(', ')}`);
+          continue;
+        }
+
+        // Buscar texto en múltiples campos posibles
+        const texto = item.text || item.caption || item.full_text || item.content || item.body || item.description || '';
+        
+        if (!texto) {
+          results.sin_texto++;
+          console.warn(`⚠️ Item sin texto pero con URL: ${url.substring(0, 50)}`);
+        }
+
+        // Buscar autor de forma flexible
+        const autor = item.author?.userName || 
+                     item.author?.name || 
+                     item.author?.username ||
+                     item.user?.screen_name || 
+                     item.user?.name ||
+                     item.username || 
+                     item.userName ||
+                     'Desconocido';
 
         const { data: existente } = await supabase
           .from('incidentes_rrss')
@@ -138,18 +186,18 @@ serve(async (req) => {
         const { data: incidente, error } = await supabase
           .from('incidentes_rrss')
           .insert({
-            red_social: detectRedSocial(item),
+            red_social: detectRedSocial(url, item),
             apify_actor_id: ACTOR_ID,
             url_publicacion: url,
-            autor: item.author?.userName || item.username || 'Desconocido',
-            fecha_publicacion: item.createdAt || new Date().toISOString(),
-            texto_original: item.text || item.caption || '',
-            hashtags: extractHashtags(item.text || item.caption),
-            menciones: extractMentions(item.text || item.caption),
+            autor: autor,
+            fecha_publicacion: item.createdAt || item.created_at || item.timestamp || new Date().toISOString(),
+            texto_original: texto,
+            hashtags: extractHashtags(texto),
+            menciones: extractMentions(texto),
             media_urls: extractMediaUrls(item),
-            engagement_likes: item.likeCount || 0,
-            engagement_shares: item.retweetCount || item.shareCount || 0,
-            engagement_comments: item.replyCount || item.commentCount || 0,
+            engagement_likes: item.likeCount || item.likes || item.favoriteCount || 0,
+            engagement_shares: item.retweetCount || item.shareCount || item.retweets || 0,
+            engagement_comments: item.replyCount || item.commentCount || item.replies || 0,
             tipo_incidente: 'sin_clasificar',
             procesado: false
           })
@@ -157,31 +205,39 @@ serve(async (req) => {
           .single();
 
         if (error) {
-          console.error('Error insertando:', error);
+          console.error('❌ Error insertando:', error.message);
           results.errores++;
           continue;
         }
 
         results.insertados++;
+        console.log(`✅ Insertado incidente ${incidente.id} - ${autor}`);
 
+        // Invocar procesamiento AI de forma asíncrona
         supabase.functions.invoke('procesar-incidente-rrss', {
           body: { incidente_id: incidente.id }
         }).then(({ data, error }) => {
           if (error) {
             console.error('Error en procesamiento AI:', error);
           } else {
-            console.log(`✅ Incidente ${incidente.id} procesado`);
+            console.log(`🤖 Incidente ${incidente.id} procesado por AI`);
             results.procesados_ai++;
           }
         });
 
       } catch (itemError) {
-        console.error('Error procesando item:', itemError);
+        console.error('❌ Error procesando item:', itemError);
         results.errores++;
       }
     }
 
-    console.log('📊 Resultados:', results);
+    console.log('📊 ===== RESULTADOS FINALES =====');
+    console.log(`📊 Total items: ${results.total}`);
+    console.log(`📊 Insertados: ${results.insertados}`);
+    console.log(`📊 Duplicados: ${results.duplicados}`);
+    console.log(`📊 Sin URL: ${results.sin_url}`);
+    console.log(`📊 Sin texto: ${results.sin_texto}`);
+    console.log(`📊 Errores: ${results.errores}`);
 
     return new Response(
       JSON.stringify({
@@ -221,10 +277,15 @@ async function waitForRun(runId: string, apiKey: string, maxWait = 120000) {
   throw new Error('Timeout esperando Actor run');
 }
 
-function detectRedSocial(item: any): string {
-  if (item.url?.includes('twitter.com') || item.url?.includes('x.com')) return 'twitter';
-  if (item.url?.includes('facebook.com')) return 'facebook';
-  return 'twitter';
+function detectRedSocial(url: string, item: any): string {
+  if (url?.includes('twitter.com') || url?.includes('x.com')) return 'twitter';
+  if (url?.includes('facebook.com') || url?.includes('fb.com')) return 'facebook';
+  if (url?.includes('instagram.com')) return 'instagram';
+  if (url?.includes('tiktok.com')) return 'tiktok';
+  // Fallback basado en estructura del item
+  if (item.retweetCount !== undefined || item.tweetId) return 'twitter';
+  if (item.fbId || item.facebookId) return 'facebook';
+  return 'desconocido';
 }
 
 function extractHashtags(text: string): string[] {
@@ -241,5 +302,7 @@ function extractMediaUrls(item: any): string[] {
   const urls: string[] = [];
   if (item.photos) urls.push(...(Array.isArray(item.photos) ? item.photos : [item.photos]));
   if (item.videos) urls.push(...(Array.isArray(item.videos) ? item.videos : [item.videos]));
+  if (item.media) urls.push(...(Array.isArray(item.media) ? item.media.map((m: any) => m.url || m) : [item.media]));
+  if (item.images) urls.push(...(Array.isArray(item.images) ? item.images : [item.images]));
   return urls.filter(Boolean);
 }
