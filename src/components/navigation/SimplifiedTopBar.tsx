@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Settings, LogOut, User } from 'lucide-react';
+import { Bell, Settings, LogOut, User, TestTube2, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -11,12 +11,23 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSandbox } from '@/contexts/SandboxContext';
 import { Logo } from '@/components/landing/Logo';
 
 export function SimplifiedTopBar() {
   const navigate = useNavigate();
   const { user, userRole, signOut } = useAuth();
+  const { isSandboxMode } = useSandbox();
+
+  const canAccessSandbox = userRole === 'admin' || userRole === 'owner';
 
   const getUserInitials = () => {
     if (!user?.email) return 'U';
@@ -43,8 +54,49 @@ export function SimplifiedTopBar() {
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Right Section: Notifications & User */}
+        {/* Right Section: Environment Badge, Notifications & User */}
         <div className="flex items-center gap-2">
+          {/* Environment Badge - Solo para admin/owner */}
+          {canAccessSandbox && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1.5 px-2"
+                    onClick={() => navigate('/settings?tab=entorno')}
+                  >
+                    {isSandboxMode ? (
+                      <>
+                        <TestTube2 className="h-4 w-4 text-warning" />
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-warning text-warning">
+                          Sandbox
+                        </Badge>
+                      </>
+                    ) : (
+                      <>
+                        <Shield className="h-4 w-4 text-success" />
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-success text-success">
+                          Prod
+                        </Badge>
+                      </>
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    {isSandboxMode 
+                      ? 'Entorno de pruebas activo' 
+                      : 'Entorno de producción activo'
+                    }
+                  </p>
+                  <p className="text-xs text-muted-foreground">Click para configurar</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+
           {/* Notifications */}
           <Button
             variant="ghost"
@@ -53,8 +105,6 @@ export function SimplifiedTopBar() {
             onClick={() => navigate('/notifications')}
           >
             <Bell className="h-4 w-4" />
-            {/* Notification badge - can be connected to actual notification count */}
-            {/* <span className="absolute top-1 right-1 h-2 w-2 bg-destructive rounded-full" /> */}
           </Button>
 
           {/* User Menu */}

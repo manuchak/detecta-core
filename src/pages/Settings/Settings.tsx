@@ -1,15 +1,19 @@
-
 import React, { useState } from "react";
 import ApiCredentials from "@/components/settings/ApiCredentials";
 import { PermissionsManager } from "@/components/settings/PermissionsManager";
 import { QuickSkillsPanel } from "@/components/settings/QuickSkillsPanel";
 import { RoleManager } from "@/components/settings/roles/RoleManager";
 import { WhatsAppManager } from "@/components/settings/WhatsAppManager";
+import { SandboxSettings } from "@/components/settings/SandboxSettings";
 import AIConnectionTest from "@/components/siercp/AIConnectionTest";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState("ia");
+  const { userRole } = useAuth();
+  
+  const canAccessSandbox = userRole === 'admin' || userRole === 'owner';
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -28,6 +32,9 @@ const Settings = () => {
           <TabsTrigger value="whatsapp">Bot WhatsApp</TabsTrigger>
           <TabsTrigger value="ia">Inteligencia Artificial</TabsTrigger>
           <TabsTrigger value="api">API</TabsTrigger>
+          {canAccessSandbox && (
+            <TabsTrigger value="entorno">Entorno</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="roles" className="space-y-6">
@@ -57,6 +64,12 @@ const Settings = () => {
         <TabsContent value="api">
           <ApiCredentials />
         </TabsContent>
+
+        {canAccessSandbox && (
+          <TabsContent value="entorno">
+            <SandboxSettings />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
