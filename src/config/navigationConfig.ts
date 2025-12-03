@@ -58,13 +58,21 @@ export const navigationModules: NavigationModule[] = [
     label: 'Leads',
     icon: UserCheck,
     path: '/leads',
-    matchPaths: ['/leads/approvals', '/leads/liberacion'],
+    matchPaths: ['/leads/approvals', '/leads/liberacion', '/leads/evaluaciones'],
     sandboxReady: true,
     children: [
       {
         id: 'leads_list',
         label: 'Lista de Candidatos',
         path: '/leads',
+        sandboxReady: true
+      },
+      {
+        id: 'leads_evaluaciones',
+        label: 'Evaluaciones',
+        path: '/leads/evaluaciones',
+        roles: ['admin', 'owner', 'supply_admin', 'supply_lead', 'coordinador_operaciones'],
+        icon: CheckCircle2,
         sandboxReady: true
       },
       {

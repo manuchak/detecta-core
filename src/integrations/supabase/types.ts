@@ -1470,6 +1470,13 @@ export type Database = {
             referencedRelation: "candidatos_custodios"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "candidato_risk_checklist_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: true
+            referencedRelation: "v_candidato_evaluaciones_completas"
+            referencedColumns: ["id"]
+          },
         ]
       }
       candidatos_custodios: {
@@ -2530,6 +2537,13 @@ export type Database = {
             referencedRelation: "candidatos_custodios"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "custodio_liberacion_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: true
+            referencedRelation: "v_candidato_evaluaciones_completas"
+            referencedColumns: ["id"]
+          },
         ]
       }
       custodio_performance_metrics: {
@@ -2748,6 +2762,13 @@ export type Database = {
             columns: ["candidato_id"]
             isOneToOne: false
             referencedRelation: "candidatos_custodios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custodio_state_transitions_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_candidato_evaluaciones_completas"
             referencedColumns: ["id"]
           },
         ]
@@ -3336,6 +3357,13 @@ export type Database = {
             referencedRelation: "candidatos_custodios"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "dialfire_call_logs_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_candidato_evaluaciones_completas"
+            referencedColumns: ["id"]
+          },
         ]
       }
       documentacion_requerida: {
@@ -3587,6 +3615,13 @@ export type Database = {
             referencedRelation: "candidatos_custodios"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "entrevistas_estructuradas_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_candidato_evaluaciones_completas"
+            referencedColumns: ["id"]
+          },
         ]
       }
       esquemas_pago_armados: {
@@ -3775,6 +3810,183 @@ export type Database = {
             columns: ["norma_id"]
             isOneToOne: false
             referencedRelation: "normas_instalacion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evaluaciones_psicometricas: {
+        Row: {
+          aval_coordinacion_id: string | null
+          aval_decision: string | null
+          aval_notas: string | null
+          candidato_id: string
+          created_at: string | null
+          estado: string | null
+          evaluador_id: string
+          fecha_aval: string | null
+          fecha_evaluacion: string | null
+          id: string
+          interpretacion_clinica: string | null
+          percentiles: Json | null
+          requiere_aval_coordinacion: boolean | null
+          resultado_semaforo: string
+          risk_flags: string[] | null
+          score_afrontamiento: number | null
+          score_agresividad: number | null
+          score_entrevista: number | null
+          score_global: number
+          score_integridad: number | null
+          score_psicopatia: number | null
+          score_veracidad: number | null
+          score_violencia: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          aval_coordinacion_id?: string | null
+          aval_decision?: string | null
+          aval_notas?: string | null
+          candidato_id: string
+          created_at?: string | null
+          estado?: string | null
+          evaluador_id: string
+          fecha_aval?: string | null
+          fecha_evaluacion?: string | null
+          id?: string
+          interpretacion_clinica?: string | null
+          percentiles?: Json | null
+          requiere_aval_coordinacion?: boolean | null
+          resultado_semaforo: string
+          risk_flags?: string[] | null
+          score_afrontamiento?: number | null
+          score_agresividad?: number | null
+          score_entrevista?: number | null
+          score_global: number
+          score_integridad?: number | null
+          score_psicopatia?: number | null
+          score_veracidad?: number | null
+          score_violencia?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          aval_coordinacion_id?: string | null
+          aval_decision?: string | null
+          aval_notas?: string | null
+          candidato_id?: string
+          created_at?: string | null
+          estado?: string | null
+          evaluador_id?: string
+          fecha_aval?: string | null
+          fecha_evaluacion?: string | null
+          id?: string
+          interpretacion_clinica?: string | null
+          percentiles?: Json | null
+          requiere_aval_coordinacion?: boolean | null
+          resultado_semaforo?: string
+          risk_flags?: string[] | null
+          score_afrontamiento?: number | null
+          score_agresividad?: number | null
+          score_entrevista?: number | null
+          score_global?: number
+          score_integridad?: number | null
+          score_psicopatia?: number | null
+          score_veracidad?: number | null
+          score_violencia?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evaluaciones_psicometricas_aval_coordinacion_id_fkey"
+            columns: ["aval_coordinacion_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluaciones_psicometricas_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "candidatos_custodios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluaciones_psicometricas_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_candidato_evaluaciones_completas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluaciones_psicometricas_evaluador_id_fkey"
+            columns: ["evaluador_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evaluaciones_toxicologicas: {
+        Row: {
+          archivo_url: string | null
+          candidato_id: string
+          created_at: string | null
+          fecha_muestra: string | null
+          fecha_resultados: string | null
+          id: string
+          laboratorio: string | null
+          notas: string | null
+          registrado_por: string
+          resultado: string
+          sustancias_detectadas: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          archivo_url?: string | null
+          candidato_id: string
+          created_at?: string | null
+          fecha_muestra?: string | null
+          fecha_resultados?: string | null
+          id?: string
+          laboratorio?: string | null
+          notas?: string | null
+          registrado_por: string
+          resultado: string
+          sustancias_detectadas?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          archivo_url?: string | null
+          candidato_id?: string
+          created_at?: string | null
+          fecha_muestra?: string | null
+          fecha_resultados?: string | null
+          id?: string
+          laboratorio?: string | null
+          notas?: string | null
+          registrado_por?: string
+          resultado?: string
+          sustancias_detectadas?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evaluaciones_toxicologicas_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "candidatos_custodios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluaciones_toxicologicas_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_candidato_evaluaciones_completas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluaciones_toxicologicas_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -5514,6 +5726,13 @@ export type Database = {
             columns: ["candidato_custodio_id"]
             isOneToOne: false
             referencedRelation: "candidatos_custodios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_candidato_custodio_id_fkey"
+            columns: ["candidato_custodio_id"]
+            isOneToOne: false
+            referencedRelation: "v_candidato_evaluaciones_completas"
             referencedColumns: ["id"]
           },
           {
@@ -8591,6 +8810,97 @@ export type Database = {
           },
         ]
       }
+      referencias_candidato: {
+        Row: {
+          calificacion: number | null
+          candidato_id: string
+          cargo_referencia: string | null
+          comentarios_referencia: string | null
+          contactado: boolean | null
+          created_at: string | null
+          email: string | null
+          empresa_institucion: string | null
+          fecha_contacto: string | null
+          id: string
+          nombre_referencia: string
+          notas_validador: string | null
+          red_flags: string[] | null
+          relacion: string | null
+          resultado: string | null
+          telefono: string | null
+          tiempo_conocido: string | null
+          tipo_referencia: string
+          updated_at: string | null
+          validador_id: string | null
+        }
+        Insert: {
+          calificacion?: number | null
+          candidato_id: string
+          cargo_referencia?: string | null
+          comentarios_referencia?: string | null
+          contactado?: boolean | null
+          created_at?: string | null
+          email?: string | null
+          empresa_institucion?: string | null
+          fecha_contacto?: string | null
+          id?: string
+          nombre_referencia: string
+          notas_validador?: string | null
+          red_flags?: string[] | null
+          relacion?: string | null
+          resultado?: string | null
+          telefono?: string | null
+          tiempo_conocido?: string | null
+          tipo_referencia: string
+          updated_at?: string | null
+          validador_id?: string | null
+        }
+        Update: {
+          calificacion?: number | null
+          candidato_id?: string
+          cargo_referencia?: string | null
+          comentarios_referencia?: string | null
+          contactado?: boolean | null
+          created_at?: string | null
+          email?: string | null
+          empresa_institucion?: string | null
+          fecha_contacto?: string | null
+          id?: string
+          nombre_referencia?: string
+          notas_validador?: string | null
+          red_flags?: string[] | null
+          relacion?: string | null
+          resultado?: string | null
+          telefono?: string | null
+          tiempo_conocido?: string | null
+          tipo_referencia?: string
+          updated_at?: string | null
+          validador_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referencias_candidato_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "candidatos_custodios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referencias_candidato_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_candidato_evaluaciones_completas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referencias_candidato_validador_id_fkey"
+            columns: ["validador_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       referidos: {
         Row: {
           bono_otorgado: boolean
@@ -10773,6 +11083,26 @@ export type Database = {
           skill: Database["public"]["Enums"]["user_skill_type"] | null
           status: string | null
           user_id: string | null
+        }
+        Relationships: []
+      }
+      v_candidato_evaluaciones_completas: {
+        Row: {
+          entrevista_decision: string | null
+          entrevista_rating: number | null
+          estado_detallado: string | null
+          estado_evaluacion: string | null
+          estado_proceso: string | null
+          id: string | null
+          nombre: string | null
+          psicometrico_aval: string | null
+          psicometrico_score: number | null
+          refs_laborales_ok: number | null
+          refs_personales_ok: number | null
+          resultado_semaforo: string | null
+          risk_level: string | null
+          risk_score: number | null
+          toxicologia_resultado: string | null
         }
         Relationships: []
       }
