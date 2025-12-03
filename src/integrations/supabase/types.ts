@@ -1477,6 +1477,13 @@ export type Database = {
             referencedRelation: "v_candidato_evaluaciones_completas"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "candidato_risk_checklist_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: true
+            referencedRelation: "v_capacitacion_progreso_candidato"
+            referencedColumns: ["candidato_id"]
+          },
         ]
       }
       candidatos_custodios: {
@@ -2275,6 +2282,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "contratos_candidato_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_capacitacion_progreso_candidato"
+            referencedColumns: ["candidato_id"]
+          },
+          {
             foreignKeyName: "contratos_candidato_enviado_por_fkey"
             columns: ["enviado_por"]
             isOneToOne: false
@@ -2648,6 +2662,13 @@ export type Database = {
             referencedRelation: "v_candidato_evaluaciones_completas"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "custodio_liberacion_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: true
+            referencedRelation: "v_capacitacion_progreso_candidato"
+            referencedColumns: ["candidato_id"]
+          },
         ]
       }
       custodio_performance_metrics: {
@@ -2874,6 +2895,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_candidato_evaluaciones_completas"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custodio_state_transitions_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_capacitacion_progreso_candidato"
+            referencedColumns: ["candidato_id"]
           },
         ]
       }
@@ -3468,6 +3496,13 @@ export type Database = {
             referencedRelation: "v_candidato_evaluaciones_completas"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "dialfire_call_logs_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_capacitacion_progreso_candidato"
+            referencedColumns: ["candidato_id"]
+          },
         ]
       }
       documentacion_requerida: {
@@ -3650,6 +3685,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_candidato_evaluaciones_completas"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_candidato_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_capacitacion_progreso_candidato"
+            referencedColumns: ["candidato_id"]
           },
           {
             foreignKeyName: "documentos_candidato_subido_por_fkey"
@@ -3841,6 +3883,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_candidato_evaluaciones_completas"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entrevistas_estructuradas_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_capacitacion_progreso_candidato"
+            referencedColumns: ["candidato_id"]
           },
         ]
       }
@@ -4136,6 +4185,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "evaluaciones_psicometricas_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_capacitacion_progreso_candidato"
+            referencedColumns: ["candidato_id"]
+          },
+          {
             foreignKeyName: "evaluaciones_psicometricas_evaluador_id_fkey"
             columns: ["evaluador_id"]
             isOneToOne: false
@@ -4201,6 +4257,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_candidato_evaluaciones_completas"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluaciones_toxicologicas_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_capacitacion_progreso_candidato"
+            referencedColumns: ["candidato_id"]
           },
           {
             foreignKeyName: "evaluaciones_toxicologicas_registrado_por_fkey"
@@ -5956,6 +6019,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "leads_candidato_custodio_id_fkey"
+            columns: ["candidato_custodio_id"]
+            isOneToOne: false
+            referencedRelation: "v_capacitacion_progreso_candidato"
+            referencedColumns: ["candidato_id"]
+          },
+          {
             foreignKeyName: "leads_zona_preferida_id_fkey"
             columns: ["zona_preferida_id"]
             isOneToOne: false
@@ -6707,6 +6777,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      modulos_capacitacion: {
+        Row: {
+          activo: boolean | null
+          codigo: string
+          contenido_url: string | null
+          created_at: string | null
+          descripcion: string | null
+          duracion_estimada_min: number | null
+          es_obligatorio: boolean | null
+          id: string
+          nombre: string
+          orden: number
+          tipo_contenido: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          codigo: string
+          contenido_url?: string | null
+          created_at?: string | null
+          descripcion?: string | null
+          duracion_estimada_min?: number | null
+          es_obligatorio?: boolean | null
+          id?: string
+          nombre: string
+          orden?: number
+          tipo_contenido?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          codigo?: string
+          contenido_url?: string | null
+          created_at?: string | null
+          descripcion?: string | null
+          duracion_estimada_min?: number | null
+          es_obligatorio?: boolean | null
+          id?: string
+          nombre?: string
+          orden?: number
+          tipo_contenido?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       movimientos_comodato: {
         Row: {
@@ -8209,6 +8324,50 @@ export type Database = {
           },
         ]
       }
+      preguntas_quiz: {
+        Row: {
+          activa: boolean | null
+          created_at: string | null
+          explicacion: string | null
+          id: string
+          modulo_id: string
+          opciones: Json
+          orden: number | null
+          pregunta: string
+          puntos: number | null
+        }
+        Insert: {
+          activa?: boolean | null
+          created_at?: string | null
+          explicacion?: string | null
+          id?: string
+          modulo_id: string
+          opciones: Json
+          orden?: number | null
+          pregunta: string
+          puntos?: number | null
+        }
+        Update: {
+          activa?: boolean | null
+          created_at?: string | null
+          explicacion?: string | null
+          id?: string
+          modulo_id?: string
+          opciones?: Json
+          orden?: number | null
+          pregunta?: string
+          puntos?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "preguntas_quiz_modulo_id_fkey"
+            columns: ["modulo_id"]
+            isOneToOne: false
+            referencedRelation: "modulos_capacitacion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       presupuestos_zona: {
         Row: {
           aprobado_por: string | null
@@ -8723,6 +8882,101 @@ export type Database = {
           },
         ]
       }
+      progreso_capacitacion: {
+        Row: {
+          candidato_id: string
+          contenido_completado: boolean | null
+          contenido_iniciado: boolean | null
+          created_at: string | null
+          fecha_aprobacion_quiz: string | null
+          fecha_completado_contenido: string | null
+          fecha_inicio_contenido: string | null
+          fecha_primer_quiz: string | null
+          id: string
+          modulo_id: string
+          quiz_aprobado: boolean | null
+          quiz_completado: boolean | null
+          quiz_iniciado: boolean | null
+          quiz_intentos: number | null
+          quiz_mejor_puntaje: number | null
+          quiz_ultimo_puntaje: number | null
+          respuestas_ultimo_intento: Json | null
+          tiempo_dedicado_min: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          candidato_id: string
+          contenido_completado?: boolean | null
+          contenido_iniciado?: boolean | null
+          created_at?: string | null
+          fecha_aprobacion_quiz?: string | null
+          fecha_completado_contenido?: string | null
+          fecha_inicio_contenido?: string | null
+          fecha_primer_quiz?: string | null
+          id?: string
+          modulo_id: string
+          quiz_aprobado?: boolean | null
+          quiz_completado?: boolean | null
+          quiz_iniciado?: boolean | null
+          quiz_intentos?: number | null
+          quiz_mejor_puntaje?: number | null
+          quiz_ultimo_puntaje?: number | null
+          respuestas_ultimo_intento?: Json | null
+          tiempo_dedicado_min?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          candidato_id?: string
+          contenido_completado?: boolean | null
+          contenido_iniciado?: boolean | null
+          created_at?: string | null
+          fecha_aprobacion_quiz?: string | null
+          fecha_completado_contenido?: string | null
+          fecha_inicio_contenido?: string | null
+          fecha_primer_quiz?: string | null
+          id?: string
+          modulo_id?: string
+          quiz_aprobado?: boolean | null
+          quiz_completado?: boolean | null
+          quiz_iniciado?: boolean | null
+          quiz_intentos?: number | null
+          quiz_mejor_puntaje?: number | null
+          quiz_ultimo_puntaje?: number | null
+          respuestas_ultimo_intento?: Json | null
+          tiempo_dedicado_min?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "progreso_capacitacion_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "candidatos_custodios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "progreso_capacitacion_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_candidato_evaluaciones_completas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "progreso_capacitacion_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_capacitacion_progreso_candidato"
+            referencedColumns: ["candidato_id"]
+          },
+          {
+            foreignKeyName: "progreso_capacitacion_modulo_id_fkey"
+            columns: ["modulo_id"]
+            isOneToOne: false
+            referencedRelation: "modulos_capacitacion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proveedores: {
         Row: {
           activo: boolean | null
@@ -9161,6 +9415,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_candidato_evaluaciones_completas"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referencias_candidato_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_capacitacion_progreso_candidato"
+            referencedColumns: ["candidato_id"]
           },
           {
             foreignKeyName: "referencias_candidato_validador_id_fkey"
@@ -11373,6 +11634,17 @@ export type Database = {
           risk_level: string | null
           risk_score: number | null
           toxicologia_resultado: string | null
+        }
+        Relationships: []
+      }
+      v_capacitacion_progreso_candidato: {
+        Row: {
+          candidato_id: string | null
+          candidato_nombre: string | null
+          capacitacion_completa: boolean | null
+          porcentaje_completado: number | null
+          quizzes_aprobados: number | null
+          total_modulos: number | null
         }
         Relationships: []
       }
