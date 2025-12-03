@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TrendingUp, Users, BarChart3, CalendarCheck } from 'lucide-react';
+import { TrendingUp, Users, BarChart3, CalendarCheck, Target } from 'lucide-react';
 import { CustomBreadcrumb } from '@/components/ui/custom-breadcrumb';
 import AreaPerformanceDashboard from './components/AreaPerformanceDashboard';
 import PlanificadoresPerformanceDashboard from './components/PlanificadoresPerformanceDashboard';
+import AdoptionDashboard from './components/AdoptionDashboard';
 
 export default function ReportesHub() {
-  const [activeTab, setActiveTab] = useState('area');
+  const [activeTab, setActiveTab] = useState('adopcion');
   
   return (
     <div className="p-6 space-y-6">
@@ -25,13 +26,20 @@ export default function ReportesHub() {
           <h1 className="text-3xl font-bold">Reportes de Planeación</h1>
         </div>
         <p className="text-muted-foreground">
-          Análisis detallado de performance del área y planificadores individuales
+          Análisis detallado de adopción, performance del área y planificadores individuales
         </p>
       </div>
       
       {/* Tabs Navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 bg-background/95 backdrop-blur-apple supports-[backdrop-filter]:bg-background/80 shadow-apple-soft border border-border/50">
+        <TabsList className="grid w-full grid-cols-3 bg-background/95 backdrop-blur-apple supports-[backdrop-filter]:bg-background/80 shadow-apple-soft border border-border/50">
+          <TabsTrigger 
+            value="adopcion"
+            className="flex items-center gap-2 data-[state=active]:bg-corporate-blue data-[state=active]:text-white data-[state=active]:font-semibold data-[state=active]:shadow-sm text-muted-foreground transition-all duration-200"
+          >
+            <Target className="h-4 w-4" />
+            Adopción de Plataforma
+          </TabsTrigger>
           <TabsTrigger 
             value="area"
             className="flex items-center gap-2 data-[state=active]:bg-corporate-blue data-[state=active]:text-white data-[state=active]:font-semibold data-[state=active]:shadow-sm text-muted-foreground transition-all duration-200"
@@ -44,9 +52,13 @@ export default function ReportesHub() {
             className="flex items-center gap-2 data-[state=active]:bg-corporate-blue data-[state=active]:text-white data-[state=active]:font-semibold data-[state=active]:shadow-sm text-muted-foreground transition-all duration-200"
           >
             <Users className="h-4 w-4" />
-            Performance de Planificadores
+            Planificadores
           </TabsTrigger>
         </TabsList>
+        
+        <TabsContent value="adopcion" className="space-y-6">
+          <AdoptionDashboard />
+        </TabsContent>
         
         <TabsContent value="area" className="space-y-6">
           <AreaPerformanceDashboard />
