@@ -86,3 +86,9 @@ verify_jwt = false
 
 [functions.procesar-incidente-rrss]
 verify_jwt = false
+
+[functions.ocr-documento]
+verify_jwt = true
+
+[functions.generar-contrato-pdf]
+verify_jwt = true
