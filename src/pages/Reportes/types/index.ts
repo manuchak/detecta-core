@@ -64,3 +64,31 @@ export interface PlanificadorPerformance {
 
 export type PeriodoReporte = 'semana' | 'mes' | 'trimestre' | 'year';
 export type CriterioOrdenamiento = 'score' | 'servicios' | 'calidad' | 'eficiencia';
+
+export interface AdoptionMetrics {
+  mesActual: {
+    planificados: number;
+    ejecutados: number;
+    tasaAdopcion: number;
+    brechaServicios: number;
+  };
+  mesAnterior: {
+    planificados: number;
+    ejecutados: number;
+    tasaAdopcion: number;
+  };
+  tendenciaMensual: number;
+  metaAdopcion: number;
+  historicoAdopcion: Array<{
+    mes: string;
+    mesLabel: string;
+    planificados: number;
+    ejecutados: number;
+    tasaAdopcion: number;
+    sinPlanificar: number;
+  }>;
+  proyeccion: {
+    fechaMeta100: string | null;
+    tendenciaPromedio: number;
+  };
+}
