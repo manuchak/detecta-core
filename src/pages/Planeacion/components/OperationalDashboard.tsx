@@ -7,13 +7,12 @@ import {
   Clock, 
   MapPin,
   TrendingUp,
-  
   AlertTriangle,
   MessageSquare
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { usePlaneacionStats, useServicios, useCustodios } from '@/hooks/usePlaneacion';
+import { useServiciosHoy, useCustodiosDisponibles, useZonasOperativas } from '@/hooks/useServiciosHoy';
 
 interface OperationalDashboardProps {
   showCreateWorkflow: boolean;
@@ -23,9 +22,9 @@ interface OperationalDashboardProps {
 export function OperationalDashboard({ showCreateWorkflow, setShowCreateWorkflow }: OperationalDashboardProps) {
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString('es-ES'));
   
-  const { data: stats } = usePlaneacionStats();
-  const { data: servicios = [] } = useServicios();
-  const { data: custodios = [] } = useCustodios();
+  const { data: serviciosHoy = [], isLoading: loadingServicios } = useServiciosHoy();
+  const { data: custodiosDisponibles = [], isLoading: loadingCustodios } = useCustodiosDisponibles();
+  const { data: zonasOperativas = [], isLoading: loadingZonas } = useZonasOperativas();
 
   // Update time every second
   useEffect(() => {
@@ -35,26 +34,20 @@ export function OperationalDashboard({ showCreateWorkflow, setShowCreateWorkflow
     return () => clearInterval(timer);
   }, []);
 
-  // KPIs operativos reales
-  const serviciosPendientesHoy = servicios.filter(s => 
-    s.estado === 'nuevo' && 
-    new Date(s.fecha_programada).toDateString() === new Date().toDateString()
+  // KPIs operativos reales desde servicios_planificados
+  const serviciosSinCustodio = serviciosHoy.filter(s => 
+    !s.custodio_asignado || s.custodio_asignado === ''
   );
 
-  const custodiosDisponibles = custodios.filter(c => 
-    c.disponibilidad === 'disponible' && c.estado === 'activo'
-  );
-
-  const serviciosSinCustodio = servicios.filter(s => 
-    s.estado === 'nuevo' && !s.custodio_asignado
-  );
-
-  const serviciosProximosVencer = servicios.filter(s => {
-    const fechaServicio = new Date(s.fecha_programada);
-    const hoy = new Date();
-    const diffHoras = (fechaServicio.getTime() - hoy.getTime()) / (1000 * 60 * 60);
-    return diffHoras > 0 && diffHoras < 24 && !s.custodio_asignado;
+  const serviciosProximosVencer = serviciosHoy.filter(s => {
+    if (!s.fecha_hora_cita) return false;
+    const fechaServicio = new Date(s.fecha_hora_cita);
+    const ahora = new Date();
+    const diffHoras = (fechaServicio.getTime() - ahora.getTime()) / (1000 * 60 * 60);
+    return diffHoras > 0 && diffHoras < 4 && !s.custodio_asignado;
   });
+
+  const isLoading = loadingServicios || loadingCustodios || loadingZonas;
 
   return (
     <div className="apple-layout">
@@ -68,9 +61,8 @@ export function OperationalDashboard({ showCreateWorkflow, setShowCreateWorkflow
         </div>
       </div>
 
-
       {/* Critical Alert */}
-      {serviciosPendientesHoy.length > 0 && (
+      {serviciosSinCustodio.length > 0 && (
         <div className="apple-alert">
           <div className="flex items-start gap-4">
             <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
@@ -79,7 +71,7 @@ export function OperationalDashboard({ showCreateWorkflow, setShowCreateWorkflow
                 Atención Inmediata Requerida
               </h3>
               <p className="apple-alert-description">
-                {serviciosPendientesHoy.length} servicios requieren asignación para hoy
+                {serviciosSinCustodio.length} servicios requieren asignación de custodio para hoy
               </p>
             </div>
           </div>
@@ -94,7 +86,7 @@ export function OperationalDashboard({ showCreateWorkflow, setShowCreateWorkflow
           </div>
           <div className="apple-metric-content">
             <div className="apple-metric-value">
-              {serviciosPendientesHoy.length}
+              {isLoading ? '...' : serviciosHoy.length}
             </div>
             <div className="apple-metric-label">Servicios Hoy</div>
           </div>
@@ -106,7 +98,7 @@ export function OperationalDashboard({ showCreateWorkflow, setShowCreateWorkflow
           </div>
           <div className="apple-metric-content">
             <div className="apple-metric-value">
-              {custodiosDisponibles.length}
+              {isLoading ? '...' : custodiosDisponibles.length}
             </div>
             <div className="apple-metric-label">Custodios Disponibles</div>
           </div>
@@ -118,7 +110,7 @@ export function OperationalDashboard({ showCreateWorkflow, setShowCreateWorkflow
           </div>
           <div className="apple-metric-content">
             <div className="apple-metric-value">
-              {serviciosSinCustodio.length}
+              {isLoading ? '...' : serviciosSinCustodio.length}
             </div>
             <div className="apple-metric-label">Sin Asignar</div>
           </div>
@@ -130,9 +122,9 @@ export function OperationalDashboard({ showCreateWorkflow, setShowCreateWorkflow
           </div>
           <div className="apple-metric-content">
             <div className="apple-metric-value">
-              {serviciosProximosVencer.length}
+              {isLoading ? '...' : serviciosProximosVencer.length}
             </div>
-            <div className="apple-metric-label">Por Vencer</div>
+            <div className="apple-metric-label">Por Vencer (4h)</div>
           </div>
         </div>
       </div>
@@ -150,8 +142,8 @@ export function OperationalDashboard({ showCreateWorkflow, setShowCreateWorkflow
             </p>
           </div>
           <div className="apple-list">
-            {serviciosPendientesHoy.length > 0 ? (
-              serviciosPendientesHoy.slice(0, 3).map((servicio) => (
+            {serviciosSinCustodio.length > 0 ? (
+              serviciosSinCustodio.slice(0, 5).map((servicio) => (
                 <div key={servicio.id} className="apple-list-item">
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
@@ -163,12 +155,10 @@ export function OperationalDashboard({ showCreateWorkflow, setShowCreateWorkflow
                       </p>
                     </div>
                     <div className="apple-list-actions">
-                      {!servicio.custodio_asignado && (
-                        <Button size="sm" className="apple-button">
-                          <Users className="h-4 w-4 mr-1" />
-                          Asignar
-                        </Button>
-                      )}
+                      <Button size="sm" className="apple-button">
+                        <Users className="h-4 w-4 mr-1" />
+                        Asignar
+                      </Button>
                       <Button size="sm" variant="ghost">
                         <MessageSquare className="h-4 w-4" />
                       </Button>
@@ -180,7 +170,9 @@ export function OperationalDashboard({ showCreateWorkflow, setShowCreateWorkflow
               <div className="apple-empty-state">
                 <CheckCircle className="h-10 w-10 text-green-500 mx-auto mb-3" />
                 <p className="text-muted-foreground">
-                  No hay servicios pendientes para hoy
+                  {serviciosHoy.length > 0 
+                    ? 'Todos los servicios tienen custodio asignado' 
+                    : 'No hay servicios programados para hoy'}
                 </p>
               </div>
             )}
@@ -198,36 +190,32 @@ export function OperationalDashboard({ showCreateWorkflow, setShowCreateWorkflow
             </p>
           </div>
           <div className="apple-zones">
-            {['Norte', 'Sur', 'Centro', 'Oriente'].map((zona) => {
-              const custodiosZona = custodiosDisponibles.filter(c => 
-                c.zona_base?.toLowerCase().includes(zona.toLowerCase())
-              ).length;
-              const totalZona = custodios.filter(c => 
-                c.zona_base?.toLowerCase().includes(zona.toLowerCase())
-              ).length;
-              
-              return (
-                <div key={zona} className="apple-zone-card">
+            {zonasOperativas.length > 0 ? (
+              zonasOperativas.slice(0, 4).map((zona) => (
+                <div key={zona.zona} className="apple-zone-card">
                   <div className="apple-zone-header">
-                    <span className="apple-zone-title">{zona}</span>
+                    <span className="apple-zone-title">{zona.zona}</span>
                     <div className={`w-2 h-2 rounded-full ${
-                      custodiosZona > totalZona * 0.7 ? 'bg-green-500' : 
-                      custodiosZona > totalZona * 0.3 ? 'bg-yellow-500' : 'bg-red-500'
+                      zona.porcentaje > 70 ? 'bg-green-500' : 
+                      zona.porcentaje > 30 ? 'bg-yellow-500' : 'bg-red-500'
                     }`} />
                   </div>
                   <div className="apple-zone-percentage">
-                    {totalZona > 0 ? Math.round((custodiosZona / totalZona) * 100) : 0}%
+                    {zona.porcentaje}%
                   </div>
                   <div className="apple-zone-availability">
-                    {custodiosZona} de {totalZona} disponibles
+                    {zona.disponibles} de {zona.total} disponibles
                   </div>
                 </div>
-              );
-            })}
+              ))
+            ) : (
+              <div className="col-span-full text-center py-4 text-muted-foreground">
+                {isLoading ? 'Cargando zonas...' : 'Sin datos de zonas'}
+              </div>
+            )}
           </div>
         </div>
       </div>
-
     </div>
   );
 }
