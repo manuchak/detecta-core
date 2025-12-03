@@ -17,6 +17,10 @@ import { DocumentsTab } from './documents/DocumentsTab';
 import { DocumentsProgressBadge } from './documents/DocumentsProgressBadge';
 import { ContractsTab } from './contracts/ContractsTab';
 import { ContractsProgressBadge } from './contracts/ContractsProgressBadge';
+import { TrainingTab } from '@/components/leads/evaluaciones/TrainingTab';
+import { TrainingProgressBadge } from '@/components/leads/evaluaciones/TrainingProgressBadge';
+import { InstallationTab } from '@/components/leads/evaluaciones/InstallationTab';
+import { InstallationProgressBadge } from '@/components/leads/evaluaciones/InstallationProgressBadge';
 import { useStructuredInterviews } from '@/hooks/useStructuredInterview';
 import { useRiskChecklist } from '@/hooks/useRiskChecklist';
 import { useLatestEvaluacionPsicometrica } from '@/hooks/useEvaluacionesPsicometricas';
@@ -34,7 +38,9 @@ import {
   TestTube,
   Users,
   FileText,
-  FileSignature
+  FileSignature,
+  GraduationCap,
+  Cpu
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -58,7 +64,7 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <User className="h-5 w-5" />
@@ -73,52 +79,62 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
         )}
 
         <Tabs defaultValue="interview" className="w-full">
-          <TabsList className="grid w-full grid-cols-8">
-            <TabsTrigger value="interview" className="flex items-center gap-1 text-xs px-2">
+          <TabsList className="grid w-full grid-cols-10">
+            <TabsTrigger value="interview" className="flex items-center gap-1 text-xs px-1">
               <MessageSquare className="h-3 w-3" />
-              <span className="hidden lg:inline">Entrevista</span>
+              <span className="hidden xl:inline">Entrevista</span>
               {latestInterview && (
-                <Badge variant="secondary" className="ml-1 text-xs px-1">
+                <Badge variant="secondary" className="ml-0.5 text-xs px-1">
                   <Star className="h-2 w-2 mr-0.5" />
                   {latestInterview.rating_promedio?.toFixed(1)}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="psychometric" className="flex items-center gap-1 text-xs px-2">
+            <TabsTrigger value="psychometric" className="flex items-center gap-1 text-xs px-1">
               <Brain className="h-3 w-3" />
-              <span className="hidden lg:inline">Psico</span>
+              <span className="hidden xl:inline">Psico</span>
               {latestPsicometrico && (
                 <SemaforoBadge resultado={latestPsicometrico.resultado_semaforo} size="sm" avalDecision={latestPsicometrico.aval_decision} />
               )}
             </TabsTrigger>
-            <TabsTrigger value="toxicology" className="flex items-center gap-1 text-xs px-2">
+            <TabsTrigger value="toxicology" className="flex items-center gap-1 text-xs px-1">
               <TestTube className="h-3 w-3" />
-              <span className="hidden lg:inline">Toxico</span>
+              <span className="hidden xl:inline">Toxico</span>
               {latestToxicologia && <ToxicologyBadge resultado={latestToxicologia.resultado} size="sm" />}
             </TabsTrigger>
-            <TabsTrigger value="references" className="flex items-center gap-1 text-xs px-2">
+            <TabsTrigger value="references" className="flex items-center gap-1 text-xs px-1">
               <Users className="h-3 w-3" />
-              <span className="hidden lg:inline">Refs</span>
+              <span className="hidden xl:inline">Refs</span>
               <ReferencesProgressBadge candidatoId={candidatoId} size="sm" />
             </TabsTrigger>
-            <TabsTrigger value="risk" className="flex items-center gap-1 text-xs px-2">
+            <TabsTrigger value="risk" className="flex items-center gap-1 text-xs px-1">
               <Shield className="h-3 w-3" />
-              <span className="hidden lg:inline">Riesgo</span>
+              <span className="hidden xl:inline">Riesgo</span>
               {riskChecklist && <RiskLevelBadge level={riskChecklist.risk_level} />}
             </TabsTrigger>
-            <TabsTrigger value="documents" className="flex items-center gap-1 text-xs px-2">
+            <TabsTrigger value="documents" className="flex items-center gap-1 text-xs px-1">
               <FileText className="h-3 w-3" />
-              <span className="hidden lg:inline">Docs</span>
+              <span className="hidden xl:inline">Docs</span>
               <DocumentsProgressBadge candidatoId={candidatoId} size="sm" />
             </TabsTrigger>
-            <TabsTrigger value="contracts" className="flex items-center gap-1 text-xs px-2">
+            <TabsTrigger value="contracts" className="flex items-center gap-1 text-xs px-1">
               <FileSignature className="h-3 w-3" />
-              <span className="hidden lg:inline">Contratos</span>
+              <span className="hidden xl:inline">Contratos</span>
               <ContractsProgressBadge candidatoId={candidatoId} size="sm" />
             </TabsTrigger>
-            <TabsTrigger value="timeline" className="flex items-center gap-1 text-xs px-2">
+            <TabsTrigger value="training" className="flex items-center gap-1 text-xs px-1">
+              <GraduationCap className="h-3 w-3" />
+              <span className="hidden xl:inline">Capacitación</span>
+              <TrainingProgressBadge candidatoId={candidatoId} size="sm" />
+            </TabsTrigger>
+            <TabsTrigger value="installation" className="flex items-center gap-1 text-xs px-1">
+              <Cpu className="h-3 w-3" />
+              <span className="hidden xl:inline">Instalación</span>
+              <InstallationProgressBadge candidatoId={candidatoId} size="sm" />
+            </TabsTrigger>
+            <TabsTrigger value="timeline" className="flex items-center gap-1 text-xs px-1">
               <GitBranch className="h-3 w-3" />
-              <span className="hidden lg:inline">Historial</span>
+              <span className="hidden xl:inline">Historial</span>
             </TabsTrigger>
           </TabsList>
 
@@ -197,6 +213,14 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
 
           <TabsContent value="contracts" className="mt-4">
             <ContractsTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} />
+          </TabsContent>
+
+          <TabsContent value="training" className="mt-4">
+            <TrainingTab candidatoId={candidatoId} />
+          </TabsContent>
+
+          <TabsContent value="installation" className="mt-4">
+            <InstallationTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} />
           </TabsContent>
 
           <TabsContent value="timeline" className="mt-4">

@@ -8716,6 +8716,7 @@ export type Database = {
           acceso_restringido: boolean | null
           activo_id: string | null
           auto_asignacion_completada: boolean | null
+          candidato_id: string | null
           configuracion_sensores: Json | null
           contacto_cliente: string
           coordenadas_instalacion: Json | null
@@ -8739,6 +8740,7 @@ export type Database = {
           telefono_contacto: string
           tiempo_estimado: number | null
           tipo_combustible: string | null
+          tipo_contexto: string | null
           tipo_instalacion: string
           updated_at: string | null
           vehiculo_año: number | null
@@ -8749,6 +8751,7 @@ export type Database = {
           acceso_restringido?: boolean | null
           activo_id?: string | null
           auto_asignacion_completada?: boolean | null
+          candidato_id?: string | null
           configuracion_sensores?: Json | null
           contacto_cliente: string
           coordenadas_instalacion?: Json | null
@@ -8772,6 +8775,7 @@ export type Database = {
           telefono_contacto: string
           tiempo_estimado?: number | null
           tipo_combustible?: string | null
+          tipo_contexto?: string | null
           tipo_instalacion: string
           updated_at?: string | null
           vehiculo_año?: number | null
@@ -8782,6 +8786,7 @@ export type Database = {
           acceso_restringido?: boolean | null
           activo_id?: string | null
           auto_asignacion_completada?: boolean | null
+          candidato_id?: string | null
           configuracion_sensores?: Json | null
           contacto_cliente?: string
           coordenadas_instalacion?: Json | null
@@ -8805,6 +8810,7 @@ export type Database = {
           telefono_contacto?: string
           tiempo_estimado?: number | null
           tipo_combustible?: string | null
+          tipo_contexto?: string | null
           tipo_instalacion?: string
           updated_at?: string | null
           vehiculo_año?: number | null
@@ -8818,6 +8824,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "activos_monitoreo"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programacion_instalaciones_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "candidatos_custodios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programacion_instalaciones_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_candidato_evaluaciones_completas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programacion_instalaciones_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_capacitacion_progreso_candidato"
+            referencedColumns: ["candidato_id"]
           },
           {
             foreignKeyName: "programacion_instalaciones_instalador_id_fkey"
