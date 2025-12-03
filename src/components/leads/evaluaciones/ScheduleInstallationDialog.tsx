@@ -142,7 +142,7 @@ export const ScheduleInstallationDialog = ({
               <SelectContent>
                 {instaladoresActivos.map((instalador) => (
                   <SelectItem key={instalador.id} value={instalador.id}>
-                    {instalador.nombre}
+                    {instalador.nombre_completo}
                   </SelectItem>
                 ))}
               </SelectContent>
