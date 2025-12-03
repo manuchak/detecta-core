@@ -13,6 +13,10 @@ import { ToxicologyTab } from './toxicology/ToxicologyTab';
 import { ToxicologyBadge } from './toxicology/ToxicologyBadge';
 import { ReferencesTab } from './references/ReferencesTab';
 import { ReferencesProgressBadge } from './references/ReferencesProgressBadge';
+import { DocumentsTab } from './documents/DocumentsTab';
+import { DocumentsProgressBadge } from './documents/DocumentsProgressBadge';
+import { ContractsTab } from './contracts/ContractsTab';
+import { ContractsProgressBadge } from './contracts/ContractsProgressBadge';
 import { useStructuredInterviews } from '@/hooks/useStructuredInterview';
 import { useRiskChecklist } from '@/hooks/useRiskChecklist';
 import { useLatestEvaluacionPsicometrica } from '@/hooks/useEvaluacionesPsicometricas';
@@ -28,7 +32,9 @@ import {
   Loader2,
   Brain,
   TestTube,
-  Users
+  Users,
+  FileText,
+  FileSignature
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -52,7 +58,7 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <User className="h-5 w-5" />
@@ -67,10 +73,10 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
         )}
 
         <Tabs defaultValue="interview" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="interview" className="flex items-center gap-1 text-xs">
+          <TabsList className="grid w-full grid-cols-8">
+            <TabsTrigger value="interview" className="flex items-center gap-1 text-xs px-2">
               <MessageSquare className="h-3 w-3" />
-              <span className="hidden sm:inline">Entrevista</span>
+              <span className="hidden lg:inline">Entrevista</span>
               {latestInterview && (
                 <Badge variant="secondary" className="ml-1 text-xs px-1">
                   <Star className="h-2 w-2 mr-0.5" />
@@ -78,72 +84,62 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="psychometric" className="flex items-center gap-1 text-xs">
+            <TabsTrigger value="psychometric" className="flex items-center gap-1 text-xs px-2">
               <Brain className="h-3 w-3" />
-              <span className="hidden sm:inline">Psicométrico</span>
+              <span className="hidden lg:inline">Psico</span>
               {latestPsicometrico && (
-                <SemaforoBadge 
-                  resultado={latestPsicometrico.resultado_semaforo} 
-                  size="sm"
-                  avalDecision={latestPsicometrico.aval_decision}
-                />
+                <SemaforoBadge resultado={latestPsicometrico.resultado_semaforo} size="sm" avalDecision={latestPsicometrico.aval_decision} />
               )}
             </TabsTrigger>
-            <TabsTrigger value="toxicology" className="flex items-center gap-1 text-xs">
+            <TabsTrigger value="toxicology" className="flex items-center gap-1 text-xs px-2">
               <TestTube className="h-3 w-3" />
-              <span className="hidden sm:inline">Toxicología</span>
-              {latestToxicologia && (
-                <ToxicologyBadge resultado={latestToxicologia.resultado} size="sm" />
-              )}
+              <span className="hidden lg:inline">Toxico</span>
+              {latestToxicologia && <ToxicologyBadge resultado={latestToxicologia.resultado} size="sm" />}
             </TabsTrigger>
-            <TabsTrigger value="references" className="flex items-center gap-1 text-xs">
+            <TabsTrigger value="references" className="flex items-center gap-1 text-xs px-2">
               <Users className="h-3 w-3" />
-              <span className="hidden sm:inline">Referencias</span>
+              <span className="hidden lg:inline">Refs</span>
               <ReferencesProgressBadge candidatoId={candidatoId} size="sm" />
             </TabsTrigger>
-            <TabsTrigger value="risk" className="flex items-center gap-1 text-xs">
+            <TabsTrigger value="risk" className="flex items-center gap-1 text-xs px-2">
               <Shield className="h-3 w-3" />
-              <span className="hidden sm:inline">Riesgo</span>
+              <span className="hidden lg:inline">Riesgo</span>
               {riskChecklist && <RiskLevelBadge level={riskChecklist.risk_level} />}
             </TabsTrigger>
-            <TabsTrigger value="timeline" className="flex items-center gap-1 text-xs">
+            <TabsTrigger value="documents" className="flex items-center gap-1 text-xs px-2">
+              <FileText className="h-3 w-3" />
+              <span className="hidden lg:inline">Docs</span>
+              <DocumentsProgressBadge candidatoId={candidatoId} size="sm" />
+            </TabsTrigger>
+            <TabsTrigger value="contracts" className="flex items-center gap-1 text-xs px-2">
+              <FileSignature className="h-3 w-3" />
+              <span className="hidden lg:inline">Contratos</span>
+              <ContractsProgressBadge candidatoId={candidatoId} size="sm" />
+            </TabsTrigger>
+            <TabsTrigger value="timeline" className="flex items-center gap-1 text-xs px-2">
               <GitBranch className="h-3 w-3" />
-              <span className="hidden sm:inline">Historial</span>
+              <span className="hidden lg:inline">Historial</span>
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="interview" className="mt-4">
             {showInterviewForm ? (
-              <StructuredInterviewForm
-                candidatoId={candidatoId}
-                candidatoNombre={candidatoNombre}
-                onClose={() => setShowInterviewForm(false)}
-                onSuccess={() => setShowInterviewForm(false)}
-              />
+              <StructuredInterviewForm candidatoId={candidatoId} candidatoNombre={candidatoNombre} onClose={() => setShowInterviewForm(false)} onSuccess={() => setShowInterviewForm(false)} />
             ) : (
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h3 className="font-semibold">Entrevistas Realizadas</h3>
                   <Button onClick={() => setShowInterviewForm(true)} size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nueva Entrevista
+                    <Plus className="h-4 w-4 mr-2" />Nueva Entrevista
                   </Button>
                 </div>
-
                 {loadingInterviews ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                  </div>
+                  <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
                 ) : !interviews || interviews.length === 0 ? (
-                  <Card>
-                    <CardContent className="text-center py-8 text-muted-foreground">
-                      <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No hay entrevistas registradas</p>
-                      <Button variant="outline" className="mt-4" onClick={() => setShowInterviewForm(true)}>
-                        Registrar Primera Entrevista
-                      </Button>
-                    </CardContent>
-                  </Card>
+                  <Card><CardContent className="text-center py-8 text-muted-foreground">
+                    <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" /><p>No hay entrevistas registradas</p>
+                    <Button variant="outline" className="mt-4" onClick={() => setShowInterviewForm(true)}>Registrar Primera Entrevista</Button>
+                  </CardContent></Card>
                 ) : (
                   <div className="space-y-3">
                     {interviews.map((interview) => (
@@ -158,36 +154,18 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
                               <Badge variant={interview.decision === 'aprobar' ? 'default' : interview.decision === 'rechazar' ? 'destructive' : 'secondary'}>
                                 {interview.decision === 'aprobar' ? 'Aprobado' : interview.decision === 'rechazar' ? 'Rechazado' : interview.decision === 'segunda_entrevista' ? '2da Entrevista' : 'Pendiente'}
                               </Badge>
-                              <Badge variant="outline" className="gap-1">
-                                <Star className="h-3 w-3" />
-                                {interview.rating_promedio?.toFixed(1)} / 5
-                              </Badge>
+                              <Badge variant="outline" className="gap-1"><Star className="h-3 w-3" />{interview.rating_promedio?.toFixed(1)} / 5</Badge>
                             </div>
                           </CardTitle>
                         </CardHeader>
                         <CardContent className="pt-0">
                           <div className="grid grid-cols-6 gap-2 mb-3">
-                            {[
-                              { label: 'Comunicación', value: interview.rating_comunicacion },
-                              { label: 'Actitud', value: interview.rating_actitud },
-                              { label: 'Experiencia', value: interview.rating_experiencia },
-                              { label: 'Disponibilidad', value: interview.rating_disponibilidad },
-                              { label: 'Motivación', value: interview.rating_motivacion },
-                              { label: 'Profesionalismo', value: interview.rating_profesionalismo },
-                            ].map((item) => (
-                              <div key={item.label} className="text-center">
-                                <div className="text-xs text-muted-foreground">{item.label}</div>
-                                <div className="font-semibold">{item.value}/5</div>
-                              </div>
+                            {[{ label: 'Comunicación', value: interview.rating_comunicacion },{ label: 'Actitud', value: interview.rating_actitud },{ label: 'Experiencia', value: interview.rating_experiencia },{ label: 'Disponibilidad', value: interview.rating_disponibilidad },{ label: 'Motivación', value: interview.rating_motivacion },{ label: 'Profesionalismo', value: interview.rating_profesionalismo }].map((item) => (
+                              <div key={item.label} className="text-center"><div className="text-xs text-muted-foreground">{item.label}</div><div className="font-semibold">{item.value}/5</div></div>
                             ))}
                           </div>
-                          {interview.notas_generales && (
-                            <p className="text-sm text-muted-foreground border-t pt-2">{interview.notas_generales}</p>
-                          )}
-                          <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            {interview.duracion_minutos} minutos
-                          </div>
+                          {interview.notas_generales && <p className="text-sm text-muted-foreground border-t pt-2">{interview.notas_generales}</p>}
+                          <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground"><Clock className="h-3 w-3" />{interview.duracion_minutos} minutos</div>
                         </CardContent>
                       </Card>
                     ))}
@@ -211,6 +189,14 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
 
           <TabsContent value="risk" className="mt-4">
             <RiskChecklistForm candidatoId={candidatoId} candidatoNombre={candidatoNombre} compact />
+          </TabsContent>
+
+          <TabsContent value="documents" className="mt-4">
+            <DocumentsTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} />
+          </TabsContent>
+
+          <TabsContent value="contracts" className="mt-4">
+            <ContractsTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} />
           </TabsContent>
 
           <TabsContent value="timeline" className="mt-4">

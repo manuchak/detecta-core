@@ -2186,6 +2186,110 @@ export type Database = {
           },
         ]
       }
+      contratos_candidato: {
+        Row: {
+          candidato_id: string
+          contenido_html: string | null
+          created_at: string | null
+          datos_interpolados: Json | null
+          enviado_por: string | null
+          estado: string | null
+          fecha_envio: string | null
+          firma_data_url: string | null
+          firma_hash: string | null
+          firma_imagen_url: string | null
+          firma_ip: string | null
+          firma_timestamp: string | null
+          firma_user_agent: string | null
+          firmado: boolean | null
+          id: string
+          pdf_generado_at: string | null
+          pdf_url: string | null
+          plantilla_id: string | null
+          tipo_contrato: string
+          updated_at: string | null
+          version_plantilla: number | null
+          visto_at: string | null
+        }
+        Insert: {
+          candidato_id: string
+          contenido_html?: string | null
+          created_at?: string | null
+          datos_interpolados?: Json | null
+          enviado_por?: string | null
+          estado?: string | null
+          fecha_envio?: string | null
+          firma_data_url?: string | null
+          firma_hash?: string | null
+          firma_imagen_url?: string | null
+          firma_ip?: string | null
+          firma_timestamp?: string | null
+          firma_user_agent?: string | null
+          firmado?: boolean | null
+          id?: string
+          pdf_generado_at?: string | null
+          pdf_url?: string | null
+          plantilla_id?: string | null
+          tipo_contrato: string
+          updated_at?: string | null
+          version_plantilla?: number | null
+          visto_at?: string | null
+        }
+        Update: {
+          candidato_id?: string
+          contenido_html?: string | null
+          created_at?: string | null
+          datos_interpolados?: Json | null
+          enviado_por?: string | null
+          estado?: string | null
+          fecha_envio?: string | null
+          firma_data_url?: string | null
+          firma_hash?: string | null
+          firma_imagen_url?: string | null
+          firma_ip?: string | null
+          firma_timestamp?: string | null
+          firma_user_agent?: string | null
+          firmado?: boolean | null
+          id?: string
+          pdf_generado_at?: string | null
+          pdf_url?: string | null
+          plantilla_id?: string | null
+          tipo_contrato?: string
+          updated_at?: string | null
+          version_plantilla?: number | null
+          visto_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contratos_candidato_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "candidatos_custodios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contratos_candidato_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_candidato_evaluaciones_completas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contratos_candidato_enviado_por_fkey"
+            columns: ["enviado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contratos_candidato_plantilla_id_fkey"
+            columns: ["plantilla_id"]
+            isOneToOne: false
+            referencedRelation: "plantillas_contrato"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       criterios_evaluacion_financiera: {
         Row: {
           activo: boolean | null
@@ -3440,6 +3544,122 @@ export type Database = {
           },
           {
             foreignKeyName: "documentacion_requerida_validado_por_fkey"
+            columns: ["validado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documentos_candidato: {
+        Row: {
+          archivo_nombre: string
+          archivo_tamaño: number | null
+          archivo_tipo: string | null
+          archivo_url: string
+          candidato_id: string
+          coincidencia_nombre: boolean | null
+          created_at: string | null
+          documento_vigente: boolean | null
+          estado_validacion: string | null
+          fecha_emision: string | null
+          fecha_validacion: string | null
+          fecha_vencimiento: string | null
+          id: string
+          motivo_rechazo: string | null
+          nombre_esperado: string | null
+          nombre_extraido: string | null
+          notas: string | null
+          ocr_confianza: number | null
+          ocr_datos_extraidos: Json | null
+          ocr_error: string | null
+          ocr_fecha_proceso: string | null
+          ocr_procesado: boolean | null
+          subido_por: string | null
+          tipo_documento: string
+          updated_at: string | null
+          validado_por: string | null
+        }
+        Insert: {
+          archivo_nombre: string
+          archivo_tamaño?: number | null
+          archivo_tipo?: string | null
+          archivo_url: string
+          candidato_id: string
+          coincidencia_nombre?: boolean | null
+          created_at?: string | null
+          documento_vigente?: boolean | null
+          estado_validacion?: string | null
+          fecha_emision?: string | null
+          fecha_validacion?: string | null
+          fecha_vencimiento?: string | null
+          id?: string
+          motivo_rechazo?: string | null
+          nombre_esperado?: string | null
+          nombre_extraido?: string | null
+          notas?: string | null
+          ocr_confianza?: number | null
+          ocr_datos_extraidos?: Json | null
+          ocr_error?: string | null
+          ocr_fecha_proceso?: string | null
+          ocr_procesado?: boolean | null
+          subido_por?: string | null
+          tipo_documento: string
+          updated_at?: string | null
+          validado_por?: string | null
+        }
+        Update: {
+          archivo_nombre?: string
+          archivo_tamaño?: number | null
+          archivo_tipo?: string | null
+          archivo_url?: string
+          candidato_id?: string
+          coincidencia_nombre?: boolean | null
+          created_at?: string | null
+          documento_vigente?: boolean | null
+          estado_validacion?: string | null
+          fecha_emision?: string | null
+          fecha_validacion?: string | null
+          fecha_vencimiento?: string | null
+          id?: string
+          motivo_rechazo?: string | null
+          nombre_esperado?: string | null
+          nombre_extraido?: string | null
+          notas?: string | null
+          ocr_confianza?: number | null
+          ocr_datos_extraidos?: Json | null
+          ocr_error?: string | null
+          ocr_fecha_proceso?: string | null
+          ocr_procesado?: boolean | null
+          subido_por?: string | null
+          tipo_documento?: string
+          updated_at?: string | null
+          validado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documentos_candidato_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "candidatos_custodios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_candidato_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_candidato_evaluaciones_completas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_candidato_subido_por_fkey"
+            columns: ["subido_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_candidato_validado_por_fkey"
             columns: ["validado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -7785,6 +8005,56 @@ export type Database = {
             columns: ["zona_id"]
             isOneToOne: false
             referencedRelation: "zonas_trabajo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plantillas_contrato: {
+        Row: {
+          activa: boolean | null
+          contenido_html: string
+          created_at: string | null
+          created_by: string | null
+          descripcion: string | null
+          id: string
+          nombre: string
+          tipo_contrato: string
+          updated_at: string | null
+          variables_requeridas: string[] | null
+          version: number | null
+        }
+        Insert: {
+          activa?: boolean | null
+          contenido_html: string
+          created_at?: string | null
+          created_by?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre: string
+          tipo_contrato: string
+          updated_at?: string | null
+          variables_requeridas?: string[] | null
+          version?: number | null
+        }
+        Update: {
+          activa?: boolean | null
+          contenido_html?: string
+          created_at?: string | null
+          created_by?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+          tipo_contrato?: string
+          updated_at?: string | null
+          variables_requeridas?: string[] | null
+          version?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plantillas_contrato_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
