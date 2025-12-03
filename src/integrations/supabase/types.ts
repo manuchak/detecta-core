@@ -7593,6 +7593,7 @@ export type Database = {
       }
       pc_custodios: {
         Row: {
+          candidato_origen_id: string | null
           certificaciones: string[] | null
           comentarios: string | null
           created_at: string | null
@@ -7604,6 +7605,7 @@ export type Database = {
           documentos: string[] | null
           email: string | null
           estado: Database["public"]["Enums"]["estado_custodio"] | null
+          fecha_alta: string | null
           id: string
           lat: number | null
           lng: number | null
@@ -7615,9 +7617,11 @@ export type Database = {
           tipo_custodia: Database["public"]["Enums"]["tipo_custodia"] | null
           ultima_actividad: string | null
           updated_at: string | null
+          vehiculo_propio: boolean | null
           zona_base: string | null
         }
         Insert: {
+          candidato_origen_id?: string | null
           certificaciones?: string[] | null
           comentarios?: string | null
           created_at?: string | null
@@ -7629,6 +7633,7 @@ export type Database = {
           documentos?: string[] | null
           email?: string | null
           estado?: Database["public"]["Enums"]["estado_custodio"] | null
+          fecha_alta?: string | null
           id?: string
           lat?: number | null
           lng?: number | null
@@ -7640,9 +7645,11 @@ export type Database = {
           tipo_custodia?: Database["public"]["Enums"]["tipo_custodia"] | null
           ultima_actividad?: string | null
           updated_at?: string | null
+          vehiculo_propio?: boolean | null
           zona_base?: string | null
         }
         Update: {
+          candidato_origen_id?: string | null
           certificaciones?: string[] | null
           comentarios?: string | null
           created_at?: string | null
@@ -7654,6 +7661,7 @@ export type Database = {
           documentos?: string[] | null
           email?: string | null
           estado?: Database["public"]["Enums"]["estado_custodio"] | null
+          fecha_alta?: string | null
           id?: string
           lat?: number | null
           lng?: number | null
@@ -7665,9 +7673,32 @@ export type Database = {
           tipo_custodia?: Database["public"]["Enums"]["tipo_custodia"] | null
           ultima_actividad?: string | null
           updated_at?: string | null
+          vehiculo_propio?: boolean | null
           zona_base?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pc_custodios_candidato_origen_id_fkey"
+            columns: ["candidato_origen_id"]
+            isOneToOne: false
+            referencedRelation: "candidatos_custodios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pc_custodios_candidato_origen_id_fkey"
+            columns: ["candidato_origen_id"]
+            isOneToOne: false
+            referencedRelation: "v_candidato_evaluaciones_completas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pc_custodios_candidato_origen_id_fkey"
+            columns: ["candidato_origen_id"]
+            isOneToOne: false
+            referencedRelation: "v_capacitacion_progreso_candidato"
+            referencedColumns: ["candidato_id"]
+          },
+        ]
       }
       pc_eventos_monitoreo: {
         Row: {
