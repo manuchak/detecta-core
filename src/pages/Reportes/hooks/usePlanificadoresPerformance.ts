@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { PlanificadorPerformance, PeriodoReporte } from '../types';
-import { subDays, subMonths } from 'date-fns';
+import { subDays, subMonths, differenceInMinutes } from 'date-fns';
 
 export const usePlanificadoresPerformance = (periodo: PeriodoReporte = 'mes') => {
   return useQuery({
@@ -28,65 +28,96 @@ export const usePlanificadoresPerformance = (periodo: PeriodoReporte = 'mes') =>
       }
       
       const fechaInicioISO = fechaInicio.toISOString();
+      const diasEnPeriodo = Math.ceil((now.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24));
       
-      // Usar la función RPC segura que hace el join correctamente
+      // Obtener planificadores
       const { data: allUsersData, error: planificadoresError } = await supabase
         .rpc('get_all_users_with_roles_secure');
       
       if (planificadoresError) throw planificadoresError;
       
-      // Filtrar solo los planificadores
       const planificadores = allUsersData?.filter((user: any) => 
         user.role === 'planificador'
       ) || [];
       
+      // Consultar servicios_planificados (tabla correcta con datos reales)
       const { data: servicios, error: serviciosError } = await supabase
-        .from('pc_servicios')
+        .from('servicios_planificados')
         .select('*')
         .gte('created_at', fechaInicioISO);
       
       if (serviciosError) throw serviciosError;
       
-      const diasEnPeriodo = Math.ceil((now.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24));
-      
       const performances: PlanificadorPerformance[] = planificadores.map((planificador: any) => {
         const userId = planificador.id;
         
+        // Servicios creados por este planificador
         const serviciosPlanificador = servicios?.filter(s => 
           s.created_by === userId
         ) || [];
         
         const totalServicios = serviciosPlanificador.length;
         
-        const serviciosConfirmados = serviciosPlanificador.filter(s => 
-          s.custodio_asignado_id && s.estado !== 'cancelado'
+        // Tasa de aceptación: servicios con custodio asignado
+        const serviciosConCustodio = serviciosPlanificador.filter(s => 
+          s.custodio_asignado
         ).length;
         const tasaAceptacion = totalServicios > 0 
-          ? (serviciosConfirmados / totalServicios) * 100 
+          ? (serviciosConCustodio / totalServicios) * 100 
           : 0;
         
+        // Tasa de completado
         const serviciosCompletados = serviciosPlanificador.filter(s => 
-          s.estado === 'finalizado'
+          s.estado_planeacion === 'completado' || s.estado_planeacion === 'finalizado'
         ).length;
         const tasaCompletado = totalServicios > 0
           ? (serviciosCompletados / totalServicios) * 100
           : 0;
         
-        const serviciosConIncidencias = 0;
+        // Servicios con incidencias (cancelados)
+        const serviciosConIncidencias = serviciosPlanificador.filter(s => 
+          s.estado_planeacion === 'cancelado'
+        ).length;
         const serviciosConIncidenciasPorcentaje = totalServicios > 0
           ? (serviciosConIncidencias / totalServicios) * 100
           : 0;
         
+        // Tiempo promedio de asignación
+        const serviciosConAsignacion = serviciosPlanificador.filter(s => 
+          s.fecha_asignacion && s.created_at
+        );
+        let tiempoPromedioAsignacion = 0;
+        if (serviciosConAsignacion.length > 0) {
+          const totalMinutos = serviciosConAsignacion.reduce((acc, s) => {
+            const creado = new Date(s.created_at);
+            const asignado = new Date(s.fecha_asignacion);
+            return acc + differenceInMinutes(asignado, creado);
+          }, 0);
+          tiempoPromedioAsignacion = Math.round(totalMinutos / serviciosConAsignacion.length);
+        }
+        
+        // Custodios distintos utilizados
         const custodiosDistintos = new Set(
           serviciosPlanificador
-            .filter(s => s.custodio_asignado_id)
-            .map(s => s.custodio_asignado_id)
+            .filter(s => s.custodio_asignado)
+            .map(s => s.custodio_asignado)
         ).size;
         
+        // Armados distintos utilizados
+        const armadosDistintos = new Set(
+          serviciosPlanificador
+            .filter(s => s.armado_id)
+            .map(s => s.armado_id)
+        ).size;
+        
+        // Servicios activos ahora (no finalizados ni cancelados)
         const serviciosActivosAhora = serviciosPlanificador.filter(s => 
-          s.estado !== 'cancelado' && s.estado !== 'finalizado'
+          s.estado_planeacion !== 'cancelado' && 
+          s.estado_planeacion !== 'completado' &&
+          s.estado_planeacion !== 'finalizado'
         ).length;
         
+        // Calcular score ponderado
         const score = calcularScore({
           tasaAceptacion,
           tasaCompletado,
@@ -101,8 +132,8 @@ export const usePlanificadoresPerformance = (periodo: PeriodoReporte = 'mes') =>
           email: planificador.email || '',
           
           serviciosCreados: totalServicios,
-          serviciosPorDia: totalServicios / diasEnPeriodo,
-          tiempoPromedioAsignacion: 45,
+          serviciosPorDia: Math.round((totalServicios / diasEnPeriodo) * 10) / 10,
+          tiempoPromedioAsignacion,
           
           tasaAceptacion: Math.round(tasaAceptacion * 10) / 10,
           tasaCompletado: Math.round(tasaCompletado * 10) / 10,
@@ -110,7 +141,7 @@ export const usePlanificadoresPerformance = (periodo: PeriodoReporte = 'mes') =>
           serviciosConIncidenciasPorcentaje: Math.round(serviciosConIncidenciasPorcentaje * 10) / 10,
           
           custodiosDistintos,
-          armadosDistintos: 0,
+          armadosDistintos,
           
           score: Math.round(score),
           ranking: 0,
@@ -120,6 +151,7 @@ export const usePlanificadoresPerformance = (periodo: PeriodoReporte = 'mes') =>
         };
       });
       
+      // Ordenar por score y asignar ranking
       performances.sort((a, b) => b.score - a.score);
       performances.forEach((p, index) => {
         p.ranking = index + 1;
@@ -150,7 +182,8 @@ function calcularScore(metricas: {
   const pesoCalidad = 0.25;
   const pesoProductividad = 0.15;
   
-  const productividadNormalizada = Math.min(serviciosPorDia / 5, 1) * 100;
+  // Normalizar productividad (máximo esperado: 10 servicios/día)
+  const productividadNormalizada = Math.min(serviciosPorDia / 10, 1) * 100;
   const scoreCalidad = Math.max(100 - serviciosConIncidenciasPorcentaje, 0);
   
   const score = 
