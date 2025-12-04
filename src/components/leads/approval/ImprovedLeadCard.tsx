@@ -70,8 +70,20 @@ export const ImprovedLeadCard = ({
   const hasMissingInfo = !validation.isValid;
   const hasSuccessfulCall = lead.has_successful_call || false;
 
+  // 🔗 Detectar si está aprobado pero sin candidato vinculado (bug de sincronización)
+  const isApprovedButUnlinked = lead.final_decision === 'approved' && !lead.candidato_custodio_id;
+
   const getStatusBadge = (stage: string, decision: string | null) => {
     if (decision === 'approved') {
+      // ⚠️ Si está aprobado pero sin candidato vinculado, mostrar advertencia
+      if (isApprovedButUnlinked) {
+        return (
+          <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900 dark:text-amber-200 dark:border-amber-700">
+            <AlertTriangle className="h-3 w-3 mr-1" />
+            Aprobado (sin vincular)
+          </Badge>
+        );
+      }
       return <Badge variant="default" className="bg-emerald-500 hover:bg-emerald-600">Aprobado</Badge>;
     }
     if (decision === 'rejected') {

@@ -134,6 +134,8 @@ export const useLeadApprovals = () => {
         final_decision: lead.final_decision,
         notas: lead.notas,
         scheduled_call_datetime: lead.scheduled_call_datetime,
+        // 🔗 Campo crítico para detectar leads aprobados sin candidato vinculado
+        candidato_custodio_id: lead.candidato_custodio_id,
       }));
       
       // ✅ CORRECCIÓN FASE 1: Obtener call status de manera síncrona ANTES de actualizar estado
@@ -349,18 +351,8 @@ export const useLeadApprovals = () => {
         throw new Error(`Error en proceso de aprobación: ${approvalError.message}`);
       }
 
-      // Actualizar el lead
-      const { error: leadError } = await sbx.update('leads', {
-        estado: 'aprobado',
-        updated_at: new Date().toISOString()
-      }).eq('id', lead.lead_id);
-
-      if (leadError) {
-        console.error('Error actualizando lead:', leadError);
-        throw new Error(`Error actualizando lead: ${leadError.message}`);
-      }
-
-      // 🔄 ARQUITECTURA: Sincronizar lead con candidatos_custodios usando función RPC
+      // 🔄 ARQUITECTURA FIX: Sincronizar PRIMERO con candidatos_custodios
+      // Si la sincronización falla, el lead NO se marca como aprobado (evita desincronización)
       const { data: candidatoId, error: syncError } = await supabase
         .rpc('sync_lead_to_candidato', {
           p_lead_id: lead.lead_id,
@@ -373,10 +365,25 @@ export const useLeadApprovals = () => {
 
       if (syncError) {
         console.error('❌ Error sincronizando candidato:', syncError);
-        throw new Error(`Error vinculando candidato: ${syncError.message}`);
+        throw new Error(`Error vinculando candidato: ${syncError.message}. El lead NO fue aprobado.`);
       }
 
-      console.log('✅ Lead aprobado y candidato vinculado:', candidatoId);
+      console.log('✅ Candidato vinculado exitosamente:', candidatoId);
+
+      // Solo si la sincronización fue exitosa, actualizar el lead a aprobado
+      const { error: leadError } = await sbx.update('leads', {
+        estado: 'aprobado',
+        updated_at: new Date().toISOString()
+      }).eq('id', lead.lead_id);
+
+      if (leadError) {
+        console.error('Error actualizando lead:', leadError);
+        // Nota: El candidato ya fue creado, pero el lead no se actualizó
+        // Esto es menos grave que el caso inverso (lead aprobado sin candidato)
+        throw new Error(`Error actualizando lead: ${leadError.message}`);
+      }
+
+      console.log('✅ Lead aprobado y candidato vinculado correctamente:', candidatoId);
 
       toast({
         title: "Candidato aprobado",
