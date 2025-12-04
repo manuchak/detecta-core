@@ -126,7 +126,7 @@ export default function AdoptionDashboard() {
           <CardContent>
             <div className="flex items-end gap-2">
               <span className={`text-3xl font-bold ${metrics.tendenciaMensual >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {metrics.tendenciaMensual >= 0 ? '+' : ''}{metrics.tendenciaMensual}
+                {metrics.tendenciaMensual >= 0 ? '+' : ''}{metrics.tendenciaMensual.toFixed(1)}
               </span>
               <span className="text-sm text-muted-foreground mb-1">puntos</span>
             </div>
