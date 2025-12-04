@@ -10137,12 +10137,14 @@ export type Database = {
           casetas: string | null
           cobro_cliente: number | null
           comentarios_adicionales: string | null
+          confianza_estimacion: number | null
           contacto_emergencia: string | null
           costo_custodio: string | null
           creado_por: string | null
           creado_via: string | null
           created_at: string | null
           destino: string | null
+          duracion_estimada: unknown
           duracion_servicio: unknown
           es_ruta_reparto: boolean | null
           estado: string | null
@@ -10167,6 +10169,7 @@ export type Database = {
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
+          metodo_estimacion: string | null
           nombre_armado: string | null
           nombre_cliente: string | null
           nombre_custodio: string | null
@@ -10204,12 +10207,14 @@ export type Database = {
           casetas?: string | null
           cobro_cliente?: number | null
           comentarios_adicionales?: string | null
+          confianza_estimacion?: number | null
           contacto_emergencia?: string | null
           costo_custodio?: string | null
           creado_por?: string | null
           creado_via?: string | null
           created_at?: string | null
           destino?: string | null
+          duracion_estimada?: unknown
           duracion_servicio?: unknown
           es_ruta_reparto?: boolean | null
           estado?: string | null
@@ -10234,6 +10239,7 @@ export type Database = {
           km_recorridos?: number | null
           km_teorico?: number | null
           local_foraneo?: string | null
+          metodo_estimacion?: string | null
           nombre_armado?: string | null
           nombre_cliente?: string | null
           nombre_custodio?: string | null
@@ -10271,12 +10277,14 @@ export type Database = {
           casetas?: string | null
           cobro_cliente?: number | null
           comentarios_adicionales?: string | null
+          confianza_estimacion?: number | null
           contacto_emergencia?: string | null
           costo_custodio?: string | null
           creado_por?: string | null
           creado_via?: string | null
           created_at?: string | null
           destino?: string | null
+          duracion_estimada?: unknown
           duracion_servicio?: unknown
           es_ruta_reparto?: boolean | null
           estado?: string | null
@@ -10301,6 +10309,7 @@ export type Database = {
           km_recorridos?: number | null
           km_teorico?: number | null
           local_foraneo?: string | null
+          metodo_estimacion?: string | null
           nombre_armado?: string | null
           nombre_cliente?: string | null
           nombre_custodio?: string | null
@@ -10494,6 +10503,8 @@ export type Database = {
           fecha_hora_cita: string
           fecha_respuesta: string | null
           hora_encuentro: string | null
+          hora_fin_real: string | null
+          hora_inicio_real: string | null
           id: string
           id_interno_cliente: string | null
           id_servicio: string
@@ -10540,6 +10551,8 @@ export type Database = {
           fecha_hora_cita: string
           fecha_respuesta?: string | null
           hora_encuentro?: string | null
+          hora_fin_real?: string | null
+          hora_inicio_real?: string | null
           id?: string
           id_interno_cliente?: string | null
           id_servicio: string
@@ -10586,6 +10599,8 @@ export type Database = {
           fecha_hora_cita?: string
           fecha_respuesta?: string | null
           hora_encuentro?: string | null
+          hora_fin_real?: string | null
+          hora_inicio_real?: string | null
           id?: string
           id_interno_cliente?: string | null
           id_servicio?: string
@@ -11832,12 +11847,14 @@ export type Database = {
           casetas: string | null
           cobro_cliente: number | null
           comentarios_adicionales: string | null
+          confianza_estimacion: number | null
           contacto_emergencia: string | null
           costo_custodio: string | null
           creado_por: string | null
           creado_via: string | null
           created_at: string | null
           destino: string | null
+          duracion_estimada: unknown
           duracion_servicio: unknown
           es_ruta_reparto: boolean | null
           estado: string | null
@@ -11862,6 +11879,7 @@ export type Database = {
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
+          metodo_estimacion: string | null
           nombre_armado: string | null
           nombre_cliente: string | null
           nombre_custodio: string | null
@@ -11908,12 +11926,14 @@ export type Database = {
           casetas: string | null
           cobro_cliente: number | null
           comentarios_adicionales: string | null
+          confianza_estimacion: number | null
           contacto_emergencia: string | null
           costo_custodio: string | null
           creado_por: string | null
           creado_via: string | null
           created_at: string | null
           destino: string | null
+          duracion_estimada: unknown
           duracion_servicio: unknown
           es_ruta_reparto: boolean | null
           estado: string | null
@@ -11938,6 +11958,7 @@ export type Database = {
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
+          metodo_estimacion: string | null
           nombre_armado: string | null
           nombre_cliente: string | null
           nombre_custodio: string | null
@@ -12379,12 +12400,14 @@ export type Database = {
           casetas: string | null
           cobro_cliente: number | null
           comentarios_adicionales: string | null
+          confianza_estimacion: number | null
           contacto_emergencia: string | null
           costo_custodio: string | null
           creado_por: string | null
           creado_via: string | null
           created_at: string | null
           destino: string | null
+          duracion_estimada: unknown
           duracion_servicio: unknown
           es_ruta_reparto: boolean | null
           estado: string | null
@@ -12409,6 +12432,7 @@ export type Database = {
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
+          metodo_estimacion: string | null
           nombre_armado: string | null
           nombre_cliente: string | null
           nombre_custodio: string | null
@@ -12835,12 +12859,14 @@ export type Database = {
           casetas: string | null
           cobro_cliente: number | null
           comentarios_adicionales: string | null
+          confianza_estimacion: number | null
           contacto_emergencia: string | null
           costo_custodio: string | null
           creado_por: string | null
           creado_via: string | null
           created_at: string | null
           destino: string | null
+          duracion_estimada: unknown
           duracion_servicio: unknown
           es_ruta_reparto: boolean | null
           estado: string | null
@@ -12865,6 +12891,7 @@ export type Database = {
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
+          metodo_estimacion: string | null
           nombre_armado: string | null
           nombre_cliente: string | null
           nombre_custodio: string | null
@@ -13248,12 +13275,14 @@ export type Database = {
           casetas: string | null
           cobro_cliente: number | null
           comentarios_adicionales: string | null
+          confianza_estimacion: number | null
           contacto_emergencia: string | null
           costo_custodio: string | null
           creado_por: string | null
           creado_via: string | null
           created_at: string | null
           destino: string | null
+          duracion_estimada: unknown
           duracion_servicio: unknown
           es_ruta_reparto: boolean | null
           estado: string | null
@@ -13278,6 +13307,7 @@ export type Database = {
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
+          metodo_estimacion: string | null
           nombre_armado: string | null
           nombre_cliente: string | null
           nombre_custodio: string | null
@@ -13459,12 +13489,14 @@ export type Database = {
           casetas: string | null
           cobro_cliente: number | null
           comentarios_adicionales: string | null
+          confianza_estimacion: number | null
           contacto_emergencia: string | null
           costo_custodio: string | null
           creado_por: string | null
           creado_via: string | null
           created_at: string | null
           destino: string | null
+          duracion_estimada: unknown
           duracion_servicio: unknown
           es_ruta_reparto: boolean | null
           estado: string | null
@@ -13489,6 +13521,7 @@ export type Database = {
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
+          metodo_estimacion: string | null
           nombre_armado: string | null
           nombre_cliente: string | null
           nombre_custodio: string | null

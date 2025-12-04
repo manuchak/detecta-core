@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ProveedoresExternosMetrics } from '../types';
+import { ProveedoresExternosMetrics, CompletitudDatos } from '../types';
 
 const TARIFA_BASE_12H = 1300;
 const HORAS_CONTRATADAS = 12;
@@ -17,27 +17,77 @@ function parseIntervalToHours(interval: string | null | undefined): number {
   return 0;
 }
 
+interface ServicioExterno {
+  id: string;
+  id_servicio: string;
+  proveedor: string | null;
+  duracion_servicio: string | null;
+  duracion_estimada: string | null;
+  metodo_estimacion: string | null;
+  confianza_estimacion: number | null;
+  estado: string | null;
+  created_at: string;
+}
+
+function getDuracionServicio(s: ServicioExterno): { horas: number; esEstimada: boolean; metodo: string | null } {
+  const duracionReal = parseIntervalToHours(s.duracion_servicio);
+  if (duracionReal > 0) {
+    return { horas: duracionReal, esEstimada: false, metodo: 'real' };
+  }
+  const duracionEstimada = parseIntervalToHours(s.duracion_estimada);
+  if (duracionEstimada > 0) {
+    return { horas: duracionEstimada, esEstimada: true, metodo: s.metodo_estimacion };
+  }
+  return { horas: 0, esEstimada: false, metodo: null };
+}
+
 export function useProveedoresExternosMetrics() {
   return useQuery({
     queryKey: ['proveedores-externos-metrics'],
     queryFn: async (): Promise<ProveedoresExternosMetrics> => {
-      // Fetch services from external providers (Cusaem pattern)
+      // Fetch services from external providers (Cusaem and SEICSA patterns)
       const { data: serviciosExternos, error } = await supabase
         .from('servicios_custodia')
-        .select('id, proveedor, duracion_servicio, estado, created_at')
-        .or('proveedor.ilike.%cusaem%,proveedor.ilike.%seicsa%')
+        .select('id, id_servicio, proveedor, duracion_servicio, duracion_estimada, metodo_estimacion, confianza_estimacion, estado, created_at')
+        .or('proveedor.ilike.%cusaem%,proveedor.ilike.%seicsa%,id_servicio.like.SIINSRH-%')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      const servicios = serviciosExternos || [];
+      const servicios = (serviciosExternos || []) as ServicioExterno[];
       
-      // Parse durations and calculate metrics
+      // Calculate completitud de datos
+      const conDuracionReal = servicios.filter(s => parseIntervalToHours(s.duracion_servicio) > 0).length;
+      const conDuracionEstimada = servicios.filter(s => 
+        parseIntervalToHours(s.duracion_servicio) === 0 && 
+        parseIntervalToHours(s.duracion_estimada) > 0
+      ).length;
+      const sinDuracion = servicios.filter(s => 
+        parseIntervalToHours(s.duracion_servicio) === 0 && 
+        parseIntervalToHours(s.duracion_estimada) === 0
+      ).length;
+
+      const completitudDatos: CompletitudDatos = {
+        totalServicios: servicios.length,
+        conDuracionReal,
+        conDuracionEstimada,
+        sinDuracion,
+        porcentajeCompletitud: servicios.length > 0 
+          ? ((conDuracionReal + conDuracionEstimada) / servicios.length) * 100 
+          : 0
+      };
+      
+      // Parse durations (use real or estimated) and calculate metrics
       const serviciosConDuracion = servicios
-        .map(s => ({
-          ...s,
-          horas: parseIntervalToHours(s.duracion_servicio)
-        }))
+        .map(s => {
+          const duracion = getDuracionServicio(s);
+          return {
+            ...s,
+            horas: duracion.horas,
+            esEstimada: duracion.esEstimada,
+            metodoCalculo: duracion.metodo
+          };
+        })
         .filter(s => s.horas > 0);
 
       const totalServicios = serviciosConDuracion.length;
@@ -77,26 +127,34 @@ export function useProveedoresExternosMetrics() {
         };
       });
 
-      // Group by provider
-      const proveedorMap = new Map<string, typeof serviciosConDuracion>();
-      serviciosConDuracion.forEach(s => {
+      // Group by provider - include all services for counting
+      const proveedorMapAll = new Map<string, ServicioExterno[]>();
+      servicios.forEach(s => {
         const prov = s.proveedor?.toLowerCase().includes('cusaem') ? 'Cusaem' 
-          : s.proveedor?.toLowerCase().includes('seicsa') ? 'SEICSA' 
+          : (s.proveedor?.toLowerCase().includes('seicsa') || s.id_servicio?.startsWith('SIINSRH-')) ? 'SEICSA' 
           : 'Otro';
-        if (!proveedorMap.has(prov)) proveedorMap.set(prov, []);
-        proveedorMap.get(prov)!.push(s);
+        if (!proveedorMapAll.has(prov)) proveedorMapAll.set(prov, []);
+        proveedorMapAll.get(prov)!.push(s);
       });
 
-      const porProveedor = Array.from(proveedorMap.entries()).map(([nombre, servs]) => {
-        const avgDur = servs.reduce((sum, s) => sum + s.horas, 0) / servs.length;
-        const aprovProv = (avgDur / HORAS_CONTRATADAS) * 100;
-        const wastedHours = servs.reduce((sum, s) => sum + Math.max(0, HORAS_CONTRATADAS - s.horas), 0);
+      const porProveedor = Array.from(proveedorMapAll.entries()).map(([nombre, servs]) => {
+        const servsConDuracion = servs
+          .map(s => ({ ...s, ...getDuracionServicio(s) }))
+          .filter(s => s.horas > 0);
+        
+        const avgDur = servsConDuracion.length > 0 
+          ? servsConDuracion.reduce((sum, s) => sum + s.horas, 0) / servsConDuracion.length
+          : 0;
+        const aprovProv = avgDur > 0 ? (avgDur / HORAS_CONTRATADAS) * 100 : 0;
+        const wastedHours = servsConDuracion.reduce((sum, s) => sum + Math.max(0, HORAS_CONTRATADAS - s.horas), 0);
+        
         return {
           id: nombre.toLowerCase(),
           nombre,
           esquemaPago: 'Tiempo Fijo 12h',
           tarifaBase: TARIFA_BASE_12H,
           servicios: servs.length,
+          serviciosConDuracion: servsConDuracion.length,
           duracionPromedio: avgDur,
           aprovechamiento: aprovProv,
           revenueLeakage: wastedHours * tarifaPorHora,
@@ -107,7 +165,18 @@ export function useProveedoresExternosMetrics() {
       // Generate alerts
       const alertas: ProveedoresExternosMetrics['alertas'] = [];
       
-      if (indiceAprovechamiento < 30) {
+      // Alert for incomplete data
+      if (completitudDatos.porcentajeCompletitud < 80) {
+        alertas.push({
+          tipo: 'DATOS_INCOMPLETOS',
+          severidad: completitudDatos.porcentajeCompletitud < 50 ? 'alta' : 'media',
+          descripcion: `Solo ${completitudDatos.porcentajeCompletitud.toFixed(1)}% de servicios tienen duración registrada (${completitudDatos.sinDuracion} pendientes)`,
+          impactoFinanciero: 0,
+          accionSugerida: 'Ejecutar estimación automática de duración para servicios pendientes',
+        });
+      }
+      
+      if (indiceAprovechamiento < 30 && totalServicios > 0) {
         alertas.push({
           tipo: 'SUBUTILIZACION_CRITICA',
           severidad: 'alta',
@@ -129,7 +198,7 @@ export function useProveedoresExternosMetrics() {
         });
       }
 
-      // Monthly evolution (simulated based on created_at)
+      // Monthly evolution (based on created_at)
       const evolucionMensual: ProveedoresExternosMetrics['evolucionMensual'] = [];
       const now = new Date();
       for (let i = 2; i >= 0; i--) {
@@ -161,6 +230,7 @@ export function useProveedoresExternosMetrics() {
           costoEfectivoPorHora,
           tarifaBase: TARIFA_BASE_12H,
         },
+        completitudDatos,
         distribucionDuracion,
         porProveedor,
         alertas,
