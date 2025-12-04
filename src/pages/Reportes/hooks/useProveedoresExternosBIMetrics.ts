@@ -145,24 +145,16 @@ export function useProveedoresExternosBIMetrics() {
       const yearStart = startOfYear(new Date(filter.year, 0, 1));
       const yearEnd = endOfYear(new Date(filter.year, 11, 31));
       
-      const [custodiaResult, planificadosResult] = await Promise.all([
-        supabase
-          .from('servicios_custodia')
-          .select('*')
-          .in('proveedor', ['Cusaem', 'SEICSA'])
-          .gte('fecha_servicio', yearStart.toISOString())
-          .lte('fecha_servicio', yearEnd.toISOString()),
-        supabase
-          .from('servicios_planificados')
-          .select('*')
-          .eq('proveedor_externo', 'SEICSA')
-          .gte('fecha_servicio', yearStart.toISOString())
-          .lte('fecha_servicio', yearEnd.toISOString())
-      ]);
+      // Solo servicios_custodia tiene los proveedores externos (Cusaem, SEICSA)
+      const custodiaResult = await supabase
+        .from('servicios_custodia')
+        .select('*')
+        .in('proveedor', ['Cusaem', 'SEICSA'])
+        .gte('fecha_hora_cita', yearStart.toISOString())
+        .lte('fecha_hora_cita', yearEnd.toISOString());
 
       return {
-        custodia: custodiaResult.data || [],
-        planificados: planificadosResult.data || []
+        custodia: custodiaResult.data || []
       };
     },
     staleTime: 5 * 60 * 1000
@@ -171,22 +163,13 @@ export function useProveedoresExternosBIMetrics() {
   const metrics = useMemo<BIMetrics | null>(() => {
     if (!rawData) return null;
 
-    const allServices = [
-      ...rawData.custodia.map(s => ({
-        ...s,
-        proveedor: s.proveedor || 'Cusaem',
-        fecha: s.fecha_servicio,
-        cliente: s.cliente || 'Sin cliente',
-        duracion: getDuracion(s)
-      })),
-      ...rawData.planificados.map(s => ({
-        ...s,
-        proveedor: 'SEICSA',
-        fecha: s.fecha_servicio,
-        cliente: s.cliente || 'Sin cliente',
-        duracion: getDuracion(s)
-      }))
-    ];
+    const allServices = rawData.custodia.map(s => ({
+      ...s,
+      proveedor: s.proveedor || 'Cusaem',
+      fecha: s.fecha_hora_cita,
+      cliente: s.nombre_cliente || 'Sin cliente',
+      duracion: getDuracion(s)
+    }));
 
     // Remove duplicates (same date, same proveedor, same cliente)
     const seen = new Set<string>();
