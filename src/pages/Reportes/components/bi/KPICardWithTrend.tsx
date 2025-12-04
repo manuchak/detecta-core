@@ -77,7 +77,7 @@ export function KPICardWithTrend({
             )}>
               <TrendIcon className="h-3 w-3" />
               <span>
-                {delta > 0 ? '+' : ''}{format === 'percentage' ? delta.toFixed(1) + ' pts' : formatValue(Math.abs(delta))}
+                {delta > 0 ? '+' : ''}{format === 'percentage' ? delta.toFixed(1) + ' pts' : (typeof delta === 'number' ? Math.abs(delta).toFixed(1) : formatValue(Math.abs(delta)))}
               </span>
             </div>
           )}
