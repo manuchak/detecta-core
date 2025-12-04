@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TrendingUp, Users, BarChart3, CalendarCheck, Target, Building2, Scale, MapPin } from 'lucide-react';
+import { TrendingUp, Users, BarChart3, CalendarCheck, Target, Building2, Scale, MapPin, LineChart } from 'lucide-react';
 import { CustomBreadcrumb } from '@/components/ui/custom-breadcrumb';
 import AreaPerformanceDashboard from './components/AreaPerformanceDashboard';
 import PlanificadoresPerformanceDashboard from './components/PlanificadoresPerformanceDashboard';
 import AdoptionDashboard from './components/AdoptionDashboard';
 import ProveedoresExternosDashboard from './components/ProveedoresExternosDashboard';
+import ProveedoresExternosBIDashboard from './components/ProveedoresExternosBIDashboard';
 import ArmadosInternosDashboard from './components/ArmadosInternosDashboard';
 import FairnessAuditDashboard from './components/FairnessAuditDashboard';
 
@@ -32,7 +33,7 @@ export default function ReportesHub() {
       </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6 bg-background/95 backdrop-blur-apple supports-[backdrop-filter]:bg-background/80 shadow-apple-soft border border-border/50">
+        <TabsList className="grid w-full grid-cols-7 bg-background/95 backdrop-blur-apple supports-[backdrop-filter]:bg-background/80 shadow-apple-soft border border-border/50">
           <TabsTrigger value="adopcion" className="flex items-center gap-2 data-[state=active]:bg-corporate-blue data-[state=active]:text-white text-xs lg:text-sm">
             <Target className="h-4 w-4" />
             <span className="hidden md:inline">Adopción</span>
@@ -49,6 +50,10 @@ export default function ReportesHub() {
             <Building2 className="h-4 w-4" />
             <span className="hidden md:inline">Prov. Externos</span>
           </TabsTrigger>
+          <TabsTrigger value="proveedores-bi" className="flex items-center gap-2 data-[state=active]:bg-corporate-blue data-[state=active]:text-white text-xs lg:text-sm">
+            <LineChart className="h-4 w-4" />
+            <span className="hidden md:inline">BI Proveedores</span>
+          </TabsTrigger>
           <TabsTrigger value="armados-internos" className="flex items-center gap-2 data-[state=active]:bg-corporate-blue data-[state=active]:text-white text-xs lg:text-sm">
             <MapPin className="h-4 w-4" />
             <span className="hidden md:inline">Armados Int.</span>
@@ -63,6 +68,7 @@ export default function ReportesHub() {
         <TabsContent value="area"><AreaPerformanceDashboard /></TabsContent>
         <TabsContent value="planificadores"><PlanificadoresPerformanceDashboard /></TabsContent>
         <TabsContent value="proveedores-externos"><ProveedoresExternosDashboard /></TabsContent>
+        <TabsContent value="proveedores-bi"><ProveedoresExternosBIDashboard /></TabsContent>
         <TabsContent value="armados-internos"><ArmadosInternosDashboard /></TabsContent>
         <TabsContent value="auditoria-equidad"><FairnessAuditDashboard /></TabsContent>
       </Tabs>
