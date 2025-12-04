@@ -92,3 +92,9 @@ verify_jwt = true
 
 [functions.generar-contrato-pdf]
 verify_jwt = true
+
+[functions.mapbox-token]
+verify_jwt = false
+
+[functions.estimar-duracion-servicio]
+verify_jwt = true

@@ -96,6 +96,14 @@ export interface AdoptionMetrics {
 // ============================================
 // PROVEEDORES EXTERNOS (Modelo 12h)
 // ============================================
+export interface CompletitudDatos {
+  totalServicios: number;
+  conDuracionReal: number;
+  conDuracionEstimada: number;
+  sinDuracion: number;
+  porcentajeCompletitud: number;
+}
+
 export interface ProveedoresExternosMetrics {
   utilizacion: {
     serviciosTotales: number;
@@ -106,6 +114,8 @@ export interface ProveedoresExternosMetrics {
     costoEfectivoPorHora: number;
     tarifaBase: number;
   };
+  
+  completitudDatos: CompletitudDatos;
   
   distribucionDuracion: Array<{
     rango: string;
@@ -120,6 +130,7 @@ export interface ProveedoresExternosMetrics {
     esquemaPago: string;
     tarifaBase: number;
     servicios: number;
+    serviciosConDuracion: number;
     duracionPromedio: number;
     aprovechamiento: number;
     revenueLeakage: number;
@@ -127,7 +138,7 @@ export interface ProveedoresExternosMetrics {
   }>;
   
   alertas: Array<{
-    tipo: 'SUBUTILIZACION_CRITICA' | 'EXCESO_HORAS_EXTRA' | 'OPORTUNIDAD_CONSOLIDACION';
+    tipo: 'SUBUTILIZACION_CRITICA' | 'EXCESO_HORAS_EXTRA' | 'OPORTUNIDAD_CONSOLIDACION' | 'DATOS_INCOMPLETOS';
     severidad: 'alta' | 'media' | 'baja';
     descripcion: string;
     impactoFinanciero: number;

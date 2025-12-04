@@ -1,11 +1,16 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { AlertTriangle, DollarSign, Clock, TrendingDown, Building2, Percent } from 'lucide-react';
+import { AlertTriangle, DollarSign, Clock, TrendingDown, Building2, Percent, Database, Calculator, Loader2, CheckCircle2 } from 'lucide-react';
 import { useProveedoresExternosMetrics } from '../hooks/useProveedoresExternosMetrics';
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 
 const COLORS_SEMAFORO = {
   rojo: 'hsl(var(--destructive))',
@@ -24,6 +29,39 @@ function formatCurrency(amount: number): string {
 
 export default function ProveedoresExternosDashboard() {
   const { data: metrics, isLoading, error } = useProveedoresExternosMetrics();
+  const [isEstimating, setIsEstimating] = useState(false);
+  const queryClient = useQueryClient();
+
+  const handleEstimarPendientes = async () => {
+    setIsEstimating(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch('https://yydzzeljaewsfhmilnhm.supabase.co/functions/v1/estimar-duracion-servicio', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5ZHp6ZWxqYWV3c2ZobWlsbmhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc2OTc1MjIsImV4cCI6MjA2MzI3MzUyMn0.iP9UG12mKESneZq7XwY6vHvqRGH3hq3D1Hu0qneu8B8'
+        },
+        body: JSON.stringify({ batch_mode: true, limit: 100 })
+      });
+
+      const result = await response.json();
+      
+      if (response.ok) {
+        toast.success(`Estimación completada: ${result.exitosos} servicios procesados exitosamente`);
+        queryClient.invalidateQueries({ queryKey: ['proveedores-externos-metrics'] });
+      } else {
+        toast.error(`Error en estimación: ${result.error || 'Error desconocido'}`);
+      }
+    } catch (err) {
+      console.error('Error calling estimation function:', err);
+      toast.error('Error al ejecutar la estimación de duración');
+    } finally {
+      setIsEstimating(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -43,7 +81,7 @@ export default function ProveedoresExternosDashboard() {
     );
   }
 
-  const { utilizacion, distribucionDuracion, porProveedor, alertas, evolucionMensual } = metrics;
+  const { utilizacion, completitudDatos, distribucionDuracion, porProveedor, alertas, evolucionMensual } = metrics;
 
   return (
     <div className="space-y-6">
@@ -54,13 +92,70 @@ export default function ProveedoresExternosDashboard() {
           <AlertTitle className="font-bold">⚠️ {alerta.tipo.replace(/_/g, ' ')}</AlertTitle>
           <AlertDescription className="mt-2">
             <p>{alerta.descripcion}</p>
-            <p className="mt-1 font-semibold">
-              Impacto Financiero: {formatCurrency(alerta.impactoFinanciero)}/mes
-            </p>
+            {alerta.impactoFinanciero > 0 && (
+              <p className="mt-1 font-semibold">
+                Impacto Financiero: {formatCurrency(alerta.impactoFinanciero)}/mes
+              </p>
+            )}
             <p className="mt-1 text-sm opacity-80">💡 {alerta.accionSugerida}</p>
           </AlertDescription>
         </Alert>
       ))}
+
+      {/* Data Completeness Card */}
+      <Card className="border-amber-500/30 bg-amber-50/10">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Database className="h-4 w-4" />
+            Completitud de Datos - Proveedores Externos
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2 mb-3">
+            <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+              <CheckCircle2 className="h-3 w-3 mr-1" />
+              {completitudDatos.conDuracionReal} reales
+            </Badge>
+            <Badge variant="secondary" className="bg-blue-600 text-white hover:bg-blue-700">
+              <Calculator className="h-3 w-3 mr-1" />
+              {completitudDatos.conDuracionEstimada} estimados
+            </Badge>
+            <Badge variant="outline" className="text-amber-600 border-amber-400">
+              <Clock className="h-3 w-3 mr-1" />
+              {completitudDatos.sinDuracion} pendientes
+            </Badge>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <Progress value={completitudDatos.porcentajeCompletitud} className="h-2" />
+              <p className="text-xs text-muted-foreground mt-1">
+                {completitudDatos.porcentajeCompletitud.toFixed(1)}% de {completitudDatos.totalServicios} servicios con duración
+              </p>
+            </div>
+            {completitudDatos.sinDuracion > 0 && (
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={handleEstimarPendientes}
+                disabled={isEstimating}
+                className="shrink-0"
+              >
+                {isEstimating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Estimando...
+                  </>
+                ) : (
+                  <>
+                    <Calculator className="h-4 w-4 mr-2" />
+                    Estimar {completitudDatos.sinDuracion} pendientes
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* KPIs Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -243,6 +338,7 @@ export default function ProveedoresExternosDashboard() {
                 <TableHead>Esquema</TableHead>
                 <TableHead className="text-right">Tarifa Base</TableHead>
                 <TableHead className="text-right">Servicios</TableHead>
+                <TableHead className="text-right">Con Duración</TableHead>
                 <TableHead className="text-right">Duración Prom</TableHead>
                 <TableHead className="text-right">Aprovechamiento</TableHead>
                 <TableHead className="text-right">Revenue Leakage</TableHead>
@@ -257,20 +353,31 @@ export default function ProveedoresExternosDashboard() {
                   </TableCell>
                   <TableCell className="text-right">{formatCurrency(prov.tarifaBase)}</TableCell>
                   <TableCell className="text-right">{prov.servicios}</TableCell>
-                  <TableCell className="text-right">{prov.duracionPromedio.toFixed(1)}h</TableCell>
                   <TableCell className="text-right">
-                    <Badge variant={prov.aprovechamiento < 30 ? 'destructive' : prov.aprovechamiento < 60 ? 'secondary' : 'default'}>
-                      {prov.aprovechamiento.toFixed(1)}%
-                    </Badge>
+                    <span className={prov.serviciosConDuracion < prov.servicios * 0.5 ? 'text-amber-600' : ''}>
+                      {prov.serviciosConDuracion} ({((prov.serviciosConDuracion / prov.servicios) * 100).toFixed(0)}%)
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {prov.duracionPromedio > 0 ? `${prov.duracionPromedio.toFixed(1)}h` : '-'}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {prov.aprovechamiento > 0 ? (
+                      <Badge variant={prov.aprovechamiento < 30 ? 'destructive' : prov.aprovechamiento < 60 ? 'secondary' : 'default'}>
+                        {prov.aprovechamiento.toFixed(1)}%
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline">N/A</Badge>
+                    )}
                   </TableCell>
                   <TableCell className="text-right text-destructive font-medium">
-                    {formatCurrency(prov.revenueLeakage)}
+                    {prov.revenueLeakage > 0 ? formatCurrency(prov.revenueLeakage) : '-'}
                   </TableCell>
                 </TableRow>
               ))}
               {porProveedor.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">
                     No hay datos de proveedores externos
                   </TableCell>
                 </TableRow>
