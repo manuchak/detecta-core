@@ -77,8 +77,7 @@ function parseIntervalToHours(interval: string | null | undefined): number {
 
 function getDuracion(s: any): number {
   if (s.duracion_servicio) return parseIntervalToHours(s.duracion_servicio);
-  if (s.duracion_estimada) return s.duracion_estimada;
-  if (s.duracion_real) return s.duracion_real;
+  if (s.duracion_estimada) return parseIntervalToHours(s.duracion_estimada);
   if (s.tiempo_estimado) return parseIntervalToHours(s.tiempo_estimado);
   return 2; // Default fallback
 }
