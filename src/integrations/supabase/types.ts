@@ -2532,6 +2532,7 @@ export type Database = {
           notas_psicometricos: string | null
           notas_toxicologicos: string | null
           notas_vehiculo: string | null
+          pc_custodio_id: string | null
           psicometricos_archivo_url: string | null
           psicometricos_completado: boolean | null
           psicometricos_puntaje: number | null
@@ -2581,6 +2582,7 @@ export type Database = {
           notas_psicometricos?: string | null
           notas_toxicologicos?: string | null
           notas_vehiculo?: string | null
+          pc_custodio_id?: string | null
           psicometricos_archivo_url?: string | null
           psicometricos_completado?: boolean | null
           psicometricos_puntaje?: number | null
@@ -2630,6 +2632,7 @@ export type Database = {
           notas_psicometricos?: string | null
           notas_toxicologicos?: string | null
           notas_vehiculo?: string | null
+          pc_custodio_id?: string | null
           psicometricos_archivo_url?: string | null
           psicometricos_completado?: boolean | null
           psicometricos_puntaje?: number | null
@@ -2668,6 +2671,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "v_capacitacion_progreso_candidato"
             referencedColumns: ["candidato_id"]
+          },
+          {
+            foreignKeyName: "custodio_liberacion_pc_custodio_id_fkey"
+            columns: ["pc_custodio_id"]
+            isOneToOne: false
+            referencedRelation: "pc_custodios"
+            referencedColumns: ["id"]
           },
         ]
       }
