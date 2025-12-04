@@ -1,0 +1,191 @@
+-- Fix liberar_custodio_a_planeacion function with correct column names
+-- Fixes: 
+-- 1. supply_feature_flags: valor -> flag_value, flag_name -> flag_key
+-- 2. pc_custodios: telefono -> tel, zona_id -> zona_base, remove activo and fecha_ingreso
+
+CREATE OR REPLACE FUNCTION public.liberar_custodio_a_planeacion(
+  p_liberacion_id uuid,
+  p_liberado_por uuid,
+  p_forzar_liberacion boolean DEFAULT true
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  v_liberacion RECORD;
+  v_candidato RECORD;
+  v_warnings jsonb := '[]'::jsonb;
+  v_new_pc_custodio_id uuid;
+  v_require_psychometric boolean := false;
+  v_require_toxicology boolean := false;
+  v_require_references boolean := false;
+  v_require_documents boolean := false;
+  v_require_contracts boolean := false;
+  v_require_training boolean := false;
+  v_require_installation boolean := false;
+BEGIN
+  -- Get liberacion record
+  SELECT * INTO v_liberacion
+  FROM custodio_liberacion
+  WHERE id = p_liberacion_id;
+  
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'Registro de liberación no encontrado'
+    );
+  END IF;
+  
+  -- Check if already released
+  IF v_liberacion.estado_liberacion = 'liberado' THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'El custodio ya fue liberado anteriormente'
+    );
+  END IF;
+  
+  -- Get candidato data
+  SELECT * INTO v_candidato
+  FROM candidatos_custodios
+  WHERE id = v_liberacion.candidato_id;
+  
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'Candidato no encontrado'
+    );
+  END IF;
+  
+  -- Read feature flags with CORRECT column names (flag_key, flag_value)
+  SELECT COALESCE(flag_value, false) INTO v_require_psychometric
+  FROM supply_feature_flags WHERE flag_key = 'REQUIRE_PSYCHOMETRIC_EVALUATION';
+  
+  SELECT COALESCE(flag_value, false) INTO v_require_toxicology
+  FROM supply_feature_flags WHERE flag_key = 'REQUIRE_TOXICOLOGY_NEGATIVE';
+  
+  SELECT COALESCE(flag_value, false) INTO v_require_references
+  FROM supply_feature_flags WHERE flag_key = 'REQUIRE_REFERENCES_VALIDATION';
+  
+  SELECT COALESCE(flag_value, false) INTO v_require_documents
+  FROM supply_feature_flags WHERE flag_key = 'REQUIRE_DOCUMENTS_VALIDATED';
+  
+  SELECT COALESCE(flag_value, false) INTO v_require_contracts
+  FROM supply_feature_flags WHERE flag_key = 'REQUIRE_CONTRACTS_SIGNED';
+  
+  SELECT COALESCE(flag_value, false) INTO v_require_training
+  FROM supply_feature_flags WHERE flag_key = 'REQUIRE_TRAINING_COMPLETED';
+  
+  SELECT COALESCE(flag_value, false) INTO v_require_installation
+  FROM supply_feature_flags WHERE flag_key = 'REQUIRE_INSTALLATION_VALIDATED';
+  
+  -- Collect warnings for incomplete validations
+  IF NOT COALESCE(v_liberacion.documentacion_completa, false) THEN
+    v_warnings := v_warnings || jsonb_build_object('tipo', 'documentacion', 'mensaje', 'Documentación incompleta');
+  END IF;
+  
+  IF NOT COALESCE(v_liberacion.psicometricos_completado, false) THEN
+    v_warnings := v_warnings || jsonb_build_object('tipo', 'psicometricos', 'mensaje', 'Evaluación psicométrica pendiente');
+  END IF;
+  
+  IF NOT COALESCE(v_liberacion.toxicologicos_completado, false) THEN
+    v_warnings := v_warnings || jsonb_build_object('tipo', 'toxicologicos', 'mensaje', 'Examen toxicológico pendiente');
+  END IF;
+  
+  IF NOT COALESCE(v_liberacion.instalacion_gps_completado, false) THEN
+    v_warnings := v_warnings || jsonb_build_object('tipo', 'gps', 'mensaje', 'Instalación GPS pendiente');
+  END IF;
+  
+  -- If not forcing and there are blocking validations, return error
+  IF NOT p_forzar_liberacion THEN
+    IF v_require_psychometric AND NOT COALESCE(v_liberacion.psicometricos_completado, false) THEN
+      RETURN jsonb_build_object(
+        'success', false,
+        'error', 'Se requiere evaluación psicométrica completada',
+        'warnings', v_warnings
+      );
+    END IF;
+    
+    IF v_require_toxicology AND NOT COALESCE(v_liberacion.toxicologicos_completado, false) THEN
+      RETURN jsonb_build_object(
+        'success', false,
+        'error', 'Se requiere examen toxicológico negativo',
+        'warnings', v_warnings
+      );
+    END IF;
+  END IF;
+  
+  -- Create pc_custodio record with CORRECT column names (tel, zona_base)
+  INSERT INTO pc_custodios (
+    nombre,
+    tel,
+    email,
+    zona_base,
+    estado,
+    created_at,
+    updated_at
+  ) VALUES (
+    v_candidato.nombre,
+    v_candidato.telefono,
+    v_candidato.email,
+    v_candidato.zona_preferida_id::text,
+    'disponible',
+    NOW(),
+    NOW()
+  )
+  RETURNING id INTO v_new_pc_custodio_id;
+  
+  -- Update liberacion record
+  UPDATE custodio_liberacion
+  SET 
+    estado_liberacion = 'liberado',
+    fecha_liberacion = NOW(),
+    liberado_por = p_liberado_por,
+    pc_custodio_id = v_new_pc_custodio_id,
+    updated_at = NOW()
+  WHERE id = p_liberacion_id;
+  
+  -- Update candidato status
+  UPDATE candidatos_custodios
+  SET 
+    estado_proceso = 'activo',
+    estado_detallado = 'liberado_planificacion',
+    updated_at = NOW()
+  WHERE id = v_liberacion.candidato_id;
+  
+  -- Log audit entry
+  INSERT INTO lead_audit_log (
+    lead_id,
+    accion,
+    usuario_id,
+    detalles,
+    created_at
+  ) VALUES (
+    v_liberacion.candidato_id,
+    'liberacion_custodio',
+    p_liberado_por,
+    jsonb_build_object(
+      'liberacion_id', p_liberacion_id,
+      'pc_custodio_id', v_new_pc_custodio_id,
+      'forzado', p_forzar_liberacion,
+      'warnings', v_warnings
+    ),
+    NOW()
+  );
+  
+  RETURN jsonb_build_object(
+    'success', true,
+    'pc_custodio_id', v_new_pc_custodio_id,
+    'warnings', v_warnings,
+    'mensaje', 'Custodio liberado exitosamente a Planificación'
+  );
+  
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object(
+    'success', false,
+    'error', SQLERRM,
+    'detail', SQLSTATE
+  );
+END;
+$$;
