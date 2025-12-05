@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 
 export interface ScheduledService {
   id: string;
@@ -41,7 +42,8 @@ export interface ScheduledServicesSummary {
 }
 
 export function useScheduledServices(selectedDate: Date = new Date()) {
-  const dateStr = selectedDate.toISOString().split('T')[0];
+  // Usar format() de date-fns para evitar bug de timezone donde toISOString() convierte a UTC
+  const dateStr = format(selectedDate, 'yyyy-MM-dd');
   
   return useQuery({
     queryKey: ['scheduled-services', dateStr],
