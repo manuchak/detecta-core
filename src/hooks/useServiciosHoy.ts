@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
 
 export interface ServicioPlanificado {
   id: string;
@@ -21,7 +22,8 @@ export const useServiciosHoy = () => {
   return useQuery({
     queryKey: ['servicios-hoy'],
     queryFn: async (): Promise<ServicioPlanificado[]> => {
-      const hoy = new Date().toISOString().split('T')[0];
+      // Usar format() de date-fns para evitar bug de timezone donde toISOString() convierte a UTC
+      const hoy = format(new Date(), 'yyyy-MM-dd');
       
       const { data, error } = await supabase
         .from('servicios_planificados')
