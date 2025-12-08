@@ -4,6 +4,18 @@ import { useHolidayAdjustment } from './useHolidayAdjustment';
 import { useDynamicServiceData } from './useDynamicServiceData';
 import { format } from 'date-fns';
 
+// Factores validados con datos históricos 2024
+const WEEKDAY_FACTORS: Record<number, number> = {
+  0: 0.41,  // Domingo - -59%
+  1: 0.99,  // Lunes - ~promedio
+  2: 1.25,  // Martes - +25%
+  3: 1.13,  // Miércoles - +13%
+  4: 1.29,  // Jueves - +29% (día más fuerte)
+  5: 1.21,  // Viernes - +21%
+  6: 0.71,  // Sábado - -29%
+};
+const WEEKDAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
 export interface DayComparison {
   date: string;
   dayOfMonth: number;
@@ -88,9 +100,20 @@ export const useForecastVsActual = () => {
       const isPast = day.dayOfMonth < currentDay;
       const isToday = day.dayOfMonth === currentDay;
       
-      // For past days, use actual pace as forecast basis
-      // For future days, use holiday-adjusted projection
-      const forecast = projection?.expectedServices ?? currentDailyPace;
+      // Calcular día de semana y factor para todos los días
+      const dayOfWeekCalc = new Date(day.date).getDay();
+      const weekdayFactorCalc = WEEKDAY_FACTORS[dayOfWeekCalc];
+      
+      // Para días pasados sin proyección: usar patrón semanal
+      // Para días futuros con proyección: usar expectedServices ya calculado
+      let forecast: number;
+      if (projection) {
+        forecast = projection.expectedServices;
+      } else {
+        // Día pasado: aplicar patrón semanal a currentDailyPace
+        forecast = currentDailyPace * weekdayFactorCalc;
+      }
+      
       const actual = isPast || isToday ? day.services : null;
       
       forecastCumulative += forecast;
@@ -103,16 +126,13 @@ export const useForecastVsActual = () => {
         ? ((actual - forecast) / forecast) * 100 
         : null;
 
-      const WEEKDAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-      const dayOfWeekFallback = new Date(day.date).getDay();
-      
       return {
         date: day.date,
         dayOfMonth: day.dayOfMonth,
         dayLabel: format(new Date(day.date), 'dd'),
-        dayOfWeek: projection?.dayOfWeek ?? dayOfWeekFallback,
-        weekdayName: projection?.weekdayName ?? WEEKDAY_NAMES[dayOfWeekFallback],
-        weekdayFactor: projection?.weekdayFactor ?? 1.0,
+        dayOfWeek: projection?.dayOfWeek ?? dayOfWeekCalc,
+        weekdayName: projection?.weekdayName ?? WEEKDAY_NAMES[dayOfWeekCalc],
+        weekdayFactor: projection?.weekdayFactor ?? weekdayFactorCalc,
         forecast: Math.round(forecast),
         actual,
         variance,
@@ -120,7 +140,7 @@ export const useForecastVsActual = () => {
         isHoliday: projection?.isHoliday ?? false,
         holidayName: projection?.holidayName,
         operationFactor: projection?.operationFactor ?? 1,
-        combinedFactor: projection?.combinedFactor ?? 1,
+        combinedFactor: projection?.combinedFactor ?? weekdayFactorCalc,
         forecastCumulative: Math.round(forecastCumulative),
         actualCumulative: isPast || isToday ? actualCumulative : null,
         isPast,
