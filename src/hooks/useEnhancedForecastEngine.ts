@@ -38,13 +38,34 @@ export const useEnhancedForecastEngine = () => {
     confidenceTarget: 0.85
   }));
 
-  // Obtener datos históricos
+  // Obtener datos históricos - EXCLUYENDO el mes actual incompleto
   const { data: historicalData, isLoading: loadingHistorical } = useQuery({
     queryKey: ['enhanced-forecast-historical'],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_historical_monthly_data');
       if (error) throw error;
-      return (data || []).map((d: any) => d.services_completed);
+      
+      // Filtrar el mes actual incompleto para no sesgar el modelo
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth() + 1;
+      
+      const filteredData = (data || []).filter((d: any) => {
+        // Excluir el mes actual (datos incompletos sesgarían el modelo)
+        return !(d.year === currentYear && d.month === currentMonth);
+      });
+      
+      console.log('📊 Datos históricos filtrados:', {
+        totalMeses: data?.length || 0,
+        mesesFiltrados: filteredData.length,
+        mesExcluido: `${currentYear}-${String(currentMonth).padStart(2, '0')}`,
+        ultimosMeses: filteredData.slice(-3).map((d: any) => ({
+          periodo: `${d.year}-${String(d.month).padStart(2, '0')}`,
+          servicios: d.services_completed
+        }))
+      });
+      
+      return filteredData.map((d: any) => d.services_completed);
     },
     staleTime: 5 * 60 * 1000,
   });
