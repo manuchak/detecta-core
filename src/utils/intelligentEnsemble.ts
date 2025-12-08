@@ -1,10 +1,12 @@
 /**
  * Intelligent Ensemble System
  * Sistema de ensemble inteligente con pesos dinámicos y validación cruzada temporal
+ * Includes Prophet model integration
  */
 
 import { RegimeDetectionResult, performMathematicalRegimeAnalysis } from './regimeDetection';
 import { calculateAdvancedMetrics, performWalkForwardValidation, type AdvancedMetrics } from './advancedMetrics';
+import { prophetForecast } from './prophetLikeForecasting';
 
 // ========== INTERFACES ==========
 
@@ -198,6 +200,42 @@ export function calculateSeasonalModel(data: number[]): ModelPrediction {
   };
 }
 
+/**
+ * Prophet Model integration
+ * Uses the existing prophetForecast function from prophetLikeForecasting.ts
+ */
+export function calculateProphetModel(data: number[]): ModelPrediction {
+  if (data.length < 6) {
+    return { name: 'Prophet', value: data[data.length - 1] || 0, confidence: 0.3, performance_score: 0.3, regime_affinity: 0.8 };
+  }
+  
+  try {
+    // Use Prophet implementation
+    const result = prophetForecast(data, 1);
+    
+    const prediction = result.forecast[0] || data[data.length - 1];
+    const confidence = result.confidence;
+    
+    // Calculate performance score based on in-sample fit
+    const residuals = result.residuals;
+    const mse = residuals.reduce((sum, r) => sum + r * r, 0) / residuals.length;
+    const dataMean = data.reduce((a, b) => a + b, 0) / data.length;
+    const dataVar = data.reduce((sum, d) => sum + Math.pow(d - dataMean, 2), 0) / data.length;
+    const performance_score = Math.max(0, 1 - (mse / dataVar));
+    
+    return {
+      name: 'Prophet',
+      value: prediction,
+      confidence,
+      performance_score,
+      regime_affinity: 0.85 // Prophet handles changepoints and seasonality well
+    };
+  } catch (error) {
+    console.warn('Prophet model calculation failed, using fallback:', error);
+    return { name: 'Prophet', value: data[data.length - 1] || 0, confidence: 0.3, performance_score: 0.3, regime_affinity: 0.8 };
+  }
+}
+
 // ========== PESOS DINÁMICOS ==========
 
 export function calculateDynamicWeights(
@@ -222,10 +260,16 @@ export function calculateDynamicWeights(
         if (model.name === 'Monte Carlo' || model.name === 'Linear Regression') {
           regimeBonus = 1.3; // Favorece modelos que capturan crecimiento
         }
+        if (model.name === 'Prophet') {
+          regimeBonus = 1.2; // Prophet handles exponential trends well
+        }
         break;
       case 'volatile':
         if (model.name === 'Monte Carlo') {
           regimeBonus = 1.4; // Monte Carlo maneja mejor la volatilidad
+        }
+        if (model.name === 'Prophet') {
+          regimeBonus = 1.25; // Prophet's changepoint detection helps
         }
         break;
       case 'declining':
@@ -297,12 +341,13 @@ export function calculateIntelligentEnsemble(
   // 1. Análisis de régimen
   const regimeAnalysis = performMathematicalRegimeAnalysis(historicalData, currentValue);
   
-  // 2. Calcular modelos individuales
+  // 2. Calcular modelos individuales (now includes Prophet - 5 models)
   const models: ModelPrediction[] = [
     calculateHoltWintersModel(historicalData),
     calculateLinearRegressionModel(historicalData),
     calculateMonteCarloModel(historicalData),
-    calculateSeasonalModel(historicalData)
+    calculateSeasonalModel(historicalData),
+    calculateProphetModel(historicalData) // NEW: Prophet model
   ];
   
   // 3. Pesos dinámicos
@@ -355,6 +400,7 @@ export function calculateIntelligentEnsemble(
   const mathematicalJustification = `
     Régimen: ${regimeAnalysis.regime.regime} (conf: ${regimeAnalysis.regime.confidence.toFixed(2)}).
     Modelo dominante: ${topModel.name} (peso: ${(weights[topModel.name] * 100).toFixed(1)}%).
+    Ensemble de ${models.length} modelos: ${models.map(m => m.name).join(', ')}.
     ${regimeAnalysis.mathematicalJustification}
     ${regime_adjusted ? `Ajustado por guardrails: ${ensemblePrediction.toFixed(0)} → ${finalPrediction.toFixed(0)}` : ''}
     ${externalAdjustmentApplied ? `Ajuste externo (${externalAdjustmentReason}): factor ${externalAdjustment?.factor.toFixed(3)}` : ''}

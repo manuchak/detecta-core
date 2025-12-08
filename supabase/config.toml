@@ -98,3 +98,6 @@ verify_jwt = false
 
 [functions.estimar-duracion-servicio]
 verify_jwt = true
+
+[functions.calcular-precision-mensual]
+verify_jwt = false
