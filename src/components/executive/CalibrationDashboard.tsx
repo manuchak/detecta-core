@@ -13,6 +13,9 @@ import { useDynamicServiceData } from '@/hooks/useDynamicServiceData';
 import DecemberHistoricalComparison from './DecemberHistoricalComparison';
 
 const CalibrationDashboard = () => {
+  // ALL HOOKS MUST BE CALLED BEFORE ANY EARLY RETURNS
+  const [activeTab, setActiveTab] = useState('prediccion');
+  
   const { 
     forecast, 
     isLoading: forecastLoading, 
@@ -81,6 +84,7 @@ const CalibrationDashboard = () => {
     { name: 'Prophet', mape: 9.2 },
   ];
 
+  // Loading state - AFTER all hooks are called
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -92,8 +96,6 @@ const CalibrationDashboard = () => {
       </div>
     );
   }
-
-  const [activeTab, setActiveTab] = useState('prediccion');
 
   return (
     <div className="space-y-6">
