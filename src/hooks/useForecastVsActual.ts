@@ -8,6 +8,9 @@ export interface DayComparison {
   date: string;
   dayOfMonth: number;
   dayLabel: string;
+  dayOfWeek: number;           // 0-6
+  weekdayName: string;         // "Lun", "Mar", etc.
+  weekdayFactor: number;       // Factor patrón semanal
   forecast: number;
   actual: number | null;
   variance: number | null;
@@ -15,6 +18,7 @@ export interface DayComparison {
   isHoliday: boolean;
   holidayName?: string;
   operationFactor: number;
+  combinedFactor: number;      // weekdayFactor × operationFactor
   forecastCumulative: number;
   actualCumulative: number | null;
   isPast: boolean;
@@ -52,14 +56,27 @@ export const useForecastVsActual = () => {
   const comparisons = useMemo((): DayComparison[] => {
     if (!dailyActuals || !holidayAdjustment?.dayByDayProjection) return [];
 
-    const projectionMap = new Map<string, { expectedServices: number; operationFactor: number; isHoliday: boolean; holidayName?: string }>();
+    const projectionMap = new Map<string, { 
+      expectedServices: number; 
+      operationFactor: number; 
+      isHoliday: boolean; 
+      holidayName?: string;
+      dayOfWeek: number;
+      weekdayName: string;
+      weekdayFactor: number;
+      combinedFactor: number;
+    }>();
     
     holidayAdjustment.dayByDayProjection.forEach(proj => {
       projectionMap.set(proj.fecha, {
         expectedServices: proj.expectedServices,
         operationFactor: proj.operationFactor,
         isHoliday: proj.isHoliday,
-        holidayName: proj.holidayName
+        holidayName: proj.holidayName,
+        dayOfWeek: proj.dayOfWeek,
+        weekdayName: proj.weekdayName,
+        weekdayFactor: proj.weekdayFactor,
+        combinedFactor: proj.combinedFactor
       });
     });
 
@@ -86,10 +103,16 @@ export const useForecastVsActual = () => {
         ? ((actual - forecast) / forecast) * 100 
         : null;
 
+      const WEEKDAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+      const dayOfWeekFallback = new Date(day.date).getDay();
+      
       return {
         date: day.date,
         dayOfMonth: day.dayOfMonth,
         dayLabel: format(new Date(day.date), 'dd'),
+        dayOfWeek: projection?.dayOfWeek ?? dayOfWeekFallback,
+        weekdayName: projection?.weekdayName ?? WEEKDAY_NAMES[dayOfWeekFallback],
+        weekdayFactor: projection?.weekdayFactor ?? 1.0,
         forecast: Math.round(forecast),
         actual,
         variance,
@@ -97,6 +120,7 @@ export const useForecastVsActual = () => {
         isHoliday: projection?.isHoliday ?? false,
         holidayName: projection?.holidayName,
         operationFactor: projection?.operationFactor ?? 1,
+        combinedFactor: projection?.combinedFactor ?? 1,
         forecastCumulative: Math.round(forecastCumulative),
         actualCumulative: isPast || isToday ? actualCumulative : null,
         isPast,
