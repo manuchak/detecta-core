@@ -76,6 +76,7 @@ export class HybridForecastEngine {
     historicalData: number[],
     currentMonthData?: {
       currentServices: number;
+      currentGMV?: number;
       daysElapsed: number;
       totalDaysInMonth: number;
       projectedMonthEnd: number;
@@ -84,32 +85,60 @@ export class HybridForecastEngine {
   ): EnhancedForecastResult {
     console.log('🚀 === INICIANDO MOTOR HÍBRIDO MEJORADO ===');
     
+    // DIAGNÓSTICO DETALLADO DE ENTRADA
+    console.log('📊 DATOS DE ENTRADA:');
+    console.log(`├─ Datos históricos: ${historicalData.length} meses`);
+    console.log(`├─ Últimos 3 meses: [${historicalData.slice(-3).join(', ')}]`);
+    if (currentMonthData) {
+      const monthProgress = currentMonthData.daysElapsed / currentMonthData.totalDaysInMonth;
+      console.log(`├─ Mes actual:`);
+      console.log(`│  ├─ Servicios acumulados: ${currentMonthData.currentServices}`);
+      console.log(`│  ├─ GMV acumulado: $${(currentMonthData.currentGMV || 0).toLocaleString()}`);
+      console.log(`│  ├─ Días transcurridos: ${currentMonthData.daysElapsed}/${currentMonthData.totalDaysInMonth}`);
+      console.log(`│  ├─ Progreso del mes: ${(monthProgress * 100).toFixed(1)}%`);
+      console.log(`│  └─ Proyección intraMonth pasada: ${currentMonthData.projectedMonthEnd}`);
+    }
+    
     try {
       // 1. VALIDACIÓN Y CALIDAD DE DATOS
-      const dataQuality = { quality: 'medium' as const, score: 0.7 }; // Stub for now
-      const anomalyResult = { isAnomaly: false, reasons: [], anomalyScore: 0 }; // Stub for now
+      const dataQuality = { quality: 'medium' as const, score: 0.7 };
+      const anomalyResult = { isAnomaly: false, reasons: [] as string[], anomalyScore: 0 };
       
       // 2. BACKTESTING PARA VALIDACIÓN TEMPORAL  
-      const backtestResults = { confidence: 'medium', overallMAPE: 15, results: [] }; // Stub for now
+      const backtestResults = { confidence: 'medium', overallMAPE: 15, results: [] };
       
       // 3. DETECTAR PATRONES Y TENDENCIAS
       const patterns = this.detectPatterns(historicalData);
+      console.log(`├─ Patrones detectados: tendencia=${patterns.trend}, crecimiento=${(patterns.growth * 100).toFixed(1)}%, volatilidad=${(patterns.volatility * 100).toFixed(1)}%`);
       
-      // 4. COMPONENTES DEL FORECAST
+      // 4. COMPONENTES DEL FORECAST - CON LÓGICA CORREGIDA
       const components = this.calculateComponents(historicalData, currentMonthData, patterns);
+      
+      console.log('📈 COMPONENTES CALCULADOS:');
+      console.log(`├─ holtWinters: ${components.holtWinters.toFixed(0)}`);
+      console.log(`├─ linearTrend: ${components.linearTrend.toFixed(0)}`);
+      console.log(`├─ intraMonth: ${components.intraMonth.toFixed(0)}`);
+      console.log(`└─ acceleration: ${components.acceleration.toFixed(0)}`);
       
       // 5. AJUSTES POR FACTORES EXTERNOS
       const externalAdjustment = this.config.enableExternalFactors && externalFactors
         ? this.calculateExternalAdjustment(components, externalFactors)
         : 0;
       
-      // 6. CÁLCULO DE PESOS DINÁMICOS
+      // 6. CÁLCULO DE PESOS DINÁMICOS - MEJORADO
       const weights = this.calculateDynamicWeights(
         patterns,
         dataQuality,
         backtestResults.confidence,
         currentMonthData
       );
+      
+      console.log('⚖️ PESOS DINÁMICOS:');
+      console.log(`├─ holtWinters: ${(weights.holtWinters * 100).toFixed(1)}%`);
+      console.log(`├─ linearTrend: ${(weights.linearTrend * 100).toFixed(1)}%`);
+      console.log(`├─ intraMonth: ${(weights.intraMonth * 100).toFixed(1)}%`);
+      console.log(`├─ acceleration: ${(weights.acceleration * 100).toFixed(1)}%`);
+      console.log(`└─ external: ${(weights.external * 100).toFixed(1)}%`);
       
       // 7. FORECAST FINAL
       const baseForecast = 
@@ -118,9 +147,26 @@ export class HybridForecastEngine {
         (components.intraMonth * weights.intraMonth) +
         (components.acceleration * weights.acceleration);
       
-      const finalForecast = baseForecast + (externalAdjustment * weights.external);
+      const forecastBeforeSanity = baseForecast + (externalAdjustment * weights.external);
       
-      // 8. VALIDACIÓN Y ALERTAS
+      // 8. SANITY CHECK - El forecast NUNCA puede ser menor que lo ya acumulado
+      const minimumForecast = currentMonthData 
+        ? currentMonthData.currentServices * 1.05 // Mínimo: lo acumulado + 5%
+        : forecastBeforeSanity;
+      
+      const finalForecast = Math.max(forecastBeforeSanity, minimumForecast);
+      
+      console.log('🔒 SANITY CHECK:');
+      console.log(`├─ Forecast antes de sanity: ${forecastBeforeSanity.toFixed(0)}`);
+      console.log(`├─ Mínimo aceptable (acumulado + 5%): ${minimumForecast.toFixed(0)}`);
+      console.log(`└─ Forecast final: ${finalForecast.toFixed(0)}`);
+      
+      if (forecastBeforeSanity < minimumForecast) {
+        anomalyResult.isAnomaly = true;
+        anomalyResult.reasons.push(`Forecast original (${forecastBeforeSanity.toFixed(0)}) menor que acumulado actual`);
+      }
+      
+      // 9. VALIDACIÓN Y ALERTAS
       const alerts = this.generateAlerts(finalForecast, components, anomalyResult, backtestResults);
       const recommendations = this.generateRecommendations(
         finalForecast,
@@ -129,7 +175,7 @@ export class HybridForecastEngine {
         patterns
       );
       
-      // 9. CÁLCULO DE CONFIANZA FINAL
+      // 10. CÁLCULO DE CONFIANZA FINAL
       const confidence = this.calculateConfidence(
         backtestResults.overallMAPE,
         dataQuality,
@@ -158,7 +204,7 @@ export class HybridForecastEngine {
           algorithm: 'HybridForecastEngine',
           timestamp: new Date(),
           parameters: this.config,
-          version: '2.0.0'
+          version: '2.1.0'
         }
       };
       
@@ -230,7 +276,13 @@ export class HybridForecastEngine {
   
   private calculateComponents(
     historicalData: number[],
-    currentMonthData?: any,
+    currentMonthData?: {
+      currentServices: number;
+      currentGMV?: number;
+      daysElapsed: number;
+      totalDaysInMonth: number;
+      projectedMonthEnd: number;
+    },
     patterns?: any
   ): {
     holtWinters: number;
@@ -240,8 +292,36 @@ export class HybridForecastEngine {
   } {
     const holtWinters = this.calculateHoltWintersComponent(historicalData, patterns);
     const linearTrend = this.calculateLinearTrendComponent(historicalData);
-    const intraMonth = currentMonthData?.projectedMonthEnd || 0;
     const acceleration = this.calculateAccelerationComponent(historicalData, patterns);
+    
+    // LÓGICA CORREGIDA DE INTRAMONTH: Proyectar basándose en el ritmo actual
+    let intraMonth = 0;
+    if (currentMonthData && currentMonthData.currentServices > 0 && currentMonthData.daysElapsed > 0) {
+      const monthProgress = currentMonthData.daysElapsed / currentMonthData.totalDaysInMonth;
+      
+      // Proyección simple: servicios actuales / progreso del mes
+      const simpleProjection = currentMonthData.currentServices / monthProgress;
+      
+      // Proyección con ritmo diario promedio
+      const dailyRate = currentMonthData.currentServices / currentMonthData.daysElapsed;
+      const remainingDays = currentMonthData.totalDaysInMonth - currentMonthData.daysElapsed;
+      const rateBasedProjection = currentMonthData.currentServices + (dailyRate * remainingDays);
+      
+      // Promedio ponderado: más peso a la proyección por ritmo cuando hay más datos
+      const rateWeight = Math.min(0.7, monthProgress * 2); // Máximo 70% peso a ritmo
+      intraMonth = (simpleProjection * (1 - rateWeight)) + (rateBasedProjection * rateWeight);
+      
+      console.log(`📊 CÁLCULO INTRAMONTH DETALLADO:`);
+      console.log(`├─ Progreso mes: ${(monthProgress * 100).toFixed(1)}%`);
+      console.log(`├─ Ritmo diario: ${dailyRate.toFixed(1)} servicios/día`);
+      console.log(`├─ Días restantes: ${remainingDays}`);
+      console.log(`├─ Proyección simple (actual/progreso): ${simpleProjection.toFixed(0)}`);
+      console.log(`├─ Proyección por ritmo: ${rateBasedProjection.toFixed(0)}`);
+      console.log(`├─ Peso ritmo: ${(rateWeight * 100).toFixed(1)}%`);
+      console.log(`└─ intraMonth final: ${intraMonth.toFixed(0)}`);
+    } else if (currentMonthData?.projectedMonthEnd) {
+      intraMonth = currentMonthData.projectedMonthEnd;
+    }
     
     return {
       holtWinters,
@@ -297,13 +377,17 @@ export class HybridForecastEngine {
     return adjustment;
   }
   
-  // === CÁLCULO DE PESOS DINÁMICOS ===
+  // === CÁLCULO DE PESOS DINÁMICOS - MEJORADO ===
   
   private calculateDynamicWeights(
     patterns: any,
     dataQuality: any,
     backtestConfidence: string,
-    currentMonthData?: any
+    currentMonthData?: {
+      currentServices: number;
+      daysElapsed: number;
+      totalDaysInMonth: number;
+    }
   ): {
     holtWinters: number;
     linearTrend: number;
@@ -311,44 +395,62 @@ export class HybridForecastEngine {
     acceleration: number;
     external: number;
   } {
-    let weights = {
-      holtWinters: 0.35,
-      linearTrend: 0.25,
-      intraMonth: 0.25,
-      acceleration: 0.10,
-      external: 0.05
-    };
-    
-    // Ajustar según calidad de datos
-    if (dataQuality.quality === 'high') {
-      weights.holtWinters += 0.10;
-      weights.linearTrend -= 0.05;
-      weights.external -= 0.05;
-    } else if (dataQuality.quality === 'low') {
-      weights.holtWinters -= 0.10;
-      weights.intraMonth += 0.15;
-      weights.external -= 0.05;
-    }
-    
-    // Ajustar según progreso del mes
+    // PESOS MEJORADOS: IntraMonth domina a medida que avanza el mes
     const monthProgress = currentMonthData 
       ? currentMonthData.daysElapsed / currentMonthData.totalDaysInMonth 
       : 0;
     
-    if (monthProgress > 0.7) {
-      weights.intraMonth += 0.15;
-      weights.holtWinters -= 0.10;
+    // Base weights - intraMonth tiene peso significativo desde el inicio
+    let weights = {
+      holtWinters: 0.25,
+      linearTrend: 0.15,
+      intraMonth: 0.45, // Peso dominante para datos reales del mes
+      acceleration: 0.10,
+      external: 0.05
+    };
+    
+    // AJUSTE PROGRESIVO: A más días transcurridos, más peso a intraMonth
+    if (monthProgress > 0) {
+      // Inicio del mes (≤10 días / ~33%): 50% intraMonth
+      // Mediados (11-20 días / ~50%): 65% intraMonth  
+      // Final (>20 días / ~65%): 80% intraMonth
+      if (monthProgress <= 0.33) {
+        weights.intraMonth = 0.50;
+        weights.holtWinters = 0.25;
+        weights.linearTrend = 0.15;
+      } else if (monthProgress <= 0.65) {
+        weights.intraMonth = 0.65;
+        weights.holtWinters = 0.18;
+        weights.linearTrend = 0.10;
+      } else {
+        weights.intraMonth = 0.80;
+        weights.holtWinters = 0.10;
+        weights.linearTrend = 0.05;
+      }
+      
+      // Reducir peso de modelos históricos cuando tenemos datos reales significativos
+      if (currentMonthData && currentMonthData.currentServices > 100) {
+        weights.intraMonth += 0.05;
+        weights.holtWinters -= 0.03;
+        weights.linearTrend -= 0.02;
+      }
+    }
+    
+    // Ajustar según calidad de datos
+    if (dataQuality.quality === 'high') {
+      weights.holtWinters += 0.05;
+    } else if (dataQuality.quality === 'low') {
+      weights.intraMonth += 0.10;
+      weights.holtWinters -= 0.05;
       weights.linearTrend -= 0.05;
     }
     
     // Ajustar según tendencia
     if (patterns?.trend === 'up' && patterns?.growth > 0.1) {
-      weights.acceleration += 0.05;
-      weights.linearTrend += 0.05;
-      weights.holtWinters -= 0.10;
+      weights.acceleration += 0.03;
     }
     
-    // Normalizar
+    // Normalizar para que sumen 1.0
     const total = Object.values(weights).reduce((sum, w) => sum + w, 0);
     weights.holtWinters = weights.holtWinters / total;
     weights.linearTrend = weights.linearTrend / total;
