@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CheckCircle, AlertTriangle, TrendingUp, Target, Brain, Activity, RefreshCw } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { CheckCircle, AlertTriangle, TrendingUp, Target, Brain, Activity, RefreshCw, Calendar, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useEnhancedForecastEngine } from '@/hooks/useEnhancedForecastEngine';
 import { useBacktestingData } from '@/hooks/useBacktestingData';
 import { useDynamicServiceData } from '@/hooks/useDynamicServiceData';
+import DecemberHistoricalComparison from './DecemberHistoricalComparison';
 
 const CalibrationDashboard = () => {
   const { 
@@ -91,6 +93,8 @@ const CalibrationDashboard = () => {
     );
   }
 
+  const [activeTab, setActiveTab] = useState('prediccion');
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -112,6 +116,32 @@ const CalibrationDashboard = () => {
         </div>
       </div>
 
+      {/* Tabs para diferentes vistas */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="prediccion" className="flex items-center gap-2">
+            <Target className="h-4 w-4" />
+            Predicción Actual
+          </TabsTrigger>
+          <TabsTrigger value="diciembre" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Diciembre Histórico
+          </TabsTrigger>
+          <TabsTrigger value="calibracion" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Calibración Feriados
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="diciembre" className="mt-6">
+          <DecemberHistoricalComparison />
+        </TabsContent>
+
+        <TabsContent value="calibracion" className="mt-6">
+          <DecemberHistoricalComparison />
+        </TabsContent>
+
+        <TabsContent value="prediccion" className="mt-6">
       {/* Current Performance Alert */}
       <Alert className={currentAccuracy >= 85 ? "border-green-200 bg-green-50 dark:bg-green-950/20" : 
                         currentAccuracy >= 75 ? "border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20" : 
@@ -365,6 +395,8 @@ const CalibrationDashboard = () => {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
