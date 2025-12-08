@@ -35,6 +35,13 @@ export interface DayComparison {
   actualCumulative: number | null;
   isPast: boolean;
   isToday: boolean;
+  // GMV fields
+  gmvForecast: number;
+  gmvActual: number | null;
+  gmvVariance: number | null;
+  gmvVariancePct: number | null;
+  gmvForecastCumulative: number;
+  gmvActualCumulative: number | null;
 }
 
 export interface ForecastVsActualMetrics {
@@ -46,6 +53,11 @@ export interface ForecastVsActualMetrics {
   trend: 'improving' | 'declining' | 'stable';
   totalForecast: number;
   totalActual: number;
+  // GMV metrics
+  totalGmvForecast: number;
+  totalGmvActual: number;
+  avgGmvVariance: number;
+  gmvDaysMetForecast: number;
 }
 
 export const useForecastVsActual = () => {
@@ -64,6 +76,9 @@ export const useForecastVsActual = () => {
     daysRemaining,
     currentDailyPace
   );
+
+  // AOV for GMV calculations
+  const currentAOV = dynamicData?.currentMonth?.aov ?? 8500;
 
   const comparisons = useMemo((): DayComparison[] => {
     if (!dailyActuals || !holidayAdjustment?.dayByDayProjection) return [];
@@ -94,6 +109,8 @@ export const useForecastVsActual = () => {
 
     let forecastCumulative = 0;
     let actualCumulative = 0;
+    let gmvForecastCumulative = 0;
+    let gmvActualCumulative = 0;
 
     return dailyActuals.map(day => {
       const projection = projectionMap.get(day.date);
@@ -115,15 +132,26 @@ export const useForecastVsActual = () => {
       }
       
       const actual = isPast || isToday ? day.services : null;
+      const gmvActual = isPast || isToday ? day.gmv : null;
+      const gmvForecast = forecast * currentAOV;
       
       forecastCumulative += forecast;
+      gmvForecastCumulative += gmvForecast;
       if (actual !== null) {
         actualCumulative += actual;
+      }
+      if (gmvActual !== null) {
+        gmvActualCumulative += gmvActual;
       }
 
       const variance = actual !== null ? actual - forecast : null;
       const variancePct = actual !== null && forecast > 0 
         ? ((actual - forecast) / forecast) * 100 
+        : null;
+
+      const gmvVariance = gmvActual !== null ? gmvActual - gmvForecast : null;
+      const gmvVariancePct = gmvActual !== null && gmvForecast > 0
+        ? ((gmvActual - gmvForecast) / gmvForecast) * 100
         : null;
 
       return {
@@ -144,10 +172,17 @@ export const useForecastVsActual = () => {
         forecastCumulative: Math.round(forecastCumulative),
         actualCumulative: isPast || isToday ? actualCumulative : null,
         isPast,
-        isToday
+        isToday,
+        // GMV fields
+        gmvForecast: Math.round(gmvForecast),
+        gmvActual,
+        gmvVariance,
+        gmvVariancePct,
+        gmvForecastCumulative: Math.round(gmvForecastCumulative),
+        gmvActualCumulative: isPast || isToday ? gmvActualCumulative : null
       };
     });
-  }, [dailyActuals, holidayAdjustment, currentDailyPace, currentDay]);
+  }, [dailyActuals, holidayAdjustment, currentDailyPace, currentDay, currentAOV]);
 
   const metrics = useMemo((): ForecastVsActualMetrics | null => {
     if (comparisons.length === 0) return null;
@@ -193,6 +228,22 @@ export const useForecastVsActual = () => {
     const totalForecast = comparisons.reduce((sum, d) => sum + d.forecast, 0);
     const totalActual = pastDays.reduce((sum, d) => sum + (d.actual || 0), 0);
 
+    // GMV metrics
+    const totalGmvForecast = comparisons.reduce((sum, d) => sum + d.gmvForecast, 0);
+    const totalGmvActual = pastDays.reduce((sum, d) => sum + (d.gmvActual || 0), 0);
+    
+    const gmvVariances = pastDays
+      .filter(d => d.gmvVariance !== null)
+      .map(d => d.gmvVariance as number);
+    
+    const avgGmvVariance = gmvVariances.length > 0
+      ? gmvVariances.reduce((a, b) => a + b, 0) / gmvVariances.length
+      : 0;
+
+    const gmvDaysMetForecast = pastDays.filter(d =>
+      d.gmvActual !== null && d.gmvActual >= d.gmvForecast
+    ).length;
+
     return {
       daysCompleted,
       daysRemaining,
@@ -201,7 +252,11 @@ export const useForecastVsActual = () => {
       avgVariancePct,
       trend,
       totalForecast,
-      totalActual
+      totalActual,
+      totalGmvForecast,
+      totalGmvActual,
+      avgGmvVariance,
+      gmvDaysMetForecast
     };
   }, [comparisons]);
 
