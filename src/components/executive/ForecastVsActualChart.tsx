@@ -211,13 +211,33 @@ export const ForecastVsActualChart: React.FC = () => {
           </div>
         </div>
         {metrics && (
-          <div className="flex gap-4 text-sm text-muted-foreground mt-2">
+          <div className="flex gap-4 text-sm text-muted-foreground mt-2 flex-wrap">
             <span>
               Varianza promedio: 
               <span className={`ml-1 font-medium ${(avgVar ?? 0) >= 0 ? 'text-green-600' : 'text-destructive'}`}>
                 {(avgVar ?? 0) >= 0 ? '+' : ''}
                 {isGmv ? formatCurrency(avgVar ?? 0) : `${(avgVar ?? 0).toFixed(1)} servicios`}
               </span>
+            </span>
+            <span>
+              Promedio diario: 
+              <span className="font-medium text-foreground ml-1">
+                {isGmv ? formatCurrency(metrics.avgDailyGmvActual) : metrics.avgDailyServicesActual.toFixed(1)}
+              </span>
+              <span className="mx-1">vs</span>
+              <span className="font-medium text-muted-foreground">
+                {isGmv ? formatCurrency(metrics.avgDailyGmvForecast) : metrics.avgDailyServicesForecast.toFixed(1)}
+              </span>
+              {(() => {
+                const actual = isGmv ? metrics.avgDailyGmvActual : metrics.avgDailyServicesActual;
+                const forecast = isGmv ? metrics.avgDailyGmvForecast : metrics.avgDailyServicesForecast;
+                const pct = forecast > 0 ? ((actual / forecast) * 100 - 100) : 0;
+                return (
+                  <span className={`ml-1 text-xs ${pct >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                    ({pct >= 0 ? '+' : ''}{pct.toFixed(1)}%)
+                  </span>
+                );
+              })()}
             </span>
             <span>
               Total real: <span className="font-medium text-foreground">

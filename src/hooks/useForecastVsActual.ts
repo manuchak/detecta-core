@@ -58,6 +58,11 @@ export interface ForecastVsActualMetrics {
   totalGmvActual: number;
   avgGmvVariance: number;
   gmvDaysMetForecast: number;
+  // Daily averages
+  avgDailyServicesActual: number;
+  avgDailyServicesForecast: number;
+  avgDailyGmvActual: number;
+  avgDailyGmvForecast: number;
 }
 
 export const useForecastVsActual = () => {
@@ -244,6 +249,16 @@ export const useForecastVsActual = () => {
       d.gmvActual !== null && d.gmvActual >= d.gmvForecast
     ).length;
 
+    // Daily averages (only for completed days for fair comparison)
+    const avgDailyServicesActual = daysCompleted > 0 ? totalActual / daysCompleted : 0;
+    const avgDailyServicesForecast = daysCompleted > 0 
+      ? pastDays.reduce((sum, d) => sum + d.forecast, 0) / daysCompleted 
+      : 0;
+    const avgDailyGmvActual = daysCompleted > 0 ? totalGmvActual / daysCompleted : 0;
+    const avgDailyGmvForecast = daysCompleted > 0 
+      ? pastDays.reduce((sum, d) => sum + d.gmvForecast, 0) / daysCompleted 
+      : 0;
+
     return {
       daysCompleted,
       daysRemaining,
@@ -256,7 +271,11 @@ export const useForecastVsActual = () => {
       totalGmvForecast,
       totalGmvActual,
       avgGmvVariance,
-      gmvDaysMetForecast
+      gmvDaysMetForecast,
+      avgDailyServicesActual,
+      avgDailyServicesForecast,
+      avgDailyGmvActual,
+      avgDailyGmvForecast
     };
   }, [comparisons]);
 
