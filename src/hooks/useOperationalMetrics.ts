@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-
+import { getUTCMonth, getUTCYear, getUTCDayOfMonth } from '@/utils/timezoneUtils';
 export interface OperationalMetrics {
   totalServices: number;
   completedServices: number;
@@ -126,13 +126,13 @@ export const useOperationalMetrics = () => {
       const totalGMV = services?.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0) || 0;
       const averageAOV = totalServices > 0 ? totalGMV / totalServices : 0;
 
-      // Current month metrics (MTD)
+      // Current month metrics (MTD) - Usar funciones UTC para datos de DB
       const currentMonthServices = services?.filter(s => {
         if (!s.fecha_hora_cita) return false;
-        const serviceDate = new Date(s.fecha_hora_cita);
-        return serviceDate.getMonth() + 1 === currentMonth && 
-               serviceDate.getFullYear() === currentYear &&
-               serviceDate.getDate() <= currentDay;
+        // Usar getUTC* para evitar bugs de timezone con datos de DB
+        return getUTCMonth(s.fecha_hora_cita) + 1 === currentMonth && 
+               getUTCYear(s.fecha_hora_cita) === currentYear &&
+               getUTCDayOfMonth(s.fecha_hora_cita) <= currentDay;
       }) || [];
 
       const servicesThisMonth = currentMonthServices.length;
@@ -143,24 +143,24 @@ export const useOperationalMetrics = () => {
       const prevMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
       const previousMonthMTDServices = services?.filter(s => {
         if (!s.fecha_hora_cita) return false;
-        const serviceDate = new Date(s.fecha_hora_cita);
-        return serviceDate.getMonth() + 1 === prevMonth && 
-               serviceDate.getFullYear() === prevMonthYear &&
-               serviceDate.getDate() <= currentDay;
+        // Usar getUTC* para evitar bugs de timezone con datos de DB
+        return getUTCMonth(s.fecha_hora_cita) + 1 === prevMonth && 
+               getUTCYear(s.fecha_hora_cita) === prevMonthYear &&
+               getUTCDayOfMonth(s.fecha_hora_cita) <= currentDay;
       }) || [];
 
       // YTD vs same period previous year
       const ytdServices = services?.filter(s => {
         if (!s.fecha_hora_cita) return false;
-        const serviceDate = new Date(s.fecha_hora_cita);
-        return serviceDate.getFullYear() === currentYear;
+        // Usar getUTCYear para evitar bugs de timezone
+        return getUTCYear(s.fecha_hora_cita) === currentYear;
       }) || [];
 
       const samePeriodPrevYear = services?.filter(s => {
         if (!s.fecha_hora_cita) return false;
-        const serviceDate = new Date(s.fecha_hora_cita);
-        return serviceDate.getFullYear() === currentYear - 1 && 
-               serviceDate.getMonth() < currentMonth;
+        // Usar getUTC* para evitar bugs de timezone
+        return getUTCYear(s.fecha_hora_cita) === currentYear - 1 && 
+               getUTCMonth(s.fecha_hora_cita) < currentMonth;
       }) || [];
 
       // Current quarter and previous quarter
@@ -170,9 +170,9 @@ export const useOperationalMetrics = () => {
 
       const currentQuarterServices = services?.filter(s => {
         if (!s.fecha_hora_cita) return false;
-        const serviceDate = new Date(s.fecha_hora_cita);
-        const serviceMonth = serviceDate.getMonth() + 1;
-        return serviceDate.getFullYear() === currentYear &&
+        // Usar getUTC* para evitar bugs de timezone
+        const serviceMonth = getUTCMonth(s.fecha_hora_cita) + 1;
+        return getUTCYear(s.fecha_hora_cita) === currentYear &&
                serviceMonth >= quarterStart && serviceMonth <= quarterEnd;
       }) || [];
 
@@ -184,9 +184,9 @@ export const useOperationalMetrics = () => {
 
       const previousQuarterServices = services?.filter(s => {
         if (!s.fecha_hora_cita) return false;
-        const serviceDate = new Date(s.fecha_hora_cita);
-        const serviceMonth = serviceDate.getMonth() + 1;
-        return serviceDate.getFullYear() === prevQuarterYear &&
+        // Usar getUTC* para evitar bugs de timezone
+        const serviceMonth = getUTCMonth(s.fecha_hora_cita) + 1;
+        return getUTCYear(s.fecha_hora_cita) === prevQuarterYear &&
                serviceMonth >= prevQuarterStart && serviceMonth <= prevQuarterEnd;
       }) || [];
 

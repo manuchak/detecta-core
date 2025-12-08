@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
@@ -8,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useUpcomingServices, UpcomingService } from "@/hooks/useUpcomingServices";
+import { getLocalDateString } from "@/utils/timezoneUtils";
 
 interface CalendarDay {
   date: Date;
@@ -37,7 +37,8 @@ export const ServicesCalendar = () => {
   // Handle day selection
   const handleDayClick = (day: Date | undefined) => {
     if (day) {
-      const dateKey = day.toISOString().split('T')[0];
+      // Usar getLocalDateString para fechas locales (evita bugs de timezone)
+      const dateKey = getLocalDateString(day);
       const matchingServices = servicesByDate[dateKey] || [];
       setSelectedDate(day);
       setServicesForDay(matchingServices);
@@ -50,7 +51,8 @@ export const ServicesCalendar = () => {
 
   // Custom renderer for calendar days
   const renderDay = (day: CalendarDay) => {
-    const dateKey = day.date.toISOString().split('T')[0];
+    // Usar getLocalDateString para fechas locales del calendario
+    const dateKey = getLocalDateString(day.date);
     const count = servicesByDate[dateKey]?.length || 0;
     
     return (

@@ -3,7 +3,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
-
+import { toDateString } from "@/utils/timezoneUtils";
 export interface YTDComparisonData {
   currentYear: number;
   currentServices: number;
@@ -35,11 +35,12 @@ export const getExactYTDDates = () => {
   const previousYearStart = new Date(adjustedDate.getFullYear() - 1, 0, 1); // 1 enero año anterior
   const previousYearEnd = new Date(adjustedDate.getFullYear() - 1, adjustedDate.getMonth(), adjustedDate.getDate());
   
+  // Usar toDateString para evitar bugs de timezone
   return {
-    currentYearStart: currentYearStart.toISOString().split('T')[0],
-    currentYearEnd: currentYearEnd.toISOString().split('T')[0],
-    previousYearStart: previousYearStart.toISOString().split('T')[0],
-    previousYearEnd: previousYearEnd.toISOString().split('T')[0]
+    currentYearStart: toDateString(currentYearStart),
+    currentYearEnd: toDateString(currentYearEnd),
+    previousYearStart: toDateString(previousYearStart),
+    previousYearEnd: toDateString(previousYearEnd)
   };
 };
 

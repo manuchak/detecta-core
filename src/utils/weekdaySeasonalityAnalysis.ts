@@ -1,6 +1,6 @@
 // Enhanced Weekday Seasonality Analysis for Precise Forecasting
 import { supabase } from '@/integrations/supabase/client';
-
+import { toDateStringFromUTC, getUTCDayOfWeek } from '@/utils/timezoneUtils';
 export interface WeekdayPattern {
   monday: { services: number; gmv: number; };
   tuesday: { services: number; gmv: number; };
@@ -67,12 +67,14 @@ export async function analyzeWeekdaySeasonality(): Promise<WeekdayPattern> {
     const dailyTotals: { [dateKey: string]: { services: number; gmv: number; dayOfWeek: number } } = {};
 
     historicalData?.forEach(record => {
+      if (!record.fecha_hora_cita) return;
       const date = new Date(record.fecha_hora_cita);
       if (isNaN(date.getTime())) return;
 
-      const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
+      // Usar funciones centralizadas para evitar bugs de timezone
+      const dateKey = toDateStringFromUTC(record.fecha_hora_cita);
       const cobro = parseFloat(record.cobro_cliente?.toString() || '0') || 0;
-      const dayOfWeek = date.getDay();
+      const dayOfWeek = getUTCDayOfWeek(record.fecha_hora_cita);
 
       if (!dailyTotals[dateKey]) {
         dailyTotals[dateKey] = { services: 0, gmv: 0, dayOfWeek };

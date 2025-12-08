@@ -1,6 +1,6 @@
 import { MonthlyGmvData, ServiceTypesData, TopClientsData, ServiceStatusData } from "@/hooks/useDashboardData";
 import { DailyServiceData } from "@/types/serviciosMonitoreo";
-
+import { getUTCDayOfWeek } from "@/utils/timezoneUtils";
 // Tipos para los datos de servicios
 export interface ServiceData {
   id_servicio?: string | null;
@@ -245,8 +245,12 @@ export const processDailyData = (data: ServiceData[]): DailyServiceData[] => {
   // Contar servicios finalizados por día
   completedServices.forEach(service => {
     try {
-      const serviceDate = new Date(service.fecha_hora_cita!);
-      const dayOfWeek = serviceDate.getDay();
+      const fechaCita = service.fecha_hora_cita;
+      if (!fechaCita) return;
+      const fechaString = typeof fechaCita === 'string' ? fechaCita : fechaCita.toISOString();
+      const serviceDate = new Date(fechaString);
+      // Usar getUTCDayOfWeek para datos de DB (evita bugs de timezone)
+      const dayOfWeek = getUTCDayOfWeek(fechaString);
       const dayName = daysOrder[dayOfWeek === 0 ? 6 : dayOfWeek - 1]; // Convertir domingo (0) a posición 6
       
       // Verificar si es de esta semana

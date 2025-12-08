@@ -1,9 +1,9 @@
-
 // @ts-nocheck
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { calculateDynamicRetention } from '@/utils/dynamicRetentionCalculator';
+import { getUTCMonth, getUTCYear } from '@/utils/timezoneUtils';
 
 export interface LTVMetrics {
   overallLTV: number;
@@ -156,9 +156,9 @@ export const useCustomerLTV = () => {
         const monthName = monthDate.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' });
         
         const monthServices = validServices.filter(service => {
-          const serviceDate = new Date(service.fecha_hora_cita);
-          return serviceDate.getMonth() === monthDate.getMonth() && 
-                 serviceDate.getFullYear() === monthDate.getFullYear();
+          // Usar getUTC* para evitar bugs de timezone con datos de DB
+          return getUTCMonth(service.fecha_hora_cita) === monthDate.getMonth() && 
+                 getUTCYear(service.fecha_hora_cita) === monthDate.getFullYear();
         });
 
         const monthRevenue = monthServices.reduce((sum, s) => sum + parseFloat(String(s.cobro_cliente || 0)), 0);
