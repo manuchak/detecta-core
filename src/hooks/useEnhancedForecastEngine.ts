@@ -49,30 +49,61 @@ export const useEnhancedForecastEngine = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Obtener datos del mes actual
+  // Obtener datos del mes actual - consulta directa a servicios_custodia
   const { data: currentMonthData, isLoading: loadingCurrent } = useQuery({
-    queryKey: ['enhanced-forecast-current'],
+    queryKey: ['enhanced-forecast-current-month'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('forensic_audit_servicios_enero_actual');
-      if (error) throw error;
-      
       const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth() + 1;
       const daysElapsed = currentDate.getDate();
-      const totalDaysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+      const totalDaysInMonth = new Date(currentYear, currentMonth, 0).getDate();
       const monthProgress = daysElapsed / totalDaysInMonth;
       
-      const totalYTDServices = data?.[0]?.servicios_unicos_id || 0;
-      const estimatedCurrentMonthServices = Math.round(totalYTDServices * monthProgress * 0.14);
-      const projectedMonthEnd = Math.round(estimatedCurrentMonthServices / monthProgress);
+      // Consulta directa para obtener servicios reales del mes actual
+      const startOfMonth = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+      const startOfNextMonth = currentMonth === 12 
+        ? `${currentYear + 1}-01-01`
+        : `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
       
-      return {
-        currentServices: estimatedCurrentMonthServices,
+      const { data, error } = await supabase
+        .from('servicios_custodia')
+        .select('id, cobro_cliente')
+        .gte('fecha_hora_cita', startOfMonth)
+        .lt('fecha_hora_cita', startOfNextMonth);
+      
+      if (error) throw error;
+      
+      const currentServices = data?.length || 0;
+      const currentGMV = data?.reduce((sum, s) => sum + (Number(s.cobro_cliente) || 0), 0) || 0;
+      const currentAOV = currentServices > 0 ? currentGMV / currentServices : 8473; // fallback al AOV conocido
+      
+      // Proyección basada en ritmo actual
+      const projectedMonthEnd = monthProgress > 0 ? Math.round(currentServices / monthProgress) : currentServices;
+      const projectedGMV = monthProgress > 0 ? Math.round(currentGMV / monthProgress) : currentGMV;
+      
+      console.log('📊 Datos reales del mes:', {
+        currentServices,
+        currentGMV: `$${(currentGMV / 1000000).toFixed(2)}M`,
+        currentAOV: `$${currentAOV.toFixed(0)}`,
         daysElapsed,
         totalDaysInMonth,
-        projectedMonthEnd
+        monthProgress: `${(monthProgress * 100).toFixed(1)}%`,
+        projectedMonthEnd,
+        projectedGMV: `$${(projectedGMV / 1000000).toFixed(2)}M`
+      });
+      
+      return {
+        currentServices,
+        currentGMV,
+        currentAOV,
+        daysElapsed,
+        totalDaysInMonth,
+        projectedMonthEnd,
+        projectedGMV
       };
     },
-    staleTime: 1 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Factores externos (simulados - en producción vendrían de APIs externas)

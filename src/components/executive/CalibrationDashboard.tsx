@@ -8,6 +8,7 @@ import { CheckCircle, AlertTriangle, TrendingUp, Target, Brain, Activity, Refres
 import { Button } from '@/components/ui/button';
 import { useEnhancedForecastEngine } from '@/hooks/useEnhancedForecastEngine';
 import { useBacktestingData } from '@/hooks/useBacktestingData';
+import { useDynamicServiceData } from '@/hooks/useDynamicServiceData';
 
 const CalibrationDashboard = () => {
   const { 
@@ -15,7 +16,8 @@ const CalibrationDashboard = () => {
     isLoading: forecastLoading, 
     performanceMetrics, 
     alerts,
-    triggerRecalibration 
+    triggerRecalibration,
+    currentMonthData
   } = useEnhancedForecastEngine();
   
   const { 
@@ -24,6 +26,12 @@ const CalibrationDashboard = () => {
     isLoading: backtestLoading,
     runBacktest 
   } = useBacktestingData();
+
+  // Obtener AOV dinámico de los datos reales
+  const { data: dynamicData } = useDynamicServiceData();
+  
+  // Usar AOV del mes actual de datos reales, o del hook de forecast
+  const currentAOV = currentMonthData?.currentAOV || dynamicData?.currentMonth?.aov || 8473;
 
   const isLoading = forecastLoading || backtestLoading;
 
@@ -229,7 +237,10 @@ const CalibrationDashboard = () => {
             <div>
               <p className="text-sm text-muted-foreground">GMV Proyectado</p>
               <p className="text-3xl font-bold text-green-600">
-                ${(((forecast?.forecast ?? 1180) * 6500) / 1000000).toFixed(2)}M
+                ${(((forecast?.forecast ?? 1180) * currentAOV) / 1000000).toFixed(2)}M
+              </p>
+              <p className="text-xs text-muted-foreground">
+                AOV: ${currentAOV.toLocaleString()}
               </p>
             </div>
             <div>
