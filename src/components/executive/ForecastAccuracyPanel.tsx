@@ -63,13 +63,16 @@ export const ForecastAccuracyPanel = ({ daysRemaining, ensembleConfidence }: For
           )}
         </div>
         <div className="flex items-center gap-2">
-          {holidays && holidays.holidaysInPeriod > 0 && (
+        {holidays && holidays.totalImpactDays > 0 && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
                   <Badge variant="outline" className="text-xs">
                     <Calendar className="h-3 w-3 mr-1" />
                     {holidays.holidaysInPeriod} feriado{holidays.holidaysInPeriod > 1 ? 's' : ''}
+                    {holidays.extendedImpactDays > 0 && (
+                      <span className="ml-1 text-warning">+{holidays.extendedImpactDays}</span>
+                    )}
                   </Badge>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -128,17 +131,18 @@ export const ForecastAccuracyPanel = ({ daysRemaining, ensembleConfidence }: For
           </div>
         </div>
         
-        {/* Feriados próximos */}
-        {holidays && holidays.holidaysInPeriod > 0 && (
+        {/* Feriados y días de impacto extendido */}
+        {holidays && holidays.totalImpactDays > 0 && (
           <div className="space-y-2">
             <div className="text-xs font-medium text-muted-foreground flex items-center gap-1">
               <Calendar className="h-3 w-3" />
-              Feriados en período de proyección
+              Feriados y días de impacto ({holidays.totalImpactDays} días)
             </div>
-            <div className="space-y-1">
-              {holidays.holidays.slice(0, 3).map((holiday, idx) => (
-                <div key={idx} className="flex justify-between items-center text-xs p-2 bg-background rounded">
-                  <span>{holiday.nombre}</span>
+            <div className="space-y-1 max-h-40 overflow-y-auto">
+              {/* Feriados oficiales */}
+              {holidays.holidays.map((holiday, idx) => (
+                <div key={`h-${idx}`} className="flex justify-between items-center text-xs p-2 bg-background rounded">
+                  <span className="font-medium">{holiday.nombre}</span>
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">{holiday.fecha}</span>
                     <Badge variant="destructive" className="text-xs">
@@ -147,10 +151,24 @@ export const ForecastAccuracyPanel = ({ daysRemaining, ensembleConfidence }: For
                   </div>
                 </div>
               ))}
+              {/* Días de impacto extendido */}
+              {holidays.extendedDays.map((day, idx) => (
+                <div key={`e-${idx}`} className="flex justify-between items-center text-xs p-2 bg-muted/50 rounded border-l-2 border-warning">
+                  <span className="text-muted-foreground">
+                    {day.tipo === 'before' ? '← ' : '→ '}{day.relacionadoCon}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">{day.fecha}</span>
+                    <Badge variant="secondary" className="text-xs">
+                      -{((1 - day.factor_ajuste) * 100).toFixed(0)}%
+                    </Badge>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="text-xs text-warning flex items-center gap-1">
+            <div className="text-xs text-warning flex items-center gap-1 pt-1 border-t">
               <AlertTriangle className="h-3 w-3" />
-              Factor de ajuste aplicado: {((1 - holidays.adjustmentFactor) * 100).toFixed(1)}% reducción
+              Impacto total: {((1 - holidays.adjustmentFactor) * 100).toFixed(1)}% reducción en proyección
             </div>
           </div>
         )}
