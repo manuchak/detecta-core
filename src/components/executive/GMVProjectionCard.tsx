@@ -9,6 +9,7 @@ import { getPaceStatus, getStatusTextColor } from '@/utils/paceStatus';
 import { getCurrentMonthInfo, getDaysRemainingInMonth, formatMonthlyQuestion, getPreviousMonthName, capitalize } from '@/utils/dynamicDateUtils';
 import { formatGMV } from '@/utils/formatUtils';
 import { useMemo } from 'react';
+import { ForecastAccuracyPanel } from './ForecastAccuracyPanel';
 
 export const GMVProjectionCard = () => {
   const { data, isLoading } = useRealisticProjectionsWithGuardrails();
@@ -259,6 +260,12 @@ export const GMVProjectionCard = () => {
             </div>
           </div>
         </div>
+
+        {/* Forecast Accuracy Panel - MAPE & Holidays */}
+        <ForecastAccuracyPanel 
+          daysRemaining={data.daysRemaining} 
+          ensembleConfidence={data.regime.confidence}
+        />
       </CardContent>
     </Card>
   );

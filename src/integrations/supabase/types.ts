@@ -1371,6 +1371,45 @@ export type Database = {
         }
         Relationships: []
       }
+      calendario_feriados_mx: {
+        Row: {
+          activo: boolean | null
+          created_at: string | null
+          factor_ajuste: number
+          fecha: string
+          id: string
+          impacto_observado_pct: number | null
+          nombre: string
+          notas: string | null
+          tipo: string
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string | null
+          factor_ajuste?: number
+          fecha: string
+          id?: string
+          impacto_observado_pct?: number | null
+          nombre: string
+          notas?: string | null
+          tipo?: string
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string | null
+          factor_ajuste?: number
+          fecha?: string
+          id?: string
+          impacto_observado_pct?: number | null
+          nombre?: string
+          notas?: string | null
+          tipo?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       canales_reclutamiento: {
         Row: {
           activo: boolean | null
@@ -4441,6 +4480,63 @@ export type Database = {
           status?: string | null
           suggested_km?: number | null
           suggested_points?: number | null
+        }
+        Relationships: []
+      }
+      forecast_accuracy_history: {
+        Row: {
+          actual_gmv: number | null
+          actual_services: number | null
+          created_at: string | null
+          factor_feriados_aplicado: number | null
+          feriados_considerados: number | null
+          forecast_gmv: number
+          forecast_services: number
+          id: string
+          mape_gmv: number | null
+          mape_services: number | null
+          mes: string
+          modelo_usado: string | null
+          notas: string | null
+          regime_detectado: string | null
+          smape_services: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          actual_gmv?: number | null
+          actual_services?: number | null
+          created_at?: string | null
+          factor_feriados_aplicado?: number | null
+          feriados_considerados?: number | null
+          forecast_gmv: number
+          forecast_services: number
+          id?: string
+          mape_gmv?: number | null
+          mape_services?: number | null
+          mes: string
+          modelo_usado?: string | null
+          notas?: string | null
+          regime_detectado?: string | null
+          smape_services?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          actual_gmv?: number | null
+          actual_services?: number | null
+          created_at?: string | null
+          factor_feriados_aplicado?: number | null
+          feriados_considerados?: number | null
+          forecast_gmv?: number
+          forecast_services?: number
+          id?: string
+          mape_gmv?: number | null
+          mape_services?: number | null
+          mes?: string
+          modelo_usado?: string | null
+          notas?: string | null
+          regime_detectado?: string | null
+          smape_services?: number | null
+          updated_at?: string | null
         }
         Relationships: []
       }

@@ -264,7 +264,8 @@ export function calculateDynamicWeights(
 export function calculateIntelligentEnsemble(
   historicalData: number[],
   currentValue: number,
-  dataQuality: 'high' | 'medium' | 'low' = 'medium'
+  dataQuality: 'high' | 'medium' | 'low' = 'medium',
+  externalAdjustment?: { factor: number; reason: string }
 ): IntelligentEnsembleResult {
   
   if (historicalData.length < 3) {
@@ -340,6 +341,15 @@ export function calculateIntelligentEnsemble(
     regime_adjusted = true;
   }
   
+  // 7.5. Aplicar ajuste externo (ej: feriados)
+  let externalAdjustmentApplied = false;
+  let externalAdjustmentReason = '';
+  if (externalAdjustment && externalAdjustment.factor !== 1.0) {
+    finalPrediction = finalPrediction * externalAdjustment.factor;
+    externalAdjustmentApplied = true;
+    externalAdjustmentReason = externalAdjustment.reason;
+  }
+  
   // 8. Justificación matemática
   const topModel = models.reduce((prev, current) => (weights[current.name] || 0) > (weights[prev.name] || 0) ? current : prev);
   const mathematicalJustification = `
@@ -347,6 +357,7 @@ export function calculateIntelligentEnsemble(
     Modelo dominante: ${topModel.name} (peso: ${(weights[topModel.name] * 100).toFixed(1)}%).
     ${regimeAnalysis.mathematicalJustification}
     ${regime_adjusted ? `Ajustado por guardrails: ${ensemblePrediction.toFixed(0)} → ${finalPrediction.toFixed(0)}` : ''}
+    ${externalAdjustmentApplied ? `Ajuste externo (${externalAdjustmentReason}): factor ${externalAdjustment?.factor.toFixed(3)}` : ''}
   `.trim();
   
   return {

@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDynamicServiceData } from './useDynamicServiceData';
 import { useAdvancedForecastEngine } from './useAdvancedForecastEngine';
 import { useHistoricalMonthlyProjection } from './useHistoricalMonthlyProjection';
+import { useHolidayAdjustment } from './useHolidayAdjustment';
 import { getCurrentMonthInfo, getPreviousMonthInfo } from '@/utils/dynamicDateUtils';
 import { calculateIntelligentEnsemble } from '@/utils/intelligentEnsemble';
 import { supabase } from '@/integrations/supabase/client';
@@ -63,6 +64,10 @@ export const useRealisticProjectionsWithGuardrails = () => {
   const { data: dynamicData, isLoading: dynamicDataLoading } = useDynamicServiceData();
   const { data: advancedForecast } = useAdvancedForecastEngine();
   const { data: historicalProjection, isLoading: historicalLoading } = useHistoricalMonthlyProjection();
+  
+  // Get days remaining for holiday adjustment
+  const daysRemaining = dynamicData?.daysRemaining ?? 15;
+  const { data: holidayAdjustment } = useHolidayAdjustment(daysRemaining);
 
   // Fetch historical data for regime analysis
   const { data: historicalData } = useQuery({
@@ -194,12 +199,25 @@ export const useRealisticProjectionsWithGuardrails = () => {
       const monthProgress = daysElapsed / (daysElapsed + daysRemaining);
       const intramensProjection = Math.round(currentServices / monthProgress);
       
-      // Use intelligent ensemble for sophisticated analysis
+      // Prepare external adjustment for holidays
+      const externalAdjustment = holidayAdjustment && holidayAdjustment.holidaysInPeriod > 0 
+        ? { 
+            factor: holidayAdjustment.adjustmentFactor, 
+            reason: `${holidayAdjustment.holidaysInPeriod} feriado(s): ${holidayAdjustment.holidays.map(h => h.nombre).join(', ')}`
+          }
+        : undefined;
+      
+      // Use intelligent ensemble for sophisticated analysis with holiday adjustment
       const ensembleResult = calculateIntelligentEnsemble(
         historicalServices,
         intramensProjection,
-        historicalServices.length >= 12 ? 'high' : historicalServices.length >= 6 ? 'medium' : 'low'
+        historicalServices.length >= 12 ? 'high' : historicalServices.length >= 6 ? 'medium' : 'low',
+        externalAdjustment
       );
+      
+      if (externalAdjustment) {
+        console.log(`📅 Holiday Adjustment Applied: ${externalAdjustment.reason} (factor: ${externalAdjustment.factor.toFixed(3)})`);
+      }
       
       // Apply mathematical guardrails - ensemble already includes adaptive limits
       const currentMonthTargetServices = ensembleResult.prediction;
