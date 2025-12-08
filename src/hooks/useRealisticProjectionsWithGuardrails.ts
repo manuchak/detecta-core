@@ -88,7 +88,13 @@ export const useRealisticProjectionsWithGuardrails = () => {
   });
 
   return useQuery({
-    queryKey: ['realistic-projections-with-guardrails', historicalProjection?.useHistoricalMode],
+    queryKey: [
+      'realistic-projections-with-guardrails', 
+      historicalProjection?.useHistoricalMode,
+      holidayAdjustment?.projectedServicesRemaining,
+      dynamicData?.currentMonth?.services,
+      currentDaysRemaining
+    ],
     queryFn: async (): Promise<RealisticProjections> => {
       if (!user) throw new Error('Usuario no autenticado');
       if (!dynamicData) throw new Error('Dynamic data not available');
@@ -209,12 +215,16 @@ export const useRealisticProjectionsWithGuardrails = () => {
         // Usar proyección día por día que ya considera factores de cada feriado
         intramensProjection = currentServices + holidayAdjustment.projectedServicesRemaining;
         
-        console.log(`📅 Day-by-Day Projection:`, {
-          currentServices,
+        console.log('📅 Day-by-Day Projection:', {
+          daysRemaining: currentDaysRemaining,
+          dailyPace: currentDailyPace.toFixed(2),
+          normalDays: holidayAdjustment.dayByDayProjection.filter(d => d.operationFactor === 1).length,
+          holidayDays: holidayAdjustment.holidaysInPeriod,
+          extendedDays: holidayAdjustment.dayByDayProjection.filter(d => d.operationFactor < 1 && d.operationFactor > 0.5).length,
           projectedServicesRemaining: holidayAdjustment.projectedServicesRemaining,
-          totalProjection: intramensProjection,
-          holidaysInPeriod: holidayAdjustment.holidaysInPeriod,
-          impactedDays: holidayAdjustment.dayByDayProjection.filter(d => d.operationFactor < 1)
+          impactedDays: holidayAdjustment.dayByDayProjection
+            .filter(d => d.operationFactor < 1)
+            .map(d => ({ fecha: d.fecha, factor: d.operationFactor, services: d.expectedServices }))
         });
       } else {
         // Fallback: proyección lineal simple
@@ -244,6 +254,18 @@ export const useRealisticProjectionsWithGuardrails = () => {
       console.log(`🎯 Ensemble Prediction: ${currentMonthTargetServices} services (${ensembleResult.adaptive_guardrails.regime_adjusted ? 'adjusted by guardrails' : 'within normal bounds'})`);
       console.log(`💰 Target GMV: $${currentMonthTargetGMV.toFixed(2)}M (AOV: $${currentAOV.toLocaleString()})`);
       
+      // Diagnóstico de cálculo objetivo
+      console.log('🎯 TARGET CALCULATION:', {
+        source: 'useRealisticProjections - Escenario Realista',
+        targetServices: currentMonthTargetServices,
+        targetGMV: `$${currentMonthTargetGMV.toFixed(2)}M`,
+        projectionServices: intramensProjection,
+        projectionGMV: `$${((intramensProjection * currentAOV) / 1000000).toFixed(2)}M`,
+        currentPace: currentDailyPace.toFixed(2),
+        requiredPace: ((currentMonthTargetServices - currentServices) / daysRemaining).toFixed(2),
+        status: currentMonthTargetServices < 950 ? '⚠️ En riesgo' : '✅ En camino'
+      });
+
       const regimeInfo = {
         type: ensembleResult.regime_analysis.regime,
         confidence: ensembleResult.regime_analysis.confidence,
@@ -369,8 +391,8 @@ export const useRealisticProjectionsWithGuardrails = () => {
         historicalMode: undefined
       };
     },
-    enabled: !!user && !dynamicDataLoading && !!dynamicData && !historicalLoading,
-    staleTime: 5 * 60 * 1000,
+    enabled: !!user && !dynamicDataLoading && !!dynamicData && !historicalLoading && !!holidayAdjustment,
+    staleTime: 0, // Force fresh calculation for debugging
     refetchOnWindowFocus: true,
     refetchInterval: 60 * 60 * 1000
   });
