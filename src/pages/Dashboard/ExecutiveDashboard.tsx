@@ -9,6 +9,7 @@ import { PaceAnalysisCard } from '@/components/executive/PaceAnalysisCard';
 import { PerformanceAlertsCard } from '@/components/executive/PerformanceAlertsCard';
 import { GMVProjectionCard } from '@/components/executive/GMVProjectionCard';
 import { AdvancedForecastDashboard } from '@/components/advanced/AdvancedForecastDashboard';
+import { ForecastVsActualChart } from '@/components/executive/ForecastVsActualChart';
 import { getCurrentMonthInfo } from '@/utils/dynamicDateUtils';
 
 const ExecutiveDashboard = () => {
@@ -61,6 +62,9 @@ const ExecutiveDashboard = () => {
 
         {/* Main GMV Question */}
         <GMVProjectionCard />
+
+        {/* Forecast vs Actual Tracking */}
+        <ForecastVsActualChart />
 
         {/* Secondary Analysis Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
