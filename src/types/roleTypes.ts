@@ -37,6 +37,11 @@ export interface UserWithRole {
   is_verified?: boolean;
   role_category?: 'super_admin' | 'admin' | 'management' | 'operational' | 'field' | 'pending' | 'unverified';
   role_priority?: number;
+  is_active?: boolean;
+  archived_at?: string;
+  archived_by?: string;
+  archive_reason?: string;
+  archived_by_name?: string;
 }
 
 export interface RolePermissionInput {

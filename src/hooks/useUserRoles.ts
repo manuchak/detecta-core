@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
@@ -14,7 +13,6 @@ export const useUserRoles = () => {
       try {
         console.log('Fetching ALL users with roles using new secure function...');
         
-        // Usar la nueva función que muestra TODOS los usuarios
         const { data, error } = await supabase.rpc('get_all_users_with_roles_secure');
         
         if (error) {
@@ -29,7 +27,6 @@ export const useUserRoles = () => {
           return [];
         }
         
-        // Mapear los datos con los nuevos campos
         const mappedUsers = data.map((user: any) => ({
           id: user.id,
           email: user.email,
@@ -39,10 +36,15 @@ export const useUserRoles = () => {
           last_login: user.last_login,
           is_verified: user.is_verified,
           role_category: user.role_category,
-          role_priority: user.role_priority
+          role_priority: user.role_priority,
+          is_active: user.is_active ?? true,
+          archived_at: user.archived_at,
+          archived_by: user.archived_by,
+          archive_reason: user.archive_reason,
+          archived_by_name: user.archived_by_name
         })) as UserWithRole[];
         
-        console.log('Mapped users with categories:', mappedUsers);
+        console.log('Mapped users with archive fields:', mappedUsers);
         return mappedUsers;
         
       } catch (error) {
@@ -63,7 +65,6 @@ export const useUserRoles = () => {
       try {
         console.log(`Updating user ${userId} to role ${role}`);
         
-        // Usar la función segura que maneja todo internamente
         const { data, error } = await supabase.rpc('update_user_role_secure', {
           target_user_id: userId,
           new_role: role
@@ -109,7 +110,6 @@ export const useUserRoles = () => {
       try {
         console.log(`Verifying email for user ${userId}`);
         
-        // Usar la función segura que maneja todo internamente
         const { data, error } = await supabase.rpc('verify_user_email_secure', {
           target_user_id: userId
         });
@@ -148,11 +148,78 @@ export const useUserRoles = () => {
     }
   });
 
+  const archiveUser = useMutation({
+    mutationFn: async ({ userId, reason }: { userId: string, reason?: string }) => {
+      console.log(`Archiving user ${userId} with reason: ${reason}`);
+      
+      const { data, error } = await supabase.rpc('archive_user_role_secure', {
+        target_user_id: userId,
+        reason: reason || null
+      });
+      
+      if (error) {
+        console.error('Error archiving user:', error);
+        throw new Error(`Error al archivar usuario: ${error.message}`);
+      }
+      
+      return { userId };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users-with-roles'] });
+      toast({
+        title: "Usuario archivado",
+        description: "El colaborador ha sido marcado como egresado correctamente",
+      });
+    },
+    onError: (error) => {
+      console.error('Archive error:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al archivar usuario",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const reactivateUser = useMutation({
+    mutationFn: async ({ userId }: { userId: string }) => {
+      console.log(`Reactivating user ${userId}`);
+      
+      const { data, error } = await supabase.rpc('reactivate_user_role_secure', {
+        target_user_id: userId
+      });
+      
+      if (error) {
+        console.error('Error reactivating user:', error);
+        throw new Error(`Error al reactivar usuario: ${error.message}`);
+      }
+      
+      return { userId };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users-with-roles'] });
+      toast({
+        title: "Usuario reactivado",
+        description: "El colaborador ha sido reactivado correctamente",
+      });
+    },
+    onError: (error) => {
+      console.error('Reactivate error:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al reactivar usuario",
+        variant: "destructive",
+      });
+    }
+  });
+
   return {
     users,
     isLoading,
     error,
     updateUserRole,
-    verifyUserEmail
+    verifyUserEmail,
+    archiveUser,
+    reactivateUser
   };
 };
