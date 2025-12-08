@@ -11056,20 +11056,32 @@ export type Database = {
       }
       user_roles: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           created_at: string
           id: string
+          is_active: boolean | null
           role: string
           user_id: string
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           id?: string
+          is_active?: boolean | null
           role: string
           user_id: string
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           id?: string
+          is_active?: boolean | null
           role?: string
           user_id?: string
         }
@@ -11762,6 +11774,10 @@ export type Database = {
       add_admin_role: { Args: { user_id: string }; Returns: undefined }
       archivar_producto: {
         Args: { p_motivo?: string; p_producto_id: string }
+        Returns: boolean
+      }
+      archive_user_role_secure: {
+        Args: { reason?: string; target_user_id: string }
         Returns: boolean
       }
       assign_initial_owner: { Args: { target_email: string }; Returns: boolean }
@@ -12535,10 +12551,15 @@ export type Database = {
       get_all_users_with_roles_secure: {
         Args: never
         Returns: {
+          archive_reason: string
+          archived_at: string
+          archived_by: string
+          archived_by_name: string
           created_at: string
           display_name: string
           email: string
           id: string
+          is_active: boolean
           is_verified: boolean
           last_login: string
           role: string
@@ -13832,6 +13853,10 @@ export type Database = {
       }
       reactivate_lead_from_pool_v2: {
         Args: { p_is_test?: boolean; p_lead_id: string; p_nuevo_estado: string }
+        Returns: boolean
+      }
+      reactivate_user_role_secure: {
+        Args: { target_user_id: string }
         Returns: boolean
       }
       recomendar_gps_para_instalacion: {
