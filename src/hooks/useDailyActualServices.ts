@@ -41,7 +41,8 @@ export const useDailyActualServices = (year: number = 2025, month: number = 12) 
       // Aggregate actual data
       data?.forEach(service => {
         const serviceDate = new Date(service.fecha_hora_cita);
-        const day = serviceDate.getDate();
+        // Use UTC date to avoid timezone shifting services to wrong day
+        const day = serviceDate.getUTCDate();
         const existing = dailyMap.get(day) || { services: 0, gmv: 0 };
         dailyMap.set(day, {
           services: existing.services + 1,
