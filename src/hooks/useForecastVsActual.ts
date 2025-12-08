@@ -1,0 +1,169 @@
+import { useMemo } from 'react';
+import { useDailyActualServices, DailyActualData } from './useDailyActualServices';
+import { useHolidayAdjustment } from './useHolidayAdjustment';
+import { useDynamicServiceData } from './useDynamicServiceData';
+import { format } from 'date-fns';
+
+export interface DayComparison {
+  date: string;
+  dayOfMonth: number;
+  dayLabel: string;
+  forecast: number;
+  actual: number | null;
+  variance: number | null;
+  variancePct: number | null;
+  isHoliday: boolean;
+  holidayName?: string;
+  operationFactor: number;
+  forecastCumulative: number;
+  actualCumulative: number | null;
+  isPast: boolean;
+  isToday: boolean;
+}
+
+export interface ForecastVsActualMetrics {
+  daysCompleted: number;
+  daysRemaining: number;
+  daysMetForecast: number;
+  avgVariance: number;
+  avgVariancePct: number;
+  trend: 'improving' | 'declining' | 'stable';
+  totalForecast: number;
+  totalActual: number;
+}
+
+export const useForecastVsActual = () => {
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1;
+  const currentDay = today.getDate();
+
+  const { data: dailyActuals, isLoading: loadingActuals } = useDailyActualServices(currentYear, currentMonth);
+  const { data: dynamicData, isLoading: loadingDynamic } = useDynamicServiceData();
+  
+  const daysRemaining = dynamicData?.daysRemaining ?? 0;
+  const currentDailyPace = dynamicData?.currentMonth?.dailyPace ?? 0;
+  
+  const { data: holidayAdjustment, isLoading: loadingHoliday } = useHolidayAdjustment(
+    daysRemaining,
+    currentDailyPace
+  );
+
+  const comparisons = useMemo((): DayComparison[] => {
+    if (!dailyActuals || !holidayAdjustment?.dayByDayProjection) return [];
+
+    const projectionMap = new Map<string, { expectedServices: number; operationFactor: number; isHoliday: boolean; holidayName?: string }>();
+    
+    holidayAdjustment.dayByDayProjection.forEach(proj => {
+      projectionMap.set(proj.fecha, {
+        expectedServices: proj.expectedServices,
+        operationFactor: proj.operationFactor,
+        isHoliday: proj.isHoliday,
+        holidayName: proj.holidayName
+      });
+    });
+
+    let forecastCumulative = 0;
+    let actualCumulative = 0;
+
+    return dailyActuals.map(day => {
+      const projection = projectionMap.get(day.date);
+      const isPast = day.dayOfMonth < currentDay;
+      const isToday = day.dayOfMonth === currentDay;
+      
+      // For past days, use actual pace as forecast basis
+      // For future days, use holiday-adjusted projection
+      const forecast = projection?.expectedServices ?? currentDailyPace;
+      const actual = isPast || isToday ? day.services : null;
+      
+      forecastCumulative += forecast;
+      if (actual !== null) {
+        actualCumulative += actual;
+      }
+
+      const variance = actual !== null ? actual - forecast : null;
+      const variancePct = actual !== null && forecast > 0 
+        ? ((actual - forecast) / forecast) * 100 
+        : null;
+
+      return {
+        date: day.date,
+        dayOfMonth: day.dayOfMonth,
+        dayLabel: format(new Date(day.date), 'dd'),
+        forecast: Math.round(forecast),
+        actual,
+        variance,
+        variancePct,
+        isHoliday: projection?.isHoliday ?? false,
+        holidayName: projection?.holidayName,
+        operationFactor: projection?.operationFactor ?? 1,
+        forecastCumulative: Math.round(forecastCumulative),
+        actualCumulative: isPast || isToday ? actualCumulative : null,
+        isPast,
+        isToday
+      };
+    });
+  }, [dailyActuals, holidayAdjustment, currentDailyPace, currentDay]);
+
+  const metrics = useMemo((): ForecastVsActualMetrics | null => {
+    if (comparisons.length === 0) return null;
+
+    const pastDays = comparisons.filter(d => d.isPast || d.isToday);
+    const daysCompleted = pastDays.length;
+    const daysRemaining = comparisons.length - daysCompleted;
+    
+    const daysMetForecast = pastDays.filter(d => 
+      d.actual !== null && d.actual >= d.forecast
+    ).length;
+
+    const variances = pastDays
+      .filter(d => d.variance !== null)
+      .map(d => d.variance as number);
+    
+    const avgVariance = variances.length > 0 
+      ? variances.reduce((a, b) => a + b, 0) / variances.length 
+      : 0;
+
+    const variancePcts = pastDays
+      .filter(d => d.variancePct !== null)
+      .map(d => d.variancePct as number);
+    
+    const avgVariancePct = variancePcts.length > 0
+      ? variancePcts.reduce((a, b) => a + b, 0) / variancePcts.length
+      : 0;
+
+    // Determine trend from last 3 days
+    const recentDays = pastDays.slice(-3);
+    const recentVariances = recentDays
+      .filter(d => d.variance !== null)
+      .map(d => d.variance as number);
+    
+    let trend: 'improving' | 'declining' | 'stable' = 'stable';
+    if (recentVariances.length >= 2) {
+      const first = recentVariances[0];
+      const last = recentVariances[recentVariances.length - 1];
+      if (last > first + 2) trend = 'improving';
+      else if (last < first - 2) trend = 'declining';
+    }
+
+    const totalForecast = comparisons.reduce((sum, d) => sum + d.forecast, 0);
+    const totalActual = pastDays.reduce((sum, d) => sum + (d.actual || 0), 0);
+
+    return {
+      daysCompleted,
+      daysRemaining,
+      daysMetForecast,
+      avgVariance,
+      avgVariancePct,
+      trend,
+      totalForecast,
+      totalActual
+    };
+  }, [comparisons]);
+
+  return {
+    comparisons,
+    metrics,
+    isLoading: loadingActuals || loadingDynamic || loadingHoliday
+  };
+};
