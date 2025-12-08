@@ -9,6 +9,7 @@ import { PaceAnalysisCard } from '@/components/executive/PaceAnalysisCard';
 import { PerformanceAlertsCard } from '@/components/executive/PerformanceAlertsCard';
 import { GMVProjectionCard } from '@/components/executive/GMVProjectionCard';
 import { AdvancedForecastDashboard } from '@/components/advanced/AdvancedForecastDashboard';
+import { getCurrentMonthInfo } from '@/utils/dynamicDateUtils';
 
 const ExecutiveDashboard = () => {
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ const ExecutiveDashboard = () => {
                 Dashboard Ejecutivo
               </h1>
               <p className="text-muted-foreground">
-                Respuestas directas sobre el cierre de septiembre 2025
+                Respuestas directas sobre el cierre de {getCurrentMonthInfo().fullName}
               </p>
             </div>
             
