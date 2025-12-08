@@ -20,16 +20,16 @@ interface ExtendedImpactConfig {
 const EXTENDED_IMPACT_CONFIG: ExtendedImpactConfig[] = [
   { 
     holidayPattern: 'Navidad', 
-    daysBefore: 2,      // 23-24 dic tienen impacto
+    daysBefore: 1,      // 24 dic (Nochebuena) es feriado separado ahora
     daysAfter: 1,       // 26 dic tiene impacto leve
-    beforeFactor: 0.70, // 30% reducción días previos
+    beforeFactor: 0.85, // Impacto reducido día 23 (ajustado de 0.70)
     afterFactor: 0.90   // 10% reducción día después
   },
   { 
     holidayPattern: 'Año Nuevo', 
-    daysBefore: 1,      // 31 dic (aunque ya es feriado, refuerza)
+    daysBefore: 0,      // 31 dic es feriado separado ahora
     daysAfter: 1,       // 2 enero
-    beforeFactor: 0.50, 
+    beforeFactor: 1.0,  // Ya no aplica, es feriado explícito
     afterFactor: 0.85 
   },
   { 
