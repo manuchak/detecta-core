@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useForecastVsActual } from '@/hooks/useForecastVsActual';
 import { 
   ComposedChart, 
@@ -16,14 +17,28 @@ import {
   ReferenceLine,
   Cell
 } from 'recharts';
-import { TrendingUp, TrendingDown, Minus, Calendar, Target } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Calendar, Target, DollarSign, BarChart3 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+type ViewMode = 'services' | 'gmv';
+
+const formatCurrency = (value: number) => {
+  if (value >= 1000000) return `$${(value / 1000000).toFixed(2)}M`;
+  if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
+  return `$${value.toLocaleString()}`;
+};
+
+const CustomTooltip = ({ active, payload, label, viewMode }: any) => {
   if (!active || !payload || !payload.length) return null;
   
   const data = payload[0]?.payload;
   if (!data) return null;
+
+  const isGmv = viewMode === 'gmv';
+  const forecast = isGmv ? data.gmvForecast : data.forecast;
+  const actual = isGmv ? data.gmvActual : data.actual;
+  const variance = isGmv ? data.gmvVariance : data.variance;
+  const variancePct = isGmv ? data.gmvVariancePct : data.variancePct;
 
   return (
     <div className="bg-popover border border-border rounded-lg p-3 shadow-lg">
@@ -35,15 +50,19 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       )}
       <div className="mt-2 space-y-1 text-sm">
         <p className="text-muted-foreground">
-          Forecast: <span className="text-foreground font-medium">{data.forecast}</span>
+          Forecast: <span className="text-foreground font-medium">
+            {isGmv ? formatCurrency(forecast) : forecast}
+          </span>
         </p>
-        {data.actual !== null && (
+        {actual !== null && (
           <>
             <p className="text-muted-foreground">
-              Real: <span className="text-foreground font-medium">{data.actual}</span>
+              Real: <span className="text-foreground font-medium">
+                {isGmv ? formatCurrency(actual) : actual}
+              </span>
             </p>
-            <p className={`font-medium ${data.variance >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-              {data.variance >= 0 ? '+' : ''}{data.variance} ({data.variancePct?.toFixed(1)}%)
+            <p className={`font-medium ${variance >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+              {variance >= 0 ? '+' : ''}{isGmv ? formatCurrency(variance) : variance} ({variancePct?.toFixed(1)}%)
             </p>
           </>
         )}
@@ -59,26 +78,35 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
-const CumulativeTooltip = ({ active, payload, label }: any) => {
+const CumulativeTooltip = ({ active, payload, label, viewMode }: any) => {
   if (!active || !payload || !payload.length) return null;
   
   const data = payload[0]?.payload;
   if (!data) return null;
+
+  const isGmv = viewMode === 'gmv';
+  const forecastCum = isGmv ? data.gmvForecastCumulative : data.forecastCumulative;
+  const actualCum = isGmv ? data.gmvActualCumulative : data.actualCumulative;
+  const gap = actualCum !== null ? actualCum - forecastCum : null;
 
   return (
     <div className="bg-popover border border-border rounded-lg p-3 shadow-lg">
       <p className="font-medium text-foreground">Día {data.dayOfMonth}</p>
       <div className="mt-2 space-y-1 text-sm">
         <p className="text-muted-foreground">
-          Forecast acum: <span className="text-foreground font-medium">{data.forecastCumulative}</span>
+          Forecast acum: <span className="text-foreground font-medium">
+            {isGmv ? formatCurrency(forecastCum) : forecastCum}
+          </span>
         </p>
-        {data.actualCumulative !== null && (
+        {actualCum !== null && (
           <>
             <p className="text-muted-foreground">
-              Real acum: <span className="text-foreground font-medium">{data.actualCumulative}</span>
+              Real acum: <span className="text-foreground font-medium">
+                {isGmv ? formatCurrency(actualCum) : actualCum}
+              </span>
             </p>
-            <p className={`font-medium ${(data.actualCumulative - data.forecastCumulative) >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-              Gap: {data.actualCumulative - data.forecastCumulative}
+            <p className={`font-medium ${gap >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+              Gap: {isGmv ? formatCurrency(gap) : gap}
             </p>
           </>
         )}
@@ -89,6 +117,7 @@ const CumulativeTooltip = ({ active, payload, label }: any) => {
 
 export const ForecastVsActualChart: React.FC = () => {
   const { comparisons, metrics, isLoading } = useForecastVsActual();
+  const [viewMode, setViewMode] = useState<ViewMode>('services');
 
   if (isLoading) {
     return (
@@ -103,6 +132,8 @@ export const ForecastVsActualChart: React.FC = () => {
     );
   }
 
+  const isGmv = viewMode === 'gmv';
+
   const TrendIcon = metrics?.trend === 'improving' 
     ? TrendingUp 
     : metrics?.trend === 'declining' 
@@ -115,14 +146,49 @@ export const ForecastVsActualChart: React.FC = () => {
       ? 'text-destructive'
       : 'text-muted-foreground';
 
+  // Select metrics based on view mode
+  const daysMetTarget = isGmv ? metrics?.gmvDaysMetForecast : metrics?.daysMetForecast;
+  const avgVar = isGmv ? metrics?.avgGmvVariance : metrics?.avgVariance;
+  const totalActualDisplay = isGmv ? metrics?.totalGmvActual : metrics?.totalActual;
+  const totalForecastDisplay = isGmv ? metrics?.totalGmvForecast : metrics?.totalForecast;
+
+  // Data keys based on view mode
+  const forecastKey = isGmv ? 'gmvForecast' : 'forecast';
+  const actualKey = isGmv ? 'gmvActual' : 'actual';
+  const forecastCumKey = isGmv ? 'gmvForecastCumulative' : 'forecastCumulative';
+  const actualCumKey = isGmv ? 'gmvActualCumulative' : 'actualCumulative';
+  const varianceKey = isGmv ? 'gmvVariance' : 'variance';
+
   return (
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Target className="h-5 w-5 text-primary" />
-            Tracking Diario: Forecast vs Real
-          </CardTitle>
+          <div className="flex items-center gap-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              Tracking Diario: Forecast vs Real
+            </CardTitle>
+            <div className="flex gap-1 bg-muted p-0.5 rounded-md">
+              <Button
+                size="sm"
+                variant={viewMode === 'services' ? 'default' : 'ghost'}
+                className="h-7 px-2 text-xs"
+                onClick={() => setViewMode('services')}
+              >
+                <BarChart3 className="h-3 w-3 mr-1" />
+                Servicios
+              </Button>
+              <Button
+                size="sm"
+                variant={viewMode === 'gmv' ? 'default' : 'ghost'}
+                className="h-7 px-2 text-xs"
+                onClick={() => setViewMode('gmv')}
+              >
+                <DollarSign className="h-3 w-3 mr-1" />
+                GMV
+              </Button>
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             {metrics && (
               <>
@@ -131,10 +197,10 @@ export const ForecastVsActualChart: React.FC = () => {
                   {metrics.daysCompleted} de 31 días
                 </Badge>
                 <Badge 
-                  variant={metrics.daysMetForecast >= metrics.daysCompleted * 0.5 ? 'default' : 'destructive'}
+                  variant={(daysMetTarget ?? 0) >= metrics.daysCompleted * 0.5 ? 'default' : 'destructive'}
                   className="text-xs"
                 >
-                  {metrics.daysMetForecast}/{metrics.daysCompleted} días cumplidos
+                  {daysMetTarget}/{metrics.daysCompleted} días cumplidos
                 </Badge>
                 <Badge variant="outline" className={`text-xs ${trendColor}`}>
                   <TrendIcon className="h-3 w-3 mr-1" />
@@ -148,13 +214,18 @@ export const ForecastVsActualChart: React.FC = () => {
           <div className="flex gap-4 text-sm text-muted-foreground mt-2">
             <span>
               Varianza promedio: 
-              <span className={`ml-1 font-medium ${metrics.avgVariance >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                {metrics.avgVariance >= 0 ? '+' : ''}{metrics.avgVariance.toFixed(1)} servicios
+              <span className={`ml-1 font-medium ${(avgVar ?? 0) >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                {(avgVar ?? 0) >= 0 ? '+' : ''}
+                {isGmv ? formatCurrency(avgVar ?? 0) : `${(avgVar ?? 0).toFixed(1)} servicios`}
               </span>
             </span>
             <span>
-              Total real: <span className="font-medium text-foreground">{metrics.totalActual}</span> / 
-              Forecast: <span className="font-medium text-foreground">{metrics.totalForecast}</span>
+              Total real: <span className="font-medium text-foreground">
+                {isGmv ? formatCurrency(totalActualDisplay ?? 0) : totalActualDisplay}
+              </span> / 
+              Forecast: <span className="font-medium text-foreground">
+                {isGmv ? formatCurrency(totalForecastDisplay ?? 0) : totalForecastDisplay}
+              </span>
             </span>
           </div>
         )}
@@ -169,7 +240,7 @@ export const ForecastVsActualChart: React.FC = () => {
           <TabsContent value="daily" className="mt-0">
             <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={comparisons} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <ComposedChart data={comparisons} margin={{ top: 10, right: 10, left: isGmv ? 10 : 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis 
                     dataKey="dayLabel" 
@@ -179,13 +250,14 @@ export const ForecastVsActualChart: React.FC = () => {
                   <YAxis 
                     tick={{ fontSize: 10 }}
                     className="text-muted-foreground"
+                    tickFormatter={isGmv ? (v) => formatCurrency(v) : undefined}
                   />
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip content={<CustomTooltip viewMode={viewMode} />} />
                   
                   {/* Forecast line */}
                   <Line 
                     type="monotone" 
-                    dataKey="forecast" 
+                    dataKey={forecastKey}
                     stroke="hsl(var(--primary))"
                     strokeWidth={2}
                     strokeDasharray="5 5"
@@ -195,16 +267,17 @@ export const ForecastVsActualChart: React.FC = () => {
                   
                   {/* Actual bars */}
                   <Bar 
-                    dataKey="actual" 
+                    dataKey={actualKey}
                     name="Real"
                     radius={[2, 2, 0, 0]}
                   >
                     {comparisons.map((entry, index) => {
+                      const variance = isGmv ? entry.gmvVariance : entry.variance;
                       let fill = 'hsl(var(--primary))';
-                      if (entry.actual !== null) {
-                        if (entry.variance !== null && entry.variance >= 0) {
+                      if ((isGmv ? entry.gmvActual : entry.actual) !== null) {
+                        if (variance !== null && variance >= 0) {
                           fill = 'hsl(142.1 76.2% 36.3%)'; // green-600
-                        } else if (entry.variance !== null && entry.variance < 0) {
+                        } else if (variance !== null && variance < 0) {
                           fill = 'hsl(var(--destructive))';
                         }
                       }
@@ -253,7 +326,7 @@ export const ForecastVsActualChart: React.FC = () => {
           <TabsContent value="cumulative" className="mt-0">
             <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={comparisons} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <ComposedChart data={comparisons} margin={{ top: 10, right: 10, left: isGmv ? 10 : 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis 
                     dataKey="dayLabel" 
@@ -263,13 +336,14 @@ export const ForecastVsActualChart: React.FC = () => {
                   <YAxis 
                     tick={{ fontSize: 10 }}
                     className="text-muted-foreground"
+                    tickFormatter={isGmv ? (v) => formatCurrency(v) : undefined}
                   />
-                  <Tooltip content={<CumulativeTooltip />} />
+                  <Tooltip content={<CumulativeTooltip viewMode={viewMode} />} />
                   
                   {/* Forecast cumulative line */}
                   <Line 
                     type="monotone" 
-                    dataKey="forecastCumulative" 
+                    dataKey={forecastCumKey}
                     stroke="hsl(var(--primary))"
                     strokeWidth={2}
                     strokeDasharray="5 5"
@@ -280,7 +354,7 @@ export const ForecastVsActualChart: React.FC = () => {
                   {/* Actual cumulative area */}
                   <Area 
                     type="monotone" 
-                    dataKey="actualCumulative" 
+                    dataKey={actualCumKey}
                     fill="hsl(142.1 76.2% 36.3% / 0.3)"
                     stroke="hsl(142.1 76.2% 36.3%)"
                     strokeWidth={2}
