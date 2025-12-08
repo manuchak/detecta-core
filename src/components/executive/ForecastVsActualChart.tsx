@@ -27,9 +27,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
   return (
     <div className="bg-popover border border-border rounded-lg p-3 shadow-lg">
-      <p className="font-medium text-foreground">Día {data.dayOfMonth}</p>
+      <p className="font-medium text-foreground">
+        {data.weekdayName} {data.dayOfMonth}
+      </p>
       {data.isHoliday && (
-        <p className="text-xs text-destructive">{data.holidayName}</p>
+        <p className="text-xs text-amber-500">{data.holidayName}</p>
       )}
       <div className="mt-2 space-y-1 text-sm">
         <p className="text-muted-foreground">
@@ -45,11 +47,13 @@ const CustomTooltip = ({ active, payload, label }: any) => {
             </p>
           </>
         )}
-        {data.operationFactor < 1 && (
-          <p className="text-xs text-muted-foreground">
-            Factor operación: {(data.operationFactor * 100).toFixed(0)}%
-          </p>
-        )}
+        <div className="text-xs text-muted-foreground border-t border-border pt-1 mt-1">
+          <p>Día semana: ×{data.weekdayFactor?.toFixed(2)}</p>
+          {data.operationFactor < 1 && (
+            <p>Factor feriado: ×{data.operationFactor?.toFixed(2)}</p>
+          )}
+          <p>Factor combinado: ×{data.combinedFactor?.toFixed(2)}</p>
+        </div>
       </div>
     </div>
   );
@@ -238,9 +242,12 @@ export const ForecastVsActualChart: React.FC = () => {
               </span>
               <span className="flex items-center gap-1">
                 <span className="w-8 border-t-2 border-dashed border-primary" />
-                Forecast
+                Forecast (ajustado por día semana)
               </span>
             </div>
+            <p className="text-center text-xs text-muted-foreground mt-1">
+              Patrón semanal histórico 2024: Dom ×0.41 | Sáb ×0.71 | Jue ×1.29
+            </p>
           </TabsContent>
 
           <TabsContent value="cumulative" className="mt-0">

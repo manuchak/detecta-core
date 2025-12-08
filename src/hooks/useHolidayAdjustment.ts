@@ -48,6 +48,20 @@ const EXTENDED_IMPACT_CONFIG: ExtendedImpactConfig[] = [
   }
 ];
 
+// Factores de día de semana validados con datos 2024 (10,714 servicios)
+// Basado en query: SELECT EXTRACT(DOW FROM fecha_hora_cita), COUNT(*), AVG(servicios_por_día)
+const WEEKDAY_FACTORS: Record<number, number> = {
+  0: 0.41,  // Domingo - -59% vs promedio
+  1: 0.99,  // Lunes - ~promedio
+  2: 1.25,  // Martes - +25%
+  3: 1.13,  // Miércoles - +13%
+  4: 1.29,  // Jueves - +29% (día más fuerte)
+  5: 1.21,  // Viernes - +21%
+  6: 0.71,  // Sábado - -29%
+};
+
+const WEEKDAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
 export interface ExtendedDay {
   fecha: string;
   relacionadoCon: string;
@@ -55,15 +69,19 @@ export interface ExtendedDay {
   tipo: 'before' | 'after';
 }
 
-// Nueva interfaz para proyección día por día
+// Interfaz para proyección día por día con patrón semanal
 export interface DayProjection {
   fecha: string;
   dayOfMonth: number;
+  dayOfWeek: number;           // 0-6 (Domingo-Sábado)
+  weekdayName: string;         // "Lun", "Mar", etc.
+  weekdayFactor: number;       // 0.41-1.29 según día
   isHoliday: boolean;
   isExtendedImpact: boolean;
   holidayName?: string;
-  operationFactor: number;  // 1.0 = día normal, 0.43 = Navidad, etc.
-  expectedServices: number; // ritmo_diario × operationFactor
+  operationFactor: number;     // Factor por feriado (1.0 si no aplica)
+  combinedFactor: number;      // weekdayFactor × operationFactor
+  expectedServices: number;    // ritmo_diario × combinedFactor
 }
 
 export interface HolidayAdjustment {
@@ -212,9 +230,14 @@ export function useHolidayAdjustment(daysRemaining: number, currentDailyPace: nu
         const projectedDate = addDays(today, i);
         const dateStr = format(projectedDate, 'yyyy-MM-dd');
         const dayOfMonth = projectedDate.getDate();
+        const dayOfWeek = projectedDate.getDay(); // 0-6
         
         const holiday = holidayMap.get(dateStr);
         const extendedDay = extendedMap.get(dateStr);
+        
+        // Factor de día de semana (patrón histórico 2024)
+        const weekdayFactor = WEEKDAY_FACTORS[dayOfWeek];
+        const weekdayName = WEEKDAY_NAMES[dayOfWeek];
         
         let operationFactor = 1.0;
         let isHoliday = false;
@@ -231,15 +254,21 @@ export function useHolidayAdjustment(daysRemaining: number, currentDailyPace: nu
           holidayName = `${extendedDay.tipo === 'before' ? 'Pre' : 'Post'}-${extendedDay.relacionadoCon}`;
         }
         
-        const expectedServices = dailyPace * operationFactor;
+        // Factor combinado: patrón semanal × impacto feriado
+        const combinedFactor = weekdayFactor * operationFactor;
+        const expectedServices = dailyPace * combinedFactor;
         
         dayByDayProjection.push({
           fecha: dateStr,
           dayOfMonth,
+          dayOfWeek,
+          weekdayName,
+          weekdayFactor,
           isHoliday,
           isExtendedImpact,
           holidayName,
           operationFactor,
+          combinedFactor,
           expectedServices
         });
       }
