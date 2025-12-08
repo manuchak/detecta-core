@@ -16,6 +16,16 @@ const WEEKDAY_FACTORS: Record<number, number> = {
 };
 const WEEKDAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
+// Incertidumbre base del 15% (MAPE histórico típico)
+const BASE_UNCERTAINTY = 0.15;
+
+// La incertidumbre crece conforme nos alejamos del presente
+const getDayUncertainty = (daysFromToday: number): number => {
+  if (daysFromToday <= 0) return 0; // Días pasados no tienen incertidumbre
+  // Crece con raíz cuadrada para cono suave: ~15% día 1, ~22% día 10, ~30% día 25
+  return BASE_UNCERTAINTY * (1 + Math.sqrt(daysFromToday) * 0.15);
+};
+
 export interface DayComparison {
   date: string;
   dayOfMonth: number;
@@ -35,6 +45,12 @@ export interface DayComparison {
   actualCumulative: number | null;
   isPast: boolean;
   isToday: boolean;
+  // Bandas de confianza 80%
+  forecastLower: number;
+  forecastUpper: number;
+  forecastCumulativeLower: number;
+  forecastCumulativeUpper: number;
+  uncertainty: number;         // Porcentaje de incertidumbre para el día
   // GMV fields
   gmvForecast: number;
   gmvActual: number | null;
@@ -42,6 +58,10 @@ export interface DayComparison {
   gmvVariancePct: number | null;
   gmvForecastCumulative: number;
   gmvActualCumulative: number | null;
+  gmvForecastLower: number;
+  gmvForecastUpper: number;
+  gmvForecastCumulativeLower: number;
+  gmvForecastCumulativeUpper: number;
 }
 
 export interface ForecastVsActualMetrics {
@@ -116,6 +136,10 @@ export const useForecastVsActual = () => {
     let actualCumulative = 0;
     let gmvForecastCumulative = 0;
     let gmvActualCumulative = 0;
+    let forecastCumulativeLower = 0;
+    let forecastCumulativeUpper = 0;
+    let gmvForecastCumulativeLower = 0;
+    let gmvForecastCumulativeUpper = 0;
 
     return dailyActuals.map(day => {
       const projection = projectionMap.get(day.date);
@@ -140,8 +164,21 @@ export const useForecastVsActual = () => {
       const gmvActual = isPast || isToday ? day.gmv : null;
       const gmvForecast = forecast * currentAOV;
       
+      // Calcular incertidumbre para bandas de confianza
+      const daysFromToday = day.dayOfMonth - currentDay;
+      const uncertainty = getDayUncertainty(daysFromToday);
+      const forecastLower = forecast * (1 - uncertainty);
+      const forecastUpper = forecast * (1 + uncertainty);
+      const gmvForecastLower = gmvForecast * (1 - uncertainty);
+      const gmvForecastUpper = gmvForecast * (1 + uncertainty);
+      
       forecastCumulative += forecast;
       gmvForecastCumulative += gmvForecast;
+      forecastCumulativeLower += forecastLower;
+      forecastCumulativeUpper += forecastUpper;
+      gmvForecastCumulativeLower += gmvForecastLower;
+      gmvForecastCumulativeUpper += gmvForecastUpper;
+      
       if (actual !== null) {
         actualCumulative += actual;
       }
@@ -178,13 +215,23 @@ export const useForecastVsActual = () => {
         actualCumulative: isPast || isToday ? actualCumulative : null,
         isPast,
         isToday,
+        // Bandas de confianza
+        forecastLower: Math.round(forecastLower),
+        forecastUpper: Math.round(forecastUpper),
+        forecastCumulativeLower: Math.round(forecastCumulativeLower),
+        forecastCumulativeUpper: Math.round(forecastCumulativeUpper),
+        uncertainty,
         // GMV fields
         gmvForecast: Math.round(gmvForecast),
         gmvActual,
         gmvVariance,
         gmvVariancePct,
         gmvForecastCumulative: Math.round(gmvForecastCumulative),
-        gmvActualCumulative: isPast || isToday ? gmvActualCumulative : null
+        gmvActualCumulative: isPast || isToday ? gmvActualCumulative : null,
+        gmvForecastLower: Math.round(gmvForecastLower),
+        gmvForecastUpper: Math.round(gmvForecastUpper),
+        gmvForecastCumulativeLower: Math.round(gmvForecastCumulativeLower),
+        gmvForecastCumulativeUpper: Math.round(gmvForecastCumulativeUpper)
       };
     });
   }, [dailyActuals, holidayAdjustment, currentDailyPace, currentDay, currentAOV]);

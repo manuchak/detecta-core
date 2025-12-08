@@ -17,7 +17,7 @@ import {
   ReferenceLine,
   Cell
 } from 'recharts';
-import { TrendingUp, TrendingDown, Minus, Calendar, Target, DollarSign, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Calendar, Target, DollarSign, BarChart3, Eye, EyeOff } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 type ViewMode = 'services' | 'gmv';
@@ -66,6 +66,15 @@ const CustomTooltip = ({ active, payload, label, viewMode }: any) => {
             </p>
           </>
         )}
+        {/* Rango de confianza solo para días futuros */}
+        {!data.isPast && !data.isToday && data.uncertainty > 0 && (
+          <div className="text-xs text-muted-foreground border-t border-border pt-1 mt-1">
+            <p className="text-primary/80">
+              Rango 80%: {isGmv ? formatCurrency(data.gmvForecastLower) : data.forecastLower} - {isGmv ? formatCurrency(data.gmvForecastUpper) : data.forecastUpper}
+            </p>
+            <p className="text-muted-foreground/70">±{(data.uncertainty * 100).toFixed(0)}% incertidumbre</p>
+          </div>
+        )}
         <div className="text-xs text-muted-foreground border-t border-border pt-1 mt-1">
           <p>Día semana: ×{data.weekdayFactor?.toFixed(2)}</p>
           {data.operationFactor < 1 && (
@@ -110,6 +119,15 @@ const CumulativeTooltip = ({ active, payload, label, viewMode }: any) => {
             </p>
           </>
         )}
+        {/* Rango de confianza acumulado */}
+        {!data.isPast && (
+          <div className="text-xs text-primary/70 border-t border-border pt-1 mt-1">
+            <p>Rango acum: {isGmv 
+              ? `${formatCurrency(data.gmvForecastCumulativeLower)} - ${formatCurrency(data.gmvForecastCumulativeUpper)}`
+              : `${data.forecastCumulativeLower} - ${data.forecastCumulativeUpper}`
+            }</p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -118,6 +136,7 @@ const CumulativeTooltip = ({ active, payload, label, viewMode }: any) => {
 export const ForecastVsActualChart: React.FC = () => {
   const { comparisons, metrics, isLoading } = useForecastVsActual();
   const [viewMode, setViewMode] = useState<ViewMode>('services');
+  const [showConfidenceBands, setShowConfidenceBands] = useState(true);
 
   if (isLoading) {
     return (
@@ -183,11 +202,22 @@ export const ForecastVsActualChart: React.FC = () => {
                 variant={viewMode === 'gmv' ? 'default' : 'ghost'}
                 className="h-7 px-2 text-xs"
                 onClick={() => setViewMode('gmv')}
+                title="Mostrar GMV"
               >
                 <DollarSign className="h-3 w-3 mr-1" />
                 GMV
               </Button>
             </div>
+            <Button
+              size="sm"
+              variant={showConfidenceBands ? 'default' : 'ghost'}
+              className="h-7 px-2 text-xs"
+              onClick={() => setShowConfidenceBands(!showConfidenceBands)}
+              title={showConfidenceBands ? 'Ocultar bandas de confianza' : 'Mostrar bandas de confianza'}
+            >
+              {showConfidenceBands ? <Eye className="h-3 w-3 mr-1" /> : <EyeOff className="h-3 w-3 mr-1" />}
+              Rango
+            </Button>
           </div>
           <div className="flex items-center gap-2">
             {metrics && (
@@ -360,6 +390,34 @@ export const ForecastVsActualChart: React.FC = () => {
                   />
                   <Tooltip content={<CumulativeTooltip viewMode={viewMode} />} />
                   
+                  {/* Banda de confianza superior (cono de incertidumbre) */}
+                  {showConfidenceBands && (
+                    <Area 
+                      type="monotone" 
+                      dataKey={isGmv ? 'gmvForecastCumulativeUpper' : 'forecastCumulativeUpper'}
+                      fill="hsl(var(--primary) / 0.08)"
+                      stroke="hsl(var(--primary) / 0.2)"
+                      strokeWidth={1}
+                      strokeDasharray="2 2"
+                      dot={false}
+                      name="Banda superior 80%"
+                    />
+                  )}
+                  
+                  {/* Banda de confianza inferior */}
+                  {showConfidenceBands && (
+                    <Area 
+                      type="monotone" 
+                      dataKey={isGmv ? 'gmvForecastCumulativeLower' : 'forecastCumulativeLower'}
+                      fill="hsl(var(--background))"
+                      stroke="hsl(var(--primary) / 0.2)"
+                      strokeWidth={1}
+                      strokeDasharray="2 2"
+                      dot={false}
+                      name="Banda inferior 80%"
+                    />
+                  )}
+                  
                   {/* Forecast cumulative line */}
                   <Line 
                     type="monotone" 
@@ -393,7 +451,7 @@ export const ForecastVsActualChart: React.FC = () => {
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
-            <div className="flex justify-center gap-4 mt-2 text-xs text-muted-foreground">
+            <div className="flex justify-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
               <span className="flex items-center gap-1">
                 <span className="w-3 h-3 rounded" style={{ backgroundColor: 'hsl(142.1 76.2% 36.3% / 0.3)' }} />
                 Real acumulado
@@ -402,7 +460,18 @@ export const ForecastVsActualChart: React.FC = () => {
                 <span className="w-8 border-t-2 border-dashed border-primary" />
                 Forecast acumulado
               </span>
+              {showConfidenceBands && (
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded opacity-20 bg-primary" />
+                  Rango 80% confianza
+                </span>
+              )}
             </div>
+            {showConfidenceBands && (
+              <p className="text-center text-xs text-muted-foreground/70 mt-1">
+                El cono de incertidumbre se ensancha hacia el futuro (±15% base, crece con √días)
+              </p>
+            )}
           </TabsContent>
         </Tabs>
       </CardContent>
