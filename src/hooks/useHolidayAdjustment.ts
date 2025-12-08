@@ -55,6 +55,17 @@ export interface ExtendedDay {
   tipo: 'before' | 'after';
 }
 
+// Nueva interfaz para proyección día por día
+export interface DayProjection {
+  fecha: string;
+  dayOfMonth: number;
+  isHoliday: boolean;
+  isExtendedImpact: boolean;
+  holidayName?: string;
+  operationFactor: number;  // 1.0 = día normal, 0.43 = Navidad, etc.
+  expectedServices: number; // ritmo_diario × operationFactor
+}
+
 export interface HolidayAdjustment {
   holidaysInPeriod: number;
   extendedImpactDays: number;
@@ -68,11 +79,15 @@ export interface HolidayAdjustment {
   extendedDays: ExtendedDay[];
   totalImpactDays: number;
   explanation: string;
+  // NUEVO: Proyección día por día
+  dayByDayProjection: DayProjection[];
+  projectedServicesRemaining: number;
+  normalDaysRemaining: number;
 }
 
-export function useHolidayAdjustment(daysRemaining: number) {
+export function useHolidayAdjustment(daysRemaining: number, currentDailyPace: number = 0) {
   return useQuery({
-    queryKey: ['holiday-adjustment', daysRemaining],
+    queryKey: ['holiday-adjustment', daysRemaining, currentDailyPace],
     queryFn: async (): Promise<HolidayAdjustment> => {
       const today = new Date();
       const endDate = addDays(today, daysRemaining);
@@ -185,6 +200,71 @@ export function useHolidayAdjustment(daysRemaining: number) {
       // Calcular impacto total en porcentaje
       const totalImpactPct = ((1 - adjustmentFactor) * 100).toFixed(1);
       
+      // ========== NUEVO: PROYECCIÓN DÍA POR DÍA ==========
+      const dayByDayProjection: DayProjection[] = [];
+      const holidayMap = new Map(formattedHolidays.map(h => [h.fecha, h]));
+      const extendedMap = new Map(extendedDays.map(d => [d.fecha, d]));
+      
+      // Usar ritmo diario proporcionado o un valor por defecto razonable
+      const dailyPace = currentDailyPace > 0 ? currentDailyPace : 33.6; // fallback basado en histórico
+      
+      for (let i = 1; i <= daysRemaining; i++) {
+        const projectedDate = addDays(today, i);
+        const dateStr = format(projectedDate, 'yyyy-MM-dd');
+        const dayOfMonth = projectedDate.getDate();
+        
+        const holiday = holidayMap.get(dateStr);
+        const extendedDay = extendedMap.get(dateStr);
+        
+        let operationFactor = 1.0;
+        let isHoliday = false;
+        let isExtendedImpact = false;
+        let holidayName: string | undefined;
+        
+        if (holiday) {
+          operationFactor = holiday.factor_ajuste;
+          isHoliday = true;
+          holidayName = holiday.nombre;
+        } else if (extendedDay) {
+          operationFactor = extendedDay.factor_ajuste;
+          isExtendedImpact = true;
+          holidayName = `${extendedDay.tipo === 'before' ? 'Pre' : 'Post'}-${extendedDay.relacionadoCon}`;
+        }
+        
+        const expectedServices = dailyPace * operationFactor;
+        
+        dayByDayProjection.push({
+          fecha: dateStr,
+          dayOfMonth,
+          isHoliday,
+          isExtendedImpact,
+          holidayName,
+          operationFactor,
+          expectedServices
+        });
+      }
+      
+      // Sumar servicios proyectados
+      const projectedServicesRemaining = dayByDayProjection.reduce(
+        (sum, day) => sum + day.expectedServices, 
+        0
+      );
+      
+      // Log para debugging
+      console.log('📅 Day-by-Day Projection:', {
+        daysRemaining,
+        dailyPace,
+        normalDays,
+        holidayDays: formattedHolidays.length,
+        extendedDays: extendedDays.length,
+        projectedServicesRemaining: Math.round(projectedServicesRemaining),
+        impactedDays: dayByDayProjection.filter(d => d.operationFactor < 1).map(d => ({
+          fecha: d.fecha,
+          factor: d.operationFactor,
+          services: Math.round(d.expectedServices)
+        }))
+      });
+      
       // Generar explicación legible
       const explanation = generateExplanation(
         formattedHolidays,
@@ -199,7 +279,11 @@ export function useHolidayAdjustment(daysRemaining: number) {
         holidays: formattedHolidays,
         extendedDays,
         totalImpactDays: formattedHolidays.length + extendedDays.length,
-        explanation
+        explanation,
+        // NUEVO
+        dayByDayProjection,
+        projectedServicesRemaining: Math.round(projectedServicesRemaining),
+        normalDaysRemaining: normalDays
       };
     },
     enabled: daysRemaining > 0,
@@ -215,7 +299,10 @@ function createEmptyResult(explanation: string): HolidayAdjustment {
     holidays: [],
     extendedDays: [],
     totalImpactDays: 0,
-    explanation
+    explanation,
+    dayByDayProjection: [],
+    projectedServicesRemaining: 0,
+    normalDaysRemaining: 0
   };
 }
 

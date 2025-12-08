@@ -65,12 +65,15 @@ export const useRealisticProjectionsWithGuardrails = () => {
   const { data: advancedForecast } = useAdvancedForecastEngine();
   const { data: historicalProjection, isLoading: historicalLoading } = useHistoricalMonthlyProjection();
   
-  // Get days remaining for holiday adjustment - calculate accurate fallback
+  // Get days remaining and daily pace for holiday adjustment
   const now = new Date();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const fallbackDaysRemaining = Math.max(1, daysInMonth - now.getDate() + 1);
-  const daysRemaining = dynamicData?.daysRemaining ?? fallbackDaysRemaining;
-  const { data: holidayAdjustment } = useHolidayAdjustment(daysRemaining);
+  const currentDaysRemaining = dynamicData?.daysRemaining ?? fallbackDaysRemaining;
+  const currentDailyPace = dynamicData?.currentMonth?.dailyPace ?? 33.6;
+  
+  // Pasar ritmo diario al hook de feriados para cálculo día por día
+  const { data: holidayAdjustment } = useHolidayAdjustment(currentDaysRemaining, currentDailyPace);
 
   // Fetch historical data for regime analysis
   const { data: historicalData } = useQuery({
@@ -195,31 +198,42 @@ export const useRealisticProjectionsWithGuardrails = () => {
       const currentMonth = getCurrentMonthInfo();
       const previousMonth = getPreviousMonthInfo();
       
-      // ========== INTELLIGENT ENSEMBLE WITH REGIME DETECTION ==========
-      console.log('🧠 Applying Intelligent Ensemble with Regime Detection...');
+      // ========== INTELLIGENT ENSEMBLE WITH DAY-BY-DAY HOLIDAY ADJUSTMENT ==========
+      console.log('🧠 Applying Intelligent Ensemble with Day-by-Day Projection...');
       
-      // Calculate intrames projection (base realistic scenario)
-      const monthProgress = daysElapsed / (daysElapsed + daysRemaining);
-      const intramensProjection = Math.round(currentServices / monthProgress);
+      // ========== CÁLCULO DÍA POR DÍA (CORRECTO) ==========
+      // En lugar de factor global, usamos la proyección exacta por día
+      let intramensProjection: number;
       
-      // Prepare external adjustment for holidays
-      const externalAdjustment = holidayAdjustment && holidayAdjustment.holidaysInPeriod > 0 
-        ? { 
-            factor: holidayAdjustment.adjustmentFactor, 
-            reason: `${holidayAdjustment.holidaysInPeriod} feriado(s): ${holidayAdjustment.holidays.map(h => h.nombre).join(', ')}`
-          }
-        : undefined;
+      if (holidayAdjustment && holidayAdjustment.projectedServicesRemaining > 0) {
+        // Usar proyección día por día que ya considera factores de cada feriado
+        intramensProjection = currentServices + holidayAdjustment.projectedServicesRemaining;
+        
+        console.log(`📅 Day-by-Day Projection:`, {
+          currentServices,
+          projectedServicesRemaining: holidayAdjustment.projectedServicesRemaining,
+          totalProjection: intramensProjection,
+          holidaysInPeriod: holidayAdjustment.holidaysInPeriod,
+          impactedDays: holidayAdjustment.dayByDayProjection.filter(d => d.operationFactor < 1)
+        });
+      } else {
+        // Fallback: proyección lineal simple
+        const monthProgress = daysElapsed / (daysElapsed + daysRemaining);
+        intramensProjection = Math.round(currentServices / monthProgress);
+        console.log(`📊 Linear Fallback Projection: ${intramensProjection}`);
+      }
       
-      // Use intelligent ensemble for sophisticated analysis with holiday adjustment
+      // NO pasar externalAdjustment - ya está integrado en intramensProjection
+      // Esto elimina la doble aplicación del factor
       const ensembleResult = calculateIntelligentEnsemble(
         historicalServices,
         intramensProjection,
         historicalServices.length >= 12 ? 'high' : historicalServices.length >= 6 ? 'medium' : 'low',
-        externalAdjustment
+        undefined // NO external adjustment - ya integrado
       );
       
-      if (externalAdjustment) {
-        console.log(`📅 Holiday Adjustment Applied: ${externalAdjustment.reason} (factor: ${externalAdjustment.factor.toFixed(3)})`);
+      if (holidayAdjustment && holidayAdjustment.holidaysInPeriod > 0) {
+        console.log(`✅ Holiday Impact Already Integrated: ${holidayAdjustment.holidaysInPeriod} feriado(s) reducen ${Math.round((1 - holidayAdjustment.adjustmentFactor) * 100)}% de servicios`);
       }
       
       // Apply mathematical guardrails - ensemble already includes adaptive limits
