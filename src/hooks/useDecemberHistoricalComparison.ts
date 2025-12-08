@@ -66,14 +66,20 @@ export function useDecemberHistoricalComparison() {
     queryKey: ['december-historical-comparison'],
     queryFn: async () => {
       // Obtener datos de diciembre 2023, 2024, 2025
+      // CORREGIDO: usar lt en lugar de lte para incluir todo el día 31
       const { data: servicesData, error: servicesError } = await supabase
         .from('servicios_custodia')
         .select('fecha_hora_cita, precio_total')
         .gte('fecha_hora_cita', '2023-12-01')
-        .lte('fecha_hora_cita', '2025-12-31')
+        .lt('fecha_hora_cita', '2026-01-01')
         .order('fecha_hora_cita', { ascending: true });
 
       if (servicesError) throw servicesError;
+      
+      console.log('📅 December Historical Raw Data:', {
+        totalRecords: servicesData?.length || 0,
+        sampleDates: servicesData?.slice(0, 3).map(s => s.fecha_hora_cita)
+      });
 
       // Obtener datos de noviembre para comparación
       const { data: novData, error: novError } = await supabase
@@ -149,8 +155,10 @@ function processDailyData(services: any[]): DecemberDayData[] {
   const avg2024 = normalDays.reduce((sum, d) => sum + dailyMap['2024'][d].services, 0) / normalDays.length;
 
   // Determinar hasta qué día tenemos datos de 2025
+  // CORREGIDO: si no es diciembre 2025, mostrar todos los días disponibles
   const today = new Date();
-  const currentDay = today.getMonth() === 11 ? today.getDate() : 0;
+  const isDecember2025 = today.getFullYear() === 2025 && today.getMonth() === 11;
+  const currentDay = isDecember2025 ? today.getDate() : 31;
 
   // Construir array de días
   return Array.from({ length: 31 }, (_, i) => {

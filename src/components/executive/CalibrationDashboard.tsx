@@ -5,11 +5,12 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CheckCircle, AlertTriangle, TrendingUp, Target, Brain, Activity, RefreshCw, Calendar, Settings } from 'lucide-react';
+import { CheckCircle, AlertTriangle, TrendingUp, Target, Brain, Activity, RefreshCw, Calendar, Settings, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useEnhancedForecastEngine } from '@/hooks/useEnhancedForecastEngine';
 import { useBacktestingData } from '@/hooks/useBacktestingData';
 import { useDynamicServiceData } from '@/hooks/useDynamicServiceData';
+import { useRealisticProjectionsWithGuardrails } from '@/hooks/useRealisticProjectionsWithGuardrails';
 import DecemberHistoricalComparison from './DecemberHistoricalComparison';
 
 const CalibrationDashboard = () => {
@@ -35,10 +36,13 @@ const CalibrationDashboard = () => {
   // Obtener AOV dinámico de los datos reales
   const { data: dynamicData } = useDynamicServiceData();
   
+  // UNIFICACIÓN: Usar el mismo hook que GMVProjectionCard
+  const { data: realisticProjections, isLoading: projectionsLoading } = useRealisticProjectionsWithGuardrails();
+  
   // Usar AOV del mes actual de datos reales, o del hook de forecast
   const currentAOV = currentMonthData?.currentAOV || dynamicData?.currentMonth?.aov || 8473;
 
-  const isLoading = forecastLoading || backtestLoading;
+  const isLoading = forecastLoading || backtestLoading || projectionsLoading;
 
   // Derive data from real sources
   const currentAccuracy = summary?.accuracy ?? (100 - (performanceMetrics.currentMAPE || 15));
@@ -247,29 +251,37 @@ const CalibrationDashboard = () => {
         </Card>
       </div>
 
-      {/* Current Prediction */}
+      {/* Current Prediction - UNIFICADO con GMVProjectionCard */}
       <Card>
         <CardHeader>
-          <CardTitle>Predicción Actual del Sistema</CardTitle>
-          <CardDescription>
-            Ensemble de {modelPerformance.length} modelos con análisis de régimen
-          </CardDescription>
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle>Predicción Actual del Sistema</CardTitle>
+              <CardDescription>
+                Ensemble inteligente con ajuste día por día
+              </CardDescription>
+            </div>
+            <Badge variant="outline" className="text-xs">
+              <Database className="h-3 w-3 mr-1" />
+              Fuente Unificada
+            </Badge>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-3">
             <div>
               <p className="text-sm text-muted-foreground">Servicios Proyectados</p>
               <p className="text-3xl font-bold text-blue-600">
-                {forecast?.forecast?.toLocaleString() ?? '1,180'}
+                {realisticProjections?.mostLikely.services.toLocaleString() ?? '...'}
               </p>
               <p className="text-xs text-muted-foreground">
-                Rango: {Math.round((forecast?.forecast ?? 1180) * 0.9).toLocaleString()} - {Math.round((forecast?.forecast ?? 1180) * 1.1).toLocaleString()}
+                Rango: {realisticProjections?.scenarios[0]?.services.toLocaleString() ?? '...'} - {realisticProjections?.scenarios[2]?.services.toLocaleString() ?? '...'}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">GMV Proyectado</p>
               <p className="text-3xl font-bold text-green-600">
-                ${(((forecast?.forecast ?? 1180) * currentAOV) / 1000000).toFixed(2)}M
+                ${realisticProjections?.mostLikely.gmv.toFixed(2) ?? '...'}M
               </p>
               <p className="text-xs text-muted-foreground">
                 AOV: ${currentAOV.toLocaleString()}
@@ -278,7 +290,8 @@ const CalibrationDashboard = () => {
             <div>
               <p className="text-sm text-muted-foreground">Confianza Ensemble</p>
               <p className="text-3xl font-bold">
-                {((forecast?.confidence ?? 0.85) * 100).toFixed(0)}%
+                {realisticProjections?.confidence.overall === 'high' ? '85%' : 
+                 realisticProjections?.confidence.overall === 'medium' ? '70%' : '55%'}
               </p>
             </div>
           </div>
