@@ -122,8 +122,8 @@ export const useForecastVsActual = () => {
       const isPast = day.dayOfMonth < currentDay;
       const isToday = day.dayOfMonth === currentDay;
       
-      // Calcular día de semana y factor para todos los días
-      const dayOfWeekCalc = new Date(day.date).getDay();
+      // Calcular día de semana y factor para todos los días (UTC para consistencia con fecha string)
+      const dayOfWeekCalc = new Date(day.date).getUTCDay();
       const weekdayFactorCalc = WEEKDAY_FACTORS[dayOfWeekCalc];
       
       // Para días pasados sin proyección: usar patrón semanal
