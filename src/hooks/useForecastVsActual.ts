@@ -162,7 +162,7 @@ export const useForecastVsActual = () => {
       return {
         date: day.date,
         dayOfMonth: day.dayOfMonth,
-        dayLabel: format(new Date(day.date), 'dd'),
+        dayLabel: String(day.dayOfMonth).padStart(2, '0'),
         dayOfWeek: projection?.dayOfWeek ?? dayOfWeekCalc,
         weekdayName: projection?.weekdayName ?? WEEKDAY_NAMES[dayOfWeekCalc],
         weekdayFactor: projection?.weekdayFactor ?? weekdayFactorCalc,
