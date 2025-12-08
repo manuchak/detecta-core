@@ -203,7 +203,7 @@ export function useHolidayAdjustment(daysRemaining: number) {
       };
     },
     enabled: daysRemaining > 0,
-    staleTime: 60 * 60 * 1000, // 1 hora
+    staleTime: 5 * 60 * 1000, // 5 minutos para ver cambios rápidamente
   });
 }
 

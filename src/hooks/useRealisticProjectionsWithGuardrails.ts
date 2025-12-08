@@ -65,8 +65,11 @@ export const useRealisticProjectionsWithGuardrails = () => {
   const { data: advancedForecast } = useAdvancedForecastEngine();
   const { data: historicalProjection, isLoading: historicalLoading } = useHistoricalMonthlyProjection();
   
-  // Get days remaining for holiday adjustment
-  const daysRemaining = dynamicData?.daysRemaining ?? 15;
+  // Get days remaining for holiday adjustment - calculate accurate fallback
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const fallbackDaysRemaining = Math.max(1, daysInMonth - now.getDate() + 1);
+  const daysRemaining = dynamicData?.daysRemaining ?? fallbackDaysRemaining;
   const { data: holidayAdjustment } = useHolidayAdjustment(daysRemaining);
 
   // Fetch historical data for regime analysis
