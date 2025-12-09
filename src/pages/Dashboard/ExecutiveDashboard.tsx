@@ -3,13 +3,10 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart3, TrendingUp } from 'lucide-react';
-import { MonthClosureCard } from '@/components/executive/MonthClosureCard';
-import { YearOverYearCard } from '@/components/executive/YearOverYearCard';
-import { PaceAnalysisCard } from '@/components/executive/PaceAnalysisCard';
-import { PerformanceAlertsCard } from '@/components/executive/PerformanceAlertsCard';
-import { GMVProjectionCard } from '@/components/executive/GMVProjectionCard';
+import { UnifiedGMVDashboard } from '@/components/executive/UnifiedGMVDashboard';
+import { AnnualComparisonCard } from '@/components/executive/AnnualComparisonCard';
+import { CriticalAlertsBar } from '@/components/executive/CriticalAlertsBar';
 import { AdvancedForecastDashboard } from '@/components/advanced/AdvancedForecastDashboard';
-import { ForecastVsActualChart } from '@/components/executive/ForecastVsActualChart';
 import { getCurrentMonthInfo } from '@/utils/dynamicDateUtils';
 
 const ExecutiveDashboard = () => {
@@ -28,7 +25,7 @@ const ExecutiveDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-6 py-8 space-y-8">
+      <div className="container mx-auto px-6 py-8 space-y-6">
         {/* Header with Navigation */}
         <div className="flex items-center justify-between">
           <div className="space-y-4">
@@ -60,25 +57,17 @@ const ExecutiveDashboard = () => {
           </div>
         </div>
 
-        {/* Main GMV Question */}
-        <GMVProjectionCard />
+        {/* Barra de Alertas Críticas */}
+        <CriticalAlertsBar />
 
-        {/* Forecast vs Actual Tracking */}
-        <ForecastVsActualChart />
+        {/* Componente Principal Unificado */}
+        <UnifiedGMVDashboard />
 
-        {/* Secondary Analysis Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <MonthClosureCard />
-            <YearOverYearCard />
-            <PaceAnalysisCard />
-            <PerformanceAlertsCard />
-          </div>
-          
-          {/* Advanced Mathematical Forecast */}
-          <div className="mt-8">
-            <h2 className="text-2xl font-bold mb-6">Forecast Matemático Avanzado</h2>
-            <AdvancedForecastDashboard />
-          </div>
+        {/* Grid Secundario */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <AnnualComparisonCard />
+          <AdvancedForecastDashboard />
+        </div>
       </div>
     </div>
   );

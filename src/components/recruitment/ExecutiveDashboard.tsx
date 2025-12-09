@@ -1,9 +1,8 @@
 
 import React from "react";
-import { MonthClosureCard } from '@/components/executive/MonthClosureCard';
-import { YearOverYearCard } from '@/components/executive/YearOverYearCard';
-import { PaceAnalysisCard } from '@/components/executive/PaceAnalysisCard';
-import { PerformanceAlertsCard } from '@/components/executive/PerformanceAlertsCard';
+import { UnifiedGMVDashboard } from '@/components/executive/UnifiedGMVDashboard';
+import { AnnualComparisonCard } from '@/components/executive/AnnualComparisonCard';
+import { CriticalAlertsBar } from '@/components/executive/CriticalAlertsBar';
 
 export const ExecutiveDashboard = () => {
   return (
@@ -24,12 +23,11 @@ export const ExecutiveDashboard = () => {
           </div>
         </div>
 
-        {/* Main Forecast Grid */}
+        <CriticalAlertsBar />
+        <UnifiedGMVDashboard />
+        
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <MonthClosureCard />
-          <YearOverYearCard />
-          <PaceAnalysisCard />
-          <PerformanceAlertsCard />
+          <AnnualComparisonCard />
         </div>
       </div>
     </div>
