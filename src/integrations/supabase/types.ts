@@ -12377,14 +12377,6 @@ export type Database = {
       create_vapi_call_log:
         | {
             Args: {
-              p_lead_id: string
-              p_phone_number: string
-              p_vapi_call_id: string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
               p_analysis_score?: number
               p_auto_decision?: string
               p_lead_id: string
@@ -12395,6 +12387,14 @@ export type Database = {
               p_vapi_call_id: string
             }
             Returns: boolean
+          }
+        | {
+            Args: {
+              p_lead_id: string
+              p_phone_number: string
+              p_vapi_call_id: string
+            }
+            Returns: string
           }
       current_user_has_role: {
         Args: { required_role: string }
@@ -13789,14 +13789,14 @@ export type Database = {
         Returns: undefined
       }
       is_admin:
-        | { Args: { user_id: string }; Returns: boolean }
         | { Args: never; Returns: boolean }
+        | { Args: { user_id: string }; Returns: boolean }
       is_admin_bypass_rls: { Args: never; Returns: boolean }
       is_admin_email_secure: { Args: never; Returns: boolean }
       is_admin_no_recursion: { Args: { user_uuid: string }; Returns: boolean }
       is_admin_or_owner:
-        | { Args: { user_uuid: string }; Returns: boolean }
         | { Args: never; Returns: boolean }
+        | { Args: { user_uuid: string }; Returns: boolean }
       is_admin_safe: { Args: { check_user_id: string }; Returns: boolean }
       is_admin_secure:
         | { Args: never; Returns: boolean }
@@ -14163,11 +14163,11 @@ export type Database = {
       }
       user_has_role_direct: { Args: { role_name: string }; Returns: boolean }
       user_has_role_secure:
+        | { Args: { check_role: string }; Returns: boolean }
         | {
             Args: { required_role: string; user_uuid: string }
             Returns: boolean
           }
-        | { Args: { check_role: string }; Returns: boolean }
       user_has_skill: {
         Args: {
           check_user_id: string

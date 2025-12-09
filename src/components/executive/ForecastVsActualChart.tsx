@@ -17,7 +17,7 @@ import {
   ReferenceLine,
   Cell
 } from 'recharts';
-import { TrendingUp, TrendingDown, Minus, Calendar, Target, DollarSign, BarChart3, Eye, EyeOff } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Calendar, Target, DollarSign, BarChart3, Eye, EyeOff, AlertTriangle, Percent } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 type ViewMode = 'services' | 'gmv';
@@ -39,9 +39,11 @@ const CustomTooltip = ({ active, payload, label, viewMode }: any) => {
   const actual = isGmv ? data.gmvActual : data.actual;
   const variance = isGmv ? data.gmvVariance : data.variance;
   const variancePct = isGmv ? data.gmvVariancePct : data.variancePct;
+  const adjustedForecast = isGmv ? data.gmvAdjustedForecast : data.adjustedForecast;
+  const isFutureDay = !data.isPast && !data.isToday;
 
   return (
-    <div className="bg-popover border border-border rounded-lg p-3 shadow-lg">
+    <div className="bg-popover border border-border rounded-lg p-3 shadow-lg max-w-xs">
       <p className="font-medium text-foreground">
         {data.weekdayName} {data.dayOfMonth}
       </p>
@@ -50,10 +52,31 @@ const CustomTooltip = ({ active, payload, label, viewMode }: any) => {
       )}
       <div className="mt-2 space-y-1 text-sm">
         <p className="text-muted-foreground">
-          Forecast: <span className="text-foreground font-medium">
+          Forecast original: <span className="text-foreground font-medium">
             {isGmv ? formatCurrency(forecast) : forecast}
           </span>
         </p>
+        
+        {/* Forecast ajustado para días futuros */}
+        {isFutureDay && data.adjustmentFactor !== 1 && (
+          <p className="text-amber-600">
+            Forecast ajustado: <span className="font-medium">
+              {isGmv ? formatCurrency(adjustedForecast) : adjustedForecast}
+            </span>
+            <span className="text-xs ml-1">
+              ({((data.adjustmentFactor - 1) * 100).toFixed(1)}%)
+            </span>
+          </p>
+        )}
+        
+        {/* Probabilidad de alcanzar para días futuros */}
+        {isFutureDay && (
+          <p className={`text-xs font-medium ${data.probabilityToReach >= 50 ? 'text-green-600' : 'text-amber-500'}`}>
+            <Percent className="h-3 w-3 inline mr-1" />
+            {data.probabilityToReach.toFixed(0)}% prob. alcanzar {isGmv ? formatCurrency(forecast) : forecast}
+          </p>
+        )}
+        
         {actual !== null && (
           <>
             <p className="text-muted-foreground">
@@ -66,8 +89,9 @@ const CustomTooltip = ({ active, payload, label, viewMode }: any) => {
             </p>
           </>
         )}
+        
         {/* Rango de confianza solo para días futuros */}
-        {!data.isPast && !data.isToday && data.uncertainty > 0 && (
+        {isFutureDay && data.uncertainty > 0 && (
           <div className="text-xs text-muted-foreground border-t border-border pt-1 mt-1">
             <p className="text-primary/80">
               Rango 80%: {isGmv ? formatCurrency(data.gmvForecastLower) : data.forecastLower} - {isGmv ? formatCurrency(data.gmvForecastUpper) : data.forecastUpper}
@@ -96,6 +120,7 @@ const CumulativeTooltip = ({ active, payload, label, viewMode }: any) => {
   const isGmv = viewMode === 'gmv';
   const forecastCum = isGmv ? data.gmvForecastCumulative : data.forecastCumulative;
   const actualCum = isGmv ? data.gmvActualCumulative : data.actualCumulative;
+  const adjustedCum = isGmv ? data.gmvAdjustedForecastCumulative : data.adjustedForecastCumulative;
   const gap = actualCum !== null ? actualCum - forecastCum : null;
 
   return (
@@ -107,6 +132,14 @@ const CumulativeTooltip = ({ active, payload, label, viewMode }: any) => {
             {isGmv ? formatCurrency(forecastCum) : forecastCum}
           </span>
         </p>
+        {/* Forecast ajustado acumulado */}
+        {data.adjustmentFactor !== 1 && (
+          <p className="text-amber-600">
+            Ajustado acum: <span className="font-medium">
+              {isGmv ? formatCurrency(adjustedCum) : adjustedCum}
+            </span>
+          </p>
+        )}
         {actualCum !== null && (
           <>
             <p className="text-muted-foreground">
@@ -219,7 +252,7 @@ export const ForecastVsActualChart: React.FC = () => {
               Rango
             </Button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {metrics && (
               <>
                 <Badge variant="outline" className="text-xs">
@@ -236,10 +269,27 @@ export const ForecastVsActualChart: React.FC = () => {
                   <TrendIcon className="h-3 w-3 mr-1" />
                   {metrics.trend === 'improving' ? 'Mejorando' : metrics.trend === 'declining' ? 'Decayendo' : 'Estable'}
                 </Badge>
+                {/* Badge de probabilidad mensual */}
+                <Badge 
+                  variant={metrics.monthlyTargetProbability >= 60 ? 'default' : 'destructive'}
+                  className="text-xs"
+                >
+                  <Percent className="h-3 w-3 mr-1" />
+                  {metrics.monthlyTargetProbability}% prob. target
+                </Badge>
               </>
             )}
           </div>
         </div>
+        {/* Alerta de ajuste dinámico */}
+        {metrics && metrics.correctionFactorApplied !== 1 && (
+          <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-1.5 text-xs mt-2">
+            <span className="text-amber-700 dark:text-amber-300 flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3" />
+              {metrics.adjustmentReason}
+            </span>
+          </div>
+        )}
         {metrics && (
           <div className="flex gap-4 text-sm text-muted-foreground mt-2 flex-wrap">
             <span>
@@ -269,13 +319,23 @@ export const ForecastVsActualChart: React.FC = () => {
                 );
               })()}
             </span>
+            {/* Target mensual: Original vs Ajustado */}
             <span>
-              Total real: <span className="font-medium text-foreground">
-                {isGmv ? formatCurrency(totalActualDisplay ?? 0) : totalActualDisplay}
-              </span> / 
-              Forecast: <span className="font-medium text-foreground">
-                {isGmv ? formatCurrency(totalForecastDisplay ?? 0) : totalForecastDisplay}
-              </span>
+              Target: 
+              {metrics.correctionFactorApplied !== 1 ? (
+                <>
+                  <span className="font-medium text-muted-foreground ml-1 line-through">
+                    {isGmv ? formatCurrency(metrics.originalMonthlyGmvForecast) : metrics.originalMonthlyForecast}
+                  </span>
+                  <span className="font-medium text-amber-600 ml-1">
+                    → {isGmv ? formatCurrency(metrics.adjustedMonthlyGmvForecast) : metrics.adjustedMonthlyForecast}
+                  </span>
+                </>
+              ) : (
+                <span className="font-medium text-foreground ml-1">
+                  {isGmv ? formatCurrency(metrics.originalMonthlyGmvForecast) : metrics.originalMonthlyForecast}
+                </span>
+              )}
             </span>
           </div>
         )}

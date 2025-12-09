@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useDailyActualServices, DailyActualData } from './useDailyActualServices';
 import { useHolidayAdjustment } from './useHolidayAdjustment';
 import { useDynamicServiceData } from './useDynamicServiceData';
+import { useDynamicForecastAdjustment, calculateAdjustedDayForecast } from './useDynamicForecastAdjustment';
 import { format } from 'date-fns';
 
 // Factores validados con datos históricos 2024
@@ -51,6 +52,11 @@ export interface DayComparison {
   forecastCumulativeLower: number;
   forecastCumulativeUpper: number;
   uncertainty: number;         // Porcentaje de incertidumbre para el día
+  // Forecast ajustado dinámicamente
+  adjustedForecast: number;
+  adjustmentFactor: number;
+  probabilityToReach: number;  // % probabilidad de alcanzar forecast original
+  adjustedForecastCumulative: number;
   // GMV fields
   gmvForecast: number;
   gmvActual: number | null;
@@ -62,6 +68,8 @@ export interface DayComparison {
   gmvForecastUpper: number;
   gmvForecastCumulativeLower: number;
   gmvForecastCumulativeUpper: number;
+  gmvAdjustedForecast: number;
+  gmvAdjustedForecastCumulative: number;
 }
 
 export interface ForecastVsActualMetrics {
@@ -83,6 +91,17 @@ export interface ForecastVsActualMetrics {
   avgDailyServicesForecast: number;
   avgDailyGmvActual: number;
   avgDailyGmvForecast: number;
+  // Ajuste dinámico
+  correctionFactorApplied: number;
+  currentMonthVariancePct: number;
+  adjustedMonthlyForecast: number;
+  originalMonthlyForecast: number;
+  monthlyTargetProbability: number;
+  adjustmentReason: string;
+  adjustmentConfidence: 'high' | 'medium' | 'low';
+  // GMV ajustado
+  adjustedMonthlyGmvForecast: number;
+  originalMonthlyGmvForecast: number;
 }
 
 export const useForecastVsActual = () => {
@@ -104,6 +123,25 @@ export const useForecastVsActual = () => {
 
   // AOV for GMV calculations
   const currentAOV = dynamicData?.currentMonth?.aov ?? 8500;
+
+  // Preparar datos de días pasados para el ajuste dinámico
+  const pastDaysForAdjustment = useMemo(() => {
+    if (!dailyActuals) return [];
+    return dailyActuals
+      .filter(d => d.dayOfMonth < currentDay)
+      .map(d => {
+        const forecast = currentDailyPace * WEEKDAY_FACTORS[new Date(d.date).getUTCDay()];
+        return {
+          dayOfMonth: d.dayOfMonth,
+          forecast,
+          actual: d.services,
+          variancePct: forecast > 0 ? ((d.services - forecast) / forecast) * 100 : null
+        };
+      });
+  }, [dailyActuals, currentDay, currentDailyPace]);
+
+  // Calcular ajuste dinámico basado en rendimiento observado
+  const dynamicAdjustment = useDynamicForecastAdjustment(pastDaysForAdjustment, currentDay);
 
   const comparisons = useMemo((): DayComparison[] => {
     if (!dailyActuals || !holidayAdjustment?.dayByDayProjection) return [];
@@ -140,6 +178,8 @@ export const useForecastVsActual = () => {
     let forecastCumulativeUpper = 0;
     let gmvForecastCumulativeLower = 0;
     let gmvForecastCumulativeUpper = 0;
+    let adjustedForecastCumulative = 0;
+    let gmvAdjustedForecastCumulative = 0;
 
     return dailyActuals.map(day => {
       const projection = projectionMap.get(day.date);
@@ -172,12 +212,27 @@ export const useForecastVsActual = () => {
       const gmvForecastLower = gmvForecast * (1 - uncertainty);
       const gmvForecastUpper = gmvForecast * (1 + uncertainty);
       
+      // Calcular forecast ajustado dinámicamente (solo para días futuros)
+      const adjustmentFactor = !isPast && !isToday ? dynamicAdjustment.correctionFactor : 1;
+      const adjustedDayData = calculateAdjustedDayForecast(
+        Math.round(forecast),
+        adjustmentFactor,
+        uncertainty > 0 ? uncertainty : BASE_UNCERTAINTY
+      );
+      
       forecastCumulative += forecast;
       gmvForecastCumulative += gmvForecast;
       forecastCumulativeLower += forecastLower;
       forecastCumulativeUpper += forecastUpper;
       gmvForecastCumulativeLower += gmvForecastLower;
       gmvForecastCumulativeUpper += gmvForecastUpper;
+      
+      // Para días pasados/hoy, usar actual; para futuros, usar ajustado
+      const effectiveForAdjustedCum = isPast || isToday 
+        ? (actual ?? 0) 
+        : adjustedDayData.adjustedForecast;
+      adjustedForecastCumulative += effectiveForAdjustedCum;
+      gmvAdjustedForecastCumulative += effectiveForAdjustedCum * currentAOV;
       
       if (actual !== null) {
         actualCumulative += actual;
@@ -221,6 +276,11 @@ export const useForecastVsActual = () => {
         forecastCumulativeLower: Math.round(forecastCumulativeLower),
         forecastCumulativeUpper: Math.round(forecastCumulativeUpper),
         uncertainty,
+        // Forecast ajustado dinámicamente
+        adjustedForecast: adjustedDayData.adjustedForecast,
+        adjustmentFactor,
+        probabilityToReach: adjustedDayData.probabilityToReach,
+        adjustedForecastCumulative: Math.round(adjustedForecastCumulative),
         // GMV fields
         gmvForecast: Math.round(gmvForecast),
         gmvActual,
@@ -231,17 +291,20 @@ export const useForecastVsActual = () => {
         gmvForecastLower: Math.round(gmvForecastLower),
         gmvForecastUpper: Math.round(gmvForecastUpper),
         gmvForecastCumulativeLower: Math.round(gmvForecastCumulativeLower),
-        gmvForecastCumulativeUpper: Math.round(gmvForecastCumulativeUpper)
+        gmvForecastCumulativeUpper: Math.round(gmvForecastCumulativeUpper),
+        gmvAdjustedForecast: Math.round(adjustedDayData.adjustedForecast * currentAOV),
+        gmvAdjustedForecastCumulative: Math.round(gmvAdjustedForecastCumulative)
       };
     });
-  }, [dailyActuals, holidayAdjustment, currentDailyPace, currentDay, currentAOV]);
+  }, [dailyActuals, holidayAdjustment, currentDailyPace, currentDay, currentAOV, dynamicAdjustment]);
 
   const metrics = useMemo((): ForecastVsActualMetrics | null => {
     if (comparisons.length === 0) return null;
 
     const pastDays = comparisons.filter(d => d.isPast || d.isToday);
+    const futureDays = comparisons.filter(d => !d.isPast && !d.isToday);
     const daysCompleted = pastDays.length;
-    const daysRemaining = comparisons.length - daysCompleted;
+    const daysRemainingCount = comparisons.length - daysCompleted;
     
     const daysMetForecast = pastDays.filter(d => 
       d.actual !== null && d.actual >= d.forecast
@@ -306,9 +369,25 @@ export const useForecastVsActual = () => {
       ? pastDays.reduce((sum, d) => sum + d.gmvForecast, 0) / daysCompleted 
       : 0;
 
+    // Calcular forecast ajustado mensual
+    const adjustedFutureServices = futureDays.reduce((sum, d) => sum + d.adjustedForecast, 0);
+    const originalFutureServices = futureDays.reduce((sum, d) => sum + d.forecast, 0);
+    
+    const adjustedMonthlyForecast = totalActual + adjustedFutureServices;
+    const originalMonthlyForecast = totalActual + originalFutureServices;
+    
+    const adjustedMonthlyGmvForecast = totalGmvActual + futureDays.reduce((sum, d) => sum + d.gmvAdjustedForecast, 0);
+    const originalMonthlyGmvForecast = totalGmvActual + futureDays.reduce((sum, d) => sum + d.gmvForecast, 0);
+
+    // Probabilidad de alcanzar el target original mensual
+    // Usando promedio ponderado de probabilidades de días futuros
+    const avgFutureProbability = futureDays.length > 0
+      ? futureDays.reduce((sum, d) => sum + d.probabilityToReach, 0) / futureDays.length
+      : 100;
+
     return {
       daysCompleted,
-      daysRemaining,
+      daysRemaining: daysRemainingCount,
       daysMetForecast,
       avgVariance,
       avgVariancePct,
@@ -322,9 +401,20 @@ export const useForecastVsActual = () => {
       avgDailyServicesActual,
       avgDailyServicesForecast,
       avgDailyGmvActual,
-      avgDailyGmvForecast
+      avgDailyGmvForecast,
+      // Ajuste dinámico
+      correctionFactorApplied: dynamicAdjustment.correctionFactor,
+      currentMonthVariancePct: dynamicAdjustment.observedVariancePct,
+      adjustedMonthlyForecast: Math.round(adjustedMonthlyForecast),
+      originalMonthlyForecast: Math.round(originalMonthlyForecast),
+      monthlyTargetProbability: Math.round(avgFutureProbability),
+      adjustmentReason: dynamicAdjustment.adjustmentReason,
+      adjustmentConfidence: dynamicAdjustment.confidenceLevel,
+      // GMV ajustado
+      adjustedMonthlyGmvForecast: Math.round(adjustedMonthlyGmvForecast),
+      originalMonthlyGmvForecast: Math.round(originalMonthlyGmvForecast)
     };
-  }, [comparisons]);
+  }, [comparisons, dynamicAdjustment]);
 
   return {
     comparisons,
