@@ -60,11 +60,11 @@ const DailyTooltip = ({ active, payload, viewMode }: any) => {
       {data.isHoliday && <p className="text-xs text-amber-500">{data.holidayName}</p>}
       <div className="mt-2 space-y-1 text-sm">
         <p className="text-muted-foreground">
-          Forecast: <span className="text-foreground font-medium">{isGmv ? formatCurrency(forecast) : forecast}</span>
+          Forecast: <span className="text-foreground font-medium">{isGmv ? formatCurrency(forecast) : Math.round(forecast)}</span>
         </p>
         {isFutureDay && data.adjustmentFactor !== 1 && (
           <p className="text-amber-600">
-            Ajustado: <span className="font-medium">{isGmv ? formatCurrency(adjustedForecast) : adjustedForecast}</span>
+            Ajustado: <span className="font-medium">{isGmv ? formatCurrency(adjustedForecast) : Math.round(adjustedForecast)}</span>
             <span className="text-xs ml-1">({((data.adjustmentFactor - 1) * 100).toFixed(1)}%)</span>
           </p>
         )}
@@ -77,10 +77,10 @@ const DailyTooltip = ({ active, payload, viewMode }: any) => {
         {actual !== null && (
           <>
             <p className="text-muted-foreground">
-              Real: <span className="text-foreground font-medium">{isGmv ? formatCurrency(actual) : actual}</span>
+              Real: <span className="text-foreground font-medium">{isGmv ? formatCurrency(actual) : Math.round(actual)}</span>
             </p>
             <p className={`font-medium ${variance >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-              {variance >= 0 ? '+' : ''}{isGmv ? formatCurrency(variance) : variance} ({variancePct?.toFixed(1)}%)
+              {variance >= 0 ? '+' : ''}{isGmv ? formatCurrency(variance) : Math.round(variance)} ({variancePct?.toFixed(1)}%)
             </p>
           </>
         )}
@@ -104,15 +104,15 @@ const CumulativeTooltip = ({ active, payload, viewMode }: any) => {
       <p className="font-medium text-foreground">Día {data.dayOfMonth}</p>
       <div className="mt-2 space-y-1 text-sm">
         <p className="text-muted-foreground">
-          Forecast acum: <span className="text-foreground font-medium">{isGmv ? formatCurrency(forecastCum) : forecastCum}</span>
+          Forecast acum: <span className="text-foreground font-medium">{isGmv ? formatCurrency(forecastCum) : Math.round(forecastCum)}</span>
         </p>
         {actualCum !== null && (
           <>
             <p className="text-muted-foreground">
-              Real acum: <span className="text-foreground font-medium">{isGmv ? formatCurrency(actualCum) : actualCum}</span>
+              Real acum: <span className="text-foreground font-medium">{isGmv ? formatCurrency(actualCum) : Math.round(actualCum)}</span>
             </p>
             <p className={`font-medium ${gap! >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-              Gap: {isGmv ? formatCurrency(gap!) : gap}
+              Gap: {isGmv ? formatCurrency(gap!) : Math.round(gap!)}
             </p>
           </>
         )}
