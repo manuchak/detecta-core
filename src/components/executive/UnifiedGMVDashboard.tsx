@@ -98,6 +98,8 @@ const CumulativeTooltip = ({ active, payload, viewMode }: any) => {
   const forecastCum = isGmv ? data.gmvForecastCumulative : data.forecastCumulative;
   const actualCum = isGmv ? data.gmvActualCumulative : data.actualCumulative;
   const gap = actualCum !== null ? actualCum - forecastCum : null;
+  const lowerBound = isGmv ? data.gmvForecastCumulativeLower : data.forecastCumulativeLower;
+  const upperBound = isGmv ? data.gmvForecastCumulativeUpper : data.forecastCumulativeUpper;
 
   return (
     <div className="bg-popover border border-border rounded-lg p-3 shadow-lg">
@@ -106,6 +108,13 @@ const CumulativeTooltip = ({ active, payload, viewMode }: any) => {
         <p className="text-muted-foreground">
           Forecast acum: <span className="text-foreground font-medium">{isGmv ? formatCurrency(forecastCum) : Math.round(forecastCum)}</span>
         </p>
+        {lowerBound != null && upperBound != null && (
+          <p className="text-xs text-muted-foreground/80">
+            Rango: <span className="text-foreground/80">{isGmv ? formatCurrency(lowerBound) : Math.round(lowerBound)}</span>
+            <span className="mx-1">—</span>
+            <span className="text-foreground/80">{isGmv ? formatCurrency(upperBound) : Math.round(upperBound)}</span>
+          </p>
+        )}
         {actualCum !== null && (
           <>
             <p className="text-muted-foreground">
