@@ -66,6 +66,7 @@ const SupplyDashboardExtended = lazy(() => import('@/pages/supply/SupplyDashboar
 const SIERCPPage = lazy(() => import('@/pages/evaluation/SIERCPPage'));
 const SIERCPMethodologyPage = lazy(() => import('@/pages/evaluation/SIERCPMethodologyPage'));
 const ServiceWorkflowDocumentation = lazy(() => import('@/pages/Documentation/ServiceWorkflowDocumentation'));
+const ProductArchitecturePage = lazy(() => import('@/pages/Documentation/ProductArchitecturePage'));
 const PlaneacionDashboard = lazy(() => import('@/pages/Planeacion/PlaneacionDashboard'));
 const ReportesHub = lazy(() => import('@/pages/Reportes'));
 const DuplicateCleanupPage = lazy(() => import('@/pages/Maintenance/DuplicateCleanupPage'));
@@ -695,6 +696,16 @@ function App() {
                           <SandboxDeployment />
                         </UnifiedLayout>
                       </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                {/* Architecture Documentation Route */}
+                <Route
+                  path="/architecture"
+                  element={
+                    <ProtectedRoute>
+                      <ProductArchitecturePage />
                     </ProtectedRoute>
                   }
                 />

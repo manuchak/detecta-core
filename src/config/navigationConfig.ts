@@ -19,6 +19,8 @@ import {
   AlertTriangle,
   Calendar,
   ClipboardList,
+  BookOpen,
+  GitBranch,
   LucideIcon
 } from 'lucide-react';
 
@@ -257,6 +259,26 @@ export const navigationModules: NavigationModule[] = [
     icon: Shield,
     path: '/administration',
     roles: ['admin', 'owner', 'bi', 'supply_admin']
+  },
+  {
+    id: 'architecture',
+    label: 'Arquitectura',
+    icon: BookOpen,
+    path: '/architecture',
+    children: [
+      {
+        id: 'arch_overview',
+        label: 'Vista General',
+        path: '/architecture',
+        icon: BookOpen
+      },
+      {
+        id: 'arch_modules',
+        label: 'Módulos',
+        path: '/architecture',
+        icon: GitBranch
+      }
+    ]
   },
   {
     id: 'settings',
