@@ -525,7 +525,7 @@ export const productArchitecture: ProductArchitecture = {
       shortName: 'Reportes',
       icon: 'BarChart3',
       color: '#06B6D4',
-      description: 'Dashboards ejecutivos, proyecciones y análisis de rendimiento.',
+      description: 'Dashboards ejecutivos, proyecciones GMV, control de proveedores y análisis de rendimiento.',
       domain: 'analytics',
       lastUpdated: '2025-12-11',
       phases: [
@@ -533,45 +533,77 @@ export const productArchitecture: ProductArchitecture = {
           id: 'reports_phase_1',
           phaseNumber: 1,
           name: 'Dashboard Ejecutivo',
-          description: 'KPIs principales y proyecciones GMV.',
+          description: 'KPIs principales, proyecciones GMV y tracking de forecast.',
           status: 'complete',
-          responsible: ['BI', 'Dirección'],
+          responsible: ['BI Director', 'Dirección'],
           subprocesses: [
-            { id: 'gmv_projection', name: 'Proyección GMV', description: 'Ensemble forecasting con ajuste por días festivos', status: 'complete' },
-            { id: 'forecast_tracking', name: 'Tracking Forecast', description: 'Comparación diaria forecast vs real', status: 'complete' },
-            { id: 'confidence_bands', name: 'Bandas de Confianza', description: 'Intervalos 80% con cono de incertidumbre', status: 'complete' }
+            { id: 'gmv_projection', name: 'Proyección GMV', description: 'Ensemble forecasting con 3 escenarios (Pesimista/Realista/Optimista)', status: 'complete' },
+            { id: 'forecast_tracking', name: 'Tracking Forecast vs Real', description: 'Gráficos diario y acumulado con gaps', status: 'complete' },
+            { id: 'confidence_bands', name: 'Bandas de Confianza', description: 'Intervalos 80% con cono de incertidumbre expandible', status: 'complete' },
+            { id: 'scenario_cards', name: 'Escenarios', description: 'Tarjetas con probabilidades y deltas', status: 'complete' },
+            { id: 'yoy_comparison', name: 'Comparación YoY', description: 'Análisis año vs año con tendencias', status: 'complete' },
+            { id: 'december_validation', name: 'Validación Histórica', description: 'Dashboard Dic 2023-2024 para calibración', status: 'complete' }
           ],
-          outputs: ['executive_dashboard']
+          outputs: ['executive_dashboard', 'forecast_metrics']
         },
         {
           id: 'reports_phase_2',
           phaseNumber: 2,
           name: 'Control de Proveedores',
-          description: 'Análisis de utilización y costos de proveedores externos.',
+          description: 'Análisis de utilización, costos y equidad en asignaciones.',
           status: 'complete',
-          responsible: ['BI', 'Operaciones'],
+          responsible: ['BI Director', 'Operaciones'],
           subprocesses: [
-            { id: 'external_providers', name: 'Proveedores Externos', description: 'Utilización 12h, revenue leakage', status: 'complete' },
-            { id: 'armados_internos', name: 'Armados Internos', description: 'Modelo km-escalonado', status: 'complete' },
-            { id: 'fairness_audit', name: 'Auditoría Equidad', description: 'Gini, entropía, z-scores', status: 'complete' }
+            { id: 'external_providers', name: 'Proveedores Externos', description: 'Utilización 12h (13%), revenue leakage ($124K MXN)', status: 'complete' },
+            { id: 'armados_internos', name: 'Armados Internos', description: 'Modelo km-escalonado: 2,151 servicios, $2.9M costo', status: 'complete' },
+            { id: 'fairness_audit', name: 'Auditoría Equidad', description: 'Gini 0.35, Z-scores, Palma Ratio 2.1x', status: 'complete' },
+            { id: 'bi_strategic', name: 'BI Estratégico', description: 'Dashboard multi-periodo con radar y treemap concentración', status: 'complete' },
+            { id: 'seicsa_estimation', name: 'Estimación SEICSA', description: 'Duración híbrida: km_teorico + Mapbox + histórico', status: 'complete' }
           ],
-          outputs: ['provider_analysis']
+          outputs: ['provider_analysis', 'fairness_report']
         },
         {
           id: 'reports_phase_3',
           phaseNumber: 3,
           name: 'Adopción de Plataforma',
-          description: 'Métricas de digitalización y adopción.',
+          description: 'Métricas de digitalización y ROI de adopción.',
           status: 'complete',
-          responsible: ['BI'],
+          responsible: ['BI Director'],
+          subprocesses: [
+            { id: 'adoption_tracking', name: 'Tracking Adopción', description: 'Comparación planificados vs ejecutados históricos', status: 'complete' },
+            { id: 'adoption_trend', name: 'Tendencia Mensual', description: 'Evolución 46.9% → 84.4% adopción', status: 'complete' }
+          ],
           outputs: ['adoption_metrics']
+        },
+        {
+          id: 'reports_phase_4',
+          phaseNumber: 4,
+          name: 'Forecasting Predictivo',
+          description: 'Sistema avanzado de proyecciones con validación histórica y ajustes dinámicos.',
+          status: 'in-progress',
+          sla: 'Ongoing',
+          responsible: ['BI Director', 'Tech'],
+          subprocesses: [
+            { id: 'holiday_adjustment', name: 'Ajuste Festivos MX', description: 'Factores por día festivo mexicano validados vs 2023-2024', status: 'complete' },
+            { id: 'weekday_patterns', name: 'Patrones Semanales', description: 'Factores por día: Dom -59%, Jue +29%', status: 'complete' },
+            { id: 'day_by_day_calc', name: 'Cálculo Día a Día', description: 'Proyección granular vs multiplicador global', status: 'complete' },
+            { id: 'dynamic_adjustment', name: 'Ajuste Dinámico', description: 'Corrección por varianza observada MTD con pesos recientes', status: 'complete' },
+            { id: 'probability_calc', name: 'Probabilidad Target', description: 'P(alcanzar objetivo) via distribución normal', status: 'complete' },
+            { id: 'mape_tracking', name: 'MAPE Baseline', description: 'Tracking de precisión del modelo via backtesting', status: 'in-progress', featureFlag: 'ENABLE_MAPE_TRACKING' },
+            { id: 'auto_calibration', name: 'Auto-Calibración', description: 'Feedback loop automático para mejorar precisión', status: 'pending' }
+          ],
+          featureFlag: 'ENABLE_ADVANCED_FORECASTING',
+          gates: ['MAPE <15%', 'Validación histórica 6 meses'],
+          outputs: ['forecast_calibration', 'accuracy_metrics']
         }
       ],
       connections: [
-        { targetModule: 'planeacion', type: 'query', description: 'Datos de servicios', dataFlow: 'servicios_custodia → métricas' },
-        { targetModule: 'supply', type: 'query', description: 'Pipeline de candidatos', dataFlow: 'candidatos → funnel_metrics' }
+        { targetModule: 'planeacion', type: 'query', description: 'Datos de servicios', dataFlow: 'servicios_custodia → métricas GMV' },
+        { targetModule: 'supply', type: 'query', description: 'Pipeline de candidatos', dataFlow: 'candidatos → funnel_metrics' },
+        { targetModule: 'monitoring', type: 'query', description: 'Incidentes para análisis', dataFlow: 'incidentes_rrss → intelligence_dashboard' }
       ],
-      tables: ['servicios_custodia', 'servicios_planificados']
+      edgeFunctions: ['estimar-duracion-servicio'],
+      tables: ['servicios_custodia', 'servicios_planificados', 'asignacion_armados', 'calendario_feriados_mx']
     },
     configuracion: {
       id: 'configuracion',
