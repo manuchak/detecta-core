@@ -18,7 +18,8 @@ const modulePositions: Record<string, { x: number; y: number; row: number }> = {
   instaladores: { x: 0, y: 1, row: 1 },
   wms: { x: 1, y: 1, row: 1 },
   reportes: { x: 2, y: 1, row: 1 },
-  configuracion: { x: 1, y: 2, row: 2 },
+  configuracion: { x: 0, y: 2, row: 2 },
+  integraciones: { x: 2, y: 2, row: 2 },
 };
 
 export const ProductMap: React.FC<ProductMapProps> = ({ onModuleClick, selectedModule }) => {
@@ -175,6 +176,15 @@ export const ProductMap: React.FC<ProductMapProps> = ({ onModuleClick, selectedM
                         <p className="text-xs text-muted-foreground mt-1">
                           {module.description}
                         </p>
+                        {module.externalServices && module.externalServices.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {module.externalServices.map(service => (
+                              <Badge key={service} variant="secondary" className="text-xs">
+                                {service}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
                         {module.connections.length > 0 && (
                           <p className="text-xs mt-2">
                             <span className="text-muted-foreground">Conecta con: </span>
@@ -212,6 +222,10 @@ export const ProductMap: React.FC<ProductMapProps> = ({ onModuleClick, selectedM
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-slate-500" />
               <span>Admin</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-pink-500" />
+              <span>Integrations</span>
             </div>
           </div>
         </div>
