@@ -21,6 +21,7 @@ import { ModuleCard } from '@/components/documentation/ModuleCard';
 import { ConnectionsMap } from '@/components/documentation/ConnectionsMap';
 import { productArchitecture, getModuleById } from '@/data/productArchitecture';
 
+// Product Architecture Documentation Center
 const ProductArchitecturePage: React.FC = () => {
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
