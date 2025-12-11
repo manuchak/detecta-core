@@ -13,12 +13,18 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
-  ArrowRight
+  ArrowRight,
+  Users,
+  Target,
+  Workflow
 } from 'lucide-react';
 import UnifiedLayout from '@/layouts/UnifiedLayout';
 import { ProductMap } from '@/components/documentation/ProductMap';
 import { ModuleCard } from '@/components/documentation/ModuleCard';
 import { ConnectionsMap } from '@/components/documentation/ConnectionsMap';
+import { SwimlaneDiagram } from '@/components/documentation/SwimlaneDiagram';
+import { RACIMatrix } from '@/components/documentation/RACIMatrix';
+import { SLACompliancePanel } from '@/components/documentation/SLACompliancePanel';
 import { productArchitecture, getModuleById } from '@/data/productArchitecture';
 
 // Product Architecture Documentation Center
@@ -229,14 +235,26 @@ const ProductArchitecturePage: React.FC = () => {
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <TabsList>
+            <TabsList className="flex-wrap h-auto gap-1">
               <TabsTrigger value="map" className="gap-2">
                 <Map size={16} />
                 Vista General
               </TabsTrigger>
+              <TabsTrigger value="swimlane" className="gap-2">
+                <Workflow size={16} />
+                Swimlane
+              </TabsTrigger>
               <TabsTrigger value="modules" className="gap-2">
                 <Layers size={16} />
                 Módulos
+              </TabsTrigger>
+              <TabsTrigger value="raci" className="gap-2">
+                <Users size={16} />
+                RACI
+              </TabsTrigger>
+              <TabsTrigger value="sla" className="gap-2">
+                <Target size={16} />
+                SLAs
               </TabsTrigger>
               <TabsTrigger value="integrations" className="gap-2">
                 <GitBranch size={16} />
