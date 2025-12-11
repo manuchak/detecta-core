@@ -40,11 +40,12 @@ export interface Module {
   icon: string;
   color: string;
   description: string;
-  domain: 'supply' | 'operations' | 'monitoring' | 'admin' | 'analytics';
+  domain: 'supply' | 'operations' | 'monitoring' | 'admin' | 'analytics' | 'integrations';
   phases: ProcessPhase[];
   connections: ModuleConnection[];
   edgeFunctions?: string[];
   tables?: string[];
+  externalServices?: string[];
   lastUpdated: string;
 }
 
@@ -101,6 +102,24 @@ export const productArchitecture: ProductArchitecture = {
           gates: ['Candidato interesado', 'Disponibilidad confirmada']
         },
         {
+          id: 'supply_phase_2b',
+          phaseNumber: 2.5,
+          name: 'Entrevista AI por Voz (VAPI)',
+          description: 'Entrevista automatizada mediante inteligencia artificial por voz.',
+          status: 'complete',
+          sla: '15 minutos',
+          responsible: ['Supply Lead', 'Tech'],
+          subprocesses: [
+            { id: 'vapi_call', name: 'Llamada VAPI', description: 'Iniciación de llamada automatizada al candidato', status: 'complete' },
+            { id: 'vapi_webhook', name: 'Webhook Receiver', description: 'Recepción de resultados end-of-call-report', status: 'complete' },
+            { id: 'structured_data', name: 'Datos Estructurados', description: 'Extracción de respuestas con schema JSON', status: 'complete' },
+            { id: 'auto_decision', name: 'Auto-Decisión', description: 'Aprobar/Segunda entrevista/Rechazar basado en score', status: 'complete' },
+            { id: 'red_flags', name: 'Detección Red Flags', description: 'Identificación automática de banderas rojas', status: 'complete' }
+          ],
+          gates: ['Score ≥8.5 auto-aprueba', 'Red flags críticos → rechaza', 'Resto → segunda entrevista humana'],
+          outputs: ['vapi_call_log', 'auto_decision', 'analysis_score']
+        },
+        {
           id: 'supply_phase_3',
           phaseNumber: 3,
           name: 'Entrevista Estructurada',
@@ -128,10 +147,25 @@ export const productArchitecture: ProductArchitecture = {
           subprocesses: [
             { id: 'midot_test', name: 'MIDOT', description: 'Evaluación de integridad y confiabilidad', status: 'complete' },
             { id: 'psicotest', name: 'Psicotest', description: 'Evaluación de perfil psicológico', status: 'complete' },
+            { id: 'siercp_assistant', name: 'SIERCP AI Assistant', description: 'Análisis con OpenAI GPT-4.1 para evaluación psico-criminológica', status: 'complete' },
             { id: 'semaphore_calc', name: 'Cálculo Semáforo', description: 'Verde ≥70% auto-aprueba, Ámbar 50-69% requiere aval, Rojo <50% rechaza', status: 'complete' }
           ],
           gates: ['Verde: Auto-aprobación', 'Ámbar: Aval Coordinación', 'Rojo: Rechazo automático'],
-          outputs: ['psychometric_score', 'semaphore_result']
+          outputs: ['psychometric_score', 'semaphore_result', 'ai_insights']
+        },
+        {
+          id: 'supply_phase_4b',
+          phaseNumber: 4.5,
+          name: 'Análisis AI de Reclutamiento',
+          description: 'Insights estratégicos generados por GPT-4.1 sobre métricas de reclutamiento.',
+          status: 'complete',
+          responsible: ['BI Director', 'Supply Lead'],
+          subprocesses: [
+            { id: 'recruitment_analysis', name: 'Análisis Estratégico', description: 'Patrones ocultos, ROI por canal, predicciones de conversión', status: 'complete' },
+            { id: 'interview_analysis', name: 'Análisis de Entrevistas', description: 'Scoring forense con clasificación y recomendaciones', status: 'complete' },
+            { id: 'risk_analysis', name: 'Análisis de Riesgo', description: 'Evaluación psicológica y criminológica automatizada', status: 'complete' }
+          ],
+          outputs: ['ai_insights', 'risk_classification', 'recommendations']
         },
         {
           id: 'supply_phase_5',
@@ -250,10 +284,17 @@ export const productArchitecture: ProductArchitecture = {
       connections: [
         { targetModule: 'planeacion', type: 'sync', description: 'Liberación de custodios', dataFlow: 'custodio_liberado → pc_custodios + custodios_operativos' },
         { targetModule: 'instaladores', type: 'trigger', description: 'Programación de instalación GPS', dataFlow: 'candidato_id → programacion_instalaciones' },
-        { targetModule: 'wms', type: 'query', description: 'Asignación de kits GPS', dataFlow: 'kit_assignment → productos_inventario' }
+        { targetModule: 'wms', type: 'query', description: 'Asignación de kits GPS', dataFlow: 'kit_assignment → productos_inventario' },
+        { targetModule: 'integraciones', type: 'trigger', description: 'Entrevistas AI por voz', dataFlow: 'candidato → vapi_call' }
       ],
-      edgeFunctions: ['ocr-documento', 'generar-contrato-pdf'],
-      tables: ['candidatos_custodios', 'leads', 'entrevistas_estructuradas', 'candidato_risk_checklist', 'evaluaciones_psicometricas', 'evaluaciones_toxicologicas', 'referencias_candidato', 'documentos_candidato', 'contratos_candidato', 'progreso_capacitacion', 'custodio_liberacion']
+      edgeFunctions: [
+        'ocr-documento', 'generar-contrato-pdf',
+        'vapi-call', 'vapi-call-test', 'vapi-webhook-receiver',
+        'analyze-interview', 'ai-recruitment-analysis', 'siercp-ai-assistant',
+        'dialfire-webhook'
+      ],
+      externalServices: ['VAPI', 'OpenAI GPT-4.1', 'Lovable AI (Gemini)', 'Dialfire'],
+      tables: ['candidatos_custodios', 'leads', 'entrevistas_estructuradas', 'candidato_risk_checklist', 'evaluaciones_psicometricas', 'evaluaciones_toxicologicas', 'referencias_candidato', 'documentos_candidato', 'contratos_candidato', 'progreso_capacitacion', 'custodio_liberacion', 'vapi_call_logs']
     },
     planeacion: {
       id: 'planeacion',
@@ -395,9 +436,11 @@ export const productArchitecture: ProductArchitecture = {
       connections: [
         { targetModule: 'supply', type: 'sync', description: 'Recibe custodios liberados', dataFlow: 'pc_custodios ← liberar_custodio_a_planeacion' },
         { targetModule: 'monitoring', type: 'event', description: 'Servicios activos para monitoreo', dataFlow: 'servicios_custodia → tracking_dashboard' },
-        { targetModule: 'reportes', type: 'query', description: 'Datos para dashboards de utilización', dataFlow: 'servicios_custodia → bi_dashboards' }
+        { targetModule: 'reportes', type: 'query', description: 'Datos para dashboards de utilización', dataFlow: 'servicios_custodia → bi_dashboards' },
+        { targetModule: 'integraciones', type: 'query', description: 'Mapbox para geocoding y rutas', dataFlow: 'direcciones → mapbox_api' }
       ],
-      edgeFunctions: ['estimar-duracion-servicio'],
+      edgeFunctions: ['estimar-duracion-servicio', 'mapbox-token'],
+      externalServices: ['Mapbox'],
       tables: ['servicios_custodia', 'servicios_planificados', 'pc_custodios', 'custodios_operativos', 'pc_clientes', 'proveedores_armados', 'personal_proveedor_armados', 'asignacion_armados', 'indisponibilidades_custodio', 'matriz_precios_rutas']
     },
     instaladores: {
@@ -675,7 +718,7 @@ export const productArchitecture: ProductArchitecture = {
       shortName: 'Config',
       icon: 'Settings',
       color: '#64748B',
-      description: 'Gestión de usuarios, roles, catálogos y configuración del sistema.',
+      description: 'Gestión de usuarios, roles, permisos granulares, catálogos y configuración del sistema.',
       domain: 'admin',
       lastUpdated: '2025-12-11',
       phases: [
@@ -696,24 +739,133 @@ export const productArchitecture: ProductArchitecture = {
         {
           id: 'config_phase_2',
           phaseNumber: 2,
-          name: 'Catálogos',
-          description: 'Gestión de catálogos del sistema (vehículos, zonas, etc.).',
+          name: 'Gestión de Permisos',
+          description: 'Sistema granular de permisos por rol, módulo y acción.',
           status: 'complete',
-          responsible: ['Admin'],
-          outputs: ['catalog_updated']
+          responsible: ['Admin', 'Tech'],
+          subprocesses: [
+            { id: 'role_crud', name: 'CRUD de Roles', description: 'Crear, editar, eliminar roles personalizados', status: 'complete' },
+            { id: 'permission_assign', name: 'Asignación Permisos', description: 'Permisos por página, acción y componente', status: 'complete' },
+            { id: 'readonly_access', name: 'Acceso Read-Only', description: 'Creación de accesos de solo lectura para auditores', status: 'complete' },
+            { id: 'permission_groups', name: 'Grupos de Permisos', description: 'Agrupación por tipo: página, acción, datos', status: 'complete' }
+          ],
+          outputs: ['roles_configured', 'permissions_assigned']
         },
         {
           id: 'config_phase_3',
           phaseNumber: 3,
+          name: 'Catálogos',
+          description: 'Gestión de catálogos del sistema (vehículos, zonas, etc.).',
+          status: 'complete',
+          responsible: ['Admin'],
+          subprocesses: [
+            { id: 'vehicles_catalog', name: 'Catálogo Vehículos', description: '200+ modelos de 15+ marcas mexicanas', status: 'complete' },
+            { id: 'zones_catalog', name: 'Catálogo Zonas', description: 'Zonas operativas con geocercas', status: 'complete' },
+            { id: 'channels_catalog', name: 'Canales Reclutamiento', description: 'Fuentes de leads para análisis ROI', status: 'complete' }
+          ],
+          outputs: ['catalog_updated']
+        },
+        {
+          id: 'config_phase_4',
+          phaseNumber: 4,
           name: 'Feature Flags',
-          description: 'Control de activación de funcionalidades.',
+          description: 'Control de activación de funcionalidades y validaciones.',
           status: 'complete',
           responsible: ['Tech', 'Admin'],
+          subprocesses: [
+            { id: 'supply_flags', name: 'Flags Supply', description: 'Control de gates de liberación', status: 'complete' },
+            { id: 'forecast_flags', name: 'Flags Forecasting', description: 'Activación de features predictivos', status: 'complete' }
+          ],
           outputs: ['flag_configured']
         }
       ],
-      connections: [],
-      tables: ['profiles', 'user_roles', 'supply_feature_flags']
+      connections: [
+        { targetModule: 'supply', type: 'query', description: 'Feature flags para liberación', dataFlow: 'supply_feature_flags → liberation_gate' }
+      ],
+      edgeFunctions: ['add-permission', 'create-role', 'update-role', 'delete-role', 'assign-role', 'create-readonly-access'],
+      tables: ['profiles', 'user_roles', 'permissions', 'supply_feature_flags']
+    },
+    integraciones: {
+      id: 'integraciones',
+      name: 'Integraciones Externas',
+      shortName: 'APIs',
+      icon: 'Plug',
+      color: '#EC4899',
+      description: 'Conexiones con servicios externos de AI, geocoding, comunicación y web scraping.',
+      domain: 'integrations',
+      lastUpdated: '2025-12-11',
+      phases: [
+        {
+          id: 'int_ai',
+          phaseNumber: 1,
+          name: 'AI & Machine Learning',
+          description: 'Servicios de inteligencia artificial para análisis y automatización.',
+          status: 'complete',
+          responsible: ['Tech'],
+          subprocesses: [
+            { id: 'vapi', name: 'VAPI (Voice AI)', description: 'Entrevistas automatizadas por voz con assistant configs', status: 'complete' },
+            { id: 'openai', name: 'OpenAI GPT-4.1', description: 'Análisis forense, scoring psicológico, insights estratégicos', status: 'complete' },
+            { id: 'lovable_ai', name: 'Lovable AI (Gemini 2.0 Flash)', description: 'Clasificación de incidentes, OCR de documentos', status: 'complete' }
+          ],
+          outputs: ['ai_responses', 'classifications', 'insights']
+        },
+        {
+          id: 'int_geo',
+          phaseNumber: 2,
+          name: 'Geocoding & Mapas',
+          description: 'Servicios de geolocalización, mapas y cálculo de rutas.',
+          status: 'complete',
+          responsible: ['Tech'],
+          subprocesses: [
+            { id: 'mapbox_geocoding', name: 'Mapbox Geocoding', description: 'Conversión de direcciones a coordenadas', status: 'complete' },
+            { id: 'mapbox_directions', name: 'Mapbox Directions', description: 'Cálculo de rutas y duraciones estimadas', status: 'complete' },
+            { id: 'mapbox_maps', name: 'Mapbox GL', description: 'Visualización de mapas interactivos', status: 'complete' },
+            { id: 'local_dictionary', name: 'Diccionario Local MX', description: '50+ ciudades mexicanas para geocoding zero-cost', status: 'complete' }
+          ],
+          outputs: ['coordinates', 'routes', 'durations']
+        },
+        {
+          id: 'int_scraping',
+          phaseNumber: 3,
+          name: 'Web Scraping & Data Mining',
+          description: 'Extracción de datos de fuentes externas para inteligencia.',
+          status: 'complete',
+          responsible: ['Inteligencia', 'Tech'],
+          subprocesses: [
+            { id: 'apify', name: 'Apify (Tweet Scraper)', description: 'Mining de incidentes de Twitter/X con actor apidojo/tweet-scraper', status: 'complete' },
+            { id: 'data_enrichment', name: 'Enriquecimiento', description: 'Extracción de hashtags, menciones, media URLs', status: 'complete' }
+          ],
+          outputs: ['raw_incidents', 'social_data']
+        },
+        {
+          id: 'int_comm',
+          phaseNumber: 4,
+          name: 'Comunicación',
+          description: 'Canales de comunicación con candidatos y operadores.',
+          status: 'in-progress',
+          responsible: ['Supply', 'Tech'],
+          subprocesses: [
+            { id: 'dialfire', name: 'Dialfire', description: 'Integración con call center para llamadas salientes', status: 'complete' },
+            { id: 'whatsapp', name: 'WhatsApp Business', description: 'Bot de comunicación con candidatos (en desarrollo)', status: 'in-progress' }
+          ],
+          outputs: ['call_logs', 'messages']
+        }
+      ],
+      connections: [
+        { targetModule: 'supply', type: 'trigger', description: 'VAPI y análisis AI', dataFlow: 'vapi_call → candidato_evaluation' },
+        { targetModule: 'monitoring', type: 'trigger', description: 'Apify → incidentes RRSS', dataFlow: 'apify_scrape → incidentes_rrss' },
+        { targetModule: 'planeacion', type: 'query', description: 'Mapbox para geocoding y rutas', dataFlow: 'direcciones → coordinates/durations' },
+        { targetModule: 'reportes', type: 'query', description: 'Estimación duración con Mapbox', dataFlow: 'mapbox_directions → duracion_estimada' }
+      ],
+      edgeFunctions: [
+        'vapi-call', 'vapi-call-test', 'vapi-webhook-receiver',
+        'analyze-interview', 'ai-recruitment-analysis', 'siercp-ai-assistant',
+        'apify-data-fetcher', 'procesar-incidente-rrss',
+        'mapbox-token', 'estimar-duracion-servicio',
+        'dialfire-webhook'
+      ],
+      externalServices: ['VAPI', 'OpenAI GPT-4.1', 'Lovable AI (Gemini)', 'Mapbox', 'Apify', 'Dialfire', 'WhatsApp Business'],
+      tables: ['vapi_call_logs', 'incidentes_rrss']
     }
   },
   globalConnections: [
@@ -723,7 +875,11 @@ export const productArchitecture: ProductArchitecture = {
     { from: 'instaladores', to: 'supply', label: 'Instalación Completada', type: 'trigger', description: 'Trigger automático actualiza checklist de liberación cuando instalación se completa.' },
     { from: 'planeacion', to: 'monitoring', label: 'Servicios Activos', type: 'event', description: 'Servicios en curso se envían a monitoreo en tiempo real.' },
     { from: 'monitoring', to: 'reportes', label: 'Incidentes', type: 'data', description: 'Incidentes clasificados alimentan dashboards de inteligencia.' },
-    { from: 'planeacion', to: 'reportes', label: 'Métricas Servicio', type: 'data', description: 'Datos de servicios alimentan proyecciones y dashboards.' }
+    { from: 'planeacion', to: 'reportes', label: 'Métricas Servicio', type: 'data', description: 'Datos de servicios alimentan proyecciones y dashboards.' },
+    { from: 'integraciones', to: 'supply', label: 'VAPI + OpenAI', type: 'trigger', description: 'Entrevistas AI por voz y análisis forense alimentan el pipeline de reclutamiento.' },
+    { from: 'integraciones', to: 'monitoring', label: 'Apify Scraping', type: 'data', description: 'Mining de Twitter alimenta la base de incidentes de seguridad.' },
+    { from: 'integraciones', to: 'planeacion', label: 'Mapbox APIs', type: 'data', description: 'Geocoding y direcciones para servicios y estimación de duraciones.' },
+    { from: 'configuracion', to: 'supply', label: 'Feature Flags', type: 'data', description: 'Flags controlan gates de validación en liberación de custodios.' }
   ]
 };
 
