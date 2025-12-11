@@ -261,80 +261,144 @@ export const productArchitecture: ProductArchitecture = {
       shortName: 'Planeación',
       icon: 'Calendar',
       color: '#8B5CF6',
-      description: 'Programación y asignación de servicios de custodia a custodios operativos.',
+      description: 'Programación y asignación de servicios de custodia. Incluye configuración de maestros, operación diaria, gestión de proveedores externos y control de excepciones.',
       domain: 'operations',
       lastUpdated: '2025-12-11',
       phases: [
+        // DOMINIO 1: CONFIGURACIÓN
         {
-          id: 'planning_phase_1',
+          id: 'planning_config',
           phaseNumber: 1,
+          name: 'Configuración de Maestros',
+          description: 'Gestión de datos maestros necesarios para la operación del sistema.',
+          status: 'complete',
+          responsible: ['Planeación', 'Admin'],
+          subprocesses: [
+            { id: 'clientes', name: 'Gestión de Clientes', description: 'CRUD de clientes con SLAs personalizados', status: 'complete' },
+            { id: 'custodios', name: 'Custodios Operativos', description: 'Visualización y gestión de custodios liberados', status: 'complete' },
+            { id: 'ubicaciones', name: 'Ubicaciones Favoritas', description: 'Puntos de encuentro contextuales por cliente/ruta', status: 'complete' },
+            { id: 'precios', name: 'Matriz de Precios', description: 'Tarifas por cliente, tipo de servicio y zona', status: 'complete' }
+          ],
+          outputs: ['clientes_configurados', 'custodios_disponibles', 'matriz_precios']
+        },
+        {
+          id: 'planning_providers',
+          phaseNumber: 2,
+          name: 'Gestión de Proveedores Armados',
+          description: 'Administración completa de proveedores externos de seguridad armada.',
+          status: 'complete',
+          responsible: ['Planeación', 'Finanzas'],
+          subprocesses: [
+            { id: 'proveedores_crud', name: 'Registro de Proveedores', description: 'CRUD con zonas de cobertura, capacidad y documentación', status: 'complete' },
+            { id: 'personal_proveedor', name: 'Personal por Proveedor', description: 'Registro de elementos armados por empresa', status: 'complete' },
+            { id: 'verificacion_personal', name: 'Verificación On-the-fly', description: 'Modal para asignar/crear personal durante servicio', status: 'complete' },
+            { id: 'pagos_proveedores', name: 'Pagos y Auditoría', description: 'Registro de pagos individuales y masivos, resumen financiero', status: 'complete' },
+            { id: 'validacion_docs', name: 'Validación de Documentación', description: 'Control de licencias vigentes y documentos completos', status: 'complete' }
+          ],
+          outputs: ['proveedores_configurados', 'personal_registrado']
+        },
+        // DOMINIO 2: OPERACIÓN DIARIA
+        {
+          id: 'planning_reception',
+          phaseNumber: 3,
           name: 'Recepción de Solicitud',
           description: 'Ingreso de solicitud de servicio por cliente o sistema.',
           status: 'complete',
           sla: '1 hora',
           responsible: ['Planeación'],
+          subprocesses: [
+            { id: 'captura_manual', name: 'Captura Manual', description: 'Formulario de alta de servicio con validaciones', status: 'complete' },
+            { id: 'importacion', name: 'Importación Masiva', description: 'Carga de servicios desde Excel', status: 'complete' },
+            { id: 'validacion_cliente', name: 'Validación de Cliente', description: 'Verificar que cliente existe y está activo', status: 'complete' }
+          ],
           outputs: ['servicio_planificado']
         },
         {
-          id: 'planning_phase_2',
-          phaseNumber: 2,
+          id: 'planning_custodio',
+          phaseNumber: 4,
           name: 'Asignación de Custodio',
-          description: 'Selección y asignación de custodio basado en proximidad, disponibilidad y score.',
+          description: 'Selección y asignación basada en proximidad, disponibilidad y score.',
           status: 'complete',
-          sla: '2 horas',
+          sla: '15 minutos',
           responsible: ['Planeación'],
           subprocesses: [
-            { id: 'proximity_search', name: 'Búsqueda por Proximidad', description: 'Query geoespacial de custodios disponibles', status: 'complete' },
-            { id: 'score_ranking', name: 'Ranking por Score', description: 'Ordenamiento por desempeño histórico', status: 'complete' },
-            { id: 'assignment', name: 'Asignación', description: 'Confirmación de custodio para el servicio', status: 'complete' }
+            { id: 'busqueda_proximidad', name: 'Búsqueda por Proximidad', description: 'Query geoespacial de custodios cercanos al origen', status: 'complete' },
+            { id: 'verificacion_disponibilidad', name: 'Verificación de Disponibilidad', description: 'Check de indisponibilidades y servicios asignados', status: 'complete' },
+            { id: 'scoring', name: 'Scoring de Custodio', description: 'Ranking por historial, rating y proximidad', status: 'complete' },
+            { id: 'oferta_servicio', name: 'Oferta de Servicio', description: 'Envío de propuesta al custodio', status: 'complete' }
           ],
+          gates: ['Custodio acepta servicio'],
           outputs: ['custodio_asignado']
         },
         {
-          id: 'planning_phase_3',
-          phaseNumber: 3,
+          id: 'planning_armado',
+          phaseNumber: 5,
           name: 'Asignación de Armado',
           description: 'Asignación de personal armado si el servicio lo requiere.',
           status: 'complete',
-          sla: '2 horas',
-          responsible: ['Planeación', 'Coordinación Armados'],
+          responsible: ['Planeación'],
           subprocesses: [
-            { id: 'armado_search', name: 'Búsqueda de Armado', description: 'Disponibilidad en zona', status: 'complete' },
-            { id: 'provider_selection', name: 'Selección de Proveedor', description: 'Interno vs externo según disponibilidad', status: 'complete' },
-            { id: 'armado_confirmation', name: 'Confirmación', description: 'Punto de encuentro y hora', status: 'complete' }
+            { id: 'armado_interno', name: 'Armado Interno', description: 'Asignación de armado operativo con modelo km-escalonado', status: 'complete' },
+            { id: 'proveedor_externo', name: 'Proveedor Externo', description: 'Selección de proveedor con modelo 12h contratado', status: 'complete' },
+            { id: 'verificacion_personal', name: 'Verificación de Personal', description: 'Asignación y registro de elemento específico', status: 'complete' },
+            { id: 'compliance_check', name: 'Verificación de Cumplimiento', description: 'Dashboard de armados sin personal verificado', status: 'complete' }
           ],
-          outputs: ['armado_asignado']
+          outputs: ['armado_asignado', 'personal_verificado']
         },
         {
-          id: 'planning_phase_4',
-          phaseNumber: 4,
-          name: 'Ejecución del Servicio',
+          id: 'planning_exceptions',
+          phaseNumber: 6,
+          name: 'Gestión de Excepciones',
+          description: 'Manejo de cambios, rechazos y situaciones especiales durante la operación.',
+          status: 'complete',
+          responsible: ['Planeación'],
+          subprocesses: [
+            { id: 'reasignacion', name: 'Reasignación de Custodio', description: 'Cambio de custodio con motivo documentado', status: 'complete' },
+            { id: 'tipificacion_rechazo', name: 'Tipificación de Rechazo', description: 'Clasificación de motivos de rechazo para análisis', status: 'complete' },
+            { id: 'indisponibilidades', name: 'Gestión de Indisponibilidades', description: 'Registro de ausencias, vacaciones, incapacidades', status: 'complete' },
+            { id: 'edicion_inteligente', name: 'Edición Inteligente', description: 'Modificación de servicios con sugerencias contextuales', status: 'complete' },
+            { id: 'cancelacion', name: 'Cancelación de Servicio', description: 'Proceso de cancelación con motivo y liberación de recursos', status: 'complete' }
+          ],
+          outputs: ['servicio_modificado', 'indisponibilidad_registrada']
+        },
+        // DOMINIO 3: CONTROL Y MONITOREO
+        {
+          id: 'planning_execution',
+          phaseNumber: 7,
+          name: 'Ejecución y Tracking',
           description: 'Seguimiento en tiempo real del servicio en curso.',
           status: 'complete',
-          responsible: ['Monitoreo', 'Planeación'],
-          outputs: ['servicio_en_curso']
+          responsible: ['Planeación', 'Monitoreo'],
+          subprocesses: [
+            { id: 'tracking_realtime', name: 'Tracking en Tiempo Real', description: 'Dashboard de servicios activos con posición GPS', status: 'complete' },
+            { id: 'alertas', name: 'Alertas de Desviación', description: 'Notificaciones automáticas por retrasos o incidentes', status: 'complete' },
+            { id: 'compliance_armados', name: 'Dashboard Compliance Armados', description: 'Servicios con armado sin personal verificado', status: 'complete' }
+          ],
+          outputs: ['tracking_activo', 'alertas_generadas']
         },
         {
-          id: 'planning_phase_5',
-          phaseNumber: 5,
+          id: 'planning_closure',
+          phaseNumber: 8,
           name: 'Cierre del Servicio',
           description: 'Registro de hora fin, incidencias y captura de duración real.',
           status: 'complete',
-          responsible: ['Planeación', 'Custodio'],
+          responsible: ['Planeación', 'Operaciones'],
           subprocesses: [
-            { id: 'end_capture', name: 'Captura Fin', description: 'Registro de hora_fin_real', status: 'complete' },
-            { id: 'duration_calc', name: 'Cálculo Duración', description: 'Duración real para métricas', status: 'complete' },
-            { id: 'incidents', name: 'Registro Incidencias', description: 'Documentación de novedades', status: 'complete' }
+            { id: 'captura_fin', name: 'Captura de Hora Fin', description: 'Registro de finalización con evidencias', status: 'complete' },
+            { id: 'incidencias', name: 'Registro de Incidencias', description: 'Documentación de eventos durante el servicio', status: 'complete' },
+            { id: 'duracion_real', name: 'Cálculo de Duración Real', description: 'Para métricas de utilización de proveedores', status: 'complete' },
+            { id: 'estimacion_duracion', name: 'Estimación de Duración', description: 'Híbrida: km_teorico + Mapbox API para servicios sin registro', status: 'complete' }
           ],
-          outputs: ['servicio_completado', 'duracion_real']
+          outputs: ['servicio_cerrado', 'duracion_real']
         }
       ],
       connections: [
-        { targetModule: 'monitoring', type: 'event', description: 'Servicios activos para monitoreo', dataFlow: 'servicio_en_curso → monitoreo_activo' },
-        { targetModule: 'reportes', type: 'query', description: 'Datos para dashboards', dataFlow: 'servicios_custodia → métricas' }
+        { targetModule: 'supply', type: 'sync', description: 'Recibe custodios liberados', dataFlow: 'pc_custodios ← liberar_custodio_a_planeacion' },
+        { targetModule: 'monitoring', type: 'event', description: 'Servicios activos para monitoreo', dataFlow: 'servicios_custodia → tracking_dashboard' },
+        { targetModule: 'reportes', type: 'query', description: 'Datos para dashboards de utilización', dataFlow: 'servicios_custodia → bi_dashboards' }
       ],
       edgeFunctions: ['estimar-duracion-servicio'],
-      tables: ['servicios_planificados', 'servicios_custodia', 'pc_custodios', 'custodios_operativos', 'asignacion_armados']
+      tables: ['servicios_custodia', 'servicios_planificados', 'pc_custodios', 'custodios_operativos', 'pc_clientes', 'proveedores_armados', 'personal_proveedor_armados', 'asignacion_armados', 'indisponibilidades_custodio', 'matriz_precios_rutas']
     },
     instaladores: {
       id: 'instaladores',
