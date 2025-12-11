@@ -320,6 +320,21 @@ const ProductArchitecturePage: React.FC = () => {
             )}
           </TabsContent>
 
+          {/* Swimlane View */}
+          <TabsContent value="swimlane" className="space-y-6">
+            <SwimlaneDiagram />
+          </TabsContent>
+
+          {/* RACI View */}
+          <TabsContent value="raci" className="space-y-6">
+            <RACIMatrix />
+          </TabsContent>
+
+          {/* SLA View */}
+          <TabsContent value="sla" className="space-y-6">
+            <SLACompliancePanel />
+          </TabsContent>
+
           {/* Integrations View */}
           <TabsContent value="integrations" className="space-y-6">
             <ConnectionsMap highlightModule={selectedModule} />
