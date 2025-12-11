@@ -2,6 +2,8 @@
 // Update this file to keep documentation in sync with development
 
 export type ProcessStatus = 'complete' | 'in-progress' | 'pending' | 'feature-flag';
+export type DomainType = 'config' | 'operation' | 'control' | 'integration';
+export type RACIType = 'R' | 'A' | 'C' | 'I';
 
 export interface SubProcess {
   id: string;
@@ -11,6 +13,12 @@ export interface SubProcess {
   featureFlag?: string;
 }
 
+export interface RACIEntry {
+  role: string;
+  type: RACIType;
+  notes?: string;
+}
+
 export interface ProcessPhase {
   id: string;
   phaseNumber: number;
@@ -18,12 +26,15 @@ export interface ProcessPhase {
   description: string;
   status: ProcessStatus;
   sla?: string;
+  slaMinutes?: number;
   responsible: string[];
   featureFlag?: string;
   subprocesses?: SubProcess[];
   outputs?: string[];
   gates?: string[];
   documents?: string[];
+  domain?: DomainType;
+  raci?: RACIEntry[];
 }
 
 export interface ModuleConnection {
@@ -57,11 +68,47 @@ export interface GlobalConnection {
   description: string;
 }
 
+// Swimlane data structures
+export interface SwimlaneLane {
+  id: string;
+  name: string;
+  actor: string;
+  color: string;
+}
+
+export interface SwimlaneNode {
+  id: string;
+  phaseId: string;
+  phaseName: string;
+  lane: string;
+  position: number;
+  nextNodes: string[];
+  sla?: string;
+  status: ProcessStatus;
+}
+
+// SLA Metrics
+export interface SLAMetric {
+  phaseId: string;
+  phaseName: string;
+  module: string;
+  targetSLA: string;
+  targetMinutes: number;
+  avgActual: number;
+  complianceRate: number;
+  trend: 'up' | 'down' | 'stable';
+  sampleSize: number;
+}
+
 export interface ProductArchitecture {
   version: string;
   lastUpdated: string;
   modules: Record<string, Module>;
   globalConnections: GlobalConnection[];
+  swimlanes: SwimlaneLane[];
+  swimlaneFlow: SwimlaneNode[];
+  slaMetrics: SLAMetric[];
+  roles: string[];
 }
 
 export const productArchitecture: ProductArchitecture = {
@@ -85,7 +132,14 @@ export const productArchitecture: ProductArchitecture = {
           description: 'Captura inicial de candidatos a través de múltiples canales de reclutamiento.',
           status: 'complete',
           sla: '15 minutos',
+          slaMinutes: 15,
           responsible: ['Supply Lead', 'Supply Admin'],
+          domain: 'config',
+          raci: [
+            { role: 'Supply Lead', type: 'R' },
+            { role: 'Supply Admin', type: 'A' },
+            { role: 'BI Director', type: 'I' }
+          ],
           outputs: ['lead_record'],
           gates: ['Datos de contacto válidos', 'Zona de operación definida'],
           documents: ['Solicitud inicial']
@@ -97,7 +151,13 @@ export const productArchitecture: ProductArchitecture = {
           description: 'Primer contacto con el candidato para explicar el proceso y requisitos.',
           status: 'complete',
           sla: '24 horas',
+          slaMinutes: 1440,
           responsible: ['Supply Lead'],
+          domain: 'config',
+          raci: [
+            { role: 'Supply Lead', type: 'R' },
+            { role: 'Coordinación Operativa', type: 'I' }
+          ],
           outputs: ['session_scheduled', 'initial_interest'],
           gates: ['Candidato interesado', 'Disponibilidad confirmada']
         },
@@ -108,7 +168,14 @@ export const productArchitecture: ProductArchitecture = {
           description: 'Entrevista automatizada mediante inteligencia artificial por voz.',
           status: 'complete',
           sla: '15 minutos',
+          slaMinutes: 15,
           responsible: ['Supply Lead', 'Tech'],
+          domain: 'operation',
+          raci: [
+            { role: 'Supply Lead', type: 'A' },
+            { role: 'Tech', type: 'R' },
+            { role: 'Coordinación Operativa', type: 'I' }
+          ],
           subprocesses: [
             { id: 'vapi_call', name: 'Llamada VAPI', description: 'Iniciación de llamada automatizada al candidato', status: 'complete' },
             { id: 'vapi_webhook', name: 'Webhook Receiver', description: 'Recepción de resultados end-of-call-report', status: 'complete' },
@@ -126,8 +193,15 @@ export const productArchitecture: ProductArchitecture = {
           description: 'Evaluación formal con ratings 1-5 en 6 dimensiones + checklist de riesgo.',
           status: 'complete',
           sla: '3 días',
+          slaMinutes: 4320,
           responsible: ['Supply Lead', 'Coordinación Operativa'],
+          domain: 'operation',
           featureFlag: 'REQUIRE_STRUCTURED_INTERVIEW',
+          raci: [
+            { role: 'Supply Lead', type: 'R' },
+            { role: 'Coordinación Operativa', type: 'A' },
+            { role: 'BI Director', type: 'C' }
+          ],
           subprocesses: [
             { id: 'interview_ratings', name: 'Ratings 1-5', description: 'Comunicación, actitud, experiencia, disponibilidad, motivación, profesionalismo', status: 'complete' },
             { id: 'risk_checklist', name: 'Checklist de Riesgo', description: '9 factores de riesgo con score automático', status: 'complete' }
@@ -314,6 +388,12 @@ export const productArchitecture: ProductArchitecture = {
           description: 'Gestión de datos maestros necesarios para la operación del sistema.',
           status: 'complete',
           responsible: ['Planeación', 'Admin'],
+          domain: 'config',
+          raci: [
+            { role: 'Planeación', type: 'R' },
+            { role: 'Admin', type: 'A' },
+            { role: 'Tech', type: 'C' }
+          ],
           subprocesses: [
             { id: 'clientes', name: 'Gestión de Clientes', description: 'CRUD de clientes con SLAs personalizados', status: 'complete' },
             { id: 'custodios', name: 'Custodios Operativos', description: 'Visualización y gestión de custodios liberados', status: 'complete' },
@@ -329,6 +409,12 @@ export const productArchitecture: ProductArchitecture = {
           description: 'Administración completa de proveedores externos de seguridad armada.',
           status: 'complete',
           responsible: ['Planeación', 'Finanzas'],
+          domain: 'config',
+          raci: [
+            { role: 'Planeación', type: 'R' },
+            { role: 'Coordinación Operativa', type: 'A' },
+            { role: 'BI Director', type: 'I' }
+          ],
           subprocesses: [
             { id: 'proveedores_crud', name: 'Registro de Proveedores', description: 'CRUD con zonas de cobertura, capacidad y documentación', status: 'complete' },
             { id: 'personal_proveedor', name: 'Personal por Proveedor', description: 'Registro de elementos armados por empresa', status: 'complete' },
@@ -346,7 +432,13 @@ export const productArchitecture: ProductArchitecture = {
           description: 'Ingreso de solicitud de servicio por cliente o sistema.',
           status: 'complete',
           sla: '1 hora',
+          slaMinutes: 60,
           responsible: ['Planeación'],
+          domain: 'operation',
+          raci: [
+            { role: 'Planeación', type: 'R' },
+            { role: 'Coordinación Operativa', type: 'I' }
+          ],
           subprocesses: [
             { id: 'captura_manual', name: 'Captura Manual', description: 'Formulario de alta de servicio con validaciones', status: 'complete' },
             { id: 'importacion', name: 'Importación Masiva', description: 'Carga de servicios desde Excel', status: 'complete' },
@@ -361,7 +453,13 @@ export const productArchitecture: ProductArchitecture = {
           description: 'Selección y asignación basada en proximidad, disponibilidad y score.',
           status: 'complete',
           sla: '15 minutos',
+          slaMinutes: 15,
           responsible: ['Planeación'],
+          domain: 'operation',
+          raci: [
+            { role: 'Planeación', type: 'R' },
+            { role: 'C4/Monitoreo', type: 'I' }
+          ],
           subprocesses: [
             { id: 'busqueda_proximidad', name: 'Búsqueda por Proximidad', description: 'Query geoespacial de custodios cercanos al origen', status: 'complete' },
             { id: 'verificacion_disponibilidad', name: 'Verificación de Disponibilidad', description: 'Check de indisponibilidades y servicios asignados', status: 'complete' },
@@ -378,6 +476,11 @@ export const productArchitecture: ProductArchitecture = {
           description: 'Asignación de personal armado si el servicio lo requiere.',
           status: 'complete',
           responsible: ['Planeación'],
+          domain: 'operation',
+          raci: [
+            { role: 'Planeación', type: 'R' },
+            { role: 'Coordinación Operativa', type: 'A' }
+          ],
           subprocesses: [
             { id: 'armado_interno', name: 'Armado Interno', description: 'Asignación de armado operativo con modelo km-escalonado', status: 'complete' },
             { id: 'proveedor_externo', name: 'Proveedor Externo', description: 'Selección de proveedor con modelo 12h contratado', status: 'complete' },
@@ -393,6 +496,11 @@ export const productArchitecture: ProductArchitecture = {
           description: 'Manejo de cambios, rechazos y situaciones especiales durante la operación.',
           status: 'complete',
           responsible: ['Planeación'],
+          domain: 'operation',
+          raci: [
+            { role: 'Planeación', type: 'R' },
+            { role: 'Coordinación Operativa', type: 'C' }
+          ],
           subprocesses: [
             { id: 'reasignacion', name: 'Reasignación de Custodio', description: 'Cambio de custodio con motivo documentado', status: 'complete' },
             { id: 'tipificacion_rechazo', name: 'Tipificación de Rechazo', description: 'Clasificación de motivos de rechazo para análisis', status: 'complete' },
@@ -410,6 +518,12 @@ export const productArchitecture: ProductArchitecture = {
           description: 'Seguimiento en tiempo real del servicio en curso.',
           status: 'complete',
           responsible: ['Planeación', 'Monitoreo'],
+          domain: 'control',
+          raci: [
+            { role: 'C4/Monitoreo', type: 'R' },
+            { role: 'Planeación', type: 'C' },
+            { role: 'Coordinación Operativa', type: 'I' }
+          ],
           subprocesses: [
             { id: 'tracking_realtime', name: 'Tracking en Tiempo Real', description: 'Dashboard de servicios activos con posición GPS', status: 'complete' },
             { id: 'alertas', name: 'Alertas de Desviación', description: 'Notificaciones automáticas por retrasos o incidentes', status: 'complete' },
@@ -424,6 +538,11 @@ export const productArchitecture: ProductArchitecture = {
           description: 'Registro de hora fin, incidencias y captura de duración real.',
           status: 'complete',
           responsible: ['Planeación', 'Operaciones'],
+          domain: 'control',
+          raci: [
+            { role: 'Planeación', type: 'R' },
+            { role: 'BI Director', type: 'I' }
+          ],
           subprocesses: [
             { id: 'captura_fin', name: 'Captura de Hora Fin', description: 'Registro de finalización con evidencias', status: 'complete' },
             { id: 'incidencias', name: 'Registro de Incidencias', description: 'Documentación de eventos durante el servicio', status: 'complete' },
@@ -880,6 +999,67 @@ export const productArchitecture: ProductArchitecture = {
     { from: 'integraciones', to: 'monitoring', label: 'Apify Scraping', type: 'data', description: 'Mining de Twitter alimenta la base de incidentes de seguridad.' },
     { from: 'integraciones', to: 'planeacion', label: 'Mapbox APIs', type: 'data', description: 'Geocoding y direcciones para servicios y estimación de duraciones.' },
     { from: 'configuracion', to: 'supply', label: 'Feature Flags', type: 'data', description: 'Flags controlan gates de validación en liberación de custodios.' }
+  ],
+  
+  // Swimlane lanes definition
+  swimlanes: [
+    { id: 'supply', name: 'Supply', actor: 'Supply Team', color: '#10B981' },
+    { id: 'coordinacion', name: 'Coordinación', actor: 'Coord. Operativa', color: '#8B5CF6' },
+    { id: 'instaladores', name: 'Instaladores', actor: 'Técnicos', color: '#F59E0B' },
+    { id: 'planeacion', name: 'Planeación', actor: 'Planificadores', color: '#6366F1' },
+    { id: 'monitoreo', name: 'Monitoreo', actor: 'C4', color: '#EF4444' }
+  ],
+
+  // Swimlane flow nodes - Candidate journey from Lead to Service
+  swimlaneFlow: [
+    // Supply phases
+    { id: 'node_1', phaseId: 'supply_phase_1', phaseName: 'Lead', lane: 'supply', position: 1, nextNodes: ['node_2'], sla: '15 min', status: 'complete' },
+    { id: 'node_2', phaseId: 'supply_phase_2', phaseName: 'Contacto', lane: 'supply', position: 2, nextNodes: ['node_3'], sla: '24h', status: 'complete' },
+    { id: 'node_3', phaseId: 'supply_phase_2b', phaseName: 'VAPI', lane: 'supply', position: 3, nextNodes: ['node_4'], sla: '15 min', status: 'complete' },
+    { id: 'node_4', phaseId: 'supply_phase_3', phaseName: 'Entrevista', lane: 'supply', position: 4, nextNodes: ['node_5'], sla: '3 días', status: 'complete' },
+    { id: 'node_5', phaseId: 'supply_phase_4', phaseName: 'Psicométricos', lane: 'supply', position: 5, nextNodes: ['node_5b'], sla: '3 días', status: 'complete' },
+    { id: 'node_5b', phaseId: 'supply_phase_5', phaseName: 'Toxicología', lane: 'supply', position: 6, nextNodes: ['node_6'], sla: '5 días', status: 'complete' },
+    { id: 'node_6', phaseId: 'supply_phase_6', phaseName: 'Referencias', lane: 'supply', position: 7, nextNodes: ['node_7'], sla: '5 días', status: 'complete' },
+    { id: 'node_7', phaseId: 'supply_phase_7', phaseName: 'Documentos', lane: 'supply', position: 8, nextNodes: ['node_8'], sla: '3 días', status: 'complete' },
+    { id: 'node_8', phaseId: 'supply_phase_8', phaseName: 'Contrato', lane: 'supply', position: 9, nextNodes: ['node_9'], sla: '2 días', status: 'complete' },
+    { id: 'node_9', phaseId: 'supply_phase_9', phaseName: 'Capacitación', lane: 'supply', position: 10, nextNodes: ['node_10'], sla: '7 días', status: 'complete' },
+    // Handoff to Instaladores
+    { id: 'node_10', phaseId: 'supply_phase_10', phaseName: 'Instalación', lane: 'instaladores', position: 11, nextNodes: ['node_11'], sla: '5 días', status: 'complete' },
+    // Return to Supply for liberation
+    { id: 'node_11', phaseId: 'supply_phase_11', phaseName: 'Liberación', lane: 'supply', position: 12, nextNodes: ['node_12'], sla: '1 día', status: 'complete' },
+    // Handoff to Planeación
+    { id: 'node_12', phaseId: 'planning_reception', phaseName: 'Recepción', lane: 'planeacion', position: 13, nextNodes: ['node_13'], sla: '1h', status: 'complete' },
+    { id: 'node_13', phaseId: 'planning_custodio', phaseName: 'Asignación', lane: 'planeacion', position: 14, nextNodes: ['node_14'], sla: '15 min', status: 'complete' },
+    { id: 'node_14', phaseId: 'planning_armado', phaseName: 'Armado', lane: 'planeacion', position: 15, nextNodes: ['node_15'], status: 'complete' },
+    // Execution with Monitoreo
+    { id: 'node_15', phaseId: 'planning_execution', phaseName: 'Ejecución', lane: 'monitoreo', position: 16, nextNodes: ['node_16'], status: 'complete' },
+    { id: 'node_16', phaseId: 'planning_closure', phaseName: 'Cierre', lane: 'planeacion', position: 17, nextNodes: [], status: 'complete' }
+  ],
+
+  // SLA Compliance Metrics (mock data - to be connected to real DB)
+  slaMetrics: [
+    { phaseId: 'supply_phase_1', phaseName: 'Generación Lead', module: 'Supply', targetSLA: '15 min', targetMinutes: 15, avgActual: 12, complianceRate: 94, trend: 'up', sampleSize: 156 },
+    { phaseId: 'supply_phase_2', phaseName: 'Contacto Inicial', module: 'Supply', targetSLA: '24h', targetMinutes: 1440, avgActual: 1320, complianceRate: 87, trend: 'stable', sampleSize: 142 },
+    { phaseId: 'supply_phase_2b', phaseName: 'Entrevista VAPI', module: 'Supply', targetSLA: '15 min', targetMinutes: 15, avgActual: 8, complianceRate: 99, trend: 'up', sampleSize: 89 },
+    { phaseId: 'supply_phase_3', phaseName: 'Entrevista Estructurada', module: 'Supply', targetSLA: '3 días', targetMinutes: 4320, avgActual: 2880, complianceRate: 91, trend: 'up', sampleSize: 78 },
+    { phaseId: 'supply_phase_11', phaseName: 'Liberación', module: 'Supply', targetSLA: '1 día', targetMinutes: 1440, avgActual: 960, complianceRate: 88, trend: 'stable', sampleSize: 45 },
+    { phaseId: 'planning_reception', phaseName: 'Recepción Solicitud', module: 'Planeación', targetSLA: '1h', targetMinutes: 60, avgActual: 42, complianceRate: 92, trend: 'up', sampleSize: 645 },
+    { phaseId: 'planning_custodio', phaseName: 'Asignación Custodio', module: 'Planeación', targetSLA: '15 min', targetMinutes: 15, avgActual: 18, complianceRate: 76, trend: 'down', sampleSize: 589 },
+    { phaseId: 'install_phase_2', phaseName: 'Programación Instalación', module: 'Instaladores', targetSLA: '24h', targetMinutes: 1440, avgActual: 1080, complianceRate: 85, trend: 'stable', sampleSize: 67 }
+  ],
+
+  // Roles for RACI matrix
+  roles: [
+    'Supply Lead',
+    'Supply Admin', 
+    'Coordinación Operativa',
+    'Coordinación Técnica',
+    'Planeación',
+    'BI Director',
+    'C4/Monitoreo',
+    'Instaladores',
+    'Admin',
+    'Tech'
   ]
 };
 
