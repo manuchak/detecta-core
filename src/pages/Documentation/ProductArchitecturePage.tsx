@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +12,8 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
-  AlertCircle
+  AlertCircle,
+  ArrowRight
 } from 'lucide-react';
 import UnifiedLayout from '@/layouts/UnifiedLayout';
 import { ProductMap } from '@/components/documentation/ProductMap';
@@ -24,6 +25,8 @@ const ProductArchitecturePage: React.FC = () => {
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('map');
+  const moduleRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const modules = Object.values(productArchitecture.modules);
 
@@ -54,7 +57,24 @@ const ProductArchitecturePage: React.FC = () => {
   const handleModuleClick = (moduleId: string) => {
     setSelectedModule(moduleId);
     setExpandedModules(new Set([moduleId]));
+    setActiveTab('modules');
+    
+    // Scroll to module after tab change
+    setTimeout(() => {
+      moduleRefs.current[moduleId]?.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center' 
+      });
+    }, 150);
   };
+
+  // Collect all in-progress and pending phases
+  const inProgressItems = modules.flatMap(m => 
+    m.phases.filter(p => p.status === 'in-progress').map(p => ({ module: m, phase: p }))
+  );
+  const pendingItems = modules.flatMap(m => 
+    m.phases.filter(p => p.status === 'pending').map(p => ({ module: m, phase: p }))
+  );
 
   // Filter modules based on search
   const filteredModules = modules.filter(module => {
@@ -148,8 +168,65 @@ const ProductArchitecturePage: React.FC = () => {
           </Card>
         </div>
 
+        {/* Development Status Alerts */}
+        {(inProgressItems.length > 0 || pendingItems.length > 0) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* In Progress Alert */}
+            {inProgressItems.length > 0 && (
+              <Card className="border-amber-500/50 bg-amber-500/5">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2 text-amber-600">
+                    <Clock size={16} />
+                    En Desarrollo ({inProgressItems.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {inProgressItems.map(({ module, phase }) => (
+                    <button 
+                      key={phase.id}
+                      onClick={() => handleModuleClick(module.id)}
+                      className="flex items-center gap-2 text-sm hover:bg-amber-500/10 p-1 rounded w-full text-left transition-colors"
+                    >
+                      <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                      <span className="font-medium">{module.shortName}:</span>
+                      <span className="text-muted-foreground flex-1">{phase.name}</span>
+                      <ArrowRight size={14} className="text-muted-foreground" />
+                    </button>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Pending Alert */}
+            {pendingItems.length > 0 && (
+              <Card className="border-destructive/50 bg-destructive/5">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2 text-destructive">
+                    <AlertCircle size={16} />
+                    Pendientes ({pendingItems.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {pendingItems.map(({ module, phase }) => (
+                    <button 
+                      key={phase.id}
+                      onClick={() => handleModuleClick(module.id)}
+                      className="flex items-center gap-2 text-sm hover:bg-destructive/10 p-1 rounded w-full text-left transition-colors"
+                    >
+                      <div className="w-2 h-2 rounded-full bg-destructive" />
+                      <span className="font-medium">{module.shortName}:</span>
+                      <span className="text-muted-foreground flex-1">{phase.name}</span>
+                      <ArrowRight size={14} className="text-muted-foreground" />
+                    </button>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
         {/* Main Content Tabs */}
-        <Tabs defaultValue="map" className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <TabsList>
               <TabsTrigger value="map" className="gap-2">
@@ -210,12 +287,16 @@ const ProductArchitecturePage: React.FC = () => {
               </Card>
             ) : (
               filteredModules.map(module => (
-                <ModuleCard 
+                <div 
                   key={module.id}
-                  module={module}
-                  isExpanded={expandedModules.has(module.id)}
-                  onToggle={() => toggleModule(module.id)}
-                />
+                  ref={(el) => { moduleRefs.current[module.id] = el; }}
+                >
+                  <ModuleCard 
+                    module={module}
+                    isExpanded={expandedModules.has(module.id)}
+                    onToggle={() => toggleModule(module.id)}
+                  />
+                </div>
               ))
             )}
           </TabsContent>
