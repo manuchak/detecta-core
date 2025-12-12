@@ -11066,65 +11066,264 @@ export type Database = {
         }
         Relationships: []
       }
+      ticket_categorias_custodio: {
+        Row: {
+          activo: boolean | null
+          color: string | null
+          created_at: string | null
+          departamento_responsable: string
+          descripcion: string | null
+          icono: string | null
+          id: string
+          nombre: string
+          orden: number | null
+          requiere_monto: boolean | null
+          requiere_servicio: boolean | null
+          sla_horas_resolucion: number | null
+          sla_horas_respuesta: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          color?: string | null
+          created_at?: string | null
+          departamento_responsable?: string
+          descripcion?: string | null
+          icono?: string | null
+          id?: string
+          nombre: string
+          orden?: number | null
+          requiere_monto?: boolean | null
+          requiere_servicio?: boolean | null
+          sla_horas_resolucion?: number | null
+          sla_horas_respuesta?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          color?: string | null
+          created_at?: string | null
+          departamento_responsable?: string
+          descripcion?: string | null
+          icono?: string | null
+          id?: string
+          nombre?: string
+          orden?: number | null
+          requiere_monto?: boolean | null
+          requiere_servicio?: boolean | null
+          sla_horas_resolucion?: number | null
+          sla_horas_respuesta?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      ticket_respuestas: {
+        Row: {
+          adjuntos_urls: string[] | null
+          autor_id: string
+          autor_nombre: string | null
+          autor_tipo: string
+          created_at: string | null
+          es_interno: boolean | null
+          es_resolucion: boolean | null
+          id: string
+          mensaje: string
+          ticket_id: string
+        }
+        Insert: {
+          adjuntos_urls?: string[] | null
+          autor_id: string
+          autor_nombre?: string | null
+          autor_tipo: string
+          created_at?: string | null
+          es_interno?: boolean | null
+          es_resolucion?: boolean | null
+          id?: string
+          mensaje: string
+          ticket_id: string
+        }
+        Update: {
+          adjuntos_urls?: string[] | null
+          autor_id?: string
+          autor_nombre?: string | null
+          autor_tipo?: string
+          created_at?: string | null
+          es_interno?: boolean | null
+          es_resolucion?: boolean | null
+          id?: string
+          mensaje?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_respuestas_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ticket_subcategorias_custodio: {
+        Row: {
+          activo: boolean | null
+          categoria_id: string
+          created_at: string | null
+          descripcion: string | null
+          id: string
+          nombre: string
+          orden: number | null
+          plantilla_respuesta: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          categoria_id: string
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre: string
+          orden?: number | null
+          plantilla_respuesta?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          categoria_id?: string
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+          orden?: number | null
+          plantilla_respuesta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_subcategorias_custodio_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "ticket_categorias_custodio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tickets: {
         Row: {
           assigned_to: string | null
+          calificacion_csat: number | null
+          categoria_custodio_id: string | null
           category: string | null
+          comentario_csat: string | null
           created_at: string | null
           created_by: string | null
+          custodio_id: string | null
+          custodio_telefono: string | null
           customer_name: string | null
           customer_phone: string | null
           description: string | null
+          evidencia_urls: string[] | null
+          fecha_sla_resolucion: string | null
+          fecha_sla_respuesta: string | null
           id: string
+          monto_reclamado: number | null
+          primera_respuesta_at: string | null
           priority: string | null
           resolution_notes: string | null
           resolved_at: string | null
+          resuelto_at: string | null
+          resuelto_por: string | null
+          servicio_id: string | null
           source: string | null
           status: string | null
+          subcategoria_custodio_id: string | null
           subject: string
           ticket_number: string
+          tipo_ticket: string | null
           updated_at: string | null
           whatsapp_chat_id: string | null
         }
         Insert: {
           assigned_to?: string | null
+          calificacion_csat?: number | null
+          categoria_custodio_id?: string | null
           category?: string | null
+          comentario_csat?: string | null
           created_at?: string | null
           created_by?: string | null
+          custodio_id?: string | null
+          custodio_telefono?: string | null
           customer_name?: string | null
           customer_phone?: string | null
           description?: string | null
+          evidencia_urls?: string[] | null
+          fecha_sla_resolucion?: string | null
+          fecha_sla_respuesta?: string | null
           id?: string
+          monto_reclamado?: number | null
+          primera_respuesta_at?: string | null
           priority?: string | null
           resolution_notes?: string | null
           resolved_at?: string | null
+          resuelto_at?: string | null
+          resuelto_por?: string | null
+          servicio_id?: string | null
           source?: string | null
           status?: string | null
+          subcategoria_custodio_id?: string | null
           subject: string
           ticket_number?: string
+          tipo_ticket?: string | null
           updated_at?: string | null
           whatsapp_chat_id?: string | null
         }
         Update: {
           assigned_to?: string | null
+          calificacion_csat?: number | null
+          categoria_custodio_id?: string | null
           category?: string | null
+          comentario_csat?: string | null
           created_at?: string | null
           created_by?: string | null
+          custodio_id?: string | null
+          custodio_telefono?: string | null
           customer_name?: string | null
           customer_phone?: string | null
           description?: string | null
+          evidencia_urls?: string[] | null
+          fecha_sla_resolucion?: string | null
+          fecha_sla_respuesta?: string | null
           id?: string
+          monto_reclamado?: number | null
+          primera_respuesta_at?: string | null
           priority?: string | null
           resolution_notes?: string | null
           resolved_at?: string | null
+          resuelto_at?: string | null
+          resuelto_por?: string | null
+          servicio_id?: string | null
           source?: string | null
           status?: string | null
+          subcategoria_custodio_id?: string | null
           subject?: string
           ticket_number?: string
+          tipo_ticket?: string | null
           updated_at?: string | null
           whatsapp_chat_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tickets_categoria_custodio_id_fkey"
+            columns: ["categoria_custodio_id"]
+            isOneToOne: false
+            referencedRelation: "ticket_categorias_custodio"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_subcategoria_custodio_id_fkey"
+            columns: ["subcategoria_custodio_id"]
+            isOneToOne: false
+            referencedRelation: "ticket_subcategorias_custodio"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tipos_monitoreo: {
         Row: {
