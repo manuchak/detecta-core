@@ -3,10 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronRight, ArrowRight, Clock, Users, FileText, Flag } from 'lucide-react';
+import { ChevronDown, ChevronRight, ArrowRight, Clock, Users, FileText, Flag, Calculator } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { Module, ProcessPhase, getStatusColor } from '@/data/productArchitecture';
 import { StatusBadge } from './StatusBadge';
+import { AlgorithmVisualization } from './AlgorithmVisualization';
 
 interface ModuleCardProps {
   module: Module;
@@ -227,6 +228,17 @@ export const ModuleCard: React.FC<ModuleCardProps> = ({
                                     </Badge>
                                   ))}
                                 </div>
+                              </div>
+                            )}
+
+                            {/* Algorithm Visualization */}
+                            {phase.algorithmDetails && (
+                              <div className="mt-2">
+                                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-2">
+                                  <Calculator size={12} className="text-primary" />
+                                  Algoritmo de Priorización:
+                                </div>
+                                <AlgorithmVisualization algorithm={phase.algorithmDetails} />
                               </div>
                             )}
                           </div>

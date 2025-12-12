@@ -1,6 +1,8 @@
 // Centralized Product Architecture Data
 // Update this file to keep documentation in sync with development
 
+import type { AlgorithmDetails } from '@/components/documentation/AlgorithmVisualization';
+
 export type ProcessStatus = 'complete' | 'in-progress' | 'pending' | 'feature-flag';
 export type DomainType = 'config' | 'operation' | 'control' | 'integration';
 export type RACIType = 'R' | 'A' | 'C' | 'I';
@@ -35,7 +37,10 @@ export interface ProcessPhase {
   documents?: string[];
   domain?: DomainType;
   raci?: RACIEntry[];
+  algorithmDetails?: AlgorithmDetails;
 }
+
+export type { AlgorithmDetails };
 
 export interface ModuleConnection {
   targetModule: string;
@@ -467,7 +472,102 @@ export const productArchitecture: ProductArchitecture = {
             { id: 'oferta_servicio', name: 'Oferta de Servicio', description: 'Envío de propuesta al custodio', status: 'complete' }
           ],
           gates: ['Custodio acepta servicio'],
-          outputs: ['custodio_asignado']
+          outputs: ['custodio_asignado'],
+          algorithmDetails: {
+            id: 'custodio_scoring',
+            name: 'Algoritmo de Scoring de Custodios',
+            version: '2.0',
+            description: 'Ranking equitativo por proximidad operacional con factores de equidad y oportunidad',
+            components: [
+              {
+                id: 'temporal',
+                name: 'Temporal',
+                weight: 30,
+                color: '#3B82F6',
+                description: 'Disponibilidad horaria y proximidad temporal a servicios previos',
+                variables: [
+                  { name: 'Disponibilidad declarada', source: 'disponibilidad_horarios', range: '0-100', description: 'Match entre disponibilidad del custodio y horario del servicio' },
+                  { name: 'Día de semana', source: 'fecha_servicio', range: '+5 a +15', description: 'Bonus por disponibilidad L-V (+15), Sáb (+10), Dom (+5)' },
+                  { name: 'Servicios cercanos', source: 'servicios_historicos', range: '+10 a +30', description: 'Bonus si termina servicio 2-4h antes (+30), 4-8h (+20), 1-2h (+10)' }
+                ]
+              },
+              {
+                id: 'geografico',
+                name: 'Geográfico',
+                weight: 30,
+                color: '#10B981',
+                description: 'Proximidad física y familiaridad con la zona de operación',
+                variables: [
+                  { name: 'Zona preferida', source: 'zona_preferida_id', range: '+15 a +25', description: 'Match con zona preferida del custodio (+25 origen, +15 destino)' },
+                  { name: 'Ciudades frecuentes', source: 'ciudades_frecuentes[]', range: '+25 a +35', description: 'Historial de trabajo en la ciudad (+35 origen, +25 destino)' },
+                  { name: 'Misma región', source: 'regiones_mx', range: '+15', description: 'Opera en la misma región geográfica' },
+                  { name: 'Distancia estimada', source: 'calcularDistanciaCiudades()', range: '-5 a +20', description: '<30km (+20), <100km (+10), <200km (+5), >200km (-5)', calculation: 'km entre ciudad frecuente y origen' }
+                ]
+              },
+              {
+                id: 'operacional',
+                name: 'Operacional',
+                weight: 25,
+                color: '#8B5CF6',
+                description: 'Experiencia, certificaciones y performance histórico',
+                variables: [
+                  { name: 'Experiencia seguridad', source: 'experiencia_seguridad', range: '+15 a +25', description: 'Bonus general (+15), extra si servicio armado (+10)' },
+                  { name: 'Vehículo propio', source: 'vehiculo_propio', range: '+10 a +15', description: 'Bonus por movilidad propia (+10), extra para traslados (+5)' },
+                  { name: 'Rating promedio', source: 'rating_promedio', range: '+10 a +20', description: '≥4.5★ (+20), ≥4.0★ (+15), ≥3.5★ (+10)' },
+                  { name: 'Servicios completados', source: 'numero_servicios', range: '+5 a +15', description: '≥50 (+15), ≥20 (+10), ≥10 (+5)' },
+                  { name: 'Certificaciones', source: 'certificaciones[]', range: '+2 a +10', description: '+2 por certificación (máx 10), bonus si relevante para armado' }
+                ]
+              },
+              {
+                id: 'equidad',
+                name: 'Equidad',
+                weight: 10,
+                color: '#F59E0B',
+                description: 'Balance de carga de trabajo para distribución justa',
+                variables: [
+                  { name: 'Servicios hoy', source: 'servicios_proximos', range: '0-100', description: '0 servicios = 100pts, 1 = 70pts, 2 = 40pts, 3+ = 10pts' },
+                  { name: 'Nivel fatiga', source: 'horas_trabajadas_semana', range: 'bajo/medio/alto', description: 'Alto: penalización -20%, Medio: neutro, Bajo: bonus +10%' }
+                ]
+              },
+              {
+                id: 'oportunidad',
+                name: 'Oportunidad',
+                weight: 5,
+                color: '#EF4444',
+                description: 'Rotación para custodios con poca actividad reciente',
+                variables: [
+                  { name: 'Días sin asignar', source: 'ultima_actividad', range: '0-100', description: '≥7 días = 100pts (bonus +20), 3-6 días = 70pts, 1-2 días = 50pts' }
+                ]
+              }
+            ],
+            businessRules: [
+              { rule: 'Máximo 3 servicios/día', type: 'limit', value: '3', description: 'Evita sobrecarga y mantiene calidad de servicio' },
+              { rule: 'Fatiga alta penaliza', type: 'penalty', value: '-20%', description: 'Custodios con alta carga semanal tienen score reducido' },
+              { rule: 'Sin actividad >7 días', type: 'bonus', value: '+20 oportunidad', description: 'Prioriza custodios que necesitan rotación' },
+              { rule: 'Score mínimo recomendación', type: 'threshold', value: '≥55', description: 'Solo se recomiendan custodios con score aceptable o superior' },
+              { rule: 'Zona preferida match', type: 'bonus', value: '+25', description: 'Fuerte bonus si el servicio está en zona preferida del custodio' }
+            ],
+            example: {
+              title: 'Custodio con zona preferida CDMX',
+              scenario: 'Servicio en CDMX, custodio con 4.5★, zona preferida coincide, 0 servicios hoy, vehículo propio',
+              inputs: {
+                zona_preferida: 'CDMX',
+                rating: 4.5,
+                servicios_hoy: 0,
+                vehiculo_propio: 'Sí',
+                experiencia_seguridad: 'Sí'
+              },
+              steps: [
+                { component: 'Temporal', calculation: 'Base 50 + L-V disponible 15 = 65', result: 65 },
+                { component: 'Geográfico', calculation: 'Base 40 + zona match 25 = 65', result: 65 },
+                { component: 'Operacional', calculation: 'Base 30 + rating 20 + vehículo 10 + exp 15 = 75', result: 75 },
+                { component: 'Equidad', calculation: '0 servicios hoy = 100', result: 100 },
+                { component: 'Oportunidad', calculation: 'Activo ayer = 50', result: 50 }
+              ],
+              totalScore: 68,
+              recommendation: 'Buena opción: zona coincide, excelente rating, disponible y sin sobrecarga'
+            }
+          }
         },
         {
           id: 'planning_armado',
@@ -487,7 +587,86 @@ export const productArchitecture: ProductArchitecture = {
             { id: 'verificacion_personal', name: 'Verificación de Personal', description: 'Asignación y registro de elemento específico', status: 'complete' },
             { id: 'compliance_check', name: 'Verificación de Cumplimiento', description: 'Dashboard de armados sin personal verificado', status: 'complete' }
           ],
-          outputs: ['armado_asignado', 'personal_verificado']
+          outputs: ['armado_asignado', 'personal_verificado'],
+          algorithmDetails: {
+            id: 'armado_scoring',
+            name: 'Algoritmo de Validación de Armados',
+            version: '1.5',
+            description: 'Detección de conflictos y scoring de disponibilidad para personal armado',
+            components: [
+              {
+                id: 'disponibilidad',
+                name: 'Disponibilidad',
+                weight: 40,
+                color: '#10B981',
+                description: 'Verificación de conflictos de horario y asignaciones existentes',
+                variables: [
+                  { name: 'Conflictos horario', source: 'asignacion_armados', range: '0 = libre', description: 'Servicios ya asignados que se solapan con el nuevo' },
+                  { name: 'Servicios del día', source: 'servicios_dia', range: '0-3 máx', description: 'Cantidad de servicios asignados para la fecha' },
+                  { name: 'Horas trabajadas', source: 'horas_acumuladas', range: '0-12h máx', description: 'Total de horas comprometidas en el día' }
+                ]
+              },
+              {
+                id: 'fatiga',
+                name: 'Fatiga',
+                weight: 25,
+                color: '#F59E0B',
+                description: 'Nivel de cansancio basado en carga de trabajo reciente',
+                variables: [
+                  { name: 'Nivel fatiga', source: 'servicios_semana', range: 'bajo/medio/alto', description: 'bajo: <8h/sem, medio: 8-16h/sem, alto: >16h/sem' },
+                  { name: 'Días consecutivos', source: 'dias_trabajo', range: '0-7', description: 'Días seguidos con servicio asignado' }
+                ]
+              },
+              {
+                id: 'equidad',
+                name: 'Equidad',
+                weight: 20,
+                color: '#8B5CF6',
+                description: 'Distribución justa de oportunidades entre armados',
+                variables: [
+                  { name: 'Score equidad', source: 'servicios_mes', range: '0-100', description: 'Menos servicios asignados = mayor score para balancear' },
+                  { name: 'Días sin asignar', source: 'fecha_ultimo_servicio', range: '+20 bonus', description: '>7 días sin trabajo = prioridad de oportunidad' }
+                ]
+              },
+              {
+                id: 'oportunidad',
+                name: 'Oportunidad',
+                weight: 15,
+                color: '#3B82F6',
+                description: 'Rotación para armados con poca actividad reciente',
+                variables: [
+                  { name: 'Score oportunidad', source: 'dias_inactivo', range: '0-100', description: '0-2 días: 30pts, 3-6 días: 60pts, ≥7 días: 100pts' }
+                ]
+              }
+            ],
+            businessRules: [
+              { rule: 'Máximo 3 servicios/día', type: 'limit', value: '3', description: 'Límite de asignaciones diarias por armado' },
+              { rule: 'Máximo 12 horas/día', type: 'limit', value: '12h', description: 'Límite de horas trabajadas en un día' },
+              { rule: 'Fatiga alta bloquea', type: 'penalty', value: 'No disponible', description: 'Armados con fatiga alta no aparecen como opción' },
+              { rule: 'Sin actividad >7 días', type: 'bonus', value: '+20 oportunidad', description: 'Prioriza armados que necesitan rotación' },
+              { rule: 'Conflicto horario', type: 'limit', value: 'Bloqueante', description: 'No puede asignarse si hay solapamiento de horarios' },
+              { rule: 'Licencia vigente', type: 'threshold', value: 'Requerida', description: 'Solo armados con licencia de portación válida' }
+            ],
+            example: {
+              title: 'Armado disponible sin conflictos',
+              scenario: 'Servicio de 4 horas, armado con 0 servicios hoy, fatiga baja, 5 días sin asignar',
+              inputs: {
+                servicios_hoy: 0,
+                horas_hoy: 0,
+                nivel_fatiga: 'bajo',
+                dias_sin_asignar: 5,
+                conflictos: 0
+              },
+              steps: [
+                { component: 'Disponibilidad', calculation: '0 conflictos, 0 servicios = 100', result: 100 },
+                { component: 'Fatiga', calculation: 'Nivel bajo = 90', result: 90 },
+                { component: 'Equidad', calculation: 'Pocos servicios mes = 75', result: 75 },
+                { component: 'Oportunidad', calculation: '5 días sin asignar = 60', result: 60 }
+              ],
+              totalScore: 85,
+              recommendation: 'Ideal: sin conflictos, baja fatiga, buena rotación'
+            }
+          }
         },
         {
           id: 'planning_exceptions',
