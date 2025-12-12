@@ -77,6 +77,11 @@ export function RejectionTypificationDialog({
   const handleConfirm = () => {
     if (!selectedReason) return;
     
+    // Validar que si markAsUnavailable está activo, unavailabilityDays tenga un valor
+    if (markAsUnavailable && !unavailabilityDays) {
+      return;
+    }
+    
     const reason = rejectionReasons.find(r => r.id === selectedReason)?.label || selectedReason;
     const fullReason = observations ? `${reason}. Obs: ${observations}` : reason;
     
@@ -94,7 +99,7 @@ export function RejectionTypificationDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg z-[70]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <X className="h-5 w-5 text-destructive" />
