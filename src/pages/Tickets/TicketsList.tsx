@@ -38,6 +38,7 @@ import { DepartmentPills, DEPARTMENTS } from "@/components/tickets/DepartmentPil
 import { AgentWorkloadPanel } from "@/components/tickets/AgentWorkloadPanel";
 import { TicketCardMobile } from "@/components/tickets/TicketCardMobile";
 import { TicketFiltersSheet } from "@/components/tickets/TicketFiltersSheet";
+import { useAgentWorkload } from "@/hooks/useAgentWorkload";
 import { cn } from "@/lib/utils";
 
 const priorityBadgeStyles = {
@@ -71,6 +72,15 @@ export const TicketsList = () => {
     assignTicket, 
     loadTickets 
   } = useTicketsEnhanced();
+  
+  const { agents: workloadAgents } = useAgentWorkload();
+  
+  // Filter only planners for assignment
+  const planificadores = useMemo(() => {
+    return workloadAgents
+      .filter(a => ['supply_admin', 'supply_lead', 'admin'].includes(a.role))
+      .map(a => ({ id: a.agent_id, display_name: a.display_name }));
+  }, [workloadAgents]);
   
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
@@ -433,6 +443,7 @@ export const TicketsList = () => {
                                 </Button>
                                 <TicketQuickActions
                                   ticket={ticket}
+                                  agents={planificadores}
                                   onStatusChange={(status) => updateTicketStatus(ticket.id, status)}
                                   onAssign={(userId) => assignTicket(ticket.id, userId)}
                                 />
