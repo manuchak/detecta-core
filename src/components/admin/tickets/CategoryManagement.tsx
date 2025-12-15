@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit2, Save, X } from 'lucide-react';
+import { Plus, Edit2, Save, X, icons, LucideIcon } from 'lucide-react';
 import { TicketCategoria, TicketSubcategoria } from '@/hooks/useTicketCategories';
 import {
   Table,
@@ -38,7 +38,24 @@ interface CategoryManagementProps {
 }
 
 const DEPARTAMENTOS = ['Finanzas', 'Planeación', 'Instaladores', 'Supply', 'Soporte', 'Operaciones'];
-const ICONOS = ['💰', '🚗', '⚙️', '📦', '❓', '📋', '🔧', '📞'];
+
+// Iconos Lucide disponibles para categorías
+const LUCIDE_ICONS = [
+  'DollarSign', 'Receipt', 'Truck', 'MapPin', 'User', 'HelpCircle', 
+  'Wrench', 'Phone', 'CreditCard', 'Package', 'Settings', 'MessageSquare',
+  'FileText', 'AlertCircle', 'Calendar', 'Clock', 'Shield', 'Car'
+];
+
+// Helper para renderizar iconos dinámicamente (Lucide o emoji)
+const renderIcon = (iconName: string, className: string = "h-5 w-5") => {
+  // Check if it's a Lucide icon name
+  const IconComponent = icons[iconName as keyof typeof icons] as LucideIcon | undefined;
+  if (IconComponent) {
+    return <IconComponent className={className} />;
+  }
+  // Fallback: render as emoji/text
+  return <span className="text-xl">{iconName}</span>;
+};
 
 export const CategoryManagement: React.FC<CategoryManagementProps> = ({
   categorias,
@@ -51,7 +68,7 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({
   const [isCreating, setIsCreating] = useState(false);
   const [newCategoria, setNewCategoria] = useState<Partial<TicketCategoria>>({
     nombre: '',
-    icono: '📋',
+    icono: 'FileText',
     color: '#6B7280',
     departamento_responsable: 'Soporte',
     sla_horas_respuesta: 4,
@@ -86,7 +103,7 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({
       setIsCreating(false);
       setNewCategoria({
         nombre: '',
-        icono: '📋',
+        icono: 'FileText',
         color: '#6B7280',
         departamento_responsable: 'Soporte',
         sla_horas_respuesta: 4,
@@ -136,17 +153,29 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({
                         value={editValues.icono || cat.icono}
                         onValueChange={(v) => setEditValues({ ...editValues, icono: v })}
                       >
-                        <SelectTrigger className="w-16">
-                          <SelectValue />
+                        <SelectTrigger className="w-28">
+                          <SelectValue>
+                            <span className="flex items-center gap-2">
+                              {renderIcon(editValues.icono || cat.icono, "h-4 w-4")}
+                              <span className="text-xs truncate">{editValues.icono || cat.icono}</span>
+                            </span>
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          {ICONOS.map((icon) => (
-                            <SelectItem key={icon} value={icon}>{icon}</SelectItem>
+                          {LUCIDE_ICONS.map((iconName) => (
+                            <SelectItem key={iconName} value={iconName}>
+                              <span className="flex items-center gap-2">
+                                {renderIcon(iconName, "h-4 w-4")}
+                                <span>{iconName}</span>
+                              </span>
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     ) : (
-                      <span className="text-2xl">{cat.icono}</span>
+                      <div className="flex items-center justify-center">
+                        {renderIcon(cat.icono, "h-6 w-6 text-muted-foreground")}
+                      </div>
                     )}
                   </TableCell>
                   <TableCell>
@@ -272,11 +301,21 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({
                 onValueChange={(v) => setNewCategoria({ ...newCategoria, icono: v })}
               >
                 <SelectTrigger className="col-span-3">
-                  <SelectValue />
+                  <SelectValue>
+                    <span className="flex items-center gap-2">
+                      {renderIcon(newCategoria.icono || 'FileText', "h-4 w-4")}
+                      <span>{newCategoria.icono}</span>
+                    </span>
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {ICONOS.map((icon) => (
-                    <SelectItem key={icon} value={icon}>{icon}</SelectItem>
+                  {LUCIDE_ICONS.map((iconName) => (
+                    <SelectItem key={iconName} value={iconName}>
+                      <span className="flex items-center gap-2">
+                        {renderIcon(iconName, "h-4 w-4")}
+                        <span>{iconName}</span>
+                      </span>
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
