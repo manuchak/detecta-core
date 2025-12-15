@@ -329,6 +329,111 @@ export const useTicketsEnhanced = () => {
     return tickets.find(t => t.id === ticketId);
   };
 
+  // Direct database fetch for a single ticket (avoids React state race conditions)
+  const fetchTicketById = async (ticketId: string): Promise<TicketEnhanced | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('tickets')
+        .select(`
+          *,
+          categoria_custodio:ticket_categorias_custodio(
+            id, nombre, icono, color, departamento_responsable,
+            sla_horas_respuesta, sla_horas_resolucion
+          )
+        `)
+        .eq('id', ticketId)
+        .maybeSingle();
+
+      if (error || !data) return null;
+
+      // Fetch assigned user profile
+      let assignedUser: { id: string; display_name: string; email: string } | undefined;
+      if (data.assigned_to) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('id, display_name, email')
+          .eq('id', data.assigned_to)
+          .maybeSingle();
+        
+        if (profileData) {
+          assignedUser = {
+            id: profileData.id,
+            display_name: profileData.display_name || '',
+            email: profileData.email || ''
+          };
+        }
+      }
+
+      // Fetch custodio data
+      let custodio: any;
+      if (data.custodio_id) {
+        const { data: custodioData } = await supabase
+          .from('custodios_operativos')
+          .select('id, nombre, telefono, email, zona_base, fecha_alta')
+          .eq('id', data.custodio_id)
+          .maybeSingle();
+        
+        if (custodioData) {
+          custodio = custodioData;
+        }
+      }
+
+      // Calculate SLA
+      const sla = calculateTicketSLA({
+        id: data.id,
+        status: data.status,
+        created_at: data.created_at,
+        fecha_sla_respuesta: data.fecha_sla_respuesta,
+        fecha_sla_resolucion: data.fecha_sla_resolucion,
+        primera_respuesta_at: data.primera_respuesta_at,
+        resuelto_at: data.resuelto_at
+      });
+
+      return {
+        id: data.id,
+        ticket_number: data.ticket_number || '',
+        customer_phone: data.customer_phone,
+        customer_name: data.customer_name,
+        subject: data.subject || '',
+        description: data.description,
+        status: data.status as TicketEnhanced['status'],
+        priority: data.priority as TicketEnhanced['priority'],
+        category: data.category,
+        source: data.source as TicketEnhanced['source'],
+        assigned_to: data.assigned_to,
+        whatsapp_chat_id: data.whatsapp_chat_id,
+        created_at: data.created_at || '',
+        updated_at: data.updated_at || '',
+        
+        fecha_sla_respuesta: data.fecha_sla_respuesta,
+        fecha_sla_resolucion: data.fecha_sla_resolucion,
+        primera_respuesta_at: data.primera_respuesta_at,
+        resuelto_at: data.resuelto_at,
+        
+        custodio_id: data.custodio_id,
+        custodio_telefono: data.custodio_telefono,
+        servicio_id: data.servicio_id,
+        categoria_custodio_id: data.categoria_custodio_id,
+        subcategoria_custodio_id: data.subcategoria_custodio_id,
+        tipo_ticket: data.tipo_ticket,
+        monto_reclamado: data.monto_reclamado,
+        evidencia_urls: data.evidencia_urls,
+        
+        calificacion_csat: data.calificacion_csat,
+        comentario_csat: data.comentario_csat,
+        
+        assigned_user: assignedUser,
+        categoria_custodio: data.categoria_custodio,
+        custodio,
+        
+        sla
+      };
+    } catch (error) {
+      console.error('Error fetching ticket by ID:', error);
+      return null;
+    }
+  };
+
   useEffect(() => {
     loadTickets();
     
@@ -358,6 +463,7 @@ export const useTicketsEnhanced = () => {
     updateTicketStatus,
     assignTicket,
     recordFirstResponse,
-    getTicketById
+    getTicketById,
+    fetchTicketById
   };
 };
