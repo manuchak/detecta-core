@@ -70,11 +70,12 @@ export const useCustodianProfile = () => {
           is_verified: false
         });
       } else {
+        // Bug #4 Fix: Priorizar profileData.phone sobre user.phone
         setProfile({
           id: profileData.id,
           email: profileData.email,
           display_name: profileData.display_name || profileData.email,
-          phone: profileData.phone,
+          phone: profileData.phone || user?.phone || '',
           estado: 'CDMX',
           ciudad: 'Ciudad de México',
           disponibilidad: true,

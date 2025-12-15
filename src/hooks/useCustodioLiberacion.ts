@@ -156,7 +156,7 @@ export const useCustodioLiberacion = () => {
     }
   });
 
-  // Liberar custodio (función final) - con soporte para warnings y envío automático de email
+  // Liberar custodio (función final) - retorna datos para modal de éxito
   const liberarCustodio = useMutation({
     mutationFn: async ({ 
       liberacion_id, 
@@ -174,7 +174,8 @@ export const useCustodioLiberacion = () => {
       });
       
       if (error) throw error;
-      return data as {
+      
+      const result = data as {
         success: boolean;
         pc_custodio_id: string;
         custodio_operativo_id: string;
@@ -188,61 +189,46 @@ export const useCustodioLiberacion = () => {
         mensaje: string;
         invitation_token: string;
       };
-    },
-    onSuccess: async (data) => {
-      queryClient.invalidateQueries({ queryKey: ['custodio-liberacion'] });
-      queryClient.invalidateQueries({ queryKey: ['custodios'] });
-      
-      // Enviar email de invitación automáticamente si hay email
-      if (data.invitation_token && data.candidato_email) {
+
+      // Intentar enviar email si hay datos disponibles
+      let emailSent = false;
+      if (result.invitation_token && result.candidato_email) {
         try {
-          const invitationLink = `${window.location.origin}/auth/registro-custodio?token=${data.invitation_token}`;
+          const invitationLink = `${window.location.origin}/auth/registro-custodio?token=${result.invitation_token}`;
           
           const { error: emailError } = await supabase.functions.invoke('send-custodian-invitation', {
             body: {
-              email: data.candidato_email,
-              nombre: data.candidato_nombre,
-              telefono: data.candidato_telefono,
+              email: result.candidato_email,
+              nombre: result.candidato_nombre,
+              telefono: result.candidato_telefono,
               invitationLink
             }
           });
           
+          emailSent = !emailError;
           if (emailError) {
             console.error('Error enviando email de invitación:', emailError);
-            toast({
-              title: data.tiene_warnings ? '⚠️ Custodio Liberado' : '🎉 Custodio Liberado',
-              description: `${data.mensaje}. El correo de invitación no pudo enviarse.`,
-              variant: data.tiene_warnings ? 'default' : 'default'
-            });
-          } else {
-            toast({
-              title: '🎉 Custodio Liberado',
-              description: `El custodio ha sido activado y se envió invitación a ${data.candidato_email}`
-            });
           }
         } catch (emailError) {
           console.error('Error invocando Edge Function:', emailError);
-          toast({
-            title: data.tiene_warnings ? '⚠️ Custodio Liberado' : '🎉 Custodio Liberado',
-            description: `${data.mensaje}. Error al enviar el correo de invitación.`,
-            variant: 'default'
-          });
-        }
-      } else {
-        // Sin email - mostrar toast normal
-        if (data.tiene_warnings) {
-          toast({
-            title: '⚠️ Custodio Liberado con Advertencias',
-            description: `${data.mensaje}. No se envió invitación (sin email).`,
-            variant: 'default'
-          });
-        } else {
-          toast({
-            title: '🎉 Custodio Liberado',
-            description: 'El custodio ha sido activado. No se envió invitación (sin email registrado).'
-          });
         }
       }
+
+      // Retornar resultado extendido con estado de email
+      return {
+        ...result,
+        emailSent
+      };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['custodio-liberacion'] });
+      queryClient.invalidateQueries({ queryKey: ['custodios'] });
+      
+      // Toast simple - el modal mostrará los detalles
+      toast({
+        title: '🎉 Custodio Liberado',
+        description: data.candidato_nombre + ' ha sido activado exitosamente.'
+      });
     },
     onError: (error: Error) => {
       toast({

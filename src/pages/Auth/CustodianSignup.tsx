@@ -86,6 +86,7 @@ export const CustodianSignup = () => {
           data: {
             display_name: name,
             invitation_token: token,
+            phone: prefillData?.telefono || '', // Bug #2: Pasar phone en metadata
           },
           emailRedirectTo: redirectUrl
         },
