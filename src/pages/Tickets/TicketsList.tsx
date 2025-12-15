@@ -78,7 +78,7 @@ export const TicketsList = () => {
   // Filter only planners for assignment
   const planificadores = useMemo(() => {
     return workloadAgents
-      .filter(a => ['supply_admin', 'supply_lead', 'admin'].includes(a.role))
+      .filter(a => ['planificador', 'admin', 'owner'].includes(a.role))
       .map(a => ({ id: a.agent_id, display_name: a.display_name }));
   }, [workloadAgents]);
   
