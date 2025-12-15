@@ -3,74 +3,58 @@ import { useNavigate } from "react-router-dom";
 import { useCustodianProfile } from "@/hooks/useCustodianProfile";
 import { useCustodianServices } from "@/hooks/useCustodianServices";
 import { useCustodianTickets } from "@/hooks/useCustodianTickets";
+import { useCustodianMaintenance } from "@/hooks/useCustodianMaintenance";
+import { useCustodioIndisponibilidades } from "@/hooks/useCustodioIndisponibilidades";
 import { useToast } from "@/hooks/use-toast";
-import AvailabilityToggleBig from "./AvailabilityToggleBig";
-import NextServiceCard from "./NextServiceCard";
-import QuickStatsMobile from "./QuickStatsMobile";
-import QuickActionButtons from "./QuickActionButtons";
-import SimpleServiceCard from "./SimpleServiceCard";
-import MobileBottomNav, { NavItem } from "./MobileBottomNav";
+import MonthlyStatsSummary from "./MonthlyStatsSummary";
+import VehicleMaintenanceCard from "./VehicleMaintenanceCard";
+import RecentServicesCompact from "./RecentServicesCompact";
+import UnavailabilityStatusBanner from "./UnavailabilityStatusBanner";
+import MobileBottomNavNew, { NavItem } from "./MobileBottomNavNew";
 import { RefreshCw } from "lucide-react";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 const MobileDashboardLayout = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { profile, loading: profileLoading, updateAvailability } = useCustodianProfile();
-  const { services, stats, loading: servicesLoading, getUpcomingServices } = useCustodianServices(profile?.phone);
+  const { profile, loading: profileLoading } = useCustodianProfile();
+  const { services, stats, loading: servicesLoading, getRecentServices } = useCustodianServices(profile?.phone);
   const { stats: ticketStats, loading: ticketsLoading } = useCustodianTickets(profile?.phone);
+  const { maintenanceStatus, pendingMaintenance, createMaintenance, loading: maintenanceLoading } = useCustodianMaintenance(profile?.phone, stats.km_totales);
+  const { crearIndisponibilidad, cancelarIndisponibilidad, custodioTieneIndisponibilidadActiva } = useCustodioIndisponibilidades();
   
   const [activeNav, setActiveNav] = useState<NavItem>('home');
   const [refreshing, setRefreshing] = useState(false);
 
-  const loading = profileLoading || servicesLoading || ticketsLoading;
+  const loading = profileLoading || servicesLoading || ticketsLoading || maintenanceLoading;
 
-  const upcomingServices = useMemo(() => {
-    if (!services || services.length === 0) return [];
-    return services.filter(s => new Date(s.fecha_hora_cita) >= new Date());
-  }, [services]);
-  
-  const nextService = upcomingServices[0] || null;
-
-  // Calcular servicios esta semana
-  const serviciosEstaSemana = useMemo(() => {
+  // Calcular servicios este mes
+  const serviciosEsteMes = useMemo(() => {
     if (!services || services.length === 0) return 0;
     const now = new Date();
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay());
-    startOfWeek.setHours(0, 0, 0, 0);
-    
-    return services.filter(s => {
-      const serviceDate = new Date(s.fecha_hora_cita);
-      return serviceDate >= startOfWeek;
-    }).length;
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    return services.filter(s => new Date(s.fecha_hora_cita) >= startOfMonth).length;
   }, [services]);
 
-  const handleToggleAvailability = async () => {
-    if (!profile) return;
-    
-    const success = await updateAvailability(!profile.disponibilidad);
-    if (success) {
-      toast({
-        title: profile.disponibilidad ? "No disponible" : "Disponible",
-        description: profile.disponibilidad 
-          ? "Ya no recibirás servicios" 
-          : "Ahora puedes recibir servicios",
-      });
-    } else {
-      toast({
-        title: "Error",
-        description: "No se pudo cambiar tu disponibilidad",
-        variant: "destructive"
-      });
-    }
-  };
+  // Check unavailability (simplified - would need custodio_id in real implementation)
+  const currentUnavailability = null; // Placeholder
 
   const handleNavigation = (item: NavItem) => {
     setActiveNav(item);
-    if (item === 'create') {
-      navigate('/custodian/tickets');
-    } else if (item === 'list') {
-      navigate('/custodian/tickets');
+    switch (item) {
+      case 'services':
+        navigate('/custodian/services');
+        break;
+      case 'vehicle':
+        navigate('/custodian/vehicle');
+        break;
+      case 'support':
+        navigate('/custodian/support');
+        break;
+      default:
+        // Stay on home
+        break;
     }
   };
 
@@ -80,7 +64,10 @@ const MobileDashboardLayout = () => {
     setRefreshing(false);
   };
 
-  // Early return AFTER all hooks
+  const handleRecordMaintenance = async (data: any) => {
+    return await createMaintenance(data);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
@@ -92,17 +79,20 @@ const MobileDashboardLayout = () => {
     );
   }
 
+  const recentServices = getRecentServices(5);
+  const currentMonth = format(new Date(), 'MMMM yyyy', { locale: es });
+
   return (
     <div className="min-h-screen bg-background pb-24">
-      {/* Header simple */}
+      {/* Header */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b px-5 py-4">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-foreground">
               Hola, {profile?.display_name?.split(' ')[0] || 'Custodio'} 👋
             </h1>
-            <p className="text-sm text-muted-foreground">
-              {profile?.ciudad || 'Ciudad de México'}
+            <p className="text-sm text-muted-foreground capitalize">
+              {currentMonth}
             </p>
           </div>
           <button 
@@ -117,57 +107,46 @@ const MobileDashboardLayout = () => {
 
       {/* Content */}
       <main className="px-5 py-6 space-y-6">
-        {/* Toggle de disponibilidad */}
-        <AvailabilityToggleBig
-          isAvailable={profile?.disponibilidad ?? true}
-          onToggle={handleToggleAvailability}
-        />
-
-        {/* Próximo servicio */}
-        <section>
-          <NextServiceCard service={nextService} />
-        </section>
-
-        {/* Stats rápidos */}
-        <section>
-          <QuickStatsMobile
-            serviciosEstaSemana={serviciosEstaSemana}
-            montosPorCobrar={stats.ingresos_totales}
+        {/* Banner de indisponibilidad si existe */}
+        {currentUnavailability && (
+          <UnavailabilityStatusBanner
+            tipo={currentUnavailability.tipo}
+            fechaFin={currentUnavailability.fecha_fin}
+            motivo={currentUnavailability.motivo}
           />
-        </section>
-
-        {/* Acciones rápidas */}
-        <section>
-          <h2 className="text-lg font-semibold text-foreground mb-3">
-            ¿Qué quieres hacer?
-          </h2>
-          <QuickActionButtons
-            onViewServices={() => navigate('/custodian/services')}
-            onReportProblem={() => navigate('/custodian/tickets')}
-            ticketsAbiertos={ticketStats?.abiertos || 0}
-          />
-        </section>
-
-        {/* Lista de servicios próximos (si hay más de 1) */}
-        {upcomingServices.length > 1 && (
-          <section>
-            <h2 className="text-lg font-semibold text-foreground mb-3">
-              Otros servicios próximos
-            </h2>
-            <div className="space-y-3">
-              {upcomingServices.slice(1, 4).map((service) => (
-                <SimpleServiceCard
-                  key={service.id_servicio}
-                  service={service}
-                />
-              ))}
-            </div>
-          </section>
         )}
+
+        {/* Stats mensuales */}
+        <section>
+          <MonthlyStatsSummary
+            serviciosEsteMes={serviciosEsteMes}
+            kmRecorridos={stats.km_totales}
+            ingresosTotales={stats.ingresos_totales}
+          />
+        </section>
+
+        {/* Estado del vehículo */}
+        <section>
+          <VehicleMaintenanceCard
+            pendingMaintenance={pendingMaintenance}
+            allMaintenance={maintenanceStatus}
+            currentKm={stats.km_totales}
+            onRecordMaintenance={handleRecordMaintenance}
+            onViewAll={() => navigate('/custodian/vehicle')}
+          />
+        </section>
+
+        {/* Servicios recientes */}
+        <section>
+          <RecentServicesCompact
+            services={recentServices}
+            onViewAll={() => navigate('/custodian/services')}
+          />
+        </section>
       </main>
 
       {/* Bottom Navigation */}
-      <MobileBottomNav
+      <MobileBottomNavNew
         activeItem={activeNav}
         onNavigate={handleNavigation}
         pendingCount={ticketStats?.abiertos || 0}
