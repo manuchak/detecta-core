@@ -203,8 +203,8 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
         }
 
         // CSAT
-        if (ticket.csat_rating) {
-          totalCsat += ticket.csat_rating;
+        if (ticket.calificacion_csat) {
+          totalCsat += ticket.calificacion_csat;
           csatCount++;
         }
 
@@ -277,8 +277,8 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
           }
         }
 
-        if (ticket.csat_rating) {
-          agentData.totalCsat += ticket.csat_rating;
+        if (ticket.calificacion_csat) {
+          agentData.totalCsat += ticket.calificacion_csat;
           agentData.csatCount++;
         }
 
