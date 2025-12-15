@@ -1,10 +1,11 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Gauge, Settings } from "lucide-react";
+import { ArrowLeft, Gauge, Settings, Plus } from "lucide-react";
 import { useCustodianProfile } from "@/hooks/useCustodianProfile";
 import { useCustodianServices } from "@/hooks/useCustodianServices";
 import { useCustodianMaintenance, MAINTENANCE_INTERVALS } from "@/hooks/useCustodianMaintenance";
 import RecordMaintenanceDialog from "@/components/custodian/RecordMaintenanceDialog";
 import MaintenanceSettingsDialog from "@/components/custodian/MaintenanceSettingsDialog";
+import BatchMaintenanceDialog from "@/components/custodian/BatchMaintenanceDialog";
 import MobileBottomNavNew from "@/components/custodian/MobileBottomNavNew";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -13,9 +14,10 @@ const CustodianVehiclePage = () => {
   const navigate = useNavigate();
   const { profile } = useCustodianProfile();
   const { stats } = useCustodianServices(profile?.phone);
-  const { maintenanceStatus, createMaintenance, records, refetchIntervals } = useCustodianMaintenance(profile?.phone, stats.km_totales);
+  const { maintenanceStatus, createMaintenance, createBatchMaintenance, records, refetchIntervals } = useCustodianMaintenance(profile?.phone, stats.km_totales);
   const [selectedMaintenance, setSelectedMaintenance] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [batchDialogOpen, setBatchDialogOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const handleRecordMaintenance = async (data: any) => {
@@ -148,6 +150,21 @@ const CustodianVehiclePage = () => {
         custodianPhone={profile?.phone}
         onSaved={refetchIntervals}
       />
+
+      <BatchMaintenanceDialog
+        open={batchDialogOpen}
+        onOpenChange={setBatchDialogOpen}
+        currentKm={stats.km_totales}
+        onConfirm={createBatchMaintenance}
+      />
+
+      {/* Floating Action Button */}
+      <button
+        onClick={() => setBatchDialogOpen(true)}
+        className="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center active:scale-95 transition-transform z-20"
+      >
+        <Plus className="w-6 h-6" />
+      </button>
 
       <MobileBottomNavNew activeItem="vehicle" onNavigate={(item) => {
         if (item === 'home') navigate('/custodian');
