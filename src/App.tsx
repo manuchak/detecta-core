@@ -37,6 +37,7 @@ const EvaluacionesPage = lazy(() => import('@/pages/Leads/EvaluacionesPage'));
 const AssignOwnerRole = lazy(() => import('@/pages/Admin/AssignOwnerRole'));
 const AssignRole = lazy(() => import('@/pages/Admin/AssignRole'));
 const LandingManager = lazy(() => import('@/pages/Admin/LandingManager'));
+const CustodianInvitationsPage = lazy(() => import('@/pages/Admin/CustodianInvitationsPage'));
 const MonitoringPage = lazy(() => import('@/pages/Monitoring/MonitoringPage'));
 const SupplyChainMonitoring = lazy(() => import('@/pages/Monitoring/SupplyChainMonitoring'));
 const ForensicAuditPage = lazy(() => import('@/pages/Monitoring/ForensicAuditPage'));
@@ -78,6 +79,7 @@ const AdministrationHub = lazy(() => import('@/pages/Administration/Administrati
 const SystemTestingPage = lazy(() => import('@/pages/SystemTestingPage'));
 const SignUp = lazy(() => import('@/pages/Auth/SignUp'));
 const PendingActivation = lazy(() => import('@/pages/Auth/PendingActivation'));
+const CustodianSignup = lazy(() => import('@/pages/Auth/CustodianSignup'));
 
 // Components
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -171,6 +173,7 @@ function App() {
                 <Route path="/auth/forgot-password" element={<AuthLayout><ForgotPassword /></AuthLayout>} />
                 <Route path="/auth/email-confirmation" element={<AuthLayout><EmailConfirmation /></AuthLayout>} />
                 <Route path="/auth/pending-activation" element={<PendingActivation />} />
+                <Route path="/auth/registro-custodio" element={<CustodianSignup />} />
                 
                 {/* Protected routes - Home accessible to all authenticated users */}
                 <Route
@@ -292,6 +295,20 @@ function App() {
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'supply_lead', 'coordinador_operaciones']}>
                         <UnifiedLayout>
                           <EvaluacionesPage />
+                        </UnifiedLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                {/* Custodian Invitations - Admin/Supply */}
+                <Route
+                  path="/admin/custodian-invitations"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'supply_lead', 'supply']}>
+                        <UnifiedLayout>
+                          <CustodianInvitationsPage />
                         </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
