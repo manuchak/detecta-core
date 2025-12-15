@@ -1,7 +1,8 @@
 import { GenerateCustodianInvitation } from '@/components/admin/GenerateCustodianInvitation';
 import { CustodianInvitationsList } from '@/components/admin/CustodianInvitationsList';
+import { BulkInvitationWizard } from '@/components/admin/BulkInvitationWizard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { UserPlus, ListChecks } from 'lucide-react';
+import { UserPlus, ListChecks, Upload } from 'lucide-react';
 
 export const CustodianInvitationsPage = () => {
   return (
@@ -17,7 +18,11 @@ export const CustodianInvitationsPage = () => {
         <TabsList>
           <TabsTrigger value="generate" className="gap-2">
             <UserPlus className="h-4 w-4" />
-            Generar Invitación
+            Individual
+          </TabsTrigger>
+          <TabsTrigger value="bulk" className="gap-2">
+            <Upload className="h-4 w-4" />
+            Masivo
           </TabsTrigger>
           <TabsTrigger value="list" className="gap-2">
             <ListChecks className="h-4 w-4" />
@@ -27,6 +32,10 @@ export const CustodianInvitationsPage = () => {
         
         <TabsContent value="generate" className="flex justify-center">
           <GenerateCustodianInvitation />
+        </TabsContent>
+        
+        <TabsContent value="bulk">
+          <BulkInvitationWizard />
         </TabsContent>
         
         <TabsContent value="list">
