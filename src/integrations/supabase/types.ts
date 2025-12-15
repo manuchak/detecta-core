@@ -11575,6 +11575,122 @@ export type Database = {
         }
         Relationships: []
       }
+      ticket_escalation_rules: {
+        Row: {
+          accion: string
+          activo: boolean | null
+          categoria_id: string | null
+          condicion: string
+          created_at: string | null
+          descripcion: string | null
+          destinatario_rol: string | null
+          id: string
+          nombre: string
+          notificar_app: boolean | null
+          notificar_email: boolean | null
+          orden: number | null
+          prioridad_minima: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          accion: string
+          activo?: boolean | null
+          categoria_id?: string | null
+          condicion: string
+          created_at?: string | null
+          descripcion?: string | null
+          destinatario_rol?: string | null
+          id?: string
+          nombre: string
+          notificar_app?: boolean | null
+          notificar_email?: boolean | null
+          orden?: number | null
+          prioridad_minima?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          accion?: string
+          activo?: boolean | null
+          categoria_id?: string | null
+          condicion?: string
+          created_at?: string | null
+          descripcion?: string | null
+          destinatario_rol?: string | null
+          id?: string
+          nombre?: string
+          notificar_app?: boolean | null
+          notificar_email?: boolean | null
+          orden?: number | null
+          prioridad_minima?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_escalation_rules_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "ticket_categorias_custodio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ticket_response_templates: {
+        Row: {
+          activo: boolean | null
+          categoria_id: string | null
+          contenido: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          nombre: string
+          subcategoria_id: string | null
+          updated_at: string | null
+          uso_count: number | null
+          variables_disponibles: string[] | null
+        }
+        Insert: {
+          activo?: boolean | null
+          categoria_id?: string | null
+          contenido: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          nombre: string
+          subcategoria_id?: string | null
+          updated_at?: string | null
+          uso_count?: number | null
+          variables_disponibles?: string[] | null
+        }
+        Update: {
+          activo?: boolean | null
+          categoria_id?: string | null
+          contenido?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          nombre?: string
+          subcategoria_id?: string | null
+          updated_at?: string | null
+          uso_count?: number | null
+          variables_disponibles?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_response_templates_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "ticket_categorias_custodio"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_response_templates_subcategoria_id_fkey"
+            columns: ["subcategoria_id"]
+            isOneToOne: false
+            referencedRelation: "ticket_subcategorias_custodio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ticket_respuesta_ratings: {
         Row: {
           created_at: string | null
