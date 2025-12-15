@@ -2424,6 +2424,73 @@ export type Database = {
         }
         Relationships: []
       }
+      custodian_invitations: {
+        Row: {
+          candidato_id: string | null
+          created_at: string | null
+          created_by: string
+          email: string | null
+          expires_at: string
+          id: string
+          nombre: string | null
+          telefono: string | null
+          token: string
+          updated_at: string | null
+          used_at: string | null
+          used_by: string | null
+        }
+        Insert: {
+          candidato_id?: string | null
+          created_at?: string | null
+          created_by: string
+          email?: string | null
+          expires_at?: string
+          id?: string
+          nombre?: string | null
+          telefono?: string | null
+          token: string
+          updated_at?: string | null
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Update: {
+          candidato_id?: string | null
+          created_at?: string | null
+          created_by?: string
+          email?: string | null
+          expires_at?: string
+          id?: string
+          nombre?: string | null
+          telefono?: string | null
+          token?: string
+          updated_at?: string | null
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custodian_invitations_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "candidatos_custodios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custodian_invitations_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_candidato_evaluaciones_completas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custodian_invitations_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_capacitacion_progreso_candidato"
+            referencedColumns: ["candidato_id"]
+          },
+        ]
+      }
       custodio_communications: {
         Row: {
           contenido: string | null
@@ -14483,6 +14550,13 @@ export type Database = {
         }
         Returns: string
       }
+      use_invitation_and_assign_role: {
+        Args: { p_token: string; p_user_id: string }
+        Returns: {
+          error_message: string
+          success: boolean
+        }[]
+      }
       user_has_permission: {
         Args: {
           permission_id: string
@@ -14526,6 +14600,18 @@ export type Database = {
       validate_input_text: {
         Args: { input_text: string; max_length?: number }
         Returns: string
+      }
+      validate_invitation_token: {
+        Args: { p_token: string }
+        Returns: {
+          candidato_id: string
+          email: string
+          error_message: string
+          invitation_id: string
+          is_valid: boolean
+          nombre: string
+          telefono: string
+        }[]
       }
       validate_multiple_service_ids: {
         Args: { p_exclude_finished?: boolean; p_service_ids: string[] }
