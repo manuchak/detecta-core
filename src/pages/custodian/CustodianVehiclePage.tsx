@@ -1,9 +1,10 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Car, Gauge } from "lucide-react";
+import { ArrowLeft, Gauge, Settings } from "lucide-react";
 import { useCustodianProfile } from "@/hooks/useCustodianProfile";
 import { useCustodianServices } from "@/hooks/useCustodianServices";
 import { useCustodianMaintenance, MAINTENANCE_INTERVALS } from "@/hooks/useCustodianMaintenance";
 import RecordMaintenanceDialog from "@/components/custodian/RecordMaintenanceDialog";
+import MaintenanceSettingsDialog from "@/components/custodian/MaintenanceSettingsDialog";
 import MobileBottomNavNew from "@/components/custodian/MobileBottomNavNew";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -12,9 +13,10 @@ const CustodianVehiclePage = () => {
   const navigate = useNavigate();
   const { profile } = useCustodianProfile();
   const { stats } = useCustodianServices(profile?.phone);
-  const { maintenanceStatus, createMaintenance, records } = useCustodianMaintenance(profile?.phone, stats.km_totales);
+  const { maintenanceStatus, createMaintenance, records, refetchIntervals } = useCustodianMaintenance(profile?.phone, stats.km_totales);
   const [selectedMaintenance, setSelectedMaintenance] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const handleRecordMaintenance = async (data: any) => {
     const success = await createMaintenance(data);
@@ -53,7 +55,16 @@ const CustodianVehiclePage = () => {
 
         {/* Maintenance Status */}
         <section>
-          <h2 className="text-lg font-semibold mb-3">Estado de Mantenimiento</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold">Estado de Mantenimiento</h2>
+            <button 
+              onClick={() => setSettingsOpen(true)}
+              className="p-2 rounded-full hover:bg-muted active:scale-95 transition-all"
+              title="Configurar intervalos"
+            >
+              <Settings className="w-5 h-5 text-muted-foreground" />
+            </button>
+          </div>
           <div className="space-y-2">
             {maintenanceStatus.map((item) => (
               <button
@@ -129,6 +140,13 @@ const CustodianVehiclePage = () => {
         maintenance={selectedMaintenance}
         currentKm={stats.km_totales}
         onConfirm={handleRecordMaintenance}
+      />
+
+      <MaintenanceSettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        custodianPhone={profile?.phone}
+        onSaved={refetchIntervals}
       />
 
       <MobileBottomNavNew activeItem="vehicle" onNavigate={(item) => {

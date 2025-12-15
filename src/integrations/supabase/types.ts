@@ -2469,6 +2469,33 @@ export type Database = {
         }
         Relationships: []
       }
+      custodio_configuracion_mantenimiento: {
+        Row: {
+          created_at: string | null
+          custodio_telefono: string
+          id: string
+          intervalo_km_personalizado: number
+          tipo_mantenimiento: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          custodio_telefono: string
+          id?: string
+          intervalo_km_personalizado: number
+          tipo_mantenimiento: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          custodio_telefono?: string
+          id?: string
+          intervalo_km_personalizado?: number
+          tipo_mantenimiento?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       custodio_indisponibilidades: {
         Row: {
           created_at: string | null

@@ -75,17 +75,38 @@ interface CreateMaintenanceData {
 
 export const useCustodianMaintenance = (custodianPhone?: string, currentKm?: number) => {
   const [records, setRecords] = useState<MaintenanceRecord[]>([]);
+  const [customIntervals, setCustomIntervals] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
     if (custodianPhone) {
       fetchMaintenanceRecords();
+      fetchCustomIntervals();
     } else {
       setRecords([]);
+      setCustomIntervals(new Map());
       setLoading(false);
     }
   }, [custodianPhone]);
+
+  const fetchCustomIntervals = async () => {
+    if (!custodianPhone) return;
+    
+    try {
+      const { data } = await supabase
+        .from('custodio_configuracion_mantenimiento')
+        .select('tipo_mantenimiento, intervalo_km_personalizado')
+        .eq('custodio_telefono', custodianPhone);
+      
+      const intervalMap = new Map(
+        (data || []).map(d => [d.tipo_mantenimiento, d.intervalo_km_personalizado])
+      );
+      setCustomIntervals(intervalMap);
+    } catch (error) {
+      console.error('Error fetching custom intervals:', error);
+    }
+  };
 
   const fetchMaintenanceRecords = async () => {
     try {
@@ -154,12 +175,16 @@ export const useCustodianMaintenance = (custodianPhone?: string, currentKm?: num
     const km = currentKm || 0;
     
     return MAINTENANCE_INTERVALS.map(interval => {
+      // Usar intervalo personalizado si existe
+      const customInterval = customIntervals.get(interval.tipo);
+      const effectiveInterval = customInterval || interval.intervalo_km;
+      
       // Buscar último mantenimiento de este tipo
       const lastRecord = records.find(r => r.tipo_mantenimiento === interval.tipo);
       const ultimoKm = lastRecord?.km_al_momento || 0;
-      const proximoKm = ultimoKm + interval.intervalo_km;
+      const proximoKm = ultimoKm + effectiveInterval;
       const kmRestantes = proximoKm - km;
-      const porcentajeVida = Math.max(0, Math.min(100, (kmRestantes / interval.intervalo_km) * 100));
+      const porcentajeVida = Math.max(0, Math.min(100, (kmRestantes / effectiveInterval) * 100));
       
       let estado: 'ok' | 'proximo' | 'vencido' = 'ok';
       if (kmRestantes <= 0) {
@@ -181,7 +206,7 @@ export const useCustodianMaintenance = (custodianPhone?: string, currentKm?: num
         prioridad: interval.prioridad,
       };
     });
-  }, [records, currentKm]);
+  }, [records, currentKm, customIntervals]);
 
   // Mantenimientos que requieren atención (vencidos o próximos)
   const pendingMaintenance = useMemo(() => {
@@ -197,6 +222,7 @@ export const useCustodianMaintenance = (custodianPhone?: string, currentKm?: num
     pendingMaintenance,
     createMaintenance,
     refetch: fetchMaintenanceRecords,
+    refetchIntervals: fetchCustomIntervals,
     MAINTENANCE_INTERVALS,
   };
 };
