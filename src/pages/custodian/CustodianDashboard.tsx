@@ -10,13 +10,7 @@ import { Link } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import MobileDashboardLayout from "@/components/custodian/MobileDashboardLayout";
 
-const CustodianDashboard = () => {
-  const isMobile = useIsMobile();
-
-  // En móvil, mostrar layout simplificado tipo app de chofer
-  if (isMobile) {
-    return <MobileDashboardLayout />;
-  }
+const DesktopCustodianDashboard = () => {
   const { toast } = useToast();
   const { profile, loading: profileLoading, updateAvailability } = useCustodianProfile();
   const { services, stats, loading: servicesLoading, getRecentServices, getUpcomingServices } = useCustodianServices(profile?.phone);
@@ -304,6 +298,24 @@ const CustodianDashboard = () => {
       </div>
     </div>
   );
+};
+
+const CustodianDashboard = () => {
+  const isMobile = useIsMobile();
+
+  // Evitar un primer render “desktop” y luego swap a mobile (que puede causar flicker)
+  if (isMobile === undefined) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return isMobile ? <MobileDashboardLayout /> : <DesktopCustodianDashboard />;
 };
 
 export default CustodianDashboard;
