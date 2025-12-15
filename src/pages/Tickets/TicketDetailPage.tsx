@@ -7,17 +7,18 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   ArrowLeft, Clock, Calendar, DollarSign, Truck, Send, Paperclip,
   Loader2, CheckCircle, AlertTriangle, User, Headphones, Bot,
   ImageIcon, X, Phone, Mail, MapPin, History, FileText, MessageSquare,
-  Eye, EyeOff, Star
+  Eye, EyeOff, Star, MoreHorizontal, ChevronRight
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTicketsEnhanced, TicketEnhanced } from '@/hooks/useTicketsEnhanced';
 import { SLABadge } from '@/components/tickets/SLABadge';
+import { SLAProgressBar } from '@/components/tickets/SLAProgressBar';
 import { TemplateSelector } from '@/components/tickets/TemplateSelector';
 import { TicketQuickActions } from '@/components/tickets/TicketQuickActions';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -47,17 +48,26 @@ interface CustodianServiceHistory {
 }
 
 const statusConfig = {
-  abierto: { label: 'Abierto', icon: AlertTriangle, color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
-  en_progreso: { label: 'En Progreso', icon: Clock, color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' },
-  resuelto: { label: 'Resuelto', icon: CheckCircle, color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
-  cerrado: { label: 'Cerrado', icon: X, color: 'bg-gray-100 text-gray-700 dark:bg-gray-800/30 dark:text-gray-400' }
+  abierto: { label: 'Abierto', icon: AlertTriangle, color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', gradient: 'from-red-500 to-rose-500' },
+  en_progreso: { label: 'En Progreso', icon: Clock, color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', gradient: 'from-amber-500 to-orange-500' },
+  resuelto: { label: 'Resuelto', icon: CheckCircle, color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', gradient: 'from-emerald-500 to-green-500' },
+  cerrado: { label: 'Cerrado', icon: X, color: 'bg-gray-100 text-gray-700 dark:bg-gray-800/30 dark:text-gray-400', gradient: 'from-gray-400 to-gray-500' }
 };
 
 const priorityConfig = {
-  baja: { label: 'Baja', color: 'bg-blue-100 text-blue-700' },
-  media: { label: 'Media', color: 'bg-yellow-100 text-yellow-700' },
-  alta: { label: 'Alta', color: 'bg-orange-100 text-orange-700' },
-  urgente: { label: 'Urgente', color: 'bg-red-100 text-red-700' }
+  baja: { label: 'Baja', color: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400' },
+  media: { label: 'Media', color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-400' },
+  alta: { label: 'Alta', color: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400' },
+  urgente: { label: 'Urgente', color: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' }
+};
+
+const getInitials = (name: string): string => {
+  return name
+    .split(' ')
+    .map(n => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
 };
 
 export const TicketDetailPage = () => {
@@ -92,15 +102,10 @@ export const TicketDetailPage = () => {
   const loadTicketData = async () => {
     setLoading(true);
     try {
-      // Reload tickets to get fresh data
       await loadTickets();
-      
-      // Get ticket from hook
       const ticketData = getTicketById(ticketId!);
       if (ticketData) {
         setTicket(ticketData);
-        
-        // Load custodian service history if available
         if (ticketData.custodio_id) {
           loadServiceHistory(ticketData.custodio_id);
           loadOtherTickets(ticketData.custodio_id, ticketId!);
@@ -126,7 +131,6 @@ export const TicketDetailPage = () => {
       if (error) throw error;
       setResponses(data || []);
       
-      // Scroll to bottom
       setTimeout(() => {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
       }, 100);
@@ -189,7 +193,6 @@ export const TicketDetailPage = () => {
     
     setSending(true);
     try {
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       
       const { error } = await supabase
@@ -205,7 +208,6 @@ export const TicketDetailPage = () => {
 
       if (error) throw error;
       
-      // Record first response if applicable
       if (!ticket.primera_respuesta_at && !isInternal) {
         await recordFirstResponse(ticket.id);
       }
@@ -244,13 +246,16 @@ export const TicketDetailPage = () => {
 
   if (loading) {
     return (
-      <div className="space-y-6 animate-fade-in p-6">
-        <Skeleton className="h-8 w-48" />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
+      <div className="min-h-screen bg-muted/30 dark:bg-background">
+        <div className="max-w-[1400px] mx-auto p-6 space-y-6">
+          <Skeleton className="h-10 w-64" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-4">
+              <Skeleton className="h-20" />
+              <Skeleton className="h-96" />
+            </div>
             <Skeleton className="h-96" />
           </div>
-          <Skeleton className="h-96" />
         </div>
       </div>
     );
@@ -258,11 +263,17 @@ export const TicketDetailPage = () => {
 
   if (!ticket) {
     return (
-      <div className="flex flex-col items-center justify-center h-64">
-        <p className="text-muted-foreground">Ticket no encontrado</p>
-        <Button variant="outline" className="mt-4" onClick={() => navigate('/tickets')}>
-          Volver a tickets
-        </Button>
+      <div className="min-h-screen bg-muted/30 dark:bg-background flex items-center justify-center">
+        <Card className="max-w-md w-full mx-4">
+          <CardContent className="p-8 text-center">
+            <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
+            <p className="text-muted-foreground mb-4">Ticket no encontrado</p>
+            <Button variant="outline" onClick={() => navigate('/tickets')}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Volver a tickets
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -272,398 +283,468 @@ export const TicketDetailPage = () => {
   const canRespond = !['resuelto', 'cerrado'].includes(ticket.status);
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/tickets')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant="outline" className="font-mono">{ticket.ticket_number}</Badge>
-              <Badge className={cn("flex items-center gap-1", status.color)}>
-                <StatusIcon className="h-3 w-3" />
-                {status.label}
-              </Badge>
-              <Badge className={priorityConfig[ticket.priority].color}>
-                {priorityConfig[ticket.priority].label}
-              </Badge>
-              <SLABadge
-                status={ticket.sla.estadoGeneral}
-                remainingMinutes={ticket.sla.tiempoRestanteResolucion}
-                percentage={ticket.sla.porcentajeConsumidoResolucion}
-                type="resolucion"
+    <div className="min-h-screen bg-muted/30 dark:bg-background">
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b shadow-sm">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-3">
+          <div className="flex items-center justify-between gap-4">
+            {/* Left: Back + Ticket Info */}
+            <div className="flex items-center gap-4 min-w-0">
+              <Button variant="ghost" size="icon" onClick={() => navigate('/tickets')} className="shrink-0">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="outline" className="font-mono shrink-0">{ticket.ticket_number}</Badge>
+                  <Badge className={cn("flex items-center gap-1 shrink-0", status.color)}>
+                    <StatusIcon className="h-3 w-3" />
+                    {status.label}
+                  </Badge>
+                  <Badge className={cn("shrink-0", priorityConfig[ticket.priority].color)}>
+                    {priorityConfig[ticket.priority].label}
+                  </Badge>
+                </div>
+                <h1 className="text-lg font-semibold truncate mt-1 max-w-xl">{ticket.subject}</h1>
+              </div>
+            </div>
+            
+            {/* Right: SLA + Actions */}
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="hidden sm:block">
+                <SLAProgressBar
+                  status={ticket.sla.estadoGeneral}
+                  percentage={ticket.sla.porcentajeConsumidoResolucion}
+                  remainingMinutes={ticket.sla.tiempoRestanteResolucion}
+                />
+              </div>
+              <TicketQuickActions
+                ticket={ticket}
+                agents={agents}
+                onStatusChange={handleStatusChange}
+                onAssign={handleAssign}
+                onAddInternalNote={(note) => {
+                  setNewMessage(note);
+                  setIsInternal(true);
+                }}
               />
             </div>
-            <h1 className="text-xl font-semibold mt-1">{ticket.subject}</h1>
           </div>
         </div>
-        
-        <TicketQuickActions
-          ticket={ticket}
-          agents={agents}
-          onStatusChange={handleStatusChange}
-          onAssign={handleAssign}
-          onAddInternalNote={(note) => {
-            setNewMessage(note);
-            setIsInternal(true);
-          }}
-        />
       </div>
 
       {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Panel - Conversation */}
-        <div className="lg:col-span-2 space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Conversación</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {/* Initial ticket message */}
-              <div className="mb-4 p-4 bg-muted/50 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">
-                    {ticket.custodio?.nombre || ticket.customer_name || 'Usuario'}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {format(new Date(ticket.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}
-                  </span>
-                </div>
-                <p className="text-sm whitespace-pre-wrap">{ticket.description}</p>
-                
-                {/* Evidences */}
-                {ticket.evidencia_urls && ticket.evidencia_urls.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {ticket.evidencia_urls.map((url, idx) => (
-                      <a
-                        key={idx}
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-3 py-1.5 bg-background rounded-md text-sm hover:bg-accent"
-                      >
-                        <ImageIcon className="h-4 w-4" />
-                        Archivo {idx + 1}
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <Separator className="my-4" />
-
-              {/* Responses */}
-              <ScrollArea className="h-[400px] pr-4" ref={scrollRef}>
-                {loadingResponses ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  </div>
-                ) : responses.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p>Sin respuestas aún</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {responses.map(resp => {
-                      const isAgent = resp.autor_tipo === 'agente';
-                      const AutorIcon = isAgent ? Headphones : (resp.autor_tipo === 'sistema' ? Bot : User);
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Panel - Conversation */}
+          <div className="lg:col-span-2 space-y-4">
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-3 border-b bg-muted/30">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-primary" />
+                  Conversación
+                  <Badge variant="secondary" className="ml-auto">
+                    {responses.length + 1} mensajes
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {/* Initial ticket message */}
+                <div className="p-4 bg-muted/30 border-b">
+                  <div className="flex items-start gap-3">
+                    <Avatar className="h-10 w-10 border-2 border-background shadow">
+                      <AvatarFallback className="bg-gradient-to-br from-blue-500 to-blue-600 text-white text-xs">
+                        {getInitials(ticket.custodio?.nombre || ticket.customer_name || 'U')}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-semibold">
+                          {ticket.custodio?.nombre || ticket.customer_name || 'Usuario'}
+                        </span>
+                        <Badge variant="outline" className="text-[10px]">Custodio</Badge>
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          {format(new Date(ticket.created_at), 'dd MMM yyyy, HH:mm', { locale: es })}
+                        </span>
+                      </div>
+                      <p className="text-sm whitespace-pre-wrap text-foreground/90">{ticket.description}</p>
                       
-                      return (
-                        <div
-                          key={resp.id}
+                      {/* Evidences */}
+                      {ticket.evidencia_urls && ticket.evidencia_urls.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {ticket.evidencia_urls.map((url, idx) => (
+                            <a
+                              key={idx}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 px-3 py-1.5 bg-background rounded-lg text-sm hover:bg-accent transition-colors border"
+                            >
+                              <ImageIcon className="h-4 w-4" />
+                              Archivo {idx + 1}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Responses */}
+                <ScrollArea className="h-[450px]" ref={scrollRef}>
+                  <div className="p-4 space-y-4">
+                    {loadingResponses ? (
+                      <div className="flex justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : responses.length === 0 ? (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <MessageSquare className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                        <p className="text-sm">Sin respuestas aún</p>
+                        <p className="text-xs mt-1">Sé el primero en responder</p>
+                      </div>
+                    ) : (
+                      responses.map(resp => {
+                        const isAgent = resp.autor_tipo === 'agente';
+                        const isSystem = resp.autor_tipo === 'sistema';
+                        
+                        if (isSystem) {
+                          return (
+                            <div key={resp.id} className="flex justify-center">
+                              <div className="px-4 py-2 bg-muted/50 rounded-full text-xs text-muted-foreground italic">
+                                {resp.mensaje}
+                              </div>
+                            </div>
+                          );
+                        }
+                        
+                        return (
+                          <div
+                            key={resp.id}
+                            className={cn(
+                              "flex gap-3",
+                              isAgent ? "flex-row-reverse"  : "flex-row"
+                            )}
+                          >
+                            <Avatar className="h-9 w-9 shrink-0 border-2 border-background shadow">
+                              <AvatarFallback className={cn(
+                                "text-xs font-medium",
+                                isAgent 
+                                  ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground" 
+                                  : "bg-gradient-to-br from-blue-500 to-blue-600 text-white"
+                              )}>
+                                {isAgent ? <Headphones className="h-4 w-4" /> : getInitials(resp.autor_nombre || 'U')}
+                              </AvatarFallback>
+                            </Avatar>
+                            
+                            <div className={cn(
+                              "max-w-[75%] space-y-1",
+                              isAgent ? "items-end" : "items-start"
+                            )}>
+                              <div className={cn(
+                                "px-4 py-3 rounded-2xl",
+                                resp.es_interno 
+                                  ? "bg-amber-50 dark:bg-amber-950/30 border-2 border-dashed border-amber-300 dark:border-amber-700"
+                                  : isAgent 
+                                    ? "bg-primary text-primary-foreground rounded-tr-sm" 
+                                    : "bg-muted rounded-tl-sm"
+                              )}>
+                                {resp.es_interno && (
+                                  <div className="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-400 mb-1 font-medium">
+                                    <EyeOff className="h-3 w-3" />
+                                    Nota interna
+                                  </div>
+                                )}
+                                <p className="text-sm whitespace-pre-wrap">{resp.mensaje}</p>
+                              </div>
+                              
+                              <div className={cn(
+                                "flex items-center gap-2 text-xs text-muted-foreground px-1",
+                                isAgent ? "justify-end" : "justify-start"
+                              )}>
+                                <span>{resp.autor_nombre || (isAgent ? 'Agente' : 'Usuario')}</span>
+                                <span>•</span>
+                                <span>{formatDistanceToNow(new Date(resp.created_at), { addSuffix: true, locale: es })}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </ScrollArea>
+
+                {/* Reply Input */}
+                {canRespond && (
+                  <div className="p-4 border-t bg-muted/20">
+                    <div className="flex items-center gap-2 mb-3">
+                      <TemplateSelector
+                        categoriaId={ticket.categoria_custodio_id}
+                        custodianName={ticket.custodio?.nombre || ticket.customer_name}
+                        ticketNumber={ticket.ticket_number}
+                        onSelect={handleTemplateSelect}
+                      />
+                      <Button
+                        variant={isInternal ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setIsInternal(!isInternal)}
+                        className={cn(
+                          "gap-2 transition-all",
+                          isInternal && "bg-amber-500 hover:bg-amber-600 text-white"
+                        )}
+                      >
+                        {isInternal ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {isInternal ? 'Nota interna' : 'Público'}
+                      </Button>
+                    </div>
+                    
+                    <div className="relative">
+                      <Textarea
+                        value={newMessage}
+                        onChange={e => setNewMessage(e.target.value)}
+                        placeholder={isInternal ? "Escribe una nota interna (no visible para el custodio)..." : "Escribe una respuesta..."}
+                        rows={3}
+                        disabled={sending}
+                        className={cn(
+                          "pr-24 resize-none",
+                          isInternal && "border-amber-300 focus:border-amber-400 bg-amber-50/50 dark:bg-amber-950/20"
+                        )}
+                      />
+                      <div className="absolute bottom-2 right-2">
+                        <Button
+                          onClick={handleSendMessage}
+                          disabled={!newMessage.trim() || sending}
+                          size="sm"
                           className={cn(
-                            "flex gap-3",
-                            isAgent ? "flex-row" : "flex-row-reverse"
+                            "gap-2",
+                            isInternal && "bg-amber-500 hover:bg-amber-600"
                           )}
                         >
-                          <div className={cn(
-                            "flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center",
-                            isAgent ? "bg-primary text-primary-foreground" : "bg-muted"
-                          )}>
-                            <AutorIcon className="h-4 w-4" />
-                          </div>
-                          
-                          <div className={cn(
-                            "flex-1 max-w-[80%] space-y-1",
-                            isAgent ? "items-start" : "items-end"
-                          )}>
-                            <div className={cn(
-                              "px-4 py-2 rounded-lg",
-                              resp.es_interno 
-                                ? "bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800"
-                                : isAgent ? "bg-primary/10" : "bg-muted"
-                            )}>
-                              {resp.es_interno && (
-                                <div className="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-400 mb-1">
-                                  <EyeOff className="h-3 w-3" />
-                                  Nota interna
-                                </div>
-                              )}
-                              <p className="text-sm whitespace-pre-wrap">{resp.mensaje}</p>
-                            </div>
-                            
-                            <span className="text-xs text-muted-foreground px-1">
-                              {resp.autor_nombre || (isAgent ? 'Agente' : 'Usuario')} • 
-                              {formatDistanceToNow(new Date(resp.created_at), { addSuffix: true, locale: es })}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </ScrollArea>
-
-              {/* Reply Input */}
-              {canRespond && (
-                <>
-                  <Separator className="my-4" />
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <TemplateSelector
-                          categoriaId={ticket.categoria_custodio_id}
-                          custodianName={ticket.custodio?.nombre || ticket.customer_name}
-                          ticketNumber={ticket.ticket_number}
-                          onSelect={handleTemplateSelect}
-                        />
-                        <Button
-                          variant={isInternal ? "secondary" : "ghost"}
-                          size="sm"
-                          onClick={() => setIsInternal(!isInternal)}
-                          className="gap-2"
-                        >
-                          {isInternal ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          {isInternal ? 'Nota interna' : 'Respuesta pública'}
+                          {sending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Send className="h-4 w-4" />
+                          )}
+                          <span className="hidden sm:inline">Enviar</span>
                         </Button>
                       </div>
                     </div>
                     
-                    <Textarea
-                      value={newMessage}
-                      onChange={e => setNewMessage(e.target.value)}
-                      placeholder={isInternal ? "Escribe una nota interna (no visible para el custodio)..." : "Escribe una respuesta..."}
-                      rows={3}
-                      disabled={sending}
-                      className={cn(
-                        isInternal && "border-amber-300 focus:border-amber-400"
-                      )}
-                    />
-                    
-                    <div className="flex items-center gap-2">
-                      <Button
-                        onClick={handleSendMessage}
-                        disabled={!newMessage.trim() || sending}
-                        className="flex-1"
-                      >
-                        {sending ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <Send className="h-4 w-4 mr-2" />
-                        )}
-                        {isInternal ? 'Agregar nota' : 'Enviar respuesta'}
-                      </Button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Panel - Info */}
-        <div className="space-y-4">
-          {/* Ticket Details */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Detalles del Ticket</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <span className="text-muted-foreground">Creado</span>
-                  <p className="font-medium">
-                    {format(new Date(ticket.created_at), 'dd/MM/yy HH:mm', { locale: es })}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Categoría</span>
-                  <p className="font-medium">
-                    {ticket.categoria_custodio?.nombre || ticket.category || 'General'}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Asignado a</span>
-                  <p className="font-medium">
-                    {ticket.assigned_user?.display_name || 'Sin asignar'}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Fuente</span>
-                  <p className="font-medium capitalize">{ticket.source || 'web'}</p>
-                </div>
-                {ticket.monto_reclamado && (
-                  <div className="col-span-2">
-                    <span className="text-muted-foreground">Monto reclamado</span>
-                    <p className="font-medium text-lg">${ticket.monto_reclamado.toLocaleString()} MXN</p>
-                  </div>
-                )}
-              </div>
-              
-              {/* SLA Details */}
-              <Separator />
-              <div className="space-y-2">
-                <span className="text-muted-foreground">SLA</span>
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs">Primera respuesta:</span>
-                    <SLABadge
-                      status={ticket.sla.estadoRespuesta}
-                      remainingMinutes={ticket.sla.tiempoRestanteRespuesta}
-                      percentage={ticket.sla.porcentajeConsumidoRespuesta}
-                      type="respuesta"
-                      size="sm"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs">Resolución:</span>
-                    <SLABadge
-                      status={ticket.sla.estadoResolucion}
-                      remainingMinutes={ticket.sla.tiempoRestanteResolucion}
-                      percentage={ticket.sla.porcentajeConsumidoResolucion}
-                      type="resolucion"
-                      size="sm"
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              {/* CSAT if available */}
-              {ticket.calificacion_csat !== null && (
-                <>
-                  <Separator />
-                  <div>
-                    <span className="text-muted-foreground">Calificación CSAT</span>
-                    <div className="flex gap-0.5 mt-1">
-                      {[1, 2, 3, 4, 5].map(star => (
-                        <Star
-                          key={star}
-                          className={cn(
-                            "w-5 h-5",
-                            star <= (ticket.calificacion_csat || 0)
-                              ? "fill-yellow-400 text-yellow-400"
-                              : "text-muted-foreground/30"
-                          )}
-                        />
-                      ))}
-                    </div>
-                    {ticket.comentario_csat && (
-                      <p className="text-xs mt-1 italic">"{ticket.comentario_csat}"</p>
+                    {newMessage.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-2 text-right">
+                        {newMessage.length} caracteres
+                      </p>
                     )}
                   </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Custodian Info */}
-          {ticket.custodio && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  Información del Custodio
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <div>
-                  <p className="font-medium">{ticket.custodio.nombre}</p>
-                </div>
-                {ticket.custodio.telefono && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Phone className="h-4 w-4" />
-                    <a href={`tel:${ticket.custodio.telefono}`} className="hover:underline">
-                      {ticket.custodio.telefono}
-                    </a>
-                  </div>
-                )}
-                {ticket.custodio.email && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Mail className="h-4 w-4" />
-                    <a href={`mailto:${ticket.custodio.email}`} className="hover:underline">
-                      {ticket.custodio.email}
-                    </a>
-                  </div>
-                )}
-                {ticket.custodio.zona_base && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <MapPin className="h-4 w-4" />
-                    <span>{ticket.custodio.zona_base}</span>
-                  </div>
                 )}
               </CardContent>
             </Card>
-          )}
+          </div>
 
-          {/* Service History */}
-          {serviceHistory.length > 0 && (
+          {/* Right Panel - Info */}
+          <div className="space-y-4">
+            {/* Ticket Details */}
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <History className="h-4 w-4" />
-                  Últimos Servicios
+                  <FileText className="h-4 w-4 text-primary" />
+                  Detalles del Ticket
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {serviceHistory.map(service => (
-                    <div key={service.id} className="text-xs p-2 bg-muted/50 rounded">
-                      <p className="font-medium">{service.cliente}</p>
-                      <p className="text-muted-foreground">
-                        {format(new Date(service.fecha_hora_cita), 'dd/MM/yy', { locale: es })}
-                        {' • '}{service.origen} → {service.destino}
-                      </p>
+              <CardContent className="space-y-4 text-sm">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Creado</span>
+                    <p className="font-medium">
+                      {format(new Date(ticket.created_at), 'dd/MM/yy HH:mm', { locale: es })}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Categoría</span>
+                    <p className="font-medium">
+                      {ticket.categoria_custodio?.nombre || ticket.category || 'General'}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Asignado a</span>
+                    <p className="font-medium">
+                      {ticket.assigned_user?.display_name || 'Sin asignar'}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Fuente</span>
+                    <p className="font-medium capitalize">{ticket.source || 'web'}</p>
+                  </div>
+                  {ticket.monto_reclamado && (
+                    <div className="col-span-2 p-3 bg-muted/50 rounded-lg">
+                      <span className="text-xs text-muted-foreground uppercase tracking-wide">Monto reclamado</span>
+                      <p className="font-bold text-lg text-primary">${ticket.monto_reclamado.toLocaleString()} MXN</p>
                     </div>
-                  ))}
+                  )}
                 </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Other Tickets */}
-          {otherTickets.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  Otros Tickets del Custodio
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {otherTickets.map(t => (
-                    <button
-                      key={t.id}
-                      onClick={() => navigate(`/tickets/${t.id}`)}
-                      className="w-full text-left text-xs p-2 bg-muted/50 rounded hover:bg-accent transition-colors"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono">{t.ticket_number}</span>
-                        <Badge variant="outline" className="text-[10px]">
-                          {statusConfig[t.status as keyof typeof statusConfig]?.label}
-                        </Badge>
+                
+                {/* SLA Details */}
+                <Separator />
+                <div className="space-y-3">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wide">SLA</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-2 bg-muted/30 rounded-lg">
+                      <span className="text-xs">Primera respuesta</span>
+                      <SLABadge
+                        status={ticket.sla.estadoRespuesta}
+                        remainingMinutes={ticket.sla.tiempoRestanteRespuesta}
+                        percentage={ticket.sla.porcentajeConsumidoRespuesta}
+                        type="respuesta"
+                        size="sm"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-2 bg-muted/30 rounded-lg">
+                      <span className="text-xs">Resolución</span>
+                      <SLABadge
+                        status={ticket.sla.estadoResolucion}
+                        remainingMinutes={ticket.sla.tiempoRestanteResolucion}
+                        percentage={ticket.sla.porcentajeConsumidoResolucion}
+                        type="resolucion"
+                        size="sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* CSAT if available */}
+                {ticket.calificacion_csat !== null && (
+                  <>
+                    <Separator />
+                    <div>
+                      <span className="text-xs text-muted-foreground uppercase tracking-wide">Calificación CSAT</span>
+                      <div className="flex gap-0.5 mt-2">
+                        {[1, 2, 3, 4, 5].map(star => (
+                          <Star
+                            key={star}
+                            className={cn(
+                              "w-5 h-5",
+                              star <= (ticket.calificacion_csat || 0)
+                                ? "fill-yellow-400 text-yellow-400"
+                                : "text-muted-foreground/30"
+                            )}
+                          />
+                        ))}
                       </div>
-                      <p className="text-muted-foreground truncate">{t.subject}</p>
-                    </button>
-                  ))}
-                </div>
+                      {ticket.comentario_csat && (
+                        <p className="text-xs mt-2 italic text-muted-foreground bg-muted/30 p-2 rounded">"{ticket.comentario_csat}"</p>
+                      )}
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
-          )}
+
+            {/* Custodian Info */}
+            {ticket.custodio && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <User className="h-4 w-4 text-primary" />
+                    Información del Custodio
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-12 w-12 border-2 border-background shadow">
+                      <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground">
+                        {getInitials(ticket.custodio.nombre)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-semibold">{ticket.custodio.nombre}</p>
+                      {ticket.custodio.zona_base && (
+                        <p className="text-xs text-muted-foreground">{ticket.custodio.zona_base}</p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {ticket.custodio.telefono && (
+                      <a 
+                        href={`tel:${ticket.custodio.telefono}`} 
+                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors p-2 rounded-lg hover:bg-muted/50"
+                      >
+                        <Phone className="h-4 w-4" />
+                        {ticket.custodio.telefono}
+                      </a>
+                    )}
+                    {ticket.custodio.email && (
+                      <a 
+                        href={`mailto:${ticket.custodio.email}`} 
+                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors p-2 rounded-lg hover:bg-muted/50"
+                      >
+                        <Mail className="h-4 w-4" />
+                        {ticket.custodio.email}
+                      </a>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Service History */}
+            {serviceHistory.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <History className="h-4 w-4 text-primary" />
+                    Últimos Servicios
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {serviceHistory.map(service => (
+                      <div key={service.id} className="text-xs p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="font-medium truncate">{service.cliente}</p>
+                          <Badge variant="outline" className="text-[10px]">{service.estado}</Badge>
+                        </div>
+                        <p className="text-muted-foreground">
+                          {format(new Date(service.fecha_hora_cita), 'dd/MM/yy', { locale: es })}
+                          <span className="mx-1">•</span>
+                          {service.origen} → {service.destino}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Other Tickets */}
+            {otherTickets.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-primary" />
+                    Otros Tickets
+                    <Badge variant="secondary" className="ml-auto text-xs">{otherTickets.length}</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {otherTickets.map(t => (
+                      <button
+                        key={t.id}
+                        onClick={() => navigate(`/tickets/${t.id}`)}
+                        className="w-full text-left p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors group"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-xs">{t.ticket_number}</span>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate mt-1">{t.subject}</p>
+                      </button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -3,80 +3,133 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Users, TrendingUp, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { 
+  Tooltip, 
+  TooltipContent, 
+  TooltipProvider, 
+  TooltipTrigger 
+} from "@/components/ui/tooltip";
+import { Users, TrendingUp, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { useAgentWorkload, AgentWorkload } from "@/hooks/useAgentWorkload";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 interface AgentWorkloadPanelProps {
   department?: string;
   compact?: boolean;
 }
 
-const getLoadLevel = (tickets: number, avg: number): 'low' | 'medium' | 'high' => {
-  if (tickets === 0) return 'low';
-  if (tickets <= avg) return 'low';
-  if (tickets <= avg * 1.5) return 'medium';
-  return 'high';
+const getLoadLevel = (tickets: number, avg: number): { level: 'low' | 'medium' | 'high'; color: string; bgColor: string } => {
+  if (tickets === 0) return { level: 'low', color: 'text-emerald-600', bgColor: 'bg-emerald-500' };
+  if (tickets <= avg) return { level: 'low', color: 'text-emerald-600', bgColor: 'bg-emerald-500' };
+  if (tickets <= avg * 1.5) return { level: 'medium', color: 'text-amber-600', bgColor: 'bg-amber-500' };
+  return { level: 'high', color: 'text-red-600', bgColor: 'bg-red-500' };
 };
 
-const loadColors = {
-  low: 'bg-green-500',
-  medium: 'bg-yellow-500',
-  high: 'bg-red-500'
+const getInitials = (name: string): string => {
+  return name
+    .split(' ')
+    .map(n => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
 };
 
-const AgentCard = ({ agent, avgTickets }: { agent: AgentWorkload; avgTickets: number }) => {
-  const loadLevel = getLoadLevel(agent.tickets_activos, avgTickets);
-  const loadPercentage = avgTickets > 0 
-    ? Math.min(100, (agent.tickets_activos / (avgTickets * 2)) * 100)
-    : 0;
+const AgentCard = ({ agent, avgTickets, maxTickets }: { agent: AgentWorkload; avgTickets: number; maxTickets: number }) => {
+  const load = getLoadLevel(agent.tickets_activos, avgTickets);
+  const percentage = maxTickets > 0 ? (agent.tickets_activos / maxTickets) * 100 : 0;
   
   return (
-    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-      <Avatar className="h-9 w-9">
-        <AvatarFallback className="text-xs font-medium bg-primary/10">
-          {agent.display_name.slice(0, 2).toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
-      
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium truncate">{agent.display_name}</span>
-          <div className={cn("w-2 h-2 rounded-full", loadColors[loadLevel])} />
-        </div>
-        <div className="flex items-center gap-2 mt-1">
-          <Progress value={loadPercentage} className="h-1.5 flex-1" />
-          <span className="text-xs text-muted-foreground whitespace-nowrap">
-            {agent.tickets_activos} tickets
-          </span>
-        </div>
-      </div>
-      
-      {agent.avg_age_hours > 24 && (
-        <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
-          {Math.round(agent.avg_age_hours)}h avg
-        </Badge>
-      )}
-    </div>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-all duration-200 cursor-default group">
+            <div className="relative">
+              <Avatar className="h-10 w-10 border-2 border-background shadow-sm">
+                <AvatarFallback className="text-xs font-semibold bg-gradient-to-br from-primary/80 to-primary text-primary-foreground">
+                  {getInitials(agent.display_name)}
+                </AvatarFallback>
+              </Avatar>
+              {/* Online indicator */}
+              <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-background" />
+            </div>
+            
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-sm font-medium truncate group-hover:text-primary transition-colors">
+                  {agent.display_name}
+                </span>
+                <Badge 
+                  variant="secondary" 
+                  className={cn(
+                    "text-xs font-semibold px-2 py-0.5 rounded-full",
+                    load.level === 'high' && "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400",
+                    load.level === 'medium' && "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400",
+                    load.level === 'low' && "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
+                  )}
+                >
+                  {agent.tickets_activos}
+                </Badge>
+              </div>
+              
+              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-all duration-500",
+                    load.bgColor
+                  )}
+                  style={{ width: `${Math.min(percentage, 100)}%` }}
+                />
+              </div>
+            </div>
+            
+            {agent.avg_age_hours > 24 && (
+              <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300 shrink-0">
+                {Math.round(agent.avg_age_hours)}h
+              </Badge>
+            )}
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="left">
+          <p className="font-medium">{agent.display_name}</p>
+          <p className="text-xs text-muted-foreground">
+            {agent.tickets_activos} tickets activos
+            {load.level === 'high' && ' • Carga alta'}
+            {load.level === 'medium' && ' • Carga moderada'}
+            {load.level === 'low' && ' • Carga baja'}
+          </p>
+          {agent.avg_age_hours > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Edad promedio: {Math.round(agent.avg_age_hours)}h
+            </p>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 
 export const AgentWorkloadPanel = ({ department, compact = false }: AgentWorkloadPanelProps) => {
   const { agents, stats, loading, getAgentsByDepartment } = useAgentWorkload();
+  const [expanded, setExpanded] = useState(false);
   
   const displayAgents = department && department !== 'todos'
     ? getAgentsByDepartment(department)
     : agents;
+    
+  const maxTickets = Math.max(...displayAgents.map(a => a.tickets_activos), 1);
+  const highLoadAgents = displayAgents.filter(a => a.tickets_activos > stats.avgTicketsPerAgent * 1.5).length;
 
   if (loading) {
     return (
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader className="pb-3">
-          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-5 w-36" />
         </CardHeader>
         <CardContent className="space-y-3">
           {[1, 2, 3].map(i => (
-            <Skeleton key={i} className="h-16 w-full" />
+            <Skeleton key={i} className="h-16 w-full rounded-xl" />
           ))}
         </CardContent>
       </Card>
@@ -85,66 +138,112 @@ export const AgentWorkloadPanel = ({ department, compact = false }: AgentWorkloa
 
   if (compact) {
     return (
-      <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
-        <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">{stats.totalAgents} agentes</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm">
-            {stats.avgTicketsPerAgent} tickets/agente promedio
-          </span>
-        </div>
-        {stats.mostLoadedAgent && stats.mostLoadedAgent.tickets_activos > stats.avgTicketsPerAgent * 1.5 && (
-          <div className="flex items-center gap-2 text-amber-600">
-            <AlertCircle className="h-4 w-4" />
-            <span className="text-sm">
-              {stats.mostLoadedAgent.display_name} sobrecargado
-            </span>
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 text-sm">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Users className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <span className="font-semibold">{stats.totalAgents}</span>
+                <span className="text-muted-foreground ml-1">agentes</span>
+              </div>
+              <span className="text-muted-foreground">•</span>
+              <span>{stats.totalActiveTickets} activos</span>
+            </div>
+            {highLoadAgents > 0 && (
+              <Badge variant="destructive" className="gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {highLoadAgents}
+              </Badge>
+            )}
           </div>
-        )}
-      </div>
+        </CardContent>
+      </Card>
     );
   }
 
+  const visibleAgents = expanded ? displayAgents : displayAgents.slice(0, 4);
+
   return (
-    <Card>
+    <Card className="h-full overflow-hidden">
+      {/* Gradient accent */}
+      <div className="h-1 bg-gradient-to-r from-primary via-primary/70 to-primary/40" />
+      
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-medium flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Carga de Agentes
-            {department && department !== 'todos' && (
-              <Badge variant="outline" className="ml-2 capitalize">
-                {department}
-              </Badge>
-            )}
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-primary/10">
+              <Users className="h-4 w-4 text-primary" />
+            </div>
+            Carga de Trabajo
           </CardTitle>
-          <div className="text-xs text-muted-foreground">
-            {stats.totalActiveTickets} tickets activos
+          {highLoadAgents > 0 && (
+            <Badge variant="destructive" className="gap-1 text-xs animate-pulse">
+              <AlertCircle className="h-3 w-3" />
+              {highLoadAgents} alto
+            </Badge>
+          )}
+        </div>
+        
+        {/* Summary Stats Grid */}
+        <div className="grid grid-cols-3 gap-2 mt-4">
+          <div className="text-center p-2.5 bg-muted/50 rounded-xl">
+            <p className="text-2xl font-bold text-foreground">{stats.totalAgents}</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Agentes</p>
+          </div>
+          <div className="text-center p-2.5 bg-muted/50 rounded-xl">
+            <p className="text-2xl font-bold text-foreground">{stats.totalActiveTickets}</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Activos</p>
+          </div>
+          <div className="text-center p-2.5 bg-muted/50 rounded-xl">
+            <p className="text-2xl font-bold text-foreground">{stats.avgTicketsPerAgent.toFixed(1)}</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Promedio</p>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-2">
+      
+      <CardContent className="space-y-2 pt-0">
         {displayAgents.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            No hay agentes disponibles para este departamento
-          </p>
+          <div className="text-center py-8">
+            <Users className="h-10 w-10 mx-auto text-muted-foreground/30 mb-2" />
+            <p className="text-sm text-muted-foreground">
+              No hay agentes disponibles
+            </p>
+          </div>
         ) : (
-          displayAgents.slice(0, 5).map(agent => (
-            <AgentCard 
-              key={agent.agent_id} 
-              agent={agent} 
-              avgTickets={stats.avgTicketsPerAgent}
-            />
-          ))
-        )}
-        
-        {displayAgents.length > 5 && (
-          <p className="text-xs text-muted-foreground text-center pt-2">
-            +{displayAgents.length - 5} agentes más
-          </p>
+          <>
+            {visibleAgents.map(agent => (
+              <AgentCard 
+                key={agent.agent_id} 
+                agent={agent} 
+                avgTickets={stats.avgTicketsPerAgent}
+                maxTickets={maxTickets}
+              />
+            ))}
+            
+            {displayAgents.length > 4 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full mt-2 text-muted-foreground hover:text-foreground"
+                onClick={() => setExpanded(!expanded)}
+              >
+                {expanded ? (
+                  <>
+                    <ChevronUp className="h-4 w-4 mr-1" />
+                    Ver menos
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-4 w-4 mr-1" />
+                    Ver {displayAgents.length - 4} más
+                  </>
+                )}
+              </Button>
+            )}
+          </>
         )}
       </CardContent>
     </Card>
