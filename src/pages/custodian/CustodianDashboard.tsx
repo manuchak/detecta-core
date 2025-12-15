@@ -7,8 +7,16 @@ import { useCustodianServices } from "@/hooks/useCustodianServices";
 import { useCustodianTickets } from "@/hooks/useCustodianTickets";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
+import { useIsMobile } from "@/hooks/use-mobile";
+import MobileDashboardLayout from "@/components/custodian/MobileDashboardLayout";
 
 const CustodianDashboard = () => {
+  const isMobile = useIsMobile();
+
+  // En móvil, mostrar layout simplificado tipo app de chofer
+  if (isMobile) {
+    return <MobileDashboardLayout />;
+  }
   const { toast } = useToast();
   const { profile, loading: profileLoading, updateAvailability } = useCustodianProfile();
   const { services, stats, loading: servicesLoading, getRecentServices, getUpcomingServices } = useCustodianServices(profile?.phone);
