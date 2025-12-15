@@ -7,6 +7,7 @@ interface MonthlyStatsSummaryProps {
   kmRecorridos: number;
   ingresosTotales: number;
   ratingPromedio?: number;
+  showRating?: boolean;
 }
 
 const MonthlyStatsSummary = ({
@@ -15,13 +16,14 @@ const MonthlyStatsSummary = ({
   kmRecorridos,
   ingresosTotales,
   ratingPromedio = 4.5,
+  showRating = false,
 }: MonthlyStatsSummaryProps) => {
   const serviciosDiff = serviciosMesAnterior > 0 
     ? Math.round(((serviciosEsteMes - serviciosMesAnterior) / serviciosMesAnterior) * 100) 
     : 0;
   const isPositive = serviciosDiff >= 0;
 
-  const stats = [
+  const allStats = [
     {
       icon: Briefcase,
       value: serviciosEsteMes,
@@ -31,6 +33,7 @@ const MonthlyStatsSummary = ({
       bgColor: "bg-blue-500/10",
       borderColor: "border-blue-500/20",
       trend: serviciosDiff !== 0 ? { value: serviciosDiff, positive: isPositive } : null,
+      id: 'servicios',
     },
     {
       icon: MapPin,
@@ -40,6 +43,7 @@ const MonthlyStatsSummary = ({
       color: "text-purple-600",
       bgColor: "bg-purple-500/10",
       borderColor: "border-purple-500/20",
+      id: 'km',
     },
     {
       icon: DollarSign,
@@ -49,6 +53,7 @@ const MonthlyStatsSummary = ({
       color: "text-green-600",
       bgColor: "bg-green-500/10",
       borderColor: "border-green-500/20",
+      id: 'ingresos',
     },
     {
       icon: Star,
@@ -58,8 +63,11 @@ const MonthlyStatsSummary = ({
       color: "text-amber-600",
       bgColor: "bg-amber-500/10",
       borderColor: "border-amber-500/20",
+      id: 'rating',
     },
   ];
+
+  const stats = showRating ? allStats : allStats.filter(s => s.id !== 'rating');
 
   return (
     <div className="grid grid-cols-2 gap-3">
