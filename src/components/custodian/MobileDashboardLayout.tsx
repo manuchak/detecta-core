@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useCustodianProfile } from "@/hooks/useCustodianProfile";
 import { useCustodianServices } from "@/hooks/useCustodianServices";
 import { useCustodianTickets } from "@/hooks/useCustodianTickets";
+import { useCustodianTicketsEnhanced, CustodianTicket } from "@/hooks/useCustodianTicketsEnhanced";
 import { useCustodianMaintenance } from "@/hooks/useCustodianMaintenance";
 import { useCustodioIndisponibilidades } from "@/hooks/useCustodioIndisponibilidades";
 import { useToast } from "@/hooks/use-toast";
@@ -10,9 +11,11 @@ import DashboardHeroAlert from "./DashboardHeroAlert";
 import CompactStatsBar from "./CompactStatsBar";
 import QuickActionsGrid from "./QuickActionsGrid";
 import RecentServicesCollapsible from "./RecentServicesCollapsible";
+import ResolvedTicketAlert from "./ResolvedTicketAlert";
 import UnavailabilityStatusBanner from "./UnavailabilityStatusBanner";
 import MobileBottomNavNew, { NavItem } from "./MobileBottomNavNew";
 import BatchMaintenanceDialog from "./BatchMaintenanceDialog";
+import { CustodianTicketDetail } from "./CustodianTicketDetail";
 import { RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -23,12 +26,15 @@ const MobileDashboardLayout = () => {
   const { profile, loading: profileLoading } = useCustodianProfile();
   const { services, stats, loading: servicesLoading, getRecentServices } = useCustodianServices(profile?.phone);
   const { stats: ticketStats, loading: ticketsLoading } = useCustodianTickets(profile?.phone);
+  const { getRecentlyResolvedTickets, markTicketAsSeen } = useCustodianTicketsEnhanced(profile?.phone);
   const { maintenanceStatus, pendingMaintenance, createMaintenance, loading: maintenanceLoading } = useCustodianMaintenance(profile?.phone, stats.km_totales);
   const { crearIndisponibilidad, cancelarIndisponibilidad, custodioTieneIndisponibilidadActiva } = useCustodioIndisponibilidades();
   
   const [activeNav, setActiveNav] = useState<NavItem>('home');
   const [refreshing, setRefreshing] = useState(false);
   const [showBatchDialog, setShowBatchDialog] = useState(false);
+  const [selectedResolvedTicket, setSelectedResolvedTicket] = useState<CustodianTicket | null>(null);
+  const [dismissedTickets, setDismissedTickets] = useState<Set<string>>(new Set());
 
   const loading = profileLoading || servicesLoading || ticketsLoading || maintenanceLoading;
 
@@ -83,6 +89,38 @@ const MobileDashboardLayout = () => {
 
   const recentServices = getRecentServices(5);
   const currentMonth = format(new Date(), 'MMMM yyyy', { locale: es });
+  
+  // Get resolved tickets not dismissed
+  const resolvedTicketsToShow = getRecentlyResolvedTickets(48).filter(t => !dismissedTickets.has(t.id));
+
+  const handleViewResolvedTicket = (ticket: CustodianTicket) => {
+    setSelectedResolvedTicket(ticket);
+  };
+
+  const handleDismissTicket = (ticketId: string) => {
+    setDismissedTickets(prev => new Set(prev).add(ticketId));
+    markTicketAsSeen(ticketId);
+  };
+
+  // Show ticket detail if selected
+  if (selectedResolvedTicket && profile?.phone) {
+    return (
+      <div className="min-h-screen bg-background pb-24">
+        <main className="px-5 py-4">
+          <CustodianTicketDetail
+            ticket={selectedResolvedTicket}
+            custodianPhone={profile.phone}
+            onBack={() => setSelectedResolvedTicket(null)}
+          />
+        </main>
+        <MobileBottomNavNew
+          activeItem="support"
+          onNavigate={handleNavigation}
+          pendingCount={ticketStats?.abiertos || 0}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -109,6 +147,17 @@ const MobileDashboardLayout = () => {
 
       {/* Content */}
       <main className="px-5 py-4 space-y-4">
+        {/* Resolved ticket alert - Good news first! */}
+        {resolvedTicketsToShow.length > 0 && (
+          <section className="animate-fade-in">
+            <ResolvedTicketAlert
+              tickets={resolvedTicketsToShow}
+              onViewTicket={handleViewResolvedTicket}
+              onDismiss={handleDismissTicket}
+            />
+          </section>
+        )}
+
         {/* Banner de indisponibilidad si existe */}
         {currentUnavailability && (
           <UnavailabilityStatusBanner
@@ -119,7 +168,7 @@ const MobileDashboardLayout = () => {
         )}
 
         {/* Hero Alert - Lo más importante primero */}
-        <section className="animate-fade-in">
+        <section className="animate-fade-in" style={{ animationDelay: resolvedTicketsToShow.length > 0 ? '50ms' : '0ms' }}>
           <DashboardHeroAlert
             maintenanceStatus={maintenanceStatus}
             onRegisterService={() => setShowBatchDialog(true)}

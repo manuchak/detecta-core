@@ -1,4 +1,4 @@
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Star } from 'lucide-react';
 import { CustodianTicket } from '@/hooks/useCustodianTicketsEnhanced';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -23,10 +23,17 @@ export const SimpleTicketCard = ({ ticket, onClick }: SimpleTicketCardProps) => 
     locale: es 
   });
 
+  const needsRating = ticket.status === 'resuelto' && ticket.calificacion_csat === null;
+
   return (
     <button
       onClick={onClick}
-      className="w-full bg-card border border-border rounded-2xl p-4 text-left transition-all active:scale-[0.98] hover:border-primary/50 touch-manipulation"
+      className={cn(
+        "w-full bg-card border rounded-2xl p-4 text-left transition-all active:scale-[0.98] touch-manipulation",
+        needsRating 
+          ? "border-green-500/50 hover:border-green-500 ring-2 ring-green-500/20" 
+          : "border-border hover:border-primary/50"
+      )}
     >
       <div className="flex items-start gap-3">
         {/* Status emoji */}
@@ -45,6 +52,12 @@ export const SimpleTicketCard = ({ ticket, onClick }: SimpleTicketCardProps) => 
             )}>
               {status.label}
             </span>
+            {needsRating && (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 animate-pulse">
+                <Star className="w-3 h-3" />
+                Calificar
+              </span>
+            )}
           </div>
           
           {/* Description preview */}

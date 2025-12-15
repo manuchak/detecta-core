@@ -8,12 +8,15 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   ArrowLeft, Clock, Calendar, DollarSign, Truck,
   Send, Paperclip, Loader2, CheckCircle, AlertTriangle,
-  User, Headphones, Bot, ImageIcon, X
+  User, Headphones, Bot, ImageIcon, X, Star
 } from 'lucide-react';
 import { CustodianTicket, TicketRespuesta, useCustodianTicketsEnhanced } from '@/hooks/useCustodianTicketsEnhanced';
 import { format, formatDistanceToNow, isPast } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import TicketResolvedCelebration from './TicketResolvedCelebration';
+import CSATSurveyModal from './CSATSurveyModal';
+import ResponseRatingButtons from './ResponseRatingButtons';
 
 interface CustodianTicketDetailProps {
   ticket: CustodianTicket;
@@ -35,13 +38,26 @@ const autorIcons = {
 };
 
 export const CustodianTicketDetail = ({ ticket, custodianPhone, onBack }: CustodianTicketDetailProps) => {
-  const { getTicketResponses, addResponse } = useCustodianTicketsEnhanced(custodianPhone);
+  const { 
+    getTicketResponses, 
+    addResponse, 
+    submitCSATRating,
+    rateResponse,
+    getResponseRatings,
+    markTicketAsSeen
+  } = useCustodianTicketsEnhanced(custodianPhone);
   
   const [respuestas, setRespuestas] = useState<TicketRespuesta[]>([]);
+  const [responseRatings, setResponseRatings] = useState<Map<string, boolean>>(new Map());
   const [loadingResponses, setLoadingResponses] = useState(true);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [adjuntos, setAdjuntos] = useState<File[]>([]);
+  
+  // CSAT state
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [showCSATModal, setShowCSATModal] = useState(false);
+  const [hasSeenResolution, setHasSeenResolution] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -54,9 +70,17 @@ export const CustodianTicketDetail = ({ ticket, custodianPhone, onBack }: Custod
     !['resuelto', 'cerrado'].includes(ticket.status);
 
   const canRespond = !['resuelto', 'cerrado'].includes(ticket.status);
+  const needsCSAT = ticket.status === 'resuelto' && ticket.calificacion_csat === null;
 
   useEffect(() => {
     loadResponses();
+    loadResponseRatings();
+    
+    // Check if should show celebration
+    if (needsCSAT && !ticket.csat_visto_at && !hasSeenResolution) {
+      setShowCelebration(true);
+      markTicketAsSeen(ticket.id);
+    }
   }, [ticket.id]);
 
   const loadResponses = async () => {
@@ -69,6 +93,26 @@ export const CustodianTicketDetail = ({ ticket, custodianPhone, onBack }: Custod
     setTimeout(() => {
       scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
     }, 100);
+  };
+
+  const loadResponseRatings = async () => {
+    const ratings = await getResponseRatings(ticket.id);
+    setResponseRatings(ratings);
+  };
+
+  const handleCelebrationComplete = () => {
+    setShowCelebration(false);
+    setHasSeenResolution(true);
+    setShowCSATModal(true);
+  };
+
+  const handleCSATSubmit = async (rating: number, resolved: boolean, comment?: string) => {
+    await submitCSATRating(ticket.id, rating, resolved, comment);
+  };
+
+  const handleRateResponse = async (respuestaId: string, helpful: boolean) => {
+    await rateResponse(respuestaId, ticket.id, helpful);
+    setResponseRatings(prev => new Map(prev).set(respuestaId, helpful));
   };
 
   const handleSendMessage = async () => {
@@ -94,8 +138,21 @@ export const CustodianTicketDetail = ({ ticket, custodianPhone, onBack }: Custod
     setAdjuntos(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Show celebration overlay
+  if (showCelebration) {
+    return <TicketResolvedCelebration ticket={ticket} onComplete={handleCelebrationComplete} />;
+  }
+
   return (
     <div className="space-y-4">
+      {/* CSAT Modal */}
+      <CSATSurveyModal
+        open={showCSATModal}
+        onClose={() => setShowCSATModal(false)}
+        onSubmit={handleCSATSubmit}
+        ticketNumber={ticket.ticket_number}
+      />
+
       {/* Header */}
       <Card>
         <CardHeader className="pb-3">
@@ -137,6 +194,48 @@ export const CustodianTicketDetail = ({ ticket, custodianPhone, onBack }: Custod
         </CardHeader>
         
         <CardContent className="space-y-4">
+          {/* CSAT reminder banner */}
+          {needsCSAT && !showCSATModal && (
+            <button
+              onClick={() => setShowCSATModal(true)}
+              className="w-full p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg text-left hover:bg-green-100 dark:hover:bg-green-950/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <Star className="w-5 h-5 text-green-600" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                    ¿Quedaste satisfecho?
+                  </p>
+                  <p className="text-xs text-green-600 dark:text-green-400">
+                    Toca aquí para calificar la resolución
+                  </p>
+                </div>
+              </div>
+            </button>
+          )}
+
+          {/* Already rated display */}
+          {ticket.calificacion_csat !== null && (
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Tu calificación:</span>
+                <div className="flex gap-0.5">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <Star
+                      key={star}
+                      className={cn(
+                        "w-4 h-4",
+                        star <= (ticket.calificacion_csat || 0)
+                          ? "fill-yellow-400 text-yellow-400"
+                          : "text-muted-foreground"
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Description */}
           <div className="p-4 bg-muted/50 rounded-lg">
             <p className="text-sm whitespace-pre-wrap">{ticket.description}</p>
@@ -210,6 +309,7 @@ export const CustodianTicketDetail = ({ ticket, custodianPhone, onBack }: Custod
                 {respuestas.map(resp => {
                   const AutorIcon = autorIcons[resp.autor_tipo];
                   const isAgent = resp.autor_tipo === 'agente';
+                  const existingRating = responseRatings.get(resp.id);
                   
                   return (
                     <div
@@ -254,10 +354,21 @@ export const CustodianTicketDetail = ({ ticket, custodianPhone, onBack }: Custod
                           )}
                         </div>
                         
-                        <span className="text-xs text-muted-foreground px-1">
-                          {resp.autor_nombre || (isAgent ? 'Agente' : 'Tú')} • 
-                          {formatDistanceToNow(new Date(resp.created_at), { addSuffix: true, locale: es })}
-                        </span>
+                        <div className="flex items-center justify-between px-1">
+                          <span className="text-xs text-muted-foreground">
+                            {resp.autor_nombre || (isAgent ? 'Agente' : 'Tú')} • 
+                            {formatDistanceToNow(new Date(resp.created_at), { addSuffix: true, locale: es })}
+                          </span>
+                          
+                          {/* Rating buttons for agent responses */}
+                          {isAgent && (
+                            <ResponseRatingButtons
+                              respuestaId={resp.id}
+                              existingRating={existingRating}
+                              onRate={handleRateResponse}
+                            />
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
