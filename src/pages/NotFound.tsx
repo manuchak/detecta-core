@@ -14,6 +14,25 @@ const NotFound = () => {
     );
   }, [location.pathname]);
 
+  // Detectar contexto basado en la ruta intentada
+  const isCustodianContext = location.pathname.startsWith('/custodian');
+  const isInstallerContext = location.pathname.startsWith('/installer');
+  const isAdminContext = location.pathname.startsWith('/admin');
+
+  // Determinar la ruta de "inicio" correcta según el contexto
+  const getHomeRoute = () => {
+    if (isCustodianContext) return '/custodian';
+    if (isInstallerContext) return '/installer-portal';
+    if (isAdminContext) return '/dashboard';
+    return '/';
+  };
+
+  const getHomeLabel = () => {
+    if (isCustodianContext) return 'Mi Portal';
+    if (isInstallerContext) return 'Portal Instalador';
+    return 'Ir al inicio';
+  };
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -41,9 +60,9 @@ const NotFound = () => {
             {/* Action Buttons */}
             <div className="space-y-3 pt-2">
               <Button asChild className="w-full">
-                <Link to="/">
+                <Link to={getHomeRoute()}>
                   <Home className="w-4 h-4 mr-2" />
-                  Ir al inicio
+                  {getHomeLabel()}
                 </Link>
               </Button>
               
@@ -66,7 +85,7 @@ const NotFound = () => {
                   Ayuda
                 </Link>
                 <Link 
-                  to="/" 
+                  to={getHomeRoute()} 
                   className="flex items-center hover:text-foreground transition-colors"
                 >
                   <Search className="w-3 h-3 mr-1" />
