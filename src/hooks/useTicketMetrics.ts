@@ -69,13 +69,12 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
       const startStr = format(startDate, 'yyyy-MM-dd');
       const endStr = format(endDate, 'yyyy-MM-dd');
 
-      // Fetch tickets with related data
+      // Fetch tickets with related data (sin JOIN a profiles)
       let query = supabase
         .from('tickets')
         .select(`
           *,
-          categoria:ticket_categorias_custodio(nombre, color, departamento_responsable),
-          assigned:profiles!tickets_assigned_to_fkey(full_name)
+          categoria:ticket_categorias_custodio(nombre, color, departamento_responsable)
         `)
         .gte('created_at', startStr)
         .lte('created_at', endStr + 'T23:59:59');
@@ -91,6 +90,19 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
       const { data: tickets, error: ticketsError } = await query;
 
       if (ticketsError) throw ticketsError;
+
+      // Fetch agent names separately
+      const agentIds = [...new Set((tickets || []).map(t => t.assigned_to).filter(Boolean))];
+      const agentNamesMap = new Map<string, string>();
+
+      if (agentIds.length > 0) {
+        const { data: agents } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', agentIds);
+        
+        (agents || []).forEach(a => agentNamesMap.set(a.id, a.full_name || 'Sin nombre'));
+      }
 
       // Fetch responses for first response time
       const ticketIds = (tickets || []).map(t => t.id);
@@ -218,7 +230,7 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
         if (!ticket.assigned_to) return;
 
         const agentData = agentMap.get(ticket.assigned_to) || {
-          nombre: ticket.assigned?.full_name || 'Sin nombre',
+          nombre: agentNamesMap.get(ticket.assigned_to) || 'Sin nombre',
           assigned: 0,
           resolved: 0,
           totalResponse: 0,
