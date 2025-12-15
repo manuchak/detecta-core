@@ -24,7 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronRight, ChevronLeft, Plus, Search, RefreshCw, Eye, Sparkles } from "lucide-react";
+import { ChevronRight, ChevronLeft, Plus, Search, RefreshCw, Eye, Sparkles, BarChart3 } from "lucide-react";
 import { useTicketsEnhanced, type TicketEnhanced } from "@/hooks/useTicketsEnhanced";
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
@@ -38,7 +38,10 @@ import { DepartmentPills, DEPARTMENTS } from "@/components/tickets/DepartmentPil
 import { AgentWorkloadPanel } from "@/components/tickets/AgentWorkloadPanel";
 import { TicketCardMobile } from "@/components/tickets/TicketCardMobile";
 import { TicketFiltersSheet } from "@/components/tickets/TicketFiltersSheet";
+import { TicketDashboardCharts } from "@/components/tickets/TicketDashboardCharts";
+import { TicketSLAMetricsByPeriod } from "@/components/tickets/TicketSLAMetricsByPeriod";
 import { useAgentWorkload } from "@/hooks/useAgentWorkload";
+import { useTicketMetrics } from "@/hooks/useTicketMetrics";
 import { cn } from "@/lib/utils";
 
 const priorityBadgeStyles = {
@@ -74,6 +77,7 @@ export const TicketsList = () => {
   } = useTicketsEnhanced();
   
   const { agents: workloadAgents } = useAgentWorkload();
+  const { metrics: ticketMetrics, loading: metricsLoading } = useTicketMetrics();
   
   // Filter only planners for assignment
   const planificadores = useMemo(() => {
@@ -197,16 +201,42 @@ export const TicketsList = () => {
         </section>
         
         {/* KPIs Section */}
-        <section className="space-y-3">
+        <section className="space-y-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
             Estado del Soporte
           </h2>
+          
+          {/* Row 1: SLA KPIs + Workload Panel (collapsible) */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2">
               <TicketSLAKPIs tickets={ticketsWithSLA} loading={loading} />
             </div>
-            <AgentWorkloadPanel department={departmentFilter} compact={false} />
+            <AgentWorkloadPanel department={departmentFilter} compact={false} defaultCollapsed={true} />
+          </div>
+          
+          {/* Row 2: SLA Metrics by Period */}
+          <TicketSLAMetricsByPeriod 
+            tickets={tickets.map(t => ({
+              created_at: t.created_at,
+              sla_deadline_resolucion: t.fecha_sla_resolucion,
+              resolved_at: t.resuelto_at,
+              status: t.status
+            }))} 
+            loading={loading} 
+          />
+          
+          {/* Row 3: Charts */}
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              Análisis de Tickets
+            </h2>
+            <TicketDashboardCharts 
+              ticketsByDay={ticketMetrics?.ticketsByDay || []}
+              ticketsByDepartment={ticketMetrics?.ticketsByDepartment || []}
+              loading={metricsLoading}
+            />
           </div>
         </section>
         

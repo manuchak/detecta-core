@@ -18,6 +18,7 @@ import { useState } from "react";
 interface AgentWorkloadPanelProps {
   department?: string;
   compact?: boolean;
+  defaultCollapsed?: boolean;
 }
 
 const getLoadLevel = (tickets: number, avg: number): { level: 'low' | 'medium' | 'high'; color: string; bgColor: string } => {
@@ -110,9 +111,16 @@ const AgentCard = ({ agent, avgTickets, maxTickets }: { agent: AgentWorkload; av
   );
 };
 
-export const AgentWorkloadPanel = ({ department, compact = false }: AgentWorkloadPanelProps) => {
+interface AgentWorkloadPanelProps {
+  department?: string;
+  compact?: boolean;
+  defaultCollapsed?: boolean;
+}
+
+export const AgentWorkloadPanel = ({ department, compact = false, defaultCollapsed = false }: AgentWorkloadPanelProps) => {
   const { agents, stats, loading, getAgentsByDepartment } = useAgentWorkload();
   const [expanded, setExpanded] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   
   const displayAgents = department && department !== 'todos'
     ? getAgentsByDepartment(department)
@@ -166,6 +174,57 @@ export const AgentWorkloadPanel = ({ department, compact = false }: AgentWorkloa
 
   const visibleAgents = expanded ? displayAgents : displayAgents.slice(0, 4);
 
+  // Collapsed state - shows summary only
+  if (isCollapsed) {
+    return (
+      <Card className="overflow-hidden">
+        <div className="h-1 bg-gradient-to-r from-primary via-primary/70 to-primary/40" />
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-primary/10">
+                <Users className="h-4 w-4 text-primary" />
+              </div>
+              Carga de Trabajo
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              {highLoadAgents > 0 && (
+                <Badge variant="destructive" className="gap-1 text-xs">
+                  <AlertCircle className="h-3 w-3" />
+                  {highLoadAgents}
+                </Badge>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0"
+                onClick={() => setIsCollapsed(false)}
+              >
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          
+          {/* Compact Summary Stats */}
+          <div className="grid grid-cols-3 gap-2 mt-3">
+            <div className="text-center p-2 bg-muted/50 rounded-lg">
+              <p className="text-lg font-bold text-foreground">{stats.totalAgents}</p>
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Agentes</p>
+            </div>
+            <div className="text-center p-2 bg-muted/50 rounded-lg">
+              <p className="text-lg font-bold text-foreground">{stats.totalActiveTickets}</p>
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Activos</p>
+            </div>
+            <div className="text-center p-2 bg-muted/50 rounded-lg">
+              <p className="text-lg font-bold text-foreground">{stats.avgTicketsPerAgent.toFixed(1)}</p>
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Promedio</p>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+    );
+  }
+
   return (
     <Card className="h-full overflow-hidden">
       {/* Gradient accent */}
@@ -179,12 +238,22 @@ export const AgentWorkloadPanel = ({ department, compact = false }: AgentWorkloa
             </div>
             Carga de Trabajo
           </CardTitle>
-          {highLoadAgents > 0 && (
-            <Badge variant="destructive" className="gap-1 text-xs animate-pulse">
-              <AlertCircle className="h-3 w-3" />
-              {highLoadAgents} alto
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {highLoadAgents > 0 && (
+              <Badge variant="destructive" className="gap-1 text-xs animate-pulse">
+                <AlertCircle className="h-3 w-3" />
+                {highLoadAgents} alto
+              </Badge>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={() => setIsCollapsed(true)}
+            >
+              <ChevronUp className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         
         {/* Summary Stats Grid */}
