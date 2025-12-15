@@ -1,6 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, Clock, Timer, CheckCircle, TrendingUp } from 'lucide-react';
+import { AlertTriangle, Clock, Timer, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SLAInfo } from '@/hooks/useTicketSLA';
 
@@ -18,8 +18,6 @@ export const TicketSLAKPIs = ({ tickets, loading }: TicketSLAKPIsProps) => {
   const enTiempo = activeTickets.filter(t => t.sla.estadoGeneral === 'en_tiempo').length;
   
   // Calculate SLA compliance for resolved tickets this month
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const resolvedThisMonth = tickets.filter(t => 
     ['resuelto', 'cerrado'].includes(t.status) && 
     t.sla.estadoResolucion !== 'sin_sla'
@@ -34,48 +32,56 @@ export const TicketSLAKPIs = ({ tickets, loading }: TicketSLAKPIsProps) => {
       label: 'SLA Vencidos',
       value: vencidos,
       icon: AlertTriangle,
-      className: vencidos > 0 
-        ? 'text-red-600 bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800' 
-        : 'text-muted-foreground bg-muted/50',
-      pulse: vencidos > 0,
-      highlight: vencidos > 0
+      gradient: vencidos > 0 
+        ? 'from-red-500 to-rose-600' 
+        : 'from-gray-400 to-gray-500',
+      bgGlow: vencidos > 0 ? 'shadow-red-500/20' : '',
+      highlight: vencidos > 0,
+      pulse: vencidos > 0
     },
     {
       label: 'Próximos a vencer',
       value: proximosVencer,
       icon: Timer,
-      className: proximosVencer > 0 
-        ? 'text-yellow-600 bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800' 
-        : 'text-muted-foreground bg-muted/50',
+      gradient: proximosVencer > 0 
+        ? 'from-amber-500 to-orange-500' 
+        : 'from-gray-400 to-gray-500',
+      bgGlow: proximosVencer > 0 ? 'shadow-amber-500/20' : '',
       subtitle: '< 4 horas'
     },
     {
       label: 'En tiempo',
       value: enTiempo,
       icon: Clock,
-      className: 'text-green-600 bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800'
+      gradient: 'from-emerald-500 to-green-600',
+      bgGlow: 'shadow-emerald-500/20'
     },
     {
       label: 'Cumplimiento SLA',
       value: `${cumplimientoSLA}%`,
       icon: TrendingUp,
-      className: cumplimientoSLA >= 90 
-        ? 'text-green-600 bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800'
+      gradient: cumplimientoSLA >= 90 
+        ? 'from-emerald-500 to-green-600'
         : cumplimientoSLA >= 75 
-          ? 'text-yellow-600 bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800'
-          : 'text-red-600 bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800',
+          ? 'from-amber-500 to-orange-500'
+          : 'from-red-500 to-rose-600',
+      bgGlow: cumplimientoSLA >= 90 
+        ? 'shadow-emerald-500/20' 
+        : cumplimientoSLA >= 75 
+          ? 'shadow-amber-500/20' 
+          : 'shadow-red-500/20',
       subtitle: 'Este mes'
     }
   ];
 
   if (loading) {
     return (
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         {[1, 2, 3, 4].map(i => (
-          <Card key={i}>
-            <CardContent className="p-4">
-              <Skeleton className="h-4 w-24 mb-2" />
-              <Skeleton className="h-8 w-16" />
+          <Card key={i} className="overflow-hidden">
+            <CardContent className="p-6">
+              <Skeleton className="h-5 w-28 mb-3" />
+              <Skeleton className="h-10 w-20" />
             </CardContent>
           </Card>
         ))}
@@ -84,36 +90,51 @@ export const TicketSLAKPIs = ({ tickets, loading }: TicketSLAKPIsProps) => {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-4">
+    <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
       {kpis.map((kpi, index) => {
         const Icon = kpi.icon;
         return (
           <Card 
             key={index}
             className={cn(
-              'border transition-all',
-              kpi.className,
+              'relative overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-lg',
+              kpi.bgGlow && `shadow-lg ${kpi.bgGlow}`,
               kpi.pulse && 'animate-pulse'
             )}
+            style={{ animationDuration: '2s' }}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium opacity-80">{kpi.label}</p>
+            {/* Gradient accent top border */}
+            <div className={cn(
+              'absolute top-0 left-0 right-0 h-1 bg-gradient-to-r',
+              kpi.gradient
+            )} />
+            
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {kpi.label}
+                  </p>
                   {kpi.subtitle && (
-                    <p className="text-[10px] opacity-60">{kpi.subtitle}</p>
+                    <p className="text-xs text-muted-foreground/70">{kpi.subtitle}</p>
                   )}
                   <p className={cn(
-                    'text-2xl font-bold mt-1',
+                    'text-4xl font-bold tracking-tight mt-2',
                     kpi.highlight && 'text-red-600 dark:text-red-400'
                   )}>
                     {kpi.value}
                   </p>
                 </div>
-                <Icon className={cn(
-                  'h-8 w-8 opacity-40',
-                  kpi.highlight && 'opacity-80 animate-bounce'
-                )} />
+                
+                <div className={cn(
+                  'p-3 rounded-xl bg-gradient-to-br',
+                  kpi.gradient
+                )}>
+                  <Icon className={cn(
+                    'h-6 w-6 text-white',
+                    kpi.highlight && 'animate-bounce'
+                  )} />
+                </div>
               </div>
             </CardContent>
           </Card>
