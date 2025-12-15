@@ -57,6 +57,9 @@ const SandboxTesting = lazy(() => import('@/pages/SandboxTesting'));
 const SandboxDeployment = lazy(() => import('@/pages/SandboxDeployment'));
 const CustodianDashboard = lazy(() => import('@/pages/custodian/CustodianDashboard'));
 const CustodianTickets = lazy(() => import('@/pages/custodian/CustodianTickets'));
+const CustodianServicesPage = lazy(() => import('@/pages/custodian/CustodianServicesPage'));
+const CustodianVehiclePage = lazy(() => import('@/pages/custodian/CustodianVehiclePage'));
+const CustodianSupportPage = lazy(() => import('@/pages/custodian/CustodianSupportPage'));
 const CustodianPortalAdmin = lazy(() => import('@/pages/admin/CustodianPortalAdmin'));
 const RecruitmentStrategy = lazy(() => import('@/pages/RecruitmentStrategy'));
 const ModernRecruitment = lazy(() => import('@/pages/ModernRecruitment'));
@@ -627,10 +630,13 @@ function App() {
                   }
                 />
 
-                {/* Custodian Portal Routes */}
+{/* Custodian Portal Routes */}
                 <Route path="/custodian" element={<CustodianPortal />}>
                   <Route index element={<CustodianDashboard />} />
-                  <Route path="tickets" element={<CustodianTickets />} />
+                  <Route path="services" element={<CustodianServicesPage />} />
+                  <Route path="vehicle" element={<CustodianVehiclePage />} />
+                  <Route path="support" element={<CustodianSupportPage />} />
+                  <Route path="tickets" element={<Navigate to="/custodian/support" replace />} />
                 </Route>
                 
                 {/* Planeación Custodias */}
