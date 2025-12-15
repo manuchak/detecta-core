@@ -10,7 +10,7 @@ import { CustodianTicketsList } from '@/components/custodian/CustodianTicketsLis
 import { CustodianTicketDetail } from '@/components/custodian/CustodianTicketDetail';
 import { MobileTicketWizard } from '@/components/custodian/MobileTicketWizard';
 import { MobileTicketsList } from '@/components/custodian/MobileTicketsList';
-import { MobileBottomNav } from '@/components/custodian/MobileBottomNav';
+import MobileBottomNav from '@/components/custodian/MobileBottomNav';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 type MobileView = 'home' | 'create' | 'list';

@@ -1,15 +1,15 @@
 import { Home, PlusCircle, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type NavItem = 'home' | 'create' | 'list';
+export type NavItem = 'home' | 'create' | 'list';
 
-interface MobileBottomNavProps {
+export interface MobileBottomNavProps {
   activeItem: NavItem;
   onNavigate: (item: NavItem) => void;
   pendingCount?: number;
 }
 
-export const MobileBottomNav = ({
+const MobileBottomNav = ({
   activeItem,
   onNavigate,
   pendingCount = 0
@@ -78,3 +78,5 @@ export const MobileBottomNav = ({
     </nav>
   );
 };
+
+export default MobileBottomNav;
