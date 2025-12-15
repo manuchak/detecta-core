@@ -3222,6 +3222,7 @@ export type Database = {
           lng: number | null
           nombre: string
           numero_servicios: number | null
+          pc_custodio_id: string | null
           rating_promedio: number | null
           score_aceptacion: number | null
           score_comunicacion: number | null
@@ -3249,6 +3250,7 @@ export type Database = {
           lng?: number | null
           nombre: string
           numero_servicios?: number | null
+          pc_custodio_id?: string | null
           rating_promedio?: number | null
           score_aceptacion?: number | null
           score_comunicacion?: number | null
@@ -3276,6 +3278,7 @@ export type Database = {
           lng?: number | null
           nombre?: string
           numero_servicios?: number | null
+          pc_custodio_id?: string | null
           rating_promedio?: number | null
           score_aceptacion?: number | null
           score_comunicacion?: number | null
@@ -3289,7 +3292,15 @@ export type Database = {
           vehiculo_propio?: boolean | null
           zona_base?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "custodios_operativos_pc_custodio_id_fkey"
+            columns: ["pc_custodio_id"]
+            isOneToOne: false
+            referencedRelation: "pc_custodios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       custodios_primer_servicio_zona: {
         Row: {
