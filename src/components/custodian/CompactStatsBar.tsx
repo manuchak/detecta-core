@@ -7,25 +7,38 @@ interface CompactStatsBarProps {
   ingresosTotales: number;
 }
 
+const formatCompactNumber = (value: number): string => {
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(1)}M`;
+  }
+  if (value >= 10_000) {
+    return `${Math.round(value / 1_000)}K`;
+  }
+  if (value >= 1_000) {
+    return `${(value / 1_000).toFixed(1)}K`;
+  }
+  return value.toLocaleString('es-MX');
+};
+
 const CompactStatsBar = ({ serviciosEsteMes, kmRecorridos, ingresosTotales }: CompactStatsBarProps) => {
   const stats = [
     {
       icon: Briefcase,
-      value: serviciosEsteMes,
+      value: formatCompactNumber(serviciosEsteMes),
       label: "Servicios",
       color: "text-blue-600",
       bgColor: "bg-blue-500/10",
     },
     {
       icon: MapPin,
-      value: kmRecorridos >= 1000 ? `${(kmRecorridos / 1000).toFixed(1)}K` : kmRecorridos,
+      value: formatCompactNumber(kmRecorridos),
       label: "Km",
       color: "text-purple-600",
       bgColor: "bg-purple-500/10",
     },
     {
       icon: DollarSign,
-      value: ingresosTotales >= 1000 ? `${(ingresosTotales / 1000).toFixed(1)}K` : ingresosTotales,
+      value: formatCompactNumber(ingresosTotales),
       label: "Ingresos",
       color: "text-green-600",
       bgColor: "bg-green-500/10",
@@ -44,7 +57,7 @@ const CompactStatsBar = ({ serviciosEsteMes, kmRecorridos, ingresosTotales }: Co
         >
           <div className="flex items-center justify-center gap-1.5 mb-1">
             <stat.icon className={cn("w-4 h-4", stat.color)} />
-            <span className={cn("text-xl font-bold", stat.color)}>
+            <span className={cn("text-xl font-bold truncate max-w-full", stat.color)}>
               {stat.value}
             </span>
           </div>
