@@ -66,7 +66,7 @@ export const useCustodianTickets = (custodianPhone?: string) => {
           resolution_notes,
           customer_phone
         `)
-        .or(`customer_phone.eq.${custodianPhone},assigned_to.eq.${custodianPhone}`)
+        .or(`customer_phone.eq.${custodianPhone},custodio_telefono.eq.${custodianPhone}`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
