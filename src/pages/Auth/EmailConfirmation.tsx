@@ -30,7 +30,7 @@ export const EmailConfirmation = () => {
         
         // Redirigir al login después de 2 segundos
         setTimeout(() => {
-          navigate('/login');
+          navigate('/auth/login');
         }, 2000);
       } catch (error) {
         console.error('Error confirming email:', error);
@@ -43,14 +43,14 @@ export const EmailConfirmation = () => {
   }, [searchParams, confirmEmail, navigate]);
 
   const handleReturnToLogin = () => {
-    navigate('/login');
+    navigate('/auth/login');
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="w-full max-w-md p-6">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-primary">Lead Flow Navigator CRM</h1>
+          <h1 className="text-2xl font-bold text-primary">Detecta</h1>
           <p className="text-muted-foreground">Confirmación de Email</p>
         </div>
         

@@ -1,11 +1,12 @@
 
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSmartAuthRedirect } from "@/hooks/useSmartAuthRedirect";
 import { Eye, EyeOff } from "lucide-react";
 
 export const Login = () => {
@@ -15,7 +16,9 @@ export const Login = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { signIn } = useAuth();
-  const navigate = useNavigate();
+  
+  // Hook de redirección inteligente basada en rol
+  useSmartAuthRedirect();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
