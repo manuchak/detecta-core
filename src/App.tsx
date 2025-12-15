@@ -505,6 +505,17 @@ function App() {
                 />
                 
                 <Route
+                  path="/tickets/:ticketId"
+                  element={
+                    <ProtectedRoute>
+                      <UnifiedLayout>
+                        <TicketDetailPage />
+                      </UnifiedLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
                   path="/settings"
                   element={
                     <ProtectedRoute>
