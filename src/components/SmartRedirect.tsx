@@ -47,7 +47,7 @@ const SmartRedirect = ({ children }: SmartRedirectProps) => {
       case 'custodio':
         // Redirigir a su portal específico
         if (currentPath === '/' || currentPath === '/dashboard') {
-          navigate('/custodian-portal', { replace: true });
+          navigate('/custodian', { replace: true });
         }
         break;
 

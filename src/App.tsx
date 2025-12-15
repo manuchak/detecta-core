@@ -77,6 +77,7 @@ const VersionControlPage = lazy(() => import('@/pages/Administration/VersionCont
 const AdministrationHub = lazy(() => import('@/pages/Administration/AdministrationHub'));
 const SystemTestingPage = lazy(() => import('@/pages/SystemTestingPage'));
 const SignUp = lazy(() => import('@/pages/Auth/SignUp'));
+const PendingActivation = lazy(() => import('@/pages/Auth/PendingActivation'));
 
 // Components
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -169,6 +170,7 @@ function App() {
                 <Route path="/auth/signup" element={<SignUp />} />
                 <Route path="/auth/forgot-password" element={<AuthLayout><ForgotPassword /></AuthLayout>} />
                 <Route path="/auth/email-confirmation" element={<AuthLayout><EmailConfirmation /></AuthLayout>} />
+                <Route path="/auth/pending-activation" element={<PendingActivation />} />
                 
                 {/* Protected routes - Home accessible to all authenticated users */}
                 <Route

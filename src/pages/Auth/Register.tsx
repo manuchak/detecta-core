@@ -67,7 +67,7 @@ export const Register = () => {
         </Alert>
         
         <div className="text-center">
-          <Link to="/login" className="text-primary hover:underline">
+          <Link to="/auth/login" className="text-primary hover:underline">
             Volver al inicio de sesión
           </Link>
         </div>
@@ -136,7 +136,7 @@ export const Register = () => {
       
       <div className="text-center text-sm">
         <span className="text-muted-foreground">¿Ya tienes una cuenta?</span>{" "}
-        <Link to="/login" className="text-primary hover:underline">
+        <Link to="/auth/login" className="text-primary hover:underline">
           Iniciar sesión
         </Link>
       </div>
