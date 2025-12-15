@@ -2720,6 +2720,66 @@ export type Database = {
           },
         ]
       }
+      custodio_mantenimientos: {
+        Row: {
+          costo_estimado: number | null
+          created_at: string
+          custodio_id: string | null
+          custodio_telefono: string | null
+          evidencia_url: string | null
+          fecha_realizacion: string
+          id: string
+          km_al_momento: number
+          notas: string | null
+          taller_mecanico: string | null
+          tipo_mantenimiento: string
+          updated_at: string
+        }
+        Insert: {
+          costo_estimado?: number | null
+          created_at?: string
+          custodio_id?: string | null
+          custodio_telefono?: string | null
+          evidencia_url?: string | null
+          fecha_realizacion?: string
+          id?: string
+          km_al_momento: number
+          notas?: string | null
+          taller_mecanico?: string | null
+          tipo_mantenimiento: string
+          updated_at?: string
+        }
+        Update: {
+          costo_estimado?: number | null
+          created_at?: string
+          custodio_id?: string | null
+          custodio_telefono?: string | null
+          evidencia_url?: string | null
+          fecha_realizacion?: string
+          id?: string
+          km_al_momento?: number
+          notas?: string | null
+          taller_mecanico?: string | null
+          tipo_mantenimiento?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custodio_mantenimientos_custodio_id_fkey"
+            columns: ["custodio_id"]
+            isOneToOne: false
+            referencedRelation: "custodios_operativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custodio_mantenimientos_custodio_id_fkey"
+            columns: ["custodio_id"]
+            isOneToOne: false
+            referencedRelation: "custodios_operativos_disponibles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custodio_performance_metrics: {
         Row: {
           created_at: string
