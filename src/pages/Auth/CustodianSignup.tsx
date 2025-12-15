@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/components/ui/use-toast';
 import { useInvitationToken } from '@/hooks/useCustodianInvitations';
 import { supabase } from '@/integrations/supabase/client';
+import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { InstallAppPrompt } from '@/components/pwa/InstallAppPrompt';
 import { 
   CheckCircle, 
   XCircle, 
@@ -23,6 +25,8 @@ export const CustodianSignup = () => {
   const token = searchParams.get('token');
   
   const [name, setName] = useState('');
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const { showInstallOption } = usePWAInstall();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -194,8 +198,20 @@ export const CustodianSignup = () => {
     );
   }
 
-  // Registration success
+  // Registration success - show PWA install prompt
   if (registrationSuccess) {
+    // Show install prompt after successful registration
+    if (showInstallOption && showInstallPrompt) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-background p-4">
+          <InstallAppPrompt 
+            onClose={() => setShowInstallPrompt(false)}
+            onInstalled={() => setShowInstallPrompt(false)}
+          />
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
@@ -214,6 +230,18 @@ export const CustodianSignup = () => {
                 portal de custodios.
               </AlertDescription>
             </Alert>
+            
+            {/* PWA Install Prompt Button */}
+            {showInstallOption && !showInstallPrompt && (
+              <Button 
+                variant="secondary" 
+                className="w-full"
+                onClick={() => setShowInstallPrompt(true)}
+              >
+                📱 Agregar app a pantalla de inicio
+              </Button>
+            )}
+            
             <Button asChild variant="outline" className="w-full">
               <Link to="/auth/login">Ir al inicio de sesión</Link>
             </Button>
