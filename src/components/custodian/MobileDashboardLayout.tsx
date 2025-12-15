@@ -6,11 +6,13 @@ import { useCustodianTickets } from "@/hooks/useCustodianTickets";
 import { useCustodianMaintenance } from "@/hooks/useCustodianMaintenance";
 import { useCustodioIndisponibilidades } from "@/hooks/useCustodioIndisponibilidades";
 import { useToast } from "@/hooks/use-toast";
-import MonthlyStatsSummary from "./MonthlyStatsSummary";
-import VehicleMaintenanceCard from "./VehicleMaintenanceCard";
-import RecentServicesCompact from "./RecentServicesCompact";
+import DashboardHeroAlert from "./DashboardHeroAlert";
+import CompactStatsBar from "./CompactStatsBar";
+import QuickActionsGrid from "./QuickActionsGrid";
+import RecentServicesCollapsible from "./RecentServicesCollapsible";
 import UnavailabilityStatusBanner from "./UnavailabilityStatusBanner";
 import MobileBottomNavNew, { NavItem } from "./MobileBottomNavNew";
+import BatchMaintenanceDialog from "./BatchMaintenanceDialog";
 import { RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -26,6 +28,7 @@ const MobileDashboardLayout = () => {
   
   const [activeNav, setActiveNav] = useState<NavItem>('home');
   const [refreshing, setRefreshing] = useState(false);
+  const [showBatchDialog, setShowBatchDialog] = useState(false);
 
   const loading = profileLoading || servicesLoading || ticketsLoading || maintenanceLoading;
 
@@ -53,7 +56,6 @@ const MobileDashboardLayout = () => {
         navigate('/custodian/support');
         break;
       default:
-        // Stay on home
         break;
     }
   };
@@ -106,7 +108,7 @@ const MobileDashboardLayout = () => {
       </header>
 
       {/* Content */}
-      <main className="px-5 py-6 space-y-6">
+      <main className="px-5 py-4 space-y-4">
         {/* Banner de indisponibilidad si existe */}
         {currentUnavailability && (
           <UnavailabilityStatusBanner
@@ -116,29 +118,35 @@ const MobileDashboardLayout = () => {
           />
         )}
 
-        {/* Stats mensuales */}
-        <section>
-          <MonthlyStatsSummary
+        {/* Hero Alert - Lo más importante primero */}
+        <section className="animate-fade-in">
+          <DashboardHeroAlert
+            maintenanceStatus={maintenanceStatus}
+            onRegisterService={() => setShowBatchDialog(true)}
+          />
+        </section>
+
+        {/* Stats compactos */}
+        <section className="animate-fade-in" style={{ animationDelay: '50ms' }}>
+          <CompactStatsBar
             serviciosEsteMes={serviciosEsteMes}
             kmRecorridos={stats.km_totales}
             ingresosTotales={stats.ingresos_totales}
           />
         </section>
 
-        {/* Estado del vehículo */}
-        <section>
-          <VehicleMaintenanceCard
-            pendingMaintenance={pendingMaintenance}
-            allMaintenance={maintenanceStatus}
-            currentKm={stats.km_totales}
-            onRecordMaintenance={handleRecordMaintenance}
-            onViewAll={() => navigate('/custodian/vehicle')}
+        {/* Acciones rápidas */}
+        <section className="animate-fade-in" style={{ animationDelay: '100ms' }}>
+          <QuickActionsGrid
+            onRegisterService={() => setShowBatchDialog(true)}
+            onReportUnavailability={() => navigate('/custodian/support')}
+            pendingTickets={ticketStats?.abiertos || 0}
           />
         </section>
 
-        {/* Servicios recientes */}
-        <section>
-          <RecentServicesCompact
+        {/* Historial colapsable */}
+        <section className="animate-fade-in" style={{ animationDelay: '150ms' }}>
+          <RecentServicesCollapsible
             services={recentServices}
             onViewAll={() => navigate('/custodian/services')}
           />
@@ -150,6 +158,14 @@ const MobileDashboardLayout = () => {
         activeItem={activeNav}
         onNavigate={handleNavigation}
         pendingCount={ticketStats?.abiertos || 0}
+      />
+
+      {/* Batch Maintenance Dialog */}
+      <BatchMaintenanceDialog
+        open={showBatchDialog}
+        onOpenChange={setShowBatchDialog}
+        currentKm={stats.km_totales}
+        onConfirm={handleRecordMaintenance}
       />
     </div>
   );
