@@ -11204,6 +11204,51 @@ export type Database = {
         }
         Relationships: []
       }
+      ticket_respuesta_ratings: {
+        Row: {
+          created_at: string | null
+          custodio_telefono: string
+          helpful: boolean | null
+          id: string
+          rating: number | null
+          respuesta_id: string
+          ticket_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          custodio_telefono: string
+          helpful?: boolean | null
+          id?: string
+          rating?: number | null
+          respuesta_id: string
+          ticket_id: string
+        }
+        Update: {
+          created_at?: string | null
+          custodio_telefono?: string
+          helpful?: boolean | null
+          id?: string
+          rating?: number | null
+          respuesta_id?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_respuesta_ratings_respuesta_id_fkey"
+            columns: ["respuesta_id"]
+            isOneToOne: false
+            referencedRelation: "ticket_respuestas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_respuesta_ratings_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ticket_respuestas: {
         Row: {
           adjuntos_urls: string[] | null
@@ -11301,6 +11346,7 @@ export type Database = {
           comentario_csat: string | null
           created_at: string | null
           created_by: string | null
+          csat_visto_at: string | null
           custodio_id: string | null
           custodio_telefono: string | null
           customer_name: string | null
@@ -11335,6 +11381,7 @@ export type Database = {
           comentario_csat?: string | null
           created_at?: string | null
           created_by?: string | null
+          csat_visto_at?: string | null
           custodio_id?: string | null
           custodio_telefono?: string | null
           customer_name?: string | null
@@ -11369,6 +11416,7 @@ export type Database = {
           comentario_csat?: string | null
           created_at?: string | null
           created_by?: string | null
+          csat_visto_at?: string | null
           custodio_id?: string | null
           custodio_telefono?: string | null
           customer_name?: string | null

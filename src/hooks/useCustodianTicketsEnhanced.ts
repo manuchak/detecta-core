@@ -18,6 +18,9 @@ export interface CustodianTicket {
   fecha_sla_respuesta: string | null;
   fecha_sla_resolucion: string | null;
   primera_respuesta_at: string | null;
+  calificacion_csat: number | null;
+  comentario_csat: string | null;
+  csat_visto_at: string | null;
   created_at: string;
   updated_at: string;
   categoria?: {
@@ -44,6 +47,12 @@ export interface TicketRespuesta {
   created_at: string;
 }
 
+export interface ResponseRating {
+  id: string;
+  respuesta_id: string;
+  helpful: boolean | null;
+}
+
 export interface CreateTicketData {
   subject: string;
   description: string;
@@ -61,6 +70,7 @@ export interface CustodianTicketStats {
   resueltos: number;
   cerrados: number;
   sla_vencidos: number;
+  resueltos_sin_calificar: number;
 }
 
 export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
@@ -71,7 +81,8 @@ export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
     en_progreso: 0,
     resueltos: 0,
     cerrados: 0,
-    sla_vencidos: 0
+    sla_vencidos: 0,
+    resueltos_sin_calificar: 0
   });
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -118,6 +129,9 @@ export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
           t.fecha_sla_resolucion && 
           new Date(t.fecha_sla_resolucion) < now &&
           !['resuelto', 'cerrado'].includes(t.status)
+        ).length,
+        resueltos_sin_calificar: formattedTickets.filter(t => 
+          t.status === 'resuelto' && t.calificacion_csat === null
         ).length
       };
       setStats(newStats);
@@ -293,6 +307,126 @@ export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
     return tickets.filter(t => ['abierto', 'en_progreso'].includes(t.status));
   };
 
+  // CSAT Functions
+  const getRecentlyResolvedTickets = (hoursAgo: number = 48): CustodianTicket[] => {
+    const cutoffDate = new Date();
+    cutoffDate.setHours(cutoffDate.getHours() - hoursAgo);
+    
+    return tickets.filter(t => 
+      t.status === 'resuelto' &&
+      t.calificacion_csat === null &&
+      new Date(t.updated_at) >= cutoffDate
+    );
+  };
+
+  const getUnratedResolvedTickets = (): CustodianTicket[] => {
+    return tickets.filter(t => 
+      t.status === 'resuelto' && 
+      t.calificacion_csat === null
+    );
+  };
+
+  const markTicketAsSeen = async (ticketId: string) => {
+    try {
+      const { error } = await supabase
+        .from('tickets')
+        .update({ csat_visto_at: new Date().toISOString() })
+        .eq('id', ticketId);
+      
+      if (error) throw error;
+      await loadTickets();
+    } catch (error) {
+      console.error('Error marking ticket as seen:', error);
+    }
+  };
+
+  const submitCSATRating = async (
+    ticketId: string, 
+    rating: number, 
+    resolved: boolean, 
+    comment?: string
+  ) => {
+    try {
+      const { error } = await supabase
+        .from('tickets')
+        .update({
+          calificacion_csat: rating,
+          comentario_csat: comment || (resolved ? null : 'Problema no resuelto completamente'),
+          csat_visto_at: new Date().toISOString()
+        })
+        .eq('id', ticketId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: '¡Gracias!',
+        description: 'Tu calificación ha sido registrada'
+      });
+      
+      await loadTickets();
+    } catch (error) {
+      console.error('Error submitting CSAT:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo guardar la calificación',
+        variant: 'destructive'
+      });
+      throw error;
+    }
+  };
+
+  const rateResponse = async (respuestaId: string, ticketId: string, helpful: boolean) => {
+    if (!custodianPhone) return;
+    
+    try {
+      const { error } = await supabase
+        .from('ticket_respuesta_ratings')
+        .upsert({
+          respuesta_id: respuestaId,
+          ticket_id: ticketId,
+          custodio_telefono: custodianPhone,
+          helpful
+        }, {
+          onConflict: 'respuesta_id,custodio_telefono'
+        });
+      
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error rating response:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo guardar tu calificación',
+        variant: 'destructive'
+      });
+      throw error;
+    }
+  };
+
+  const getResponseRatings = async (ticketId: string): Promise<Map<string, boolean>> => {
+    if (!custodianPhone) return new Map();
+    
+    try {
+      const { data, error } = await supabase
+        .from('ticket_respuesta_ratings')
+        .select('respuesta_id, helpful')
+        .eq('ticket_id', ticketId)
+        .eq('custodio_telefono', custodianPhone);
+      
+      if (error) throw error;
+      
+      const ratingsMap = new Map<string, boolean>();
+      (data || []).forEach(r => {
+        if (r.helpful !== null) {
+          ratingsMap.set(r.respuesta_id, r.helpful);
+        }
+      });
+      return ratingsMap;
+    } catch (error) {
+      console.error('Error loading response ratings:', error);
+      return new Map();
+    }
+  };
+
   useEffect(() => {
     loadTickets();
   }, [loadTickets]);
@@ -306,6 +440,13 @@ export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
     addResponse,
     getTicketById,
     getOpenTickets,
-    refetch: loadTickets
+    refetch: loadTickets,
+    // CSAT functions
+    getRecentlyResolvedTickets,
+    getUnratedResolvedTickets,
+    markTicketAsSeen,
+    submitCSATRating,
+    rateResponse,
+    getResponseRatings
   };
 };
