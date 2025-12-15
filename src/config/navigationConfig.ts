@@ -232,7 +232,37 @@ export const navigationModules: NavigationModule[] = [
     id: 'tickets',
     label: 'Tickets',
     icon: Ticket,
-    path: '/tickets'
+    path: '/tickets',
+    matchPaths: ['/admin/ticket-config', '/admin/ticket-metrics', '/admin/ticket-templates'],
+    children: [
+      {
+        id: 'tickets_list',
+        label: 'Lista',
+        path: '/tickets',
+        icon: Ticket
+      },
+      {
+        id: 'tickets_metrics',
+        label: 'Métricas',
+        path: '/admin/ticket-metrics',
+        roles: ['admin', 'owner', 'bi', 'supply_admin'],
+        icon: BarChart3
+      },
+      {
+        id: 'tickets_config',
+        label: 'Configuración',
+        path: '/admin/ticket-config',
+        roles: ['admin', 'owner', 'bi'],
+        icon: Settings
+      },
+      {
+        id: 'tickets_templates',
+        label: 'Templates',
+        path: '/admin/ticket-templates',
+        roles: ['admin', 'owner', 'supply_admin'],
+        icon: ClipboardList
+      }
+    ]
   },
   {
     id: 'tools',
