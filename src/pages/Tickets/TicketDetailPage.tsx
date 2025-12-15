@@ -73,7 +73,7 @@ const getInitials = (name: string): string => {
 export const TicketDetailPage = () => {
   const { ticketId } = useParams<{ ticketId: string }>();
   const navigate = useNavigate();
-  const { getTicketById, updateTicketStatus, assignTicket, recordFirstResponse, loadTickets } = useTicketsEnhanced();
+  const { fetchTicketById, updateTicketStatus, assignTicket, recordFirstResponse } = useTicketsEnhanced();
   
   const [ticket, setTicket] = useState<TicketEnhanced | null>(null);
   const [responses, setResponses] = useState<TicketResponse[]>([]);
@@ -102,8 +102,7 @@ export const TicketDetailPage = () => {
   const loadTicketData = async () => {
     setLoading(true);
     try {
-      await loadTickets();
-      const ticketData = getTicketById(ticketId!);
+      const ticketData = await fetchTicketById(ticketId!);
       if (ticketData) {
         setTicket(ticketData);
         if (ticketData.custodio_id) {
