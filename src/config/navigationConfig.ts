@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   Users, 
   UserCheck,
+  UserPlus,
   Wrench,
   Activity,
   Package,
@@ -106,6 +107,13 @@ export const navigationModules: NavigationModule[] = [
         roles: ['admin', 'owner', 'supply_admin', 'supply_lead'],
         matchPaths: ['/leads/liberacion'],
         icon: Rocket
+      },
+      {
+        id: 'leads_invitaciones',
+        label: 'Invitaciones',
+        path: '/admin/custodian-invitations',
+        roles: ['admin', 'owner', 'supply_admin', 'supply_lead', 'supply'],
+        icon: UserPlus
       }
     ]
   },
