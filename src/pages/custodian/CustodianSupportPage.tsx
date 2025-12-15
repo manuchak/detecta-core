@@ -3,19 +3,19 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCustodianProfile } from "@/hooks/useCustodianProfile";
-import { useCustodianTickets } from "@/hooks/useCustodianTickets";
 import { useCustodioIndisponibilidades } from "@/hooks/useCustodioIndisponibilidades";
 import { useToast } from "@/hooks/use-toast";
 import ReportUnavailabilityCard from "@/components/custodian/ReportUnavailabilityCard";
-import MobileTicketsList from "@/components/custodian/MobileTicketsList";
-import MobileTicketWizard from "@/components/custodian/MobileTicketWizard";
+import { MobileTicketsList } from "@/components/custodian/MobileTicketsList";
+import { MobileTicketWizard } from "@/components/custodian/MobileTicketWizard";
 import MobileBottomNavNew from "@/components/custodian/MobileBottomNavNew";
+import { useCustodianTicketsEnhanced } from "@/hooks/useCustodianTicketsEnhanced";
 
 const CustodianSupportPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { profile } = useCustodianProfile();
-  const { tickets, loading } = useCustodianTickets(profile?.phone);
+  const { tickets, loading, refetch } = useCustodianTicketsEnhanced(profile?.phone || '');
   const { crearIndisponibilidad } = useCustodioIndisponibilidades();
   const [showWizard, setShowWizard] = useState(false);
 
@@ -25,11 +25,11 @@ const CustodianSupportPage = () => {
         ? new Date(Date.now() + data.dias * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
         : undefined;
 
-      await crearIndisponibilidad({
+      await crearIndisponibilidad.mutateAsync({
         custodio_id: profile?.id || '',
-        tipo_indisponibilidad: data.tipo,
-        motivo: data.motivo,
-        fecha_fin: fechaFin,
+        tipo_indisponibilidad: data.tipo as any,
+        motivo: data.motivo || '',
+        fecha_fin_estimada: fechaFin,
       });
 
       toast({
@@ -48,7 +48,16 @@ const CustodianSupportPage = () => {
   };
 
   if (showWizard) {
-    return <MobileTicketWizard onClose={() => setShowWizard(false)} />;
+    return (
+      <MobileTicketWizard 
+        custodianPhone={profile?.phone || ''} 
+        onSuccess={() => {
+          setShowWizard(false);
+          refetch();
+        }}
+        onCancel={() => setShowWizard(false)} 
+      />
+    );
   }
 
   return (
@@ -83,7 +92,12 @@ const CustodianSupportPage = () => {
           <h2 className="text-sm font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
             Mis Tickets
           </h2>
-          <MobileTicketsList />
+          <MobileTicketsList 
+            tickets={tickets}
+            loading={loading}
+            custodianPhone={profile?.phone || ''}
+            onRefresh={refetch}
+          />
         </section>
       </main>
 
