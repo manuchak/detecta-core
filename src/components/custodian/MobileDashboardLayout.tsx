@@ -24,11 +24,16 @@ const MobileDashboardLayout = () => {
 
   const loading = profileLoading || servicesLoading || ticketsLoading;
 
-  const upcomingServices = useMemo(() => getUpcomingServices(), [services]);
+  const upcomingServices = useMemo(() => {
+    if (!services || services.length === 0) return [];
+    return services.filter(s => new Date(s.fecha_hora_cita) >= new Date());
+  }, [services]);
+  
   const nextService = upcomingServices[0] || null;
 
   // Calcular servicios esta semana
   const serviciosEstaSemana = useMemo(() => {
+    if (!services || services.length === 0) return 0;
     const now = new Date();
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay());
@@ -71,11 +76,11 @@ const MobileDashboardLayout = () => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    // Simular refresh
     await new Promise(resolve => setTimeout(resolve, 1000));
     setRefreshing(false);
   };
 
+  // Early return AFTER all hooks
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
