@@ -32,6 +32,7 @@ import { useCustodioLiberacion } from '@/hooks/useCustodioLiberacion';
 import LiberacionProgressBar from './LiberacionProgressBar';
 import { useToast } from '@/hooks/use-toast';
 import { LiberacionWarningsDialog } from './LiberacionWarningsDialog';
+import { LiberacionSuccessModal } from './LiberacionSuccessModal';
 
 interface LiberacionChecklistModalProps {
   liberacion: CustodioLiberacion;
@@ -52,6 +53,14 @@ const LiberacionChecklistModal = ({
   const [isSaving, setIsSaving] = useState(false);
   const [showWarnings, setShowWarnings] = useState(false);
   const [currentWarnings, setCurrentWarnings] = useState<string[]>([]);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successData, setSuccessData] = useState<{
+    candidato_nombre: string;
+    candidato_email: string | null;
+    candidato_telefono: string | null;
+    invitation_token: string;
+    emailSent: boolean;
+  } | null>(null);
 
   useEffect(() => {
     setLiberacion(initialLiberacion);
@@ -93,15 +102,30 @@ const LiberacionChecklistModal = ({
         forzar: true // Modo flexible por defecto
       });
       
-      // Si hay warnings, mostrar diálogo
+      // Si hay warnings, mostrar diálogo de warnings primero
       if (result.tiene_warnings && result.warnings.length > 0) {
         setCurrentWarnings(result.warnings);
         setShowWarnings(true);
+        // Guardar datos para el modal de éxito
+        setSuccessData({
+          candidato_nombre: result.candidato_nombre,
+          candidato_email: result.candidato_email,
+          candidato_telefono: result.candidato_telefono,
+          invitation_token: result.invitation_token,
+          emailSent: result.emailSent
+        });
         setIsSaving(false);
       } else {
-        // Liberación sin warnings, continuar
-        onSuccess();
-        onClose();
+        // Sin warnings - mostrar modal de éxito directamente
+        setSuccessData({
+          candidato_nombre: result.candidato_nombre,
+          candidato_email: result.candidato_email,
+          candidato_telefono: result.candidato_telefono,
+          invitation_token: result.invitation_token,
+          emailSent: result.emailSent
+        });
+        setShowSuccessModal(true);
+        setIsSaving(false);
       }
     } catch (error: any) {
       toast({
@@ -115,6 +139,13 @@ const LiberacionChecklistModal = ({
 
   const handleConfirmWithWarnings = async () => {
     setShowWarnings(false);
+    // Mostrar modal de éxito después de confirmar warnings
+    setShowSuccessModal(true);
+  };
+
+  const handleCloseSuccessModal = () => {
+    setShowSuccessModal(false);
+    setSuccessData(null);
     onSuccess();
     onClose();
   };
@@ -480,6 +511,15 @@ const LiberacionChecklistModal = ({
         onCancel={() => setShowWarnings(false)}
         isLoading={false}
       />
+
+      {/* Modal de éxito con link de invitación */}
+      {successData && (
+        <LiberacionSuccessModal
+          isOpen={showSuccessModal}
+          onClose={handleCloseSuccessModal}
+          data={successData}
+        />
+      )}
     </Dialog>
   );
 };

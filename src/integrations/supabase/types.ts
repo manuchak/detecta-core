@@ -14550,13 +14550,15 @@ export type Database = {
         }
         Returns: string
       }
-      use_invitation_and_assign_role: {
-        Args: { p_token: string; p_user_id: string }
-        Returns: {
-          error_message: string
-          success: boolean
-        }[]
-      }
+      use_invitation_and_assign_role:
+        | {
+            Args: { p_token: string; p_user_id: string }
+            Returns: {
+              error_message: string
+              success: boolean
+            }[]
+          }
+        | { Args: { p_token: string; p_user_id: string }; Returns: boolean }
       user_has_permission: {
         Args: {
           permission_id: string
