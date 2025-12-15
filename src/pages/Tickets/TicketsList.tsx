@@ -26,13 +26,15 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronRight, Plus, Search, MessageSquare, RefreshCw, Eye } from "lucide-react";
 import { useTicketsEnhanced, type TicketEnhanced } from "@/hooks/useTicketsEnhanced";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { SLABadge, SLABadgeCompact } from "@/components/tickets/SLABadge";
 import { TicketSLAKPIs } from "@/components/tickets/TicketSLAKPIs";
 import { TicketQuickActions } from "@/components/tickets/TicketQuickActions";
+import { DepartmentTabs, DEPARTMENTS } from "@/components/tickets/DepartmentTabs";
+import { AgentWorkloadPanel } from "@/components/tickets/AgentWorkloadPanel";
 import { cn } from "@/lib/utils";
 
 const priorityBadgeStyles = {
@@ -79,28 +81,47 @@ export const TicketsList = () => {
   const [statusFilter, setStatusFilter] = useState("todos");
   const [priorityFilter, setPriorityFilter] = useState("todas");
   const [slaFilter, setSlaFilter] = useState("todos");
+  const [departmentFilter, setDepartmentFilter] = useState("todos");
 
-  const filteredTickets = tickets.filter(ticket => {
-    const matchesSearch = ticket.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         ticket.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         ticket.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         ticket.ticket_number?.toLowerCase().includes(searchTerm.toLowerCase());
+  // Calculate ticket counts per department
+  const departmentCounts = useMemo(() => {
+    const counts: Record<string, number> = { todos: tickets.length };
     
-    const matchesStatus = statusFilter === "todos" || ticket.status === statusFilter;
-    const matchesPriority = priorityFilter === "todas" || ticket.priority === priorityFilter;
+    tickets.forEach(ticket => {
+      const dept = ticket.categoria_custodio?.departamento_responsable || 'soporte';
+      counts[dept] = (counts[dept] || 0) + 1;
+    });
     
-    // SLA filter
-    let matchesSLA = true;
-    if (slaFilter === "vencidos") {
-      matchesSLA = ticket.sla.estadoGeneral === 'vencido';
-    } else if (slaFilter === "proximos") {
-      matchesSLA = ticket.sla.estadoGeneral === 'proximo_vencer';
-    } else if (slaFilter === "en_tiempo") {
-      matchesSLA = ticket.sla.estadoGeneral === 'en_tiempo';
-    }
-    
-    return matchesSearch && matchesStatus && matchesPriority && matchesSLA;
-  });
+    return counts;
+  }, [tickets]);
+
+  const filteredTickets = useMemo(() => {
+    return tickets.filter(ticket => {
+      const matchesSearch = ticket.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           ticket.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           ticket.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           ticket.ticket_number?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesStatus = statusFilter === "todos" || ticket.status === statusFilter;
+      const matchesPriority = priorityFilter === "todas" || ticket.priority === priorityFilter;
+      
+      // Department filter
+      const ticketDept = ticket.categoria_custodio?.departamento_responsable || 'soporte';
+      const matchesDepartment = departmentFilter === "todos" || ticketDept === departmentFilter;
+      
+      // SLA filter
+      let matchesSLA = true;
+      if (slaFilter === "vencidos") {
+        matchesSLA = ticket.sla.estadoGeneral === 'vencido';
+      } else if (slaFilter === "proximos") {
+        matchesSLA = ticket.sla.estadoGeneral === 'proximo_vencer';
+      } else if (slaFilter === "en_tiempo") {
+        matchesSLA = ticket.sla.estadoGeneral === 'en_tiempo';
+      }
+      
+      return matchesSearch && matchesStatus && matchesPriority && matchesSLA && matchesDepartment;
+    });
+  }, [tickets, searchTerm, statusFilter, priorityFilter, slaFilter, departmentFilter]);
 
   // Prepare tickets with SLA for KPIs component
   const ticketsWithSLA = tickets.map(t => ({ sla: t.sla, status: t.status }));
@@ -139,14 +160,31 @@ export const TicketsList = () => {
         </Button>
       </div>
       
-      {/* SLA KPIs */}
-      <TicketSLAKPIs tickets={ticketsWithSLA} loading={loading} />
+      {/* Department Tabs */}
+      <DepartmentTabs
+        selectedDepartment={departmentFilter}
+        onDepartmentChange={setDepartmentFilter}
+        ticketCounts={departmentCounts}
+      />
+      
+      {/* SLA KPIs + Agent Workload */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2">
+          <TicketSLAKPIs tickets={ticketsWithSLA} loading={loading} />
+        </div>
+        <AgentWorkloadPanel department={departmentFilter} compact={false} />
+      </div>
       
       <Card>
         <CardHeader>
           <CardTitle>Lista de Tickets</CardTitle>
           <CardDescription>
             Tickets ordenados por urgencia de SLA. Los vencidos aparecen primero.
+            {departmentFilter !== 'todos' && (
+              <span className="ml-2 font-medium capitalize">
+                Filtrado: {DEPARTMENTS.find(d => d.id === departmentFilter)?.label}
+              </span>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -278,7 +316,14 @@ export const TicketsList = () => {
                           </Badge>
                         </TableCell>
                         <TableCell className="hidden lg:table-cell text-sm">
-                          {ticket.categoria_custodio?.nombre || ticket.category || '-'}
+                          <div className="flex items-center gap-1.5">
+                            <span>{ticket.categoria_custodio?.nombre || ticket.category || '-'}</span>
+                            {ticket.categoria_custodio?.departamento_responsable && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize">
+                                {ticket.categoria_custodio.departamento_responsable}
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="hidden lg:table-cell text-sm">
                           {ticket.assigned_user?.display_name || 'Sin asignar'}

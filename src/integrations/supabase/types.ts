@@ -265,11 +265,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "analisis_riesgo_evaluado_por_fkey"
+            columns: ["evaluado_por"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "analisis_riesgo_revisado_por_fkey"
             columns: ["revisado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analisis_riesgo_revisado_por_fkey"
+            columns: ["revisado_por"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
           },
           {
             foreignKeyName: "analisis_riesgo_servicio_id_fkey"
@@ -371,6 +385,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "analisis_riesgo_seguridad_analista_id_fkey"
+            columns: ["analista_id"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "analisis_riesgo_seguridad_servicio_id_fkey"
             columns: ["servicio_id"]
             isOneToOne: false
@@ -443,6 +464,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "aprobacion_coordinador_coordinador_id_fkey"
+            columns: ["coordinador_id"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "aprobacion_coordinador_servicio_id_fkey"
             columns: ["servicio_id"]
             isOneToOne: false
@@ -498,6 +526,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aprobaciones_servicio_aprobado_por_fkey"
+            columns: ["aprobado_por"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
           },
           {
             foreignKeyName: "aprobaciones_servicio_servicio_id_fkey"
@@ -1805,11 +1840,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fk_comodatos_gps_asignado_por"
+            columns: ["asignado_por"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "fk_comodatos_gps_devuelto_por"
             columns: ["devuelto_por"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_comodatos_gps_devuelto_por"
+            columns: ["devuelto_por"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
           },
           {
             foreignKeyName: "fk_comodatos_gps_pc_custodio"
@@ -2333,6 +2382,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contratos_candidato_enviado_por_fkey"
+            columns: ["enviado_por"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
           },
           {
             foreignKeyName: "contratos_candidato_plantilla_id_fkey"
@@ -3830,6 +3886,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "documentacion_requerida_validado_por_fkey"
+            columns: ["validado_por"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
+          },
         ]
       }
       documentos_candidato: {
@@ -3947,11 +4010,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "documentos_candidato_subido_por_fkey"
+            columns: ["subido_por"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "documentos_candidato_validado_por_fkey"
             columns: ["validado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_candidato_validado_por_fkey"
+            columns: ["validado_por"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -4417,6 +4494,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "evaluaciones_psicometricas_aval_coordinacion_id_fkey"
+            columns: ["aval_coordinacion_id"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "evaluaciones_psicometricas_candidato_id_fkey"
             columns: ["candidato_id"]
             isOneToOne: false
@@ -4443,6 +4527,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluaciones_psicometricas_evaluador_id_fkey"
+            columns: ["evaluador_id"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -4517,6 +4608,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluaciones_toxicologicas_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -5260,6 +5358,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instalaciones_gps_tecnico_asignado_fkey"
+            columns: ["tecnico_asignado"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -6226,6 +6331,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_approval_process_analyst_id_fkey"
+            columns: ["analyst_id"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
           },
           {
             foreignKeyName: "lead_approval_process_lead_id_fkey"
@@ -7211,6 +7323,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fk_movimientos_comodato_usuario"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "movimientos_comodato_comodato_id_fkey"
             columns: ["comodato_id"]
             isOneToOne: false
@@ -7282,6 +7401,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_inventario_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -7450,11 +7576,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ordenes_compra_aprobado_por_fkey"
+            columns: ["aprobado_por"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "ordenes_compra_creado_por_fkey"
             columns: ["creado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordenes_compra_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
           },
           {
             foreignKeyName: "ordenes_compra_proveedor_id_fkey"
@@ -8547,6 +8687,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plantillas_contrato_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -9688,6 +9835,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "recepciones_mercancia_recibido_por_fkey"
+            columns: ["recibido_por"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
+          },
         ]
       }
       redemptions: {
@@ -9832,6 +9986,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referencias_candidato_validador_id_fkey"
+            columns: ["validador_id"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -10394,6 +10555,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "seguimiento_servicio_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
+          },
         ]
       }
       service_modification_log: {
@@ -10808,8 +10976,29 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "servicios_monitoreo_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "servicios_monitoreo_coordinador_operaciones_id_fkey"
             columns: ["coordinador_operaciones_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "servicios_monitoreo_coordinador_operaciones_id_fkey"
+            columns: ["coordinador_operaciones_id"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "servicios_monitoreo_ejecutivo_ventas_id_fkey"
+            columns: ["ejecutivo_ventas_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -10818,8 +11007,8 @@ export type Database = {
             foreignKeyName: "servicios_monitoreo_ejecutivo_ventas_id_fkey"
             columns: ["ejecutivo_ventas_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -11302,6 +11491,36 @@ export type Database = {
           version_name?: string | null
           version_number?: string
           version_type?: string
+        }
+        Relationships: []
+      }
+      ticket_business_hours: {
+        Row: {
+          created_at: string | null
+          dia_semana: number
+          es_dia_laboral: boolean
+          hora_fin: string
+          hora_inicio: string
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          dia_semana: number
+          es_dia_laboral?: boolean
+          hora_fin?: string
+          hora_inicio?: string
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          dia_semana?: number
+          es_dia_laboral?: boolean
+          hora_fin?: string
+          hora_inicio?: string
+          id?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -11794,6 +12013,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vapi_call_logs_analyst_id_fkey"
+            columns: ["analyst_id"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
           },
           {
             foreignKeyName: "vapi_call_logs_lead_id_fkey"
@@ -12349,6 +12575,19 @@ export type Database = {
         }
         Relationships: []
       }
+      v_ticket_agent_workload: {
+        Row: {
+          agent_id: string | null
+          avg_age_hours: number | null
+          display_name: string | null
+          email: string | null
+          role: string | null
+          tickets_abiertos: number | null
+          tickets_activos: number | null
+          tickets_en_progreso: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       actualizar_roi_custodios: { Args: never; Returns: undefined }
@@ -12662,6 +12901,10 @@ export type Database = {
           valor_costo: number
           valor_venta: number
         }[]
+      }
+      calculate_business_hours: {
+        Args: { p_end: string; p_start: string }
+        Returns: number
       }
       calculate_custodian_level: { Args: { points: number }; Returns: number }
       calculate_custodian_level_dynamic: {
@@ -13584,6 +13827,10 @@ export type Database = {
           nombre_completo: string
           telefono: string
         }[]
+      }
+      get_least_loaded_agent: {
+        Args: { p_departamento: string }
+        Returns: string
       }
       get_marcas_vehiculos_safe: {
         Args: never
