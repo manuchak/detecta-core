@@ -73,6 +73,15 @@ interface CreateMaintenanceData {
   evidencia_url?: string;
 }
 
+interface BatchMaintenanceData {
+  tipos: MaintenanceType[];
+  km_al_momento: number;
+  fecha_realizacion?: string;
+  costo_total?: number;
+  taller_mecanico?: string;
+  notas?: string;
+}
+
 export const useCustodianMaintenance = (custodianPhone?: string, currentKm?: number) => {
   const [records, setRecords] = useState<MaintenanceRecord[]>([]);
   const [customIntervals, setCustomIntervals] = useState<Map<string, number>>(new Map());
@@ -170,6 +179,52 @@ export const useCustodianMaintenance = (custodianPhone?: string, currentKm?: num
     }
   };
 
+  // Crear múltiples mantenimientos en lote (para paquetes de servicio)
+  const createBatchMaintenance = async (data: BatchMaintenanceData): Promise<boolean> => {
+    if (data.tipos.length === 0) return false;
+    
+    try {
+      const costPerItem = data.costo_total 
+        ? Math.round(data.costo_total / data.tipos.length) 
+        : undefined;
+      
+      const records = data.tipos.map(tipo => ({
+        custodio_telefono: custodianPhone,
+        tipo_mantenimiento: tipo,
+        km_al_momento: data.km_al_momento,
+        fecha_realizacion: data.fecha_realizacion || new Date().toISOString().split('T')[0],
+        costo_estimado: costPerItem,
+        taller_mecanico: data.taller_mecanico,
+        notas: data.notas ? `${data.notas} (Paquete: ${data.tipos.length} servicios)` : undefined,
+      }));
+
+      const { error } = await supabase
+        .from('custodio_mantenimientos')
+        .insert(records);
+
+      if (error) {
+        console.error('Error creating batch maintenance:', error);
+        toast({
+          title: 'Error',
+          description: 'No se pudieron registrar los mantenimientos',
+          variant: 'destructive',
+        });
+        return false;
+      }
+
+      toast({
+        title: '✅ Servicio registrado',
+        description: `Se registraron ${data.tipos.length} mantenimientos`,
+      });
+
+      await fetchMaintenanceRecords();
+      return true;
+    } catch (error) {
+      console.error('Error:', error);
+      return false;
+    }
+  };
+
   // Calcular estado de cada tipo de mantenimiento
   const maintenanceStatus = useMemo((): MaintenanceStatus[] => {
     const km = currentKm || 0;
@@ -221,6 +276,7 @@ export const useCustodianMaintenance = (custodianPhone?: string, currentKm?: num
     maintenanceStatus,
     pendingMaintenance,
     createMaintenance,
+    createBatchMaintenance,
     refetch: fetchMaintenanceRecords,
     refetchIntervals: fetchCustomIntervals,
     MAINTENANCE_INTERVALS,
