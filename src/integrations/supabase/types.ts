@@ -2426,13 +2426,25 @@ export type Database = {
       }
       custodian_invitations: {
         Row: {
+          batch_id: string | null
+          bounce_reason: string | null
+          bounce_type: string | null
           candidato_id: string | null
           created_at: string | null
           created_by: string
+          delivery_status: string | null
+          delivery_updated_at: string | null
           email: string | null
+          email_sent_at: string | null
           expires_at: string
           id: string
+          import_row_number: number | null
+          import_validation_errors: string[] | null
+          last_resent_at: string | null
           nombre: string | null
+          resend_email_id: string | null
+          resent_by: string[] | null
+          resent_count: number | null
           telefono: string | null
           token: string
           updated_at: string | null
@@ -2440,13 +2452,25 @@ export type Database = {
           used_by: string | null
         }
         Insert: {
+          batch_id?: string | null
+          bounce_reason?: string | null
+          bounce_type?: string | null
           candidato_id?: string | null
           created_at?: string | null
           created_by: string
+          delivery_status?: string | null
+          delivery_updated_at?: string | null
           email?: string | null
+          email_sent_at?: string | null
           expires_at?: string
           id?: string
+          import_row_number?: number | null
+          import_validation_errors?: string[] | null
+          last_resent_at?: string | null
           nombre?: string | null
+          resend_email_id?: string | null
+          resent_by?: string[] | null
+          resent_count?: number | null
           telefono?: string | null
           token: string
           updated_at?: string | null
@@ -2454,13 +2478,25 @@ export type Database = {
           used_by?: string | null
         }
         Update: {
+          batch_id?: string | null
+          bounce_reason?: string | null
+          bounce_type?: string | null
           candidato_id?: string | null
           created_at?: string | null
           created_by?: string
+          delivery_status?: string | null
+          delivery_updated_at?: string | null
           email?: string | null
+          email_sent_at?: string | null
           expires_at?: string
           id?: string
+          import_row_number?: number | null
+          import_validation_errors?: string[] | null
+          last_resent_at?: string | null
           nombre?: string | null
+          resend_email_id?: string | null
+          resent_by?: string[] | null
+          resent_count?: number | null
           telefono?: string | null
           token?: string
           updated_at?: string | null
@@ -2488,6 +2524,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_capacitacion_progreso_candidato"
             referencedColumns: ["candidato_id"]
+          },
+          {
+            foreignKeyName: "fk_invitation_batch"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "invitation_batches"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -5890,6 +5933,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      invitation_batches: {
+        Row: {
+          bounced_count: number | null
+          created_at: string | null
+          created_by: string | null
+          delivered_count: number | null
+          filename: string | null
+          id: string
+          invalid_rows: number | null
+          sent_count: number | null
+          status: string | null
+          total_rows: number | null
+          valid_rows: number | null
+        }
+        Insert: {
+          bounced_count?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          delivered_count?: number | null
+          filename?: string | null
+          id?: string
+          invalid_rows?: number | null
+          sent_count?: number | null
+          status?: string | null
+          total_rows?: number | null
+          valid_rows?: number | null
+        }
+        Update: {
+          bounced_count?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          delivered_count?: number | null
+          filename?: string | null
+          id?: string
+          invalid_rows?: number | null
+          sent_count?: number | null
+          status?: string | null
+          total_rows?: number | null
+          valid_rows?: number | null
+        }
+        Relationships: []
       }
       kits_instalacion: {
         Row: {
@@ -14381,6 +14466,13 @@ export type Database = {
         Returns: undefined
       }
       refresh_custodios_operativos_activos: { Args: never; Returns: undefined }
+      renew_invitation_token: {
+        Args: { p_invitation_id: string }
+        Returns: {
+          new_expires_at: string
+          new_token: string
+        }[]
+      }
       restaurar_producto: { Args: { p_producto_id: string }; Returns: boolean }
       review_flagged_service: {
         Args: {
@@ -14459,6 +14551,11 @@ export type Database = {
           p_notes?: string
           p_stage: string
         }
+        Returns: undefined
+      }
+      update_batch_stats: { Args: { p_batch_id: string }; Returns: undefined }
+      update_invitation_email: {
+        Args: { p_invitation_id: string; p_new_email: string }
         Returns: undefined
       }
       update_last_login: { Args: never; Returns: boolean }

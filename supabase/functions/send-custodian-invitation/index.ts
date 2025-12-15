@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.0.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -13,6 +14,7 @@ interface InvitationEmailRequest {
   nombre: string;
   telefono?: string;
   invitationLink: string;
+  invitationId?: string; // For tracking
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -22,7 +24,7 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { email, nombre, invitationLink }: InvitationEmailRequest = await req.json();
+    const { email, nombre, invitationLink, invitationId }: InvitationEmailRequest = await req.json();
 
     console.log(`Sending invitation email to: ${email} for custodian: ${nombre}`);
 
@@ -128,6 +130,30 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     console.log("Email sent successfully:", emailResponse);
+
+    // Update invitation record with email tracking data
+    if (invitationId && emailResponse.data?.id) {
+      try {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+        await supabase
+          .from('custodian_invitations')
+          .update({
+            resend_email_id: emailResponse.data.id,
+            email_sent_at: new Date().toISOString(),
+            delivery_status: 'sent',
+            delivery_updated_at: new Date().toISOString(),
+          })
+          .eq('id', invitationId);
+
+        console.log(`Updated invitation ${invitationId} with email tracking data`);
+      } catch (dbError) {
+        console.error('Error updating invitation record:', dbError);
+        // Don't throw - email was sent successfully
+      }
+    }
 
     return new Response(JSON.stringify({ 
       success: true, 

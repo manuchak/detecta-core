@@ -104,3 +104,6 @@ verify_jwt = false
 
 [functions.send-custodian-invitation]
 verify_jwt = false
+
+[functions.resend-webhook]
+verify_jwt = false
