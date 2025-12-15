@@ -43,6 +43,7 @@ const SupplyChainMonitoring = lazy(() => import('@/pages/Monitoring/SupplyChainM
 const ForensicAuditPage = lazy(() => import('@/pages/Monitoring/ForensicAuditPage'));
 const IncidentesRRSSPage = lazy(() => import('@/pages/Incidentes/IncidentesRRSSPage'));
 const TicketsList = lazy(() => import('@/pages/Tickets/TicketsList'));
+const TicketDetailPage = lazy(() => import('@/pages/Tickets/TicketDetailPage'));
 const ServicesPage = lazy(() => import('@/pages/Services/ServicesPage').then(module => ({ default: module.ServicesPage })));
 const RendimientoPage = lazy(() => import('@/pages/Services/RendimientoPage'));
 const InstallerManagement = lazy(() => import('@/pages/Installers/InstallerManagement'));
