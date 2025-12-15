@@ -5,12 +5,14 @@ import { cn } from "@/lib/utils";
 interface QuickActionsGridProps {
   onRegisterService: () => void;
   onReportUnavailability?: () => void;
+  onContactSupport?: () => void;
   pendingTickets?: number;
 }
 
 const QuickActionsGrid = ({ 
   onRegisterService, 
   onReportUnavailability,
+  onContactSupport,
   pendingTickets = 0 
 }: QuickActionsGridProps) => {
   const navigate = useNavigate();
@@ -46,9 +48,9 @@ const QuickActionsGrid = ({
     },
     {
       icon: Phone,
-      label: "Llamar Soporte",
-      sublabel: "Línea directa",
-      onClick: () => window.open('tel:+525555555555', '_self'),
+      label: "Contactar Soporte",
+      sublabel: "Ver opciones",
+      onClick: onContactSupport || (() => navigate('/custodian/support')),
       color: "text-green-600",
       bgColor: "bg-green-500/10",
       borderColor: "border-green-500/20",

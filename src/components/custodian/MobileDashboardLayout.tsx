@@ -13,6 +13,7 @@ import QuickActionsGrid from "./QuickActionsGrid";
 import RecentServicesCollapsible from "./RecentServicesCollapsible";
 import ResolvedTicketAlert from "./ResolvedTicketAlert";
 import UnavailabilityStatusBanner from "./UnavailabilityStatusBanner";
+import SupportContactModal from "./SupportContactModal";
 import MobileBottomNavNew, { NavItem } from "./MobileBottomNavNew";
 import BatchMaintenanceDialog from "./BatchMaintenanceDialog";
 import { CustodianTicketDetail } from "./CustodianTicketDetail";
@@ -33,6 +34,7 @@ const MobileDashboardLayout = () => {
   const [activeNav, setActiveNav] = useState<NavItem>('home');
   const [refreshing, setRefreshing] = useState(false);
   const [showBatchDialog, setShowBatchDialog] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
   const [selectedResolvedTicket, setSelectedResolvedTicket] = useState<CustodianTicket | null>(null);
   const [dismissedTickets, setDismissedTickets] = useState<Set<string>>(new Set());
 
@@ -189,6 +191,7 @@ const MobileDashboardLayout = () => {
           <QuickActionsGrid
             onRegisterService={() => setShowBatchDialog(true)}
             onReportUnavailability={() => navigate('/custodian/support')}
+            onContactSupport={() => setShowContactModal(true)}
             pendingTickets={ticketStats?.abiertos || 0}
           />
         </section>
@@ -215,6 +218,12 @@ const MobileDashboardLayout = () => {
         onOpenChange={setShowBatchDialog}
         currentKm={stats.km_totales}
         onConfirm={handleRecordMaintenance}
+      />
+
+      {/* Support Contact Modal */}
+      <SupportContactModal
+        open={showContactModal}
+        onOpenChange={setShowContactModal}
       />
     </div>
   );
