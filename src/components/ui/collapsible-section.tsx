@@ -12,6 +12,7 @@ interface CollapsibleSectionProps {
   headerContent?: React.ReactNode;
   className?: string;
   variant?: 'default' | 'compact';
+  onOpenChange?: (isOpen: boolean) => void;
 }
 
 export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
@@ -21,11 +22,16 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   defaultOpen = false,
   headerContent,
   className,
-  variant = 'default'
+  variant = 'default',
+  onOpenChange
 }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
-  const toggleOpen = () => setIsOpen(!isOpen);
+  const toggleOpen = () => {
+    const newState = !isOpen;
+    setIsOpen(newState);
+    onOpenChange?.(newState);
+  };
 
   if (variant === 'compact') {
     return (
