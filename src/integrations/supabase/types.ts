@@ -13955,6 +13955,7 @@ export type Database = {
           telefono: string
         }[]
       }
+      get_leads_counts: { Args: never; Returns: Json }
       get_least_loaded_agent: {
         Args: { p_departamento: string }
         Returns: string
