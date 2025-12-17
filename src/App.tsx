@@ -27,6 +27,7 @@ const KPIDashboard = lazy(() => import('@/pages/Dashboard/KPIDashboard'));
 const Login = lazy(() => import('@/pages/Auth/Login'));
 const Register = lazy(() => import('@/pages/Auth/Register'));
 const ForgotPassword = lazy(() => import('@/pages/Auth/ForgotPassword').then(module => ({ default: module.ForgotPassword })));
+const ResetPassword = lazy(() => import('@/pages/Auth/ResetPassword').then(module => ({ default: module.ResetPassword })));
 const EmailConfirmation = lazy(() => import('@/pages/Auth/EmailConfirmation'));
 const Settings = lazy(() => import('@/pages/Settings/Settings'));
 const NotFound = lazy(() => import('@/pages/NotFound'));
@@ -175,6 +176,7 @@ function App() {
                 <Route path="/auth/register" element={<SignUp />} />
                 <Route path="/auth/signup" element={<SignUp />} />
                 <Route path="/auth/forgot-password" element={<AuthLayout><ForgotPassword /></AuthLayout>} />
+                <Route path="/reset-password" element={<AuthLayout><ResetPassword /></AuthLayout>} />
                 <Route path="/auth/email-confirmation" element={<AuthLayout><EmailConfirmation /></AuthLayout>} />
                 <Route path="/auth/pending-activation" element={<PendingActivation />} />
                 <Route path="/auth/registro-custodio" element={<CustodianSignup />} />
