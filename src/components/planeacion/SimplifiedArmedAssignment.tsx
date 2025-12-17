@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -58,6 +59,7 @@ export function SimplifiedArmedAssignment({
   const [showExternalModal, setShowExternalModal] = useState(false);
   const [meetingPoint, setMeetingPoint] = useState('');
   const [meetingTime, setMeetingTime] = useState('');
+  const [observaciones, setObservaciones] = useState('');
 
   const { armedGuards, providers, loading, error } = useArmedGuardsWithTracking();
   const { isHybridCustodian } = useCustodioVehicleData(serviceData.custodio_asignado || undefined);
@@ -128,7 +130,8 @@ export function SimplifiedArmedAssignment({
       armado_nombre: guard.nombre,
       punto_encuentro: meetingPoint,
       hora_encuentro: meetingTime,
-      tipo_asignacion: 'interno'
+      tipo_asignacion: 'interno',
+      observaciones: observaciones.trim() || undefined
     });
   };
 
@@ -369,6 +372,21 @@ export function SimplifiedArmedAssignment({
                     </div>
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="observaciones">Observaciones del abordo (opcional)</Label>
+                    <Textarea
+                      id="observaciones"
+                      value={observaciones}
+                      onChange={(e) => setObservaciones(e.target.value)}
+                      placeholder="Instrucciones especiales del cliente: código de vestimenta, protocolos de seguridad, documentos requeridos, contacto al llegar..."
+                      className="min-h-[80px]"
+                      maxLength={500}
+                    />
+                    <p className="text-xs text-muted-foreground text-right">
+                      {observaciones.length}/500 caracteres
+                    </p>
+                  </div>
+
                   <Button onClick={handleConfirmInternal} className="w-full">
                     Confirmar Asignación
                   </Button>
@@ -412,7 +430,8 @@ export function SimplifiedArmedAssignment({
               personalId: data.personalId,
               nombreCompleto: data.nombreCompleto,
               licenciaPortacion: data.licenciaPortacion,
-              verificacionData: data.verificacionData
+              verificacionData: data.verificacionData,
+              observaciones: observaciones.trim() || undefined
             });
             setShowExternalModal(false);
           }}

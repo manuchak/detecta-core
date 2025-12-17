@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useScheduledServices } from '@/hooks/useScheduledServices';
 import { usePendingServices } from '@/hooks/usePendingServices';
 import { usePendingArmadoServices } from '@/hooks/usePendingArmadoServices';
@@ -11,8 +12,10 @@ import { PendingAssignmentModal } from '@/components/planeacion/PendingAssignmen
 import { EditServiceModal, type EditableService } from '@/components/planeacion/EditServiceModal';
 import { ReassignmentModal, type ServiceForReassignment } from '@/components/planeacion/ReassignmentModal';
 import { ServiceHistoryModal } from '@/components/planeacion/ServiceHistoryModal';
+import { SimplifiedArmedAssignment } from '@/components/planeacion/SimplifiedArmedAssignment';
 import { AirlineDateSelector } from '@/components/planeacion/AirlineDateSelector';
 import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Users, Timer, Edit, RefreshCw, History } from 'lucide-react';
+import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -47,6 +50,41 @@ export function ScheduledServicesTab() {
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [historyServiceId, setHistoryServiceId] = useState<string | null>(null);
   const [historyServiceName, setHistoryServiceName] = useState<string>('');
+  
+  // Estado para modal de asignación de armado/abordo
+  const [armedAssignmentModalOpen, setArmedAssignmentModalOpen] = useState(false);
+  const [selectedArmadoService, setSelectedArmadoService] = useState<any>(null);
+
+  // Handler para completar asignación de armado
+  const handleArmedAssignmentComplete = async (data: any) => {
+    if (!selectedArmadoService) return;
+    
+    try {
+      updateServiceConfiguration({
+        id: selectedArmadoService.id_servicio,
+        data: {
+          armado_asignado: data.armado_nombre,
+          armado_id: data.armado_id,
+          punto_encuentro: data.punto_encuentro,
+          hora_encuentro: data.hora_encuentro,
+          tipo_asignacion_armado: data.tipo_asignacion,
+          proveedor_armado_id: data.proveedor_id || null,
+          observaciones: data.observaciones || null
+        }
+      });
+      
+      toast.success(`Armado ${data.armado_nombre} asignado correctamente`);
+      setArmedAssignmentModalOpen(false);
+      setSelectedArmadoService(null);
+      
+      // Refrescar datos
+      refetchPendingArmado();
+      refetch();
+    } catch (error) {
+      console.error('Error assigning armed guard:', error);
+      toast.error('Error al asignar armado');
+    }
+  };
 
   const getStatusBadge = (service: any) => {
     // Check if service is fully planned and confirmed
@@ -585,8 +623,8 @@ export function ScheduledServicesTab() {
                     <Button
                       size="sm"
                       onClick={() => {
-                        // TODO: Implement armed guard assignment for this service
-                        console.log('Assign armed guard to:', pendingArmadoService.id_servicio);
+                        setSelectedArmadoService(pendingArmadoService);
+                        setArmedAssignmentModalOpen(true);
                       }}
                       className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm"
                     >
@@ -682,6 +720,34 @@ export function ScheduledServicesTab() {
         serviceId={historyServiceId}
         serviceName={historyServiceName}
       />
+
+      {/* Modal de Asignación de Armado/Abordo */}
+      <Dialog open={armedAssignmentModalOpen} onOpenChange={setArmedAssignmentModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Asignar Armado / Abordo</DialogTitle>
+            <DialogDescription>
+              Registra el personal armado que acompañará el servicio. 
+              Un "abordo" es un acompañante de seguridad solicitado por el cliente.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedArmadoService && (
+            <SimplifiedArmedAssignment
+              serviceData={{
+                servicio_id: selectedArmadoService.id_servicio,
+                origen: selectedArmadoService.origen || selectedArmadoService.origen_texto,
+                destino: selectedArmadoService.destino || selectedArmadoService.destino_texto,
+                fecha_hora_cita: selectedArmadoService.fecha_hora_cita,
+                custodio_asignado: selectedArmadoService.custodio_nombre || selectedArmadoService.custodio_asignado,
+                custodio_id: selectedArmadoService.custodio_id
+              }}
+              onComplete={handleArmedAssignmentComplete}
+              onSkip={() => setArmedAssignmentModalOpen(false)}
+              onBack={() => setArmedAssignmentModalOpen(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
