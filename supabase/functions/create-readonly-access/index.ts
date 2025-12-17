@@ -262,14 +262,15 @@ serve(async (req) => {
     console.log('Rol creado o verificado:', roleName);
     
     try {
-      // Otorgar permisos al rol de forma segura
+      // Otorgar permisos al rol de forma segura usando quote_ident para prevenir SQL injection
       await connection.queryArray(`
-        GRANT USAGE ON SCHEMA public TO ${roleName};
-      `);
-      
-      await connection.queryArray(`
-        GRANT SELECT ON public.servicios_custodia TO ${roleName};
-      `);
+        DO $$
+        BEGIN
+          EXECUTE format('GRANT USAGE ON SCHEMA public TO %I', $1);
+          EXECUTE format('GRANT SELECT ON public.servicios_custodia TO %I', $1);
+        END
+        $$;
+      `, [roleName]);
       
       console.log('Permisos otorgados al rol');
     } catch (error) {
@@ -298,10 +299,14 @@ serve(async (req) => {
     }
     
     try {
-      // Otorgar rol al usuario
+      // Otorgar rol al usuario de forma segura usando quote_ident para prevenir SQL injection
       await connection.queryArray(`
-        GRANT ${roleName} TO ${userName};
-      `);
+        DO $$
+        BEGIN
+          EXECUTE format('GRANT %I TO %I', $1, $2);
+        END
+        $$;
+      `, [roleName, userName]);
       
       console.log('Rol otorgado al usuario');
     } catch (error) {
