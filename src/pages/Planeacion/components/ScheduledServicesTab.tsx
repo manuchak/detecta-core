@@ -61,7 +61,7 @@ export function ScheduledServicesTab() {
     
     try {
       updateServiceConfiguration({
-        id: selectedArmadoService.id_servicio,
+        id: selectedArmadoService.id,
         data: {
           armado_asignado: data.armado_nombre,
           armado_id: data.armado_id,
