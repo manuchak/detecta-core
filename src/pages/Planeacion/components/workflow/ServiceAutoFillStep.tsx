@@ -694,11 +694,11 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
               </div>
               <Input
                 id="id-interno-cliente"
-                placeholder="Ej: CLI-2024-001, REF-ABC123, etc."
+                placeholder="Ej: Av. Insurgentes Sur 1234, Col. Del Valle, CDMX 03100"
                 value={idInternoCliente}
                 onChange={(e) => handleIdInternoChange(e.target.value)}
                 className="h-14 text-lg"
-                maxLength={50}
+                maxLength={200}
               />
             </div>
 

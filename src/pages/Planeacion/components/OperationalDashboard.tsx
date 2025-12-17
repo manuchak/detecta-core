@@ -13,6 +13,7 @@ import {
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useServiciosHoy, useCustodiosDisponibles, useZonasOperativas } from '@/hooks/useServiciosHoy';
+import { PendingAssignmentModal } from '@/components/planeacion/PendingAssignmentModal';
 
 interface OperationalDashboardProps {
   showCreateWorkflow: boolean;
@@ -21,6 +22,8 @@ interface OperationalDashboardProps {
 
 export function OperationalDashboard({ showCreateWorkflow, setShowCreateWorkflow }: OperationalDashboardProps) {
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString('es-ES'));
+  const [assignmentModalOpen, setAssignmentModalOpen] = useState(false);
+  const [selectedService, setSelectedService] = useState<any>(null);
   
   const { data: serviciosHoy = [], isLoading: loadingServicios } = useServiciosHoy();
   const { data: custodiosDisponibles = [], isLoading: loadingCustodios } = useCustodiosDisponibles();
@@ -155,7 +158,14 @@ export function OperationalDashboard({ showCreateWorkflow, setShowCreateWorkflow
                       </p>
                     </div>
                     <div className="apple-list-actions">
-                      <Button size="sm" className="apple-button">
+                      <Button 
+                        size="sm" 
+                        className="apple-button"
+                        onClick={() => {
+                          setSelectedService(servicio);
+                          setAssignmentModalOpen(true);
+                        }}
+                      >
                         <Users className="h-4 w-4 mr-1" />
                         Asignar
                       </Button>
@@ -216,6 +226,18 @@ export function OperationalDashboard({ showCreateWorkflow, setShowCreateWorkflow
           </div>
         </div>
       </div>
+
+      {/* Modal de Asignación de Custodio */}
+      <PendingAssignmentModal
+        open={assignmentModalOpen}
+        onOpenChange={setAssignmentModalOpen}
+        service={selectedService}
+        onAssignmentComplete={() => {
+          // Refrescar datos al completar asignación
+          setAssignmentModalOpen(false);
+          setSelectedService(null);
+        }}
+      />
     </div>
   );
 }
