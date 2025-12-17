@@ -162,7 +162,23 @@ export function OperationalDashboard({ showCreateWorkflow, setShowCreateWorkflow
                         size="sm" 
                         className="apple-button"
                         onClick={() => {
-                          setSelectedService(servicio);
+                          // Transformar ServicioPlanificado a formato PendingService
+                          const serviceForModal = {
+                            id: servicio.id,
+                            id_servicio: servicio.id,
+                            nombre_cliente: servicio.cliente_nombre || servicio.folio || 'Sin cliente',
+                            origen: servicio.destino_texto || '', // Usar destino como origen si no hay campo separado
+                            destino: servicio.destino_texto || '',
+                            fecha_hora_cita: servicio.fecha_hora_cita || '',
+                            tipo_servicio: 'custodia',
+                            requiere_armado: servicio.requiere_armado ?? false,
+                            observaciones: '',
+                            created_at: servicio.created_at || new Date().toISOString(),
+                            custodio_asignado: servicio.custodio_asignado || undefined,
+                            armado_asignado: servicio.armado || undefined,
+                            estado: servicio.estado_planeacion || 'pendiente'
+                          };
+                          setSelectedService(serviceForModal);
                           setAssignmentModalOpen(true);
                         }}
                       >
