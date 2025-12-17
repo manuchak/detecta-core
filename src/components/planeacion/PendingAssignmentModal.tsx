@@ -14,6 +14,8 @@ import { toast } from 'sonner';
 import type { PendingService } from '@/hooks/usePendingServices';
 import type { EditableService } from './EditServiceModal';
 import { useServiceTransformations } from '@/hooks/useServiceTransformations';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface PendingAssignmentModalProps {
   open: boolean;
@@ -33,6 +35,7 @@ export function PendingAssignmentModal({
   onAssignmentComplete,
   mode = 'auto'
 }: PendingAssignmentModalEnhancedProps) {
+  const queryClient = useQueryClient();
   const [isAssigning, setIsAssigning] = useState(false);
   const [showContextualEdit, setShowContextualEdit] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
@@ -250,9 +253,34 @@ export function PendingAssignmentModal({
   };
 
   const handleEditServiceSave = async (id: string, data: Partial<EditableService>) => {
-    // Implementar guardado de cambios básicos
-    toast.success('Cambios guardados exitosamente');
-    onAssignmentComplete();
+    try {
+      const { error } = await supabase
+        .from('servicios_planificados')
+        .update({
+          id_servicio: data.id_servicio,
+          nombre_cliente: data.nombre_cliente,
+          origen: data.origen,
+          destino: data.destino,
+          fecha_hora_cita: data.fecha_hora_cita,
+          tipo_servicio: data.tipo_servicio,
+          requiere_armado: data.requiere_armado,
+          observaciones: data.observaciones
+        })
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      // Invalidar queries para refrescar la UI
+      queryClient.invalidateQueries({ queryKey: ['scheduled-services'] });
+      queryClient.invalidateQueries({ queryKey: ['planned-services'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-services'] });
+      
+      toast.success('Cambios guardados exitosamente');
+      onAssignmentComplete();
+    } catch (error) {
+      console.error('Error guardando cambios:', error);
+      toast.error('Error al guardar los cambios');
+    }
   };
 
   // Convertir PendingService a EditableService para ContextualEditModal
