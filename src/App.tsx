@@ -85,6 +85,7 @@ const SystemTestingPage = lazy(() => import('@/pages/SystemTestingPage'));
 const SignUp = lazy(() => import('@/pages/Auth/SignUp'));
 const PendingActivation = lazy(() => import('@/pages/Auth/PendingActivation'));
 const CustodianSignup = lazy(() => import('@/pages/Auth/CustodianSignup'));
+const ReportsPage = lazy(() => import('@/pages/Dashboard/ReportsPage'));
 
 // Components
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -227,6 +228,20 @@ function App() {
                       <PermissionProtectedRoute permissionType="page" permissionId="dashboard" showMessage={true}>
                         <UnifiedLayout>
                           <KPIDashboard />
+                        </UnifiedLayout>
+                      </PermissionProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                {/* Reports Page */}
+                <Route
+                  path="/dashboard/reports"
+                  element={
+                    <ProtectedRoute>
+                      <PermissionProtectedRoute permissionType="page" permissionId="dashboard" showMessage={true}>
+                        <UnifiedLayout>
+                          <ReportsPage />
                         </UnifiedLayout>
                       </PermissionProtectedRoute>
                     </ProtectedRoute>

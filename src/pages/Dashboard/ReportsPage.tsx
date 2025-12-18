@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Loader2, Download } from 'lucide-react';
+import { Loader2, Download, FileText } from 'lucide-react';
 import { useHistoricalReportData } from '@/hooks/useHistoricalReportData';
 import { ReportPreview } from '@/components/reports/ReportPreview';
 import { ReportExportButtons } from '@/components/reports/ReportExportButtons';
-import { HistoricalReportConfig, ReportModule, MODULE_LABELS, GRANULARITY_LABELS, MODULE_GRANULARITY_SUPPORT } from '@/types/reports';
+import { HistoricalReportConfig, ReportModule, ReportGranularity, MODULE_LABELS, GRANULARITY_LABELS, MODULE_GRANULARITY_SUPPORT } from '@/types/reports';
 const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1;
 
@@ -174,12 +174,7 @@ export default function ReportsPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <Button variant="outline" onClick={() => setShowPreview(false)}>← Volver a Configuración</Button>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => window.print()}>
-                <Download className="h-4 w-4 mr-2" />
-                Imprimir / PDF
-              </Button>
-            </div>
+            <ReportExportButtons config={config} data={reportData} disabled={loading} />
           </div>
           
           {loading ? (
