@@ -425,17 +425,41 @@ function transformOperationalData(operationalData: any): OperationalReportData {
         previous: operationalData?.comparatives?.averageKmPerService?.previousMonth || 0,
         changePercent: operationalData?.comparatives?.averageKmPerService?.changePercent || 0,
       },
+      gmvYTD: {
+        current: operationalData?.comparatives?.gmvYTD?.current || 0,
+        previous: operationalData?.comparatives?.gmvYTD?.previousYear || 0,
+        changePercent: operationalData?.comparatives?.gmvYTD?.changePercent || 0,
+      },
+      avgDailyGMV: {
+        current: operationalData?.comparatives?.avgDailyGMV?.current || 0,
+        previous: operationalData?.comparatives?.avgDailyGMV?.previousYear || 0,
+        changePercent: operationalData?.comparatives?.avgDailyGMV?.changePercent || 0,
+      },
     },
     topCustodians: operationalData?.topCustodians?.map((c: any, index: number) => ({
       rank: index + 1,
       name: c.name || '',
       services: c.services || 0,
       gmv: c.gmv || 0,
-      completionPercent: 95, // Estimated
-      avgKm: 0, // Not available in current data
+      completionPercent: 95,
+      avgKm: 0,
     })) || [],
-    topClients: [], // Would need additional data source
-    monthlyBreakdown: [], // Would need additional processing
+    topClients: operationalData?.topClients?.map((c: any, index: number) => ({
+      rank: index + 1,
+      name: c.name || '',
+      services: c.services || 0,
+      gmv: c.gmv || 0,
+      aov: c.aov || 0,
+    })) || [],
+    monthlyBreakdown: operationalData?.monthlyBreakdown?.map((m: any) => ({
+      month: m.month || '',
+      monthNumber: m.monthNumber || 0,
+      services: m.services || 0,
+      completedServices: m.completedServices || 0,
+      gmv: m.gmv || 0,
+      aov: m.aov || 0,
+      completionRate: m.completionRate || 0,
+    })) || [],
   };
 }
 

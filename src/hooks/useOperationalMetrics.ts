@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getUTCMonth, getUTCYear, getUTCDayOfMonth } from '@/utils/timezoneUtils';
+
 export interface OperationalMetrics {
   totalServices: number;
   completedServices: number;
@@ -25,6 +26,21 @@ export interface OperationalMetrics {
     name: string;
     services: number;
     gmv: number;
+  }>;
+  topClients: Array<{
+    name: string;
+    services: number;
+    gmv: number;
+    aov: number;
+  }>;
+  monthlyBreakdown: Array<{
+    month: string;
+    monthNumber: number;
+    services: number;
+    completedServices: number;
+    gmv: number;
+    aov: number;
+    completionRate: number;
   }>;
   // Comparativos temporales
   comparatives: {
@@ -68,6 +84,18 @@ export interface OperationalMetrics {
       previousMonth: number;
       changePercent: number;
     };
+    // GMV YoY
+    gmvYTD: {
+      current: number;
+      previousYear: number;
+      changePercent: number;
+    };
+    // Facturación promedio diaria
+    avgDailyGMV: {
+      current: number;
+      previousYear: number;
+      changePercent: number;
+    };
   };
 }
 
@@ -75,6 +103,11 @@ export interface OperationalMetricsOptions {
   year?: number;
   month?: number;
 }
+
+const MONTH_NAMES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+];
 
 export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
   const filterYear = options?.year;
@@ -107,13 +140,17 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
       const currentMonth = now.getMonth() + 1;
       const currentYear = now.getFullYear();
       const currentDay = now.getDate() - 1; // Data con 1 día de retraso
+      const daysInYear = Math.floor((now.getTime() - new Date(currentYear, 0, 1).getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
       // Calculate basic metrics
       const totalServices = services?.length || 0;
-      const completedServices = services?.filter(s => 
+      
+      // CORREGIDO: Servicios completados para cálculos de GMV
+      const completedServicesArray = services?.filter(s => 
         s.estado?.toLowerCase() === 'completado' || 
         s.estado?.toLowerCase() === 'finalizado'
-      ).length || 0;
+      ) || [];
+      const completedServices = completedServicesArray.length;
       
       const cancelledServices = services?.filter(s => 
         s.estado?.toLowerCase() === 'cancelado'
@@ -135,54 +172,71 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
       const averageServicesPerCustodian = activeCustodians > 0 ? totalServices / activeCustodians : 0;
 
       // Average km per service (only for completed services)
-      const completedServicesWithKm = services?.filter(s => 
-        (s.estado?.toLowerCase() === 'completado' || s.estado?.toLowerCase() === 'finalizado') &&
-        s.km_recorridos > 0
-      ) || [];
-      
+      const completedServicesWithKm = completedServicesArray.filter(s => s.km_recorridos > 0);
       const totalKm = completedServicesWithKm.reduce((sum, s) => sum + (s.km_recorridos || 0), 0);
       const averageKmPerService = completedServicesWithKm.length > 0 ? totalKm / completedServicesWithKm.length : 0;
 
-      // GMV calculations
-      const totalGMV = services?.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0) || 0;
-      const averageAOV = totalServices > 0 ? totalGMV / totalServices : 0;
+      // GMV calculations - CORREGIDO: Solo de servicios completados
+      const totalGMV = completedServicesArray.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0);
+      const averageAOV = completedServices > 0 ? totalGMV / completedServices : 0;
 
       // Current month metrics (MTD) - Usar funciones UTC para datos de DB
       const currentMonthServices = services?.filter(s => {
         if (!s.fecha_hora_cita) return false;
-        // Usar getUTC* para evitar bugs de timezone con datos de DB
         return getUTCMonth(s.fecha_hora_cita) + 1 === currentMonth && 
                getUTCYear(s.fecha_hora_cita) === currentYear &&
                getUTCDayOfMonth(s.fecha_hora_cita) <= currentDay;
       }) || [];
 
+      const currentMonthCompletedServices = currentMonthServices.filter(s => 
+        s.estado?.toLowerCase() === 'completado' || s.estado?.toLowerCase() === 'finalizado'
+      );
+
       const servicesThisMonth = currentMonthServices.length;
-      const gmvThisMonth = currentMonthServices.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0);
+      // GMV del mes actual solo de completados
+      const gmvThisMonth = currentMonthCompletedServices.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0);
 
       // Previous month MTD (same day range)
       const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
       const prevMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
       const previousMonthMTDServices = services?.filter(s => {
         if (!s.fecha_hora_cita) return false;
-        // Usar getUTC* para evitar bugs de timezone con datos de DB
         return getUTCMonth(s.fecha_hora_cita) + 1 === prevMonth && 
                getUTCYear(s.fecha_hora_cita) === prevMonthYear &&
                getUTCDayOfMonth(s.fecha_hora_cita) <= currentDay;
       }) || [];
 
+      const prevMonthCompletedServices = previousMonthMTDServices.filter(s => 
+        s.estado?.toLowerCase() === 'completado' || s.estado?.toLowerCase() === 'finalizado'
+      );
+
       // YTD vs same period previous year
       const ytdServices = services?.filter(s => {
         if (!s.fecha_hora_cita) return false;
-        // Usar getUTCYear para evitar bugs de timezone
         return getUTCYear(s.fecha_hora_cita) === currentYear;
       }) || [];
 
+      const ytdCompletedServices = ytdServices.filter(s => 
+        s.estado?.toLowerCase() === 'completado' || s.estado?.toLowerCase() === 'finalizado'
+      );
+
       const samePeriodPrevYear = services?.filter(s => {
         if (!s.fecha_hora_cita) return false;
-        // Usar getUTC* para evitar bugs de timezone
         return getUTCYear(s.fecha_hora_cita) === currentYear - 1 && 
                getUTCMonth(s.fecha_hora_cita) < currentMonth;
       }) || [];
+
+      const samePeriodPrevYearCompleted = samePeriodPrevYear.filter(s => 
+        s.estado?.toLowerCase() === 'completado' || s.estado?.toLowerCase() === 'finalizado'
+      );
+
+      // GMV YTD
+      const gmvYTD = ytdCompletedServices.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0);
+      const gmvYTDPrevYear = samePeriodPrevYearCompleted.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0);
+
+      // Facturación promedio diaria
+      const avgDailyGMV = daysInYear > 0 ? gmvYTD / daysInYear : 0;
+      const avgDailyGMVPrevYear = daysInYear > 0 ? gmvYTDPrevYear / daysInYear : 0;
 
       // Current quarter and previous quarter
       const currentQuarter = Math.ceil(currentMonth / 3);
@@ -191,7 +245,6 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
 
       const currentQuarterServices = services?.filter(s => {
         if (!s.fecha_hora_cita) return false;
-        // Usar getUTC* para evitar bugs de timezone
         const serviceMonth = getUTCMonth(s.fecha_hora_cita) + 1;
         return getUTCYear(s.fecha_hora_cita) === currentYear &&
                serviceMonth >= quarterStart && serviceMonth <= quarterEnd;
@@ -205,7 +258,6 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
 
       const previousQuarterServices = services?.filter(s => {
         if (!s.fecha_hora_cita) return false;
-        // Usar getUTC* para evitar bugs de timezone
         const serviceMonth = getUTCMonth(s.fecha_hora_cita) + 1;
         return getUTCYear(s.fecha_hora_cita) === prevQuarterYear &&
                serviceMonth >= prevQuarterStart && serviceMonth <= prevQuarterEnd;
@@ -235,9 +287,9 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
       const prevMonthCompletionRate = previousMonthMTDServices.length > 0 ? 
         (prevMonthCompleted / previousMonthMTDServices.length) * 100 : 0;
 
-      // Previous month AOV
-      const prevMonthGMV = previousMonthMTDServices.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0);
-      const prevMonthAOV = previousMonthMTDServices.length > 0 ? prevMonthGMV / previousMonthMTDServices.length : 0;
+      // Previous month AOV - Solo de completados
+      const prevMonthGMV = prevMonthCompletedServices.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0);
+      const prevMonthAOV = prevMonthCompletedServices.length > 0 ? prevMonthGMV / prevMonthCompletedServices.length : 0;
 
       // Previous month Km average
       const prevMonthCompletedWithKm = previousMonthMTDServices.filter(s => 
@@ -248,18 +300,16 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
       const prevMonthAvgKm = prevMonthCompletedWithKm.length > 0 ? prevMonthTotalKm / prevMonthCompletedWithKm.length : 0;
 
       // Current month metrics for comparison
-      const currentMonthCompleted = currentMonthServices.filter(s => 
+      const currentMonthCompletedCount = currentMonthServices.filter(s => 
         s.estado?.toLowerCase() === 'completado' || s.estado?.toLowerCase() === 'finalizado'
       ).length;
       const currentMonthCompletionRate = currentMonthServices.length > 0 ? 
-        (currentMonthCompleted / currentMonthServices.length) * 100 : 0;
+        (currentMonthCompletedCount / currentMonthServices.length) * 100 : 0;
       
-      const currentMonthAOV = currentMonthServices.length > 0 ? gmvThisMonth / currentMonthServices.length : 0;
+      // AOV del mes actual solo de completados
+      const currentMonthAOV = currentMonthCompletedServices.length > 0 ? gmvThisMonth / currentMonthCompletedServices.length : 0;
 
-      const currentMonthCompletedWithKm = currentMonthServices.filter(s => 
-        (s.estado?.toLowerCase() === 'completado' || s.estado?.toLowerCase() === 'finalizado') &&
-        s.km_recorridos > 0
-      );
+      const currentMonthCompletedWithKm = currentMonthCompletedServices.filter(s => s.km_recorridos > 0);
       const currentMonthTotalKm = currentMonthCompletedWithKm.reduce((sum, s) => sum + (s.km_recorridos || 0), 0);
       const currentMonthAvgKm = currentMonthCompletedWithKm.length > 0 ? currentMonthTotalKm / currentMonthCompletedWithKm.length : 0;
 
@@ -276,18 +326,14 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
         cancelled: Math.round((cancelledServices / totalServices) * 100) || 0,
       };
 
-      // Top custodians by services and GMV
-      const custodianStats = {};
-      services?.forEach(service => {
+      // Top custodians by services and GMV (only completed services for GMV)
+      const custodianStats: Record<string, { name: string; services: number; gmv: number }> = {};
+      completedServicesArray.forEach(service => {
         const custodian = service.nombre_custodio;
         if (!custodian || custodian === '#N/A') return;
 
         if (!custodianStats[custodian]) {
-          custodianStats[custodian] = {
-            name: custodian,
-            services: 0,
-            gmv: 0
-          };
+          custodianStats[custodian] = { name: custodian, services: 0, gmv: 0 };
         }
 
         custodianStats[custodian].services++;
@@ -295,8 +341,72 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
       });
 
       const topCustodians = Object.values(custodianStats)
-        .sort((a: any, b: any) => b.services - a.services)
-        .slice(0, 5);
+        .sort((a, b) => b.gmv - a.gmv)
+        .slice(0, 10);
+
+      // TOP CLIENTS by GMV (only completed services)
+      const clientStats: Record<string, { name: string; services: number; gmv: number }> = {};
+      completedServicesArray.forEach(service => {
+        const client = service.nombre_cliente;
+        if (!client || client === '#N/A') return;
+
+        if (!clientStats[client]) {
+          clientStats[client] = { name: client, services: 0, gmv: 0 };
+        }
+
+        clientStats[client].services++;
+        clientStats[client].gmv += service.cobro_cliente || 0;
+      });
+
+      const topClients = Object.values(clientStats)
+        .sort((a, b) => b.gmv - a.gmv)
+        .slice(0, 10)
+        .map(client => ({
+          name: client.name,
+          services: client.services,
+          gmv: client.gmv,
+          aov: client.services > 0 ? client.gmv / client.services : 0,
+        }));
+
+      // MONTHLY BREAKDOWN - Desglose mensual de GMV
+      const yearToAnalyze = filterYear || currentYear;
+      const monthlyBreakdown: Array<{
+        month: string;
+        monthNumber: number;
+        services: number;
+        completedServices: number;
+        gmv: number;
+        aov: number;
+        completionRate: number;
+      }> = [];
+
+      for (let month = 1; month <= 12; month++) {
+        const monthServices = services?.filter(s => {
+          if (!s.fecha_hora_cita) return false;
+          return getUTCMonth(s.fecha_hora_cita) + 1 === month && 
+                 getUTCYear(s.fecha_hora_cita) === yearToAnalyze;
+        }) || [];
+
+        const monthCompletedServices = monthServices.filter(s => 
+          s.estado?.toLowerCase() === 'completado' || s.estado?.toLowerCase() === 'finalizado'
+        );
+
+        const gmv = monthCompletedServices.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0);
+        const aov = monthCompletedServices.length > 0 ? gmv / monthCompletedServices.length : 0;
+        const monthCompletionRate = monthServices.length > 0 
+          ? (monthCompletedServices.length / monthServices.length) * 100 
+          : 0;
+
+        monthlyBreakdown.push({
+          month: MONTH_NAMES[month - 1],
+          monthNumber: month,
+          services: monthServices.length,
+          completedServices: monthCompletedServices.length,
+          gmv,
+          aov: Math.round(aov),
+          completionRate: Math.round(monthCompletionRate * 10) / 10,
+        });
+      }
 
       return {
         totalServices,
@@ -313,7 +423,9 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
         servicesThisMonth,
         gmvThisMonth,
         servicesDistribution,
-        topCustodians: topCustodians as any,
+        topCustodians,
+        topClients,
+        monthlyBreakdown,
         comparatives: {
           servicesThisMonth: {
             current: servicesThisMonth,
@@ -354,6 +466,16 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
             current: Math.round(currentMonthAvgKm),
             previousMonth: Math.round(prevMonthAvgKm),
             changePercent: Math.round(calculateChangePercent(currentMonthAvgKm, prevMonthAvgKm) * 10) / 10
+          },
+          gmvYTD: {
+            current: gmvYTD,
+            previousYear: gmvYTDPrevYear,
+            changePercent: Math.round(calculateChangePercent(gmvYTD, gmvYTDPrevYear) * 10) / 10
+          },
+          avgDailyGMV: {
+            current: Math.round(avgDailyGMV),
+            previousYear: Math.round(avgDailyGMVPrevYear),
+            changePercent: Math.round(calculateChangePercent(avgDailyGMV, avgDailyGMVPrevYear) * 10) / 10
           }
         }
       };

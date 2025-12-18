@@ -302,6 +302,8 @@ export interface OperationalReportData {
     aovThisMonth: { current: number; previous: number; changePercent: number };
     completionRate: { current: number; previous: number; changePercent: number };
     avgKmPerService: { current: number; previous: number; changePercent: number };
+    gmvYTD: { current: number; previous: number; changePercent: number };
+    avgDailyGMV: { current: number; previous: number; changePercent: number };
   };
   topCustodians: {
     rank: number;
@@ -317,11 +319,12 @@ export interface OperationalReportData {
     services: number;
     gmv: number;
     aov: number;
-    trend: 'up' | 'down' | 'stable';
   }[];
   monthlyBreakdown: {
     month: string;
+    monthNumber: number;
     services: number;
+    completedServices: number;
     gmv: number;
     aov: number;
     completionRate: number;
