@@ -309,9 +309,12 @@ export interface OperationalReportData {
     rank: number;
     name: string;
     services: number;
+    costoCustodio: number;
+    promedioCostoMes: number;
+    mesesActivos: number;
     gmv: number;
-    completionPercent: number;
-    avgKm: number;
+    margen: number;
+    coberturaDatos: number;
   }[];
   topClients: {
     rank: number;
