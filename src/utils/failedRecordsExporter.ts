@@ -1,10 +1,5 @@
 import * as XLSX from 'xlsx';
-
-export interface FailedRecord {
-  rowIndex: number;
-  originalData: Record<string, any>;
-  error: string;
-}
+import { FailedRecord } from '@/services/custodianServicesImportService';
 
 export const exportFailedRecordsToExcel = (
   failedRecords: FailedRecord[],
