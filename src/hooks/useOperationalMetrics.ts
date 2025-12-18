@@ -156,8 +156,10 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
       const now = new Date();
       const currentMonth = now.getMonth() + 1;
       const currentYear = now.getFullYear();
+      // CORREGIDO: Usar el año del filtro para los cálculos del reporte
+      const reportYear = filterYear || currentYear;
       const currentDay = now.getDate() - 1; // Data con 1 día de retraso
-      const daysInYear = Math.floor((now.getTime() - new Date(currentYear, 0, 1).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      const daysInYear = Math.floor((now.getTime() - new Date(reportYear, 0, 1).getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
       // Calculate basic metrics
       const totalServices = services?.length || 0;
@@ -198,10 +200,11 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
       const averageAOV = completedServices > 0 ? totalGMV / completedServices : 0;
 
       // Current month metrics (MTD) - Usar funciones UTC para datos de DB
+      // CORREGIDO: Usar reportYear en lugar de currentYear
       const currentMonthServices = services?.filter(s => {
         if (!s.fecha_hora_cita) return false;
         return getUTCMonth(s.fecha_hora_cita) + 1 === currentMonth && 
-               getUTCYear(s.fecha_hora_cita) === currentYear &&
+               getUTCYear(s.fecha_hora_cita) === reportYear &&
                getUTCDayOfMonth(s.fecha_hora_cita) <= currentDay;
       }) || [];
 
@@ -215,9 +218,9 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
 
       // Previous month MTD (same day range)
       const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
-      const prevMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+      const prevMonthYear = currentMonth === 1 ? reportYear - 1 : reportYear;
       // CORREGIDO: Usar datos del año anterior si el mes anterior es diciembre del año pasado
-      const prevMonthDataSource = prevMonthYear === currentYear ? services : prevYearServices;
+      const prevMonthDataSource = prevMonthYear === reportYear ? services : prevYearServices;
       const previousMonthMTDServices = prevMonthDataSource?.filter(s => {
         if (!s.fecha_hora_cita) return false;
         return getUTCMonth(s.fecha_hora_cita) + 1 === prevMonth && 
@@ -228,10 +231,10 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
         s.estado?.toLowerCase() === 'completado' || s.estado?.toLowerCase() === 'finalizado'
       );
 
-      // YTD vs same period previous year
+      // YTD vs same period previous year - CORREGIDO: Usar reportYear
       const ytdServices = services?.filter(s => {
         if (!s.fecha_hora_cita) return false;
-        return getUTCYear(s.fecha_hora_cita) === currentYear;
+        return getUTCYear(s.fecha_hora_cita) === reportYear;
       }) || [];
 
       const ytdCompletedServices = ytdServices.filter(s => 
@@ -262,21 +265,22 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
       const quarterStart = (currentQuarter - 1) * 3 + 1;
       const quarterEnd = currentQuarter * 3;
 
+      // CORREGIDO: Usar reportYear en lugar de currentYear
       const currentQuarterServices = services?.filter(s => {
         if (!s.fecha_hora_cita) return false;
         const serviceMonth = getUTCMonth(s.fecha_hora_cita) + 1;
-        return getUTCYear(s.fecha_hora_cita) === currentYear &&
+        return getUTCYear(s.fecha_hora_cita) === reportYear &&
                serviceMonth >= quarterStart && serviceMonth <= quarterEnd;
       }) || [];
 
-      // Previous quarter
+      // Previous quarter - CORREGIDO: Usar reportYear
       const prevQuarter = currentQuarter === 1 ? 4 : currentQuarter - 1;
-      const prevQuarterYear = currentQuarter === 1 ? currentYear - 1 : currentYear;
+      const prevQuarterYear = currentQuarter === 1 ? reportYear - 1 : reportYear;
       const prevQuarterStart = (prevQuarter - 1) * 3 + 1;
       const prevQuarterEnd = prevQuarter * 3;
 
       // CORREGIDO: Usar datos del año anterior si el trimestre anterior es del año pasado
-      const previousQuarterDataSource = prevQuarterYear === currentYear ? services : prevYearServices;
+      const previousQuarterDataSource = prevQuarterYear === reportYear ? services : prevYearServices;
       const previousQuarterServices = previousQuarterDataSource?.filter(s => {
         if (!s.fecha_hora_cita) return false;
         const serviceMonth = getUTCMonth(s.fecha_hora_cita) + 1;
