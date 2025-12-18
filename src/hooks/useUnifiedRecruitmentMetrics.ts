@@ -114,12 +114,16 @@ export const useUnifiedRecruitmentMetrics = () => {
       const currentMonth = new Date().getMonth() + 1;
       const currentYear = new Date().getFullYear();
       
+      // Calcular el siguiente mes correctamente (manejar diciembre → enero)
+      const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+      const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
+      
       const { data, error } = await supabase
         .from('servicios_custodia')
         .select('nombre_custodio')
         .eq('estado', 'finalizado')
         .gte('fecha_hora_cita', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
-        .lt('fecha_hora_cita', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+        .lt('fecha_hora_cita', `${nextYear}-${nextMonth.toString().padStart(2, '0')}-01`);
 
       if (error) throw error;
 

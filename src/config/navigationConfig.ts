@@ -22,6 +22,7 @@ import {
   ClipboardList,
   BookOpen,
   GitBranch,
+  FileText,
   LucideIcon
 } from 'lucide-react';
 
@@ -62,6 +63,13 @@ export const navigationModules: NavigationModule[] = [
         label: 'KPIs',
         path: '/dashboard/kpis',
         icon: BarChart3
+      },
+      {
+        id: 'dashboard_reports',
+        label: 'Informes',
+        path: '/dashboard/reports',
+        icon: FileText,
+        roles: ['admin', 'owner', 'bi']
       }
     ]
   },
