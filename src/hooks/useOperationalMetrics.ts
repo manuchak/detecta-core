@@ -71,14 +71,35 @@ export interface OperationalMetrics {
   };
 }
 
-export const useOperationalMetrics = () => {
+export interface OperationalMetricsOptions {
+  year?: number;
+  month?: number;
+}
+
+export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
+  const filterYear = options?.year;
+  const filterMonth = options?.month;
+  
   return useQuery({
-    queryKey: ['operational-metrics'],
+    queryKey: ['operational-metrics', filterYear, filterMonth],
     queryFn: async (): Promise<OperationalMetrics> => {
-      // Fetch all services data
-      const { data: services, error: servicesError } = await supabase
-        .from('servicios_custodia')
-        .select('*');
+      // Build query with optional year/month filter
+      let query = supabase.from('servicios_custodia').select('*');
+      
+      if (filterYear) {
+        const startDate = filterMonth 
+          ? `${filterYear}-${String(filterMonth).padStart(2, '0')}-01`
+          : `${filterYear}-01-01`;
+        const endDate = filterMonth
+          ? (filterMonth === 12 
+              ? `${filterYear + 1}-01-01` 
+              : `${filterYear}-${String(filterMonth + 1).padStart(2, '0')}-01`)
+          : `${filterYear + 1}-01-01`;
+        
+        query = query.gte('fecha_hora_cita', startDate).lt('fecha_hora_cita', endDate);
+      }
+      
+      const { data: services, error: servicesError } = await query;
 
       if (servicesError) throw servicesError;
 
