@@ -265,6 +265,12 @@ const buildInsertData = (item: any, fechaCitaResult: any, createdAtResult: any, 
   };
 };
 
+export interface FailedRecord {
+  rowIndex: number;
+  originalData: Record<string, any>;
+  error: string;
+}
+
 export interface CustodianServiceImportResult {
   success: boolean;
   imported: number;
@@ -272,6 +278,7 @@ export interface CustodianServiceImportResult {
   failed: number;
   errors: string[];
   warnings: string[];
+  failedRecords: FailedRecord[];
   suggestedAction?: 'switch_to_update' | 'switch_to_create';
 }
 
@@ -294,7 +301,8 @@ export const importCustodianServices = async (
     updated: 0,
     failed: 0,
     errors: [],
-    warnings: []
+    warnings: [],
+    failedRecords: []
   };
 
   const total = data.length;
@@ -327,6 +335,11 @@ export const importCustodianServices = async (
               if (!item.id_servicio) {
                 result.failed++;
                 result.errors.push(`Registro ${current}: ID de servicio es requerido`);
+                result.failedRecords.push({
+                  rowIndex: current,
+                  originalData: item,
+                  error: 'ID de servicio es requerido'
+                });
                 console.log('Missing id_servicio for item:', item);
                 continue;
               }
@@ -478,13 +491,24 @@ export const importCustodianServices = async (
               
               result.failed++;
               result.errors.push(`Registro ${current} (${idServicio}): ${errorMessage}`);
+              result.failedRecords.push({
+                rowIndex: current,
+                originalData: item,
+                error: errorMessage
+              });
             } else {
               console.log(`Successfully processed ${item.id_servicio}`);
             }
 
           } catch (itemError) {
+            const errorMsg = itemError instanceof Error ? itemError.message : 'Error desconocido';
             result.failed++;
-            result.errors.push(`Registro ${current}: ${itemError instanceof Error ? itemError.message : 'Error desconocido'}`);
+            result.errors.push(`Registro ${current}: ${errorMsg}`);
+            result.failedRecords.push({
+              rowIndex: current,
+              originalData: item,
+              error: errorMsg
+            });
           }
         }
 
