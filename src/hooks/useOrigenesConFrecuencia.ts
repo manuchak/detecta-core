@@ -5,7 +5,39 @@ interface OrigenConFrecuencia {
   origen: string;
   frecuencia: number;
   ultimoUso?: string;
+  // Nuevo: agrupar orígenes similares
+  variantes?: string[];
 }
+
+// Función helper para normalizar texto de ubicaciones
+const normalizeLocationText = (text: string): string => {
+  return text
+    .toUpperCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Quitar acentos
+    .replace(/\s*(EDO\.?\s*MEX\.?|EDOMEX|ESTADO DE MEXICO)\s*$/i, '') // Quitar sufijos de estado
+    .replace(/\s+/g, ' ') // Normalizar espacios
+    .replace(/,\s*/g, ' ') // Reemplazar comas por espacios
+    .trim();
+};
+
+// Función para agrupar orígenes similares
+const groupSimilarOrigins = (origins: string[]): Map<string, string[]> => {
+  const groups = new Map<string, string[]>();
+  
+  origins.forEach(origin => {
+    const normalized = normalizeLocationText(origin);
+    const primaryWord = normalized.split(' ')[0]; // Primera palabra como clave
+    
+    if (!groups.has(primaryWord)) {
+      groups.set(primaryWord, []);
+    }
+    groups.get(primaryWord)!.push(origin);
+  });
+  
+  return groups;
+};
 
 export const useOrigenesConFrecuencia = (clienteNombre?: string) => {
   return useQuery({
@@ -22,21 +54,32 @@ export const useOrigenesConFrecuencia = (clienteNombre?: string) => {
         if (error) {
           console.error('Error fetching origins with frequency:', error);
           
-          // Fallback: obtener orígenes directamente sin frecuencia
+          // Fallback: obtener orígenes directamente sin frecuencia usando ILIKE
           const { data: fallbackData, error: fallbackError } = await supabase
             .from('matriz_precios_rutas')
             .select('origen_texto')
             .eq('activo', true)
-            .eq('cliente_nombre', clienteNombre);
+            .ilike('cliente_nombre', clienteNombre); // Case-insensitive
             
           if (fallbackError) throw fallbackError;
           
-          const uniqueOrigins = Array.from(new Set(fallbackData?.map(row => row.origen_texto) || []));
-          return uniqueOrigins.map(origen => ({
-            origen,
-            frecuencia: 0,
-            ultimoUso: undefined
-          }));
+          const allOrigins = fallbackData?.map(row => row.origen_texto) || [];
+          const groups = groupSimilarOrigins(allOrigins);
+          
+          // Retornar un origen representativo por grupo
+          const results: OrigenConFrecuencia[] = [];
+          groups.forEach((variantes, _key) => {
+            // Usar el origen más común o el primero
+            const representativo = variantes[0];
+            results.push({
+              origen: representativo,
+              frecuencia: variantes.length, // Frecuencia = cuántas variantes hay
+              ultimoUso: undefined,
+              variantes: variantes.length > 1 ? variantes : undefined
+            });
+          });
+          
+          return results.sort((a, b) => b.frecuencia - a.frecuencia);
         }
 
         // Transformar la respuesta al formato esperado
