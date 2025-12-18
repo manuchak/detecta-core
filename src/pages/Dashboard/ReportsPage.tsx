@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Loader2, FileText, Download, FileSpreadsheet } from 'lucide-react';
+import { Loader2, Download } from 'lucide-react';
 import { useHistoricalReportData } from '@/hooks/useHistoricalReportData';
 import { ReportPreview } from '@/components/reports/ReportPreview';
-import { HistoricalReportConfig, ReportModule, ReportGranularity, MODULE_LABELS, GRANULARITY_LABELS, MODULE_GRANULARITY_SUPPORT } from '@/types/reports';
-
+import { ReportExportButtons } from '@/components/reports/ReportExportButtons';
+import { HistoricalReportConfig, ReportModule, MODULE_LABELS, GRANULARITY_LABELS, MODULE_GRANULARITY_SUPPORT } from '@/types/reports';
 const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1;
 
