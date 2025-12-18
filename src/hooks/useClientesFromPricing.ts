@@ -137,6 +137,25 @@ export const useOrigenesFromPricing = (clienteNombre?: string) => {
   });
 };
 
+// Función helper para normalizar texto de ubicaciones
+const normalizeLocationText = (text: string): string => {
+  return text
+    .toUpperCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Quitar acentos
+    .replace(/\s*(EDO\.?\s*MEX\.?|EDOMEX|ESTADO DE MEXICO)\s*$/i, '') // Quitar sufijos de estado
+    .replace(/\s+/g, ' ') // Normalizar espacios
+    .replace(/,\s*/g, ' ') // Reemplazar comas por espacios
+    .trim();
+};
+
+// Función para extraer palabras clave de una ubicación
+const extractLocationKeywords = (text: string): string[] => {
+  const normalized = normalizeLocationText(text);
+  return normalized.split(' ').filter(word => word.length > 2);
+};
+
 export const useDestinosFromPricing = (clienteNombre?: string, origenTexto?: string) => {
   return useQuery({
     queryKey: ['destinos-from-pricing', clienteNombre, origenTexto],
@@ -145,15 +164,22 @@ export const useDestinosFromPricing = (clienteNombre?: string, origenTexto?: str
       
       if (!clienteNombre) return [];
 
+      // Búsqueda flexible: usar ILIKE con la primera palabra clave del origen
       let query = supabase
         .from('matriz_precios_rutas')
-        .select('destino_texto')
+        .select('destino_texto, origen_texto')
         .eq('activo', true)
-        .eq('cliente_nombre', clienteNombre);
+        .ilike('cliente_nombre', clienteNombre); // Case-insensitive para cliente
 
-      // Si hay origen seleccionado, filtrar por él también
+      // Si hay origen seleccionado, buscar con ILIKE flexible
       if (origenTexto) {
-        query = query.eq('origen_texto', origenTexto);
+        const keywords = extractLocationKeywords(origenTexto);
+        const primaryKeyword = keywords[0] || origenTexto;
+        
+        console.log('🔍 [useDestinosFromPricing] Búsqueda flexible con keyword:', primaryKeyword);
+        
+        // Usar ILIKE con patrón parcial para encontrar variantes
+        query = query.ilike('origen_texto', `%${primaryKeyword}%`);
       }
 
       const { data, error } = await query;

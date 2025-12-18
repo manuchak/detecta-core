@@ -115,6 +115,25 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
     }
   }, [cliente, origen, destino, isUpdatingFromCreation, queryClient, isLoadingDestinos]);
 
+  // Función helper para normalizar texto de ubicaciones
+  const normalizeLocationText = (text: string): string => {
+    return text
+      .toUpperCase()
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Quitar acentos
+      .replace(/\s*(EDO\.?\s*MEX\.?|EDOMEX|ESTADO DE MEXICO)\s*$/i, '') // Quitar sufijos
+      .replace(/\s+/g, ' ')
+      .replace(/,\s*/g, ' ')
+      .trim();
+  };
+
+  // Extraer palabra clave principal de una ubicación
+  const extractPrimaryKeyword = (text: string): string => {
+    const normalized = normalizeLocationText(text);
+    return normalized.split(' ')[0] || text;
+  };
+
   const searchPrice = async () => {
     if (!cliente || !origen || !destino) return;
 
@@ -122,13 +141,15 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
     setSearchError(''); // Limpiar errores previos
     
     try {
-      console.log('🔍 [RouteSearchStep] Buscando precio:', {
+      console.log('🔍 [RouteSearchStep] Buscando precio (flexible):', {
         cliente,
         origen,
         destino,
+        origenKeyword: extractPrimaryKeyword(origen),
         esRutaReparto,
         puntosIntermedios: puntosIntermedios.length
       });
+
       // 🆕 SI ES RUTA REPARTO, usar RPC especializado
       if (esRutaReparto) {
         const { data, error } = await supabase.rpc('buscar_precio_ruta_reparto', {
@@ -165,21 +186,23 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
         return;
       }
 
-      // Búsqueda directa con origen incluido (punto-a-punto)
-      const { data, error } = await supabase
+      // === BÚSQUEDA FLEXIBLE EN 3 NIVELES ===
+      
+      // NIVEL 1: Búsqueda exacta (case-insensitive)
+      const { data: exactData, error: exactError } = await supabase
         .from('matriz_precios_rutas')
         .select('cliente_nombre, origen_texto, destino_texto, valor_bruto, precio_custodio, pago_custodio_sin_arma, costo_operativo, margen_neto_calculado, distancia_km, tipo_servicio')
         .eq('activo', true)
-        .eq('cliente_nombre', cliente)
-        .eq('origen_texto', origen)
-        .eq('destino_texto', destino)
+        .ilike('cliente_nombre', cliente)
+        .ilike('origen_texto', origen)
+        .ilike('destino_texto', destino)
         .limit(1)
         .maybeSingle();
 
-      if (error) throw error;
+      if (exactError) throw exactError;
 
-      if (data) {
-        const row = data as any;
+      if (exactData) {
+        const row = exactData as any;
         const incluye_armado = row.tipo_servicio && !['SIN ARMA', 'Sin arma', 'SN ARMA', 'NO ARMADA', 'No Armada'].includes(row.tipo_servicio);
         setPriceEstimate({
           precio_sugerido: row.valor_bruto ?? null,
@@ -197,19 +220,26 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
         return;
       }
 
-      // Fallback: búsqueda flexible por destino
-      const like = await supabase
+      // NIVEL 2: Búsqueda flexible por palabras clave (origen flexible)
+      const origenKeyword = extractPrimaryKeyword(origen);
+      const destinoKeyword = extractPrimaryKeyword(destino);
+      
+      console.log('🔍 [RouteSearchStep] Búsqueda NIVEL 2 con keywords:', { origenKeyword, destinoKeyword });
+      
+      const { data: flexData, error: flexError } = await supabase
         .from('matriz_precios_rutas')
         .select('cliente_nombre, origen_texto, destino_texto, valor_bruto, precio_custodio, pago_custodio_sin_arma, costo_operativo, margen_neto_calculado, distancia_km, tipo_servicio')
         .eq('activo', true)
-        .eq('cliente_nombre', cliente)
-        .eq('origen_texto', origen)
-        .ilike('destino_texto', `%${destino}%`)
+        .ilike('cliente_nombre', cliente)
+        .ilike('origen_texto', `%${origenKeyword}%`)
+        .ilike('destino_texto', `%${destinoKeyword}%`)
         .limit(1)
         .maybeSingle();
 
-      if (like.data) {
-        const row = like.data as any;
+      if (flexError) throw flexError;
+
+      if (flexData) {
+        const row = flexData as any;
         const incluye_armado = row.tipo_servicio && !['SIN ARMA', 'Sin arma', 'SN ARMA', 'NO ARMADA', 'No Armada'].includes(row.tipo_servicio);
         setPriceEstimate({
           precio_sugerido: row.valor_bruto ?? null,
@@ -223,12 +253,51 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
           ruta_encontrada: `${row.origen_texto} → ${row.destino_texto}`
         });
         setSearchError('');
-        toast.warning('Pricing encontrado con coincidencia parcial');
-      } else {
-        setPriceEstimate(null);
-        setSearchError(`No se encontró pricing para la ruta ${origen} → ${destino}. Puedes crear una nueva ruta para continuar.`);
-        toast.error(`No se encontró pricing para ${cliente}: ${origen} → ${destino}`);
+        toast.success('Pricing encontrado (coincidencia flexible)');
+        return;
       }
+
+      // NIVEL 3: Búsqueda solo por destino (más flexible aún)
+      const { data: destinoOnlyData, error: destinoOnlyError } = await supabase
+        .from('matriz_precios_rutas')
+        .select('cliente_nombre, origen_texto, destino_texto, valor_bruto, precio_custodio, pago_custodio_sin_arma, costo_operativo, margen_neto_calculado, distancia_km, tipo_servicio')
+        .eq('activo', true)
+        .ilike('cliente_nombre', cliente)
+        .ilike('destino_texto', `%${destinoKeyword}%`)
+        .limit(5);
+
+      if (destinoOnlyError) throw destinoOnlyError;
+
+      if (destinoOnlyData && destinoOnlyData.length > 0) {
+        // Buscar la mejor coincidencia de origen entre los resultados
+        const bestMatch = destinoOnlyData.find(row => {
+          const rowOrigenNorm = normalizeLocationText(row.origen_texto);
+          const searchOrigenNorm = normalizeLocationText(origen);
+          return rowOrigenNorm.includes(origenKeyword) || searchOrigenNorm.includes(extractPrimaryKeyword(row.origen_texto));
+        }) || destinoOnlyData[0];
+
+        const row = bestMatch as any;
+        const incluye_armado = row.tipo_servicio && !['SIN ARMA', 'Sin arma', 'SN ARMA', 'NO ARMADA', 'No Armada'].includes(row.tipo_servicio);
+        setPriceEstimate({
+          precio_sugerido: row.valor_bruto ?? null,
+          precio_custodio: row.precio_custodio ?? null,
+          pago_custodio_sin_arma: row.pago_custodio_sin_arma ?? null,
+          costo_operativo: row.costo_operativo ?? null,
+          margen_estimado: row.margen_neto_calculado ?? null,
+          distancia_km: row.distancia_km ?? null,
+          tipo_servicio: row.tipo_servicio ?? null,
+          incluye_armado,
+          ruta_encontrada: `${row.origen_texto} → ${row.destino_texto}`
+        });
+        setSearchError('');
+        toast.warning(`Pricing aproximado encontrado: ${row.origen_texto} → ${row.destino_texto}`);
+        return;
+      }
+
+      // No se encontró nada
+      setPriceEstimate(null);
+      setSearchError(`No se encontró pricing para la ruta ${origen} → ${destino}. Puedes crear una nueva ruta para continuar.`);
+      toast.error(`No se encontró pricing para ${cliente}: ${origen} → ${destino}`);
     } catch (err: any) {
       console.error('❌ [RouteSearchStep] Error searching price:', {
         error: err,
