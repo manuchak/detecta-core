@@ -268,7 +268,7 @@ function transformEngagementData(engagementDetails: any): EngagementReportData {
     formula: 'Engagement = Total Servicios ÷ Total Custodios Activos',
     yearlyData: {
       totalServices: engagementDetails?.yearlyData?.totalServices || 0,
-      totalCustodians: engagementDetails?.yearlyData?.activeCustodians || 0,
+      totalCustodians: engagementDetails?.yearlyData?.totalActiveCustodians || 0,
       averageEngagement: engagementDetails?.overallEngagement || 0,
     },
     currentMonthData: {
