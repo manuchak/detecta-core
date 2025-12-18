@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { BarChart3, TrendingUp, TrendingDown, DollarSign, Car } from 'lucide-react';
+import { BarChart3, TrendingUp, TrendingDown, DollarSign, Car, Users, Calendar } from 'lucide-react';
 import { OperationalReportData } from '@/types/reports';
 
 interface OperationalReportSectionProps {
@@ -17,6 +17,9 @@ export function OperationalReportSection({ data }: OperationalReportSectionProps
       {value >= 0 ? '+' : ''}{value.toFixed(1)}%
     </span>
   );
+
+  // Filtrar meses con datos para el breakdown
+  const monthsWithData = data.monthlyBreakdown.filter(m => m.services > 0 || m.gmv > 0);
 
   return (
     <div className="space-y-6 print:break-before-page" id="operational-section">
@@ -55,9 +58,9 @@ export function OperationalReportSection({ data }: OperationalReportSectionProps
 
       {/* GMV */}
       <Card>
-        <CardHeader><CardTitle className="text-lg flex items-center gap-2"><DollarSign className="h-5 w-5" />GMV (Gross Merchandise Value)</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-lg flex items-center gap-2"><DollarSign className="h-5 w-5" />GMV (Solo Servicios Completados)</CardTitle></CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">GMV Total</p>
               <p className="text-3xl font-bold text-primary">{formatCurrency(data.gmv.total)}</p>
@@ -66,13 +69,29 @@ export function OperationalReportSection({ data }: OperationalReportSectionProps
               <p className="text-sm text-muted-foreground">AOV (Ticket Promedio)</p>
               <p className="text-3xl font-bold">{formatCurrency(data.gmv.aov)}</p>
             </div>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">GMV YTD vs Año Anterior</p>
+              <p className="text-xl font-bold">{formatCurrency(data.comparatives.gmvYTD.current)}</p>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground">vs {formatCurrency(data.comparatives.gmvYTD.previous)}</span>
+                {formatChange(data.comparatives.gmvYTD.changePercent)}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Facturación Promedio/Día</p>
+              <p className="text-xl font-bold">{formatCurrency(data.comparatives.avgDailyGMV.current)}</p>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground">vs {formatCurrency(data.comparatives.avgDailyGMV.previous)}</span>
+                {formatChange(data.comparatives.avgDailyGMV.changePercent)}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Comparativos */}
+      {/* Comparativos Temporales */}
       <Card>
-        <CardHeader><CardTitle className="text-lg">Comparativos Temporales</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-lg">Comparativos Temporales (MoM / YoY)</CardTitle></CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
@@ -103,10 +122,22 @@ export function OperationalReportSection({ data }: OperationalReportSectionProps
                 <TableCell className="text-right">{formatChange(data.comparatives.gmvThisMonth.changePercent)}</TableCell>
               </TableRow>
               <TableRow>
+                <TableCell className="font-medium">GMV (YTD)</TableCell>
+                <TableCell className="text-right">{formatCurrency(data.comparatives.gmvYTD.current)}</TableCell>
+                <TableCell className="text-right">{formatCurrency(data.comparatives.gmvYTD.previous)}</TableCell>
+                <TableCell className="text-right">{formatChange(data.comparatives.gmvYTD.changePercent)}</TableCell>
+              </TableRow>
+              <TableRow>
                 <TableCell className="font-medium">AOV (MTD)</TableCell>
                 <TableCell className="text-right">{formatCurrency(data.comparatives.aovThisMonth.current)}</TableCell>
                 <TableCell className="text-right">{formatCurrency(data.comparatives.aovThisMonth.previous)}</TableCell>
                 <TableCell className="text-right">{formatChange(data.comparatives.aovThisMonth.changePercent)}</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">Facturación Diaria Promedio (YoY)</TableCell>
+                <TableCell className="text-right">{formatCurrency(data.comparatives.avgDailyGMV.current)}</TableCell>
+                <TableCell className="text-right">{formatCurrency(data.comparatives.avgDailyGMV.previous)}</TableCell>
+                <TableCell className="text-right">{formatChange(data.comparatives.avgDailyGMV.changePercent)}</TableCell>
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium">Tasa Completados</TableCell>
@@ -125,10 +156,87 @@ export function OperationalReportSection({ data }: OperationalReportSectionProps
         </CardContent>
       </Card>
 
+      {/* Desglose Mensual de GMV */}
+      {monthsWithData.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Calendar className="h-5 w-5" />Desglose Mensual de GMV</CardTitle></CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Mes</TableHead>
+                  <TableHead className="text-right">Servicios</TableHead>
+                  <TableHead className="text-right">Completados</TableHead>
+                  <TableHead className="text-right">GMV</TableHead>
+                  <TableHead className="text-right">AOV</TableHead>
+                  <TableHead className="text-right">Tasa Completados</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {monthsWithData.map((month) => (
+                  <TableRow key={month.monthNumber}>
+                    <TableCell className="font-medium">{month.month}</TableCell>
+                    <TableCell className="text-right">{month.services.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">{month.completedServices.toLocaleString()}</TableCell>
+                    <TableCell className="text-right font-semibold">{formatCurrency(month.gmv)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(month.aov)}</TableCell>
+                    <TableCell className="text-right">
+                      <span className={month.completionRate >= 90 ? 'text-green-600' : month.completionRate >= 80 ? 'text-yellow-600' : 'text-red-600'}>
+                        {month.completionRate}%
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {/* Totales */}
+                <TableRow className="bg-muted/50 font-bold">
+                  <TableCell>Total</TableCell>
+                  <TableCell className="text-right">{monthsWithData.reduce((sum, m) => sum + m.services, 0).toLocaleString()}</TableCell>
+                  <TableCell className="text-right">{monthsWithData.reduce((sum, m) => sum + m.completedServices, 0).toLocaleString()}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(monthsWithData.reduce((sum, m) => sum + m.gmv, 0))}</TableCell>
+                  <TableCell className="text-right">-</TableCell>
+                  <TableCell className="text-right">-</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Top Clientes */}
+      {data.topClients.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Users className="h-5 w-5" />Top 10 Clientes por GMV</CardTitle></CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Rank</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead className="text-right">Servicios</TableHead>
+                  <TableHead className="text-right">GMV</TableHead>
+                  <TableHead className="text-right">AOV</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.topClients.map((client) => (
+                  <TableRow key={client.rank}>
+                    <TableCell className="font-bold">{client.rank}</TableCell>
+                    <TableCell className="font-medium">{client.name}</TableCell>
+                    <TableCell className="text-right">{client.services.toLocaleString()}</TableCell>
+                    <TableCell className="text-right font-semibold">{formatCurrency(client.gmv)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(client.aov)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Top Custodios */}
       {data.topCustodians.length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-lg">Top 10 Custodios</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-lg">Top 10 Custodios por GMV</CardTitle></CardHeader>
           <CardContent>
             <Table>
               <TableHeader>

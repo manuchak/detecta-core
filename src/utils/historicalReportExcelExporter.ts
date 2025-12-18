@@ -283,8 +283,8 @@ const createOperationalSheet = (data: HistoricalReportData['operational']): XLSX
     ...data.topCustodians.map(c => [c.rank, c.name, c.services, c.gmv, c.completionPercent, c.avgKm]),
     [''],
     ['TOP 10 CLIENTES'],
-    ['Rank', 'Cliente', 'Servicios', 'GMV', 'AOV', 'Tendencia'],
-    ...data.topClients.map(c => [c.rank, c.name, c.services, c.gmv, c.aov, c.trend])
+    ['Rank', 'Cliente', 'Servicios', 'GMV', 'AOV'],
+    ...data.topClients.map(c => [c.rank, c.name, c.services, c.gmv, c.aov])
   ];
 
   return XLSX.utils.aoa_to_sheet(rows);
