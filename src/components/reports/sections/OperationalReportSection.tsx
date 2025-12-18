@@ -236,28 +236,55 @@ export function OperationalReportSection({ data }: OperationalReportSectionProps
       {/* Top Custodios */}
       {data.topCustodians.length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-lg">Top 10 Custodios por GMV</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-lg">Top 10 Custodios por Cobro</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Ordenado por cobro total al custodio. Solo incluye custodios con datos de costo registrados.
+            </p>
+          </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Rank</TableHead>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead className="text-right">Servicios</TableHead>
-                  <TableHead className="text-right">GMV</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.topCustodians.map((custodian) => (
-                  <TableRow key={custodian.rank}>
-                    <TableCell className="font-bold">{custodian.rank}</TableCell>
-                    <TableCell className="font-medium">{custodian.name}</TableCell>
-                    <TableCell className="text-right">{custodian.services}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(custodian.gmv)}</TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-10">#</TableHead>
+                    <TableHead>Custodio</TableHead>
+                    <TableHead className="text-right">Svcs</TableHead>
+                    <TableHead className="text-right">Meses</TableHead>
+                    <TableHead className="text-right">Cobro Total</TableHead>
+                    <TableHead className="text-right">Prom/Mes</TableHead>
+                    <TableHead className="text-right">GMV</TableHead>
+                    <TableHead className="text-right">Margen</TableHead>
+                    <TableHead className="text-right">Cobertura</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {data.topCustodians.map((custodian) => (
+                    <TableRow key={custodian.rank}>
+                      <TableCell className="font-bold">{custodian.rank}</TableCell>
+                      <TableCell className="font-medium max-w-[180px] truncate" title={custodian.name}>
+                        {custodian.name}
+                      </TableCell>
+                      <TableCell className="text-right">{custodian.services}</TableCell>
+                      <TableCell className="text-right">{custodian.mesesActivos}</TableCell>
+                      <TableCell className="text-right font-semibold">{formatCurrency(custodian.costoCustodio)}</TableCell>
+                      <TableCell className="text-right text-primary font-medium">{formatCurrency(custodian.promedioCostoMes)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(custodian.gmv)}</TableCell>
+                      <TableCell className="text-right">
+                        <span className={custodian.margen >= 0 ? 'text-green-600' : 'text-red-600'}>
+                          {formatCurrency(custodian.margen)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className={custodian.coberturaDatos < 80 ? 'text-yellow-600' : 'text-green-600'}>
+                          {custodian.coberturaDatos}%
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}

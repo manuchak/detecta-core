@@ -436,13 +436,16 @@ function transformOperationalData(operationalData: any): OperationalReportData {
         changePercent: operationalData?.comparatives?.avgDailyGMV?.changePercent || 0,
       },
     },
-    topCustodians: operationalData?.topCustodians?.map((c: any, index: number) => ({
-      rank: index + 1,
+    topCustodians: operationalData?.topCustodians?.map((c: any) => ({
+      rank: c.rank || 0,
       name: c.name || '',
       services: c.services || 0,
+      costoCustodio: c.costoCustodio || 0,
+      promedioCostoMes: c.promedioCostoMes || 0,
+      mesesActivos: c.mesesActivos || 0,
       gmv: c.gmv || 0,
-      completionPercent: 95,
-      avgKm: 0,
+      margen: c.margen || 0,
+      coberturaDatos: c.coberturaDatos || 0,
     })) || [],
     topClients: operationalData?.topClients?.map((c: any, index: number) => ({
       rank: index + 1,

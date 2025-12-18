@@ -358,15 +358,18 @@ const renderOperationalSection = (ctx: PDFContext, data: OperationalReportData):
   addKeyValue(ctx, 'AOV', formatCurrency(data.gmv.aov));
   ctx.y += 5;
 
-  addSubsectionTitle(ctx, 'Top 10 Custodios');
-  const custodianHeaders = ['#', 'Nombre', 'Servicios', 'GMV', 'Cumpl.'];
-  const custodianWidths = [15, 55, 35, 40, 25];
+  addSubsectionTitle(ctx, 'Top 10 Custodios por Cobro');
+  addText(ctx, 'Solo custodios con datos de costo registrados', 8);
+  const custodianHeaders = ['#', 'Nombre', 'Svcs', 'Meses', 'Cobro', 'Prom/Mes', 'Margen'];
+  const custodianWidths = [10, 45, 20, 20, 30, 30, 30];
   const custodianRows = data.topCustodians.map(c => [
     c.rank.toString(),
-    c.name.substring(0, 20),
+    c.name.substring(0, 18),
     formatNumber(c.services),
-    formatCurrency(c.gmv),
-    formatPercent(c.completionPercent)
+    c.mesesActivos.toString(),
+    formatCurrency(c.costoCustodio),
+    formatCurrency(c.promedioCostoMes),
+    formatCurrency(c.margen)
   ]);
   addTable(ctx, custodianHeaders, custodianRows, custodianWidths);
 
