@@ -32,6 +32,7 @@ import {
   getSupportedDateFormats,
   DateValidationInfo 
 } from '@/utils/dateValidationUtils';
+import { exportFailedRecordsToExcel } from '@/utils/failedRecordsExporter';
 import { toast } from 'sonner';
 
 interface CustodianServicesImportWizardProps {
@@ -153,7 +154,8 @@ export const CustodianServicesImportWizard: React.FC<CustodianServicesImportWiza
           updated: 0,
           failed: state.excelData?.rows.length || 0,
           errors: [error instanceof Error ? error.message : 'Error desconocido'],
-          warnings: []
+          warnings: [],
+          failedRecords: []
         }
       }));
     }
@@ -428,6 +430,18 @@ export const CustodianServicesImportWizard: React.FC<CustodianServicesImportWiza
       )}
 
       <div className="flex gap-2 justify-end">
+        {state.results?.failedRecords && state.results.failedRecords.length > 0 && (
+          <Button
+            variant="outline"
+            onClick={() => exportFailedRecordsToExcel(
+              state.results!.failedRecords,
+              `registros_fallidos_${state.file?.name?.replace(/\.[^/.]+$/, '') || 'importacion'}`
+            )}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Descargar Fallidos ({state.results.failedRecords.length})
+          </Button>
+        )}
         <Button variant="outline" onClick={handleClose}>
           Cerrar
         </Button>

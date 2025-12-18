@@ -12,6 +12,7 @@ import { applyIntelligentMapping } from "@/services/intelligentMappingService";
 import { useSavedMappings, SavedMapping } from "@/hooks/useSavedMappings";
 import { useServiceIdValidation } from "@/hooks/useServiceIdValidation";
 import { ValidationStep } from "./ValidationStep";
+import { exportFailedRecordsToExcel } from "@/utils/failedRecordsExporter";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -201,7 +202,8 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
             updated: 0,
             failed: transformedData.length,
             errors: earlyValidation.errors,
-            warnings: earlyValidation.warnings
+            warnings: earlyValidation.warnings,
+            failedRecords: []
           }
         }));
         return;
@@ -236,7 +238,8 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
               updated: 0,
               failed: transformedData.length,
               errors: ['⚠️ Sesión expirada - por favor recarga la página'],
-              warnings: []
+              warnings: [],
+              failedRecords: []
             }
           }));
           return;
@@ -312,7 +315,8 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
                     `• Usa modo "Crear" si son servicios nuevos`,
                     `• Revisa el formato de los IDs (sin espacios extra)`
                   ],
-                  warnings: []
+                  warnings: [],
+                  failedRecords: []
                 }
               }));
               return;
@@ -395,6 +399,7 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
                   ])
                 ],
                 warnings: [],
+                failedRecords: [],
                 // ✨ NUEVO: Sugerir cambio de modo si todos son duplicados en DB
                 suggestedAction: allAreDuplicatesInDB ? 'switch_to_update' : undefined
               }
@@ -1446,6 +1451,19 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
         )}
 
         <div className="flex gap-3 pt-4">
+          {state.result.failedRecords && state.result.failedRecords.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => exportFailedRecordsToExcel(
+                state.result!.failedRecords,
+                `registros_fallidos_${state.fileName?.replace(/\.[^/.]+$/, '') || 'importacion'}`
+              )}
+              className="font-medium"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Descargar Fallidos ({state.result.failedRecords.length})
+            </Button>
+          )}
           <Button 
             variant="outline" 
             onClick={() => setState(prev => ({ ...prev, step: 'upload' }))}
