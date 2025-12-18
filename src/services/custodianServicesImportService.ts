@@ -96,11 +96,80 @@ const buildUpdateData = (item: any, fechaCitaResult: any, createdAtResult: any, 
     updateData.created_at = createdAtResult.isoString;
   }
 
+  // --- FINANCIAL FIELDS ---
+  if (hasValidValue(item.costo_custodio, 'number')) {
+    updateData.costo_custodio = parseFloat(item.costo_custodio);
+  }
+  if (hasValidValue(item.casetas, 'number')) {
+    updateData.casetas = parseFloat(item.casetas);
+  }
+  if (hasValidValue(item.km_teorico, 'number')) {
+    updateData.km_teorico = parseFloat(item.km_teorico);
+  }
+  if (hasValidValue(item.km_extras, 'number')) {
+    updateData.km_extras = parseFloat(item.km_extras);
+  }
+
+  // --- DATE FIELDS ---
+  if (hasValidValue(item.fecha_primer_servicio, 'date')) {
+    const fechaPrimerResult = parseRobustDate(item.fecha_primer_servicio);
+    if (fechaPrimerResult.success && fechaPrimerResult.isoString) {
+      updateData.fecha_primer_servicio = fechaPrimerResult.isoString.split('T')[0]; // Solo fecha
+    }
+  }
+
+  // --- TRANSPORT/VEHICLE FIELDS ---
+  if (hasValidValue(item.placa, 'string')) {
+    updateData.placa = item.placa;
+  }
+  if (hasValidValue(item.auto, 'string')) {
+    updateData.auto = item.auto;
+  }
+
+  // --- GADGET FIELDS ---
+  if (hasValidValue(item.gadget, 'string')) {
+    updateData.gadget = item.gadget;
+  }
+  if (hasValidValue(item.tipo_gadget, 'string')) {
+    updateData.tipo_gadget = item.tipo_gadget;
+  }
+  if (hasValidValue(item.gadget_solicitado, 'string')) {
+    updateData.gadget_solicitado = item.gadget_solicitado;
+  }
+
+  // --- TIME TRACKING ---
+  if (hasValidValue(item.hora_presentacion, 'string')) {
+    updateData.hora_presentacion = item.hora_presentacion;
+  }
+  if (hasValidValue(item.hora_finalizacion, 'string')) {
+    updateData.hora_finalizacion = item.hora_finalizacion;
+  }
+
+  // --- OTHER FIELDS ---
+  if (hasValidValue(item.local_foraneo, 'string')) {
+    updateData.local_foraneo = item.local_foraneo;
+  }
+  if (hasValidValue(item.ruta, 'string')) {
+    updateData.ruta = item.ruta;
+  }
+  if (hasValidValue(item.proveedor, 'string')) {
+    updateData.proveedor = item.proveedor;
+  }
+  if (hasValidValue(item.armado, 'string')) {
+    updateData.armado = item.armado;
+  }
+  if (hasValidValue(item.nombre_armado, 'string')) {
+    updateData.nombre_armado = item.nombre_armado;
+  }
+
   return updateData;
 };
 
 // Build data object for inserting new records (with defaults for empty fields)
 const buildInsertData = (item: any, fechaCitaResult: any, createdAtResult: any, fechaContratacionResult: any) => {
+  // Parse fecha_primer_servicio for inserts
+  const fechaPrimerResult = parseRobustDate(item.fecha_primer_servicio);
+  
   return {
     id_servicio: item.id_servicio,
     nombre_cliente: item.nombre_cliente || '',
@@ -118,7 +187,27 @@ const buildInsertData = (item: any, fechaCitaResult: any, createdAtResult: any, 
     tiempo_retraso: item.tiempo_retraso ? parseInt(item.tiempo_retraso) : null,
     comentarios_adicionales: item.comentarios_adicionales || '',
     created_at: createdAtResult.isoString || null,
-    updated_time: new Date().toISOString()
+    updated_time: new Date().toISOString(),
+    // --- NEW FIELDS ---
+    costo_custodio: item.costo_custodio ? parseFloat(item.costo_custodio) : null,
+    casetas: item.casetas ? parseFloat(item.casetas) : null,
+    km_teorico: item.km_teorico ? parseFloat(item.km_teorico) : null,
+    km_extras: item.km_extras ? parseFloat(item.km_extras) : null,
+    fecha_primer_servicio: fechaPrimerResult.success && fechaPrimerResult.isoString 
+      ? fechaPrimerResult.isoString.split('T')[0] 
+      : null,
+    placa: item.placa || null,
+    auto: item.auto || null,
+    gadget: item.gadget || null,
+    tipo_gadget: item.tipo_gadget || null,
+    gadget_solicitado: item.gadget_solicitado || null,
+    hora_presentacion: item.hora_presentacion || null,
+    hora_finalizacion: item.hora_finalizacion || null,
+    local_foraneo: item.local_foraneo || null,
+    ruta: item.ruta || null,
+    proveedor: item.proveedor || null,
+    armado: item.armado || null,
+    nombre_armado: item.nombre_armado || null
   };
 };
 
@@ -440,6 +529,64 @@ export const getCustodianServicesDefaultMapping = (): Record<string, string> => 
     'fecha_contratacion': 'fecha_contratacion',
     'Fecha Contratación': 'fecha_contratacion',
     'FECHA_CONTRATACION': 'fecha_contratacion',
-    'contratacion': 'fecha_contratacion'
+    'contratacion': 'fecha_contratacion',
+    // --- NEW MAPPINGS ---
+    'costo_custodio': 'costo_custodio',
+    'Costo Custodio': 'costo_custodio',
+    'COSTO_CUSTODIO': 'costo_custodio',
+    'costo': 'costo_custodio',
+    'pago_custodio': 'costo_custodio',
+    'Pago Custodio': 'costo_custodio',
+    'casetas': 'casetas',
+    'Casetas': 'casetas',
+    'CASETAS': 'casetas',
+    'km_teorico': 'km_teorico',
+    'KM Teorico': 'km_teorico',
+    'KM_TEORICO': 'km_teorico',
+    'km_extras': 'km_extras',
+    'KM Extras': 'km_extras',
+    'KM_EXTRAS': 'km_extras',
+    'fecha_primer_servicio': 'fecha_primer_servicio',
+    'Fecha Primer Servicio': 'fecha_primer_servicio',
+    'FECHA_PRIMER_SERVICIO': 'fecha_primer_servicio',
+    'primer_servicio': 'fecha_primer_servicio',
+    'placa': 'placa',
+    'Placa': 'placa',
+    'PLACA': 'placa',
+    'placas': 'placa',
+    'auto': 'auto',
+    'Auto': 'auto',
+    'AUTO': 'auto',
+    'vehiculo': 'auto',
+    'Vehiculo': 'auto',
+    'gadget': 'gadget',
+    'Gadget': 'gadget',
+    'GADGET': 'gadget',
+    'tipo_gadget': 'tipo_gadget',
+    'Tipo Gadget': 'tipo_gadget',
+    'TIPO_GADGET': 'tipo_gadget',
+    'gadget_solicitado': 'gadget_solicitado',
+    'Gadget Solicitado': 'gadget_solicitado',
+    'hora_presentacion': 'hora_presentacion',
+    'Hora Presentacion': 'hora_presentacion',
+    'HORA_PRESENTACION': 'hora_presentacion',
+    'hora_finalizacion': 'hora_finalizacion',
+    'Hora Finalizacion': 'hora_finalizacion',
+    'HORA_FINALIZACION': 'hora_finalizacion',
+    'local_foraneo': 'local_foraneo',
+    'Local Foraneo': 'local_foraneo',
+    'LOCAL_FORANEO': 'local_foraneo',
+    'ruta': 'ruta',
+    'Ruta': 'ruta',
+    'RUTA': 'ruta',
+    'proveedor': 'proveedor',
+    'Proveedor': 'proveedor',
+    'PROVEEDOR': 'proveedor',
+    'armado': 'armado',
+    'Armado': 'armado',
+    'ARMADO': 'armado',
+    'nombre_armado': 'nombre_armado',
+    'Nombre Armado': 'nombre_armado',
+    'NOMBRE_ARMADO': 'nombre_armado'
   };
 };

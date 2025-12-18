@@ -10663,7 +10663,7 @@ export type Database = {
           comentarios_adicionales: string | null
           confianza_estimacion: number | null
           contacto_emergencia: string | null
-          costo_custodio: string | null
+          costo_custodio: number | null
           creado_por: string | null
           creado_via: string | null
           created_at: string | null
@@ -10733,7 +10733,7 @@ export type Database = {
           comentarios_adicionales?: string | null
           confianza_estimacion?: number | null
           contacto_emergencia?: string | null
-          costo_custodio?: string | null
+          costo_custodio?: number | null
           creado_por?: string | null
           creado_via?: string | null
           created_at?: string | null
@@ -10803,7 +10803,7 @@ export type Database = {
           comentarios_adicionales?: string | null
           confianza_estimacion?: number | null
           contacto_emergencia?: string | null
-          costo_custodio?: string | null
+          costo_custodio?: number | null
           creado_por?: string | null
           creado_via?: string | null
           created_at?: string | null
@@ -12823,7 +12823,7 @@ export type Database = {
           comentarios_adicionales: string | null
           confianza_estimacion: number | null
           contacto_emergencia: string | null
-          costo_custodio: string | null
+          costo_custodio: number | null
           creado_por: string | null
           creado_via: string | null
           created_at: string | null
@@ -12902,7 +12902,7 @@ export type Database = {
           comentarios_adicionales: string | null
           confianza_estimacion: number | null
           contacto_emergencia: string | null
-          costo_custodio: string | null
+          costo_custodio: number | null
           creado_por: string | null
           creado_via: string | null
           created_at: string | null
@@ -13380,7 +13380,7 @@ export type Database = {
           comentarios_adicionales: string | null
           confianza_estimacion: number | null
           contacto_emergencia: string | null
-          costo_custodio: string | null
+          costo_custodio: number | null
           creado_por: string | null
           creado_via: string | null
           created_at: string | null
@@ -13844,7 +13844,7 @@ export type Database = {
           comentarios_adicionales: string | null
           confianza_estimacion: number | null
           contacto_emergencia: string | null
-          costo_custodio: string | null
+          costo_custodio: number | null
           creado_por: string | null
           creado_via: string | null
           created_at: string | null
@@ -14265,7 +14265,7 @@ export type Database = {
           comentarios_adicionales: string | null
           confianza_estimacion: number | null
           contacto_emergencia: string | null
-          costo_custodio: string | null
+          costo_custodio: number | null
           creado_por: string | null
           creado_via: string | null
           created_at: string | null
@@ -14479,7 +14479,7 @@ export type Database = {
           comentarios_adicionales: string | null
           confianza_estimacion: number | null
           contacto_emergencia: string | null
-          costo_custodio: string | null
+          costo_custodio: number | null
           creado_por: string | null
           creado_via: string | null
           created_at: string | null
