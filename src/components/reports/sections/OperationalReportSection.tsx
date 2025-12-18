@@ -9,7 +9,7 @@ interface OperationalReportSectionProps {
 }
 
 export function OperationalReportSection({ data }: OperationalReportSectionProps) {
-  const formatCurrency = (amount: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 }).format(amount);
+  const formatCurrency = (amount: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
   
   const formatChange = (value: number) => (
     <span className={`flex items-center gap-1 ${value >= 0 ? 'text-green-600' : 'text-red-600'}`}>
