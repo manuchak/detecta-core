@@ -137,12 +137,48 @@ const buildUpdateData = (item: any, fechaCitaResult: any, createdAtResult: any, 
     updateData.gadget_solicitado = item.gadget_solicitado;
   }
 
-  // --- TIME TRACKING ---
-  if (hasValidValue(item.hora_presentacion, 'string')) {
-    updateData.hora_presentacion = item.hora_presentacion;
+  // --- TIME TRACKING FIELDS (todos son tipo DATE/TIMESTAMP en la BD) ---
+  
+  // presentacion (string: "A tiempo", "Retrasado", etc.)
+  if (hasValidValue(item.presentacion, 'string')) {
+    updateData.presentacion = item.presentacion;
   }
-  if (hasValidValue(item.hora_finalizacion, 'string')) {
-    updateData.hora_finalizacion = item.hora_finalizacion;
+  
+  // hora_presentacion (DATE - requiere parsing)
+  if (hasValidValue(item.hora_presentacion, 'date')) {
+    const horaPresentacionResult = parseRobustDate(item.hora_presentacion);
+    if (horaPresentacionResult.success && horaPresentacionResult.isoString) {
+      updateData.hora_presentacion = horaPresentacionResult.isoString;
+    }
+  }
+  
+  // hora_finalizacion (DATE - requiere parsing)
+  if (hasValidValue(item.hora_finalizacion, 'date')) {
+    const horaFinalizacionResult = parseRobustDate(item.hora_finalizacion);
+    if (horaFinalizacionResult.success && horaFinalizacionResult.isoString) {
+      updateData.hora_finalizacion = horaFinalizacionResult.isoString;
+    }
+  }
+  
+  // hora_arribo (DATE - requiere parsing)
+  if (hasValidValue(item.hora_arribo, 'date')) {
+    const horaArriboResult = parseRobustDate(item.hora_arribo);
+    if (horaArriboResult.success && horaArriboResult.isoString) {
+      updateData.hora_arribo = horaArriboResult.isoString;
+    }
+  }
+  
+  // hora_inicio_custodia (DATE - requiere parsing)
+  if (hasValidValue(item.hora_inicio_custodia, 'date')) {
+    const horaInicioResult = parseRobustDate(item.hora_inicio_custodia);
+    if (horaInicioResult.success && horaInicioResult.isoString) {
+      updateData.hora_inicio_custodia = horaInicioResult.isoString;
+    }
+  }
+  
+  // tiempo_punto_origen (string)
+  if (hasValidValue(item.tiempo_punto_origen, 'string')) {
+    updateData.tiempo_punto_origen = item.tiempo_punto_origen;
   }
 
   // --- OTHER FIELDS ---
@@ -201,8 +237,26 @@ const buildInsertData = (item: any, fechaCitaResult: any, createdAtResult: any, 
     gadget: item.gadget || null,
     tipo_gadget: item.tipo_gadget || null,
     gadget_solicitado: item.gadget_solicitado || null,
-    hora_presentacion: item.hora_presentacion || null,
-    hora_finalizacion: item.hora_finalizacion || null,
+    // --- TIME TRACKING FIELDS (with proper date parsing) ---
+    presentacion: item.presentacion || null,
+    hora_presentacion: (() => {
+      const result = parseRobustDate(item.hora_presentacion);
+      return result.success && result.isoString ? result.isoString : null;
+    })(),
+    hora_finalizacion: (() => {
+      const result = parseRobustDate(item.hora_finalizacion);
+      return result.success && result.isoString ? result.isoString : null;
+    })(),
+    hora_arribo: (() => {
+      const result = parseRobustDate(item.hora_arribo);
+      return result.success && result.isoString ? result.isoString : null;
+    })(),
+    hora_inicio_custodia: (() => {
+      const result = parseRobustDate(item.hora_inicio_custodia);
+      return result.success && result.isoString ? result.isoString : null;
+    })(),
+    tiempo_punto_origen: item.tiempo_punto_origen || null,
+    // --- OTHER FIELDS ---
     local_foraneo: item.local_foraneo || null,
     ruta: item.ruta || null,
     proveedor: item.proveedor || null,
@@ -573,6 +627,22 @@ export const getCustodianServicesDefaultMapping = (): Record<string, string> => 
     'hora_finalizacion': 'hora_finalizacion',
     'Hora Finalizacion': 'hora_finalizacion',
     'HORA_FINALIZACION': 'hora_finalizacion',
+    // --- NEW TIME TRACKING MAPPINGS ---
+    'presentacion': 'presentacion',
+    'Presentacion': 'presentacion',
+    'PRESENTACION': 'presentacion',
+    'hora_arribo': 'hora_arribo',
+    'Hora Arribo': 'hora_arribo',
+    'HORA_ARRIBO': 'hora_arribo',
+    'arribo': 'hora_arribo',
+    'hora_inicio_custodia': 'hora_inicio_custodia',
+    'Hora Inicio Custodia': 'hora_inicio_custodia',
+    'HORA_INICIO_CUSTODIA': 'hora_inicio_custodia',
+    'inicio_custodia': 'hora_inicio_custodia',
+    'tiempo_punto_origen': 'tiempo_punto_origen',
+    'Tiempo Punto Origen': 'tiempo_punto_origen',
+    'TIEMPO_PUNTO_ORIGEN': 'tiempo_punto_origen',
+    // --- OTHER MAPPINGS ---
     'local_foraneo': 'local_foraneo',
     'Local Foraneo': 'local_foraneo',
     'LOCAL_FORANEO': 'local_foraneo',
