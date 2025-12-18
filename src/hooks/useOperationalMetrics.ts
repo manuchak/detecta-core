@@ -136,6 +136,23 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
 
       if (servicesError) throw servicesError;
 
+      // NUEVA CONSULTA: Obtener datos del año anterior para comparaciones YoY
+      let prevYearServices: typeof services = [];
+      const yearToCompare = filterYear || new Date().getFullYear();
+      
+      const prevYearStartDate = `${yearToCompare - 1}-01-01`;
+      const prevYearEndDate = `${yearToCompare}-01-01`;
+      
+      const { data: prevYearData, error: prevYearError } = await supabase
+        .from('servicios_custodia')
+        .select('*')
+        .gte('fecha_hora_cita', prevYearStartDate)
+        .lt('fecha_hora_cita', prevYearEndDate);
+      
+      if (!prevYearError && prevYearData) {
+        prevYearServices = prevYearData;
+      }
+
       const now = new Date();
       const currentMonth = now.getMonth() + 1;
       const currentYear = now.getFullYear();
@@ -199,10 +216,11 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
       // Previous month MTD (same day range)
       const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
       const prevMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
-      const previousMonthMTDServices = services?.filter(s => {
+      // CORREGIDO: Usar datos del año anterior si el mes anterior es diciembre del año pasado
+      const prevMonthDataSource = prevMonthYear === currentYear ? services : prevYearServices;
+      const previousMonthMTDServices = prevMonthDataSource?.filter(s => {
         if (!s.fecha_hora_cita) return false;
         return getUTCMonth(s.fecha_hora_cita) + 1 === prevMonth && 
-               getUTCYear(s.fecha_hora_cita) === prevMonthYear &&
                getUTCDayOfMonth(s.fecha_hora_cita) <= currentDay;
       }) || [];
 
@@ -220,10 +238,11 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
         s.estado?.toLowerCase() === 'completado' || s.estado?.toLowerCase() === 'finalizado'
       );
 
-      const samePeriodPrevYear = services?.filter(s => {
+      // CORREGIDO: Usar datos del año anterior de la consulta separada
+      const samePeriodPrevYear = prevYearServices?.filter(s => {
         if (!s.fecha_hora_cita) return false;
-        return getUTCYear(s.fecha_hora_cita) === currentYear - 1 && 
-               getUTCMonth(s.fecha_hora_cita) < currentMonth;
+        // Mismo período: hasta el mes actual
+        return getUTCMonth(s.fecha_hora_cita) < currentMonth;
       }) || [];
 
       const samePeriodPrevYearCompleted = samePeriodPrevYear.filter(s => 
@@ -256,11 +275,12 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
       const prevQuarterStart = (prevQuarter - 1) * 3 + 1;
       const prevQuarterEnd = prevQuarter * 3;
 
-      const previousQuarterServices = services?.filter(s => {
+      // CORREGIDO: Usar datos del año anterior si el trimestre anterior es del año pasado
+      const previousQuarterDataSource = prevQuarterYear === currentYear ? services : prevYearServices;
+      const previousQuarterServices = previousQuarterDataSource?.filter(s => {
         if (!s.fecha_hora_cita) return false;
         const serviceMonth = getUTCMonth(s.fecha_hora_cita) + 1;
-        return getUTCYear(s.fecha_hora_cita) === prevQuarterYear &&
-               serviceMonth >= prevQuarterStart && serviceMonth <= prevQuarterEnd;
+        return serviceMonth >= prevQuarterStart && serviceMonth <= prevQuarterEnd;
       }) || [];
 
       // Calculate metrics for previous periods
