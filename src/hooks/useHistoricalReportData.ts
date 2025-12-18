@@ -325,7 +325,7 @@ function transformConversionData(conversionDetails: any): ConversionReportData {
     yearlyData: {
       totalLeads: conversionDetails?.yearlyData?.totalLeads || 0,
       totalNewCustodians: conversionDetails?.yearlyData?.totalNewCustodians || 0,
-      conversionRate: conversionDetails?.yearlyData?.conversionRate || 0,
+      conversionRate: conversionDetails?.yearlyData?.overallConversionRate || 0,
     },
     currentMonthData: {
       month: conversionDetails?.currentMonthData?.month || '',
