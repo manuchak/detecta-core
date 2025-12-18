@@ -1,6 +1,44 @@
 import { supabase } from '@/integrations/supabase/client';
 import { parseRobustDate, formatDateParsingResult } from '@/utils/dateUtils';
 
+// Helper function to parse interval strings (HH:MM:SS, HH:MM, or minutes as number)
+const parseInterval = (value: any): string | null => {
+  if (value === null || value === undefined) return null;
+  
+  const str = String(value).trim();
+  if (str === '' || str === 'N/A' || str === '#N/A' || str === 'null' || str === 'undefined') return null;
+  
+  // Si ya está en formato HH:MM:SS, es válido
+  if (/^\d{1,2}:\d{2}:\d{2}$/.test(str)) {
+    return str;
+  }
+  
+  // Si está en formato HH:MM, agregar segundos
+  if (/^\d{1,2}:\d{2}$/.test(str)) {
+    return str + ':00';
+  }
+  
+  // Si es un número, asumirlo como minutos
+  const num = parseFloat(str);
+  if (!isNaN(num) && isFinite(num)) {
+    const hours = Math.floor(num / 60);
+    const mins = Math.floor(num % 60);
+    const secs = Math.floor((num % 1) * 60);
+    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+  
+  // Intentar extraer números del formato "X hours Y minutes"
+  const hoursMatch = str.match(/(\d+)\s*h/i);
+  const minsMatch = str.match(/(\d+)\s*m/i);
+  if (hoursMatch || minsMatch) {
+    const h = hoursMatch ? parseInt(hoursMatch[1]) : 0;
+    const m = minsMatch ? parseInt(minsMatch[1]) : 0;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:00`;
+  }
+  
+  return null; // No se pudo parsear
+};
+
 // Helper function to determine if a value is valid and should be included in updates
 const hasValidValue = (value: any, type: 'string' | 'number' | 'date' = 'string'): boolean => {
   if (value === null || value === undefined) return false;
@@ -198,6 +236,24 @@ const buildUpdateData = (item: any, fechaCitaResult: any, createdAtResult: any, 
     updateData.nombre_armado = item.nombre_armado;
   }
 
+  // --- INTERVAL FIELDS ---
+  
+  // duracion_servicio (INTERVAL - requiere formato especial)
+  if (item.duracion_servicio !== undefined && item.duracion_servicio !== null) {
+    const duracionParsed = parseInterval(item.duracion_servicio);
+    if (duracionParsed) {
+      updateData.duracion_servicio = duracionParsed;
+    }
+  }
+  
+  // duracion_estimada (también es INTERVAL)
+  if (item.duracion_estimada !== undefined && item.duracion_estimada !== null) {
+    const duracionEstParsed = parseInterval(item.duracion_estimada);
+    if (duracionEstParsed) {
+      updateData.duracion_estimada = duracionEstParsed;
+    }
+  }
+
   return updateData;
 };
 
@@ -261,7 +317,10 @@ const buildInsertData = (item: any, fechaCitaResult: any, createdAtResult: any, 
     ruta: item.ruta || null,
     proveedor: item.proveedor || null,
     armado: item.armado || null,
-    nombre_armado: item.nombre_armado || null
+    nombre_armado: item.nombre_armado || null,
+    // --- INTERVAL FIELDS ---
+    duracion_servicio: parseInterval(item.duracion_servicio),
+    duracion_estimada: parseInterval(item.duracion_estimada)
   };
 };
 
@@ -681,6 +740,20 @@ export const getCustodianServicesDefaultMapping = (): Record<string, string> => 
     'ARMADO': 'armado',
     'nombre_armado': 'nombre_armado',
     'Nombre Armado': 'nombre_armado',
-    'NOMBRE_ARMADO': 'nombre_armado'
+    'NOMBRE_ARMADO': 'nombre_armado',
+    // --- DURATION/INTERVAL MAPPINGS ---
+    'duracion_servicio': 'duracion_servicio',
+    'Duracion Servicio': 'duracion_servicio',
+    'DURACION_SERVICIO': 'duracion_servicio',
+    'duracion': 'duracion_servicio',
+    'Duracion': 'duracion_servicio',
+    'DURACION': 'duracion_servicio',
+    'tiempo_total': 'duracion_servicio',
+    'Tiempo Total': 'duracion_servicio',
+    'duracion_estimada': 'duracion_estimada',
+    'Duracion Estimada': 'duracion_estimada',
+    'DURACION_ESTIMADA': 'duracion_estimada',
+    'tiempo_estimado': 'duracion_estimada',
+    'Tiempo Estimado': 'duracion_estimada'
   };
 };
