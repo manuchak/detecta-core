@@ -83,6 +83,7 @@ export const useEngagementDetails = () => {
     // Crear datos de evolución mensual
     const monthlyEvolution = [];
     let totalServices = 0;
+    let totalMonthlyEngagement = 0;
     const allCustodians = new Set();
 
     Object.keys(serviciosPorMesData)
@@ -100,6 +101,7 @@ export const useEngagementDetails = () => {
         });
 
         totalServices += services;
+        totalMonthlyEngagement += engagement;
         custodiosPorMes[mes].forEach(custodio => allCustodians.add(custodio));
       });
 
@@ -114,7 +116,10 @@ export const useEngagementDetails = () => {
       '09': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre'
     };
 
-    const overallEngagement = allCustodians.size > 0 ? totalServices / allCustodians.size : 0;
+    // Promedio de engagements mensuales (servicios/custodio por mes)
+    const overallEngagement = monthlyEvolution.length > 0 
+      ? totalMonthlyEngagement / monthlyEvolution.length 
+      : 0;
 
     return {
       yearlyData: {
