@@ -39,7 +39,13 @@ export function useHistoricalReportData(config: HistoricalReportConfig): UseHist
   const supplyGrowthDetails = useSupplyGrowthDetails();
   const conversionDetails = useConversionRateDetails();
   const { capacityData, loading: capacityLoading } = useServiceCapacity();
-  const { data: operationalData, isLoading: operationalLoading } = useOperationalMetrics();
+  
+  // Pass year/month filter to operational metrics based on config
+  const operationalOptions = {
+    year: config.year,
+    month: config.granularity === 'month' ? config.month : undefined,
+  };
+  const { data: operationalData, isLoading: operationalLoading } = useOperationalMetrics(operationalOptions);
 
   const loading = cpaLoading || ltvDetails.loading || retentionDetails.loading || 
                   engagementLoading || supplyGrowthDetails.loading || 
