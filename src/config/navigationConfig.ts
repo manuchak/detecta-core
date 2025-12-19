@@ -17,14 +17,30 @@ import {
   Cog,
   TestTube2,
   Globe,
-  AlertTriangle,
   Calendar,
   ClipboardList,
   BookOpen,
   GitBranch,
   FileText,
-  LucideIcon
+  LucideIcon,
+  Radio,
+  Headphones
 } from 'lucide-react';
+
+// Navigation Groups for visual separation
+export interface NavigationGroup {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+}
+
+export const navigationGroups: NavigationGroup[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'supply', label: 'Supply & Talento', icon: Users },
+  { id: 'operations', label: 'Operaciones', icon: CalendarCheck },
+  { id: 'monitoring', label: 'Monitoreo & Soporte', icon: Radio },
+  { id: 'system', label: 'Sistema', icon: Settings },
+];
 
 export interface NavigationChild {
   id: string;
@@ -43,14 +59,17 @@ export interface NavigationModule {
   roles?: string[];
   matchPaths?: string[];
   children?: NavigationChild[];
+  group: string; // Reference to navigationGroups.id
 }
 
 export const navigationModules: NavigationModule[] = [
+  // ===== DASHBOARD GROUP =====
   {
     id: 'dashboard',
     label: 'Dashboard',
     icon: LayoutDashboard,
     path: '/dashboard',
+    group: 'dashboard',
     children: [
       {
         id: 'dashboard_main',
@@ -73,23 +92,19 @@ export const navigationModules: NavigationModule[] = [
       }
     ]
   },
-  {
-    id: 'recruitment',
-    label: 'Reclutamiento',
-    icon: Users,
-    path: '/recruitment-strategy',
-    roles: ['admin', 'owner', 'manager', 'coordinador_operaciones']
-  },
+
+  // ===== SUPPLY & TALENTO GROUP =====
   {
     id: 'leads',
-    label: 'Leads',
+    label: 'Pipeline',
     icon: UserCheck,
     path: '/leads',
+    group: 'supply',
     matchPaths: ['/leads/approvals', '/leads/liberacion', '/leads/evaluaciones'],
     children: [
       {
         id: 'leads_list',
-        label: 'Lista de Candidatos',
+        label: 'Candidatos',
         path: '/leads',
         icon: UserCheck
       },
@@ -126,10 +141,21 @@ export const navigationModules: NavigationModule[] = [
     ]
   },
   {
+    id: 'recruitment',
+    label: 'Estrategia',
+    icon: TrendingUp,
+    path: '/recruitment-strategy',
+    group: 'supply',
+    roles: ['admin', 'owner', 'manager', 'coordinador_operaciones']
+  },
+
+  // ===== OPERACIONES GROUP =====
+  {
     id: 'planeacion',
     label: 'Planeación',
     icon: CalendarCheck,
     path: '/planeacion',
+    group: 'operations',
     matchPaths: ['/planeacion/reportes'],
     children: [
       {
@@ -148,10 +174,32 @@ export const navigationModules: NavigationModule[] = [
     ]
   },
   {
+    id: 'services',
+    label: 'Servicios',
+    icon: Wrench,
+    path: '/services',
+    group: 'operations',
+    children: [
+      {
+        id: 'services_main',
+        label: 'General',
+        path: '/services',
+        icon: Wrench
+      },
+      {
+        id: 'services_rendimiento',
+        label: 'Rendimiento',
+        path: '/services/rendimiento',
+        icon: TrendingUp
+      }
+    ]
+  },
+  {
     id: 'installers',
     label: 'Instaladores',
     icon: Wrench,
     path: '/installers',
+    group: 'operations',
     roles: ['admin', 'owner', 'supply_admin', 'coordinador_operaciones'],
     matchPaths: ['/installers/gestion', '/installers/calendar', '/installers/schedule'],
     children: [
@@ -176,34 +224,25 @@ export const navigationModules: NavigationModule[] = [
     ]
   },
   {
-    id: 'services',
-    label: 'Servicios',
-    icon: Wrench,
-    path: '/services',
-    children: [
-      {
-        id: 'services_main',
-        label: 'General',
-        path: '/services',
-        icon: Wrench
-      },
-      {
-        id: 'services_rendimiento',
-        label: 'Rendimiento',
-        path: '/services/rendimiento',
-        icon: TrendingUp
-      }
-    ]
+    id: 'wms',
+    label: 'WMS',
+    icon: Package,
+    path: '/wms',
+    group: 'operations',
+    roles: ['admin', 'owner', 'monitoring_supervisor', 'monitoring', 'coordinador_operaciones']
   },
+
+  // ===== MONITOREO & SOPORTE GROUP =====
   {
     id: 'monitoring',
     label: 'Monitoreo',
     icon: Activity,
     path: '/monitoring',
+    group: 'monitoring',
     children: [
       {
         id: 'monitoring_general',
-        label: 'General',
+        label: 'Centro de Control',
         path: '/monitoring',
         icon: Activity
       },
@@ -230,17 +269,11 @@ export const navigationModules: NavigationModule[] = [
     ]
   },
   {
-    id: 'wms',
-    label: 'WMS',
-    icon: Package,
-    path: '/wms',
-    roles: ['admin', 'owner', 'monitoring_supervisor', 'monitoring', 'coordinador_operaciones']
-  },
-  {
     id: 'tickets',
     label: 'Tickets',
-    icon: Ticket,
+    icon: Headphones,
     path: '/tickets',
+    group: 'monitoring',
     matchPaths: ['/admin/ticket-config', '/admin/ticket-metrics', '/admin/ticket-templates'],
     children: [
       {
@@ -272,11 +305,22 @@ export const navigationModules: NavigationModule[] = [
       }
     ]
   },
+
+  // ===== SISTEMA GROUP =====
+  {
+    id: 'administration',
+    label: 'Administración',
+    icon: Shield,
+    path: '/administration',
+    group: 'system',
+    roles: ['admin', 'owner', 'bi', 'supply_admin']
+  },
   {
     id: 'tools',
     label: 'Herramientas',
     icon: Cog,
     path: '/tools',
+    group: 'system',
     roles: ['admin', 'owner'],
     children: [
       {
@@ -300,27 +344,16 @@ export const navigationModules: NavigationModule[] = [
     ]
   },
   {
-    id: 'administration',
-    label: 'Administración',
-    icon: Shield,
-    path: '/administration',
-    roles: ['admin', 'owner', 'bi', 'supply_admin']
-  },
-  {
     id: 'architecture',
-    label: 'Arquitectura',
+    label: 'Documentación',
     icon: BookOpen,
     path: '/architecture',
+    group: 'system',
+    roles: ['admin', 'owner'],
     children: [
       {
         id: 'arch_overview',
-        label: 'Vista General',
-        path: '/architecture',
-        icon: BookOpen
-      },
-      {
-        id: 'arch_modules',
-        label: 'Módulos',
+        label: 'Arquitectura',
         path: '/architecture',
         icon: GitBranch
       }
@@ -330,6 +363,11 @@ export const navigationModules: NavigationModule[] = [
     id: 'settings',
     label: 'Configuración',
     icon: Settings,
-    path: '/settings'
+    path: '/settings',
+    group: 'system'
   }
 ];
+
+// Helper to get modules by group
+export const getModulesByGroup = (groupId: string) => 
+  navigationModules.filter(m => m.group === groupId);

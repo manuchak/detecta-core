@@ -1,6 +1,11 @@
 import { useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import { navigationModules, type NavigationModule, type NavigationChild } from '@/config/navigationConfig';
+import { 
+  navigationModules, 
+  navigationGroups,
+  type NavigationModule, 
+  type NavigationChild 
+} from '@/config/navigationConfig';
 import { LucideIcon, Home } from 'lucide-react';
 
 interface BreadcrumbItem {
@@ -17,12 +22,12 @@ export function useBreadcrumbs(): BreadcrumbItem[] {
     const path = location.pathname;
     
     // Home route
-    if (path === '/' || path === '') {
-      return [{ label: 'Inicio', path: '/', icon: Home, isLast: true }];
+    if (path === '/' || path === '' || path === '/home') {
+      return [{ label: 'Inicio', path: '/home', icon: Home, isLast: true }];
     }
 
     const breadcrumbs: BreadcrumbItem[] = [
-      { label: 'Inicio', path: '/', icon: Home, isLast: false }
+      { label: 'Inicio', path: '/home', icon: Home, isLast: false }
     ];
 
     // Find matching module
@@ -73,6 +78,18 @@ export function useBreadcrumbs(): BreadcrumbItem[] {
     }
 
     if (matchedModule) {
+      // Add group label if module belongs to a group
+      const group = navigationGroups.find(g => g.id === matchedModule!.group);
+      if (group && group.id !== 'dashboard') {
+        breadcrumbs.push({
+          label: group.label,
+          path: matchedModule.path,
+          icon: group.icon,
+          isLast: false
+        });
+      }
+
+      // Add module
       breadcrumbs.push({
         label: matchedModule.label,
         path: matchedModule.path,
@@ -80,6 +97,7 @@ export function useBreadcrumbs(): BreadcrumbItem[] {
         isLast: !matchedChild
       });
 
+      // Add child if exists
       if (matchedChild) {
         breadcrumbs.push({
           label: matchedChild.label,
@@ -94,8 +112,12 @@ export function useBreadcrumbs(): BreadcrumbItem[] {
       segments.forEach((segment, index) => {
         const isLast = index === segments.length - 1;
         const segmentPath = '/' + segments.slice(0, index + 1).join('/');
+        
+        // Format segment label
+        let label = segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ');
+        
         breadcrumbs.push({
-          label: segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' '),
+          label,
           path: segmentPath,
           isLast
         });

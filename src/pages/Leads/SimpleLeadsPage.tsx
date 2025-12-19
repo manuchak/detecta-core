@@ -1,12 +1,7 @@
-import UnifiedLayout from "@/layouts/UnifiedLayout";
 import LeadsListPage from "./LeadsListPage";
 
 const SimpleLeadsPage = () => {
-  return (
-    <UnifiedLayout>
-      <LeadsListPage />
-    </UnifiedLayout>
-  );
+  return <LeadsListPage />;
 };
 
 export default SimpleLeadsPage;
