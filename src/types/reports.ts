@@ -382,8 +382,8 @@ export interface ClientsReportData {
     growth: number;
   }[];
   serviceTypeAnalysis: {
-    foraneo: { count: number; percentage: number; avgValue: number };
-    local: { count: number; percentage: number; avgValue: number };
+    foraneo: { count: number; percentage: number; avgValue: number; gmv: number };
+    local: { count: number; percentage: number; avgValue: number; gmv: number };
   };
   clientConcentration: {
     top5Percent: number;

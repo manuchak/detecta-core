@@ -511,7 +511,14 @@ function transformCapacityData(capacityData: any): CapacityReportData {
   };
 }
 
-function transformOperationalData(operationalData: any): OperationalReportData {
+function transformOperationalData(operationalData: any, year: number): OperationalReportData {
+  // Filtrar monthlyBreakdown por año
+  const filteredMonthlyBreakdown = (operationalData?.monthlyBreakdown || []).filter((m: any) => {
+    const monthStr = m.month || '';
+    const itemYear = parseInt(monthStr.split('-')[0] || '0');
+    return itemYear === year;
+  });
+
   return {
     services: {
       total: operationalData?.totalServices || 0,
@@ -586,7 +593,7 @@ function transformOperationalData(operationalData: any): OperationalReportData {
       gmv: c.gmv || 0,
       aov: c.aov || 0,
     })) || [],
-    monthlyBreakdown: operationalData?.monthlyBreakdown?.map((m: any) => ({
+    monthlyBreakdown: filteredMonthlyBreakdown.map((m: any) => ({
       month: m.month || '',
       monthNumber: m.monthNumber || 0,
       services: m.services || 0,
@@ -594,7 +601,7 @@ function transformOperationalData(operationalData: any): OperationalReportData {
       gmv: m.gmv || 0,
       aov: m.aov || 0,
       completionRate: m.completionRate || 0,
-    })) || [],
+    })),
   };
 }
 
