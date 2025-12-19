@@ -403,6 +403,77 @@ function transformConversionData(conversionDetails: any, year: number): Conversi
   };
 }
 
+function transformClientsData(
+  clientsData: any,
+  clientMetrics: any,
+  clientTableData: any[],
+  year: number
+): ClientsReportData {
+  const totalClients = clientMetrics?.total_clients || 0;
+  const activeClients = clientMetrics?.active_clients || 0;
+  const totalGMV = clientMetrics?.total_gmv || 0;
+  const totalServices = clientMetrics?.total_services || 0;
+
+  // Top clientes ordenados por GMV
+  const topClients = (clientTableData || [])
+    .slice(0, 15)
+    .map((c: any, i: number) => ({
+      rank: i + 1,
+      name: c.name || c.empresa || c.cliente || '',
+      services: c.services_count || c.total_services || c.servicios || 0,
+      gmv: c.gmv || c.total_gmv || 0,
+      aov: c.aov || (c.gmv > 0 && c.services_count > 0 ? c.gmv / c.services_count : 0),
+      completionRate: c.completion_rate || c.tasa_completado || 0,
+      growth: c.growth_rate || 0,
+    }));
+
+  // Análisis de concentración
+  const sortedByGMV = [...topClients].sort((a, b) => b.gmv - a.gmv);
+  const totalGmvSum = sortedByGMV.reduce((sum, c) => sum + c.gmv, 0);
+  const top5Index = Math.max(1, Math.ceil(sortedByGMV.length * 0.05));
+  const top10Index = Math.max(1, Math.ceil(sortedByGMV.length * 0.10));
+  const top5GMV = sortedByGMV.slice(0, top5Index).reduce((sum, c) => sum + c.gmv, 0);
+  const top10GMV = sortedByGMV.slice(0, top10Index).reduce((sum, c) => sum + c.gmv, 0);
+
+  // HHI (Índice Herfindahl-Hirschman)
+  const hhi = totalGmvSum > 0 
+    ? sortedByGMV.reduce((sum, c) => sum + Math.pow((c.gmv / totalGmvSum) * 100, 2), 0)
+    : 0;
+
+  return {
+    summary: {
+      totalClients,
+      activeClients,
+      newClientsThisPeriod: clientMetrics?.new_clients || 0,
+      avgServicesPerClient: activeClients > 0 ? totalServices / activeClients : 0,
+      avgGmvPerClient: activeClients > 0 ? totalGMV / activeClients : 0,
+      totalGMV,
+    },
+    topClients,
+    serviceTypeAnalysis: {
+      foraneo: {
+        count: clientsData?.foraneo_count || 0,
+        percentage: clientsData?.foraneo_percentage || 0,
+        avgValue: clientsData?.foraneo_avg_value || 0,
+        gmv: clientsData?.foraneo_gmv || 0,
+      },
+      local: {
+        count: clientsData?.local_count || 0,
+        percentage: clientsData?.local_percentage || 0,
+        avgValue: clientsData?.local_avg_value || 0,
+        gmv: clientsData?.local_gmv || 0,
+      },
+    },
+    clientConcentration: {
+      top5Percent: totalGmvSum > 0 ? (top5GMV / totalGmvSum) * 100 : 0,
+      top10Percent: totalGmvSum > 0 ? (top10GMV / totalGmvSum) * 100 : 0,
+      hhi: Math.round(hhi),
+    },
+    atRiskClients: [],
+    monthlyGMVEvolution: [],
+  };
+}
+
 function transformCapacityData(capacityData: any): CapacityReportData {
   return {
     currentCapacity: {
