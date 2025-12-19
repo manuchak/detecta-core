@@ -11,72 +11,84 @@ import {
   OperationalReportSection,
   ProjectionsReportSection,
 } from '@/components/reports';
-import { FileText, Calendar, Clock } from 'lucide-react';
+import { ReportCoverPage } from './ReportCoverPage';
+import { ExecutiveSummary } from './ExecutiveSummary';
+import { ReportTableOfContents } from './ReportTableOfContents';
+import { ReportPageWrapper } from './ReportPageWrapper';
+import '@/styles/report-print.css';
 
 interface ReportPreviewProps {
   data: HistoricalReportData;
 }
 
 export function ReportPreview({ data }: ReportPreviewProps) {
-  const generatedDate = new Date(data.generatedAt).toLocaleString('es-MX', {
-    dateStyle: 'full',
-    timeStyle: 'short',
-  });
+  const generatedDate = new Date(data.generatedAt);
+
+  // Build section list with numbers
+  const sections: { key: string; title: string; component: React.ReactNode }[] = [];
+  
+  if (data.cpa) {
+    sections.push({ key: 'cpa', title: 'Costo por Adquisición (CPA)', component: <CPAReportSection data={data.cpa} /> });
+  }
+  if (data.ltv) {
+    sections.push({ key: 'ltv', title: 'Lifetime Value (LTV)', component: <LTVReportSection data={data.ltv} /> });
+  }
+  if (data.retention) {
+    sections.push({ key: 'retention', title: 'Retención de Custodios', component: <RetentionReportSection data={data.retention} /> });
+  }
+  if (data.engagement) {
+    sections.push({ key: 'engagement', title: 'Engagement', component: <EngagementReportSection data={data.engagement} /> });
+  }
+  if (data.supplyGrowth) {
+    sections.push({ key: 'supplyGrowth', title: 'Crecimiento Supply', component: <SupplyGrowthReportSection data={data.supplyGrowth} /> });
+  }
+  if (data.conversion) {
+    sections.push({ key: 'conversion', title: 'Tasa de Conversión', component: <ConversionReportSection data={data.conversion} /> });
+  }
+  if (data.capacity) {
+    sections.push({ key: 'capacity', title: 'Capacidad Operativa', component: <CapacityReportSection data={data.capacity} /> });
+  }
+  if (data.operational) {
+    sections.push({ key: 'operational', title: 'Métricas Operacionales', component: <OperationalReportSection data={data.operational} /> });
+  }
+  if (data.projections) {
+    sections.push({ key: 'projections', title: 'Proyecciones', component: <ProjectionsReportSection data={data.projections} /> });
+  }
 
   return (
-    <div className="space-y-8 p-6 bg-background" id="report-preview">
-      {/* Header */}
-      <div className="border-b border-border pb-6">
-        <div className="flex items-center gap-3 mb-4">
-          <FileText className="h-8 w-8 text-primary" />
-          <div>
-            <h1 className="text-2xl font-bold">Informe Histórico Detallado</h1>
-            <p className="text-lg text-muted-foreground">{data.periodLabel}</p>
+    <div className="bg-background print:bg-white" id="report-preview">
+      {/* Page 1: Cover Page */}
+      <ReportCoverPage data={data} />
+
+      {/* Page 2: Executive Summary */}
+      <ExecutiveSummary data={data} />
+
+      {/* Page 3: Table of Contents */}
+      <ReportTableOfContents data={data} />
+
+      {/* Report Sections with Page Wrappers */}
+      {sections.map((section, index) => (
+        <ReportPageWrapper
+          key={section.key}
+          sectionTitle={section.title}
+          sectionNumber={index + 1}
+          periodLabel={data.periodLabel}
+          generatedAt={generatedDate}
+          forcePageBreak={true}
+        >
+          <div id={`${section.key}-section`}>
+            {section.component}
           </div>
-        </div>
-        <div className="flex gap-6 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <Calendar className="h-4 w-4" />
-            Período: {data.periodLabel}
-          </span>
-          <span className="flex items-center gap-1">
-            <Clock className="h-4 w-4" />
-            Generado: {generatedDate}
-          </span>
-        </div>
-      </div>
-
-      {/* Table of Contents */}
-      <div className="bg-muted/30 p-4 rounded-lg">
-        <h3 className="font-semibold mb-2">Contenido del Informe</h3>
-        <ul className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
-          {data.cpa && <li><a href="#cpa-section" className="text-primary hover:underline">• CPA</a></li>}
-          {data.ltv && <li><a href="#ltv-section" className="text-primary hover:underline">• LTV</a></li>}
-          {data.retention && <li><a href="#retention-section" className="text-primary hover:underline">• Retención</a></li>}
-          {data.engagement && <li><a href="#engagement-section" className="text-primary hover:underline">• Engagement</a></li>}
-          {data.supplyGrowth && <li><a href="#supply-growth-section" className="text-primary hover:underline">• Crecimiento Supply</a></li>}
-          {data.conversion && <li><a href="#conversion-section" className="text-primary hover:underline">• Conversión</a></li>}
-          {data.capacity && <li><a href="#capacity-section" className="text-primary hover:underline">• Capacidad</a></li>}
-          {data.operational && <li><a href="#operational-section" className="text-primary hover:underline">• Operacional</a></li>}
-          {data.projections && <li><a href="#projections-section" className="text-primary hover:underline">• Proyecciones</a></li>}
-        </ul>
-      </div>
-
-      {/* Report Sections */}
-      {data.cpa && <CPAReportSection data={data.cpa} />}
-      {data.ltv && <LTVReportSection data={data.ltv} />}
-      {data.retention && <RetentionReportSection data={data.retention} />}
-      {data.engagement && <EngagementReportSection data={data.engagement} />}
-      {data.supplyGrowth && <SupplyGrowthReportSection data={data.supplyGrowth} />}
-      {data.conversion && <ConversionReportSection data={data.conversion} />}
-      {data.capacity && <CapacityReportSection data={data.capacity} />}
-      {data.operational && <OperationalReportSection data={data.operational} />}
-      {data.projections && <ProjectionsReportSection data={data.projections} />}
+        </ReportPageWrapper>
+      ))}
 
       {/* Footer */}
-      <div className="border-t border-border pt-6 text-center text-sm text-muted-foreground">
-        <p>Informe generado automáticamente • {generatedDate}</p>
-        <p>Los datos incluidos son sin omisiones ni resúmenes que pierdan información</p>
+      <div className="border-t border-border pt-6 pb-8 text-center text-sm text-muted-foreground print:break-before-page">
+        <div className="space-y-2">
+          <p className="font-medium">— Fin del Informe —</p>
+          <p>Informe generado automáticamente • {generatedDate.toLocaleString('es-MX', { dateStyle: 'full', timeStyle: 'short' })}</p>
+          <p className="text-xs">Los datos incluidos son sin omisiones ni resúmenes que pierdan información</p>
+        </div>
       </div>
     </div>
   );
