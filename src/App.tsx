@@ -91,6 +91,7 @@ const ReportsPage = lazy(() => import('@/pages/Dashboard/ReportsPage'));
 import ProtectedRoute from '@/components/ProtectedRoute';
 import RoleProtectedRoute from '@/components/RoleProtectedRoute';
 import PermissionProtectedRoute from '@/components/PermissionProtectedRoute';
+import SmartHomeRedirect from '@/components/SmartHomeRedirect';
 
 // Componente para sincronizar userRole entre AuthContext y SandboxContext
 function SandboxRoleSync({ children }: { children: React.ReactNode }) {
@@ -161,8 +162,8 @@ function App() {
                   <div className="min-h-screen bg-background">
                     <Suspense fallback={<LoadingFallback />}>
                       <Routes>
-                  {/* Main route - Leads as principal page */}
-                  <Route path="/" element={<SimpleLeadsPage />} />
+                  {/* Main route - Smart redirect based on auth */}
+                  <Route path="/" element={<SmartHomeRedirect />} />
                   
                   {/* Deep-link routes for draft resumption */}
                   <Route path="/resume/*" element={
