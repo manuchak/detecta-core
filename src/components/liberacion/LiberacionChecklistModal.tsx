@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, CheckCircle2, Rocket } from 'lucide-react';
+import { Loader2, CheckCircle2, Rocket, User, Car, Pencil } from 'lucide-react';
 import { CustodioLiberacion } from '@/types/liberacion';
 import { useCustodioLiberacion } from '@/hooks/useCustodioLiberacion';
 import LiberacionProgressBar from './LiberacionProgressBar';
@@ -62,8 +62,26 @@ const LiberacionChecklistModal = ({
     emailSent: boolean;
   } | null>(null);
 
+  // Estado para datos de contacto editables
+  const [datosContacto, setDatosContacto] = useState({
+    nombre: initialLiberacion.candidato?.nombre || '',
+    telefono: initialLiberacion.candidato?.telefono || '',
+    email: initialLiberacion.candidato?.email || ''
+  });
+
+  // Estado para controlar si tiene vehículo propio (editable)
+  const [tieneVehiculoPropio, setTieneVehiculoPropio] = useState(
+    initialLiberacion.candidato?.vehiculo_propio ?? false
+  );
+
   useEffect(() => {
     setLiberacion(initialLiberacion);
+    setDatosContacto({
+      nombre: initialLiberacion.candidato?.nombre || '',
+      telefono: initialLiberacion.candidato?.telefono || '',
+      email: initialLiberacion.candidato?.email || ''
+    });
+    setTieneVehiculoPropio(initialLiberacion.candidato?.vehiculo_propio ?? false);
   }, [initialLiberacion]);
 
   const progress = calculateProgress(liberacion);
@@ -76,12 +94,22 @@ const LiberacionChecklistModal = ({
     setLiberacion(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleContactoChange = (field: 'nombre' | 'telefono' | 'email', value: string) => {
+    setDatosContacto(prev => ({ ...prev, [field]: value }));
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
       await updateChecklist.mutateAsync({
         id: liberacion.id,
-        updates: liberacion
+        updates: liberacion,
+        candidatoUpdates: {
+          nombre: datosContacto.nombre,
+          telefono: datosContacto.telefono,
+          email: datosContacto.email || undefined,
+          vehiculo_propio: tieneVehiculoPropio
+        }
       });
       onSuccess();
     } catch (error) {
@@ -150,15 +178,13 @@ const LiberacionChecklistModal = ({
     onClose();
   };
 
-  const esVehiculoRequerido = liberacion.candidato?.vehiculo_propio === true;
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Checklist de Liberación</DialogTitle>
           <DialogDescription>
-            {liberacion.candidato?.nombre} - {liberacion.candidato?.telefono}
+            {datosContacto.nombre} - {datosContacto.telefono}
           </DialogDescription>
         </DialogHeader>
 
@@ -167,7 +193,56 @@ const LiberacionChecklistModal = ({
           <LiberacionProgressBar progress={progress} />
 
           {/* Checklist Accordion */}
-          <Accordion type="multiple" defaultValue={['docs', 'psico', 'toxico', 'gps']}>
+          <Accordion type="multiple" defaultValue={['contacto', 'docs', 'psico', 'toxico', 'vehiculo', 'gps']}>
+            {/* 0. Información de Contacto - EDITABLE */}
+            <AccordionItem value="contacto">
+              <AccordionTrigger>
+                <div className="flex items-center gap-2">
+                  <User className="h-5 w-5 text-blue-600" />
+                  <span>0. Información de Contacto</span>
+                  <Pencil className="h-4 w-4 text-muted-foreground ml-1" />
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="space-y-4">
+                <div className="bg-blue-50 dark:bg-blue-950/30 p-3 rounded-md border border-blue-200 dark:border-blue-800">
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    Puede editar los datos de contacto del candidato antes de liberarlo.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="contacto_nombre">Nombre completo</Label>
+                    <Input
+                      id="contacto_nombre"
+                      value={datosContacto.nombre}
+                      onChange={(e) => handleContactoChange('nombre', e.target.value)}
+                      placeholder="Nombre del candidato"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="contacto_telefono">Teléfono</Label>
+                    <Input
+                      id="contacto_telefono"
+                      value={datosContacto.telefono}
+                      onChange={(e) => handleContactoChange('telefono', e.target.value)}
+                      placeholder="10 dígitos"
+                      maxLength={15}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="contacto_email">Email</Label>
+                    <Input
+                      id="contacto_email"
+                      type="email"
+                      value={datosContacto.email}
+                      onChange={(e) => handleContactoChange('email', e.target.value)}
+                      placeholder="correo@ejemplo.com"
+                    />
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
             {/* 1. Documentación */}
             <AccordionItem value="docs">
               <AccordionTrigger>
@@ -333,26 +408,47 @@ const LiberacionChecklistModal = ({
               </AccordionContent>
             </AccordionItem>
 
-            {/* 4. Vehículo (condicional) */}
-            {esVehiculoRequerido && (
-              <AccordionItem value="vehiculo">
-                <AccordionTrigger>
-                  <div className="flex items-center gap-2">
-                    {progress.vehiculo === 100 ? (
+            {/* 4. Vehículo - Siempre visible */}
+            <AccordionItem value="vehiculo">
+              <AccordionTrigger>
+                <div className="flex items-center gap-2">
+                  {tieneVehiculoPropio ? (
+                    progress.vehiculo === 100 ? (
                       <CheckCircle2 className="h-5 w-5 text-green-600" />
                     ) : (
                       <div className="h-5 w-5 rounded-full border-2 border-muted-foreground" />
-                    )}
-                    <span>4. Vehículo ({progress.vehiculo}%)</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="space-y-3">
+                    )
+                  ) : (
+                    <Car className="h-5 w-5 text-muted-foreground" />
+                  )}
+                  <span>4. Vehículo ({tieneVehiculoPropio ? `${progress.vehiculo}%` : 'N/A'})</span>
+                  {!tieneVehiculoPropio && (
+                    <Badge variant="outline" className="ml-2 text-xs">No aplica</Badge>
+                  )}
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="space-y-4">
+                {/* Toggle para vehículo propio */}
+                <div className="flex items-center space-x-2 p-3 bg-muted/50 rounded-md">
+                  <Checkbox
+                    id="tiene_vehiculo_propio"
+                    checked={tieneVehiculoPropio}
+                    onCheckedChange={(checked) => setTieneVehiculoPropio(checked as boolean)}
+                  />
+                  <Label htmlFor="tiene_vehiculo_propio" className="font-medium">
+                    El candidato tiene vehículo propio
+                  </Label>
+                </div>
+
+                {/* Campos del vehículo - habilitados solo si tiene vehículo */}
+                <div className={!tieneVehiculoPropio ? 'opacity-50 pointer-events-none' : ''}>
                   <div className="grid grid-cols-3 gap-3">
                     <div>
                       <Label>Marca</Label>
                       <Input
                         value={liberacion.vehiculo_marca || ''}
                         onChange={(e) => handleInputChange('vehiculo_marca', e.target.value)}
+                        disabled={!tieneVehiculoPropio}
                       />
                     </div>
                     <div>
@@ -360,6 +456,7 @@ const LiberacionChecklistModal = ({
                       <Input
                         value={liberacion.vehiculo_modelo || ''}
                         onChange={(e) => handleInputChange('vehiculo_modelo', e.target.value)}
+                        disabled={!tieneVehiculoPropio}
                       />
                     </div>
                     <div>
@@ -368,15 +465,17 @@ const LiberacionChecklistModal = ({
                         type="number"
                         value={liberacion.vehiculo_año || ''}
                         onChange={(e) => handleInputChange('vehiculo_año', parseInt(e.target.value))}
+                        disabled={!tieneVehiculoPropio}
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-3 mt-3">
                     <div>
                       <Label>Placas</Label>
                       <Input
                         value={liberacion.vehiculo_placa || ''}
                         onChange={(e) => handleInputChange('vehiculo_placa', e.target.value)}
+                        disabled={!tieneVehiculoPropio}
                       />
                     </div>
                     <div>
@@ -384,10 +483,11 @@ const LiberacionChecklistModal = ({
                       <Input
                         value={liberacion.vehiculo_color || ''}
                         onChange={(e) => handleInputChange('vehiculo_color', e.target.value)}
+                        disabled={!tieneVehiculoPropio}
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 mt-3">
                     <div className="flex items-center space-x-2">
                       <Checkbox
                         id="vehiculo_tarjeta_circulacion"
@@ -395,6 +495,7 @@ const LiberacionChecklistModal = ({
                         onCheckedChange={(checked) => 
                           handleCheckboxChange('vehiculo_tarjeta_circulacion', checked as boolean)
                         }
+                        disabled={!tieneVehiculoPropio}
                       />
                       <Label htmlFor="vehiculo_tarjeta_circulacion">Tarjeta de circulación</Label>
                     </div>
@@ -405,6 +506,7 @@ const LiberacionChecklistModal = ({
                         onCheckedChange={(checked) => 
                           handleCheckboxChange('vehiculo_poliza_seguro', checked as boolean)
                         }
+                        disabled={!tieneVehiculoPropio}
                       />
                       <Label htmlFor="vehiculo_poliza_seguro">Póliza de seguro</Label>
                     </div>
@@ -415,13 +517,14 @@ const LiberacionChecklistModal = ({
                         onCheckedChange={(checked) => 
                           handleCheckboxChange('vehiculo_capturado', checked as boolean)
                         }
+                        disabled={!tieneVehiculoPropio}
                       />
                       <Label htmlFor="vehiculo_capturado">Información completa</Label>
                     </div>
                   </div>
-                </AccordionContent>
-              </AccordionItem>
-            )}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
             {/* 5. GPS */}
             <AccordionItem value="gps">
