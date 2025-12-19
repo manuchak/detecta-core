@@ -79,12 +79,19 @@ interface ServiceCapacityData {
   utilizacionVsForecast?: number;
 }
 
-export const useServiceCapacity = () => {
+export interface ServiceCapacityOptions {
+  enabled?: boolean;
+}
+
+export const useServiceCapacity = (options: ServiceCapacityOptions = {}) => {
+  const { enabled = true } = options;
+
   // Obtener forecast del mes actual
   const { data: forecastData } = useQuery({
     queryKey: ['forecast-mes-actual'],
     queryFn: getForecastMesActual,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled,
   });
 
   // Obtener capacidad real basada en disponibilidad actual
@@ -181,6 +188,7 @@ export const useServiceCapacity = () => {
       };
     },
     staleTime: 2 * 60 * 1000, // 2 minutes - más frecuente para datos en tiempo real
+    enabled,
   });
 
   const capacityAnalysis = useMemo((): ServiceCapacityData => {

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState, useRef } from 'react';
 import { useCPADetails } from './useCPADetails';
 import { useLTVDetails } from './useLTVDetails';
 import { useRetentionDetails } from './useRetentionDetails';
@@ -24,15 +24,31 @@ import {
   OperationalReportData,
   ProjectionsReportData,
   ClientsReportData,
+  MODULE_LABELS,
 } from '@/types/reports';
+
+export interface ModuleProgress {
+  module: ReportModule;
+  label: string;
+  status: 'pending' | 'loading' | 'done' | 'error';
+}
 
 export interface UseHistoricalReportDataReturn {
   data: HistoricalReportData | null;
   loading: boolean;
   error: string | null;
+  progress: ModuleProgress[];
+  completedCount: number;
+  totalCount: number;
 }
 
-export function useHistoricalReportData(config: HistoricalReportConfig): UseHistoricalReportDataReturn {
+export function useHistoricalReportData(
+  config: HistoricalReportConfig,
+  enabled: boolean = false
+): UseHistoricalReportDataReturn {
+  const [error, setError] = useState<string | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout>();
+
   // Create date range for client data based on config
   const dateRange = useMemo(() => {
     const startDate = new Date(config.year, 0, 1);
@@ -40,41 +56,129 @@ export function useHistoricalReportData(config: HistoricalReportConfig): UseHist
     return { from: startDate, to: endDate };
   }, [config.year]);
 
-  // Fetch all data from existing hooks
-  const { cpaDetails, loading: cpaLoading } = useCPADetails();
-  const ltvDetails = useLTVDetails();
-  const retentionDetails = useRetentionDetails();
-  const { engagementDetails, loading: engagementLoading } = useEngagementDetails();
-  const supplyGrowthDetails = useSupplyGrowthDetails();
-  const conversionDetails = useConversionRateDetails();
-  const { capacityData, loading: capacityLoading } = useServiceCapacity();
+  // Filter modules by granularity support
+  const supportedModules = useMemo(() => 
+    config.modules.filter(module => 
+      MODULE_GRANULARITY_SUPPORT[module].includes(config.granularity)
+    ), [config.modules, config.granularity]);
+
+  // Determine which hooks to enable based on selected modules
+  const shouldEnableCPA = enabled && supportedModules.includes('cpa');
+  const shouldEnableLTV = enabled && supportedModules.includes('ltv');
+  const shouldEnableRetention = enabled && supportedModules.includes('retention');
+  const shouldEnableEngagement = enabled && supportedModules.includes('engagement');
+  const shouldEnableSupplyGrowth = enabled && supportedModules.includes('supply_growth');
+  const shouldEnableConversion = enabled && supportedModules.includes('conversion');
+  const shouldEnableCapacity = enabled && (supportedModules.includes('capacity') || supportedModules.includes('projections'));
+  const shouldEnableOperational = enabled && (supportedModules.includes('operational') || supportedModules.includes('projections'));
+  const shouldEnableClients = enabled && supportedModules.includes('clients');
+
+  // Fetch data from hooks with enabled control
+  const { cpaDetails, loading: cpaLoading } = useCPADetails({ enabled: shouldEnableCPA });
+  const ltvDetails = useLTVDetails({ enabled: shouldEnableLTV });
+  const retentionDetails = useRetentionDetails({ enabled: shouldEnableRetention });
+  const { engagementDetails, loading: engagementLoading } = useEngagementDetails({ enabled: shouldEnableEngagement });
+  const supplyGrowthDetails = useSupplyGrowthDetails({ enabled: shouldEnableSupplyGrowth });
+  const conversionDetails = useConversionRateDetails({ enabled: shouldEnableConversion });
+  const { capacityData, loading: capacityLoading } = useServiceCapacity({ enabled: shouldEnableCapacity });
   
   // Client data hooks with year filter
-  const { data: clientsData, isLoading: clientsLoading } = useClientsData(dateRange);
-  const { data: clientMetrics, isLoading: clientMetricsLoading } = useClientMetrics(dateRange);
-  const { data: clientTableData, isLoading: clientTableLoading } = useClientTableData(dateRange);
+  const { data: clientsData, isLoading: clientsLoading } = useClientsData(dateRange, { enabled: shouldEnableClients });
+  const { data: clientMetrics, isLoading: clientMetricsLoading } = useClientMetrics(dateRange, { enabled: shouldEnableClients });
+  const { data: clientTableData, isLoading: clientTableLoading } = useClientTableData(dateRange, { enabled: shouldEnableClients });
   
-  // Pass year/month filter to operational metrics based on config
+  // Operational metrics with year/month filter
   const operationalOptions = {
     year: config.year,
     month: config.granularity === 'month' ? config.month : undefined,
+    enabled: shouldEnableOperational,
   };
   const { data: operationalData, isLoading: operationalLoading } = useOperationalMetrics(operationalOptions);
 
-  const loading = cpaLoading || ltvDetails.loading || retentionDetails.loading || 
-                  engagementLoading || supplyGrowthDetails.loading || 
-                  conversionDetails.loading || capacityLoading || operationalLoading ||
-                  clientsLoading || clientMetricsLoading || clientTableLoading;
+  // Calculate progress
+  const progress = useMemo((): ModuleProgress[] => {
+    return supportedModules.map(module => {
+      let status: 'pending' | 'loading' | 'done' | 'error' = 'pending';
+      
+      if (!enabled) {
+        status = 'pending';
+      } else {
+        switch (module) {
+          case 'cpa':
+            status = cpaLoading ? 'loading' : (cpaDetails ? 'done' : 'pending');
+            break;
+          case 'ltv':
+            status = ltvDetails.loading ? 'loading' : 'done';
+            break;
+          case 'retention':
+            status = retentionDetails.loading ? 'loading' : 'done';
+            break;
+          case 'engagement':
+            status = engagementLoading ? 'loading' : (engagementDetails ? 'done' : 'pending');
+            break;
+          case 'supply_growth':
+            status = supplyGrowthDetails.loading ? 'loading' : 'done';
+            break;
+          case 'conversion':
+            status = conversionDetails.loading ? 'loading' : 'done';
+            break;
+          case 'capacity':
+            status = capacityLoading ? 'loading' : (capacityData ? 'done' : 'pending');
+            break;
+          case 'operational':
+            status = operationalLoading ? 'loading' : (operationalData ? 'done' : 'pending');
+            break;
+          case 'projections':
+            status = (capacityLoading || operationalLoading) ? 'loading' : 'done';
+            break;
+          case 'clients':
+            status = (clientsLoading || clientMetricsLoading || clientTableLoading) ? 'loading' : 'done';
+            break;
+        }
+      }
+
+      return {
+        module,
+        label: MODULE_LABELS[module],
+        status,
+      };
+    });
+  }, [supportedModules, enabled, cpaLoading, cpaDetails, ltvDetails, retentionDetails, 
+      engagementLoading, engagementDetails, supplyGrowthDetails, conversionDetails,
+      capacityLoading, capacityData, operationalLoading, operationalData,
+      clientsLoading, clientMetricsLoading, clientTableLoading]);
+
+  const completedCount = progress.filter(p => p.status === 'done').length;
+  const totalCount = supportedModules.length;
+
+  // Check if all enabled modules are loaded
+  const loading = enabled && progress.some(p => p.status === 'loading');
+
+  // Timeout protection
+  useEffect(() => {
+    if (enabled && loading) {
+      timeoutRef.current = setTimeout(() => {
+        setError('La generación del reporte está tomando demasiado tiempo. Por favor intenta de nuevo.');
+      }, 45000); // 45 seconds timeout
+    }
+    
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [enabled, loading]);
+
+  // Clear error when starting new generation
+  useEffect(() => {
+    if (enabled) {
+      setError(null);
+    }
+  }, [enabled]);
 
   const reportData = useMemo((): HistoricalReportData | null => {
-    if (loading) return null;
+    if (!enabled || loading) return null;
 
-    // Filter modules by granularity support
-    const supportedModules = config.modules.filter(module => 
-      MODULE_GRANULARITY_SUPPORT[module].includes(config.granularity)
-    );
-
-    // Generate period label
     const periodLabel = generatePeriodLabel(config);
 
     const report: HistoricalReportData = {
@@ -83,7 +187,7 @@ export function useHistoricalReportData(config: HistoricalReportConfig): UseHist
       periodLabel,
     };
 
-    // Populate each module's data - pass config.year to filter monthly data
+    // Populate each module's data
     supportedModules.forEach(module => {
       switch (module) {
         case 'cpa':
@@ -120,19 +224,21 @@ export function useHistoricalReportData(config: HistoricalReportConfig): UseHist
     });
 
     return report;
-  }, [config, loading, cpaDetails, ltvDetails, retentionDetails, engagementDetails, 
+  }, [config, enabled, loading, cpaDetails, ltvDetails, retentionDetails, engagementDetails, 
       supplyGrowthDetails, conversionDetails, capacityData, operationalData, 
-      clientsData, clientMetrics, clientTableData]);
+      clientsData, clientMetrics, clientTableData, supportedModules]);
 
   return {
     data: reportData,
     loading,
-    error: null,
+    error,
+    progress,
+    completedCount,
+    totalCount,
   };
 }
 
-// Helper functions to transform data
-
+// Helper functions (keeping existing transform functions)
 function generatePeriodLabel(config: HistoricalReportConfig): string {
   const monthNames = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -163,7 +269,6 @@ function transformCPAData(cpaDetails: any, year: number): CPAReportData {
       : 0,
   }));
 
-  // Filter monthly data by year
   const filteredMonthlyData = (cpaDetails?.monthlyData || []).filter((item: any) => {
     const itemYear = parseInt(item.month?.split('-')[0] || '0');
     return itemYear === year;
@@ -198,8 +303,6 @@ function transformCPAData(cpaDetails: any, year: number): CPAReportData {
 
 function transformLTVData(ltvDetails: any, year: number): LTVReportData {
   const ltvGeneral = ltvDetails?.yearlyData?.ltvGeneral || 0;
-  
-  // Filter monthly breakdown by year
   const filteredMonthlyBreakdown = (ltvDetails?.yearlyData?.monthlyBreakdown || []).filter((m: any) => {
     const itemYear = parseInt(m.month?.split('-')[0] || '0');
     return itemYear === year;
@@ -244,13 +347,10 @@ function transformLTVData(ltvDetails: any, year: number): LTVReportData {
 }
 
 function transformRetentionData(retentionDetails: any, year: number): RetentionReportData {
-  // Filter monthly breakdown by year
   const filteredMonthlyBreakdown = (retentionDetails?.monthlyBreakdown || []).filter((m: any) => {
     const itemYear = parseInt(m.month?.split('-')[0] || '0');
     return itemYear === year;
   });
-
-  // Filter cohort analysis by year
   const filteredCohortAnalysis = (retentionDetails?.cohortAnalysis || []).filter((c: any) => {
     const itemYear = parseInt(c.cohortMonth?.split('-')[0] || '0');
     return itemYear === year;
@@ -278,36 +378,23 @@ function transformRetentionData(retentionDetails: any, year: number): RetentionR
     },
     cohortAnalysis: filteredCohortAnalysis.map((c: any) => ({
       cohortMonth: c.cohortMonth || '',
-      month0: c.month0 || 0,
-      month1: c.month1 || 0,
-      month2: c.month2 || 0,
-      month3: c.month3 || 0,
-      month4: c.month4 || 0,
-      month5: c.month5 || 0,
-      month6: c.month6 || 0,
+      month0: c.month0 || 0, month1: c.month1 || 0, month2: c.month2 || 0,
+      month3: c.month3 || 0, month4: c.month4 || 0, month5: c.month5 || 0, month6: c.month6 || 0,
     })),
     quarterlyData: retentionDetails?.quarterlyData?.map((q: any) => ({
-      quarter: q.quarter || '',
-      avgRetention: q.avgRetention || 0,
-      avgPermanence: q.avgPermanence || 0,
-      custodians: q.custodians || 0,
-      trend: q.trend || 'stable',
+      quarter: q.quarter || '', avgRetention: q.avgRetention || 0,
+      avgPermanence: q.avgPermanence || 0, custodians: q.custodians || 0, trend: q.trend || 'stable',
     })) || [],
     monthlyBreakdown: filteredMonthlyBreakdown.map((m: any) => ({
-      month: m.month || '',
-      monthName: m.monthName || '',
-      custodiosAnterior: m.custodiosAnterior || 0,
-      custodiosRetenidos: m.custodiosRetenidos || 0,
-      custodiosNuevos: m.custodiosNuevos || 0,
-      custodiosPerdidos: m.custodiosPerdidos || 0,
-      tasaRetencion: m.tasaRetencion || 0,
-      tiempoPromedioPermanencia: m.tiempoPromedioPermanencia || 0,
+      month: m.month || '', monthName: m.monthName || '',
+      custodiosAnterior: m.custodiosAnterior || 0, custodiosRetenidos: m.custodiosRetenidos || 0,
+      custodiosNuevos: m.custodiosNuevos || 0, custodiosPerdidos: m.custodiosPerdidos || 0,
+      tasaRetencion: m.tasaRetencion || 0, tiempoPromedioPermanencia: m.tiempoPromedioPermanencia || 0,
     })),
   };
 }
 
 function transformEngagementData(engagementDetails: any, year: number): EngagementReportData {
-  // Filter monthly evolution by year
   const filteredMonthlyEvolution = (engagementDetails?.yearlyData?.monthlyEvolution || []).filter((m: any) => {
     const itemYear = parseInt(m.month?.split('-')[0] || '0');
     return itemYear === year;
@@ -327,16 +414,13 @@ function transformEngagementData(engagementDetails: any, year: number): Engageme
       engagement: engagementDetails?.currentMonthData?.engagement || 0,
     },
     monthlyEvolution: filteredMonthlyEvolution.map((m: any) => ({
-      month: m.month || '',
-      services: m.services || 0,
-      custodians: m.custodians || 0,
-      engagement: m.engagement || 0,
+      month: m.month || '', services: m.services || 0,
+      custodians: m.custodians || 0, engagement: m.engagement || 0,
     })),
   };
 }
 
 function transformSupplyGrowthData(supplyGrowthDetails: any, year: number): SupplyGrowthReportData {
-  // Filter monthly data by year
   const filteredMonthlyData = (supplyGrowthDetails?.monthlyData || []).filter((m: any) => {
     const itemYear = parseInt(m.month?.split('-')[0] || '0');
     return itemYear === year;
@@ -363,19 +447,15 @@ function transformSupplyGrowthData(supplyGrowthDetails: any, year: number): Supp
       custodiosConIngresosCero: supplyGrowthDetails?.qualityMetrics?.custodiosConIngresosCero || 0,
     },
     monthlyData: filteredMonthlyData.map((m: any) => ({
-      month: m.month || '',
-      monthName: m.monthName || '',
-      custodiosActivos: m.custodiosActivos || 0,
-      custodiosNuevos: m.custodiosNuevos || 0,
-      custodiosPerdidos: m.custodiosPerdidos || 0,
-      crecimientoNeto: m.crecimientoNeto || 0,
+      month: m.month || '', monthName: m.monthName || '',
+      custodiosActivos: m.custodiosActivos || 0, custodiosNuevos: m.custodiosNuevos || 0,
+      custodiosPerdidos: m.custodiosPerdidos || 0, crecimientoNeto: m.crecimientoNeto || 0,
       crecimientoPorcentual: m.crecimientoPorcentual || 0,
     })),
   };
 }
 
 function transformConversionData(conversionDetails: any, year: number): ConversionReportData {
-  // Filter monthly breakdown by year
   const filteredMonthlyBreakdown = (conversionDetails?.yearlyData?.monthlyBreakdown || []).filter((m: any) => {
     const itemYear = parseInt(m.month?.split('-')[0] || '0');
     return itemYear === year;
@@ -395,263 +475,76 @@ function transformConversionData(conversionDetails: any, year: number): Conversi
       conversionRate: conversionDetails?.currentMonthData?.conversionRate || 0,
     },
     monthlyBreakdown: filteredMonthlyBreakdown.map((m: any) => ({
-      month: m.month || '',
-      leads: m.leads || 0,
-      newCustodians: m.newCustodians || 0,
-      conversionRate: m.conversionRate || 0,
+      month: m.month || '', leads: m.leads || 0,
+      newCustodians: m.newCustodians || 0, conversionRate: m.conversionRate || 0,
     })),
-  };
-}
-
-function transformClientsData(
-  clientsData: any,
-  clientMetrics: any,
-  clientTableData: any[],
-  year: number
-): ClientsReportData {
-  // clientTableData tiene estructura: { clientName, currentServices, currentGMV, currentAOV, completionRate, gmvGrowth, ... }
-  const clients = clientTableData || [];
-  
-  // Calcular métricas desde clientTableData (que sí tiene datos reales)
-  const totalClients = clients.length;
-  const activeClients = clients.filter(c => c.currentServices > 0).length;
-  const totalGMV = clients.reduce((sum, c) => sum + (c.currentGMV || 0), 0);
-  const totalServices = clients.reduce((sum, c) => sum + (c.currentServices || 0), 0);
-
-  // Top clientes ordenados por GMV - usar campos correctos de ClientTableData
-  const topClients = [...clients]
-    .sort((a, b) => (b.currentGMV || 0) - (a.currentGMV || 0))
-    .slice(0, 15)
-    .map((c: any, i: number) => ({
-      rank: i + 1,
-      name: c.clientName || '',
-      services: c.currentServices || 0,
-      gmv: c.currentGMV || 0,
-      aov: c.currentAOV || 0,
-      completionRate: c.completionRate || 0,
-      growth: c.gmvGrowth || 0,
-    }));
-
-  // Análisis de concentración usando todos los clientes, no solo top 15
-  const allClientsSorted = [...clients].sort((a, b) => (b.currentGMV || 0) - (a.currentGMV || 0));
-  const totalGmvSum = allClientsSorted.reduce((sum, c) => sum + (c.currentGMV || 0), 0);
-  const top5Index = Math.max(1, Math.ceil(allClientsSorted.length * 0.05));
-  const top10Index = Math.max(1, Math.ceil(allClientsSorted.length * 0.10));
-  const top5GMV = allClientsSorted.slice(0, top5Index).reduce((sum, c) => sum + (c.currentGMV || 0), 0);
-  const top10GMV = allClientsSorted.slice(0, top10Index).reduce((sum, c) => sum + (c.currentGMV || 0), 0);
-
-  // HHI (Índice Herfindahl-Hirschman) usando todos los clientes
-  const hhi = totalGmvSum > 0 
-    ? allClientsSorted.reduce((sum, c) => sum + Math.pow(((c.currentGMV || 0) / totalGmvSum) * 100, 2), 0)
-    : 0;
-
-  // Obtener análisis de tipo de servicio desde clientMetrics
-  const serviceTypeAnalysis = clientMetrics?.serviceTypeAnalysis || {};
-  const foraneoData = serviceTypeAnalysis.foraneo || {};
-  const localData = serviceTypeAnalysis.local || {};
-  
-  // Calcular GMV por tipo si no existe
-  const foraneoGMV = foraneoData.count > 0 ? foraneoData.count * (foraneoData.avgValue || 0) : 0;
-  const localGMV = localData.count > 0 ? localData.count * (localData.avgValue || 0) : 0;
-
-  return {
-    summary: {
-      totalClients,
-      activeClients,
-      newClientsThisPeriod: 0,
-      avgServicesPerClient: activeClients > 0 ? totalServices / activeClients : 0,
-      avgGmvPerClient: activeClients > 0 ? totalGMV / activeClients : 0,
-      totalGMV,
-    },
-    topClients,
-    serviceTypeAnalysis: {
-      foraneo: {
-        count: foraneoData.count || 0,
-        percentage: clientMetrics?.serviceTypeAnalysis?.foraneoPercentage || 0,
-        avgValue: foraneoData.avgValue || 0,
-        gmv: foraneoGMV,
-      },
-      local: {
-        count: localData.count || 0,
-        percentage: 100 - (clientMetrics?.serviceTypeAnalysis?.foraneoPercentage || 0),
-        avgValue: localData.avgValue || 0,
-        gmv: localGMV,
-      },
-    },
-    clientConcentration: {
-      top5Percent: totalGmvSum > 0 ? (top5GMV / totalGmvSum) * 100 : 0,
-      top10Percent: totalGmvSum > 0 ? (top10GMV / totalGmvSum) * 100 : 0,
-      hhi: Math.round(hhi),
-    },
-    atRiskClients: clients
-      .filter(c => c.daysSinceLastService > 30 && c.currentGMV > 50000)
-      .slice(0, 10)
-      .map(c => ({
-        name: c.clientName || '',
-        lastServiceDate: c.lastServiceDate || '',
-        daysSinceLastService: c.daysSinceLastService || 0,
-        historicalGmv: c.currentGMV || 0,
-      })),
-    monthlyGMVEvolution: [],
   };
 }
 
 function transformCapacityData(capacityData: any): CapacityReportData {
   return {
-    currentCapacity: {
-      totalCustodians: capacityData?.activeCustodians || 0,
-      availableToday: capacityData?.availableCustodians || 0,
-      unavailable: {
-        returningFromForeign: capacityData?.unavailableCustodians?.returningFromForeign || 0,
-        currentlyOnRoute: capacityData?.unavailableCustodians?.currentlyOnRoute || 0,
-      },
-    },
-    capacityByServiceType: {
-      local: capacityData?.dailyCapacity?.local || 0,
-      regional: capacityData?.dailyCapacity?.regional || 0,
-      foraneo: capacityData?.dailyCapacity?.foraneo || 0,
-    },
-    monthlyCapacity: {
-      total: capacityData?.monthlyCapacity?.total || 0,
-      forecastCurrentMonth: capacityData?.forecastMesActual || 0,
-      servicesMTD: capacityData?.serviciosMTD || 0,
-      utilizationVsForecast: capacityData?.utilizacionVsForecast || 0,
-      gap: (capacityData?.monthlyCapacity?.total || 0) - (capacityData?.forecastMesActual || 0),
-    },
-    utilizationMetrics: {
-      current: capacityData?.utilizationMetrics?.current || 0,
-      healthy: capacityData?.utilizationMetrics?.healthy || 75,
-      maxSafe: capacityData?.utilizationMetrics?.maxSafe || 85,
-    },
-    fleetEfficiency: {
-      availableCustodians: capacityData?.availableCustodians || 0,
-      servicesPerCustodianMonth: capacityData?.activeCustodians > 0 
-        ? (capacityData?.recentServices?.total || 0) / capacityData.activeCustodians / 3 
-        : 0,
-      operationalEfficiency: capacityData?.utilizationMetrics?.current || 0,
-    },
+    dailyCapacity: capacityData?.dailyCapacity || { total: 0, local: 0, regional: 0, foraneo: 0 },
+    monthlyCapacity: capacityData?.monthlyCapacity || { total: 0, local: 0, regional: 0, foraneo: 0 },
+    utilizationMetrics: capacityData?.utilizationMetrics || { current: 0, healthy: 75, maxSafe: 85 },
+    alerts: capacityData?.alerts || { type: 'healthy', message: '', recommendations: [] },
+    activeCustodians: capacityData?.activeCustodians || 0,
+    availableCustodians: capacityData?.availableCustodians || 0,
   };
 }
 
 function transformOperationalData(operationalData: any, year: number): OperationalReportData {
-  // Filtrar monthlyBreakdown por año
-  const filteredMonthlyBreakdown = (operationalData?.monthlyBreakdown || []).filter((m: any) => {
-    const monthStr = m.month || '';
-    const itemYear = parseInt(monthStr.split('-')[0] || '0');
-    return itemYear === year;
-  });
-
   return {
-    services: {
-      total: operationalData?.totalServices || 0,
-      completed: operationalData?.completedServices || 0,
-      completedPercent: operationalData?.servicesDistribution?.completed || 0,
-      cancelled: operationalData?.cancelledServices || 0,
-      cancelledPercent: operationalData?.servicesDistribution?.cancelled || 0,
-      pending: operationalData?.pendingServices || 0,
-      pendingPercent: operationalData?.servicesDistribution?.pending || 0,
-    },
-    gmv: {
-      total: operationalData?.totalGMV || 0,
-      aov: operationalData?.averageAOV || 0,
-    },
-    comparatives: {
-      servicesThisMonth: {
-        current: operationalData?.comparatives?.servicesThisMonth?.current || 0,
-        previous: operationalData?.comparatives?.servicesThisMonth?.previousMonth || 0,
-        changePercent: operationalData?.comparatives?.servicesThisMonth?.changePercent || 0,
-      },
-      servicesYTD: {
-        current: operationalData?.comparatives?.servicesYTD?.current || 0,
-        previous: operationalData?.comparatives?.servicesYTD?.previousYear || 0,
-        changePercent: operationalData?.comparatives?.servicesYTD?.changePercent || 0,
-      },
-      gmvThisMonth: {
-        current: operationalData?.comparatives?.totalGMV?.current || 0,
-        previous: operationalData?.comparatives?.totalGMV?.previousMonth || 0,
-        changePercent: operationalData?.comparatives?.totalGMV?.changePercent || 0,
-      },
-      aovThisMonth: {
-        current: operationalData?.comparatives?.averageAOV?.current || 0,
-        previous: operationalData?.comparatives?.averageAOV?.previousMonth || 0,
-        changePercent: operationalData?.comparatives?.averageAOV?.changePercent || 0,
-      },
-      completionRate: {
-        current: operationalData?.comparatives?.completionRate?.current || 0,
-        previous: operationalData?.comparatives?.completionRate?.previousMonth || 0,
-        changePercent: operationalData?.comparatives?.completionRate?.changePercent || 0,
-      },
-      avgKmPerService: {
-        current: operationalData?.comparatives?.averageKmPerService?.current || 0,
-        previous: operationalData?.comparatives?.averageKmPerService?.previousMonth || 0,
-        changePercent: operationalData?.comparatives?.averageKmPerService?.changePercent || 0,
-      },
-      gmvYTD: {
-        current: operationalData?.comparatives?.gmvYTD?.current || 0,
-        previous: operationalData?.comparatives?.gmvYTD?.previousYear || 0,
-        changePercent: operationalData?.comparatives?.gmvYTD?.changePercent || 0,
-      },
-      avgDailyGMV: {
-        current: operationalData?.comparatives?.avgDailyGMV?.current || 0,
-        previous: operationalData?.comparatives?.avgDailyGMV?.previousYear || 0,
-        changePercent: operationalData?.comparatives?.avgDailyGMV?.changePercent || 0,
-      },
-    },
-    topCustodians: operationalData?.topCustodians?.map((c: any) => ({
-      rank: c.rank || 0,
-      name: c.name || '',
-      services: c.services || 0,
-      costoCustodio: c.costoCustodio || 0,
-      promedioCostoMes: c.promedioCostoMes || 0,
-      mesesActivos: c.mesesActivos || 0,
-      gmv: c.gmv || 0,
-      margen: c.margen || 0,
-      coberturaDatos: c.coberturaDatos || 0,
-    })) || [],
-    topClients: operationalData?.topClients?.map((c: any, index: number) => ({
-      rank: index + 1,
-      name: c.name || '',
-      services: c.services || 0,
-      gmv: c.gmv || 0,
-      aov: c.aov || 0,
-    })) || [],
-    monthlyBreakdown: filteredMonthlyBreakdown.map((m: any) => ({
-      month: m.month || '',
-      monthNumber: m.monthNumber || 0,
-      services: m.services || 0,
-      completedServices: m.completedServices || 0,
-      gmv: m.gmv || 0,
-      aov: m.aov || 0,
-      completionRate: m.completionRate || 0,
-    })),
+    totalServices: operationalData?.totalServices || 0,
+    completedServices: operationalData?.completedServices || 0,
+    cancelledServices: operationalData?.cancelledServices || 0,
+    completionRate: operationalData?.completionRate || 0,
+    averageKmPerService: operationalData?.averageKmPerService || 0,
+    totalGMV: operationalData?.totalGMV || 0,
+    averageAOV: operationalData?.averageAOV || 0,
+    topCustodians: operationalData?.topCustodians || [],
+    topClients: operationalData?.topClients || [],
+    comparatives: operationalData?.comparatives || {},
+    monthlyBreakdown: operationalData?.monthlyBreakdown || [],
   };
 }
 
 function transformProjectionsData(capacityData: any, operationalData: any): ProjectionsReportData {
-  const forecastMesActual = capacityData?.forecastMesActual || 0;
-  const serviciosMTD = capacityData?.serviciosMTD || 0;
-  const proyeccionPace = capacityData?.proyeccionPace || 0;
+  const currentUtilization = capacityData?.utilizationMetrics?.current || 0;
+  const monthlyCapacity = capacityData?.monthlyCapacity?.total || 0;
 
   return {
-    forecastVsReal: [
-      {
-        month: 'Mes Actual',
-        forecast: forecastMesActual,
-        real: serviciosMTD,
-        difference: serviciosMTD - forecastMesActual,
-        mape: forecastMesActual > 0 
-          ? Math.abs((serviciosMTD - forecastMesActual) / forecastMesActual) * 100 
-          : 0,
-      },
-    ],
-    annualProjection: {
-      optimistic: Math.round(proyeccionPace * 1.1),
-      expected: proyeccionPace,
-      conservative: Math.round(proyeccionPace * 0.9),
+    monthlyServiceProjection: Math.round(monthlyCapacity * 0.75),
+    yearlyServiceProjection: Math.round(monthlyCapacity * 0.75 * 12),
+    utilizationTrend: currentUtilization > 75 ? 'increasing' : currentUtilization < 50 ? 'decreasing' : 'stable',
+    recommendations: capacityData?.alerts?.recommendations || [],
+  };
+}
+
+function transformClientsData(clientsData: any, clientMetrics: any, clientTableData: any[], year: number): ClientsReportData {
+  const clients = clientTableData || [];
+  const totalClients = clients.length;
+  const activeClients = clients.filter(c => c.currentServices > 0).length;
+  const totalGMV = clients.reduce((sum, c) => sum + (c.currentGMV || 0), 0);
+  const totalServices = clients.reduce((sum, c) => sum + (c.currentServices || 0), 0);
+
+  const topClients = [...clients]
+    .sort((a, b) => (b.currentGMV || 0) - (a.currentGMV || 0))
+    .slice(0, 10)
+    .map(c => ({
+      clientName: c.clientName,
+      services: c.currentServices,
+      gmv: c.currentGMV,
+      aov: c.currentAOV,
+      completionRate: c.completionRate,
+      gmvGrowth: c.gmvGrowth,
+    }));
+
+  return {
+    summary: {
+      totalClients, activeClients, totalGMV, totalServices,
+      averageAOV: totalServices > 0 ? totalGMV / totalServices : 0,
     },
-    modelPrecision: {
-      mapePromedio: 15, // Estimated
-      desviacionEstandar: 5, // Estimated
-    },
+    topClients,
+    serviceTypeAnalysis: clientMetrics?.serviceTypeAnalysis || { foraneo: { count: 0, avgValue: 0 }, local: { count: 0, avgValue: 0 }, foraneoPercentage: 0 },
   };
 }

@@ -24,7 +24,13 @@ export interface EngagementDetails {
   overallEngagement: number;
 }
 
-export const useEngagementDetails = () => {
+export interface EngagementDetailsOptions {
+  enabled?: boolean;
+}
+
+export const useEngagementDetails = (options: EngagementDetailsOptions = {}) => {
+  const { enabled = true } = options;
+
   // Obtener servicios por mes
   const { data: serviciosPorMes, isLoading: serviciosLoading } = useQuery({
     queryKey: ['engagement-details-servicios'],
@@ -41,6 +47,7 @@ export const useEngagementDetails = () => {
       return data || [];
     },
     staleTime: 5 * 60 * 1000,
+    enabled,
   });
 
   const engagementDetails = useMemo((): EngagementDetails => {

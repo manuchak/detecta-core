@@ -107,9 +107,16 @@ export interface ClientMetrics {
   }>;
 }
 
-export const useClientsData = (dateRange?: { from: Date; to: Date }) => {
+export interface ClientsDataOptions {
+  enabled?: boolean;
+}
+
+export const useClientsData = (dateRange?: { from: Date; to: Date }, options: ClientsDataOptions = {}) => {
+  const { enabled = true } = options;
+
   return useQuery({
     queryKey: ['clients-data', dateRange],
+    enabled,
     queryFn: async (): Promise<ClientSummary[]> => {
       let query = supabase.from('servicios_custodia').select('*');
       
@@ -338,9 +345,12 @@ export interface ClientTableData {
   lastServiceDate: string;
 }
 
-export const useClientTableData = (dateRange?: { from: Date; to: Date }) => {
+export const useClientTableData = (dateRange?: { from: Date; to: Date }, options: ClientsDataOptions = {}) => {
+  const { enabled = true } = options;
+
   return useQuery({
     queryKey: ['client-table-data', dateRange],
+    enabled,
     queryFn: async (): Promise<ClientTableData[]> => {
       // Get current period data
       let currentQuery = supabase.from('servicios_custodia').select('*');
@@ -478,9 +488,12 @@ export const useClientTableData = (dateRange?: { from: Date; to: Date }) => {
   });
 };
 
-export const useClientMetrics = (dateRange?: { from: Date; to: Date }) => {
+export const useClientMetrics = (dateRange?: { from: Date; to: Date }, options: ClientsDataOptions = {}) => {
+  const { enabled = true } = options;
+
   return useQuery({
     queryKey: ['client-metrics', dateRange],
+    enabled,
     queryFn: async (): Promise<ClientDashboardMetrics> => {
       let query = supabase.from('servicios_custodia').select('*');
       

@@ -3,6 +3,10 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
+export interface CPADetailsOptions {
+  enabled?: boolean;
+}
+
 export interface CPADetails {
   yearlyBreakdown: {
     totalCosts: number;
@@ -35,7 +39,9 @@ export interface CPADetails {
   overallCPA: number;
 }
 
-export const useCPADetails = () => {
+export const useCPADetails = (options: CPADetailsOptions = {}) => {
+  const { enabled = true } = options;
+
   // Obtener gastos reales
   const { data: gastosReales, isLoading: gastosLoading } = useQuery({
     queryKey: ['cpa-details-gastos'],
@@ -51,6 +57,7 @@ export const useCPADetails = () => {
       return data || [];
     },
     staleTime: 5 * 60 * 1000,
+    enabled,
   });
 
   // Obtener custodios nuevos por mes
@@ -94,6 +101,7 @@ export const useCPADetails = () => {
       return custodiosPorMes;
     },
     staleTime: 5 * 60 * 1000,
+    enabled,
   });
 
   const cpaDetails = useMemo((): CPADetails => {

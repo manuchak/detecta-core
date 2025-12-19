@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Loader2, Download, FileText } from 'lucide-react';
+import { Loader2, FileText, X, RefreshCw } from 'lucide-react';
 import { useHistoricalReportData } from '@/hooks/useHistoricalReportData';
 import { ReportPreview } from '@/components/reports/ReportPreview';
 import { ReportExportButtons } from '@/components/reports/ReportExportButtons';
+import { ReportGenerationProgress } from '@/components/reports/ReportGenerationProgress';
 import { HistoricalReportConfig, ReportModule, ReportGranularity, MODULE_LABELS, GRANULARITY_LABELS, MODULE_GRANULARITY_SUPPORT } from '@/types/reports';
+import { useQueryClient } from '@tanstack/react-query';
+
 const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1;
 
@@ -20,7 +23,10 @@ const MONTHS = [
   { value: 10, label: 'Octubre' }, { value: 11, label: 'Noviembre' }, { value: 12, label: 'Diciembre' },
 ];
 
+type GenerationStatus = 'idle' | 'generating' | 'done' | 'error';
+
 export default function ReportsPage() {
+  const queryClient = useQueryClient();
   const [config, setConfig] = useState<HistoricalReportConfig>({
     granularity: 'year',
     year: currentYear,
@@ -30,8 +36,25 @@ export default function ReportsPage() {
     compareWithPrevious: true,
   });
 
+  const [generateEnabled, setGenerateEnabled] = useState(false);
+  const [status, setStatus] = useState<GenerationStatus>('idle');
   const [showPreview, setShowPreview] = useState(false);
-  const { data: reportData, loading } = useHistoricalReportData(config);
+
+  const { data: reportData, loading, error, progress, completedCount, totalCount } = useHistoricalReportData(config, generateEnabled);
+
+  // Update status based on loading state
+  useEffect(() => {
+    if (!generateEnabled) {
+      setStatus('idle');
+    } else if (error) {
+      setStatus('error');
+    } else if (loading) {
+      setStatus('generating');
+    } else if (reportData) {
+      setStatus('done');
+      setShowPreview(true);
+    }
+  }, [generateEnabled, loading, error, reportData]);
 
   const handleModuleToggle = (module: ReportModule) => {
     setConfig(prev => ({
@@ -47,7 +70,61 @@ export default function ReportsPage() {
   ) as ReportModule[];
 
   const handleGenerateReport = () => {
-    setShowPreview(true);
+    setGenerateEnabled(true);
+    setShowPreview(false);
+  };
+
+  const handleCancel = () => {
+    // Cancel all pending queries
+    queryClient.cancelQueries();
+    setGenerateEnabled(false);
+    setStatus('idle');
+  };
+
+  const handleRetry = () => {
+    setGenerateEnabled(false);
+    setTimeout(() => {
+      setGenerateEnabled(true);
+    }, 100);
+  };
+
+  const handleBackToConfig = () => {
+    setShowPreview(false);
+    setGenerateEnabled(false);
+    setStatus('idle');
+  };
+
+  const getButtonContent = () => {
+    switch (status) {
+      case 'generating':
+        return (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            Generando... ({completedCount}/{totalCount})
+          </>
+        );
+      case 'error':
+        return (
+          <>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Reintentar
+          </>
+        );
+      case 'done':
+        return (
+          <>
+            <FileText className="h-4 w-4 mr-2" />
+            Regenerar Informe
+          </>
+        );
+      default:
+        return (
+          <>
+            <FileText className="h-4 w-4 mr-2" />
+            Generar Vista Previa
+          </>
+        );
+    }
   };
 
   return (
@@ -73,7 +150,11 @@ export default function ReportsPage() {
               {/* Granularidad */}
               <div className="space-y-2">
                 <Label>Granularidad</Label>
-                <Select value={config.granularity} onValueChange={(v: ReportGranularity) => setConfig(prev => ({ ...prev, granularity: v }))}>
+                <Select 
+                  value={config.granularity} 
+                  onValueChange={(v: ReportGranularity) => setConfig(prev => ({ ...prev, granularity: v }))}
+                  disabled={status === 'generating'}
+                >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {Object.entries(GRANULARITY_LABELS).map(([key, label]) => (
@@ -86,7 +167,11 @@ export default function ReportsPage() {
               {/* Año */}
               <div className="space-y-2">
                 <Label>Año</Label>
-                <Select value={config.year.toString()} onValueChange={(v) => setConfig(prev => ({ ...prev, year: parseInt(v) }))}>
+                <Select 
+                  value={config.year.toString()} 
+                  onValueChange={(v) => setConfig(prev => ({ ...prev, year: parseInt(v) }))}
+                  disabled={status === 'generating'}
+                >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {YEARS.map(year => (
@@ -100,7 +185,11 @@ export default function ReportsPage() {
               {config.granularity !== 'year' && (
                 <div className="space-y-2">
                   <Label>Mes</Label>
-                  <Select value={config.month?.toString() || '1'} onValueChange={(v) => setConfig(prev => ({ ...prev, month: parseInt(v) }))}>
+                  <Select 
+                    value={config.month?.toString() || '1'} 
+                    onValueChange={(v) => setConfig(prev => ({ ...prev, month: parseInt(v) }))}
+                    disabled={status === 'generating'}
+                  >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {MONTHS.map(month => (
@@ -121,6 +210,7 @@ export default function ReportsPage() {
                         id={module}
                         checked={config.modules.includes(module)}
                         onCheckedChange={() => handleModuleToggle(module)}
+                        disabled={status === 'generating'}
                       />
                       <label htmlFor={module} className="text-sm cursor-pointer">{MODULE_LABELS[module]}</label>
                     </div>
@@ -128,61 +218,85 @@ export default function ReportsPage() {
                 </div>
               </div>
 
-              <Button className="w-full" onClick={handleGenerateReport} disabled={loading || config.modules.length === 0}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileText className="h-4 w-4 mr-2" />}
-                Generar Vista Previa
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  className="flex-1" 
+                  onClick={status === 'error' ? handleRetry : handleGenerateReport} 
+                  disabled={status === 'generating' || config.modules.length === 0}
+                >
+                  {getButtonContent()}
+                </Button>
+                
+                {status === 'generating' && (
+                  <Button variant="destructive" size="icon" onClick={handleCancel}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </CardContent>
           </Card>
 
-          {/* Descripción */}
+          {/* Panel derecho: Progreso o Descripción */}
           <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Acerca de los Informes</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-muted-foreground">
-                Este sistema genera informes históricos completos y detallados que incluyen <strong>toda la información</strong> 
-                de los tooltips y deep dives de cada KPI, sin omisiones ni resúmenes que pierdan datos.
-              </p>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-muted/30 p-4 rounded-lg">
-                  <h4 className="font-semibold mb-2">✅ Incluye</h4>
-                  <ul className="text-sm space-y-1 text-muted-foreground">
-                    <li>• Fórmulas explicativas</li>
-                    <li>• Valores absolutos y porcentajes</li>
-                    <li>• Evolución mensual completa</li>
-                    <li>• Análisis de cohortes</li>
-                    <li>• Comparativos MoM, QoQ, YoY</li>
-                    <li>• Top custodios y clientes</li>
-                  </ul>
-                </div>
-                <div className="bg-muted/30 p-4 rounded-lg">
-                  <h4 className="font-semibold mb-2">📊 Formatos</h4>
-                  <ul className="text-sm space-y-1 text-muted-foreground">
-                    <li>• Vista previa en pantalla</li>
-                    <li>• Exportar a PDF profesional</li>
-                    <li>• Exportar a Excel con datos crudos</li>
-                    <li>• Impresión directa</li>
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
+            {status === 'generating' || status === 'error' ? (
+              <>
+                <CardHeader>
+                  <CardTitle>Progreso de Generación</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ReportGenerationProgress
+                    progress={progress}
+                    completedCount={completedCount}
+                    totalCount={totalCount}
+                    error={error}
+                  />
+                </CardContent>
+              </>
+            ) : (
+              <>
+                <CardHeader>
+                  <CardTitle>Acerca de los Informes</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-muted-foreground">
+                    Este sistema genera informes históricos completos y detallados que incluyen <strong>toda la información</strong> 
+                    de los tooltips y deep dives de cada KPI, sin omisiones ni resúmenes que pierdan datos.
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-muted/30 p-4 rounded-lg">
+                      <h4 className="font-semibold mb-2">✅ Incluye</h4>
+                      <ul className="text-sm space-y-1 text-muted-foreground">
+                        <li>• Fórmulas explicativas</li>
+                        <li>• Valores absolutos y porcentajes</li>
+                        <li>• Evolución mensual completa</li>
+                        <li>• Análisis de cohortes</li>
+                        <li>• Comparativos MoM, QoQ, YoY</li>
+                        <li>• Top custodios y clientes</li>
+                      </ul>
+                    </div>
+                    <div className="bg-muted/30 p-4 rounded-lg">
+                      <h4 className="font-semibold mb-2">📊 Formatos</h4>
+                      <ul className="text-sm space-y-1 text-muted-foreground">
+                        <li>• Vista previa en pantalla</li>
+                        <li>• Exportar a PDF profesional</li>
+                        <li>• Exportar a Excel con datos crudos</li>
+                        <li>• Impresión directa</li>
+                      </ul>
+                    </div>
+                  </div>
+                </CardContent>
+              </>
+            )}
           </Card>
         </div>
       ) : (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <Button variant="outline" onClick={() => setShowPreview(false)}>← Volver a Configuración</Button>
+            <Button variant="outline" onClick={handleBackToConfig}>← Volver a Configuración</Button>
             <ReportExportButtons config={config} data={reportData} disabled={loading} />
           </div>
           
-          {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="h-8 w-8 animate-spin" />
-              <span className="ml-2">Generando informe...</span>
-            </div>
-          ) : reportData ? (
+          {reportData ? (
             <ReportPreview data={reportData} />
           ) : (
             <p className="text-center py-20 text-muted-foreground">No se pudieron cargar los datos</p>
