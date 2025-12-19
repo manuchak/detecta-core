@@ -409,42 +409,56 @@ function transformClientsData(
   clientTableData: any[],
   year: number
 ): ClientsReportData {
-  const totalClients = clientMetrics?.total_clients || 0;
-  const activeClients = clientMetrics?.active_clients || 0;
-  const totalGMV = clientMetrics?.total_gmv || 0;
-  const totalServices = clientMetrics?.total_services || 0;
+  // clientTableData tiene estructura: { clientName, currentServices, currentGMV, currentAOV, completionRate, gmvGrowth, ... }
+  const clients = clientTableData || [];
+  
+  // Calcular métricas desde clientTableData (que sí tiene datos reales)
+  const totalClients = clients.length;
+  const activeClients = clients.filter(c => c.currentServices > 0).length;
+  const totalGMV = clients.reduce((sum, c) => sum + (c.currentGMV || 0), 0);
+  const totalServices = clients.reduce((sum, c) => sum + (c.currentServices || 0), 0);
 
-  // Top clientes ordenados por GMV
-  const topClients = (clientTableData || [])
+  // Top clientes ordenados por GMV - usar campos correctos de ClientTableData
+  const topClients = [...clients]
+    .sort((a, b) => (b.currentGMV || 0) - (a.currentGMV || 0))
     .slice(0, 15)
     .map((c: any, i: number) => ({
       rank: i + 1,
-      name: c.name || c.empresa || c.cliente || '',
-      services: c.services_count || c.total_services || c.servicios || 0,
-      gmv: c.gmv || c.total_gmv || 0,
-      aov: c.aov || (c.gmv > 0 && c.services_count > 0 ? c.gmv / c.services_count : 0),
-      completionRate: c.completion_rate || c.tasa_completado || 0,
-      growth: c.growth_rate || 0,
+      name: c.clientName || '',
+      services: c.currentServices || 0,
+      gmv: c.currentGMV || 0,
+      aov: c.currentAOV || 0,
+      completionRate: c.completionRate || 0,
+      growth: c.gmvGrowth || 0,
     }));
 
-  // Análisis de concentración
-  const sortedByGMV = [...topClients].sort((a, b) => b.gmv - a.gmv);
-  const totalGmvSum = sortedByGMV.reduce((sum, c) => sum + c.gmv, 0);
-  const top5Index = Math.max(1, Math.ceil(sortedByGMV.length * 0.05));
-  const top10Index = Math.max(1, Math.ceil(sortedByGMV.length * 0.10));
-  const top5GMV = sortedByGMV.slice(0, top5Index).reduce((sum, c) => sum + c.gmv, 0);
-  const top10GMV = sortedByGMV.slice(0, top10Index).reduce((sum, c) => sum + c.gmv, 0);
+  // Análisis de concentración usando todos los clientes, no solo top 15
+  const allClientsSorted = [...clients].sort((a, b) => (b.currentGMV || 0) - (a.currentGMV || 0));
+  const totalGmvSum = allClientsSorted.reduce((sum, c) => sum + (c.currentGMV || 0), 0);
+  const top5Index = Math.max(1, Math.ceil(allClientsSorted.length * 0.05));
+  const top10Index = Math.max(1, Math.ceil(allClientsSorted.length * 0.10));
+  const top5GMV = allClientsSorted.slice(0, top5Index).reduce((sum, c) => sum + (c.currentGMV || 0), 0);
+  const top10GMV = allClientsSorted.slice(0, top10Index).reduce((sum, c) => sum + (c.currentGMV || 0), 0);
 
-  // HHI (Índice Herfindahl-Hirschman)
+  // HHI (Índice Herfindahl-Hirschman) usando todos los clientes
   const hhi = totalGmvSum > 0 
-    ? sortedByGMV.reduce((sum, c) => sum + Math.pow((c.gmv / totalGmvSum) * 100, 2), 0)
+    ? allClientsSorted.reduce((sum, c) => sum + Math.pow(((c.currentGMV || 0) / totalGmvSum) * 100, 2), 0)
     : 0;
+
+  // Obtener análisis de tipo de servicio desde clientMetrics
+  const serviceTypeAnalysis = clientMetrics?.serviceTypeAnalysis || {};
+  const foraneoData = serviceTypeAnalysis.foraneo || {};
+  const localData = serviceTypeAnalysis.local || {};
+  
+  // Calcular GMV por tipo si no existe
+  const foraneoGMV = foraneoData.count > 0 ? foraneoData.count * (foraneoData.avgValue || 0) : 0;
+  const localGMV = localData.count > 0 ? localData.count * (localData.avgValue || 0) : 0;
 
   return {
     summary: {
       totalClients,
       activeClients,
-      newClientsThisPeriod: clientMetrics?.new_clients || 0,
+      newClientsThisPeriod: 0,
       avgServicesPerClient: activeClients > 0 ? totalServices / activeClients : 0,
       avgGmvPerClient: activeClients > 0 ? totalGMV / activeClients : 0,
       totalGMV,
@@ -452,16 +466,16 @@ function transformClientsData(
     topClients,
     serviceTypeAnalysis: {
       foraneo: {
-        count: clientsData?.foraneo_count || 0,
-        percentage: clientsData?.foraneo_percentage || 0,
-        avgValue: clientsData?.foraneo_avg_value || 0,
-        gmv: clientsData?.foraneo_gmv || 0,
+        count: foraneoData.count || 0,
+        percentage: clientMetrics?.serviceTypeAnalysis?.foraneoPercentage || 0,
+        avgValue: foraneoData.avgValue || 0,
+        gmv: foraneoGMV,
       },
       local: {
-        count: clientsData?.local_count || 0,
-        percentage: clientsData?.local_percentage || 0,
-        avgValue: clientsData?.local_avg_value || 0,
-        gmv: clientsData?.local_gmv || 0,
+        count: localData.count || 0,
+        percentage: 100 - (clientMetrics?.serviceTypeAnalysis?.foraneoPercentage || 0),
+        avgValue: localData.avgValue || 0,
+        gmv: localGMV,
       },
     },
     clientConcentration: {
@@ -469,7 +483,15 @@ function transformClientsData(
       top10Percent: totalGmvSum > 0 ? (top10GMV / totalGmvSum) * 100 : 0,
       hhi: Math.round(hhi),
     },
-    atRiskClients: [],
+    atRiskClients: clients
+      .filter(c => c.daysSinceLastService > 30 && c.currentGMV > 50000)
+      .slice(0, 10)
+      .map(c => ({
+        name: c.clientName || '',
+        lastServiceDate: c.lastServiceDate || '',
+        daysSinceLastService: c.daysSinceLastService || 0,
+        historicalGmv: c.currentGMV || 0,
+      })),
     monthlyGMVEvolution: [],
   };
 }

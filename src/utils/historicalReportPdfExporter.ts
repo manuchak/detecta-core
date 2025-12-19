@@ -298,14 +298,37 @@ const renderExecutiveSummary = (ctx: PDFContext, data: HistoricalReportData): vo
     });
   }
   
-  if (data.operational?.gmv) {
+  // GMV y AOV: priorizar operational, fallback a clients
+  const gmvTotal = data.operational?.gmv?.total || data.clients?.summary?.totalGMV || 0;
+  const aov = data.operational?.gmv?.aov || 
+    (data.clients?.summary?.totalGMV && data.clients?.summary?.activeClients 
+      ? data.clients.summary.totalGMV / data.clients.summary.activeClients 
+      : 0);
+
+  if (gmvTotal > 0) {
     kpis.push({
       label: 'GMV Total',
-      value: formatCurrency(data.operational.gmv.total)
+      value: formatCurrency(gmvTotal)
     });
     kpis.push({
       label: 'AOV',
-      value: formatCurrency(data.operational.gmv.aov)
+      value: formatCurrency(aov)
+    });
+  }
+  
+  // Servicios desde operational
+  if (data.operational?.services?.total) {
+    kpis.push({
+      label: 'Servicios Totales',
+      value: formatNumber(data.operational.services.total)
+    });
+  }
+  
+  // Clientes activos desde clients
+  if (data.clients?.summary?.activeClients) {
+    kpis.push({
+      label: 'Clientes Activos',
+      value: formatNumber(data.clients.summary.activeClients)
     });
   }
   
@@ -324,7 +347,6 @@ const renderExecutiveSummary = (ctx: PDFContext, data: HistoricalReportData): vo
       value: formatPercent(data.conversion.yearlyData.conversionRate)
     });
   }
-  
   // Render KPI cards in 2-column grid
   const cardWidth = 85;
   const cardHeight = 38;
@@ -1114,6 +1136,21 @@ const renderClientsSection = (ctx: PDFContext, data: ClientsReportData, sectionN
     ];
     
     addTable(ctx, typeHeaders, typeRows, [30, 30, 40, 30, 40]);
+  }
+  
+  // ---- CLIENTES EN RIESGO ----
+  if (data.atRiskClients && data.atRiskClients.length > 0) {
+    checkNewPage(ctx, 80);
+    addSubsectionTitle(ctx, 'Clientes en Riesgo (>30 días sin servicio)');
+    
+    const riskHeaders = ['Cliente', 'GMV Histórico', 'Días Sin Servicio'];
+    const riskRows = data.atRiskClients.slice(0, 10).map(c => [
+      c.name.substring(0, 30),
+      formatCurrency(c.historicalGmv),
+      c.daysSinceLastService.toString()
+    ]);
+    
+    addTable(ctx, riskHeaders, riskRows, [80, 50, 50]);
   }
 };
 
