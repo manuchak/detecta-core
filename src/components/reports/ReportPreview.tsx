@@ -10,6 +10,7 @@ import {
   CapacityReportSection,
   OperationalReportSection,
   ProjectionsReportSection,
+  ClientsReportSection,
 } from '@/components/reports';
 import { ReportCoverPage } from './ReportCoverPage';
 import { ExecutiveSummary } from './ExecutiveSummary';
@@ -53,6 +54,9 @@ export function ReportPreview({ data }: ReportPreviewProps) {
   }
   if (data.projections) {
     sections.push({ key: 'projections', title: 'Proyecciones', component: <ProjectionsReportSection data={data.projections} /> });
+  }
+  if (data.clients) {
+    sections.push({ key: 'clients', title: 'Análisis de Clientes', component: <ClientsReportSection data={data.clients} /> });
   }
 
   return (
