@@ -53,7 +53,13 @@ export interface SupplyGrowthDetailsData {
   loading: boolean;
 }
 
-export function useSupplyGrowthDetails(): SupplyGrowthDetailsData {
+export interface SupplyGrowthDetailsOptions {
+  enabled?: boolean;
+}
+
+export function useSupplyGrowthDetails(options: SupplyGrowthDetailsOptions = {}): SupplyGrowthDetailsData {
+  const { enabled = true } = options;
+
   // Obtener datos históricos de custodios activos
   const { data: rawData, isLoading } = useAuthenticatedQuery(
     ['supply-growth-details'],
@@ -88,6 +94,7 @@ export function useSupplyGrowthDetails(): SupplyGrowthDetailsData {
     {
       staleTime: 10 * 60 * 1000, // 10 minutos
       refetchOnWindowFocus: false,
+      enabled,
     }
   );
 

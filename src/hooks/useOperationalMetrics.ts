@@ -108,6 +108,7 @@ export interface OperationalMetrics {
 export interface OperationalMetricsOptions {
   year?: number;
   month?: number;
+  enabled?: boolean;
 }
 
 const MONTH_NAMES = [
@@ -118,9 +119,11 @@ const MONTH_NAMES = [
 export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
   const filterYear = options?.year;
   const filterMonth = options?.month;
+  const enabled = options?.enabled !== false;
   
   return useQuery({
     queryKey: ['operational-metrics', filterYear, filterMonth],
+    enabled,
     queryFn: async (): Promise<OperationalMetrics> => {
       // Build query with optional year/month filter
       let query = supabase.from('servicios_custodia').select('*');

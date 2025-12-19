@@ -113,7 +113,13 @@ function getQuarterMonths(quarter: number): number[] {
   }
 }
 
-export function useRetentionDetails(): RetentionDetailsData {
+export interface RetentionDetailsOptions {
+  enabled?: boolean;
+}
+
+export function useRetentionDetails(options: RetentionDetailsOptions = {}): RetentionDetailsData {
+  const { enabled = true } = options;
+
   // Datos de retención mensual
   const { data: retentionData, isLoading } = useAuthenticatedQuery(
     ['retention-details'],
@@ -137,6 +143,7 @@ export function useRetentionDetails(): RetentionDetailsData {
     {
       staleTime: 5 * 60 * 1000, // 5 minutos - sincronizado con calculador dinámico
       refetchOnWindowFocus: false,
+      enabled,
     }
   );
 
@@ -157,6 +164,7 @@ export function useRetentionDetails(): RetentionDetailsData {
     {
       staleTime: 5 * 60 * 1000, // 5 minutos
       refetchOnWindowFocus: false,
+      enabled,
     }
   );
 
@@ -170,6 +178,7 @@ export function useRetentionDetails(): RetentionDetailsData {
     {
       staleTime: 5 * 60 * 1000, // 5 minutos - sincronizado con calculador dinámico
       refetchOnWindowFocus: false,
+      enabled,
     }
   );
 

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuthenticatedQuery, AUTHENTICATED_QUERY_CONFIG } from '@/hooks/useAuthenticatedQuery';
-import { format, startOfMonth, endOfMonth, subMonths, addMonths, isSameYear } from 'date-fns';
+import { format, startOfMonth, endOfMonth, addMonths, isSameYear } from 'date-fns';
 import { es } from 'date-fns/locale';
 export interface ConversionRateBreakdown {
   month: string;
@@ -27,7 +27,13 @@ export interface ConversionRateDetails {
   loading: boolean;
 }
 
-export const useConversionRateDetails = (): ConversionRateDetails => {
+export interface ConversionRateDetailsOptions {
+  enabled?: boolean;
+}
+
+export const useConversionRateDetails = (options: ConversionRateDetailsOptions = {}): ConversionRateDetails => {
+  const { enabled = true } = options;
+
   // Calcular período dinámico: desde julio 2025 hasta último día del mes actual
   const today = new Date();
   const start = startOfMonth(new Date(2025, 6, 1)); // Julio 2025 (mes 6 porque enero = 0)
@@ -38,9 +44,9 @@ export const useConversionRateDetails = (): ConversionRateDetails => {
   const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
   // Leads por mes (autenticado)
-  const { data: leadsPorMes = {}, isLoading: leadsLoading } = useAuthenticatedQuery<Record<string, number>>(
-    ['leads-por-mes', startStr, endStr],
-    async () => {
+  const { data: leadsPorMes = {}, isLoading: leadsLoading } = useQuery<Record<string, number>>({
+    queryKey: ['leads-por-mes', startStr, endStr],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('leads')
         .select('fecha_creacion')
@@ -58,17 +64,15 @@ export const useConversionRateDetails = (): ConversionRateDetails => {
       });
       return map;
     },
-    {
-      ...AUTHENTICATED_QUERY_CONFIG,
-      staleTime: 30_000,
-      refetchOnMount: true,
-    }
-  );
+    staleTime: 30_000,
+    refetchOnMount: true,
+    enabled,
+  });
 
   // Custodios nuevos (primer servicio) por mes (autenticado)
-  const { data: custodiosNuevosPorMes = {}, isLoading: custodiosLoading } = useAuthenticatedQuery<Record<string, number>>(
-    ['custodios-nuevos-conversion', startStr, endStr],
-    async () => {
+  const { data: custodiosNuevosPorMes = {}, isLoading: custodiosLoading } = useQuery<Record<string, number>>({
+    queryKey: ['custodios-nuevos-conversion', startStr, endStr],
+    queryFn: async () => {
       const { data, error } = await supabase.rpc('get_custodios_nuevos_por_mes', {
         fecha_inicio: startStr,
         fecha_fin: endStr,
@@ -78,17 +82,14 @@ export const useConversionRateDetails = (): ConversionRateDetails => {
 
       const map: Record<string, number> = {};
       (data ?? []).forEach((item: any) => {
-        // Se asume que item.mes viene como 'YYYY-MM'
         map[item.mes] = item.custodios_nuevos;
       });
       return map;
     },
-    {
-      ...AUTHENTICATED_QUERY_CONFIG,
-      staleTime: 30_000,
-      refetchOnMount: true,
-    }
-  );
+    staleTime: 30_000,
+    refetchOnMount: true,
+    enabled,
+  });
 
   const conversionDetails = useMemo(() => {
     if (leadsLoading || custodiosLoading) {

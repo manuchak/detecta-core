@@ -48,12 +48,19 @@ export interface LTVDetails {
   loading: boolean;
 }
 
-export const useLTVDetails = (): LTVDetails => {
+export interface LTVDetailsOptions {
+  enabled?: boolean;
+}
+
+export const useLTVDetails = (options: LTVDetailsOptions = {}): LTVDetails => {
+  const { enabled = true } = options;
+
   // Obtener permanencia empírica dinámica
   const { data: dynamicRetention } = useQuery({
     queryKey: ['dynamic-retention-ltv'],
     queryFn: async () => await calculateDynamicRetention(),
     staleTime: 60 * 60 * 1000, // 1 hora
+    enabled,
   });
 
   // Obtener servicios completados por mes para calcular LTV
@@ -106,6 +113,7 @@ export const useLTVDetails = (): LTVDetails => {
       return result;
     },
     staleTime: 5 * 60 * 1000,
+    enabled,
   });
 
   const ltvDetails = useMemo(() => {
