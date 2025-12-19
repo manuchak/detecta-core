@@ -188,7 +188,9 @@ function App() {
                   path="/home"
                   element={
                     <ProtectedRoute>
-                      <Home />
+                      <UnifiedLayout>
+                        <Home />
+                      </UnifiedLayout>
                     </ProtectedRoute>
                   }
                 />
@@ -279,7 +281,9 @@ function App() {
                   path="/leads"
                   element={
                     <ProtectedRoute>
-                      <SimpleLeadsPage />
+                      <UnifiedLayout>
+                        <SimpleLeadsPage />
+                      </UnifiedLayout>
                     </ProtectedRoute>
                   }
                 />
